@@ -1,0 +1,11 @@
+repos:
+- repo: https://gitlab.gitguardian.ovh/gg-code/prm/pre-commit
+  rev: 07a9c7f4c640431893a4fd342f0cee5528a6f668
+  hooks:
+  - id: secrets-shield-commit
+    stages: [commit]
+  - id: secrets-shield-push
+    stages: [push]
+
+default_language_version:
+  python: python3

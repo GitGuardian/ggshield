@@ -1,0 +1,11 @@
+- id: secrets-shield-commit
+  name: Secrets Shield (pre-commit)
+  language: python
+  entry: secrets-shield
+  args: ["commit"]
+
+- id: secrets-shield-push
+  name: Secrets Shield (pre-push)
+  language: python
+  entry: secrets-shield
+  args: ["push"]
