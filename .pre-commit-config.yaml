@@ -1,11 +1,24 @@
 repos:
-- repo: https://gitlab.gitguardian.ovh/gg-code/prm/pre-commit
-  rev: 07a9c7f4c640431893a4fd342f0cee5528a6f668
-  hooks:
-  - id: secrets-shield-commit
-    stages: [commit]
-  - id: secrets-shield-push
-    stages: [push]
-
-default_language_version:
-  python: python3
+  - repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+      - id: black
+        language_version: python3.6
+        args: [--config, black.toml]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.1.0
+    hooks:
+      - id: flake8
+      # not python related
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-yaml
+  - repo: https://gitlab.gitguardian.ovh/gg-code/prm/pre-commit
+    rev: c19025286ac3f9661a460934c35f13d2dd4f606e
+    hooks:
+    - id: secrets-shield-commit
+      language_version: python3.6
+      stages: [commit]
+    - id: secrets-shield-push
+      language_version: python3.6
+      stages: [push]
