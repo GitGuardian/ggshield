@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from secrets_shield.commit import Commit
+from commit import Commit
 import asyncio
 
 
@@ -29,9 +29,9 @@ def check_scan(commit):
 
 
 def main():
-    commit = Commit()
-    asyncio.run(commit.scan())
-    check_scan(commit)
+    c = Commit()
+    asyncio.run(c.scan())
+    check_scan(c)
 
 
 if __name__ == "__main__":
