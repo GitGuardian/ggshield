@@ -3,7 +3,7 @@ import subprocess
 import re
 import asyncio
 
-from client import ScanningApiClient
+from secrets_shield.client import ScanningApiClient
 
 
 class Commit:

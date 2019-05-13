@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from commit import Commit
+from secrets_shield.commit import Commit
 import asyncio
 
 
