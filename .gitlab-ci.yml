@@ -1,0 +1,15 @@
+stages:
+  - test
+
+test:
+  image: python:3.6-slim
+  before_script:
+    - pip install pip==18.0
+    - pip install pipenv==2018.11.14
+    - export ENV LC_ALL=C.UTF-8 && export LANG=C.UTF-8
+    - apt-get update && apt-get -y install git gcc
+    - set -e; pipenv install --ignore-pipfile --dev
+  script:
+    - pipenv run flake8 --extend-ignore=E203,W503 back
+    - pipenv run black --config black.toml --check .
+    - pipenv run pytest

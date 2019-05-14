@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+      - id: black
+        language_version: python3.6
+        args: [--config, black.toml]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.1.0
+    hooks:
+      - id: flake8
+      # not python related
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-yaml

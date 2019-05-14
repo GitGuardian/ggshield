@@ -1,0 +1,4 @@
+- id: commit-secrets-shield
+  name: Secrets Shield (pre-commit)
+  language: python
+  entry: secrets-shield
