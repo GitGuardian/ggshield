@@ -1,6 +1,6 @@
 import unittest
 
-from secrets_shield.Commit import Commit
+from secrets_shield.commit import Commit
 
 import asyncio
 
@@ -53,9 +53,9 @@ class TestCommitClass(unittest.TestCase):
 
         c = Commit()
         c.patch_ = patch
-        asyncio.run(c.scan())
+        results = asyncio.get_event_loop().run_until_complete(c.scan())
 
-        self.assertEqual(c.result, expect)
+        self.assertEqual(results, expect)
 
     def test_scan_with_leak(self):
         patch = (
@@ -70,12 +70,11 @@ class TestCommitClass(unittest.TestCase):
 
         c = Commit()
         c.patch_ = patch
-        asyncio.run(c.scan())
 
-        self.assertEqual(c.result[0]["has_leak"], True)
-        self.assertEqual(c.result[0]["error"], False)
-        self.assertIn("secrets", c.result[0]["scan"])
+        result = asyncio.get_event_loop().run_until_complete(c.scan())[0]
+        self.assertEqual(result["has_leak"], True)
+        self.assertEqual(result["error"], False)
         self.assertEqual(
-            c.result[0]["scan"]["secrets"][0]["matches"][0]["string_matched"],
+            result["scan"]["secrets"][0]["matches"][0]["string_matched"],
             "dd52c29224affe29d163c6bf99e5c3f4",
         )

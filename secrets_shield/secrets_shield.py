@@ -1,37 +1,36 @@
 #!/usr/bin/python3
 
-from commit import Commit
+from secrets_shield.commit import Commit
+from secrets_shield.message import leak_message, error_message, no_leak_message
+from colorama import init
+import sys
 import asyncio
 
 
-def print_message_leak(secrets, filename: str = None):
-    """
-    Prompt an alert if a leak is found
-    """
-    for secret in secrets:
-        for match in secret["matches"]:
-            print(
-                "A secret from provider {} has been found in file {} ({})".format(
-                    secret["detector"]["display_name"],
-                    filename,
-                    match["string_matched"],
-                )
-            )
-
-
-def check_scan(commit):
+def check_scan(results):
     """
     Checks a commit scan result
     """
-    for scan_result in commit.result:
-        if not scan_result["error"] and scan_result["has_leak"]:
-            print_message_leak(scan_result["scan"]["secrets"], scan_result["filename"])
+    leak = False
+    error = False
+
+    for scan_result in results:
+        if scan_result["error"]:
+            error_message(scan_result["scan"])
+            error = True
+        elif scan_result["has_leak"]:
+            leak_message(scan_result)
+            leak = True
+
+    if leak or error:
+        sys.exit(1)
+
+    no_leak_message()
 
 
 def main():
-    c = Commit()
-    asyncio.run(c.scan())
-    check_scan(c)
+    init(autoreset=True)
+    check_scan(asyncio.get_event_loop().run_until_complete(Commit().scan()))
 
 
 if __name__ == "__main__":

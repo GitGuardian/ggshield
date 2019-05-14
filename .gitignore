@@ -117,3 +117,6 @@ venv.bak/
 
 # pytest
 .pytest_cache
+
+#VSCode
+.vscode/

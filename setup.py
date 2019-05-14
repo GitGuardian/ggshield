@@ -9,7 +9,7 @@ setup(
     version="1.0.0",
     author="GitGuardian",
     author_email="dev@gitguardian.com",
-    install_requires=["requests==2.21.0"],
+    install_requires=["pytest==4.5.0", "aiohttp==3.5.4", "colorama==0.4.1"],
     packages=packages,
     entry_points={
         "console_scripts": ["secrets-shield=secrets_shield.secrets_shield:main"]

@@ -1,6 +1,4 @@
-import requests
 import aiohttp
-
 from typing import Dict, Union
 
 
@@ -9,7 +7,7 @@ class ScanningApiClient:
     TIMEOUT = 10
 
     def __init__(self, apikey: str, url: str = URL, timeout: int = TIMEOUT) -> None:
-        self.apikey = apikey
+        self.apikey = apikey or ""
         self.url = url
         self.timeout = timeout
 
@@ -19,7 +17,7 @@ class ScanningApiClient:
 
     async def scan_file(
         self, content: str, filename: str = None, check: Union[bool, None] = None
-    ) -> requests.Response:
+    ) -> Dict:
         """
         Calls Scanning API and returns response
         """

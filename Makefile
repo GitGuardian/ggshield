@@ -1,2 +1,2 @@
 test:
-	pytest
+	pipenv run pytest
