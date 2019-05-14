@@ -6,8 +6,10 @@ class ScanningApiClient:
     URL = "https://scanning.api.dev.gitguardian.com/v2/scan/file"
     TIMEOUT = 10
 
-    def __init__(self, apikey: str, url: str = URL, timeout: int = TIMEOUT) -> None:
-        self.apikey = apikey or ""
+    def __init__(
+        self, apikey: str = "", url: str = URL, timeout: int = TIMEOUT
+    ) -> None:
+        self.apikey = apikey
         self.url = url
         self.timeout = timeout
 

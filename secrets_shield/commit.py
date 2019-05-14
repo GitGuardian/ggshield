@@ -11,7 +11,7 @@ class Commit:
     def __init__(self, SHA: str = None) -> None:
         self.SHA = SHA
         self.patch_ = None
-        self.client = ScanningApiClient(os.getenv("GG_SCANNING_API_TOKEN"))
+        self.client = ScanningApiClient(os.getenv("GG_SCANNING_API_TOKEN", ""))
 
     @property
     def patch(self):

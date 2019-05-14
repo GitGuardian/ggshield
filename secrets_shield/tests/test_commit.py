@@ -43,7 +43,7 @@ class TestCommitClass(unittest.TestCase):
                 "filename": "test.txt",
                 "filemode": "new file",
                 "scan": {
-                    "metadata": {"leak_count": 0, "version": "1.0.14"},
+                    "metadata": {"leak_count": 0, "version": "1.0.19"},
                     "secrets": [],
                 },
                 "error": False,
