@@ -32,7 +32,14 @@ def leak_message(scan_result: Dict, nb_lines: int = 3) -> str:
             if i == 0:
                 message += format_patch(backward_context(content, start, nb_lines))
             else:
-                message += format_patch(content[index:start])
+                if lines_between(content, index, start) > 2 * nb_lines:
+                    message += (
+                        format_patch(forward_context(content, index, nb_lines))
+                        + "\n\n"
+                        + format_patch(backward_context(content, start, nb_lines))
+                    )
+                else:
+                    message += format_patch(content[index:start])
 
             message += format_secret(content[start:end])
             index = end
@@ -40,6 +47,10 @@ def leak_message(scan_result: Dict, nb_lines: int = 3) -> str:
         message += format_patch(forward_context(content, index, nb_lines))
 
     return message
+
+
+def lines_between(content: str, start: int, end: int) -> int:
+    return len(content[start:end].split("\n"))
 
 
 def format_patch(patch: str) -> str:
