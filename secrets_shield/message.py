@@ -1,39 +1,78 @@
-from colorama import Fore, Style
+from colorama import init, Fore, Style
+from typing import Dict, List
 
 
-def leak_message(scan_result):
+def leak_message(scan_result: Dict, nb_lines: int = 3) -> str:
     """
-    Display readable information on the found secrets
+    Build readable message on the found secrets
+    :param scan_result: The result from scanning API
+    :param nb_lines: The number of line to display before and after a secret in the patch
+    :return: The formatted message to display
     """
+    message = "\n{} secrets have been found\n".format(
+        len(scan_result["scan"]["secrets"])
+    )
+    content = scan_result["content"]
+
     for secret in scan_result["scan"]["secrets"]:
-        for match in scan_result["scan"]["secrets"][0]["matches"]:
-            print(
-                "A secret of type {} has been found in file {}".format(
-                    Fore.BLUE
-                    + Style.BRIGHT
-                    + secret["detector"]["display_name"]
-                    + Style.RESET_ALL,
-                    Fore.YELLOW + Style.BRIGHT + scan_result["filename"],
-                )
-            )
+        message += "\n💥 💔 💥 A secret of type {} has been found in file {}\n".format(
+            Fore.BLUE
+            + Style.BRIGHT
+            + secret["detector"]["display_name"]
+            + Style.RESET_ALL,
+            Fore.YELLOW + Style.BRIGHT + scan_result["filename"] + Style.RESET_ALL,
+        )
 
-            before, after = scan_result["content"].split(match["string_matched"])
+        index = 0
 
-            before = "\n".join(before.split("\n")[-3:])
-            after = "\n".join(after.split("\n")[:3])
+        for i, match in enumerate(secret["matches"]):
+            start = match["indice_start"]
+            end = match["indice_end"]
 
-            print(
-                "{}{}{}".format(
-                    Style.DIM + before,
-                    Style.NORMAL + Fore.RED + match["string_matched"],
-                    Style.DIM + Fore.RESET + after,
-                )
-            )
+            if i == 0:
+                message += format_patch(backward_context(content, start, nb_lines))
+            else:
+                if lines_between(content, index, start) > 2 * nb_lines:
+                    message += (
+                        format_patch(forward_context(content, index, nb_lines))
+                        + "\n\n"
+                        + format_patch(backward_context(content, start, nb_lines))
+                    )
+                else:
+                    message += format_patch(content[index:start])
+
+            message += format_secret(content[start:end])
+            index = end
+
+        message += format_patch(forward_context(content, index, nb_lines))
+
+    return message
 
 
-def error_message(response):
+def lines_between(content: str, start: int, end: int) -> int:
+    return len(content[start:end].split("\n"))
+
+
+def format_patch(patch: str) -> str:
+    return Style.DIM + patch + Style.RESET_ALL
+
+
+def format_secret(secret: str) -> str:
+    return Fore.RED + secret + Style.RESET_ALL
+
+
+def backward_context(content: str, index: int, nb_lines: int) -> str:
+    return "\n".join(content[:index].split("\n")[-nb_lines:])
+
+
+def forward_context(content: str, index: int, nb_lines: int) -> str:
+    return "\n".join(content[index:].split("\n")[:nb_lines])
+
+
+def error_message(response: Dict) -> str:
     """
-    Display a message in case of error
+    Build a message in case of error
+    :return: The formatted message to display
     """
     error = ""
     if "msg" in response:
@@ -41,11 +80,35 @@ def error_message(response):
     elif "message" in response:
         error = response["message"]
 
-    print("{} : {}".format(Fore.RED + "Error" + Fore.RESET, error))
+    return "{} : {}".format(Fore.RED + "Error" + Fore.RESET, error)
 
 
-def no_leak_message():
+def no_leak_message() -> str:
     """
-    Display a message if no secret is found
+    Build a message if no secret is found
+    :return: The formatted message to display
     """
-    print(Style.DIM + "No secret has been found")
+    return Style.DIM + "No secret has been found"
+
+
+def process_scan_result(results: List, nb_lines: int = 3) -> int:
+    """
+    Process a commit scan result
+    """
+    init(autoreset=True)
+    leak = False
+    error = False
+
+    for scan_result in results:
+        if scan_result["error"]:
+            print(error_message(scan_result["scan"]))
+            error = True
+        elif scan_result["has_leak"]:
+            print(leak_message(scan_result, nb_lines))
+            leak = True
+
+    if leak or error:
+        return 1
+
+    print(no_leak_message())
+    return 0

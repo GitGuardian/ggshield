@@ -32,8 +32,7 @@ class Commit:
 
         Example: line = "a/filename.txt b/filename.txt"
         """
-        assert line.split(" ")[0][2:] == line.split(" ")[1][2:]
-        return line.split(" ")[0][2:]
+        return line.split(" ")[1][2:]
 
     @classmethod
     def get_filemode(self, line: str) -> str:
