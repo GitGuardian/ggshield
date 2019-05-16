@@ -1,0 +1,36 @@
+interactions:
+- request:
+    body: null
+    headers:
+      apikey:
+      - ''
+    method: POST
+    uri: https://scanning.api.dev.gitguardian.com/v2/scan/file
+  response:
+    body:
+      string: '{"message":"not_authorized"}'
+    headers:
+      ? !!python/object/new:multidict._istr.istr
+      - Connection
+      : keep-alive
+      ? !!python/object/new:multidict._istr.istr
+      - Content-Length
+      : '28'
+      ? !!python/object/new:multidict._istr.istr
+      - Content-Type
+      : application/json
+      ? !!python/object/new:multidict._istr.istr
+      - Date
+      : Mon, 20 May 2019 14:38:42 GMT
+    status:
+      code: 401
+      message: Unauthorized
+    url: !!python/object/new:yarl.URL
+      state: !!python/tuple
+      - !!python/object/new:urllib.parse.SplitResult
+        - https
+        - scanning.api.dev.gitguardian.com
+        - /v2/scan/file
+        - ''
+        - ''
+version: 1

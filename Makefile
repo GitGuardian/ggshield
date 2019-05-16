@@ -1,2 +1,2 @@
 test:
-	pipenv run pytest
+	pipenv run pytest -p no:warnings

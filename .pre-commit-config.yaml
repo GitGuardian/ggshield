@@ -12,4 +12,3 @@ repos:
       # not python related
       - id: check-json
       - id: check-added-large-files
-      - id: check-yaml

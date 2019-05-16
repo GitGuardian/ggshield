@@ -11,6 +11,7 @@ class Commit:
     def __init__(self, SHA: str = None) -> None:
         self.SHA = SHA
         self.patch_ = None
+        self.diffs_ = None
         self.client = ScanningApiClient(os.getenv("GG_SCANNING_API_TOKEN", ""))
 
     @property
@@ -24,6 +25,13 @@ class Commit:
             )
 
         return self.patch_
+
+    @property
+    def diffs(self):
+        if not self.diffs_:
+            self.diffs_ = self.get_diffs()
+
+        return self.diffs_
 
     @classmethod
     def get_filename(self, line: str) -> str:
@@ -78,9 +86,7 @@ class Commit:
         """
         Scan the patch for all file (async) in the commit and save it in result
         """
-        return await asyncio.gather(
-            *(self._scan_file(diff) for diff in self.get_diffs())
-        )
+        return await asyncio.gather(*(self._scan_file(diff) for diff in self.diffs))
 
     async def _scan_file(self, diff: Dict) -> Dict:
         result = {

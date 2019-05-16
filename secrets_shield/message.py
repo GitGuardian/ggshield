@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 # Console colors
 RED = "\u001b[31m"
+WHITE_BRIGHT = "\u001b[37;1m"
 YELLOW_BRIGHT = "\u001b[33;1m"
 BLUE_BRIGHT = "\u001b[34;1m"
 WHITE_DIM = "\u001b[2m"
@@ -14,6 +15,7 @@ STYLE = {
     "secret": RED,
     "error": RED,
     "no_secret": WHITE_DIM,
+    "detector": WHITE_BRIGHT,
 }
 
 
@@ -37,18 +39,17 @@ def leak_message(scan_result: Dict, nb_lines: int = 3) -> str:
         start = secret["start"]
         end = secret["end"]
 
-        # Checks if there is a '\n' between 2 secrets
-        # If so, we need to add the detector_line before processing the next line
-        if content.find("\n", index, start) != -1:
-            message += format_detector(content, index, detector_line)
-            index += len(forward_context(content, index, 1))
-            detector_line = ""
-
         if i == 0:
             message += format_text(
                 backward_context(content, start, nb_lines), STYLE["patch"]
             )
         else:
+            # Checks if there is a '\n' between 2 secrets
+            # If so, we need to add the detector_line before processing the next line
+            if content.find("\n", index, start) != -1:
+                message += format_detector(content, index, detector_line)
+                index += len(forward_context(content, index, 1))
+                detector_line = ""
             # Skips some of the patch if there is too much text between 2 secrets
             if lines_between(content, index, start) > 2 * nb_lines:
                 message += format_secret_separation(content, index, start, nb_lines)
@@ -169,7 +170,7 @@ def format_detector(content: str, index: int, detector_line: str) -> str:
     return (
         format_text(forward_context(content, index, 1), STYLE["patch"])
         + "\n"
-        + detector_line
+        + format_text(detector_line, STYLE["detector"])
         + "\n"
     )
 
