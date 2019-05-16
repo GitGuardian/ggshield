@@ -34,28 +34,27 @@ class TestCommitClass(unittest.TestCase):
             "--- /dev/null\n"
             "+++ b/test\n"
             "@@ -0,0 +1,28 @@\n"
-            "+this is a test patch\n"
+            "+this is a patch without secret\n"
         )
 
-        expect = [
-            {
-                "content": "+this is a test patch\n",
-                "filename": "test.txt",
-                "filemode": "new file",
-                "scan": {
-                    "metadata": {"leak_count": 0, "version": "1.0.19"},
-                    "secrets": [],
-                },
-                "error": False,
-                "has_leak": False,
-            }
-        ]
+        expect = {
+            "content": "+this is a patch without secret\n",
+            "filename": "test.txt",
+            "filemode": "new file",
+            "error": False,
+            "has_leak": False,
+        }
 
         c = Commit()
         c.patch_ = patch
         results = asyncio.get_event_loop().run_until_complete(c.scan())
-
-        self.assertEqual(results, expect)
+        result = results[0]
+        self.assertEqual(result["content"], expect["content"])
+        self.assertEqual(result["filename"], expect["filename"])
+        self.assertEqual(result["filemode"], expect["filemode"])
+        self.assertEqual(result["error"], expect["error"])
+        self.assertEqual(result["has_leak"], expect["has_leak"])
+        self.assertEqual(result["scan"]["metadata"]["leak_count"], 0)
 
     def test_scan_with_leak(self):
         patch = (

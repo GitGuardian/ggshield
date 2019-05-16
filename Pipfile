@@ -11,7 +11,6 @@ black = "==19.3b0"
 secrets_shield = {editable = true,path = "."}
 pytest = "*"
 aiohttp = "*"
-colorama = "*"
 
 [requires]
 python_version = "3.6"

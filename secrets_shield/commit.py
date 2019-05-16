@@ -82,15 +82,21 @@ class Commit:
             *(self._scan_file(diff) for diff in self.get_diffs())
         )
 
-    async def _scan_file(self, diff: Dict):
-        scan = await self.client.scan_file(diff["content"], diff["filename"])
-        error = "msg" in scan or "message" in scan
-
-        return {
+    async def _scan_file(self, diff: Dict) -> Dict:
+        result = {
             "content": diff["content"],
             "filename": diff["filename"],
             "filemode": diff["filemode"],
-            "scan": scan,
-            "has_leak": (not error and scan["metadata"]["leak_count"] > 0),
-            "error": error,
+            "has_leak": False,
+            "error": False,
         }
+        try:
+            scan = await self.client.scan_file(diff["content"], diff["filename"])
+            result["has_leak"] = scan["metadata"]["leak_count"] > 0
+            result.update({"scan": scan})
+        except asyncio.TimeoutError:
+            result.update({"scan": {"error": "timeout"}, "error": True})
+        except Exception as error:
+            result.update({"scan": {"error": str(error)}, "error": True})
+        finally:
+            return result

@@ -33,4 +33,15 @@ class ScanningApiClient:
             async with session.post(
                 self.url, headers=self.headers, json=payload, timeout=self.timeout
             ) as resp:
-                return await resp.json()
+                response = await resp.json()
+
+                if resp.status >= 400:
+                    error = (
+                        response["message"]
+                        or response["msg"]
+                        or "An unknown error occured"
+                    )
+
+                    raise Exception(error)
+
+                return response
