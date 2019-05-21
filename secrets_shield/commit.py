@@ -72,7 +72,7 @@ class Commit:
 
             filename = self.get_filename(lines[0])
             filemode = self.get_filemode(lines[1])
-            content = " "
+            content = ""
 
             if len(lines) > 5:
                 if filemode == "modified file":
@@ -80,7 +80,8 @@ class Commit:
                 else:
                     content = "\n".join(lines[6:])
 
-            yield {"filename": filename, "filemode": filemode, "content": content}
+            if content:
+                yield {"filename": filename, "filemode": filemode, "content": content}
 
     async def scan(self):
         """

@@ -1,21 +1,15 @@
-from typing import Dict, List, Union
+import click
+from typing import Dict, List
 
-# Console colors
-RED = "\u001b[31m"
-WHITE_BRIGHT = "\u001b[37;1m"
-YELLOW_BRIGHT = "\u001b[33;1m"
-BLUE_BRIGHT = "\u001b[34;1m"
-WHITE_DIM = "\u001b[2m"
-RESET_STYLE = "\u001b[0m"
 
 STYLE = {
-    "nb_secrets": BLUE_BRIGHT,
-    "filename": YELLOW_BRIGHT,
-    "patch": WHITE_DIM,
-    "secret": RED,
-    "error": RED,
-    "no_secret": WHITE_DIM,
-    "detector": WHITE_BRIGHT,
+    "nb_secrets": {"fg": "bright_blue", "bold": True},
+    "filename": {"fg": "bright_yellow", "bold": True},
+    "patch": {"fg": "white"},
+    "secret": {"fg": "bright_red"},
+    "error": {"fg": "red"},
+    "no_secret": {"fg": "white", "bold": True},
+    "detector": {"fg": "bright_white", "bold": True},
 }
 
 
@@ -122,11 +116,8 @@ def lines_between(content: str, start: int, end: int) -> int:
     return len(content[start:end].split("\n"))
 
 
-def format_text(text: str, style: Union[List, str]) -> str:
-    if type(style) is list:
-        return "".join(style) + text + RESET_STYLE
-
-    return style + text + RESET_STYLE
+def format_text(text: str, style: str) -> str:
+    return click.style(text, fg=style["fg"], bold=style.get("bold", False))
 
 
 def update_detector_line(secret: Dict, offset: int, detector_line: str) -> str:
@@ -227,14 +218,14 @@ def process_scan_result(results: List, nb_lines: int = 3) -> int:
 
     for scan_result in results:
         if scan_result["error"]:
-            print(error_message(scan_result["scan"]["error"]))
+            click.echo(error_message(scan_result["scan"]["error"]))
             error = True
         elif scan_result["has_leak"]:
-            print(leak_message(scan_result, nb_lines))
+            click.echo(leak_message(scan_result, nb_lines))
             leak = True
 
     if leak or error:
         return 1
 
-    print(no_leak_message())
+    click.echo(no_leak_message())
     return 0

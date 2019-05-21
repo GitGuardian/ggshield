@@ -1,15 +1,23 @@
 #!/usr/bin/python3
 
-from secrets_shield.commit import Commit
-from secrets_shield.message import process_scan_result
-import sys
-import asyncio
+
+import click
+from secrets_shield.cli.scan import scan
+from secrets_shield.cli.install import install
+
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
-def main():
-    loop = asyncio.get_event_loop()
-    sys.exit(process_scan_result(loop.run_until_complete(Commit().scan())))
+@click.group(context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "--token", envvar="GG_SCANNING_API_TOKEN", help="GG Public Scanning Token"
+)
+def cli(token):
+    pass
 
+
+cli.add_command(scan)
+cli.add_command(install)
 
 if __name__ == "__main__":
-    main()
+    cli()
