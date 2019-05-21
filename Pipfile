@@ -12,6 +12,8 @@ secrets_shield = {editable = true,path = "."}
 pytest = "*"
 aiohttp = "*"
 requests = "*"
+snapshottest = "*"
+vcrpy = "*"
 
 [requires]
 python_version = "3.6"

@@ -1,0 +1,36 @@
+interactions:
+- request:
+    body: null
+    headers:
+      apikey:
+      - GG_SCANNING_API_TOKEN
+    method: POST
+    uri: https://scanning.api.dev.gitguardian.com/v2/scan/file
+  response:
+    body:
+      string: '{"message":"no content provided"}'
+    headers:
+      ? !!python/object/new:multidict._istr.istr
+      - Connection
+      : keep-alive
+      ? !!python/object/new:multidict._istr.istr
+      - Content-Length
+      : '33'
+      ? !!python/object/new:multidict._istr.istr
+      - Content-Type
+      : application/json
+      ? !!python/object/new:multidict._istr.istr
+      - Date
+      : Mon, 20 May 2019 14:38:42 GMT
+    status:
+      code: 400
+      message: Bad Request
+    url: !!python/object/new:yarl.URL
+      state: !!python/tuple
+      - !!python/object/new:urllib.parse.SplitResult
+        - https
+        - scanning.api.dev.gitguardian.com
+        - /v2/scan/file
+        - ''
+        - ''
+version: 1
