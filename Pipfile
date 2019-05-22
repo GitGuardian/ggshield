@@ -14,6 +14,8 @@ aiohttp = "*"
 requests = "*"
 snapshottest = "*"
 vcrpy = "*"
+click = "*"
+mock = "*"
 
 [requires]
 python_version = "3.6"
