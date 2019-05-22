@@ -13,17 +13,21 @@ STYLE = {
 }
 
 
-def leak_message(scan_result: Dict, nb_lines: int = 3) -> str:
+def leak_message(
+    scan_result: Dict, nb_lines: int = 3, hide_secrets: bool = False
+) -> str:
     """
     Build readable message on the found secrets.
+
     :param scan_result: The result from scanning API
     :param nb_lines: The number of line to display before and after a secret in the patch
+    :param hide_secrets: Option to hide secrets value
     :return: The formatted message to display
     """
 
     filename = scan_result["filename"]
     content = scan_result["content"]
-    secrets = flatten_secrets(scan_result)
+    secrets = flatten_secrets(scan_result, hide_secrets)
 
     message = file_info(filename, len(secrets))
     index = 0
@@ -71,7 +75,7 @@ def leak_message(scan_result: Dict, nb_lines: int = 3) -> str:
     return message
 
 
-def flatten_secrets(result: Dict) -> List:
+def flatten_secrets(result: Dict, hide_secrets: bool) -> List:
     """
     Select one secret by string matched in the Scanning API result.
     """
@@ -80,7 +84,12 @@ def flatten_secrets(result: Dict) -> List:
     for secret in result["scan"]["secrets"]:
         for match in secret["matches"]:
             display_name = secret["detector"]["display_name"]
-            value = match["string_matched"]
+            value = (
+                match["string_matched"]
+                if not hide_secrets
+                else match["string_matched"][:4]
+                + "*" * max(0, (len(match["string_matched"]) - 4))
+            )
 
             secrets.append(
                 {
@@ -153,6 +162,7 @@ def update_detector_line(secret: Dict, offset: int, detector_line: str) -> str:
 def format_detector(content: str, index: int, detector_line: str) -> str:
     """
     Adds a line with the detector names of the secrets on the previous line.
+
     :param content: The content of the file
     :param index: The index of the end of the last secret detected
     :param detector_line: A string containing the detector names
@@ -171,6 +181,7 @@ def format_secret_separation(
 ) -> str:
     """
     Format the patch to skip the content of two consecutive secrets that are too far from one another
+
     :param content: The content of the file
     :param last_end: The index of the end of the previous secret
     :param start: The index of the start of the current index
@@ -195,6 +206,7 @@ def forward_context(content: str, index: int, nb_lines: int) -> str:
 def error_message(error: str) -> str:
     """
     Build a message in case of error.
+
     :return: The formatted message to display
     """
     return "{} : {}".format(format_text("Error", STYLE["error"]), error)
@@ -208,9 +220,16 @@ def no_leak_message() -> str:
     return format_text("No secrets have been found", STYLE["no_secret"])
 
 
-def process_scan_result(results: List, nb_lines: int = 3) -> int:
+def process_scan_result(
+    results: List, nb_lines: int = 3, hide_secrets: bool = False, verbose: bool = True
+) -> int:
     """
     Process a commit scan result.
+
+    :param results: The results from scanning API
+    :param nb_lines: The number of lines to display before and after a secret in the patch
+    :param hide_secrets: Hide secrets value
+    :param verbose: Display message even if there is no secrets
     :return: The exit code
     """
     leak = False
@@ -221,11 +240,13 @@ def process_scan_result(results: List, nb_lines: int = 3) -> int:
             click.echo(error_message(scan_result["scan"]["error"]))
             error = True
         elif scan_result["has_leak"]:
-            click.echo(leak_message(scan_result, nb_lines))
+            click.echo(leak_message(scan_result, nb_lines, hide_secrets))
             leak = True
 
     if leak or error:
         return 1
 
-    click.echo(no_leak_message())
+    if verbose:
+        click.echo(no_leak_message())
+
     return 0

@@ -6,7 +6,7 @@ setup(
     name="secrets_shield",
     description="Detect secrets in commit patches",
     url="https://gitlab.gitguardian.ovh/gg-code/prm/pre-commit.git",
-    version="1.0.0",
+    version="0.1.0",
     author="GitGuardian",
     author_email="dev@gitguardian.com",
     install_requires=[
