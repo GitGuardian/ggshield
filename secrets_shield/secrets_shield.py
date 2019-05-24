@@ -9,11 +9,14 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
-@click.option(
-    "--token", envvar="GG_SCANNING_API_TOKEN", help="GG Public Scanning Token"
-)
-def cli(token):
-    pass
+@click.option("--token", envvar="GITGUARDIAN_TOKEN", help="GitGuardian Token.")
+@click.pass_context
+def cli(ctx, token):
+    if not token:
+        raise click.ClickException(f"GitGuardian Token is needed.")
+
+    ctx.ensure_object(dict)
+    ctx.obj["token"] = token
 
 
 cli.add_command(scan)

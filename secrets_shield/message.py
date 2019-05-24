@@ -8,7 +8,7 @@ STYLE = {
     "patch": {"fg": "white"},
     "secret": {"fg": "bright_red"},
     "error": {"fg": "red"},
-    "no_secret": {"fg": "white", "bold": True},
+    "no_secret": {"fg": "white"},
     "detector": {"fg": "bright_white", "bold": True},
 }
 

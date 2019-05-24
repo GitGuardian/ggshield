@@ -2,12 +2,14 @@ import os
 import pytest
 from unittest import mock
 
+from .conftest import my_vcr
 from click.testing import CliRunner
 from secrets_shield.secrets_shield import cli
 
 
 @pytest.fixture(scope="session")
 def cli_runner():
+    os.environ["GITGUARDIAN_TOKEN"] = os.getenv("GITGUARDIAN_TOKEN", "1234567890")
     return CliRunner()
 
 
@@ -26,6 +28,7 @@ def mockHookDirPath():
         yield
 
 
+@my_vcr.use_cassette()
 def test_scan_file(snapshot, cli_fs_runner):
     os.system('echo "This is a file with no secrets." > file')
     assert os.path.isfile("file")
@@ -40,20 +43,22 @@ class TestScanFiles:
         os.system('echo "This is a file with no secrets." > file1')
         os.system('echo "This is a file with no secrets." > file2')
 
-    def test_abort(self, cli_fs_runner):
+    def test_files_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "file1", "file2"], input="n\n")
         assert result.exit_code == 1
         assert result.exception
         assert "Aborted!" in result.output
 
-    def test_yes(self, cli_fs_runner):
+    @my_vcr.use_cassette()
+    def test_files_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "file1", "file2", "-r", "-y"])
         assert result.exit_code == 0
         assert "No secrets have been found" in result.output
 
-    def test_verbose(self, cli_fs_runner):
+    @my_vcr.use_cassette()
+    def test_files_verbose(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
             cli, ["scan", "file1", "file2", "-r", "-v"], input="y\n"
@@ -63,7 +68,7 @@ class TestScanFiles:
         assert "file2\n" in result.output
         assert "No secrets have been found" in result.output
 
-    def test_verbose_abort(self, cli_fs_runner):
+    def test_files_verbose_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
             cli, ["scan", "file1", "file2", "-r", "-v"], input="n\n"
@@ -72,7 +77,8 @@ class TestScanFiles:
         assert result.exception
         assert "Aborted!" in result.output
 
-    def test_verbose_yes(self, cli_fs_runner):
+    @my_vcr.use_cassette()
+    def test_files_verbose_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "file1", "file2", "-r", "-v", "-y"])
         assert result.exit_code == 0
@@ -89,26 +95,28 @@ class TestScanDirectory:
         os.system('echo "This is a file with no secrets." > dir/file2')
         os.system('echo "This is a file with no secrets." > dir/subdir/file3')
 
-    def test_error(self, cli_fs_runner):
+    def test_directory_error(self, cli_fs_runner):
         result = cli_fs_runner.invoke(cli, ["scan", "./"])
         assert result.exit_code == 1
         assert result.exception
         assert "Error: Could not open file" in result.output
 
-    def test_abort(self, cli_fs_runner):
+    def test_directory_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r"], input="n\n")
         assert result.exit_code == 1
         assert result.exception
         assert "Aborted!" in result.output
 
-    def test_yes(self, cli_fs_runner):
+    @my_vcr.use_cassette()
+    def test_directory_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-y"])
         assert result.exit_code == 0
         assert "No secrets have been found" in result.output
 
-    def test_verbose(self, cli_fs_runner):
+    @my_vcr.use_cassette()
+    def test_directory_verbose(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-v"], input="y\n")
         assert result.exit_code == 0
@@ -117,14 +125,15 @@ class TestScanDirectory:
         assert "dir/subdir/file3\n" in result.output
         assert "No secrets have been found" in result.output
 
-    def test_verbose_abort(self, cli_fs_runner):
+    def test_directory_verbose_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-v"], input="n\n")
         assert result.exit_code == 1
         assert result.exception
         assert "Aborted!" in result.output
 
-    def test_verbose_yes(self, cli_fs_runner):
+    @my_vcr.use_cassette()
+    def test_directory_verbose_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-v", "-y"])
         assert result.exit_code == 0
@@ -135,7 +144,7 @@ class TestScanDirectory:
 
 
 class TestInstallLocal:
-    def test_exit_is_dir(self, cli_fs_runner):
+    def test_local_exist_is_dir(self, cli_fs_runner):
         os.makedirs(".git/hooks/pre-commit/")
         assert os.path.isdir(".git/hooks/pre-commit")
 
@@ -145,7 +154,7 @@ class TestInstallLocal:
         assert result.exception
         assert "Error: .git/hooks/pre-commit is a directory" in result.output
 
-    def test_not_exist(self, cli_fs_runner):
+    def test_local_not_exist(self, cli_fs_runner):
         assert not os.path.isfile(".git/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install"])
@@ -153,7 +162,7 @@ class TestInstallLocal:
         assert result.exit_code == 0
         assert "pre-commit successfully added in .git/hooks/pre-commit" in result.output
 
-    def test_exist_not_force(self, cli_fs_runner):
+    def test_local_exist_not_force(self, cli_fs_runner):
         os.makedirs(".git/hooks", exist_ok=True)
         os.system('echo "pre-commit file" > .git/hooks/pre-commit')
         assert os.path.isfile(".git/hooks/pre-commit")
@@ -163,7 +172,7 @@ class TestInstallLocal:
         assert result.exception
         assert "Error: .git/hooks/pre-commit already exists." in result.output
 
-    def test_exist_force(self, cli_fs_runner):
+    def test_local_exist_force(self, cli_fs_runner):
         os.makedirs(".git/hooks", exist_ok=True)
         os.system('echo "pre-commit file" > .git/hooks/pre-commit')
         assert os.path.isfile(".git/hooks/pre-commit")
@@ -174,7 +183,7 @@ class TestInstallLocal:
 
 
 class TestInstallGlobal:
-    def test_exist_is_dir(self, cli_fs_runner, mockHookDirPath):
+    def test_global_exist_is_dir(self, cli_fs_runner, mockHookDirPath):
         os.makedirs("global/hooks/pre-commit/")
         assert os.path.isdir("global/hooks/pre-commit")
 
@@ -183,7 +192,7 @@ class TestInstallGlobal:
         assert result.exit_code == 1
         assert result.exception
 
-    def test_not_exist(self, cli_fs_runner, mockHookDirPath):
+    def test_global_not_exist(self, cli_fs_runner, mockHookDirPath):
         assert not os.path.isfile("global/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-g"])
@@ -193,7 +202,7 @@ class TestInstallGlobal:
             "pre-commit successfully added in global/hooks/pre-commit" in result.output
         )
 
-    def test_exist_not_force(self, cli_fs_runner, mockHookDirPath):
+    def test_global_exist_not_force(self, cli_fs_runner, mockHookDirPath):
         os.makedirs("global/hooks", exist_ok=True)
         os.system('echo "pre-commit file" > global/hooks/pre-commit')
         assert os.path.isfile("global/hooks/pre-commit")
@@ -203,7 +212,7 @@ class TestInstallGlobal:
         assert result.exception
         assert "Error: global/hooks/pre-commit already exists." in result.output
 
-    def test_exist_force(self, cli_fs_runner, mockHookDirPath):
+    def test_global_exist_force(self, cli_fs_runner, mockHookDirPath):
         os.makedirs("global/hooks", exist_ok=True)
         os.system('echo "pre-commit file" > global/hooks/pre-commit')
         assert os.path.isfile("global/hooks/pre-commit")

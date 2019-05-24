@@ -1,2 +1,2 @@
 test:
-	pipenv run pytest -p no:warnings
+	pipenv run pytest --disable-pytest-warnings -vvv

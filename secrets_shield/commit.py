@@ -1,18 +1,16 @@
-import os
 import re
 import asyncio
 
 from typing import Dict
 from secrets_shield.utils import shell
-from secrets_shield.client import ScanningApiClient
 
 
 class Commit:
-    def __init__(self, SHA: str = None) -> None:
+    def __init__(self, client: object, SHA: str = None) -> None:
+        self.client = client
         self.SHA = SHA
         self.patch_ = None
         self.diffs_ = None
-        self.client = ScanningApiClient(os.getenv("GG_SCANNING_API_TOKEN", ""))
 
     @property
     def patch(self):
