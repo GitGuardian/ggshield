@@ -26,11 +26,6 @@ def mockHookDirPath():
         yield
 
 
-def test_scan(snapshot, cli_runner):
-    result_scan = cli_runner.invoke(cli, ["scan"])
-    snapshot.assert_match(result_scan.output)
-
-
 def test_scan_file(snapshot, cli_fs_runner):
     os.system('echo "This is a file with no secrets." > file')
     assert os.path.isfile("file")

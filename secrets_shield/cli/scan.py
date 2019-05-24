@@ -4,8 +4,11 @@ import click
 import asyncio
 from typing import Dict, List, Union, Generator
 
+from secrets_shield.utils import shell
 from secrets_shield.commit import Commit
 from secrets_shield.message import process_scan_result
+
+SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -15,7 +18,7 @@ from secrets_shield.message import process_scan_result
 )
 @click.option("--pre-commit", is_flag=True, help="Scan staged files")
 @click.option(
-    "--ci", is_flag=True, help="Scan diff in a CI env [GITLAB | TRAVIS | CIRCLE]"
+    "--ci", is_flag=True, help="Scan commits in a CI env {}".format(SUPPORTED_CI)
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
@@ -23,7 +26,7 @@ from secrets_shield.message import process_scan_result
     "--verbose",
     "-v",
     is_flag=True,
-    help="Print the list of all files before recursive scan",
+    help="Display the list of all files before recursive scan",
 )
 def scan(
     ctx: object,
@@ -42,7 +45,7 @@ def scan(
         return_code = process_scan_result(loop.run_until_complete(Commit().scan()))
 
     elif ci:
-        click.echo("warning: CI is not yet suppported")
+        return_code = scan_ci(verbose)
 
     elif paths:
         commit = create_commit_from_paths(paths, recursive, yes, verbose)
@@ -52,6 +55,66 @@ def scan(
         click.echo(ctx.get_help())
 
     sys.exit(return_code)
+
+
+def scan_ci(verbose: bool) -> int:
+    """ Scan commits in CI environment. """
+    if not os.getenv("CI"):
+        raise click.ClickException("--ci should only be used in a CI environment.")
+
+    # GITLAB
+    if os.getenv("GITLAB_CI"):
+        commit_range = (
+            f'{os.getenv("CI_COMMIT_BEFORE_SHA")}...{os.getenv("CI_COMMIT_SHA")}'
+        )
+
+    # TRAVIS
+    elif os.getenv("TRAVIS"):
+        commit_range = os.getenv("TRAVIS_COMMIT_RANGE")
+
+    # CIRCLE
+    elif os.getenv("CIRCLECI"):
+        commit_range = os.getenv("CIRCLE_COMMIT_RANGE")
+
+    else:
+        raise click.ClickException(
+            "Current CI is not detected or supported. Must be one of {}".format(
+                SUPPORTED_CI
+            )
+        )
+
+    return scan_commit_range(commit_range, verbose)
+
+
+def scan_commit_range(commit_range: str, verbose: bool) -> int:
+    """ Scan every commit in a range. """
+    loop = asyncio.get_event_loop()
+    return_code = 0
+
+    for sha in get_list_commit_SHA(commit_range):
+        commit = Commit(sha)
+        results = loop.run_until_complete(commit.scan())
+
+        if any(result["has_leak"] for result in results) or verbose:
+            click.echo("Commit {} :".format(sha[:8]))
+
+        return_code = max(
+            return_code,
+            process_scan_result(results, hide_secrets=True, verbose=verbose),
+        )
+
+    return return_code
+
+
+def get_list_commit_SHA(commit_range: str) -> List:
+    """
+    Retrieve the list of commit SHA from a range.
+    :param commit_range: A range of commits (ORIGIN...HEAD)
+    """
+    try:
+        return shell("git rev-list {}".format(commit_range))
+    except Exception:
+        return shell("git rev-list {}".format(commit_range.split("...")[1]))
 
 
 def create_commit_from_paths(
@@ -76,7 +139,8 @@ def create_commit_from_paths(
     size = len(commit.diffs_)
     if size > 1 and not yes:
         click.confirm(
-            f"{size} files will be scanned. Do you want to continue?", abort=True
+            "{} files will be scanned. Do you want to continue?".format(size),
+            abort=True,
         )
 
     return commit

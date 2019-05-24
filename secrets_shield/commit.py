@@ -1,10 +1,10 @@
 import os
-import subprocess
 import re
 import asyncio
 
-from secrets_shield.client import ScanningApiClient
 from typing import Dict
+from secrets_shield.utils import shell
+from secrets_shield.client import ScanningApiClient
 
 
 class Commit:
@@ -17,12 +17,13 @@ class Commit:
     @property
     def patch(self):
         """
-        Gets the change patch for the commit
+        Get the change patch for the commit
         """
         if not self.patch_:
-            self.patch_ = subprocess.check_output(["git", "diff", "--cached"]).decode(
-                "utf-8"
-            )
+            if self.SHA:
+                self.patch_ = "\n".join(shell("git show {}".format(self.SHA)))
+            else:
+                self.patch_ = "\n".join(shell("git diff --cached"))
 
         return self.patch_
 
@@ -36,7 +37,7 @@ class Commit:
     @classmethod
     def get_filename(self, line: str) -> str:
         """
-        Gets the file path from the line patch
+        Get the file path from the line patch
 
         Example: line = "a/filename.txt b/filename.txt"
         """
@@ -45,7 +46,7 @@ class Commit:
     @classmethod
     def get_filemode(self, line: str) -> str:
         """
-        Gets the file mode from the line patch (new, modified or deleted)
+        Get the file mode from the line patch (new, modified or deleted)
         """
         if line.startswith("index"):
             return "modified file"

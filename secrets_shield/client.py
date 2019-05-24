@@ -92,7 +92,7 @@ class PublicScanningApiClient:
     @property
     def headers(self) -> Dict:
         return {
-            "Authorization": f"token {self.token}",
+            "Authorization": "token {}".format(self.token),
             "Content-Type": "application/json",
         }
 
@@ -135,7 +135,7 @@ class PublicScanningApiClient:
         """
         Retrieve a token of the current user via its id
         """
-        return self.get(f"/tokens/{token_id}/")
+        return self.get("/tokens/{}/".format(token_id))
 
     def create_token(self) -> Dict:
         """
@@ -147,7 +147,7 @@ class PublicScanningApiClient:
         """
         Delete a token of the current user via its id
         """
-        return self.delete(f"/tokens/{token_id}/")
+        return self.delete("/tokens/{}/".format(token_id))
 
     # Quotas
     def quotas(self):

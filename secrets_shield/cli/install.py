@@ -47,15 +47,15 @@ def install_local(force: bool) -> int:
 def create_hook(hook_dir_path: str, force: bool) -> int:
     """Create hook directory (if needed) and pre-commit file. """
     os.makedirs(hook_dir_path, exist_ok=True)
-    hook_path = f"{hook_dir_path}/pre-commit"
+    hook_path = "{}/pre-commit".format(hook_dir_path)
 
     if os.path.isdir(hook_path):
-        raise click.ClickException(f"{hook_path} is a directory.")
+        raise click.ClickException("{} is a directory.".format(hook_path))
 
     if os.path.isfile(hook_path):
         if not force:
             raise click.ClickException(
-                f"{hook_path} already exists. Use --force to override."
+                "{} already exists. Use --force to override.".format(hook_path)
             )
 
     with open(hook_path, "w") as f:
@@ -63,7 +63,9 @@ def create_hook(hook_dir_path: str, force: bool) -> int:
         os.chmod(hook_path, 0o775)
 
     click.echo(
-        f"pre-commit successfully added in {click.style(hook_path, fg='yellow', bold=True)}"
+        "pre-commit successfully added in {}".format(
+            click.style(hook_path, fg="yellow", bold=True)
+        )
     )
 
     return 0

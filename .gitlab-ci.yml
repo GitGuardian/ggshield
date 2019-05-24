@@ -1,15 +1,33 @@
+image: gitguardian/ci:latest
 stages:
   - test
+  - deploy
 
 test:
-  image: python:3.6-slim
+  stage: test
   before_script:
-    - pip install pip==18.0
-    - pip install pipenv==2018.11.14
-    - export ENV LC_ALL=C.UTF-8 && export LANG=C.UTF-8
-    - apt-get update && apt-get -y install git gcc
-    - set -e; pipenv install --ignore-pipfile --dev
+    - pipenv install --dev
   script:
-    - pipenv run flake8 --extend-ignore=E203,W503 back
-    - pipenv run black --config black.toml --check .
-    - pipenv run pytest
+    - pipenv run pytest --disable-pytest-warnings -vvv
+
+
+lint:
+  stage: test
+  before_script:
+    - pipenv install --dev
+  script:
+    - pipenv run flake8
+    - pipenv run black --config black.toml --check **/*.py
+
+
+deploy:
+  stage: deploy
+  before_script:
+    - pipenv install --dev
+    - pipenv install twine
+  script:
+    - pipenv run python setup.py sdist bdist_wheel
+    - pipenv run twine upload --repository-url https://${PYPI_HOST} dist/*.gz -u ${PYPI_USERNAME} -p ${PYPI_PASSWORD}
+  only:
+    refs:
+      - dev
