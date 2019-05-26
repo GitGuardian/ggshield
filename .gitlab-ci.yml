@@ -27,7 +27,7 @@ deploy:
     - pipenv install twine
   script:
     - pipenv run python setup.py sdist bdist_wheel
-    - pipenv run twine upload --repository-url https://${PYPI_HOST} dist/*.gz -u ${PYPI_USERNAME} -p ${PYPI_PASSWORD}
+    - pipenv run twine upload --repository-url https://${PYPI_HOST} dist/*.gz -u ${PYPI_USERNAME} -p ${PYPI_PASSWORD} --skip-existing
   only:
     refs:
       - dev
