@@ -4,6 +4,9 @@
 import click
 from secrets_shield.cli.scan import scan
 from secrets_shield.cli.install import install
+from secrets_shield.cli.token import token
+
+from secrets_shield.client import PublicScanningApiClient
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -16,11 +19,12 @@ def cli(ctx, token):
         raise click.ClickException(f"GitGuardian Token is needed.")
 
     ctx.ensure_object(dict)
-    ctx.obj["token"] = token
+    ctx.obj["client"] = PublicScanningApiClient(token)
 
 
 cli.add_command(scan)
 cli.add_command(install)
+cli.add_command(token)
 
 if __name__ == "__main__":
     cli()

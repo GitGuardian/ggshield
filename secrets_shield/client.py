@@ -3,6 +3,7 @@ import aiohttp
 from typing import Dict, Union, List
 
 import requests
+import json
 
 
 class PublicScanningException(Exception):
@@ -131,11 +132,11 @@ class PublicScanningApiClient:
         """
         return self.get("/tokens/{}/".format(token_id))
 
-    def create_token(self) -> Dict:
+    def create_token(self, name="") -> Dict:
         """
         Create a token for the current user
         """
-        return self.post("/tokens/")
+        return self.post("/tokens/", data=json.dumps({"name": name}))
 
     def delete_token(self, token_id: str) -> Dict:
         """

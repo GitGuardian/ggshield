@@ -5,21 +5,23 @@ import asyncio
 from typing import Dict, List, Union, Generator
 
 from secrets_shield.utils import shell
-from secrets_shield.client import PublicScanningApiClient
 from secrets_shield.commit import Commit
 from secrets_shield.message import process_scan_result
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 
 
-@click.command(context_settings={"ignore_unknown_options": True})
+@click.command()
 @click.pass_context
 @click.argument(
     "paths", nargs=-1, type=click.Path(exists=True, resolve_path=True), required=False
 )
-@click.option("--pre-commit", is_flag=True, help="Scan staged files")
 @click.option(
-    "--ci", is_flag=True, help="Scan commits in a CI env {}".format(SUPPORTED_CI)
+    "--mode",
+    "-m",
+    type=click.Choice(["pre-commit", "ci"]),
+    help="Scan mode (pre-commit or ci)",
+    required=False,
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
@@ -32,8 +34,7 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 def scan(
     ctx: object,
     paths: Union[List, str],
-    pre_commit: bool,
-    ci: bool,
+    mode: str,
     recursive: bool,
     yes: bool,
     verbose: bool,
@@ -41,19 +42,24 @@ def scan(
     """ Command to scan various content. """
     loop = asyncio.get_event_loop()
     return_code = 0
-    client = PublicScanningApiClient(ctx.obj["token"])
 
-    if pre_commit:
-        return_code = process_scan_result(
-            loop.run_until_complete(Commit(client).scan())
-        )
+    if mode:
+        if mode == "pre-commit":
+            return_code = process_scan_result(
+                loop.run_until_complete(Commit(ctx.obj["client"]).scan())
+            )
 
-    elif ci:
-        return_code = scan_ci(client, verbose)
+        elif mode == "ci":
+            return_code = scan_ci(ctx.obj["client"], verbose)
+
+        else:
+            click.echo(ctx.get_help())
 
     elif paths:
-        commit = create_commit_from_paths(client, paths, recursive, yes, verbose)
-        return_code = process_scan_result(loop.run_until_complete(commit.scan()))
+        scan_object = create_scan_object_from_paths(
+            ctx.obj["client"], paths, recursive, yes, verbose
+        )
+        return_code = process_scan_result(loop.run_until_complete(scan_object.scan()))
 
     else:
         click.echo(ctx.get_help())
@@ -106,7 +112,7 @@ def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
         results = loop.run_until_complete(commit.scan())
 
         if any(result["has_leak"] for result in results) or verbose:
-            click.echo("Commit {} :".format(sha[:8]))
+            click.echo("\nCommit {} :".format(sha))
 
         return_code = max(
             return_code,
@@ -127,11 +133,11 @@ def get_list_commit_SHA(commit_range: str) -> List:
         return shell("git rev-list {}".format(commit_range.split("...")[1]))
 
 
-def create_commit_from_paths(
+def create_scan_object_from_paths(
     client: object, paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
 ) -> object:
     """
-    Create a commit object from files content.
+    Create a scan object from files content.
 
     :param client: Public Scanning API client
     :param paths: List of file/dir paths from the command
