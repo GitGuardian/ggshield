@@ -40,7 +40,7 @@ snapshots[
 
 snapshots[
     "TestMessage::test_message_no_secret 1"
-] = "\x1b[37m\x1b[1mNo secrets have been found\x1b[0m"
+] = "\x1b[37m\x1b[22mNo secrets have been found\x1b[0m"
 
 snapshots[
     "TestMessage::test_message_simple_secret 1"

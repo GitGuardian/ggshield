@@ -1,16 +1,23 @@
 import asyncio
-from vcr import use_cassette
+
+from .conftest import my_vcr
+
 from secrets_shield.commit import Commit
+from secrets_shield.client import PublicScanningApiClient
 
 
+@my_vcr.use_cassette()
 def test_not_authorized():
-    c = Commit()
-    c.diffs_ = [{"filename": "test.txt", "filemode": "new file", "content": ""}]
-    c.client.apikey = ""
+    c = Commit(PublicScanningApiClient(""))
+    c.diffs_ = [
+        {
+            "filename": "test.txt",
+            "filemode": "new file",
+            "content": "This is a test file",
+        }
+    ]
 
-    with use_cassette("secrets_shield/tests/cassettes/test_not_authorized.yaml"):
-        results = asyncio.get_event_loop().run_until_complete(c.scan())
-
+    results = asyncio.get_event_loop().run_until_complete(c.scan())
     result = results[0]
     assert result["error"]
-    assert result["scan"]["error"] == "not_authorized"
+    assert result["scan"]["error"] == "Invalid token header. No credentials provided."

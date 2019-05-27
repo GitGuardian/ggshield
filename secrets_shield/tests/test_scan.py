@@ -1,11 +1,20 @@
+import os
+import pytest
 import asyncio
 
-from vcr import use_cassette
+from .conftest import my_vcr
 from secrets_shield.commit import Commit
 from secrets_shield.message import process_scan_result
+from secrets_shield.client import PublicScanningApiClient
 
 
-def test_scan_no_secret():
+@pytest.fixture(scope="session")
+def client():
+    return PublicScanningApiClient(os.getenv("GITGUARDIAN_TOKEN", "1234567890"))
+
+
+@my_vcr.use_cassette()
+def test_scan_no_secret(client):
     patch = (
         "diff --git a/test.txt b/test.txt\n"
         "new file mode 100644\n"
@@ -24,12 +33,11 @@ def test_scan_no_secret():
         "has_leak": False,
     }
 
-    c = Commit()
+    c = Commit(client)
     c.patch_ = patch
 
-    with use_cassette("secrets_shield/tests/cassettes/test_scan_no_secret.yaml"):
-        results = asyncio.get_event_loop().run_until_complete(c.scan())
-        assert process_scan_result(results) == 0
+    results = asyncio.get_event_loop().run_until_complete(c.scan())
+    assert process_scan_result(results) == 0
 
     result = results[0]
     assert result["content"] == expect["content"]
@@ -40,7 +48,8 @@ def test_scan_no_secret():
     assert result["scan"]["metadata"]["leak_count"] == 0
 
 
-def test_scan_simple_secret():
+@my_vcr.use_cassette()
+def test_scan_simple_secret(client):
     patch = (
         "diff --git a/test.txt b/test.txt\n"
         "new file mode 100644\n"
@@ -52,12 +61,11 @@ def test_scan_simple_secret():
         "+dogapi token = dd52c29224affe29d163c6bf99e5c3f4;\n"
     )
 
-    c = Commit()
+    c = Commit(client)
     c.patch_ = patch
 
-    with use_cassette("secrets_shield/tests/cassettes/test_scan_simple_secret.yaml"):
-        results = asyncio.get_event_loop().run_until_complete(c.scan())
-        assert process_scan_result(results) == 1
+    results = asyncio.get_event_loop().run_until_complete(c.scan())
+    assert process_scan_result(results) == 1
 
     result = results[0]
     assert result["has_leak"]
@@ -68,7 +76,8 @@ def test_scan_simple_secret():
     )
 
 
-def test_scan_multiple_secrets():
+@my_vcr.use_cassette()
+def test_scan_multiple_secrets(client):
     patch = (
         "diff --git a/test.txt b/test.txt\n"
         "new file mode 100644\n"
@@ -80,13 +89,11 @@ def test_scan_multiple_secrets():
         "String appId = 294790898041575; String appSecret = ce3f9f0362bbe5ab01dfc8ee565e4372"
     )
 
-    c = Commit()
+    c = Commit(client)
     c.patch_ = patch
 
-    with use_cassette("secrets_shield/tests/cassettes/test_scan_multiple_secrets.yaml"):
-        results = asyncio.get_event_loop().run_until_complete(c.scan())
-        assert process_scan_result(results) == 1
-
+    results = asyncio.get_event_loop().run_until_complete(c.scan())
+    assert process_scan_result(results) == 1
     result = results[0]
     assert result["has_leak"]
     assert not result["error"]

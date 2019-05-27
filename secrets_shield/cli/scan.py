@@ -5,6 +5,7 @@ import asyncio
 from typing import Dict, List, Union, Generator
 
 from secrets_shield.utils import shell
+from secrets_shield.client import PublicScanningApiClient
 from secrets_shield.commit import Commit
 from secrets_shield.message import process_scan_result
 
@@ -40,15 +41,18 @@ def scan(
     """ Command to scan various content. """
     loop = asyncio.get_event_loop()
     return_code = 0
+    client = PublicScanningApiClient(ctx.obj["token"])
 
     if pre_commit:
-        return_code = process_scan_result(loop.run_until_complete(Commit().scan()))
+        return_code = process_scan_result(
+            loop.run_until_complete(Commit(client).scan())
+        )
 
     elif ci:
-        return_code = scan_ci(verbose)
+        return_code = scan_ci(client, verbose)
 
     elif paths:
-        commit = create_commit_from_paths(paths, recursive, yes, verbose)
+        commit = create_commit_from_paths(client, paths, recursive, yes, verbose)
         return_code = process_scan_result(loop.run_until_complete(commit.scan()))
 
     else:
@@ -57,7 +61,7 @@ def scan(
     sys.exit(return_code)
 
 
-def scan_ci(verbose: bool) -> int:
+def scan_ci(client: object, verbose: bool) -> int:
     """ Scan commits in CI environment. """
     if not os.getenv("CI"):
         raise click.ClickException("--ci should only be used in a CI environment.")
@@ -83,16 +87,22 @@ def scan_ci(verbose: bool) -> int:
             )
         )
 
-    return scan_commit_range(commit_range, verbose)
+    return scan_commit_range(client, commit_range, verbose)
 
 
-def scan_commit_range(commit_range: str, verbose: bool) -> int:
-    """ Scan every commit in a range. """
+def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
+    """
+    Scan every commit in a range.
+
+    :param client: Public Scanning API client
+    :param commit_range: Range of commits to scan (A...B)
+    :param verbose: Display successfull scan's message
+    """
     loop = asyncio.get_event_loop()
     return_code = 0
 
     for sha in get_list_commit_SHA(commit_range):
-        commit = Commit(sha)
+        commit = Commit(client, sha)
         results = loop.run_until_complete(commit.scan())
 
         if any(result["has_leak"] for result in results) or verbose:
@@ -118,18 +128,18 @@ def get_list_commit_SHA(commit_range: str) -> List:
 
 
 def create_commit_from_paths(
-    paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
+    client: object, paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
 ) -> object:
     """
     Create a commit object from files content.
 
-    :param ctx: Click context object
+    :param client: Public Scanning API client
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
     """
-    commit = Commit()
+    commit = Commit(client)
     commit.diffs_ = list(create_diffs_from_paths(get_filepaths(paths, recursive)))
 
     if verbose:

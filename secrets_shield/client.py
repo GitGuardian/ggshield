@@ -5,51 +5,6 @@ from typing import Dict, Union, List
 import requests
 
 
-class ScanningApiClient:
-    URL = "https://scanning.api.dev.gitguardian.com/v2/scan/file"
-    TIMEOUT = 10
-
-    def __init__(
-        self, apikey: str = "", url: str = URL, timeout: int = TIMEOUT
-    ) -> None:
-        self.apikey = apikey
-        self.url = url
-        self.timeout = timeout
-
-    @property
-    def headers(self) -> Dict:
-        return {"apikey": self.apikey}
-
-    async def scan_file(
-        self, content: str, filename: str = None, check: Union[bool, None] = None
-    ) -> Dict:
-        """
-        Calls Scanning API and returns response
-        """
-        payload = {"content": content}
-        if filename:
-            payload["filename"] = filename
-        if isinstance(check, bool):
-            payload["check"] = check
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                self.url, headers=self.headers, json=payload, timeout=self.timeout
-            ) as resp:
-                response = await resp.json()
-
-                if resp.status >= 400:
-                    error = (
-                        response["message"]
-                        or response["msg"]
-                        or "An unknown error occured"
-                    )
-
-                    raise Exception(error)
-
-                return response
-
-
 class PublicScanningException(Exception):
     pass
 
@@ -85,6 +40,9 @@ PUBLIC_SCANNING_EXCEPTIONS = {
 
 class PublicScanningApiClient:
     URL = os.getenv("PUBLIC_SCANNING_API_URL")
+    SCANNING_PATH = "scanning-api/v2/scan/file"
+    # REPO_PATH = "repo-analyzer/user/:github_login/repo/:repository_name"
+    TIMEOUT = 10
 
     def __init__(self, token: str) -> None:
         self.token = token
@@ -95,6 +53,42 @@ class PublicScanningApiClient:
             "Authorization": "token {}".format(self.token),
             "Content-Type": "application/json",
         }
+
+    # TO BE DELETED
+    async def scan_file(
+        self, content: str, filename: str = None, check: Union[bool, None] = None
+    ) -> Dict:
+        """
+        Calls Scanning API and returns response.
+
+        :param content: Content of the file
+        :param filename: File name
+        :param check: Check the secret
+        :raise: PublicScanningException
+        """
+        payload = {"content": content}
+        if filename:
+            payload["filename"] = filename
+        if isinstance(check, bool):
+            payload["check"] = check
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.URL + self.SCANNING_PATH,
+                headers=self.headers,
+                json=payload,
+                timeout=self.TIMEOUT,
+            ) as resp:
+                response = await resp.json()
+
+                if resp.status >= 400:
+                    error = response.get("detail", "An unknown error occured")
+
+                    raise PUBLIC_SCANNING_EXCEPTIONS.get(
+                        resp.status, PublicScanningException
+                    )(error)
+
+                return response
 
     def _request(self, method, path, headers=None, data=None, params=None):
         response = getattr(requests, method)(
