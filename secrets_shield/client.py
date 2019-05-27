@@ -41,7 +41,7 @@ PUBLIC_SCANNING_EXCEPTIONS = {
 
 class PublicScanningApiClient:
     URL = os.getenv("PUBLIC_SCANNING_API_URL")
-    SCANNING_PATH = "scanning-api/v2/scan/file"
+    SCANNING_PATH = "scanning-api/scan/file"
     # REPO_PATH = "repo-analyzer/user/:github_login/repo/:repository_name"
     TIMEOUT = 10
 

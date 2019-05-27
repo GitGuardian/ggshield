@@ -1,8 +1,30 @@
 import re
 import asyncio
+import click
 
+from enum import Enum
 from typing import Dict
+
 from secrets_shield.utils import shell
+
+
+class Filemode(Enum):
+    """
+    Enum class for git filemode.
+
+    Attributes:
+        start (int): The first line to read in this filemode scenario
+        mode  (str): The string filemode
+    """
+
+    MODIFY = (4, "modified file")
+    DELETE = (5, "deleted file")
+    NEW = (6, "new file")
+    RENAME = (7, "renamed file")
+
+    def __init__(self, start, mode):
+        self.start = start
+        self.mode = mode
 
 
 class Commit:
@@ -45,11 +67,22 @@ class Commit:
     def get_filemode(self, line: str) -> str:
         """
         Get the file mode from the line patch (new, modified or deleted)
+        :raise: Exception if filemode is not detected
         """
         if line.startswith("index"):
-            return "modified file"
+            return Filemode.MODIFY
 
-        return line.split(" mode ")[0]
+        elif line.startswith("similarity"):
+            return Filemode.RENAME
+
+        elif line.startswith("new"):
+            return Filemode.NEW
+
+        elif line.startswith("deleted"):
+            return Filemode.DELETE
+
+        else:
+            raise click.ClickException("Filemode is not detected.")
 
     def get_diffs(self):
         """
@@ -73,14 +106,14 @@ class Commit:
             filemode = self.get_filemode(lines[1])
             content = ""
 
-            if len(lines) > 5:
-                if filemode == "modified file":
-                    content = "\n".join(lines[5:])
-                else:
-                    content = "\n".join(lines[6:])
+            content = "\n".join(lines[filemode.start :])
 
             if content:
-                yield {"filename": filename, "filemode": filemode, "content": content}
+                yield {
+                    "filename": filename,
+                    "filemode": filemode.mode,
+                    "content": content,
+                }
 
     async def scan(self):
         """

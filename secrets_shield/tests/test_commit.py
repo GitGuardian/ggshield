@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from secrets_shield.commit import Commit
+from secrets_shield.commit import Commit, Filemode
 from secrets_shield.client import PublicScanningApiClient
 
 
@@ -19,16 +19,22 @@ def test_get_filename(client):
 def test_get_filemode_new(client):
     line = "new file mode 100644\n"
     c = Commit(client)
-    assert c.get_filemode(line) == "new file"
+    assert c.get_filemode(line) == Filemode.NEW
 
 
 def test_get_filemode_delete(client):
     line = "deleted file mode 100644\n"
     c = Commit(client)
-    assert c.get_filemode(line) == "deleted file"
+    assert c.get_filemode(line) == Filemode.DELETE
 
 
 def test_get_filemode_modify(client):
     line = "index 3d47bfe..ee93988 100644\n"
     c = Commit(client)
-    assert c.get_filemode(line) == "modified file"
+    assert c.get_filemode(line) == Filemode.MODIFY
+
+
+def test_get_filemode_rename(client):
+    line = "similarity index 99%\n"
+    c = Commit(client)
+    assert c.get_filemode(line) == Filemode.RENAME

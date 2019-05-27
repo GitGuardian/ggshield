@@ -5,7 +5,7 @@ interactions:
       Content-Type:
       - application/json
     method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/v2/scan/file
+    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
   response:
     body:
       string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
@@ -24,7 +24,7 @@ interactions:
       : application/json
       ? !!python/object/new:multidict._istr.istr
       - Date
-      : Sun, 26 May 2019 14:57:39 GMT
+      : Mon, 27 May 2019 15:18:33 GMT
       ? !!python/object/new:multidict._istr.istr
       - Server
       : nginx/1.16.0
@@ -36,8 +36,8 @@ interactions:
       : Accept-Encoding
       X-Frame-Options: SAMEORIGIN
       X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '631'
-      X-RateLimit-Reset: '1558884386'
+      X-RateLimit-Remaining: '821'
+      X-RateLimit-Reset: '1558976342'
     status:
       code: 200
       message: OK
@@ -46,7 +46,7 @@ interactions:
       - !!python/object/new:urllib.parse.SplitResult
         - https
         - api.dev.gitguardian.com
-        - /api/v1/scanning-api/v2/scan/file
+        - /api/v1/scanning-api/scan/file
         - ''
         - ''
 - request:
@@ -55,7 +55,7 @@ interactions:
       Content-Type:
       - application/json
     method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/v2/scan/file
+    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
   response:
     body:
       string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
@@ -74,7 +74,7 @@ interactions:
       : application/json
       ? !!python/object/new:multidict._istr.istr
       - Date
-      : Sun, 26 May 2019 14:57:39 GMT
+      : Mon, 27 May 2019 15:18:33 GMT
       ? !!python/object/new:multidict._istr.istr
       - Server
       : nginx/1.16.0
@@ -86,8 +86,8 @@ interactions:
       : Accept-Encoding
       X-Frame-Options: SAMEORIGIN
       X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '632'
-      X-RateLimit-Reset: '1558884386'
+      X-RateLimit-Remaining: '820'
+      X-RateLimit-Reset: '1558976342'
     status:
       code: 200
       message: OK
@@ -96,7 +96,7 @@ interactions:
       - !!python/object/new:urllib.parse.SplitResult
         - https
         - api.dev.gitguardian.com
-        - /api/v1/scanning-api/v2/scan/file
+        - /api/v1/scanning-api/scan/file
         - ''
         - ''
 version: 1
