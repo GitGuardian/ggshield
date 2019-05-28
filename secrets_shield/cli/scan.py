@@ -196,7 +196,7 @@ def create_diffs_from_paths(
                 if content:
                     yield {
                         "filename": click.format_filename(file.name),
-                        "filemode": "new file",
+                        "filemode": "file",
                         "content": content,
                     }
             except UnicodeDecodeError:

@@ -21,12 +21,12 @@ def test_scan_no_secret(client):
         "index 0000000..b80e3df\n"
         "--- /dev/null\n"
         "+++ b/test\n"
-        "@@ -0,0 +1,28 @@\n"
+        "@@ -0,0 +1 @@\n"
         "+this is a patch without secret\n"
     )
 
     expect = {
-        "content": "+this is a patch without secret\n",
+        "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
         "filename": "test.txt",
         "filemode": "new file",
         "error": False,
@@ -56,7 +56,7 @@ def test_scan_simple_secret(client):
         "index 0000000..b80e3df\n"
         "--- /dev/null\n"
         "+++ b/test\n"
-        "@@ -0,0 +1,28 @@\n"
+        "@@ -0,0 +2 @@\n"
         "+Datadog:\n"
         "+dogapi token = dd52c29224affe29d163c6bf99e5c3f4;\n"
     )
@@ -84,9 +84,9 @@ def test_scan_multiple_secrets(client):
         "index 0000000..b80e3df\n"
         "--- /dev/null\n"
         "+++ b/test\n"
-        "@@ -0,0 +1,28 @@\n"
-        "FacebookAppKeys : \n"
-        "String appId = 294790898041575; String appSecret = ce3f9f0362bbe5ab01dfc8ee565e4372"
+        "@@ -0,0 +1,2 @@\n"
+        "+FacebookAppKeys :\n"
+        "+String appId = 294790898041575; String appSecret = ce3f9f0362bbe5ab01dfc8ee565e4372\n"
     )
 
     c = Commit(client)
