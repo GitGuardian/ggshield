@@ -2,29 +2,8 @@ import re
 import asyncio
 import click
 
-from enum import Enum
 from typing import Dict
-
-from secrets_shield.utils import shell
-
-
-class Filemode(Enum):
-    """
-    Enum class for git filemode.
-
-    Attributes:
-        start (int): The first line to read in this filemode scenario
-        mode  (str): The string filemode
-    """
-
-    MODIFY = (4, "modified file")
-    DELETE = (5, "deleted file")
-    NEW = (6, "new file")
-    RENAME = (7, "renamed file")
-
-    def __init__(self, start, mode):
-        self.start = start
-        self.mode = mode
+from secrets_shield.utils import shell, Filemode
 
 
 class Commit:

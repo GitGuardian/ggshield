@@ -2,4 +2,4 @@
   name: Secrets Shield (pre-commit)
   language: python
   entry: secrets-shield
-  args: ["scan", "--pre-commit"]
+  args: ["scan", "-m", "pre-commit"]

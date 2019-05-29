@@ -1,6 +1,7 @@
 import click
-from typing import Dict, List
+from typing import Dict, List, Set
 
+from secrets_shield.utils import process_scan_lines, Filemode
 
 STYLE = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},
@@ -10,6 +11,8 @@ STYLE = {
     "error": {"fg": "red"},
     "no_secret": {"fg": "white"},
     "detector": {"fg": "bright_white", "bold": True},
+    "line_count": {"fg": "white", "dim": True},
+    "line_count_secret": {"fg": "yellow"},
 }
 
 
@@ -26,59 +29,131 @@ def leak_message(
     """
 
     filename = scan_result["filename"]
+    filemode = scan_result["filemode"]
     content = scan_result["content"]
     secrets = flatten_secrets(scan_result, hide_secrets)
+    lines = process_scan_lines(content, secrets, filemode)
+
+    if len(lines) == 0:
+        raise click.ClickException("Parsing of scan result failed.")
 
     message = file_info(filename, len(secrets))
-    index = 0
-    detector_line = ""
+    padding = get_padding(lines)
 
-    for i, secret in enumerate(secrets):
-        start = secret["start"]
-        end = secret["end"]
-
-        if i == 0:
-            message += format_text(
-                backward_context(content, start, nb_lines), STYLE["patch"]
-            )
-        else:
-            # Checks if there is a '\n' between 2 secrets
-            # If so, we need to add the detector_line before processing the next line
-            if content.find("\n", index, start) != -1:
-                message += format_detector(content, index, detector_line)
-                index += len(forward_context(content, index, 1))
-                detector_line = ""
-            # Skips some of the patch if there is too much text between 2 secrets
-            if lines_between(content, index, start) > 2 * nb_lines:
-                message += format_secret_separation(content, index, start, nb_lines)
-
-            # Otherwise we display the patch between the previous_secret and the curent one
-            else:
-                message += format_text(content[index:start], STYLE["patch"])
-
-        # We compute the secret offset in current line for detector_line
-        offset = len(backward_context(content, secret["start"], 1))
-        message += format_text(secret["value"], STYLE["secret"])
-
-        # We update the detector_line to add the current secret detector
-        detector_line = update_detector_line(secret, offset, detector_line)
-
-        # Update index for next secret
-        index = end
-
-    if detector_line != "":
-        message += format_detector(content, index, detector_line)
-        index += len(forward_context(content, index, 1))
-
-    message += format_text(forward_context(content, index, nb_lines), STYLE["patch"])
+    for index in lines_to_display(lines, nb_lines):
+        message += (
+            format_line(lines[index], padding, filemode == Filemode.FILE.mode) + "\n"
+        )
 
     return message
 
 
+def lines_to_display(lines: List, nb_lines: int) -> Set:
+    """ Retrieve the line indexes to display in the content. """
+    line_index_to_display = set()
+
+    for index, line in enumerate(lines):
+        if len(line["secrets"]):
+            # We intersect the index range with the secret line index +/- nb_lines
+            for i in set(range(len(lines))).intersection(
+                range(index - nb_lines, index + nb_lines + 1)
+            ):
+                line_index_to_display.add(i)
+
+    return line_index_to_display
+
+
+def format_line(line: object, padding: int, is_file: bool = False) -> str:
+    """ Return the line with formatting of the secrets. """
+    content = line["content"]
+    secrets = line["secrets"]
+    last_index = 0
+
+    line_count_style = (
+        STYLE["line_count_secret"] if len(secrets) else STYLE["line_count"]
+    )
+
+    if is_file:
+        # Offset due to the line count display
+        offset = padding + 3
+
+        line_to_display = "{} | ".format(
+            format_text(fomat_line_count(line["index"], padding), line_count_style)
+        )
+
+    else:
+        pre_index = fomat_line_count(line["pre_index"], padding)
+        post_index = fomat_line_count(line["post_index"], padding)
+
+        if line["type"] == "+":
+            pre_index = " " * padding
+
+        elif line["type"] == "-":
+            post_index = " " * padding
+
+        # Offset due to the line count display
+        offset = 2 * (padding + 2)
+
+        line_to_display = "{} {} | ".format(
+            format_text(pre_index, line_count_style),
+            format_text(post_index, line_count_style),
+        )
+
+    for secret in secrets:
+        # For each secret, we add the content between the end of the previous secret
+        # and the current formatted secret
+        line_to_display += format_text(
+            content[last_index : secret["start"]], STYLE["patch"]
+        )
+        line_to_display += format_text(secret["value"], STYLE["secret"])
+        last_index = secret["end"]
+
+    # Finally we add the remaining content
+    line_to_display += format_text(content[last_index:], STYLE["patch"])
+
+    # If there are secrets in this line, we add a new line with the detector name after it
+    if len(secrets):
+        line_to_display += format_detector(secrets, padding, offset)
+
+    return line_to_display
+
+
+def format_detector(secrets: List, padding: int, offset: int) -> str:
+    """
+    Return the formatted line(s) containing the detector name(s).
+
+    :param secrets: The list of secrets object for the current line
+    :param padding: The size of the padding
+    :param offset: The offset due to the line count display
+    """
+    last_index = 0
+    detector_line = "\n" + " " * offset
+
+    for secret in secrets:
+        secret_size = len(secret["value"])
+        detector_size = len(secret["detector"])
+
+        before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
+        after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
+
+        # If the size of the previous detector name is too long, we add a new line
+        if last_index > secret["start"]:
+            detector_line += "\n{}|{}{}{}|".format(
+                " " * secret["start"], before, secret["detector"], after
+            )
+
+        else:
+            detector_line += "{}|{}{}{}|".format(
+                " " * (secret["start"] - last_index), before, secret["detector"], after
+            )
+
+        last_index = max(secret["end"], secret["start"] + detector_size + 4)
+
+    return detector_line + "\n"
+
+
 def flatten_secrets(result: Dict, hide_secrets: bool) -> List:
-    """
-    Select one secret by string matched in the Scanning API result.
-    """
+    """ Select one secret by string matched in the Scanning API result. """
     secrets = []
 
     for secret in result["scan"]["secrets"]:
@@ -107,6 +182,25 @@ def flatten_secrets(result: Dict, hide_secrets: bool) -> List:
     return secrets
 
 
+def fomat_line_count(line_count: str, padding: str) -> str:
+    """ Return the padded line count. """
+    if not line_count:
+        return " " * padding
+
+    return " " * max(0, padding - len(str(line_count))) + str(line_count)
+
+
+def get_padding(lines: List) -> int:
+    """ Return the number of digit of the maximum line number. """
+    if lines[-1].get("index"):
+        return len(str(lines[-1]["index"]))
+
+    # value can be None
+    return max(
+        len(str(lines[-1]["pre_index"] or 0)), len(str(lines[-1]["post_index"] or 0))
+    )
+
+
 def pluralize(name: str, nb: int, plural: str = None) -> str:
     if nb == 1:
         return name
@@ -114,93 +208,19 @@ def pluralize(name: str, nb: int, plural: str = None) -> str:
 
 
 def file_info(filename: str, nb_secrets: int) -> str:
-    return "\n🛡️  ⚔️  🛡️  {} {} been found in file {}\n".format(
+    """ Return the formatted file info (number of secrets + filename). """
+    return "\n🛡️  ⚔️  🛡️  {} {} been found in file {}\n\n".format(
         format_text(str(nb_secrets), STYLE["nb_secrets"]),
         pluralize("secret has", nb_secrets, "secrets have"),
         format_text(filename, STYLE["filename"]),
     )
 
 
-def lines_between(content: str, start: int, end: int) -> int:
-    return len(content[start:end].split("\n"))
-
-
 def format_text(text: str, style: str) -> str:
-    return click.style(text, fg=style["fg"], bold=style.get("bold", False))
-
-
-def update_detector_line(secret: Dict, offset: int, detector_line: str) -> str:
-    """
-    Update detector_line by adding a new detector with formatting.
-
-    Example:
-    +github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
-                   |_____________GitHub Token_____________|
-
-    :param secret: A secret object
-    :param offset: Offset in current line
-    :param detector_line: The line to update with the new detector name
-    :return: The updated detector line
-    """
-    secret_size = len(secret["value"])
-    detector_size = len(secret["detector"])
-
-    before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
-    after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
-
-    # If the size of the previous detector name is too long, we add a new line
-    if len(detector_line) > offset:
-        return detector_line + "\n{}|{}{}{}|".format(
-            " " * offset, before, secret["detector"], after
-        )
-
-    return detector_line + "{}|{}{}{}|".format(
-        " " * (offset - len(detector_line)), before, secret["detector"], after
+    """ Return the formatted text with the given style. """
+    return click.style(
+        text, fg=style["fg"], bold=style.get("bold", False), dim=style.get("dim", False)
     )
-
-
-def format_detector(content: str, index: int, detector_line: str) -> str:
-    """
-    Adds a line with the detector names of the secrets on the previous line.
-
-    :param content: The content of the file
-    :param index: The index of the end of the last secret detected
-    :param detector_line: A string containing the detector names
-    :return : The formatted string
-    """
-    return (
-        format_text(forward_context(content, index, 1), STYLE["patch"])
-        + "\n"
-        + format_text(detector_line, STYLE["detector"])
-        + "\n"
-    )
-
-
-def format_secret_separation(
-    content: str, last_end: int, start: int, nb_lines: int
-) -> str:
-    """
-    Format the patch to skip the content of two consecutive secrets that are too far from one another
-
-    :param content: The content of the file
-    :param last_end: The index of the end of the previous secret
-    :param start: The index of the start of the current index
-    :param nb_lines: The number of lines we want to keep around each secret
-    :return : The formatted string
-    """
-    return (
-        format_text(forward_context(content, last_end, nb_lines), STYLE["patch"])
-        + "\n\n"
-        + format_text(backward_context(content, start, nb_lines), STYLE["patch"])
-    )
-
-
-def backward_context(content: str, index: int, nb_lines: int) -> str:
-    return "\n".join(content[:index].split("\n")[-nb_lines:])
-
-
-def forward_context(content: str, index: int, nb_lines: int) -> str:
-    return "\n".join(content[index:].split("\n")[:nb_lines])
 
 
 def error_message(error: str) -> str:
@@ -215,6 +235,7 @@ def error_message(error: str) -> str:
 def no_leak_message() -> str:
     """
     Build a message if no secret is found.
+
     :return: The formatted message to display
     """
     return format_text("No secrets have been found", STYLE["no_secret"])

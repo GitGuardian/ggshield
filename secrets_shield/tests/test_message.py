@@ -8,7 +8,7 @@ class TestMessage(TestCase):
 
     def test_message_simple_secret(self):
         result = {
-            "content": "+github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91\n",
+            "content": "@@ -0,0 +1 @@\n+github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91\n",
             "filename": "leak.txt",
             "filemode": "new file",
             "error": False,
@@ -30,8 +30,8 @@ class TestMessage(TestCase):
                         "matches": [
                             {
                                 "string_matched": "368ac3edf9e850d1c0ff9d6c526496f8237ddf91",
-                                "indice_start": 15,
-                                "indice_end": 55,
+                                "indice_start": 29,
+                                "indice_end": 69,
                                 "name": "apikey",
                             }
                         ],
@@ -46,7 +46,7 @@ class TestMessage(TestCase):
 
     def test_message_multiple_secrets_one_line(self):
         result = {
-            "content": "+FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;\n",
+            "content": "@@ -0,0 +1 @@\n+FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;\n",
             "filename": "leak.txt",
             "filemode": "new file",
             "scan": {
@@ -66,14 +66,14 @@ class TestMessage(TestCase):
                         "matches": [
                             {
                                 "string_matched": "294790898041575",
-                                "indice_start": 17,
-                                "indice_end": 32,
+                                "indice_start": 31,
+                                "indice_end": 46,
                                 "name": "client_id",
                             },
                             {
                                 "string_matched": "ce3f9f0362bbe5ab01dfc8ee565e4372",
-                                "indice_start": 54,
-                                "indice_end": 86,
+                                "indice_start": 68,
+                                "indice_end": 100,
                                 "name": "client_secret",
                             },
                         ],
@@ -90,7 +90,7 @@ class TestMessage(TestCase):
 
     def test_message_multiple_secrets_one_line_overlay(self):
         result = {
-            "content": "+Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;\n",
+            "content": "@@ -0,0 +1 @@\n+Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;\n",
             "filename": "leak.txt",
             "filemode": "new file",
             "scan": {
@@ -110,14 +110,14 @@ class TestMessage(TestCase):
                         "matches": [
                             {
                                 "string_matched": "294790898041575",
-                                "indice_start": 12,
-                                "indice_end": 27,
+                                "indice_start": 26,
+                                "indice_end": 41,
                                 "name": "client_id",
                             },
                             {
                                 "string_matched": "ce3f9f0362bbe5ab01dfc8ee565e4372",
-                                "indice_start": 30,
-                                "indice_end": 62,
+                                "indice_start": 44,
+                                "indice_end": 76,
                                 "name": "client_secret",
                             },
                         ],
@@ -134,7 +134,7 @@ class TestMessage(TestCase):
 
     def test_message_multiple_secrets_two_lines(self):
         result = {
-            "content": "+FacebookAppId = 294790898041575;\n+FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;\n",
+            "content": "@@ -0,0 +2 @@\n+FacebookAppId = 294790898041575;\n+FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;\n",
             "filename": "leak.txt",
             "filemode": "new file",
             "scan": {
@@ -154,14 +154,14 @@ class TestMessage(TestCase):
                         "matches": [
                             {
                                 "string_matched": "294790898041575",
-                                "indice_start": 17,
-                                "indice_end": 32,
+                                "indice_start": 31,
+                                "indice_end": 46,
                                 "name": "client_id",
                             },
                             {
                                 "string_matched": "ce3f9f0362bbe5ab01dfc8ee565e4372",
-                                "indice_start": 55,
-                                "indice_end": 87,
+                                "indice_start": 69,
+                                "indice_end": 101,
                                 "name": "client_secret",
                             },
                         ],
