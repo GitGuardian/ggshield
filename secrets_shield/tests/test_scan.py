@@ -3,7 +3,8 @@ import pytest
 import asyncio
 
 from .conftest import my_vcr
-from secrets_shield.commit import Commit
+from secrets_shield.utils import Filemode
+from secrets_shield.scannable import Commit
 from secrets_shield.message import process_scan_result
 from secrets_shield.client import PublicScanningApiClient
 
@@ -28,23 +29,23 @@ def test_scan_no_secret(client):
     expect = {
         "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
         "filename": "test.txt",
-        "filemode": "new file",
+        "filemode": Filemode.NEW,
         "error": False,
         "has_leak": False,
     }
 
-    c = Commit(client)
+    c = Commit()
     c.patch_ = patch
 
-    results = asyncio.get_event_loop().run_until_complete(c.scan())
+    results = asyncio.get_event_loop().run_until_complete(c.scan(client))
     assert process_scan_result(results) == 0
 
     result = results[0]
     assert result["content"] == expect["content"]
     assert result["filename"] == expect["filename"]
     assert result["filemode"] == expect["filemode"]
-    assert result["error"] == expect["error"]
-    assert result["has_leak"] == expect["has_leak"]
+    assert not result.get("error")
+    assert not result.get("has_leak")
     assert result["scan"]["metadata"]["leak_count"] == 0
 
 
@@ -61,15 +62,15 @@ def test_scan_simple_secret(client):
         "+dogapi token = dd52c29224affe29d163c6bf99e5c3f4;\n"
     )
 
-    c = Commit(client)
+    c = Commit()
     c.patch_ = patch
 
-    results = asyncio.get_event_loop().run_until_complete(c.scan())
+    results = asyncio.get_event_loop().run_until_complete(c.scan(client))
     assert process_scan_result(results) == 1
 
     result = results[0]
     assert result["has_leak"]
-    assert not result["error"]
+    assert not result.get("error")
     assert (
         result["scan"]["secrets"][0]["matches"][0]["string_matched"]
         == "dd52c29224affe29d163c6bf99e5c3f4"
@@ -89,12 +90,12 @@ def test_scan_multiple_secrets(client):
         "+String appId = 294790898041575; String appSecret = ce3f9f0362bbe5ab01dfc8ee565e4372\n"
     )
 
-    c = Commit(client)
+    c = Commit()
     c.patch_ = patch
 
-    results = asyncio.get_event_loop().run_until_complete(c.scan())
+    results = asyncio.get_event_loop().run_until_complete(c.scan(client))
     assert process_scan_result(results) == 1
     result = results[0]
     assert result["has_leak"]
-    assert not result["error"]
+    assert not result.get("error")
     assert len(result["scan"]["secrets"][0]["matches"]) == 2

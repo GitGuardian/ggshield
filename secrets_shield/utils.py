@@ -40,7 +40,7 @@ def process_scan_lines(content: str, secrets: List, filemode: Filemode) -> List:
     :param secrets: List of secrets in the patch
     :param filemode: File mode [file|new|delete|rename|modify]
     """
-    if filemode == Filemode.FILE.mode:
+    if filemode == Filemode.FILE:
         return _get_lines_from_file(content, secrets)
 
     return _get_lines_from_patch(content, secrets, filemode)

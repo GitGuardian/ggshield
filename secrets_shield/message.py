@@ -41,9 +41,7 @@ def leak_message(
     padding = get_padding(lines)
 
     for index in lines_to_display(lines, nb_lines):
-        message += (
-            format_line(lines[index], padding, filemode == Filemode.FILE.mode) + "\n"
-        )
+        message += format_line(lines[index], padding, filemode == Filemode.FILE) + "\n"
 
     return message
 
@@ -257,10 +255,10 @@ def process_scan_result(
     error = False
 
     for scan_result in results:
-        if scan_result["error"]:
-            click.echo(error_message(scan_result["scan"]["error"]))
+        if scan_result.get("error", False):
+            click.echo(error_message(scan_result["error"]))
             error = True
-        elif scan_result["has_leak"]:
+        elif scan_result.get("has_leak", False):
             click.echo(leak_message(scan_result, nb_lines, hide_secrets))
             leak = True
 
