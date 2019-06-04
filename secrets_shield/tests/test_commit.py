@@ -1,40 +1,27 @@
-import os
-import pytest
-
-from secrets_shield.commit import Commit, Filemode
-from secrets_shield.client import PublicScanningApiClient
+from secrets_shield.utils import Filemode
+from secrets_shield.scannable import Commit
 
 
-@pytest.fixture(scope="session")
-def client():
-    return PublicScanningApiClient(os.getenv("GITGUARDIAN_TOKEN", "1234567890"))
-
-
-def test_get_filename(client):
+def test_get_filename():
     line = "a/test.txt b/test.txt"
-    c = Commit(client)
-    assert c.get_filename(line) == "test.txt"
+    assert Commit().get_filename(line) == "test.txt"
 
 
-def test_get_filemode_new(client):
+def test_get_filemode_new():
     line = "new file mode 100644\n"
-    c = Commit(client)
-    assert c.get_filemode(line) == Filemode.NEW
+    assert Commit().get_filemode(line) == Filemode.NEW
 
 
-def test_get_filemode_delete(client):
+def test_get_filemode_delete():
     line = "deleted file mode 100644\n"
-    c = Commit(client)
-    assert c.get_filemode(line) == Filemode.DELETE
+    assert Commit().get_filemode(line) == Filemode.DELETE
 
 
-def test_get_filemode_modify(client):
+def test_get_filemode_modify():
     line = "index 3d47bfe..ee93988 100644\n"
-    c = Commit(client)
-    assert c.get_filemode(line) == Filemode.MODIFY
+    assert Commit().get_filemode(line) == Filemode.MODIFY
 
 
-def test_get_filemode_rename(client):
+def test_get_filemode_rename():
     line = "similarity index 99%\n"
-    c = Commit(client)
-    assert c.get_filemode(line) == Filemode.RENAME
+    assert Commit().get_filemode(line) == Filemode.RENAME

@@ -1,6 +1,6 @@
 import os
 import aiohttp
-from typing import Dict, Union, List
+from typing import Dict, List
 
 import requests
 import json
@@ -56,9 +56,7 @@ class PublicScanningApiClient:
         }
 
     # TO BE DELETED
-    async def scan_file(
-        self, content: str, filename: str = None, check: Union[bool, None] = None
-    ) -> Dict:
+    async def scan_file(self, content: str) -> Dict:
         """
         Calls Scanning API and returns response.
 
@@ -68,10 +66,6 @@ class PublicScanningApiClient:
         :raise: PublicScanningException
         """
         payload = {"content": content}
-        if filename:
-            payload["filename"] = filename
-        if isinstance(check, bool):
-            payload["check"] = check
 
         async with aiohttp.ClientSession() as session:
             async with session.post(

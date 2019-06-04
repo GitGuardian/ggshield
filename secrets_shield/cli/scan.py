@@ -5,7 +5,8 @@ import asyncio
 from typing import Dict, List, Union, Generator
 
 from secrets_shield.utils import shell
-from secrets_shield.commit import Commit
+
+from secrets_shield.scannable import Commit, File
 from secrets_shield.message import process_scan_result
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
@@ -40,26 +41,27 @@ def scan(
     verbose: bool,
 ) -> int:
     """ Command to scan various content. """
+    client = ctx.obj["client"]
     loop = asyncio.get_event_loop()
     return_code = 0
 
     if mode:
         if mode == "pre-commit":
             return_code = process_scan_result(
-                loop.run_until_complete(Commit(ctx.obj["client"]).scan())
+                loop.run_until_complete(Commit().scan(client))
             )
 
         elif mode == "ci":
-            return_code = scan_ci(ctx.obj["client"], verbose)
+            return_code = scan_ci(client, verbose)
 
         else:
             click.echo(ctx.get_help())
 
     elif paths:
-        scan_object = create_scan_object_from_paths(
-            ctx.obj["client"], paths, recursive, yes, verbose
+        files = get_files_from_paths(paths, recursive, yes, verbose)
+        return_code = process_scan_result(
+            loop.run_until_complete(scan_files(client, files))
         )
-        return_code = process_scan_result(loop.run_until_complete(scan_object.scan()))
 
     else:
         click.echo(ctx.get_help())
@@ -108,8 +110,8 @@ def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
     return_code = 0
 
     for sha in get_list_commit_SHA(commit_range):
-        commit = Commit(client, sha)
-        results = loop.run_until_complete(commit.scan())
+        commit = Commit(sha)
+        results = loop.run_until_complete(commit.scan(client))
 
         if any(result["has_leak"] for result in results) or verbose:
             click.echo("\nCommit {} :".format(sha))
@@ -133,33 +135,35 @@ def get_list_commit_SHA(commit_range: str) -> List:
         return shell("git rev-list {}".format(commit_range.split("...")[1]))
 
 
-def create_scan_object_from_paths(
-    client: object, paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
+async def scan_files(client: object, files: List):
+    return await asyncio.gather(*(f.scan(client) for f in files))
+
+
+def get_files_from_paths(
+    paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
 ) -> object:
     """
     Create a scan object from files content.
 
-    :param client: Public Scanning API client
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
     """
-    commit = Commit(client)
-    commit.diffs_ = list(create_diffs_from_paths(get_filepaths(paths, recursive)))
+    files = list(generate_files_from_paths(get_filepaths(paths, recursive)))
 
     if verbose:
-        for diff in commit.diffs_:
-            click.echo(diff["filename"])
+        for f in files:
+            click.echo(f.filename)
 
-    size = len(commit.diffs_)
+    size = len(files)
     if size > 1 and not yes:
         click.confirm(
             "{} files will be scanned. Do you want to continue?".format(size),
             abort=True,
         )
 
-    return commit
+    return files
 
 
 def get_filepaths(
@@ -168,6 +172,8 @@ def get_filepaths(
     """
     Retrieve the filepaths from the command.
 
+    :param paths: List of file/dir paths from the command
+    :param recursive: Recursive option
     :raise: click.FileError if directory is given without --recursive option
     """
     for path in paths:
@@ -185,19 +191,15 @@ def get_filepaths(
                     yield root + "/" + sub_path
 
 
-def create_diffs_from_paths(
+def generate_files_from_paths(
     paths: Generator[str, None, None]
 ) -> Generator[Dict, None, None]:
-    """ Generate the commit diffs from a list of filepaths."""
+    """ Generate a list of scannable files from a list of filepaths."""
     for path in paths:
         with open(path, "r") as file:
             try:
                 content = file.read()
                 if content:
-                    yield {
-                        "filename": click.format_filename(file.name),
-                        "filemode": "file",
-                        "content": content,
-                    }
+                    yield File(content, click.format_filename(file.name))
             except UnicodeDecodeError:
                 pass
