@@ -1,0 +1,4 @@
+detectors:
+  blacklist:
+    - googleaiza
+    - aws_iam
