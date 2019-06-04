@@ -6,7 +6,8 @@ from typing import Dict, List, Union, Generator
 
 from secrets_shield.utils import shell
 
-from secrets_shield.scannable import Commit, File
+from secrets_shield.scannable import Commit, File, GitHubRepo
+from secrets_shield.client import PublicScanningException
 from secrets_shield.message import process_scan_result
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
@@ -30,8 +31,10 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
     "--verbose",
     "-v",
     is_flag=True,
-    help="Display the list of all files before recursive scan",
+    help="Display the list of files before recursive scan",
 )
+@click.option("--repo", nargs=1, help="Scan GitHub Repository (user/repo)")
+@click.option("--gh-token", help="GitHub Access Token")
 def scan(
     ctx: object,
     paths: Union[List, str],
@@ -39,32 +42,51 @@ def scan(
     recursive: bool,
     yes: bool,
     verbose: bool,
+    repo: str,
+    gh_token: str,
 ) -> int:
     """ Command to scan various content. """
     client = ctx.obj["client"]
     loop = asyncio.get_event_loop()
     return_code = 0
 
-    if mode:
-        if mode == "pre-commit":
-            return_code = process_scan_result(
-                loop.run_until_complete(Commit().scan(client))
-            )
+    try:
+        if mode:
+            if mode == "pre-commit":
+                return_code = process_scan_result(
+                    loop.run_until_complete(Commit().scan(client))
+                )
 
-        elif mode == "ci":
-            return_code = scan_ci(client, verbose)
+            elif mode == "ci":
+                return_code = scan_ci(client, verbose)
+
+            else:
+                click.echo(ctx.get_help())
+
+        elif repo:
+            try:
+                user, repository = repo.split("/")
+                return_code = process_scan_result(
+                    loop.run_until_complete(
+                        GitHubRepo(user, repository, gh_token).scan(client)
+                    )
+                )
+
+            except ValueError:
+                click.echo(ctx.get_help())
+
+        elif paths:
+            files = get_files_from_paths(paths, recursive, yes, verbose)
+            return_code = process_scan_result(
+                loop.run_until_complete(scan_files(client, files))
+            )
 
         else:
             click.echo(ctx.get_help())
 
-    elif paths:
-        files = get_files_from_paths(paths, recursive, yes, verbose)
-        return_code = process_scan_result(
-            loop.run_until_complete(scan_files(client, files))
-        )
-
-    else:
-        click.echo(ctx.get_help())
+    except PublicScanningException as error:
+        click.echo("{}: {}".format(click.style("Error", fg="red"), str(error)))
+        return_code = 1
 
     sys.exit(return_code)
 

@@ -1,6 +1,6 @@
 import os
 import aiohttp
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import requests
 import json
@@ -42,7 +42,7 @@ PUBLIC_SCANNING_EXCEPTIONS = {
 class PublicScanningApiClient:
     URL = os.getenv("PUBLIC_SCANNING_API_URL")
     SCANNING_PATH = "scanning-api/scan/file"
-    # REPO_PATH = "repo-analyzer/user/:github_login/repo/:repository_name"
+    REPO_PATH = "repo-analyzer/user/{}/repo/{}"
     TIMEOUT = 10
 
     def __init__(self, token: str) -> None:
@@ -55,10 +55,9 @@ class PublicScanningApiClient:
             "Content-Type": "application/json",
         }
 
-    # TO BE DELETED
     async def scan_file(self, content: str) -> Dict:
         """
-        Calls Scanning API and returns response.
+        Call Scanning API and returns response.
 
         :param content: Content of the file
         :param filename: File name
@@ -73,6 +72,35 @@ class PublicScanningApiClient:
                 headers=self.headers,
                 json=payload,
                 timeout=self.TIMEOUT,
+            ) as resp:
+                response = await resp.json()
+
+                if resp.status >= 400:
+                    error = response.get("detail", "An unknown error occured")
+
+                    raise PUBLIC_SCANNING_EXCEPTIONS.get(
+                        resp.status, PublicScanningException
+                    )(error)
+
+                return response
+
+    async def scan_repo(
+        self, user: str, repo: str, gh_access_token: Union[str, None] = None
+    ) -> Dict:
+        """
+        Call Repo Analyzer and returns response.
+
+        :param user: GitHub username
+        :param repo: GitHub repository name
+        :param gh_access_token: GitHub Access Token (for private repo)
+        :param check: Check the secret
+        :raise: PublicScanningException
+        """
+        path = self.URL + self.REPO_PATH.format(user, repo)
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                path, headers=self.headers, timeout=self.TIMEOUT
             ) as resp:
                 response = await resp.json()
 

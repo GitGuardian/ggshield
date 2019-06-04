@@ -87,7 +87,7 @@ def _get_lines_from_file(content: str, secrets: List) -> List:
         secrets = secrets[len(line_secrets) :]
 
         lines.append(
-            {"index": line_count, "content": line_content, "secrets": line_secrets}
+            {"index": line_count + 1, "content": line_content, "secrets": line_secrets}
         )
 
         index += len(line_content) + 1

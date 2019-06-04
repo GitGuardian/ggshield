@@ -2,7 +2,9 @@ import re
 import asyncio
 import click
 
+from typing import Dict, Union
 from secrets_shield.utils import shell, Filemode
+from secrets_shield.client import PublicScanningException
 
 
 class Scannable:
@@ -61,8 +63,8 @@ class CommitFile(File):
 
 
 class Commit:
-    def __init__(self, SHA: str = None):
-        self.SHA = SHA
+    def __init__(self, sha: Union[str, None] = None):
+        self.sha = sha
         self.patch_ = None
         self.files_ = None
 
@@ -70,7 +72,7 @@ class Commit:
     def patch(self):
         """ Get the change patch for the commit. """
         if not self.patch_:
-            if self.SHA:
+            if self.sha:
                 self.patch_ = "\n".join(shell("git show {}".format(self.SHA)))
             else:
                 self.patch_ = "\n".join(shell("git diff --cached"))
@@ -148,9 +150,33 @@ class Commit:
 class GitHubRepo:
     """ Class representing a GitHub repository. """
 
-    def __init__(self, user: str, repo: str):
+    def __init__(self, user: str, repo: str, gh_access_token: Union[str, None] = None):
         self.user = user
         self.repo = repo
+        self.token = gh_access_token
+        self.result = None
 
-    def scan(client: object):
-        pass
+    def process_result(self, scan_result: Dict):
+        """ Format repo_analyser response into leak list for display. """
+        if scan_result.get("commit_leaks"):
+            for commit in scan_result["commit_leaks"]:
+                for file in commit["files"]:
+                    yield {
+                        "filename": file["filename"],
+                        "content": file["content"],
+                        "sha": commit["sha"],
+                        "filemode": Filemode.FILE,
+                        "has_leak": True,
+                        "scan": {"secrets": file["secrets"]},
+                    }
+
+    async def scan(self, client: object):
+        try:
+            scan_result = await client.scan_repo(self.user, self.repo, self.token)
+            self.result = list(self.process_result(scan_result))
+        except asyncio.TimeoutError:
+            self.result = [{"error": "timeout"}]
+        except PublicScanningException as error:
+            raise PublicScanningException(error)
+
+        return self.result
