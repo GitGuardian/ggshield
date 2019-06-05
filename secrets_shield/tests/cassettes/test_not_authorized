@@ -8,7 +8,7 @@ interactions:
     uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
   response:
     body:
-      string: '{"detail":"Invalid token header. No credentials provided."}'
+      string: '{"detail":"Invalid token."}'
     headers:
       ? !!python/object/new:multidict._istr.istr
       - Allow
@@ -18,26 +18,26 @@ interactions:
       : keep-alive
       ? !!python/object/new:multidict._istr.istr
       - Content-Length
-      : '59'
+      : '27'
       ? !!python/object/new:multidict._istr.istr
       - Content-Type
       : application/json
       ? !!python/object/new:multidict._istr.istr
       - Date
-      : Mon, 27 May 2019 15:18:39 GMT
+      : Thu, 06 Jun 2019 15:03:24 GMT
       ? !!python/object/new:multidict._istr.istr
       - Server
       : nginx/1.16.0
       ? !!python/object/new:multidict._istr.istr
       - Vary
-      : Accept
+      : Accept, Cookie
       ? !!python/object/new:multidict._istr.istr
       - Www-Authenticate
       : Token
       X-Frame-Options: SAMEORIGIN
       X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '992'
-      X-RateLimit-Reset: '1558976351'
+      X-RateLimit-Remaining: '998'
+      X-RateLimit-Reset: '1559842341'
     status:
       code: 401
       message: Unauthorized

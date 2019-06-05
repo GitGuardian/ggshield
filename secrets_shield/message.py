@@ -1,7 +1,7 @@
 import click
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Union
 
-from secrets_shield.utils import process_scan_lines, Filemode
+from secrets_shield.utils import process_scan_to_secrets_and_lines, Filemode
 
 STYLE = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},
@@ -14,6 +14,8 @@ STYLE = {
     "line_count": {"fg": "white", "dim": True},
     "line_count_secret": {"fg": "yellow"},
 }
+
+LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
 
 def leak_message(
@@ -30,55 +32,178 @@ def leak_message(
 
     filename = scan_result["filename"]
     filemode = scan_result["filemode"]
-    content = scan_result["content"]
-    secrets = flatten_secrets(scan_result, hide_secrets)
-    lines = process_scan_lines(content, secrets, filemode)
+    is_patch = filemode != Filemode.FILE
+    secrets, lines = process_scan_to_secrets_and_lines(scan_result, hide_secrets)
+    lines_to_display = get_lines_to_display(secrets, lines, nb_lines)
+    padding = get_padding(lines, is_patch)
+    offset = get_offset(padding, is_patch)
 
-    if len(lines) == 0:
+    if len(secrets) == 0 or len(lines) == 0:
         raise click.ClickException("Parsing of scan result failed.")
 
     message = file_info(filename, len(secrets))
-    padding = get_padding(lines)
 
-    for index in lines_to_display(lines, nb_lines):
-        message += format_line(lines[index], padding, filemode == Filemode.FILE) + "\n"
+    line_count = 0
+    line_index = 0
+    detector_line = []
+
+    # Line content
+    def content(i: int) -> str:
+        return lines[i]["content"]
+
+    for i, secret in enumerate(secrets):
+        # New line with secrets
+        if secret["start_line"] != line_count:
+            if i > 0:
+                # Add the end of patch of the previous line with a secret
+                message += "{}\n{}".format(
+                    display_patch(content(line_count)[secrets[i - 1]["end_index"] :]),
+                    display_detector(detector_line, offset),
+                )
+                detector_line = []
+
+            line_count = secret["start_line"]
+            line_index = 0
+
+            # Display backward context
+            while len(lines_to_display) and lines_to_display[0] < line_count:
+                index = lines_to_display.pop(0)
+                message += "{}{}\n".format(
+                    display_line_count(lines[index], padding),
+                    display_patch(content(index)),
+                )
+
+            message += display_line_count(lines[line_count], padding, is_secret=True)
+
+        # One line secret
+        if line_count == secret["end_line"]:
+            message += display_one_line_secret(secret, lines, line_index)
+
+        # Multiline secret
+        else:
+            message += display_multiline_secret(
+                secret, lines, line_index, detector_line, padding, offset
+            )
+            detector_line = []
+
+        detector_line.append(add_detector(secret, is_patch))
+        line_count = secret["end_line"]
+        line_index = secret["end_index"]
+
+    message += "{}\n{}".format(
+        display_patch(content(line_count)[secret["end_index"] :]),
+        display_detector(detector_line, offset),
+    )
+
+    # Display forward context
+    while len(lines_to_display):
+        index = lines_to_display.pop(0)
+        message += "{}{}\n".format(
+            display_line_count(lines[index], padding), display_patch(content(index))
+        )
 
     return message
 
 
-def lines_to_display(lines: List, nb_lines: int) -> Set:
-    """ Retrieve the line indexes to display in the content. """
-    line_index_to_display = set()
+def display_one_line_secret(secret: object, lines: List, line_index: int) -> str:
+    """
+    Return the formatted oneline secret.
 
-    for index, line in enumerate(lines):
-        if len(line["secrets"]):
-            # We intersect the index range with the secret line index +/- nb_lines
-            for i in set(range(len(lines))).intersection(
-                range(index - nb_lines, index + nb_lines + 1)
-            ):
-                line_index_to_display.add(i)
+    :param secret: The secret object to display
+    :param lines: The lines list
+    :param line_index: The last index in the line
+    """
 
-    return line_index_to_display
+    # Line content
+    def content() -> str:
+        return lines[line_count]["content"]
 
+    line_count = secret["start_line"]
 
-def format_line(line: object, padding: int, is_file: bool = False) -> str:
-    """ Return the line with formatting of the secrets. """
-    content = line["content"]
-    secrets = line["secrets"]
-    last_index = 0
-
-    line_count_style = (
-        STYLE["line_count_secret"] if len(secrets) else STYLE["line_count"]
+    return "{}{}".format(
+        display_patch(content()[line_index : secret["start_index"]]),
+        display_secret(content()[secret["start_index"] : secret["end_index"]]),
     )
 
-    if is_file:
-        # Offset due to the line count display
-        offset = padding + 3
 
-        line_to_display = "{} | ".format(
+def display_multiline_secret(
+    secret: object,
+    lines: List,
+    line_index: int,
+    detector_line: List,
+    padding: int,
+    offset: int,
+) -> str:
+    """
+    Return the formatted lines with a multiline secret.
+
+    :param secret: The secret object to display
+    :param lines: The lines list
+    :param line_index: The last index in the line
+    :param detector_line: The list of detectors object in the line
+    :param padding: The line padding
+    :param offset: The offset due to the line display
+    """
+
+    # Line content
+    def content() -> str:
+        return lines[line_count]["content"]
+
+    line_count = secret["start_line"]
+
+    # Display first line of multiline secret
+    message = "{}{}\n".format(
+        display_patch(content()[line_index : secret["start_index"]]),
+        display_secret(content()[secret["start_index"] :]),
+    )
+
+    # Display detectors from potential other secrets in the first line
+    if len(detector_line):
+        message += display_detector(detector_line, offset)
+
+    # Iter over secret lines
+    for line_count in range(secret["start_line"] + 1, secret["end_line"]):
+        message += "{}{}\n".format(
+            display_line_count(lines[line_count], padding, is_secret=True),
+            display_secret(content()),
+        )
+
+    # Display last line
+    line_count += 1
+    message += "{}{}".format(
+        display_line_count(lines[line_count], padding, is_secret=True),
+        display_secret(content()[: secret["end_index"]]),
+    )
+
+    return message
+
+
+def display_patch(patch: str) -> str:
+    """ Return the formatted patch. """
+    return format_text(patch, STYLE["patch"])
+
+
+def display_secret(secret: str) -> str:
+    """ Return the formatted secret. """
+    return format_text(secret, STYLE["secret"])
+
+
+def display_detector(detector_line: List, offset: int) -> str:
+    """ Return the formatted detector line. """
+    return format_text(format_detector_line(detector_line, offset), STYLE["detector"])
+
+
+def display_line_count(line: object, padding: int, is_secret: bool = False) -> str:
+    """ Return the formatted line count. """
+    line_count_style = STYLE["line_count_secret"] if is_secret else STYLE["line_count"]
+
+    # File
+    if line.get("index"):
+        return LINE_DISPLAY["file"].format(
             format_text(fomat_line_count(line["index"], padding), line_count_style)
         )
 
+    # Patch
     else:
         pre_index = fomat_line_count(line["pre_index"], padding)
         post_index = fomat_line_count(line["post_index"], padding)
@@ -89,95 +214,80 @@ def format_line(line: object, padding: int, is_file: bool = False) -> str:
         elif line["type"] == "-":
             post_index = " " * padding
 
-        # Offset due to the line count display
-        offset = 2 * (padding + 2)
-
-        line_to_display = "{} {} | ".format(
+        return LINE_DISPLAY["patch"].format(
             format_text(pre_index, line_count_style),
             format_text(post_index, line_count_style),
         )
 
-    for secret in secrets:
-        # For each secret, we add the content between the end of the previous secret
-        # and the current formatted secret
-        line_to_display += format_text(
-            content[last_index : secret["start"]], STYLE["patch"]
-        )
-        line_to_display += format_text(secret["value"], STYLE["secret"])
-        last_index = secret["end"]
 
-    # Finally we add the remaining content
-    line_to_display += format_text(content[last_index:], STYLE["patch"])
-
-    # If there are secrets in this line, we add a new line with the detector name after it
-    if len(secrets):
-        line_to_display += format_detector(secrets, padding, offset)
-
-    return line_to_display
-
-
-def format_detector(secrets: List, padding: int, offset: int) -> str:
-    """
-    Return the formatted line(s) containing the detector name(s).
-
-    :param secrets: The list of secrets object for the current line
-    :param padding: The size of the padding
-    :param offset: The offset due to the line count display
-    """
+def format_detector_line(detector_line: List, offset: int):
+    """ Display detectors from detector_line. """
+    message = " " * offset
     last_index = 0
-    detector_line = "\n" + " " * offset
+
+    for detector in detector_line:
+        spaces = detector["start_index"] - last_index
+        # Overlay
+        if spaces < 0:
+            message += "\n"
+            spaces = offset + detector["start_index"]
+
+        message += "{}{}".format(" " * spaces, detector["display"])
+
+        last_index = max(
+            detector["end_index"], detector["start_index"] + len(detector["display"])
+        )
+
+    return message + "\n\n"
+
+
+def add_detector(secret: object, is_patch: bool) -> object:
+    """ Return detector object to add in detector_line. """
+    secret_lines = secret["value"].split("\n")
+    detector_size = len(secret["detector"])
+
+    # Multiline secret
+    if len(secret_lines) > 1:
+        secret_size = max(
+            secret["start_index"] + len(secret_lines[0]),
+            max([len(line) for line in secret_lines[1:-1]]) - int(is_patch),
+            secret["end_index"],
+        )
+
+    # Single line secret
+    else:
+        secret_size = len(secret_lines[0])
+
+    before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
+    after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
+    display = "|{}{}{}|".format(before, secret["detector"], after)
+
+    # Multiline
+    if secret["start_line"] != secret["end_line"]:
+        return {"display": display, "start_index": 0, "end_index": secret_size}
+
+    return {
+        "display": display,
+        "start_index": secret["start_index"],
+        "end_index": max(secret["end_index"], secret["start_index"] + len(display)),
+    }
+
+
+def get_lines_to_display(secrets: List, lines: List, nb_lines: int) -> List:
+    """ Retrieve the line indexes to display in the content with no secrets. """
+    lines_to_display = set()
 
     for secret in secrets:
-        secret_size = len(secret["value"])
-        detector_size = len(secret["detector"])
+        for index in set(range(len(lines))).intersection(
+            range(secret["start_line"] - nb_lines, secret["end_line"] + 1 + nb_lines)
+        ):
+            lines_to_display.add(index)
 
-        before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
-        after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
+    for secret in secrets:
+        for index in range(secret["start_line"], secret["end_line"] + 1):
+            lines_to_display.discard(index)
 
-        # If the size of the previous detector name is too long, we add a new line
-        if last_index > secret["start"]:
-            detector_line += "\n{}|{}{}{}|".format(
-                " " * secret["start"], before, secret["detector"], after
-            )
-
-        else:
-            detector_line += "{}|{}{}{}|".format(
-                " " * (secret["start"] - last_index), before, secret["detector"], after
-            )
-
-        last_index = max(secret["end"], secret["start"] + detector_size + 4)
-
-    return detector_line + "\n"
-
-
-def flatten_secrets(result: Dict, hide_secrets: bool) -> List:
-    """ Select one secret by string matched in the Scanning API result. """
-    secrets = []
-
-    for secret in result["scan"]["secrets"]:
-        for match in secret["matches"]:
-            display_name = secret["detector"]["display_name"]
-            value = (
-                match["string_matched"]
-                if not hide_secrets
-                else match["string_matched"][:4]
-                + "*" * max(0, (len(match["string_matched"]) - 4))
-            )
-
-            secrets.append(
-                {
-                    "detector": display_name,
-                    "value": value,
-                    "start": match["indice_start"],
-                    "end": match["indice_end"],
-                }
-            )
-
-    # We get the first detector for each start index
-    secrets = list({s["start"]: s for s in secrets[::-1]}.values())
-    secrets = sorted(secrets, key=lambda x: x["start"])
-
-    return secrets
+    return sorted(list(lines_to_display))
 
 
 def fomat_line_count(line_count: Union[int, None], padding: str) -> str:
@@ -188,15 +298,24 @@ def fomat_line_count(line_count: Union[int, None], padding: str) -> str:
     return " " * max(0, padding - len(str(line_count))) + str(line_count)
 
 
-def get_padding(lines: List) -> int:
+def get_padding(lines: List, is_patch: bool = False) -> int:
     """ Return the number of digit of the maximum line number. """
-    if lines[-1].get("index"):
-        return len(str(lines[-1]["index"]))
-
     # value can be None
-    return max(
-        len(str(lines[-1]["pre_index"] or 0)), len(str(lines[-1]["post_index"] or 0))
-    )
+    if is_patch:
+        return max(
+            len(str(lines[-1]["pre_index"] or 0)),
+            len(str(lines[-1]["post_index"] or 0)),
+        )
+
+    return len(str(lines[-1]["index"]))
+
+
+def get_offset(padding: int, is_patch: bool = False) -> int:
+    """ Return the offset due to the line display. """
+    if is_patch:
+        return len(LINE_DISPLAY["patch"].format("0" * padding, "0" * padding))
+
+    return len(LINE_DISPLAY["file"].format("0" * padding))
 
 
 def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
