@@ -4,7 +4,7 @@ import asyncio
 
 from .conftest import my_vcr
 from secrets_shield.utils import Filemode
-from secrets_shield.scannable import Commit
+from secrets_shield.scannable import Commit, GitHubRepo
 from secrets_shield.message import process_scan_result
 from secrets_shield.client import PublicScanningApiClient
 
@@ -99,3 +99,14 @@ def test_scan_multiple_secrets(client):
     assert result["has_leak"]
     assert not result.get("error")
     assert len(result["scan"]["secrets"][0]["matches"]) == 2
+
+
+@my_vcr.use_cassette()
+def test_scan_repo(client):
+    ghr = GitHubRepo("eugenenelou", "test")
+
+    results = asyncio.get_event_loop().run_until_complete(ghr.scan(client))
+    assert process_scan_result(results) == 1
+    result = results[0]
+    assert result["has_leak"]
+    assert not result.get("error")

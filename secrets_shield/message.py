@@ -1,5 +1,5 @@
 import click
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Union
 
 from secrets_shield.utils import process_scan_lines, Filemode
 
@@ -180,9 +180,9 @@ def flatten_secrets(result: Dict, hide_secrets: bool) -> List:
     return secrets
 
 
-def fomat_line_count(line_count: str, padding: str) -> str:
+def fomat_line_count(line_count: Union[int, None], padding: str) -> str:
     """ Return the padded line count. """
-    if not line_count:
+    if line_count is None:
         return " " * padding
 
     return " " * max(0, padding - len(str(line_count))) + str(line_count)
@@ -199,7 +199,7 @@ def get_padding(lines: List) -> int:
     )
 
 
-def pluralize(name: str, nb: int, plural: str = None) -> str:
+def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
     if nb == 1:
         return name
     return plural or (name + "s")
