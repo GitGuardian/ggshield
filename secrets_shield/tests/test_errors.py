@@ -1,18 +1,13 @@
-import asyncio
+import pytest
 
 from .conftest import my_vcr
-from secrets_shield.scannable import Commit, File
-from secrets_shield.client import PublicScanningApiClient
+from secrets_shield.scannable import Files, File
+from secrets_shield.client import PublicScanningApiClient, PublicScanningUnauthorized
 
 
 @my_vcr.use_cassette()
 def test_not_authorized():
-    c = Commit()
-    c.files_ = [File("This is a test file", "test.txt")]
+    f = Files([File("This is a test file", "test.txt")])
 
-    results = asyncio.get_event_loop().run_until_complete(
-        c.scan(PublicScanningApiClient("1234567890"))
-    )
-    result = results[0]
-    assert result["error"]
-    assert result["error"] == "Invalid token."
+    with pytest.raises(PublicScanningUnauthorized):
+        assert f.scan(PublicScanningApiClient("1234567890"))

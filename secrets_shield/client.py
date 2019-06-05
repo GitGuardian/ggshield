@@ -1,9 +1,8 @@
-import os
-import aiohttp
 from typing import Dict, List, Union
 
-import requests
+import os
 import json
+import requests
 
 
 class PublicScanningException(Exception):
@@ -40,13 +39,15 @@ PUBLIC_SCANNING_EXCEPTIONS = {
 
 
 class PublicScanningApiClient:
-    URL = os.getenv("PUBLIC_SCANNING_API_URL")
-    SCANNING_PATH = "scanning-api/scan/file"
+    FILE_PATH = "scanning-api/scan/file"
+    FILES_PATH = "scanning-api/scan/files"
     REPO_PATH = "repo-analyzer/user/{}/repo/{}"
-    TIMEOUT = 10
 
     def __init__(self, token: str) -> None:
         self.token = token
+        self.base_url = os.getenv(
+            "GITGUARDIAN_API_URL", "https://api.gitguardian.com/api/v1/"
+        )
 
     @property
     def headers(self) -> Dict:
@@ -55,40 +56,23 @@ class PublicScanningApiClient:
             "Content-Type": "application/json",
         }
 
-    async def scan_file(self, content: str) -> Dict:
-        """
-        Call Scanning API and returns response.
-
-        :param content: Content of the file
-        :param filename: File name
-        :param check: Check the secret
-        :raise: PublicScanningException
-        """
+    def scan_file(self, content: str) -> Dict:
+        """ Scan a content string. """
         payload = {"content": content}
+        path = self.base_url + self.FILE_PATH
+        return self.get(path, headers=self.headers, data=payload)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                self.URL + self.SCANNING_PATH,
-                headers=self.headers,
-                json=payload,
-                timeout=self.TIMEOUT,
-            ) as resp:
-                response = await resp.json()
+    def scan_files(self, files: List) -> Dict:
+        """ Scan multiple files at once. """
+        payload = {"files": files}
+        path = self.base_url + self.FILES_PATH
+        return self.post(path, headers=self.headers, data=json.dumps(payload))
 
-                if resp.status >= 400:
-                    error = response.get("detail", "An unknown error occured")
-
-                    raise PUBLIC_SCANNING_EXCEPTIONS.get(
-                        resp.status, PublicScanningException
-                    )(error)
-
-                return response
-
-    async def scan_repo(
+    def scan_repo(
         self, user: str, repo: str, gh_access_token: Union[str, None] = None
     ) -> Dict:
         """
-        Call Repo Analyzer and returns response.
+        Scan a GitHub repository.
 
         :param user: GitHub username
         :param repo: GitHub repository name
@@ -96,36 +80,23 @@ class PublicScanningApiClient:
         :param check: Check the secret
         :raise: PublicScanningException
         """
-        path = self.URL + self.REPO_PATH.format(user, repo)
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                path, headers=self.headers, timeout=self.TIMEOUT
-            ) as resp:
-                response = await resp.json()
-
-                if resp.status >= 400:
-                    error = response.get("detail", "An unknown error occured")
-
-                    raise PUBLIC_SCANNING_EXCEPTIONS.get(
-                        resp.status, PublicScanningException
-                    )(error)
-
-                return response
+        path = self.base_url + self.REPO_PATH.format(user, repo)
+        return self.get(path, headers=self.headers)
 
     def _request(self, method, path, headers=None, data=None, params=None):
         response = getattr(requests, method)(
-            self.URL + path, headers=self.headers, data=data, params=params
+            self.base_url + path, headers=self.headers, data=data, params=params
         )
         try:
             body = response.json()
-        except Exception:
-            print(response.text)
-            return
+        except json.decoder.JSONDecodeError:
+            raise PublicScanningException(
+                "JSON parsing failed ({})".format(response.text)
+            )
         if not response.ok:
             raise PUBLIC_SCANNING_EXCEPTIONS.get(
                 response.status_code, PublicScanningException
-            )(body.get("detail", None))
+            )(body.get("detail") or body.get("message") or body.get("reason"))
 
         return body
 

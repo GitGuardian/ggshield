@@ -1,3 +1,4 @@
+import os
 import click
 from typing import Dict, List, Union
 
@@ -16,6 +17,8 @@ STYLE = {
 }
 
 LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
+
+ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
 
 
 def leak_message(
@@ -326,7 +329,8 @@ def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
 
 def file_info(filename: str, nb_secrets: int) -> str:
     """ Return the formatted file info (number of secrets + filename). """
-    return "\n🛡️  ⚔️  🛡️  {} {} been found in file {}\n\n".format(
+    return "\n{} {} {} been found in file {}\n\n".format(
+        ICON_BY_OS.get(os.name, ICON_BY_OS["default"]),
         format_text(str(nb_secrets), STYLE["nb_secrets"]),
         pluralize("secret has", nb_secrets, "secrets have"),
         format_text(filename, STYLE["filename"]),

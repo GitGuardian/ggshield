@@ -1,6 +1,5 @@
 import os
 import pytest
-import asyncio
 
 from .conftest import my_vcr
 from secrets_shield.utils import Filemode
@@ -29,7 +28,7 @@ def test_scan_no_secret(client):
     expect = {
         "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
         "filename": "test.txt",
-        "filemode": Filemode.NEW,
+        "filemode": Filemode.NEW.mode,
         "error": False,
         "has_leak": False,
     }
@@ -37,7 +36,7 @@ def test_scan_no_secret(client):
     c = Commit()
     c.patch_ = patch
 
-    results = asyncio.get_event_loop().run_until_complete(c.scan(client))
+    results = c.scan(client)
     assert process_scan_result(results) == 0
 
     result = results[0]
@@ -46,7 +45,7 @@ def test_scan_no_secret(client):
     assert result["filemode"] == expect["filemode"]
     assert not result.get("error")
     assert not result.get("has_leak")
-    assert result["scan"]["metadata"]["leak_count"] == 0
+    assert result["scan"]["secrets"] == []
 
 
 @my_vcr.use_cassette()
@@ -65,7 +64,7 @@ def test_scan_simple_secret(client):
     c = Commit()
     c.patch_ = patch
 
-    results = asyncio.get_event_loop().run_until_complete(c.scan(client))
+    results = c.scan(client)
     assert process_scan_result(results) == 1
 
     result = results[0]
@@ -93,7 +92,7 @@ def test_scan_multiple_secrets(client):
     c = Commit()
     c.patch_ = patch
 
-    results = asyncio.get_event_loop().run_until_complete(c.scan(client))
+    results = c.scan(client)
     assert process_scan_result(results) == 1
     result = results[0]
     assert result["has_leak"]
@@ -105,7 +104,7 @@ def test_scan_multiple_secrets(client):
 def test_scan_repo(client):
     ghr = GitHubRepo("eugenenelou", "test")
 
-    results = asyncio.get_event_loop().run_until_complete(ghr.scan(client))
+    results = ghr.scan(client)
     assert process_scan_result(results) == 1
     result = results[0]
     assert result["has_leak"]

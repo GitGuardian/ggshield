@@ -1,52 +1,50 @@
 interactions:
 - request:
-    body: null
+    body: '{"files": [{"filename": "test.txt", "content": "This is a test file"}]}'
     headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '71'
       Content-Type:
       - application/json
+      User-Agent:
+      - python-requests/2.22.0
     method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
+    uri: https://api.dev.gitguardian.com/api/v1/https://api.dev.gitguardian.com/api/v1/scanning-api/scan/files
   response:
     body:
       string: '{"detail":"Invalid token."}'
     headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Length
-      : '27'
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Thu, 06 Jun 2019 15:03:24 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept, Cookie
-      ? !!python/object/new:multidict._istr.istr
-      - Www-Authenticate
-      : Token
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '998'
-      X-RateLimit-Reset: '1559842341'
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '27'
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 12 Jun 2019 06:58:48 GMT
+      Server:
+      - nginx/1.16.0
+      Vary:
+      - Accept, Cookie
+      WWW-Authenticate:
+      - Token
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-RateLimit-Limit:
+      - '1000'
+      X-RateLimit-Remaining:
+      - '998'
+      X-RateLimit-Reset:
+      - '1560331473'
     status:
       code: 401
       message: Unauthorized
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/scanning-api/scan/file
-        - ''
-        - ''
 version: 1

@@ -9,14 +9,7 @@ setup(
     version="0.1.0",
     author="GitGuardian",
     author_email="dev@gitguardian.com",
-    install_requires=[
-        "requests==2.22.0",
-        "pytest==4.5.0",
-        "aiohttp==3.5.4",
-        "Click==7.0",
-        "snapshottest==0.5.0",
-        "vcrpy==2.0.1",
-    ],
+    install_requires=["requests==2.22.0", "Click==7.0", "PyYAML==5.1"],
     packages=packages,
     entry_points={
         "console_scripts": ["secrets-shield=secrets_shield.secrets_shield:cli"]

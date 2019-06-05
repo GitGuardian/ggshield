@@ -1,12 +1,11 @@
 import os
 import sys
 import click
-import asyncio
 from typing import Dict, List, Union, Generator
 
 from secrets_shield.utils import shell
 
-from secrets_shield.scannable import Commit, File, GitHubRepo
+from secrets_shield.scannable import Commit, File, Files, GitHubRepo
 from secrets_shield.client import PublicScanningException
 from secrets_shield.message import process_scan_result
 
@@ -47,15 +46,12 @@ def scan(
 ) -> int:
     """ Command to scan various content. """
     client = ctx.obj["client"]
-    loop = asyncio.get_event_loop()
     return_code = 0
 
     try:
         if mode:
             if mode == "pre-commit":
-                return_code = process_scan_result(
-                    loop.run_until_complete(Commit().scan(client))
-                )
+                return_code = process_scan_result(Commit().scan(client))
 
             elif mode == "ci":
                 return_code = scan_ci(client, verbose)
@@ -67,19 +63,15 @@ def scan(
             try:
                 user, repository = repo.split("/")
                 return_code = process_scan_result(
-                    loop.run_until_complete(
-                        GitHubRepo(user, repository, gh_token).scan(client)
-                    )
+                    GitHubRepo(user, repository, gh_token).scan(client)
                 )
 
             except ValueError:
                 click.echo(ctx.get_help())
 
         elif paths:
-            files = get_files_from_paths(paths, recursive, yes, verbose)
-            return_code = process_scan_result(
-                loop.run_until_complete(scan_files(client, files))
-            )
+            files = Files(get_files_from_paths(paths, recursive, yes, verbose))
+            return_code = process_scan_result(files.scan(client))
 
         else:
             click.echo(ctx.get_help())
@@ -98,8 +90,8 @@ def scan_ci(client: object, verbose: bool) -> int:
 
     # GITLAB
     if os.getenv("GITLAB_CI"):
-        commit_range = (
-            f'{os.getenv("CI_COMMIT_BEFORE_SHA")}...{os.getenv("CI_COMMIT_SHA")}'
+        commit_range = "{}...{}".format(
+            os.getenv("CI_COMMIT_BEFORE_SHA"), os.getenv("CI_COMMIT_SHA")
         )
 
     # TRAVIS
@@ -128,12 +120,11 @@ def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
     :param commit_range: Range of commits to scan (A...B)
     :param verbose: Display successfull scan's message
     """
-    loop = asyncio.get_event_loop()
     return_code = 0
 
     for sha in get_list_commit_SHA(commit_range):
         commit = Commit(sha)
-        results = loop.run_until_complete(commit.scan(client))
+        results = commit.scan(client)
 
         if any(result["has_leak"] for result in results) or verbose:
             click.echo("\nCommit {} :".format(sha))
@@ -155,10 +146,6 @@ def get_list_commit_SHA(commit_range: str) -> List:
         return shell("git rev-list {}".format(commit_range))
     except Exception:
         return shell("git rev-list {}".format(commit_range.split("...")[1]))
-
-
-async def scan_files(client: object, files: List):
-    return await asyncio.gather(*(f.scan(client) for f in files))
 
 
 def get_files_from_paths(
@@ -222,6 +209,9 @@ def generate_files_from_paths(
             try:
                 content = file.read()
                 if content:
-                    yield File(content, click.format_filename(file.name))
+                    yield File(
+                        content,
+                        click.format_filename(file.name[len(os.getcwd()) + 1 :]),
+                    )
             except UnicodeDecodeError:
                 pass

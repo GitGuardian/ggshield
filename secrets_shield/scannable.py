@@ -1,10 +1,8 @@
 import re
-import asyncio
 import click
 
-from typing import Dict, Union
+from typing import Dict, Union, List
 from secrets_shield.utils import shell, Filemode
-from secrets_shield.client import PublicScanningException
 
 
 class Scannable:
@@ -14,14 +12,12 @@ class Scannable:
         self.content = content
         self.result = None
 
-    async def scan(self, client: object):
+    def scan(self, client: object):
         """ Call Scanning API via the client method. """
         try:
             self.result.update({"content": self.content})
-            scan = await client.scan_file(self.content)
+            scan = client.scan_file(self.content)
             self.result.update({"scan": scan})
-        except asyncio.TimeoutError:
-            self.result.update({"error": "timeout"})
         except Exception as error:
             self.result.update({"error": str(error)})
         finally:
@@ -31,19 +27,46 @@ class Scannable:
 class File(Scannable):
     """ Class representing a simple file. """
 
-    def __init__(self, content, filename):
+    def __init__(self, content: str, filename: str):
         super().__init__(content)
         self.filename = filename
+        self.filemode = Filemode.FILE
 
-    async def scan(self, client):
+    def get_dict(self):
+        """ Return a payload compatible with the scanning API. """
+        return {"filename": self.filename, "content": self.content}
+
+    def scan(self, client: object):
         self.result = {}
-        self.result = await super().scan(client)
+        self.result = super().scan(client)
         self.result["filename"] = self.filename
-        self.result["filemode"] = Filemode.FILE
+        self.result["filemode"] = self.filemode
         self.result["has_leak"] = (
             self.result.get("scan", {}).get("metadata", {}).get("leak_count", 0) > 0
         )
+        return self.result
 
+
+class Files:
+    def __init__(self, files: List):
+        self.files = {file.filename: file for file in files}
+        self.result = None
+
+    def process_result(self, scan_result: Dict):
+        """ Format scanning_api response into leak list for display. """
+        for file_result in scan_result["files"]:
+            file = self.files[file_result["filename"]]
+            yield {
+                "filename": file.filename,
+                "filemode": file.filemode,
+                "content": file.content,
+                "scan": file_result,
+                "has_leak": len(file_result.get("secrets", [])) > 0,
+            }
+
+    def scan(self, client: object):
+        files = [file.get_dict() for file in self.files.values()]
+        self.result = list(self.process_result(client.scan_files(files)))
         return self.result
 
 
@@ -54,11 +77,10 @@ class CommitFile(File):
         super().__init__(content, filename)
         self.filemode = filemode
 
-    async def scan(self, client):
+    def scan(self, client: object):
         self.result = {}
-        self.result = await super().scan(client)
+        self.result = super().scan(client)
         self.result["filemode"] = self.filemode
-
         return self.result
 
 
@@ -82,7 +104,7 @@ class Commit:
     @property
     def commit_files(self):
         if not self.files_:
-            self.files_ = self.get_files()
+            self.files_ = {file["filename"]: file for file in list(self.get_files())}
 
         return self.files_
 
@@ -140,11 +162,33 @@ class Commit:
             content = "\n".join(lines[filemode.start :])
 
             if content:
-                yield CommitFile(content, filename, filemode)
+                yield {
+                    "filename": filename,
+                    "filemode": filemode.mode,
+                    "content": content,
+                }
 
-    async def scan(self, client: object):
-        """ Scan the patch for all file (async) in the commit and save it in result. """
-        return await asyncio.gather(*(cf.scan(client) for cf in self.commit_files))
+    def process_result(self, scan_result: Dict):
+        """ Format scanning_api response into leak list for display. """
+        for file_result in scan_result["files"]:
+            file = self.commit_files[file_result["filename"]]
+            yield {
+                "filename": file["filename"],
+                "filemode": file["filemode"],
+                "content": file["content"],
+                "scan": file_result,
+                "has_leak": len(file_result.get("secrets", [])) > 0,
+            }
+
+    def scan(self, client: object):
+        """ Scan the patch for all files in the commit and save it in result. """
+        if not len(list(self.get_files())):
+            return {}
+
+        self.result = list(
+            self.process_result(client.scan_files(list(self.get_files())))
+        )
+        return self.result
 
 
 class GitHubRepo:
@@ -170,13 +214,7 @@ class GitHubRepo:
                         "scan": {"secrets": file["secrets"]},
                     }
 
-    async def scan(self, client: object):
-        try:
-            scan_result = await client.scan_repo(self.user, self.repo, self.token)
-            self.result = list(self.process_result(scan_result))
-        except asyncio.TimeoutError:
-            self.result = [{"error": "timeout"}]
-        except PublicScanningException as error:
-            raise PublicScanningException(error)
-
+    def scan(self, client: object):
+        scan_result = client.scan_repo(self.user, self.repo, self.token)
+        self.result = list(self.process_result(scan_result))
         return self.result
