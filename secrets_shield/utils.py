@@ -2,7 +2,7 @@ import re
 import subprocess
 
 from enum import Enum
-from typing import List
+from typing import List, Union, Dict
 
 
 class Filemode(Enum):
@@ -32,82 +32,40 @@ def shell(command: str) -> List:
     )
 
 
-def process_scan_lines(content: str, secrets: List, filemode: Filemode) -> List:
+def process_scan_to_secrets_and_lines(scan_result: Dict, hide_secrets: bool) -> List:
     """
-    Return the lines with line number and secrets.
+    Return the secrets and the lines with line number.
 
-    :param content: Content of the git patch
-    :param secrets: List of secrets in the patch
-    :param filemode: File mode [file|new|delete|rename|modify]
+    :param scan_result: Scan result from the API call
+    :param hide_secrets: Option to hide secrets value
     """
-    if filemode == Filemode.FILE:
-        return _get_lines_from_file(content, secrets)
+    content = scan_result["content"]
+    filemode = scan_result["filemode"]
+    is_patch = filemode != Filemode.FILE
 
-    return _get_lines_from_patch(content, secrets, filemode)
+    # Patch
+    if is_patch:
+        lines = list(get_lines_from_patch(content, filemode))
 
+    # File
+    else:
+        lines = list(get_lines_from_file(content))
 
-def _get_line_secrets(
-    line_content: str, secrets: List, index: int, is_patch: bool = False
-) -> (List, int):
-    """
-    Return secret list in the line with updated index.
+    secrets = flatten_secrets(scan_result, hide_secrets)
+    update_secrets_patch(secrets, lines, is_patch)
 
-    :param line_content: Content of the line
-    :param secrets: List of secrets in the line
-    :param is_patch: True if line_content comes from a git patch
-
-    :return: The updated secrets list and secret index
-    """
-    line_secrets = []
-
-    for secret in secrets:
-        # Add 1 for the leading +/- in a git line (0 if not git patch)
-        if secret["start"] < index + len(line_content) + int(is_patch):
-            start = line_content.index(secret["value"])
-            end = start + len(secret["value"])
-            line_secrets.append(dict(secret, **{"start": start, "end": end}))
-        else:
-            break
-
-    return line_secrets
+    return secrets, lines
 
 
-def _get_lines_from_file(content: str, secrets: List) -> List:
-    """
-    Return the lines with line number and secrets from a file.
-
-    :param content: Content of the file
-    :param secrets:  Secret list in this file
-    """
-    lines = []
-    index = 0
-
+def get_lines_from_file(content: str) -> List:
+    """ Return the lines with line number from a file. """
     for line_count, line_content in enumerate(content.split("\n")):
-        line_secrets = _get_line_secrets(line_content, secrets, index)
-        secrets = secrets[len(line_secrets) :]
-
-        lines.append(
-            {"index": line_count + 1, "content": line_content, "secrets": line_secrets}
-        )
-
-        index += len(line_content) + 1
-
-    return lines
+        yield new_line(line_content, index=line_count + 1)
 
 
-def _get_lines_from_patch(content: str, secrets: List, filemode: str) -> List:
-    """
-    Return the lines with line number and secrets from a git patch.
-
-    :param content: Content of the git patch
-    :param secrets: List of secrets in the patch
-    :param filemode: File mode [new|delete|rename|modify]
-    """
-    # Make sure there is a trailing new line
+def get_lines_from_patch(content: str, filemode: Filemode) -> List:
+    """ Return the lines with line number from a git patch. """
     content += "\n"
-    lines = []
-    index = 0
-
     pre_index = 0
     post_index = 0
 
@@ -125,15 +83,15 @@ def _get_lines_from_patch(content: str, secrets: List, filemode: str) -> List:
             line_post_index = post_index
 
         elif line_type == "@":
-            REGEX_PATCH_HEADER = r"@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: (?P<line_content>.+))?"
+            REGEX_PATCH_HEADER = r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"
             m = re.search(REGEX_PATCH_HEADER, line)
             pre_index = m.groupdict()["pre_index"]
             post_index = m.groupdict()["post_index"]
-            line_content = m.groupdict()["line_content"]
+            line_content = m.groupdict()["line_content"][:-1]
 
-            if filemode == Filemode.NEW.mode or filemode == Filemode.DELETE.mode:
-                pre_index = 0
-                post_index = 0
+            if filemode == Filemode.NEW or filemode == Filemode.DELETE:
+                pre_index = 1
+                post_index = 1
 
             else:
                 pre_index = int(pre_index)
@@ -143,8 +101,8 @@ def _get_lines_from_patch(content: str, secrets: List, filemode: str) -> List:
                 line_type = " "
                 pre_index -= 1
                 post_index -= 1
-                line_pre_index = pre_index
-                line_post_index = post_index
+                line_pre_index = None
+                line_post_index = None
 
         elif line_type == "+":
             post_index += 1
@@ -157,48 +115,113 @@ def _get_lines_from_patch(content: str, secrets: List, filemode: str) -> List:
             line_content = line[1:]
 
         if line_type and line_content is not None:
-            line_secrets = _get_line_secrets(
-                line_content, secrets, index, is_patch=True
-            )
-            # We update the secrets remaining, as they are sorted by index
-            secrets = secrets[len(line_secrets) :]
-
-            lines.append(
-                add_line(
-                    line_type,
-                    line_pre_index,
-                    line_post_index,
-                    line_content,
-                    line_secrets,
-                )
+            yield new_line(
+                line_content,
+                line_type=line_type,
+                pre_index=line_pre_index,
+                post_index=line_post_index,
             )
 
-        # Add 1 for the \n
-        index += len(line) + 1
 
-    return lines
-
-
-def add_line(
-    line_type: str,
-    pre_index: int,
-    post_index: int,
+def new_line(
     line_content: str,
-    line_secrets: List,
+    line_type: Union[None, str] = None,
+    pre_index: Union[None, int] = None,
+    post_index: Union[None, int] = None,
+    index: Union[None, int] = None,
 ):
     """
     Return the new line object to add.
 
+    :param line_content: Content of the line
     :param line_type: The line type [+|-| ]
     :param pre_index: Line index (deletion)
     :param post_index: Line index (addition)
-    :param line_content: Content of the line
-    :param line_secrets: List of secrets in the line
+    :param index: Line count (file mode)
     """
-    return {
-        "type": line_type,
-        "pre_index": pre_index,
-        "post_index": post_index,
-        "content": line_content,
-        "secrets": line_secrets,
-    }
+    # Patch
+    if line_type:
+        return {
+            "type": line_type,
+            "pre_index": pre_index,
+            "post_index": post_index,
+            "content": line_content,
+        }
+
+    # File
+    else:
+        return {"index": index, "content": line_content}
+
+
+def update_secrets_patch(secrets: List, lines: List, is_patch: bool = False):
+    """
+    Update secrets object with secret line and indexes in line.
+
+    :param secrets: List of secrets sorted by start index
+    :param lines: List of content lines with indexes (post_index and pre_index)
+    :param is_patch: True if is patch from git, False if file
+    """
+    index = 0
+    line_index = 0
+
+    for secret in secrets:
+        len_line = len(lines[line_index]["content"]) + 1 + int(is_patch)
+        # Update line_index until we find the secret start
+        while secret["start"] >= index + len_line:
+            index += len_line
+            line_index += 1
+            len_line = len(lines[line_index]["content"]) + 1 + int(is_patch)
+
+        start_line = line_index
+        start_index = secret["start"] - index - int(is_patch)
+
+        # Update line_index until we find the secret end
+        while secret["end"] > index + len_line:
+            index += len_line
+            line_index += 1
+            len_line = len(lines[line_index]["content"]) + 1 + int(is_patch)
+
+        end_line = line_index
+        end_index = secret["end"] - index - int(is_patch)
+
+        secret.update(
+            {
+                "start_line": start_line,
+                "start_index": start_index,
+                "end_line": end_line,
+                "end_index": end_index,
+            }
+        )
+
+        del secret["start"]
+        del secret["end"]
+
+
+def flatten_secrets(scan_result: Dict, hide_secrets: bool) -> List:
+    """ Select one secret by string matched in the Scanning API result. """
+    secrets = []
+
+    for secret in scan_result["scan"]["secrets"]:
+        for match in secret["matches"]:
+            display_name = secret["detector"]["display_name"]
+            value = (
+                match["string_matched"]
+                if not hide_secrets
+                else match["string_matched"][:4]
+                + "*" * max(0, (len(match["string_matched"]) - 4))
+            )
+
+            secrets.append(
+                {
+                    "detector": display_name,
+                    "value": value,
+                    "start": match["indice_start"],
+                    "end": match["indice_end"],
+                }
+            )
+
+    # We get the first detector for each start index
+    secrets = list({s["start"]: s for s in secrets[::-1]}.values())
+    secrets = sorted(secrets, key=lambda x: x["start"])
+
+    return secrets

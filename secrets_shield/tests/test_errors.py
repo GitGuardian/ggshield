@@ -11,8 +11,8 @@ def test_not_authorized():
     c.files_ = [File("This is a test file", "test.txt")]
 
     results = asyncio.get_event_loop().run_until_complete(
-        c.scan(PublicScanningApiClient(""))
+        c.scan(PublicScanningApiClient("1234567890"))
     )
     result = results[0]
     assert result["error"]
-    assert result["error"] == "Invalid token header. No credentials provided."
+    assert result["error"] == "Invalid token."
