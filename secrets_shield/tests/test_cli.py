@@ -29,12 +29,12 @@ def mockHookDirPath():
 
 
 @my_vcr.use_cassette()
-def test_scan_file(snapshot, cli_fs_runner):
+def test_scan_file(cli_fs_runner):
     os.system('echo "This is a file with no secrets." > file')
     assert os.path.isfile("file")
 
     result = cli_fs_runner.invoke(cli, ["scan", "file"])
-    assert result.exit_code == 0
+    assert not result.exception
     assert "No secrets have been found" in result.output
 
 
@@ -54,7 +54,7 @@ class TestScanFiles:
     def test_files_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "file1", "file2", "-r", "-y"])
-        assert result.exit_code == 0
+        assert not result.exception
         assert "No secrets have been found" in result.output
 
     @my_vcr.use_cassette()
@@ -63,7 +63,7 @@ class TestScanFiles:
         result = cli_fs_runner.invoke(
             cli, ["scan", "file1", "file2", "-r", "-v"], input="y\n"
         )
-        assert result.exit_code == 0
+        assert not result.exception
         assert "file1\n" in result.output
         assert "file2\n" in result.output
         assert "No secrets have been found" in result.output
@@ -81,7 +81,7 @@ class TestScanFiles:
     def test_files_verbose_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "file1", "file2", "-r", "-v", "-y"])
-        assert result.exit_code == 0
+        assert not result.exception
         assert "file1\n" in result.output
         assert "file2\n" in result.output
         assert "No secrets have been found" in result.output
@@ -145,10 +145,11 @@ class TestScanDirectory:
 
 class TestInstallLocal:
     def test_local_exist_is_dir(self, cli_fs_runner):
+        os.system("git init")
         os.makedirs(".git/hooks/pre-commit/")
         assert os.path.isdir(".git/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
         os.system("rm -R .git/hooks/pre-commit")
         assert result.exit_code == 1
         assert result.exception
@@ -157,7 +158,7 @@ class TestInstallLocal:
     def test_local_not_exist(self, cli_fs_runner):
         assert not os.path.isfile(".git/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
         assert os.path.isfile(".git/hooks/pre-commit")
         assert result.exit_code == 0
         assert "pre-commit successfully added in .git/hooks/pre-commit" in result.output
@@ -167,7 +168,7 @@ class TestInstallLocal:
         os.system('echo "pre-commit file" > .git/hooks/pre-commit')
         assert os.path.isfile(".git/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
         assert result.exit_code == 1
         assert result.exception
         assert "Error: .git/hooks/pre-commit already exists." in result.output
@@ -177,7 +178,7 @@ class TestInstallLocal:
         os.system('echo "pre-commit file" > .git/hooks/pre-commit')
         assert os.path.isfile(".git/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install", "-f"])
+        result = cli_fs_runner.invoke(cli, ["install", "-f", "-m", "local"])
         assert result.exit_code == 0
         assert "pre-commit successfully added in .git/hooks/pre-commit" in result.output
 
@@ -187,7 +188,7 @@ class TestInstallGlobal:
         os.makedirs("global/hooks/pre-commit/")
         assert os.path.isdir("global/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install", "-g"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         os.system("rm -R global/hooks/pre-commit")
         assert result.exit_code == 1
         assert result.exception
@@ -195,7 +196,7 @@ class TestInstallGlobal:
     def test_global_not_exist(self, cli_fs_runner, mockHookDirPath):
         assert not os.path.isfile("global/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install", "-g"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         assert os.path.isfile("global/hooks/pre-commit")
         assert result.exit_code == 0
         assert (
@@ -207,7 +208,7 @@ class TestInstallGlobal:
         os.system('echo "pre-commit file" > global/hooks/pre-commit')
         assert os.path.isfile("global/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install", "-g"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         assert result.exit_code == 1
         assert result.exception
         assert "Error: global/hooks/pre-commit already exists." in result.output
@@ -217,7 +218,7 @@ class TestInstallGlobal:
         os.system('echo "pre-commit file" > global/hooks/pre-commit')
         assert os.path.isfile("global/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install", "-g", "-f"])
+        result = cli_fs_runner.invoke(cli, ["install", "-m", "global", "-f"])
         assert result.exit_code == 0
         assert (
             "pre-commit successfully added in global/hooks/pre-commit" in result.output

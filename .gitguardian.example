@@ -2,3 +2,9 @@ detectors:
   blacklist:
     - googleaiza
     - aws_iam
+
+ignore:
+  filename:
+    - .env
+  extension:
+    - example

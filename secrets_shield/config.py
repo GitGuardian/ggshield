@@ -52,14 +52,25 @@ def load_config() -> Dict:
 def _init_config(config: Dict):
     """ Initiate all the options. """
     config["blacklist"] = set()
+    config["ignore"] = {"filename": set(), "extension": set()}
 
 
 def _load_config(config: Dict, _config: Dict):
     """ Load all the options (update config with _config) """
     load_blacklist(config, _config)
+    load_ignore(config, _config)
 
 
 def load_blacklist(config: Dict, _config: Dict):
     """ Load blacklist. """
     if "detectors" in _config and "blacklist" in _config["detectors"]:
         config["blacklist"].update(_config["detectors"]["blacklist"])
+
+
+def load_ignore(config: Dict, _config: Dict):
+    """ Load list of ignored files. """
+    if "ignore" in _config:
+        if "filename" in _config["ignore"]:
+            config["ignore"]["filename"].update(_config["ignore"]["filename"])
+        if "extension" in _config["ignore"]:
+            config["ignore"]["extension"].update(_config["ignore"]["extension"])
