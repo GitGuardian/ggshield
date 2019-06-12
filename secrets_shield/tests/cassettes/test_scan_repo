@@ -2,54 +2,56 @@ interactions:
 - request:
     body: null
     headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
       Content-Type:
       - application/json
-    method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/repo-analyzer/user/eugenenelou/repo/test
+      User-Agent:
+      - python-requests/2.22.0
+    method: GET
+    uri: https://api.dev.gitguardian.com/api/v1/https://api.dev.gitguardian.com/api/v1/repo-analyzer/user/eugenenelou/repo/test
   response:
     body:
       string: '{"commit_leaks":[{"sha":"6a9797601d6a97760b4d493ca5290ad13c1d149f","html_url":"https://github.com/eugenenelou/test/commit/6a9797601d6a97760b4d493ca5290ad13c1d149f","files":[{"secrets":[{"detector":{"category":"Api","high_recall":true,"metadata":{"company_name":"Google","company_name_l":"google","company_name_normalized":"Google"},"name":"googleaiza","display_name":"Google
         Key"},"matches":[{"name":"apikey","string_matched":"AIzaSyBGSeskPWB4tOLGGx_xOEa75yAya0FW62Q","indice_start":10,"indice_end":49}],"status":"can_not_check"}],"content":"\nYOUTUBE:
-        AIzaSyBGSeskPWB4tOLGGx_xOEa75yAya0FW62Q\n\n","filename":".env","file_sha":"64bcb31f3c4c1c8769398283a3ec7d3dc2e0863e"}]}],"ended_at":"2019-06-04T12:59:42.230601695Z","metadata":{"analyzed_commits":["404e44b0ce8de9daf938cbd812384ced97339854","a0bede7e407ebfc04e7798a5e67a5073778e0b8c","6a9797601d6a97760b4d493ca5290ad13c1d149f","cbda38a351929e5962f2430b0f15b67de6a27fbf","d25bc77ec2389873b9098d757340b8a0b395e822"],"commit_count":5,"leak_count":1},"repository_fullname":"eugenenelou/test","requested_at":"2019-06-04T12:59:42.029122349Z","started_at":"2019-06-04T12:59:42.029249232Z","status":{"code":"leaks","reason":"Leaks
+        AIzaSyBGSeskPWB4tOLGGx_xOEa75yAya0FW62Q\n\n","filename":".env","file_sha":"64bcb31f3c4c1c8769398283a3ec7d3dc2e0863e"}]}],"ended_at":"2019-06-12T06:58:54.309994552Z","metadata":{"analyzed_commits":["a0bede7e407ebfc04e7798a5e67a5073778e0b8c","6a9797601d6a97760b4d493ca5290ad13c1d149f","cbda38a351929e5962f2430b0f15b67de6a27fbf","d25bc77ec2389873b9098d757340b8a0b395e822","404e44b0ce8de9daf938cbd812384ced97339854"],"commit_count":5,"leak_count":1},"repository_fullname":"eugenenelou/test","requested_at":"2019-06-12T06:58:54.166545264Z","started_at":"2019-06-12T06:58:54.166691888Z","status":{"code":"leaks","reason":"Leaks
         were found."}}'
     headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Encoding
-      : gzip
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Tue, 04 Jun 2019 12:59:42 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Transfer-Encoding
-      : chunked
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept-Encoding
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '870'
-      X-RateLimit-Reset: '1559653842'
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 12 Jun 2019 06:58:54 GMT
+      Server:
+      - nginx/1.16.0
+      Set-Cookie:
+      - csrftoken=hs9heYHCiXK8PSmbJbaQq9M49ZkH4zFpOV1nisN7ATTZ7ZwzVK33WsqYIn58S76A;
+        expires=Wed, 10 Jun 2020 06:58:54 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+      - sessionid=dcxhp015vlncd229s34rzaucdnzj4xnc; expires=Wed, 26 Jun 2019 06:58:54
+        GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      - Accept, Cookie
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-RateLimit-Limit:
+      - '1000'
+      X-RateLimit-Remaining:
+      - '969'
+      X-RateLimit-Reset:
+      - '1560331318'
+      content-length:
+      - '1189'
     status:
       code: 200
       message: OK
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/repo-analyzer/user/eugenenelou/repo/test
-        - ''
-        - ''
 version: 1

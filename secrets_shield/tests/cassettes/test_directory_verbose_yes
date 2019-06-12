@@ -1,252 +1,58 @@
 interactions:
 - request:
-    body: null
+    body: '{"files": [{"filename": "file1", "content": "This is a file with no secrets.\n"},
+      {"filename": "dir/file2", "content": "This is a file with no secrets.\n"}, {"filename":
+      "dir/subdir/file3", "content": "This is a file with no secrets.\n"}]}'
     headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '239'
       Content-Type:
       - application/json
+      User-Agent:
+      - python-requests/2.22.0
     method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
+    uri: https://api.dev.gitguardian.com/api/v1/https://api.dev.gitguardian.com/api/v1/scanning-api/scan/files
   response:
     body:
-      string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
+      string: '{"files":[{"filename":"file1","content":null,"secrets":[]},{"filename":"dir/file2","content":null,"secrets":[]},{"filename":"dir/subdir/file3","content":null,"secrets":[]}],"metadata":{"version":"1.0.22","leak_count":0}}'
     headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Encoding
-      : gzip
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Mon, 27 May 2019 15:18:38 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Transfer-Encoding
-      : chunked
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept-Encoding
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '804'
-      X-RateLimit-Reset: '1558976343'
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 12 Jun 2019 15:54:35 GMT
+      Server:
+      - nginx/1.16.0
+      Set-Cookie:
+      - csrftoken=hK8nkHAwwWumI2xGJ67iV13WfyTyhZvDuiLo7RNi0FggVdp1ejZeSrBQVxw1CA1Q;
+        expires=Wed, 10 Jun 2020 15:54:35 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+      - sessionid=ys5xapraz1dlmy1458ibnfyrnhc7xd8w; expires=Wed, 26 Jun 2019 15:54:35
+        GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      - Accept, Cookie
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-RateLimit-Limit:
+      - '1000'
+      X-RateLimit-Remaining:
+      - '908'
+      X-RateLimit-Reset:
+      - '1560359629'
+      content-length:
+      - '220'
     status:
       code: 200
       message: OK
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/scanning-api/scan/file
-        - ''
-        - ''
-- request:
-    body: null
-    headers:
-      Content-Type:
-      - application/json
-    method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
-  response:
-    body:
-      string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
-    headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Encoding
-      : gzip
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Mon, 27 May 2019 15:18:38 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Transfer-Encoding
-      : chunked
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept-Encoding
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '803'
-      X-RateLimit-Reset: '1558976343'
-    status:
-      code: 200
-      message: OK
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/scanning-api/scan/file
-        - ''
-        - ''
-- request:
-    body: null
-    headers:
-      Content-Type:
-      - application/json
-    method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
-  response:
-    body:
-      string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
-    headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Encoding
-      : gzip
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Mon, 27 May 2019 15:18:38 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Transfer-Encoding
-      : chunked
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept-Encoding
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '801'
-      X-RateLimit-Reset: '1558976343'
-    status:
-      code: 200
-      message: OK
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/scanning-api/scan/file
-        - ''
-        - ''
-- request:
-    body: null
-    headers:
-      Content-Type:
-      - application/json
-    method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
-  response:
-    body:
-      string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
-    headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Encoding
-      : gzip
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Mon, 27 May 2019 15:18:38 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Transfer-Encoding
-      : chunked
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept-Encoding
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '802'
-      X-RateLimit-Reset: '1558976343'
-    status:
-      code: 200
-      message: OK
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/scanning-api/scan/file
-        - ''
-        - ''
-- request:
-    body: null
-    headers:
-      Content-Type:
-      - application/json
-    method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/scanning-api/scan/file
-  response:
-    body:
-      string: '{"secrets":[],"metadata":{"version":"1.0.21","leak_count":0}}'
-    headers:
-      ? !!python/object/new:multidict._istr.istr
-      - Allow
-      : GET, POST, HEAD, OPTIONS
-      ? !!python/object/new:multidict._istr.istr
-      - Connection
-      : keep-alive
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Encoding
-      : gzip
-      ? !!python/object/new:multidict._istr.istr
-      - Content-Type
-      : application/json
-      ? !!python/object/new:multidict._istr.istr
-      - Date
-      : Mon, 27 May 2019 15:18:38 GMT
-      ? !!python/object/new:multidict._istr.istr
-      - Server
-      : nginx/1.16.0
-      ? !!python/object/new:multidict._istr.istr
-      - Transfer-Encoding
-      : chunked
-      ? !!python/object/new:multidict._istr.istr
-      - Vary
-      : Accept-Encoding
-      X-Frame-Options: SAMEORIGIN
-      X-RateLimit-Limit: '1000'
-      X-RateLimit-Remaining: '805'
-      X-RateLimit-Reset: '1558976343'
-    status:
-      code: 200
-      message: OK
-    url: !!python/object/new:yarl.URL
-      state: !!python/tuple
-      - !!python/object/new:urllib.parse.SplitResult
-        - https
-        - api.dev.gitguardian.com
-        - /api/v1/scanning-api/scan/file
-        - ''
-        - ''
 version: 1

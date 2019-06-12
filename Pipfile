@@ -6,16 +6,17 @@ verify_ssl = true
 [dev-packages]
 flake8 = "*"
 black = "==19.3b0"
+pre-commit = "*"
+pytest = "*"
+mock = "*"
+vcrpy = "*"
+snapshottest = "*"
 
 [packages]
 secrets_shield = {editable = true,path = "."}
-pytest = "*"
-aiohttp = "*"
 requests = "*"
-snapshottest = "*"
-vcrpy = "*"
 click = "*"
-mock = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3.6"

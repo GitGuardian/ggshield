@@ -13,7 +13,7 @@ def cli_runner():
     return CliRunner()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def cli_fs_runner(cli_runner):
     with cli_runner.isolated_filesystem():
         yield cli_runner
@@ -112,14 +112,14 @@ class TestScanDirectory:
     def test_directory_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-y"])
-        assert result.exit_code == 0
+        assert not result.exception
         assert "No secrets have been found" in result.output
 
     @my_vcr.use_cassette()
     def test_directory_verbose(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-v"], input="y\n")
-        assert result.exit_code == 0
+        assert not result.exception
         assert "file1\n" in result.output
         assert "dir/file2\n" in result.output
         assert "dir/subdir/file3\n" in result.output
@@ -136,7 +136,7 @@ class TestScanDirectory:
     def test_directory_verbose_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-v", "-y"])
-        assert result.exit_code == 0
+        assert not result.exception
         assert "file1\n" in result.output
         assert "dir/file2\n" in result.output
         assert "dir/subdir/file3\n" in result.output
@@ -187,7 +187,7 @@ class TestInstallGlobal:
         os.makedirs("global/hooks/pre-commit/")
         assert os.path.isdir("global/hooks/pre-commit")
 
-        result = cli_fs_runner.invoke(cli, ["install"])
+        result = cli_fs_runner.invoke(cli, ["install", "-g"])
         os.system("rm -R global/hooks/pre-commit")
         assert result.exit_code == 1
         assert result.exception
