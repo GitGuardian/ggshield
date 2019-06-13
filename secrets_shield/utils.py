@@ -1,4 +1,5 @@
 import re
+import click
 import subprocess
 
 from enum import Enum
@@ -30,6 +31,33 @@ def shell(command: str) -> List:
     return (
         subprocess.check_output(command.split(" ")).decode("utf-8").rstrip().split("\n")
     )
+
+
+def check_git_installed():
+    """ Check if git is installed. """
+    with subprocess.Popen(
+        ["git", "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    ) as process:
+        if process.wait():
+            raise click.ClickException("Git is not installed.")
+
+
+def check_git_dir():
+    """ Check if folder is git directory. """
+    check_git_installed()
+    with subprocess.Popen(
+        ["git", "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    ) as process:
+        if process.wait():
+            raise click.ClickException("Not a git directory.")
+
+
+def is_git_dir():
+    try:
+        check_git_dir()
+        return True
+    except click.ClickException:
+        return False
 
 
 def process_scan_to_secrets_and_lines(scan_result: Dict, hide_secrets: bool) -> List:

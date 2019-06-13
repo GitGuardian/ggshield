@@ -3,7 +3,7 @@ import sys
 import click
 from typing import Dict, List, Union, Generator
 
-from secrets_shield.utils import shell
+from secrets_shield.utils import shell, check_git_dir, is_git_dir
 
 from secrets_shield.scannable import Commit, File, Files, GitHubRepo
 from secrets_shield.client import PublicScanningException
@@ -50,6 +50,7 @@ def scan(
 
     try:
         if mode:
+            check_git_dir()
             if mode == "pre-commit":
                 return_code = process_scan_result(Commit().scan(client))
 
@@ -70,15 +71,14 @@ def scan(
                 click.echo(ctx.get_help())
 
         elif paths:
-            files = Files(get_files_from_paths(paths, recursive, yes, verbose))
+            files = Files(get_files_from_paths(ctx, paths, recursive, yes, verbose))
             return_code = process_scan_result(files.scan(client))
 
         else:
             click.echo(ctx.get_help())
 
     except PublicScanningException as error:
-        click.echo("{}: {}".format(click.style("Error", fg="red"), str(error)))
-        return_code = 1
+        raise click.ClickException(str(error))
 
     sys.exit(return_code)
 
@@ -149,7 +149,7 @@ def get_list_commit_SHA(commit_range: str) -> List:
 
 
 def get_files_from_paths(
-    paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
+    ctx: object, paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
 ) -> object:
     """
     Create a scan object from files content.
@@ -159,7 +159,7 @@ def get_files_from_paths(
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
     """
-    files = list(generate_files_from_paths(get_filepaths(paths, recursive)))
+    files = list(generate_files_from_paths(ctx, get_filepaths(paths, recursive)))
 
     if verbose:
         for f in files:
@@ -201,17 +201,33 @@ def get_filepaths(
 
 
 def generate_files_from_paths(
-    paths: Generator[str, None, None]
+    ctx: object, paths: Generator[str, None, None]
 ) -> Generator[Dict, None, None]:
     """ Generate a list of scannable files from a list of filepaths."""
+    path_blacklist = (
+        [
+            "{}/{}".format(os.getcwd(), filename)
+            for filename in shell("git ls-files -o -i --exclude-standard")
+        ]
+        if is_git_dir()
+        else []
+    )
+
     for path in paths:
-        with open(path, "r") as file:
-            try:
-                content = file.read()
-                if content:
-                    yield File(
-                        content,
-                        click.format_filename(file.name[len(os.getcwd()) + 1 :]),
-                    )
-            except UnicodeDecodeError:
-                pass
+        filename = click.format_filename(path, True)
+        if (
+            path not in path_blacklist
+            and not path.startswith("{}/{}".format(os.getcwd(), ".git/"))
+            and filename not in ctx.obj["config"]["ignore"]["filename"]
+            and filename.split(".")[-1] not in ctx.obj["config"]["ignore"]["extension"]
+        ):
+            with open(path, "r") as file:
+                try:
+                    content = file.read()
+                    if content:
+                        yield File(
+                            content,
+                            click.format_filename(file.name[len(os.getcwd()) + 1 :]),
+                        )
+                except UnicodeDecodeError:
+                    pass

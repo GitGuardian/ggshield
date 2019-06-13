@@ -3,18 +3,27 @@ import sys
 import click
 import subprocess
 
+from secrets_shield.utils import check_git_dir, check_git_installed
+
 
 @click.command(context_settings={"ignore_unknown_options": True})
-@click.option("--global", "-g", "global_", is_flag=True, help="Install hook globally")
+@click.option(
+    "--mode",
+    "-m",
+    type=click.Choice(["local", "global"]),
+    help="Hook installation mode",
+    required=True,
+)
 @click.option("--force", "-f", is_flag=True, help="Force override")
-def install(global_: bool, force: bool) -> int:
+def install(mode: str, force: bool) -> int:
     """ Command to install a pre-commit hook (local or global). """
-    return_code = install_global(force) if global_ else install_local(force)
+    return_code = install_global(force) if mode == "global" else install_local(force)
     sys.exit(return_code)
 
 
 def install_global(force: bool) -> int:
     """ Global pre-commit hook installation. """
+    check_git_installed()
     hook_dir_path = get_global_hook_dir_path()
 
     if not hook_dir_path:
@@ -27,9 +36,7 @@ def install_global(force: bool) -> int:
 def get_global_hook_dir_path() -> str:
     """ Return the default hooks path (if it exists). """
     with subprocess.Popen(
-        ["git", "config", "--global", "--get", "core.hooksPath"],
-        stdout=subprocess.PIPE,
-        timeout=10,
+        ["git", "config", "--global", "--get", "core.hooksPath"], stdout=subprocess.PIPE
     ) as process:
         if process.returncode:
             return None
@@ -41,6 +48,7 @@ def get_global_hook_dir_path() -> str:
 
 def install_local(force: bool) -> int:
     """ Local pre-commit hook installation. """
+    check_git_dir()
     return create_hook(".git/hooks", force)
 
 
