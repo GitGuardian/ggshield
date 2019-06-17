@@ -1,6 +1,7 @@
 interactions:
 - request:
-    body: '{"files": [{"filename": "test.txt", "content": "This is a test file"}]}'
+    body: '{"files": [{"filename": "test.txt", "content": "This is a test file"}],
+      "detectors_banlist": []}'
     headers:
       Accept:
       - '*/*'
@@ -9,7 +10,7 @@ interactions:
       Connection:
       - keep-alive
       Content-Length:
-      - '71'
+      - '96'
       Content-Type:
       - application/json
       User-Agent:
@@ -29,7 +30,7 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Wed, 12 Jun 2019 06:58:48 GMT
+      - Mon, 17 Jun 2019 10:09:32 GMT
       Server:
       - nginx/1.16.0
       Vary:
@@ -41,9 +42,9 @@ interactions:
       X-RateLimit-Limit:
       - '1000'
       X-RateLimit-Remaining:
-      - '998'
+      - '999'
       X-RateLimit-Reset:
-      - '1560331473'
+      - '1560775172'
     status:
       code: 401
       message: Unauthorized

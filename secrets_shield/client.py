@@ -48,6 +48,7 @@ class PublicScanningApiClient:
         self.base_url = os.getenv(
             "GITGUARDIAN_API_URL", "https://api.gitguardian.com/api/v1/"
         )
+        self.blacklist = []
 
     @property
     def headers(self) -> Dict:
@@ -58,13 +59,13 @@ class PublicScanningApiClient:
 
     def scan_file(self, content: str) -> Dict:
         """ Scan a content string. """
-        payload = {"content": content}
+        payload = {"content": content, "detectors_banlist": self.blacklist}
         path = self.base_url + self.FILE_PATH
-        return self.get(path, headers=self.headers, data=payload)
+        return self.get(path, headers=self.headers, data=json.dumps(payload))
 
     def scan_files(self, files: List) -> Dict:
         """ Scan multiple files at once. """
-        payload = {"files": files}
+        payload = {"files": files, "detectors_banlist": self.blacklist}
         path = self.base_url + self.FILES_PATH
         return self.post(path, headers=self.headers, data=json.dumps(payload))
 
