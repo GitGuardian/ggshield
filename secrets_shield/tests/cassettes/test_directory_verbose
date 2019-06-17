@@ -2,7 +2,8 @@ interactions:
 - request:
     body: '{"files": [{"filename": "file1", "content": "This is a file with no secrets.\n"},
       {"filename": "dir/file2", "content": "This is a file with no secrets.\n"}, {"filename":
-      "dir/subdir/file3", "content": "This is a file with no secrets.\n"}]}'
+      "dir/subdir/file3", "content": "This is a file with no secrets.\n"}], "detectors_banlist":
+      []}'
     headers:
       Accept:
       - '*/*'
@@ -11,7 +12,7 @@ interactions:
       Connection:
       - keep-alive
       Content-Length:
-      - '239'
+      - '264'
       Content-Type:
       - application/json
       User-Agent:
@@ -29,13 +30,13 @@ interactions:
       Content-Type:
       - application/json
       Date:
-      - Wed, 12 Jun 2019 15:54:34 GMT
+      - Mon, 17 Jun 2019 10:09:30 GMT
       Server:
       - nginx/1.16.0
       Set-Cookie:
-      - csrftoken=QyzEtkvXGOqkNDuPutQQkNi4exZINADMvX5EPegh2Nl1IQCfunYYxUkl3qkQixdc;
-        expires=Wed, 10 Jun 2020 15:54:34 GMT; Max-Age=31449600; Path=/; SameSite=Lax
-      - sessionid=cvd17y8o4n17w4wp6lue0z6ufwgio46d; expires=Wed, 26 Jun 2019 15:54:34
+      - csrftoken=SHmtsih5v8lyIHeBmvX48tH8iW88xbKsjUScSCgVmguKjXkl63Njwh5KV3Xyl6es;
+        expires=Mon, 15 Jun 2020 10:09:30 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+      - sessionid=63dgqtkx2ijgg2kykcykm4v3k0fj7yjy; expires=Mon, 01 Jul 2019 10:09:30
         GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
       Transfer-Encoding:
       - chunked
@@ -47,9 +48,9 @@ interactions:
       X-RateLimit-Limit:
       - '1000'
       X-RateLimit-Remaining:
-      - '909'
+      - '980'
       X-RateLimit-Reset:
-      - '1560359628'
+      - '1560768007'
       content-length:
       - '220'
     status:

@@ -34,6 +34,8 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 )
 @click.option("--repo", nargs=1, help="Scan GitHub Repository (user/repo)")
 @click.option("--gh-token", help="GitHub Access Token")
+@click.option("--blacklist", "-b", multiple=True, help="Extend blacklist of detectors")
+@click.option("--set-blacklist", "-B", multiple=True, help="Set detectors blacklist")
 def scan(
     ctx: object,
     paths: Union[List, str],
@@ -43,10 +45,20 @@ def scan(
     verbose: bool,
     repo: str,
     gh_token: str,
+    blacklist: tuple,
+    set_blacklist: tuple,
 ) -> int:
     """ Command to scan various content. """
     client = ctx.obj["client"]
     return_code = 0
+
+    if set_blacklist:
+        ctx.obj["config"]["blacklist"] = set_blacklist
+
+    elif blacklist:
+        ctx.obj["config"]["blacklist"].update(blacklist)
+
+    client.blacklist = list(ctx.obj["config"]["blacklist"])
 
     try:
         if mode:

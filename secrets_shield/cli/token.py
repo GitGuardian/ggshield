@@ -23,7 +23,7 @@ def catch_public_scanning(f):
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
-def token(ctx: object,) -> int:
+def token(ctx: object) -> int:
     """ Command to manage Gitguardian token. """
     pass
 
@@ -85,7 +85,7 @@ def delete(ctx: object, token_id: List):
 
 def display_token(token: Dict) -> str:
     """ Format the token data into a readable string """
-    display = {"name": "Name", "id": "ID", "key": "Key", "created": "Created"}
+    display = {"name": "Name", "id": "ID", "key": "Key", "createdAt": "Created"}
     message = ""
 
     for key, value in token.items():
