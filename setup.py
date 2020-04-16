@@ -12,6 +12,6 @@ setup(
     install_requires=["requests==2.22.0", "Click==7.0", "PyYAML==5.1"],
     packages=packages,
     entry_points={
-        "console_scripts": ["ggshield=ggshield.ggshield:cli"]
+        "console_scripts": ["ggshield=ggshield.cmd:cli"]
     },
 )
