@@ -1,4 +1,4 @@
-from secrets_shield.utils import update_secrets_patch
+from ggshield.utils import update_secrets_patch
 
 
 def test_update_secrets_patch_with_file():

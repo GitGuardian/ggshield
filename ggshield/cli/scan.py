@@ -3,11 +3,11 @@ import sys
 import click
 from typing import Dict, List, Union, Generator
 
-from secrets_shield.utils import shell, check_git_dir, is_git_dir
+from ggshield.utils import shell, check_git_dir, is_git_dir
 
-from secrets_shield.scannable import Commit, File, Files, GitHubRepo
-from secrets_shield.client import PublicScanningException
-from secrets_shield.message import process_scan_result
+from ggshield.scannable import Commit, File, Files, GitHubRepo
+from ggshield.client import PublicScanningException
+from ggshield.message import process_scan_result
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 

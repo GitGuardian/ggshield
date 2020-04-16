@@ -4,7 +4,7 @@ import click
 import pytest
 from mock import patch
 from click.testing import CliRunner
-from secrets_shield.config import load_config
+from ggshield.config import load_config
 
 
 @pytest.fixture(scope="session")
@@ -19,8 +19,8 @@ def cli_fs_runner(cli_runner):
         yield cli_runner
 
 
-@patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-@patch("secrets_shield.config.CONFIG_GLOBAL", [""])
+@patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+@patch("ggshield.config.CONFIG_GLOBAL", [""])
 def test_parsing_error(cli_fs_runner):
     with open(".gitguardian.yml", "w") as file:
         file.write("Not a:\nyaml file.\n")
@@ -30,8 +30,8 @@ def test_parsing_error(cli_fs_runner):
 
 
 class TestBlackListConfig:
-    @patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("secrets_shield.config.CONFIG_GLOBAL", [""])
+    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+    @patch("ggshield.config.CONFIG_GLOBAL", [""])
     def test_simple_file_blacklist(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
             file.write(yaml.dump({"detectors": {"blacklist": ["google", "amazon"]}}))
@@ -39,8 +39,8 @@ class TestBlackListConfig:
         config = load_config()
         assert config["blacklist"] == {"google", "amazon"}
 
-    @patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("secrets_shield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
+    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_multiple_files_blacklist(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
             file.write(yaml.dump({"detectors": {"blacklist": ["google", "amazon"]}}))
@@ -51,8 +51,8 @@ class TestBlackListConfig:
         config = load_config()
         assert config["blacklist"] == {"google", "amazon", "microsoft"}
 
-    @patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("secrets_shield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
+    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_same_detectors_blacklist(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
             file.write(yaml.dump({"detectors": {"blacklist": ["google", "amazon"]}}))
@@ -65,8 +65,8 @@ class TestBlackListConfig:
 
 
 class TestIgnoreConfig:
-    @patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("secrets_shield.config.CONFIG_GLOBAL", [""])
+    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+    @patch("ggshield.config.CONFIG_GLOBAL", [""])
     def test_simple_file_ignore(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
             file.write(
@@ -76,8 +76,8 @@ class TestIgnoreConfig:
         config = load_config()
         assert config["ignore"] == {"filename": {".env"}, "extension": {"exe"}}
 
-    @patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("secrets_shield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
+    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_multiple_files_ignore(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
             file.write(
@@ -95,8 +95,8 @@ class TestIgnoreConfig:
             "extension": {"exe", "png"},
         }
 
-    @patch("secrets_shield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("secrets_shield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
+    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
+    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_same_ignore(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
             file.write(

@@ -2,10 +2,10 @@ import os
 import pytest
 
 from .conftest import my_vcr
-from secrets_shield.utils import Filemode
-from secrets_shield.scannable import Commit, GitHubRepo
-from secrets_shield.message import process_scan_result
-from secrets_shield.client import PublicScanningApiClient
+from ggshield.utils import Filemode
+from ggshield.scannable import Commit, GitHubRepo
+from ggshield.message import process_scan_result
+from ggshield.client import PublicScanningApiClient
 
 
 @pytest.fixture(scope="session")

@@ -2,7 +2,7 @@ import os
 import click
 from typing import Dict, List, Union
 
-from secrets_shield.utils import process_scan_to_secrets_and_lines, Filemode
+from .utils import process_scan_to_secrets_and_lines, Filemode
 
 STYLE = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},

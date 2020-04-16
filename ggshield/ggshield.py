@@ -2,12 +2,12 @@
 
 import click
 
-from secrets_shield.cli.scan import scan
-from secrets_shield.cli.token import token
-from secrets_shield.cli.install import install
+from .cli.scan import scan
+from .cli.token import token
+from .cli.install import install
 
-from secrets_shield.config import load_config
-from secrets_shield.client import PublicScanningApiClient
+from .config import load_config
+from .client import PublicScanningApiClient
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 

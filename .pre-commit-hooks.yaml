@@ -1,5 +1,5 @@
-- id: commit-secrets-shield
-  name: Secrets Shield (pre-commit)
+- id: commit-ggshield
+  name: GitGuardian Shield (pre-commit)
   language: python
-  entry: secrets-shield
+  entry: ggshield
   args: ["scan", "-m", "pre-commit"]

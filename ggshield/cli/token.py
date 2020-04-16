@@ -4,7 +4,7 @@ import click
 from functools import wraps
 from typing import Dict, List
 
-from secrets_shield.client import PublicScanningException
+from ggshield.client import PublicScanningException
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 

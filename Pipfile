@@ -3,6 +3,12 @@ name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
 
+[packages]
+ggshield = {editable = true,path = "."}
+requests = "*"
+click = "*"
+pyyaml = "*"
+
 [dev-packages]
 flake8 = "*"
 black = "==19.3b0"
@@ -11,12 +17,6 @@ pytest = "*"
 mock = "*"
 vcrpy = "*"
 snapshottest = "*"
-
-[packages]
-secrets_shield = {editable = true,path = "."}
-requests = "*"
-click = "*"
-pyyaml = "*"
 
 [requires]
 python_version = "3.6"

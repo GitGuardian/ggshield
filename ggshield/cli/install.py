@@ -3,7 +3,7 @@ import sys
 import click
 import subprocess
 
-from secrets_shield.utils import check_git_dir, check_git_installed
+from ggshield.utils import check_git_dir, check_git_installed
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -67,7 +67,7 @@ def create_hook(hook_dir_path: str, force: bool) -> int:
             )
 
     with open(hook_path, "w") as f:
-        f.write("#!/bin/bash\n\nsecrets-shield scan --pre-commit\n")
+        f.write("#!/bin/bash\n\nggshield scan -m pre-commit\n")
         os.chmod(hook_path, 0o775)
 
     click.echo(

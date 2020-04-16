@@ -1,8 +1,8 @@
 import pytest
 
 from .conftest import my_vcr
-from secrets_shield.scannable import Files, File
-from secrets_shield.client import PublicScanningApiClient, PublicScanningUnauthorized
+from ggshield.scannable import Files, File
+from ggshield.client import PublicScanningApiClient, PublicScanningUnauthorized
 
 
 @my_vcr.use_cassette()

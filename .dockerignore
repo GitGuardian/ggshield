@@ -1,0 +1,9 @@
+*
+.*
+
+!gg_shield
+!pygitguardian
+!Pipfile*
+!setup*
+!README.md
+

@@ -1,5 +1,5 @@
 from snapshottest import TestCase
-from secrets_shield.message import leak_message, no_leak_message
+from ggshield.message import leak_message, no_leak_message
 
 
 class TestMessage(TestCase):

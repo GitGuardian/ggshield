@@ -4,7 +4,7 @@ from unittest import mock
 
 from .conftest import my_vcr
 from click.testing import CliRunner
-from secrets_shield.secrets_shield import cli
+from ggshield.ggshield import cli
 
 
 @pytest.fixture(scope="session")
@@ -22,8 +22,7 @@ def cli_fs_runner(cli_runner):
 @pytest.fixture(scope="class")
 def mockHookDirPath():
     with mock.patch(
-        "secrets_shield.cli.install.get_global_hook_dir_path",
-        return_value="global/hooks",
+        "ggshield.cli.install.get_global_hook_dir_path", return_value="global/hooks"
     ):
         yield
 

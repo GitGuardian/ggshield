@@ -2,7 +2,7 @@ import re
 import click
 
 from typing import Dict, Union, List
-from secrets_shield.utils import shell, Filemode
+from .utils import shell, Filemode
 
 
 class Scannable:
