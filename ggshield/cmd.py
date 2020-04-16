@@ -13,7 +13,7 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
-def cli(ctx: object, token: str):
+def cli(ctx: object):
     token = os.getenv("GITGUARDIAN_API_KEY")
     if not token:
         raise click.ClickException("GitGuardian Token is needed.")
