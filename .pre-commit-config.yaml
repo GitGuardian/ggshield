@@ -3,8 +3,7 @@ repos:
     rev: stable
     hooks:
       - id: black
-        language_version: python3.6
-        args: [--config, black.toml]
+        language_version: python3
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.1.0
     hooks:
@@ -12,3 +11,11 @@ repos:
       # not python related
       - id: check-json
       - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: ggshield
+        name: GitGuardian Shield
+        entry: ggshield scan -m pre-commit
+        language: python
+        language_version: python3
+        stages: [commit]

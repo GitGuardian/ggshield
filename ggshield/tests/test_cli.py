@@ -45,9 +45,8 @@ class TestScanFiles:
     def test_files_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "file1", "file2"], input="n\n")
-        assert result.exit_code == 1
-        assert result.exception
-        assert "Aborted!" in result.output
+        assert result.exit_code == 0
+        assert not result.exception
 
     @my_vcr.use_cassette()
     def test_files_yes(self, cli_fs_runner):
@@ -72,9 +71,8 @@ class TestScanFiles:
         result = cli_fs_runner.invoke(
             cli, ["scan", "file1", "file2", "-r", "-v"], input="n\n"
         )
-        assert result.exit_code == 1
-        assert result.exception
-        assert "Aborted!" in result.output
+        assert result.exit_code == 0
+        assert not result.exception
 
     @my_vcr.use_cassette()
     def test_files_verbose_yes(self, cli_fs_runner):
@@ -95,17 +93,16 @@ class TestScanDirectory:
         os.system('echo "This is a file with no secrets." > dir/subdir/file3')
 
     def test_directory_error(self, cli_fs_runner):
-        result = cli_fs_runner.invoke(cli, ["scan", "./"])
-        assert result.exit_code == 1
+        result = cli_fs_runner.invoke(cli, ["scan", "-r", "./ewe-failing-test"])
+        assert result.exit_code == 2
         assert result.exception
-        assert "Error: Could not open file" in result.output
+        assert "does not exist" in result.output
 
     def test_directory_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r"], input="n\n")
-        assert result.exit_code == 1
-        assert result.exception
-        assert "Aborted!" in result.output
+        assert result.exit_code == 0
+        assert not result.exception
 
     @my_vcr.use_cassette()
     def test_directory_yes(self, cli_fs_runner):
@@ -127,9 +124,8 @@ class TestScanDirectory:
     def test_directory_verbose_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-v"], input="n\n")
-        assert result.exit_code == 1
-        assert result.exception
-        assert "Aborted!" in result.output
+        assert result.exit_code == 0
+        assert not result.exception
 
     @my_vcr.use_cassette()
     def test_directory_verbose_yes(self, cli_fs_runner):

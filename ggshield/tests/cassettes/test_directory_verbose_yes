@@ -1,9 +1,6 @@
 interactions:
 - request:
-    body: '{"files": [{"filename": "file1", "content": "This is a file with no secrets.\n"},
-      {"filename": "dir/file2", "content": "This is a file with no secrets.\n"}, {"filename":
-      "dir/subdir/file3", "content": "This is a file with no secrets.\n"}], "detectors_banlist":
-      []}'
+    body: '{"document": "This is a file with no secrets.\n", "filename": "file1"}'
     headers:
       Accept:
       - '*/*'
@@ -12,47 +9,116 @@ interactions:
       Connection:
       - keep-alive
       Content-Length:
-      - '264'
+      - '70'
       Content-Type:
       - application/json
       User-Agent:
-      - python-requests/2.22.0
+      - 'pygitguardian '
     method: POST
-    uri: https://api.dev.gitguardian.com/api/v1/https://api.dev.gitguardian.com/api/v1/scanning-api/scan/files
+    uri: https://api.staging.gitguardian.com/v1/scan
   response:
     body:
-      string: '{"files":[{"filename":"file1","content":null,"secrets":[]},{"filename":"dir/file2","content":null,"secrets":[]},{"filename":"dir/subdir/file3","content":null,"secrets":[]}],"metadata":{"version":"1.0.22","leak_count":0}}'
+      string: '{"policy_break_count":0,"policies":["File extensions","Filenames","Secrets
+        detection"],"policy_breaks":[]}'
     headers:
       Allow:
-      - GET, POST, HEAD, OPTIONS
+      - OPTIONS, POST
       Connection:
       - keep-alive
+      Content-Length:
+      - '106'
       Content-Type:
       - application/json
       Date:
-      - Mon, 17 Jun 2019 10:09:30 GMT
+      - Fri, 17 Apr 2020 09:24:28 GMT
       Server:
-      - nginx/1.16.0
-      Set-Cookie:
-      - csrftoken=hqn9RdXmrFjLXV5m5CxXqHX5kZJ0JIFjlyOi1QnbiELE5cTaBguoAKw4pcbuDiZM;
-        expires=Mon, 15 Jun 2020 10:09:30 GMT; Max-Age=31449600; Path=/; SameSite=Lax
-      - sessionid=2tz7vac7fecde4zhyjb3ij7xnagetao3; expires=Mon, 01 Jul 2019 10:09:30
-        GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
-      Transfer-Encoding:
-      - chunked
+      - nginx
       Vary:
-      - Accept-Encoding
-      - Accept, Cookie
+      - Cookie
       X-Frame-Options:
       - SAMEORIGIN
-      X-RateLimit-Limit:
-      - '1000'
-      X-RateLimit-Remaining:
-      - '979'
-      X-RateLimit-Reset:
-      - '1560768006'
-      content-length:
-      - '220'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"document": "This is a file with no secrets.\n", "filename": "dir/file2"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '74'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - 'pygitguardian '
+    method: POST
+    uri: https://api.staging.gitguardian.com/v1/scan
+  response:
+    body:
+      string: '{"policy_break_count":0,"policies":["File extensions","Filenames","Secrets
+        detection"],"policy_breaks":[]}'
+    headers:
+      Allow:
+      - OPTIONS, POST
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '106'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 17 Apr 2020 09:24:28 GMT
+      Server:
+      - nginx
+      Vary:
+      - Cookie
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"document": "This is a file with no secrets.\n", "filename": "dir/subdir/file3"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '81'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - 'pygitguardian '
+    method: POST
+    uri: https://api.staging.gitguardian.com/v1/scan
+  response:
+    body:
+      string: '{"policy_break_count":0,"policies":["File extensions","Filenames","Secrets
+        detection"],"policy_breaks":[]}'
+    headers:
+      Allow:
+      - OPTIONS, POST
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '106'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 17 Apr 2020 09:24:28 GMT
+      Server:
+      - nginx
+      Vary:
+      - Cookie
+      X-Frame-Options:
+      - SAMEORIGIN
     status:
       code: 200
       message: OK

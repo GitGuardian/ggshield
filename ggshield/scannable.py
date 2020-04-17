@@ -182,15 +182,16 @@ class Commit:
                 "has_leak": len(file_result.get("secrets", [])) > 0,
             }
 
-    def scan(self, client: GGClient):
+    def scan(self, client: GGClient) -> Dict[str, Any]:
         """ Scan the patch for all files in the commit and save it in result. """
-        if not len(list(self.get_files())):
-            return {}
+        result = []
+        for file in self.get_files():
+            commit_file = CommitFile(**file)
+            scan = client.content_scan(**commit_file.get_dict())
+            assert scan.success is True
+            result.append(commit_file.process_result(scan))
 
-        self.result = list(
-            self.process_result(client.scan_files(list(self.get_files())))
-        )
-        return self.result
+        return result
 
 
 class GitHubRepo:

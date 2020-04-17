@@ -5,12 +5,14 @@ from .conftest import my_vcr
 from ggshield.utils import Filemode
 from ggshield.scannable import Commit, GitHubRepo
 from ggshield.message import process_scan_result
-from ggshield.client import PublicScanningApiClient
+from ggshield.pygitguardian import GGClient
 
 
 @pytest.fixture(scope="session")
 def client():
-    return PublicScanningApiClient(os.getenv("GITGUARDIAN_TOKEN", "1234567890"))
+    token = os.getenv("GITGUARDIAN_API_KEY", "1234567890")
+    base_uri = os.getenv("GITGUARDIAN_API_URL")
+    return GGClient(token=token, base_uri=base_uri)
 
 
 @my_vcr.use_cassette()
@@ -43,9 +45,8 @@ def test_scan_no_secret(client):
     assert result["content"] == expect["content"]
     assert result["filename"] == expect["filename"]
     assert result["filemode"] == expect["filemode"]
-    assert not result.get("error")
     assert not result.get("has_leak")
-    assert result["scan"]["secrets"] == []
+    assert result["scan"].policy_breaks == []
 
 
 @my_vcr.use_cassette()
@@ -57,8 +58,8 @@ def test_scan_simple_secret(client):
         "--- /dev/null\n"
         "+++ b/test\n"
         "@@ -0,0 +2 @@\n"
-        "+Datadog:\n"
-        "+dogapi token = dd52c29224affe29d163c6bf99e5c3f4;\n"
+        "+Sendgrid:\n"
+        '+sg_key = "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";\n'
     )
 
     c = Commit()
@@ -71,8 +72,8 @@ def test_scan_simple_secret(client):
     assert result["has_leak"]
     assert not result.get("error")
     assert (
-        result["scan"]["secrets"][0]["matches"][0]["string_matched"]
-        == "dd52c29224affe29d163c6bf99e5c3f4"
+        result["scan"].policy_breaks[0]["matches"][0]["match"]
+        == "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"
     )
 
 
@@ -86,7 +87,10 @@ def test_scan_multiple_secrets(client):
         "+++ b/test\n"
         "@@ -0,0 +1,2 @@\n"
         "+FacebookAppKeys :\n"
-        "+String appId = 294790898041575; String appSecret = ce3f9f0362bbe5ab01dfc8ee565e4372\n"
+        "+String docker run --name geonetwork -d \
+                -p 8080:8080 -e MYSQL_HOST=google.com \
+                -e MYSQL_PORT=5434 -e MYSQL_USERNAME=root \
+                -e MYSQL_PASSWORD=m42ploz2wd geonetwork\n"
     )
 
     c = Commit()
@@ -97,7 +101,7 @@ def test_scan_multiple_secrets(client):
     result = results[0]
     assert result["has_leak"]
     assert not result.get("error")
-    assert len(result["scan"]["secrets"][0]["matches"]) == 2
+    assert len(result["scan"].policy_breaks[0]["matches"]) == 4
 
 
 @my_vcr.use_cassette()

@@ -4,6 +4,7 @@ import click
 from typing import Dict, List, Union, Generator
 
 from ggshield.utils import shell, check_git_dir, is_git_dir
+from click import exceptions
 
 from ggshield.scannable import Commit, File, Files, GitHubRepo
 from ggshield.message import process_scan_result
@@ -88,10 +89,9 @@ def scan(
         else:
             click.echo(ctx.get_help())
 
+    except exceptions.Abort:
+        return_code = 0
     except Exception as error:
-        import traceback
-
-        traceback.print_exc()
         raise click.ClickException(str(error))
 
     sys.exit(return_code)

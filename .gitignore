@@ -120,3 +120,6 @@ venv.bak/
 
 #VSCode
 .vscode/
+
+# test file
+test-secret-files.json
