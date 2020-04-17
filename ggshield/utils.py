@@ -4,6 +4,7 @@ import subprocess
 
 from enum import Enum
 from typing import List, Union, Dict
+from .pygitguardian import ScanResult
 
 
 class Filemode(Enum):
@@ -181,7 +182,7 @@ def new_line(
         return {"index": index, "content": line_content}
 
 
-def update_secrets_patch(secrets: List, lines: List, is_patch: bool = False):
+def update_secrets_patch(secrets: List[str], lines: List[str], is_patch: bool = False):
     """
     Update secrets object with secret line and indexes in line.
 
@@ -225,26 +226,32 @@ def update_secrets_patch(secrets: List, lines: List, is_patch: bool = False):
         del secret["end"]
 
 
-def flatten_secrets(scan_result: Dict, hide_secrets: bool) -> List:
+def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List:
     """ Select one secret by string matched in the Scanning API result. """
     secrets = []
 
-    for secret in scan_result["scan"]["secrets"]:
-        for match in secret["matches"]:
-            display_name = secret["detector"]["display_name"]
+    for policy_break in scan_result["scan"].policy_breaks:
+        for match in policy_break.get("matches", []):
+            display_name = match["match_type"]
+            privy_len = (
+                4
+                if len(match["match"]) > 4
+                else len(match["match"]) - len(match["match"]) / 2
+            )
+
             value = (
-                match["string_matched"]
+                match["match"]
                 if not hide_secrets
-                else match["string_matched"][:4]
-                + "*" * max(0, (len(match["string_matched"]) - 4))
+                else match["match"][:privy_len]
+                + "*" * max(0, (len(match["match"]) - privy_len))
             )
 
             secrets.append(
                 {
                     "detector": display_name,
                     "value": value,
-                    "start": match["indice_start"],
-                    "end": match["indice_end"],
+                    "start": match["index_start"],
+                    "end": match["index_end"] + 1,
                 }
             )
 

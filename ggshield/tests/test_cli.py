@@ -4,7 +4,7 @@ from unittest import mock
 
 from .conftest import my_vcr
 from click.testing import CliRunner
-from ggshield.ggshield import cli
+from ggshield.cmd import cli
 
 
 @pytest.fixture(scope="session")

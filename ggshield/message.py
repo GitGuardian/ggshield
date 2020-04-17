@@ -22,7 +22,7 @@ ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
 
 
 def leak_message(
-    scan_result: Dict, nb_lines: int = 3, hide_secrets: bool = False
+    scan_result: Dict, nb_lines: int = 3, hide_secrets: bool = True
 ) -> str:
     """
     Build readable message on the found secrets.
@@ -363,7 +363,7 @@ def no_leak_message() -> str:
 
 
 def process_scan_result(
-    results: List, nb_lines: int = 3, hide_secrets: bool = False, verbose: bool = True
+    results: List, nb_lines: int = 3, hide_secrets: bool = True, verbose: bool = True
 ) -> int:
     """
     Process a commit scan result.

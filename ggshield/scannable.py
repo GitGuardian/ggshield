@@ -1,7 +1,8 @@
 import re
 import click
 
-from typing import Dict, Union, List
+from typing import Any, Dict, Union, List
+from .pygitguardian import GGClient, ScanResult
 from .utils import shell, Filemode
 
 
@@ -12,7 +13,7 @@ class Scannable:
         self.content = content
         self.result = None
 
-    def scan(self, client: object):
+    def scan(self, client: GGClient):
         """ Call Scanning API via the client method. """
         try:
             self.result.update({"content": self.content})
@@ -34,9 +35,19 @@ class File(Scannable):
 
     def get_dict(self):
         """ Return a payload compatible with the scanning API. """
-        return {"filename": self.filename, "content": self.content}
+        return {"filename": self.filename, "document": self.content}
 
-    def scan(self, client: object):
+    def process_result(self, scan_result: ScanResult) -> Dict[str, Any]:
+        """ Format publicAPI response into leak list for display. """
+        return {
+            "filename": self.filename,
+            "filemode": self.filemode,
+            "content": self.content,
+            "scan": scan_result,
+            "has_leak": scan_result.has_secrets,
+        }
+
+    def scan(self, client: GGClient):
         self.result = {}
         self.result = super().scan(client)
         self.result["filename"] = self.filename
@@ -48,25 +59,16 @@ class File(Scannable):
 
 
 class Files:
-    def __init__(self, files: List):
+    def __init__(self, files: List[File]):
         self.files = {file.filename: file for file in files}
-        self.result = None
+        self.result = []
 
-    def process_result(self, scan_result: Dict):
-        """ Format scanning_api response into leak list for display. """
-        for file_result in scan_result["files"]:
-            file = self.files[file_result["filename"]]
-            yield {
-                "filename": file.filename,
-                "filemode": file.filemode,
-                "content": file.content,
-                "scan": file_result,
-                "has_leak": len(file_result.get("secrets", [])) > 0,
-            }
+    def scan(self, client: GGClient) -> List[Dict[str, Any]]:
+        for file in self.files.values():
+            scan = client.content_scan(**file.get_dict())
+            assert scan.success is True
+            self.result.append(file.process_result(scan))
 
-    def scan(self, client: object):
-        files = [file.get_dict() for file in self.files.values()]
-        self.result = list(self.process_result(client.scan_files(files)))
         return self.result
 
 
@@ -77,7 +79,7 @@ class CommitFile(File):
         super().__init__(content, filename)
         self.filemode = filemode
 
-    def scan(self, client: object):
+    def scan(self, client: GGClient):
         self.result = {}
         self.result = super().scan(client)
         self.result["filemode"] = self.filemode
@@ -109,7 +111,7 @@ class Commit:
         return self.files_
 
     @classmethod
-    def get_filename(self, line: str) -> str:
+    def get_filename(cls, line: str) -> str:
         """
         Get the file path from the line patch
 
@@ -118,7 +120,7 @@ class Commit:
         return line.split(" ")[1][2:]
 
     @classmethod
-    def get_filemode(self, line: str) -> str:
+    def get_filemode(cls, line: str) -> str:
         """
         Get the file mode from the line patch (new, modified or deleted)
 
@@ -180,7 +182,7 @@ class Commit:
                 "has_leak": len(file_result.get("secrets", [])) > 0,
             }
 
-    def scan(self, client: object):
+    def scan(self, client: GGClient):
         """ Scan the patch for all files in the commit and save it in result. """
         if not len(list(self.get_files())):
             return {}
@@ -214,7 +216,7 @@ class GitHubRepo:
                         "scan": {"secrets": file["secrets"]},
                     }
 
-    def scan(self, client: object):
+    def scan(self, client: GGClient):
         scan_result = client.scan_repo(self.user, self.repo, self.token)
         self.result = list(self.process_result(scan_result))
         return self.result

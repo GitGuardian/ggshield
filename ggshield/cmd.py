@@ -5,7 +5,7 @@ import click
 
 from .cli.install import install
 from .cli.scan import scan
-from .client import PublicScanningApiClient
+from .pygitguardian import GGClient
 from .config import load_config
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -15,11 +15,12 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 @click.pass_context
 def cli(ctx: object):
     token = os.getenv("GITGUARDIAN_API_KEY")
+    base_uri = os.getenv("GITGUARDIAN_API_URL")
     if not token:
         raise click.ClickException("GitGuardian Token is needed.")
 
     ctx.ensure_object(dict)
-    ctx.obj["client"] = PublicScanningApiClient(token)
+    ctx.obj["client"] = GGClient(token=token, base_uri=base_uri)
     ctx.obj["config"] = load_config()
 
 

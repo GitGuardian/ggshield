@@ -6,7 +6,6 @@ from typing import Dict, List, Union, Generator
 from ggshield.utils import shell, check_git_dir, is_git_dir
 
 from ggshield.scannable import Commit, File, Files, GitHubRepo
-from ggshield.client import PublicScanningException
 from ggshield.message import process_scan_result
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
@@ -89,7 +88,10 @@ def scan(
         else:
             click.echo(ctx.get_help())
 
-    except PublicScanningException as error:
+    except Exception as error:
+        import traceback
+
+        traceback.print_exc()
         raise click.ClickException(str(error))
 
     sys.exit(return_code)
