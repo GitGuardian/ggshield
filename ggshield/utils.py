@@ -20,6 +20,7 @@ class Filemode(Enum):
     DELETE = (5, "deleted file")
     NEW = (5, "new file")
     RENAME = (7, "renamed file")
+    PERMISSION_CHANGE = (7, "changed permissions")
     FILE = (0, "file")
 
     def __init__(self, start, mode):

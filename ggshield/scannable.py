@@ -97,7 +97,7 @@ class Commit:
         """ Get the change patch for the commit. """
         if not self.patch_:
             if self.sha:
-                self.patch_ = "\n".join(shell("git show {}".format(self.SHA)))
+                self.patch_ = "\n".join(shell("git show {}".format(self.sha)))
             else:
                 self.patch_ = "\n".join(shell("git diff --cached"))
 
@@ -128,18 +128,16 @@ class Commit:
         """
         if line.startswith("index"):
             return Filemode.MODIFY
-
         elif line.startswith("similarity"):
             return Filemode.RENAME
-
         elif line.startswith("new"):
             return Filemode.NEW
-
         elif line.startswith("deleted"):
             return Filemode.DELETE
-
+        elif line.startswith("old"):
+            return Filemode.PERMISSION_CHANGE
         else:
-            raise click.ClickException("Filemode is not detected.")
+            raise click.ClickException(f"Filemode is not detected:{line}")
 
     def get_files(self):
         """
@@ -192,32 +190,3 @@ class Commit:
             result.append(commit_file.process_result(scan))
 
         return result
-
-
-class GitHubRepo:
-    """ Class representing a GitHub repository. """
-
-    def __init__(self, user: str, repo: str, gh_access_token: Union[str, None] = None):
-        self.user = user
-        self.repo = repo
-        self.token = gh_access_token
-        self.result = None
-
-    def process_result(self, scan_result: Dict):
-        """ Format repo_analyser response into leak list for display. """
-        if scan_result.get("commit_leaks"):
-            for commit in scan_result["commit_leaks"]:
-                for file in commit["files"]:
-                    yield {
-                        "filename": file["filename"],
-                        "content": file["content"],
-                        "sha": commit["sha"],
-                        "filemode": Filemode.FILE,
-                        "has_leak": True,
-                        "scan": {"secrets": file["secrets"]},
-                    }
-
-    def scan(self, client: GGClient):
-        scan_result = client.scan_repo(self.user, self.repo, self.token)
-        self.result = list(self.process_result(scan_result))
-        return self.result

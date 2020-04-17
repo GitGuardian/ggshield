@@ -3,7 +3,7 @@ import pytest
 
 from .conftest import my_vcr
 from ggshield.utils import Filemode
-from ggshield.scannable import Commit, GitHubRepo
+from ggshield.scannable import Commit
 from ggshield.message import process_scan_result
 from ggshield.pygitguardian import GGClient
 
@@ -102,14 +102,3 @@ def test_scan_multiple_secrets(client):
     assert result["has_leak"]
     assert not result.get("error")
     assert len(result["scan"].policy_breaks[0]["matches"]) == 4
-
-
-@my_vcr.use_cassette()
-def test_scan_repo(client):
-    ghr = GitHubRepo("eugenenelou", "test")
-
-    results = ghr.scan(client)
-    assert process_scan_result(results) == 1
-    result = results[0]
-    assert result["has_leak"]
-    assert not result.get("error")

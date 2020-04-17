@@ -1,13 +1,15 @@
 import os
 import sys
-import click
-from typing import Dict, List, Union, Generator
+import tempfile
+from contextlib import contextmanager
+from typing import Dict, Generator, List, Optional, Union
 
-from ggshield.utils import shell, check_git_dir, is_git_dir
+import click
 from click import exceptions
 
-from ggshield.scannable import Commit, File, Files, GitHubRepo
 from ggshield.message import process_scan_result
+from ggshield.scannable import Commit, File, Files
+from ggshield.utils import check_git_dir, is_git_dir, shell
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 
@@ -32,8 +34,7 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
     is_flag=True,
     help="Display the list of files before recursive scan",
 )
-@click.option("--repo", nargs=1, help="Scan GitHub Repository (user/repo)")
-@click.option("--gh-token", help="GitHub Access Token")
+@click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
 @click.option("--blacklist", "-b", multiple=True, help="Extend blacklist of detectors")
 @click.option("--set-blacklist", "-B", multiple=True, help="Set detectors blacklist")
 def scan(
@@ -44,7 +45,6 @@ def scan(
     yes: bool,
     verbose: bool,
     repo: str,
-    gh_token: str,
     blacklist: tuple,
     set_blacklist: tuple,
 ) -> int:
@@ -74,10 +74,19 @@ def scan(
 
         elif repo:
             try:
-                user, repository = repo.split("/")
-                return_code = process_scan_result(
-                    GitHubRepo(user, repository, gh_token).scan(client)
-                )
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    shell(f"git clone {repo} {tmpdirname}")
+                    with cd(tmpdirname):
+                        scan_commit_range(
+                            client=client,
+                            commit_range=None,
+                            verbose=verbose,
+                            all_commits=True,
+                        )
+
+                    # shell(f"git rev-list {commit_range}")
+
+                # return_code = process_scan_result(GitRepo(repo).scan(client))
 
             except ValueError:
                 click.echo(ctx.get_help())
@@ -95,6 +104,16 @@ def scan(
         raise click.ClickException(str(error))
 
     sys.exit(return_code)
+
+
+@contextmanager
+def cd(newdir):
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
 
 
 def scan_ci(client: object, verbose: bool) -> int:
@@ -123,10 +142,14 @@ def scan_ci(client: object, verbose: bool) -> int:
             )
         )
 
-    return scan_commit_range(client, commit_range, verbose)
+    return scan_commit_range(
+        client=client, commit_range=commit_range, verbose=verbose, all_commits=False
+    )
 
 
-def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
+def scan_commit_range(
+    client: object, commit_range: str, verbose: bool, all_commits: bool
+) -> int:
     """
     Scan every commit in a range.
 
@@ -136,8 +159,9 @@ def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
     """
     return_code = 0
 
-    for sha in get_list_commit_SHA(commit_range):
+    for sha in get_list_commit_SHA(commit_range, all_commits):
         commit = Commit(sha)
+        print(sha)
         results = commit.scan(client)
 
         if any(result["has_leak"] for result in results) or verbose:
@@ -151,13 +175,17 @@ def scan_commit_range(client: object, commit_range: str, verbose: bool) -> int:
     return return_code
 
 
-def get_list_commit_SHA(commit_range: str) -> List:
+def get_list_commit_SHA(commit_range: Optional[str], all_commits: bool) -> List:
     """
     Retrieve the list of commit SHA from a range.
     :param commit_range: A range of commits (ORIGIN...HEAD)
     """
+
+    if all_commits:
+        return shell("git rev-list --all")
+
     try:
-        return shell("git rev-list {}".format(commit_range))
+        return shell(f"git rev-list {commit_range}")
     except Exception:
         return shell("git rev-list {}".format(commit_range.split("...")[1]))
 
