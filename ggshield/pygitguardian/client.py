@@ -8,6 +8,7 @@ from requests import Response, Session, codes
 from .models import Detail, ScanResult
 from .schemas import DetailSchema, DocumentSchema, ScanResultSchema
 
+
 _BASE_URI = "https://api.gitguardian.com"
 _API_VERSION = "v1"
 _DEFAULT_TIMEOUT = 20.0  # 20s default timeout

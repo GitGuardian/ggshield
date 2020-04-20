@@ -11,6 +11,7 @@ from ggshield.message import process_scan_result
 from ggshield.scannable import Commit, File, Files
 from ggshield.utils import check_git_dir, is_git_dir, shell
 
+
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
 
 

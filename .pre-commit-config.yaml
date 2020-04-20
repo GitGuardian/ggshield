@@ -4,6 +4,7 @@ repos:
     rev: stable
     hooks:
       - id: black
+        language_version: python3
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.1.0
@@ -15,14 +16,16 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/asottile/seed-isort-config
-    rev: v1.9.1
+    rev: master
     hooks:
       - id: seed-isort-config
+        args: [--settings-path, ./]
 
   - repo: https://github.com/pre-commit/mirrors-isort
-    rev: v4.3.20
+    rev: master
     hooks:
       - id: isort
+        args: [--settings-path, setup.cfg]
 
   - repo: https://github.com/Woile/commitizen
     rev: master

@@ -1,6 +1,7 @@
 import os
 
 import pytest
+
 from ggshield.message import process_scan_result
 from ggshield.pygitguardian import GGClient
 from ggshield.scannable import Commit
@@ -60,7 +61,7 @@ def test_scan_simple_secret(client):
         "+++ b/test\n"
         "@@ -0,0 +2 @@\n"
         "+Sendgrid:\n"
-        '+sg_key = "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";\n'
+        '+sg_key = "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";\n'  # noqa
     )
 
     c = Commit()

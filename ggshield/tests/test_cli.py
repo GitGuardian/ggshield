@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 from click.testing import CliRunner
+
 from ggshield.cmd import cli
 
 from .conftest import my_vcr

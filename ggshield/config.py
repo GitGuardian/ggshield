@@ -5,6 +5,7 @@ from typing import Dict
 import click
 import yaml
 
+
 # The order is important, we look at the first existing file
 CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
 CONFIG_GLOBAL = [

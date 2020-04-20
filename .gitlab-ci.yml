@@ -21,3 +21,10 @@ include:
 
 🧀 back:lint:
   <<: *core_test
+
+test:
+  <<: *core_test
+  image: 513715405986.dkr.ecr.us-west-2.amazonaws.com/tooling/testci-3.6:latest
+  script:
+    - pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings
+    - pipenv run coverage report --fail-under=80

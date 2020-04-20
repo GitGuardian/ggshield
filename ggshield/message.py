@@ -5,6 +5,7 @@ import click
 
 from .utils import Filemode, process_scan_to_secrets_and_lines
 
+
 STYLE = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},
     "filename": {"fg": "bright_yellow", "bold": True},
@@ -29,7 +30,8 @@ def leak_message(
     Build readable message on the found secrets.
 
     :param scan_result: The result from scanning API
-    :param nb_lines: The number of line to display before and after a secret in the patch
+    :param nb_lines: The number of line to display before and after a secret in the
+    patch
     :param hide_secrets: Option to hide secrets value
     :return: The formatted message to display
     """
@@ -370,7 +372,8 @@ def process_scan_result(
     Process a commit scan result.
 
     :param results: The results from scanning API
-    :param nb_lines: The number of lines to display before and after a secret in the patch
+    :param nb_lines: The number of lines to display before and after a secret in the
+    patch
     :param hide_secrets: Hide secrets value
     :param verbose: Display message even if there is no secrets
     :return: The exit code

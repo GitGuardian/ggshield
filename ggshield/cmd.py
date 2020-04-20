@@ -8,6 +8,7 @@ from .cli.scan import scan
 from .config import load_config
 from .pygitguardian import GGClient
 
+
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 

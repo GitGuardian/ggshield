@@ -4,8 +4,9 @@ import click
 import pytest
 import yaml
 from click.testing import CliRunner
-from ggshield.config import load_config
 from mock import patch
+
+from ggshield.config import load_config
 
 
 @pytest.fixture(scope="session")
