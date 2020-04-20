@@ -1,10 +1,11 @@
 import os
-import yaml
+
 import click
 import pytest
-from mock import patch
+import yaml
 from click.testing import CliRunner
 from ggshield.config import load_config
+from mock import patch
 
 
 @pytest.fixture(scope="session")

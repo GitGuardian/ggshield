@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5c9d5d740c957c7b8eb65bd1e91eee67779950e4b8af22312ae73b6148821c09"
+            "sha256": "255fa0f90d7209803d9673b1b9da624e42997ab3bfcf87095dc5aac3ffdcb547"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -160,6 +160,21 @@
             "index": "pypi",
             "version": "==3.7.9"
         },
+        "flake8-isort": {
+            "hashes": [
+                "sha256:3ce227b5c5342b6d63937d3863e8de8783ae21863cb035cf992cdb0ba5990aa3",
+                "sha256:f5322a85cea89998e0df954162fd35a1f1e5b5eb4fc0c79b5975aa2799106baa"
+            ],
+            "index": "pypi",
+            "version": "==3.0.0"
+        },
+        "flake8-quotes": {
+            "hashes": [
+                "sha256:39762e16a1ea6b7f0e998a04be14d71b55e74de09b5026bd41907c996a8c82cf"
+            ],
+            "index": "pypi",
+            "version": "==3.0.0"
+        },
         "identify": {
             "hashes": [
                 "sha256:2bb8760d97d8df4408f4e805883dad26a2d076f04be92a10a3e43f09c6060742",
@@ -173,6 +188,17 @@
                 "sha256:ea8b7f6188e6fa117537c3df7da9fc686d485087abf6ac197f9c46432f7e4a3c"
             ],
             "version": "==2.8"
+        },
+        "isort": {
+            "extras": [
+                "pyproject"
+            ],
+            "hashes": [
+                "sha256:54da7e92468955c4fceacd0c86bd0ec997b0e1ee80d97f67c35a78b719dccab1",
+                "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"
+            ],
+            "index": "pypi",
+            "version": "==4.3.21"
         },
         "mccabe": {
             "hashes": [
@@ -351,6 +377,13 @@
                 "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"
             ],
             "version": "==1.1.0"
+        },
+        "testfixtures": {
+            "hashes": [
+                "sha256:30566e24a1b34e4d3f8c13abf62557d01eeb4480bcb8f1745467bfb0d415a7d9",
+                "sha256:58d2b3146d93bc5ddb0cd24e0ccacb13e29bdb61e5c81235c58f7b8ee4470366"
+            ],
+            "version": "==6.14.1"
         },
         "toml": {
             "hashes": [

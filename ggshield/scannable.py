@@ -1,9 +1,10 @@
 import re
+from typing import Any, Dict, List, Union
+
 import click
 
-from typing import Any, Dict, Union, List
 from .pygitguardian import GGClient, ScanResult
-from .utils import shell, Filemode
+from .utils import Filemode, shell
 
 
 class Scannable:

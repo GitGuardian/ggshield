@@ -1,11 +1,12 @@
 import os
-import pytest
 
-from .conftest import my_vcr
-from ggshield.utils import Filemode
-from ggshield.scannable import Commit
+import pytest
 from ggshield.message import process_scan_result
 from ggshield.pygitguardian import GGClient
+from ggshield.scannable import Commit
+from ggshield.utils import Filemode
+
+from .conftest import my_vcr
 
 
 @pytest.fixture(scope="session")

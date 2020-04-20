@@ -1,9 +1,10 @@
 import re
-import click
 import subprocess
-
 from enum import Enum
-from typing import List, Union, Dict
+from typing import Dict, List, Union
+
+import click
+
 from .pygitguardian import ScanResult
 
 

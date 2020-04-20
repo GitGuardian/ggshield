@@ -1,8 +1,9 @@
 import os
-import click
 from typing import Dict, List, Union
 
-from .utils import process_scan_to_secrets_and_lines, Filemode
+import click
+
+from .utils import Filemode, process_scan_to_secrets_and_lines
 
 STYLE = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},

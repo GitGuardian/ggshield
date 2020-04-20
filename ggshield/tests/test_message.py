@@ -1,6 +1,6 @@
-from snapshottest import TestCase
 from ggshield.message import leak_message, no_leak_message
 from ggshield.pygitguardian import ScanResultSchema
+from snapshottest import TestCase
 
 
 class TestMessage(TestCase):

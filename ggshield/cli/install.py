@@ -1,8 +1,8 @@
 import os
-import sys
-import click
 import subprocess
+import sys
 
+import click
 from ggshield.utils import check_git_dir, check_git_installed
 
 

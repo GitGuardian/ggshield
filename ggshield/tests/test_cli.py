@@ -1,10 +1,11 @@
 import os
-import pytest
 from unittest import mock
 
-from .conftest import my_vcr
+import pytest
 from click.testing import CliRunner
 from ggshield.cmd import cli
+
+from .conftest import my_vcr
 
 
 @pytest.fixture(scope="session")

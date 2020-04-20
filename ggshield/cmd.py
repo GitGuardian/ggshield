@@ -5,8 +5,8 @@ import click
 
 from .cli.install import install
 from .cli.scan import scan
-from .pygitguardian import GGClient
 from .config import load_config
+from .pygitguardian import GGClient
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
