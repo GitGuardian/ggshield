@@ -11,7 +11,5 @@ setup(
     author_email="dev@gitguardian.com",
     install_requires=["requests==2.22.0", "Click==7.0", "PyYAML==5.1"],
     packages=packages,
-    entry_points={
-        "console_scripts": ["ggshield=ggshield.cmd:cli"]
-    },
+    entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli"]},
 )

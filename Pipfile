@@ -18,6 +18,3 @@ pytest = "*"
 mock = "*"
 vcrpy = "*"
 snapshottest = "*"
-
-[requires]
-python_version = "3.6"

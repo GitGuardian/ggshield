@@ -46,7 +46,7 @@ class Match:
         line_end: Optional[int] = None,
         index_start: Optional[int] = None,
         index_end: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         self.match = match
         self.match_type = match_type
@@ -102,7 +102,7 @@ class ScanResult(BaseObject):
         policy_break_count: int,
         policy_breaks: List[PolicyBreak],
         policies: List[str],
-        **kwargs
+        **kwargs,
     ):
         """
         :param policy_break_count: number of policy breaks

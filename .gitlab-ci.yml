@@ -10,15 +10,13 @@ test:
   script:
     - pipenv run pytest --disable-pytest-warnings -vvv
 
-
 lint:
   stage: test
   before_script:
     - pipenv install --dev
   script:
     - pipenv run flake8
-    - pipenv run black --config black.toml --check **/*.py
-
+    - pipenv run black --check .
 
 deploy:
   stage: deploy

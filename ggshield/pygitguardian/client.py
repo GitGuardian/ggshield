@@ -71,7 +71,7 @@ class GGClient:
         endpoint: str,
         schema: Schema = None,
         version: str = _API_VERSION,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Any, Response]:
         if version:
             endpoint = urllib.parse.urljoin(version + "/", endpoint)
@@ -100,7 +100,7 @@ class GGClient:
         data: str = None,
         schema: Schema = None,
         version: str = _API_VERSION,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Any, Response]:
         return self.request(
             "post",
@@ -116,7 +116,7 @@ class GGClient:
         endpoint: str,
         schema: Schema = None,
         version: str = _API_VERSION,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Any, Response]:
         return self.request(
             method="get", endpoint=endpoint, schema=schema, version=version, **kwargs
