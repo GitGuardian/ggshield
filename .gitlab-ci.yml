@@ -1,31 +1,23 @@
-image: gitguardian/ci:latest
 stages:
   - test
-  - deploy
 
-test:
+.core_test: &core_test
   stage: test
   before_script:
-    - pipenv install --dev
-  script:
-    - pipenv run pytest --disable-pytest-warnings -vvv
-
-lint:
-  stage: test
-  before_script:
-    - pipenv install --dev
-  script:
-    - pipenv run flake8
-    - pipenv run black --check .
-
-deploy:
-  stage: deploy
-  before_script:
-    - pipenv install --dev
-    - pipenv install twine
-  script:
-    - pipenv run python setup.py sdist bdist_wheel
-    - pipenv run twine upload --repository-url https://${PYPI_HOST} dist/*.gz -u ${PYPI_USERNAME} -p ${PYPI_PASSWORD} --skip-existing
-  only:
+    - pipenv install --system --ignore-pipfile --dev
+  except:
     refs:
-      - dev
+      - tags
+      - preprod
+      - prod
+
+include:
+  - project: "gg-code/gitlab-ci-templates"
+    file: "/python-3.8.tests.yml"
+# override template for python tests
+
+🧀 dependency_scan:pipenv:
+  <<: *core_test
+
+🧀 back:lint:
+  <<: *core_test
