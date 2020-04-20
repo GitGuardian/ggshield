@@ -72,7 +72,7 @@ def test_scan_simple_secret(client):
     assert result["has_leak"]
     assert not result.get("error")
     assert (
-        result["scan"].policy_breaks[0]["matches"][0]["match"]
+        result["scan"].policy_breaks[0].matches[0].match
         == "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"
     )
 
@@ -101,4 +101,4 @@ def test_scan_multiple_secrets(client):
     result = results[0]
     assert result["has_leak"]
     assert not result.get("error")
-    assert len(result["scan"].policy_breaks[0]["matches"]) == 4
+    assert len(result["scan"].policy_breaks[0].matches) == 4

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 
 class BaseObject:
@@ -31,10 +31,60 @@ class Detail(BaseObject):
         self.detail = detail
 
     def __repr__(self):
-        return f"{self.status_code}:{self.detail}"
+        return "{0}:{1}".format(self.status_code, self.detail)
 
     def __bool__(self):
         return self.success
+
+
+class Match:
+    def __init__(
+        self,
+        match: str,
+        match_type: str,
+        line_start: Optional[int] = None,
+        line_end: Optional[int] = None,
+        index_start: Optional[int] = None,
+        index_end: Optional[int] = None,
+        **kwargs
+    ):
+        self.match = match
+        self.match_type = match_type
+        self.line_start = line_start
+        self.line_end = line_end
+        self.index_start = index_start
+        self.index_end = index_end
+
+    def __repr__(self):
+        return (
+            "match:{0}, "
+            "match_type:{1}, "
+            "line_start:{2}, "
+            "line_end:{3}, "
+            "index_start:{4}, "
+            "index_end:{5}".format(
+                self.match,
+                self.match_type,
+                repr(self.line_start),
+                repr(self.line_end),
+                repr(self.index_start),
+                repr(self.index_end),
+            )
+        )
+
+
+class PolicyBreak:
+    def __init__(self, break_type: str, policy: str, matches: List[Match], **kwargs):
+        self.break_type = break_type
+        self.policy = policy
+        self.matches = matches
+
+    def __repr__(self):
+        return (
+            "break_type:{0}, "
+            "policy:{1}, "
+            "matches: {2}".format(self.break_type, self.policy, repr(self.matches))
+        )
 
 
 class ScanResult(BaseObject):
@@ -50,9 +100,9 @@ class ScanResult(BaseObject):
     def __init__(
         self,
         policy_break_count: int,
-        policy_breaks: List,
+        policy_breaks: List[PolicyBreak],
         policies: List[str],
-        **kwargs,
+        **kwargs
     ):
         """
         :param policy_break_count: number of policy breaks
@@ -80,3 +130,18 @@ class ScanResult(BaseObject):
         """
 
         return self.policy_break_count > 0
+
+    def __repr__(self):
+        return (
+            "policy_break_count:{0}, "
+            "policies:{1}, "
+            "policy_breaks: {2}".format(
+                self.policy_break_count, self.policies, self.policy_breaks
+            )
+        )
+
+    def __str__(self):
+        return "{0} policy breaks from the evaluated policies: {1}".format(
+            self.policy_break_count,
+            ", ".join([policy_break.policy for policy_break in self.policy_breaks]),
+        )

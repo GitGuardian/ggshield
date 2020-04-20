@@ -1,3 +1,4 @@
+import urllib.parse
 from typing import Any, Optional, Tuple, Union
 
 import requests
@@ -21,7 +22,7 @@ class GGClient:
     def __init__(
         self,
         token: str,
-        base_uri: str = _BASE_URI,
+        base_uri: str = None,
         session: requests.Session = None,
         user_agent: str = "",
         timeout: float = _DEFAULT_TIMEOUT,
@@ -44,8 +45,13 @@ class GGClient:
         if base_uri:
             if not base_uri.startswith(("http://", "https://")):
                 raise ValueError("Invalid protocol, prepend with http:// or https://")
-            self.base_uri = base_uri
+        else:
+            base_uri = _BASE_URI
 
+        if not isinstance(token, str):
+            raise TypeError("Missing token string")
+
+        self.base_uri = base_uri
         self.token = token
         self.session = (
             session if session is isinstance(session, Session) else requests.Session()
@@ -55,7 +61,7 @@ class GGClient:
         self.session.headers.update(
             {
                 "User-Agent": " ".join(["pygitguardian", user_agent]),
-                "Authorization": f"Token {token}",
+                "Authorization": "Token {0}".format(token),
             }
         )
 
@@ -65,14 +71,12 @@ class GGClient:
         endpoint: str,
         schema: Schema = None,
         version: str = _API_VERSION,
-        **kwargs,
+        **kwargs
     ) -> Tuple[Any, Response]:
-        if self.base_uri is None:
-            raise TypeError("Base URI is invalid")
+        if version:
+            endpoint = urllib.parse.urljoin(version + "/", endpoint)
 
-        url = "/".join(
-            map(lambda x: str(x).strip("/"), [self.base_uri, version, endpoint])
-        )
+        url = urllib.parse.urljoin(self.base_uri, endpoint)
 
         response = self.session.request(
             method=method, url=url, timeout=self.timeout, **kwargs
@@ -96,7 +100,7 @@ class GGClient:
         data: str = None,
         schema: Schema = None,
         version: str = _API_VERSION,
-        **kwargs,
+        **kwargs
     ) -> Tuple[Any, Response]:
         return self.request(
             "post",
@@ -112,7 +116,7 @@ class GGClient:
         endpoint: str,
         schema: Schema = None,
         version: str = _API_VERSION,
-        **kwargs,
+        **kwargs
     ) -> Tuple[Any, Response]:
         return self.request(
             method="get", endpoint=endpoint, schema=schema, version=version, **kwargs
@@ -132,9 +136,12 @@ class GGClient:
         :return: Detail or ScanResult response
         :rtype: Union[Detail, ScanResult]
         """
-        request_obj = self.DOCUMENT_SCHEMA.load(
-            {"filename": filename, "document": document}
-        )
+
+        doc_dict = {"document": document}
+        if filename:
+            doc_dict["filename"] = filename
+
+        request_obj = self.DOCUMENT_SCHEMA.load(doc_dict)
         obj, _ = self.post(
             endpoint="scan", data=request_obj, schema=self.SCAN_RESULT_SCHEMA
         )

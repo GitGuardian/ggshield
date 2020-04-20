@@ -1,6 +1,6 @@
 """PyGitGuardian API Client"""
 from .client import GGClient
-from .models import Detail, ScanResult
+from .models import Detail, Match, PolicyBreak, ScanResult
 from .schemas import DetailSchema, DocumentSchema, ScanResultSchema
 
 
@@ -11,6 +11,8 @@ __all__ = [
     "DetailSchema",
     "DocumentSchema",
     "GGClient",
+    "Match",
+    "PolicyBreak",
     "ScanResult",
     "ScanResultSchema",
 ]

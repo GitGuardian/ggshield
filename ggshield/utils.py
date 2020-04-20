@@ -232,27 +232,27 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List:
     secrets = []
 
     for policy_break in scan_result["scan"].policy_breaks:
-        for match in policy_break.get("matches", []):
-            display_name = policy_break["break_type"]
+        for match in policy_break.matches:
+            display_name = policy_break.break_type
             privy_len = (
                 4
-                if len(match["match"]) > 4
-                else int(len(match["match"]) - len(match["match"]) / 2)
+                if len(match.match) > 4
+                else int(len(match.match) - len(match.match) / 2)
             )
 
             value = (
-                match["match"]
+                match.match
                 if not hide_secrets
-                else match["match"][:privy_len]
-                + "*" * max(0, (len(match["match"]) - privy_len))
+                else match.match[:privy_len]
+                + "*" * max(0, (len(match.match) - privy_len))
             )
 
             secrets.append(
                 {
                     "detector": display_name,
                     "value": value,
-                    "start": match["index_start"],
-                    "end": match["index_end"] + 1,
+                    "start": match.index_start,
+                    "end": match.index_end + 1,
                 }
             )
 

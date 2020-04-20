@@ -5,7 +5,7 @@ serializing/deserializing request and response objects
 """
 from marshmallow import Schema, fields, post_load, validate
 
-from .models import Detail, ScanResult
+from .models import Detail, Match, PolicyBreak, ScanResult
 
 
 class DocumentSchema(Schema):
@@ -14,18 +14,26 @@ class DocumentSchema(Schema):
 
 
 class MatchSchema(Schema):
-    match_type = fields.Str(data_key="type", required=True)
     match = fields.Str(required=True)
-    line_start = fields.Int(default=0)
-    line_end = fields.Int(default=0)
-    index_start = fields.Int(default=0)
-    index_end = fields.Int(default=0)
+    match_type = fields.Str(data_key="type", required=True)
+    line_start = fields.Int(allow_none=True)
+    line_end = fields.Int(allow_none=True)
+    index_start = fields.Int(allow_none=True)
+    index_end = fields.Int(allow_none=True)
+
+    @post_load
+    def make_match(self, data, **kwargs):
+        return Match(**data)
 
 
 class PolicyBreakSchema(Schema):
     break_type = fields.Str(data_key="type", required=True)
     policy = fields.Str(required=True)
     matches = fields.List(fields.Nested(MatchSchema), required=True)
+
+    @post_load
+    def make_policy_break(self, data, **kwargs):
+        return PolicyBreak(**data)
 
 
 class ScanResultSchema(Schema):
