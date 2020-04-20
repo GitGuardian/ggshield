@@ -11,7 +11,8 @@ from .conftest import my_vcr
 
 @pytest.fixture(scope="session")
 def cli_runner():
-    os.environ["GITGUARDIAN_TOKEN"] = os.getenv("GITGUARDIAN_TOKEN", "1234567890")
+    os.environ["GITGUARDIAN_API_KEY"] = os.getenv("GITGUARDIAN_API_KEY", "1234567890")
+    os.environ["GITGUARDIAN_API_URL"] = "https://api.gitguardian.com/"
     return CliRunner()
 
 

@@ -114,7 +114,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> List:
             line_post_index = post_index
 
         elif line_type == "@":
-            REGEX_PATCH_HEADER = r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"
+            REGEX_PATCH_HEADER = r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
             m = re.search(REGEX_PATCH_HEADER, line)
             pre_index = m.groupdict()["pre_index"]
             post_index = m.groupdict()["post_index"]
