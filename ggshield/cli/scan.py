@@ -85,10 +85,6 @@ def scan(
                             all_commits=True,
                         )
 
-                    # shell(f"git rev-list {commit_range}")
-
-                # return_code = process_scan_result(GitRepo(repo).scan(client))
-
             except ValueError:
                 click.echo(ctx.get_help())
 
