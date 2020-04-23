@@ -12,7 +12,7 @@ from ggshield.scannable import Commit, File, Files
 from ggshield.utils import check_git_dir, is_git_dir, shell
 
 
-SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE]"
+SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
 
 
 @click.command()
@@ -132,6 +132,10 @@ def scan_ci(client: object, verbose: bool) -> int:
     elif os.getenv("CIRCLECI"):
         commit_range = os.getenv("CIRCLE_COMMIT_RANGE")
 
+    # GITHUB
+    elif os.getenv("GITHUB_ACTIONS"):
+        commit_range = "{}...{}".format(os.getenv("GITHUB_SHA"), "HEAD")
+
     else:
         raise click.ClickException(
             "Current CI is not detected or supported. Must be one of {}".format(
@@ -179,12 +183,12 @@ def get_list_commit_SHA(commit_range: Optional[str], all_commits: bool) -> List:
     """
 
     if all_commits:
-        return shell("git rev-list --all")
+        return shell("git rev-list --reverse --all")
 
     try:
-        return shell(f"git rev-list {commit_range}")
+        return shell(f"git rev-list --reverse {commit_range}")
     except Exception:
-        return shell("git rev-list {}".format(commit_range.split("...")[1]))
+        return shell("git rev-list --reverse {}".format(commit_range.split("...")[1]))
 
 
 def get_files_from_paths(
