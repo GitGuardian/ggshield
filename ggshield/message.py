@@ -30,7 +30,7 @@ def leak_message(
     Build readable message on the found secrets.
 
     :param scan_result: The result from scanning API
-    :param nb_lines: The number of line to display before and after a secret in the
+    :param nb_lines: The number of lines to display before and after a secret in the
     patch
     :param hide_secrets: Option to hide secrets value
     :return: The formatted message to display
