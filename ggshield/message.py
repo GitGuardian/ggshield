@@ -27,7 +27,7 @@ def leak_message(
     scan_result: Dict, nb_lines: int = 3, hide_secrets: bool = True
 ) -> str:
     """
-    Build readable message on the found secrets.
+    Build readable message on the found policy breaks.
 
     :param scan_result: The result from scanning API
     :param nb_lines: The number of lines to display before and after a secret in the

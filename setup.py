@@ -5,7 +5,7 @@ packages = find_packages()
 
 setup(
     name="ggshield",
-    description="Detect secrets in commit patches",
+    description="Detect policy breaks using GitGuardian's brains",
     url="https://gitlab.gitguardian.ovh/gg-code/prm/pre-commit.git",
     version="0.1.0",
     author="GitGuardian",

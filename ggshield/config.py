@@ -24,7 +24,7 @@ def load_config() -> Dict:
         if os.path.isfile(filename):
             with open(filename, "r") as f:
                 try:
-                    _config = yaml.load(f, Loader=yaml.FullLoader)
+                    _config = yaml.load(f, Loader=yaml.SafeLoader)
                     _load_config(config, _config)
                 except yaml.scanner.ScannerError:
                     raise click.ClickException(
@@ -38,7 +38,7 @@ def load_config() -> Dict:
         if os.path.isfile(filename):
             with open(filename, "r") as f:
                 try:
-                    _config = yaml.load(f, Loader=yaml.FullLoader)
+                    _config = yaml.load(f, Loader=yaml.SafeLoader)
                     _load_config(config, _config)
                 except yaml.scanner.ScannerError:
                     raise click.ClickException(
@@ -54,7 +54,7 @@ def load_config() -> Dict:
 def _init_config(config: Dict):
     """ Initiate all the options. """
     config["blacklist"] = set()
-    config["ignore"] = {"filename": set(), "extension": set()}
+    config["ignore"] = ""
 
 
 def _load_config(config: Dict, _config: Dict):
@@ -71,8 +71,5 @@ def load_blacklist(config: Dict, _config: Dict):
 
 def load_ignore(config: Dict, _config: Dict):
     """ Load list of ignored files. """
-    if "ignore" in _config:
-        if "filename" in _config["ignore"]:
-            config["ignore"]["filename"].update(_config["ignore"]["filename"])
-        if "extension" in _config["ignore"]:
-            config["ignore"]["extension"].update(_config["ignore"]["extension"])
+    if "exclude" in _config:
+        config["exclude"] = _config["exclude"]

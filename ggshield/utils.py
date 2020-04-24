@@ -1,3 +1,4 @@
+import math
 import re
 import subprocess
 from enum import Enum
@@ -235,11 +236,7 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List:
     for policy_break in scan_result["scan"].policy_breaks:
         for match in policy_break.matches:
             display_name = policy_break.break_type
-            privy_len = (
-                4
-                if len(match.match) > 4
-                else int(len(match.match) - len(match.match) / 2)
-            )
+            privy_len = 4 if len(match.match) > 4 else math.ceil(len(match.match) / 2)
 
             value = (
                 match.match

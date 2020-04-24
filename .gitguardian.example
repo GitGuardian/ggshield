@@ -5,6 +5,8 @@ detectors:
 
 ignore:
   filename:
-    - .env
+    - .env.example
   extension:
     - example
+  issues:
+    -

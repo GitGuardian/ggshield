@@ -5,9 +5,9 @@
 # GitGuardian Shield: protect your secrets with GitGuardian
 
 The GitGuardian shield (ggshield) is a CLI application that runs in your local environment
-or in a CI environment to help you detect your exposed secrets.
+or in a CI environment to help you detect policy breaks.
 
-ggshield uses our [public API](https://api.gitguardian.com/doc) to scan your files and detect potential secrets in your code.
+ggshield uses our [public API](https://api.gitguardian.com/doc) to scan your files and detect potential secrets or issues in your code.
 
 You can also use ggshield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
 
@@ -60,8 +60,8 @@ Commands:
 
 **ggshield** allows you to scan your files in 3 different ways:
 
-- `Pre-commit` : scan every changes that have been staged in a git repository
-- `CI` : scan every commit since the last build in your CI (currently supports GitLab CI, Travis CI and CircleCI)
+- `Pre-commit`: scan every changes that have been staged in a git repository
+- `CI`: scan every commit since the last build in your CI (currently supports GitLab CI, Travis CI and CircleCI)
 - `Files`: scan files or directories with the recursive option
 
 ```shell
@@ -100,25 +100,25 @@ Options:
 
 In order to use **ggshield** with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
 
-Make sure you have pre-commit installed :
+Make sure you have pre-commit installed:
 
 ```shell
 $ pip install pre-commit
 ```
 
-Create a `.pre-commit-config.yaml` file in your root repository :
+Create a `.pre-commit-config.yaml` file in your root repository:
 
 ```yaml
 repos:
   - repo: https://github.com/gitguardian/gg-shield
     rev: dev
     hooks:
-      - id: commit-ggshield
-        language_version: python3.6
+      - id: ggshield
+        language_version: python3
         stages: [commit]
 ```
 
-Then install the hook with the command :
+Then install the hook with the command:
 
 ```shell
 $ pre-commit install
@@ -127,27 +127,27 @@ pre-commit installed at .git/hooks/pre-commit
 
 Now you're good to go!
 
-If you want to skip the pre-commit check, you can add `-n` parameter :
+If you want to skip the pre-commit check, you can add `-n` parameter:
 
 ```shell
 $ git commit -m "commit message" -n
 ```
 
-Another way is to add SKIP=hook_id before the command :
+Another way is to add SKIP=hook_id before the command:
 
 ```shell
-$ SKIP=commit-ggshield git commit -m "commit message"
+$ SKIP=ggshield git commit -m "commit message"
 ```
 
 ## The global and local pre-commit hook
 
-To install pre-commit globally (for all current and future repo), you just need to execute the following command :
+To install pre-commit globally (for all current and future repo), you just need to execute the following command:
 
 ```shell
 $ ggshield install --mode global
 ```
 
-It will do the following :
+It will do the following:
 
 - check if a global hook folder is defined in the global git configuration
 - create the `~/.git/hooks` folder (if needed)
@@ -155,7 +155,7 @@ It will do the following :
 - give executable access to this file
 
 You can also install the hook locally on desired repositories.
-You just need to go in the repository and execute :
+You just need to go in the repository and execute:
 
 ```shell
 $ ggshield install --mode local
@@ -178,22 +178,22 @@ ggshield scan --mode pre-commit
 
 # Output
 
-If no secrets have been found, you will have a simple message :
+If no policy breaks have been found, you will have a simple message:
 
 ```bash
 $ ggshield scan -m pre-commit
-No secrets have been found
+No policy breaks have been found
 ```
 
-If a secret lies in your staged code or in your CI,
-you will have an alert giving you the type of secret,
-the filename where the secret has been found and a patch
-giving you the secret position in file :
+If a policy break lies in your staged code or in your CI,
+you will have an alert giving you the type of policy break,
+the filename where the policy break has been found and a patch
+giving you the position of the policy break in the file:
 
 ```shell
 $ ggshield scan -m pre-commit
 
-🛡️  ⚔️  🛡️  2 secrets have been found in file production.rb
+🛡️  ⚔️  🛡️  2 policy breaks have been found in file production.rb
 
 11 | config.paperclip_defaults = {
 12 |     :s3_credentials => {

@@ -35,6 +35,16 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
     is_flag=True,
     help="Display the list of files before recursive scan",
 )
+@click.option(
+    "--exclude",
+    type=str,
+    default=r"",
+    help=(
+        "A regular expression that matches files and directories that should be "
+        "excluded on recursive searches. An empty value means no paths are excluded."
+    ),
+    show_default=True,
+)
 @click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
 @click.option("--blacklist", "-b", multiple=True, help="Extend blacklist of detectors")
 @click.option("--set-blacklist", "-B", multiple=True, help="Set detectors blacklist")
@@ -43,6 +53,7 @@ def scan(
     paths: Union[List, str],
     mode: str,
     recursive: bool,
+    exclude: bool,
     yes: bool,
     verbose: bool,
     repo: str,
@@ -162,7 +173,6 @@ def scan_commit_range(
 
     for sha in get_list_commit_SHA(commit_range, all_commits):
         commit = Commit(sha)
-        print(sha)
         results = commit.scan(client)
 
         if any(result["has_leak"] for result in results) or verbose:

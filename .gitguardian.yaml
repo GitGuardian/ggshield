@@ -1,0 +1,4 @@
+exclude: r"/(\.eggs|\.git|\.hg|\.mypy_cache|\.nox|\.tox|\.venv|\.svn|_build|buck-out|build|dist)/"
+
+exclude-match:
+  -

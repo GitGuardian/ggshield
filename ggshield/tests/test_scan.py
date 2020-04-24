@@ -13,7 +13,7 @@ from .conftest import my_vcr
 @pytest.fixture(scope="session")
 def client():
     token = os.getenv("GITGUARDIAN_API_KEY", "1234567890")
-    base_uri = os.getenv("GITGUARDIAN_API_URL")
+    base_uri = os.getenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
     return GGClient(token=token, base_uri=base_uri)
 
 
