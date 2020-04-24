@@ -161,7 +161,7 @@ You just need to go in the repository and execute :
 $ ggshield install --mode local
 ```
 
-If a pre-commit executable file already exists, it will not be overrided.
+If a pre-commit executable file already exists, it will not be overriden.
 
 You can force override with the `--force` option:
 
