@@ -54,7 +54,7 @@ def load_config() -> Dict:
 def _init_config(config: Dict):
     """ Initiate all the options. """
     config["blacklist"] = set()
-    config["ignore"] = ""
+    config["exclude"] = ""
 
 
 def _load_config(config: Dict, _config: Dict):

@@ -1,13 +1,16 @@
 import os
+import re
 import sys
 import tempfile
 from contextlib import contextmanager
-from typing import Dict, Generator, List, Optional, Union
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Pattern, Union
 
 import click
 from click import exceptions
 
 from ggshield.message import process_scan_result
+from ggshield.pygitguardian import GGClient
 from ggshield.scannable import Commit, File, Files
 from ggshield.utils import check_git_dir, is_git_dir, shell
 
@@ -38,12 +41,10 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
 @click.option(
     "--exclude",
     type=str,
-    default=r"",
     help=(
         "A regular expression that matches files and directories that should be "
         "excluded on recursive searches. An empty value means no paths are excluded."
     ),
-    show_default=True,
 )
 @click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
 @click.option("--blacklist", "-b", multiple=True, help="Extend blacklist of detectors")
@@ -71,6 +72,12 @@ def scan(
         ctx.obj["config"]["blacklist"].update(blacklist)
 
     client.blacklist = list(ctx.obj["config"]["blacklist"])
+
+    compiled_exclude = None
+    if exclude:
+        compiled_exclude = re.compile(exclude)
+    elif ctx.obj["config"]["exclude"]:
+        compiled_exclude = re.compile(ctx.obj["config"]["exclude"])
 
     try:
         if mode:
@@ -100,7 +107,9 @@ def scan(
                 click.echo(ctx.get_help())
 
         elif paths:
-            files = Files(get_files_from_paths(ctx, paths, recursive, yes, verbose))
+            files = Files(
+                get_files_from_paths(paths, compiled_exclude, recursive, yes, verbose)
+            )
             return_code = process_scan_result(files.scan(client))
 
         else:
@@ -124,16 +133,20 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
-def scan_ci(client: object, verbose: bool) -> int:
+def scan_ci(client: GGClient, verbose: bool) -> int:
     """ Scan commits in CI environment. """
     if not os.getenv("CI"):
         raise click.ClickException("--ci should only be used in a CI environment.")
 
     # GITLAB
     if os.getenv("GITLAB_CI"):
-        commit_range = "{}...{}".format(
-            os.getenv("CI_COMMIT_BEFORE_SHA"), os.getenv("CI_COMMIT_SHA")
-        )
+        before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
+        if before_sha != "0000000000000000000000000000000000000000":
+            commit_range = "{}...{}".format(
+                before_sha, os.getenv("CI_COMMIT_SHA", "HEAD")
+            )
+        else:
+            commit_range = "{}...{}".format(before_sha, os.getenv("HEAD~1", "HEAD"))
 
     # TRAVIS
     elif os.getenv("TRAVIS"):
@@ -160,7 +173,7 @@ def scan_ci(client: object, verbose: bool) -> int:
 
 
 def scan_commit_range(
-    client: object, commit_range: str, verbose: bool, all_commits: bool
+    client: GGClient, commit_range: str, verbose: bool, all_commits: bool
 ) -> int:
     """
     Scan every commit in a range.
@@ -202,7 +215,11 @@ def get_list_commit_SHA(commit_range: Optional[str], all_commits: bool) -> List:
 
 
 def get_files_from_paths(
-    ctx: object, paths: Union[List, str], recursive: bool, yes: bool, verbose: bool
+    paths: Union[Path, str],
+    exclude_regex: Pattern[str],
+    recursive: bool,
+    yes: bool,
+    verbose: bool,
 ) -> object:
     """
     Create a scan object from files content.
@@ -212,7 +229,9 @@ def get_files_from_paths(
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
     """
-    files = list(generate_files_from_paths(ctx, get_filepaths(paths, recursive)))
+    files = list(
+        generate_files_from_paths(get_filepaths(paths, recursive), exclude_regex)
+    )
 
     if verbose:
         for f in files:
@@ -228,9 +247,7 @@ def get_files_from_paths(
     return files
 
 
-def get_filepaths(
-    paths: Union[List, str], recursive: bool
-) -> Generator[str, None, None]:
+def get_filepaths(paths: Union[List, str], recursive: bool) -> Iterable[Path]:
     """
     Retrieve the filepaths from the command.
 
@@ -254,8 +271,8 @@ def get_filepaths(
 
 
 def generate_files_from_paths(
-    ctx: object, paths: Generator[str, None, None]
-) -> Generator[Dict, None, None]:
+    paths: Iterable[Path], exclude_regex: Pattern[str]
+) -> Iterable[Dict]:
     """ Generate a list of scannable files from a list of filepaths."""
     path_blacklist = (
         [
@@ -267,20 +284,22 @@ def generate_files_from_paths(
     )
 
     for path in paths:
-        filename = click.format_filename(path, True)
-        if (
-            path not in path_blacklist
-            and not path.startswith("{}/{}".format(os.getcwd(), ".git/"))
-            and filename not in ctx.obj["config"]["ignore"]["filename"]
-            and filename.split(".")[-1] not in ctx.obj["config"]["ignore"]["extension"]
-        ):
-            with open(path, "r") as file:
-                try:
-                    content = file.read()
-                    if content:
-                        yield File(
-                            content,
-                            click.format_filename(file.name[len(os.getcwd()) + 1 :]),
-                        )
-                except UnicodeDecodeError:
-                    pass
+        if exclude_regex and exclude_regex.search(path):
+            continue
+
+        elif path in path_blacklist:
+            continue
+
+        elif path.startswith("{}/{}".format(os.getcwd(), ".git/")):
+            continue
+
+        with open(path, "r") as file:
+            try:
+                content = file.read()
+                if content:
+                    yield File(
+                        content,
+                        click.format_filename(file.name[len(os.getcwd()) + 1 :]),
+                    )
+            except UnicodeDecodeError:
+                pass
