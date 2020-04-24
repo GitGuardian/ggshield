@@ -170,7 +170,7 @@ $ ggshield install --mode local --force
 ```
 
 If you already have a pre-commit executable file and you want to use gg-shield,
-all you need to do is to add this line in the file :
+all you need to do is to add this line in the file:
 
 ```shell
 ggshield scan --mode pre-commit
