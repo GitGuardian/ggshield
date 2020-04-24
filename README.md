@@ -62,7 +62,7 @@ Commands:
 
 - `Pre-commit` : scan every changes that have been staged in a git repository
 - `CI` : scan every commit since the last build in your CI (currently supports GitLab CI, Travis CI and CircleCI)
-- `Files`: scan files or directory with the recursive option
+- `Files`: scan files or directories with the recursive option
 
 ```shell
 Usage: ggshield scan [OPTIONS] [PATHS]...
