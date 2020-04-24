@@ -2,7 +2,7 @@
 
 ---
 
-# GitGuardian Shield : protect your secrets with GitGuardian
+# GitGuardian Shield: protect your secrets with GitGuardian
 
 The GitGuardian shield (ggshield) is a CLI application that runs in your local environment
 or in a CI environment to help you detect your exposed secrets.
