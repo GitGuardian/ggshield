@@ -3,7 +3,7 @@ import math
 import re
 import subprocess
 from enum import Enum
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union
 
 import click
 
@@ -267,7 +267,7 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List[
     return secrets
 
 
-def remove_ignored(scan_result: ScanResult, ignored_matches: Set[str]):
+def remove_ignored(scan_result: ScanResult, ignored_matches: Iterable[str]):
     scan_result.policy_breaks = list(
         filter(
             lambda x: get_ignore_sha(x) not in ignored_matches,

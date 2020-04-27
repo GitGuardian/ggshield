@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Set, Union
+from typing import Any, Dict, Iterable, List, Union
 
 import click
 
@@ -64,7 +64,9 @@ class Files:
         self.files = {file.filename: file for file in files}
         self.result = []
 
-    def scan(self, client: GGClient, ignored_matches: Set[str]) -> List[Dict[str, Any]]:
+    def scan(
+        self, client: GGClient, ignored_matches: Iterable[str]
+    ) -> List[Dict[str, Any]]:
         for file in self.files.values():
             scan = client.content_scan(**file.get_dict())
             assert scan.success is True
@@ -182,7 +184,7 @@ class Commit:
                 "has_leak": len(file_result.get("secrets", [])) > 0,
             }
 
-    def scan(self, client: GGClient, ignored_matches: Set[str]) -> Dict[str, Any]:
+    def scan(self, client: GGClient, ignored_matches: Iterable[str]) -> Dict[str, Any]:
         """ Scan the patch for all files in the commit and save it in result. """
         result = []
         for file in self.get_files():

@@ -76,7 +76,9 @@ def scan(
                 )
 
             elif mode == "ci":
-                return_code = scan_ci(client, verbose)
+                return_code = scan_ci(
+                    client, verbose, ctx.obj["config"]["ignored_matches"]
+                )
 
             else:
                 click.echo(ctx.get_help())
@@ -125,7 +127,7 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
-def scan_ci(client: GGClient, verbose: bool) -> int:
+def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> int:
     """ Scan commits in CI environment. """
     if not os.getenv("CI"):
         raise click.ClickException("--ci should only be used in a CI environment.")
@@ -133,7 +135,7 @@ def scan_ci(client: GGClient, verbose: bool) -> int:
     # GITLAB
     if os.getenv("GITLAB_CI"):
         before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
-        if before_sha != "0000000000000000000000000000000000000000":
+        if before_sha == "0000000000000000000000000000000000000000":
             commit_range = "{}...{}".format(
                 before_sha, os.getenv("CI_COMMIT_SHA", "HEAD")
             )
@@ -160,12 +162,20 @@ def scan_ci(client: GGClient, verbose: bool) -> int:
         )
 
     return scan_commit_range(
-        client=client, commit_range=commit_range, verbose=verbose, all_commits=False
+        client=client,
+        commit_range=commit_range,
+        verbose=verbose,
+        all_commits=False,
+        ignored_matches=ignored_matches,
     )
 
 
 def scan_commit_range(
-    client: GGClient, commit_range: str, verbose: bool, all_commits: bool
+    client: GGClient,
+    commit_range: str,
+    verbose: bool,
+    all_commits: bool,
+    ignored_matches: Iterable[str],
 ) -> int:
     """
     Scan every commit in a range.
@@ -178,7 +188,7 @@ def scan_commit_range(
 
     for sha in get_list_commit_SHA(commit_range, all_commits):
         commit = Commit(sha)
-        results = commit.scan(client)
+        results = commit.scan(client, ignored_matches)
 
         if any(result["has_leak"] for result in results) or verbose:
             click.echo("\nCommit {} :".format(sha))
