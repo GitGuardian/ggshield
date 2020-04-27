@@ -40,7 +40,7 @@ def test_scan_no_secret(client):
     c = Commit()
     c.patch_ = patch
 
-    results = c.scan(client)
+    results = c.scan(client, [])
     assert process_scan_result(results) == 0
 
     result = results[0]
@@ -67,7 +67,7 @@ def test_scan_simple_secret(client):
     c = Commit()
     c.patch_ = patch
 
-    results = c.scan(client)
+    results = c.scan(client, {})
     assert process_scan_result(results) == 1
 
     result = results[0]
@@ -98,7 +98,7 @@ def test_scan_multiple_secrets(client):
     c = Commit()
     c.patch_ = patch
 
-    results = c.scan(client)
+    results = c.scan(client, {})
     assert process_scan_result(results) == 1
     result = results[0]
     assert result["has_leak"]

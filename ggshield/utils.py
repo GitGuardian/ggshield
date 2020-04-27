@@ -1,12 +1,13 @@
+import hashlib
 import math
 import re
 import subprocess
 from enum import Enum
-from typing import Dict, List, Union
+from typing import Dict, List, Set, Tuple, Union
 
 import click
 
-from .pygitguardian import ScanResult
+from .pygitguardian import PolicyBreak, ScanResult
 
 
 class Filemode(Enum):
@@ -64,7 +65,9 @@ def is_git_dir():
         return False
 
 
-def process_scan_to_secrets_and_lines(scan_result: Dict, hide_secrets: bool) -> List:
+def process_scan_to_secrets_and_lines(
+    scan_result: Dict, hide_secrets: bool
+) -> Tuple[List, List]:
     """
     Return the secrets and the lines with line number.
 
@@ -229,13 +232,13 @@ def update_secrets_patch(secrets: List[str], lines: List[str], is_patch: bool = 
         del secret["end"]
 
 
-def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List:
+def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List[Dict]:
     """ Select one secret by string matched in the Scanning API result. """
     secrets = []
 
-    for policy_break in scan_result["scan"].policy_breaks:
+    for secret_n, policy_break in enumerate(scan_result["scan"].policy_breaks, start=1):
+        ignore_sha = get_ignore_sha(policy_break)
         for match in policy_break.matches:
-            display_name = policy_break.break_type
             privy_len = 4 if len(match.match) > 4 else math.ceil(len(match.match) / 2)
 
             value = (
@@ -247,10 +250,13 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List:
 
             secrets.append(
                 {
-                    "detector": display_name,
+                    "issue_n": secret_n,
+                    "break_type": policy_break.break_type,
+                    "match_type": match.match_type,
                     "value": value,
                     "start": match.index_start,
                     "end": match.index_end + 1,
+                    "ignore_sha": ignore_sha,
                 }
             )
 
@@ -259,3 +265,24 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List:
     secrets = sorted(secrets, key=lambda x: x["start"])
 
     return secrets
+
+
+def remove_ignored(scan_result: ScanResult, ignored_matches: Set[str]):
+    scan_result.policy_breaks = list(
+        filter(
+            lambda x: get_ignore_sha(x) not in ignored_matches,
+            scan_result.policy_breaks,
+        )
+    )
+    scan_result.policy_break_count = len(scan_result.policy_breaks)
+
+
+def get_ignore_sha(policy_break: PolicyBreak):
+    hashable = "".join(
+        [
+            f"{match.match},{match.match_type}"
+            for match in sorted(policy_break.matches, key=lambda m: m.match_type)
+        ]
+    )
+
+    return hashlib.sha256(hashable.encode("UTF-8")).hexdigest()

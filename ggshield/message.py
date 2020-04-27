@@ -13,7 +13,9 @@ STYLE = {
     "secret": {"fg": "bright_red"},
     "error": {"fg": "red"},
     "no_secret": {"fg": "white"},
-    "detector": {"fg": "bright_white", "bold": True},
+    "detector": {"fg": "bright_yellow", "bold": True},
+    "ignore_sha": {"fg": "cyan"},
+    "detector_line_start": {"fg": "cyan"},
     "line_count": {"fg": "white", "dim": True},
     "line_count_secret": {"fg": "yellow"},
 }
@@ -21,6 +23,8 @@ STYLE = {
 LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
 ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
+
+MAX_SECRET_SIZE = 64
 
 
 def leak_message(
@@ -39,6 +43,7 @@ def leak_message(
     filename = scan_result["filename"]
     filemode = scan_result["filemode"]
     is_patch = filemode != Filemode.FILE
+    secret_n = len(scan_result["scan"].policy_breaks)
     secrets, lines = process_scan_to_secrets_and_lines(scan_result, hide_secrets)
     lines_to_display = get_lines_to_display(secrets, lines, nb_lines)
     padding = get_padding(lines, is_patch)
@@ -47,7 +52,7 @@ def leak_message(
     if len(secrets) == 0 or len(lines) == 0:
         raise click.ClickException("Parsing of scan result failed.")
 
-    message = file_info(filename, len(secrets))
+    message = file_info(filename, secret_n)
 
     line_count = 0
     line_index = 0
@@ -244,13 +249,20 @@ def format_detector_line(detector_line: List, offset: int):
             detector["end_index"], detector["start_index"] + len(detector["display"])
         )
 
+    message += "\n{} Issue {}: {} (Ignore with SHA: {})".format(
+        format_text(">>>", STYLE["detector_line_start"]),
+        detector["secret"]["issue_n"],
+        format_text(detector["secret"]["break_type"], STYLE["detector"]),
+        format_text(detector["secret"]["ignore_sha"], STYLE["ignore_sha"]),
+    )
+
     return message + "\n\n"
 
 
 def add_detector(secret: object, is_patch: bool) -> object:
     """ Return detector object to add in detector_line. """
     secret_lines = secret["value"].split("\n")
-    detector_size = len(secret["detector"])
+    detector_size = len(secret["match_type"])
 
     # Multiline secret
     if len(secret_lines) > 1:
@@ -264,18 +276,26 @@ def add_detector(secret: object, is_patch: bool) -> object:
     else:
         secret_size = len(secret_lines[0])
 
-    before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
-    after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
-    display = "|{}{}{}|".format(before, secret["detector"], after)
+    display = ""
+    if secret_size < MAX_SECRET_SIZE:
+        before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
+        after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
+        display = "|{}{}{}|".format(before, secret["match_type"], after)
 
     # Multiline
     if secret["start_line"] != secret["end_line"]:
-        return {"display": display, "start_index": 0, "end_index": secret_size}
+        return {
+            "display": display,
+            "start_index": 0,
+            "end_index": secret_size,
+            "secret": secret,
+        }
 
     return {
         "display": display,
         "start_index": secret["start_index"],
         "end_index": max(secret["end_index"], secret["start_index"] + len(display)),
+        "secret": secret,
     }
 
 
@@ -335,7 +355,7 @@ def file_info(filename: str, nb_secrets: int) -> str:
     return "\n{} {} {} been found in file {}\n\n".format(
         ICON_BY_OS.get(os.name, ICON_BY_OS["default"]),
         format_text(str(nb_secrets), STYLE["nb_secrets"]),
-        pluralize("secret has", nb_secrets, "secrets have"),
+        pluralize("policy break has", nb_secrets, "policy breaks have"),
         format_text(filename, STYLE["filename"]),
     )
 

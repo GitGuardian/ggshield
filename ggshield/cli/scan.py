@@ -71,7 +71,9 @@ def scan(
         if mode:
             check_git_dir()
             if mode == "pre-commit":
-                return_code = process_scan_result(Commit().scan(client))
+                return_code = process_scan_result(
+                    Commit().scan(client, ctx.obj["config"]["ignored_matches"])
+                )
 
             elif mode == "ci":
                 return_code = scan_ci(client, verbose)
@@ -98,7 +100,9 @@ def scan(
             files = Files(
                 get_files_from_paths(paths, compiled_exclude, recursive, yes, verbose)
             )
-            return_code = process_scan_result(files.scan(client))
+            return_code = process_scan_result(
+                files.scan(client, ctx.obj["config"]["ignored_matches"])
+            )
 
         else:
             click.echo(ctx.get_help())

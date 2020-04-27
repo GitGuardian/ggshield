@@ -1,7 +1,6 @@
 # Exclude files and paths by regex string
-exclude: '/tests/ | \.prettierrc'
+exclude: ''
 
 # SHA256 matches
 ignored_matches:
-  - 0c08577221d2b4eabfc20b9ac0ce467a5afb9072a7c9ce78eed59db649ed498e
-  - cfac6d80f820b3ffbbffa40d3a06e8debac5a347fed78518b6ad3a69f95e75ab
+  - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1

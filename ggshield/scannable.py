@@ -1,10 +1,10 @@
 import re
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Set, Union
 
 import click
 
 from .pygitguardian import GGClient, ScanResult
-from .utils import Filemode, shell
+from .utils import Filemode, remove_ignored, shell
 
 
 class Scannable:
@@ -64,10 +64,11 @@ class Files:
         self.files = {file.filename: file for file in files}
         self.result = []
 
-    def scan(self, client: GGClient) -> List[Dict[str, Any]]:
+    def scan(self, client: GGClient, ignored_matches: Set[str]) -> List[Dict[str, Any]]:
         for file in self.files.values():
             scan = client.content_scan(**file.get_dict())
             assert scan.success is True
+            remove_ignored(scan, ignored_matches)
             self.result.append(file.process_result(scan))
 
         return self.result
@@ -181,13 +182,14 @@ class Commit:
                 "has_leak": len(file_result.get("secrets", [])) > 0,
             }
 
-    def scan(self, client: GGClient) -> Dict[str, Any]:
+    def scan(self, client: GGClient, ignored_matches: Set[str]) -> Dict[str, Any]:
         """ Scan the patch for all files in the commit and save it in result. """
         result = []
         for file in self.get_files():
             commit_file = CommitFile(**file)
             scan = client.content_scan(**commit_file.get_dict())
             assert scan.success is True
+            remove_ignored(scan, ignored_matches)
             result.append(commit_file.process_result(scan))
 
         return result
