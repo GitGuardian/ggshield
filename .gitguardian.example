@@ -1,12 +1,4 @@
-detectors:
-  blacklist:
-    - googleaiza
-    - aws_iam
+exclude: '/tests/'
 
-ignore:
-  filename:
-    - .env.example
-  extension:
-    - example
-  issues:
-    -
+ignored_matches:
+  - 0c08577221d2b4eabfc20b9ac0ce467a5afb9072a7c9ce78eed59db649ed498e

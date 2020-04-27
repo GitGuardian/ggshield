@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Dict
+from typing import Any, Dict
 
 import click
 import yaml
@@ -51,25 +51,25 @@ def load_config() -> Dict:
     return config
 
 
-def _init_config(config: Dict):
+def _init_config(config: Dict[str, Any]):
     """ Initiate all the options. """
-    config["blacklist"] = set()
+    config["ignored_matches"] = set()
     config["exclude"] = ""
 
 
-def _load_config(config: Dict, _config: Dict):
+def _load_config(config: Dict[str, Any], _config: Dict[str, Any]):
     """ Load all the options (update config with _config) """
-    load_blacklist(config, _config)
-    load_ignore(config, _config)
+    load_exclude(config, _config)
+    load_ignored_matches(config, _config)
 
 
-def load_blacklist(config: Dict, _config: Dict):
-    """ Load blacklist. """
-    if "detectors" in _config and "blacklist" in _config["detectors"]:
-        config["blacklist"].update(_config["detectors"]["blacklist"])
+def load_ignored_matches(config: Dict[str, Any], _config: Dict[str, Any]):
+    """ Load ignored matches. """
+    if "ignored_matches" in _config:
+        config["ignored_matches"].update(_config["ignored_matches"])
 
 
-def load_ignore(config: Dict, _config: Dict):
+def load_exclude(config: Dict[str, Any], _config: Dict[str, Any]):
     """ Load list of ignored files. """
     if "exclude" in _config:
         config["exclude"] = _config["exclude"]

@@ -31,84 +31,24 @@ def test_parsing_error(cli_fs_runner):
         assert load_config()
 
 
-class TestBlackListConfig:
+class TestConfig:
     @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
     @patch("ggshield.config.CONFIG_GLOBAL", [""])
-    def test_simple_file_blacklist(self, cli_fs_runner):
+    def test_exclude_regex(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"detectors": {"blacklist": ["google", "amazon"]}}))
+            file.write(yaml.dump({"exclude": r"/tests/"}))
 
         config = load_config()
-        assert config["blacklist"] == {"google", "amazon"}
+        assert config["exclude"] == r"/tests/"
 
     @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
     @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
-    def test_multiple_files_blacklist(self, cli_fs_runner):
+    def test_accumulation_matches(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"detectors": {"blacklist": ["google", "amazon"]}}))
+            file.write(yaml.dump({"ignored_matches": ["one", "two"]}))
 
         with open(".gitguardian.yaml", "w") as file:
-            file.write(yaml.dump({"detectors": {"blacklist": ["microsoft"]}}))
+            file.write(yaml.dump({"ignored_matches": ["three"]}))
 
         config = load_config()
-        assert config["blacklist"] == {"google", "amazon", "microsoft"}
-
-    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
-    def test_same_detectors_blacklist(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"detectors": {"blacklist": ["google", "amazon"]}}))
-
-        with open(".gitguardian.yaml", "w") as file:
-            file.write(yaml.dump({"detectors": {"blacklist": ["google"]}}))
-
-        config = load_config()
-        assert config["blacklist"] == {"google", "amazon"}
-
-
-class TestIgnoreConfig:
-    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.CONFIG_GLOBAL", [""])
-    def test_simple_file_ignore(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(
-                yaml.dump({"ignore": {"filename": [".env"], "extension": ["exe"]}})
-            )
-
-        config = load_config()
-        assert config["ignore"] == {"filename": {".env"}, "extension": {"exe"}}
-
-    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
-    def test_multiple_files_ignore(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(
-                yaml.dump({"ignore": {"filename": [".env"], "extension": ["exe"]}})
-            )
-
-        with open(".gitguardian.yaml", "w") as file:
-            file.write(
-                yaml.dump({"ignore": {"filename": ["README.md"], "extension": ["png"]}})
-            )
-
-        config = load_config()
-        assert config["ignore"] == {
-            "filename": {".env", "README.md"},
-            "extension": {"exe", "png"},
-        }
-
-    @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
-    def test_same_ignore(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(
-                yaml.dump({"ignore": {"filename": [".env"], "extension": ["exe"]}})
-            )
-
-        with open(".gitguardian.yaml", "w") as file:
-            file.write(
-                yaml.dump({"ignore": {"filename": [".env"], "extension": ["png"]}})
-            )
-
-        config = load_config()
-        assert config["ignore"] == {"filename": {".env"}, "extension": {"exe", "png"}}
+        assert config["ignored_matches"] == {"one", "two", "three"}

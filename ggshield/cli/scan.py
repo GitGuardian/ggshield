@@ -47,8 +47,6 @@ SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
     ),
 )
 @click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
-@click.option("--blacklist", "-b", multiple=True, help="Extend blacklist of detectors")
-@click.option("--set-blacklist", "-B", multiple=True, help="Set detectors blacklist")
 def scan(
     ctx: object,
     paths: Union[List, str],
@@ -58,20 +56,10 @@ def scan(
     yes: bool,
     verbose: bool,
     repo: str,
-    blacklist: tuple,
-    set_blacklist: tuple,
 ) -> int:
     """ Command to scan various content. """
     client = ctx.obj["client"]
     return_code = 0
-
-    if set_blacklist:
-        ctx.obj["config"]["blacklist"] = set_blacklist
-
-    elif blacklist:
-        ctx.obj["config"]["blacklist"].update(blacklist)
-
-    client.blacklist = list(ctx.obj["config"]["blacklist"])
 
     compiled_exclude = None
     if exclude:
