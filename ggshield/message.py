@@ -24,7 +24,9 @@ LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
 ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
 
-MAX_SECRET_SIZE = 64
+# MAX_SECRET_SIZE controls the max length of |-----| under a secret
+# avoids occupying a lot of space in a CI terminal.
+MAX_SECRET_SIZE = 80
 
 
 def leak_message(

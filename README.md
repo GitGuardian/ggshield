@@ -37,7 +37,7 @@ Install and update using `pip`:
 $ pip install ggshield
 ```
 
-ggshield supports **Python 3.5 and newer**.
+ggshield supports **Python 3.6 and newer**.
 
 The package should run on MacOS, Linux and Windows.
 

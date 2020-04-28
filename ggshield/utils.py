@@ -1,5 +1,6 @@
 import hashlib
 import math
+import operator
 import re
 import subprocess
 from enum import Enum
@@ -268,12 +269,19 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List[
 
 
 def remove_ignored(scan_result: ScanResult, ignored_matches: Iterable[str]):
-    scan_result.policy_breaks = list(
-        filter(
-            lambda x: get_ignore_sha(x) not in ignored_matches,
-            scan_result.policy_breaks,
-        )
-    )
+    """
+    remove_ignored removes policy breaks from a Scan Result based on a sha
+    made from its matches.
+
+    :param scan_result: ScanResult to filter
+    :param ignored_matches: match SHAS to filter out
+    """
+
+    scan_result.policy_breaks = [
+        policy_break
+        for policy_break in scan_result.policy_breaks
+        if get_ignore_sha(policy_break) not in ignored_matches
+    ]
     scan_result.policy_break_count = len(scan_result.policy_breaks)
 
 
@@ -281,7 +289,9 @@ def get_ignore_sha(policy_break: PolicyBreak):
     hashable = "".join(
         [
             f"{match.match},{match.match_type}"
-            for match in sorted(policy_break.matches, key=lambda m: m.match_type)
+            for match in sorted(
+                policy_break.matches, key=operator.attrgetter("match_type")
+            )
         ]
     )
 

@@ -96,9 +96,21 @@ def test_remove_ignores():
                             "type": "client_secret",
                         },
                     ],
-                }
+                },
+                {
+                    "type": "GitHub Token",
+                    "policy": "Secrets Detection",
+                    "matches": [
+                        {
+                            "match": "368ac3edf9e850d1c0ff9d6c526496f8237ddf91",
+                            "type": "apikey",
+                            "index_start": 29,
+                            "index_end": 69,
+                        }
+                    ],
+                },
             ],
-            "policy_break_count": 1,
+            "policy_break_count": 2,
         }
     )
 
@@ -112,5 +124,6 @@ def test_remove_ignores():
         ["38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314"],
     )
 
-    assert scan_result.policy_break_count == 0
-    assert len(scan_result.policy_breaks) == 0
+    assert scan_result.policy_break_count == 1
+    assert len(scan_result.policy_breaks) == 1
+    assert scan_result.policy_breaks[0].break_type == "GitHub Token"

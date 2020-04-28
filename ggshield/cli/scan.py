@@ -17,6 +17,8 @@ from ggshield.utils import check_git_dir, is_git_dir, shell
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
 
+GITLAB_NO_BEFORE = "0000000000000000000000000000000000000000"
+
 
 @click.command()
 @click.pass_context
@@ -72,12 +74,17 @@ def scan(
             check_git_dir()
             if mode == "pre-commit":
                 return_code = process_scan_result(
-                    Commit().scan(client, ctx.obj["config"]["ignored_matches"])
+                    Commit().scan(
+                        client=client,
+                        ignored_matches=ctx.obj["config"]["ignored_matches"],
+                    )
                 )
 
             elif mode == "ci":
                 return_code = scan_ci(
-                    client, verbose, ctx.obj["config"]["ignored_matches"]
+                    client=client,
+                    verbose=verbose,
+                    ignored_matches=ctx.obj["config"]["ignored_matches"],
                 )
 
             else:
@@ -136,7 +143,7 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
     if os.getenv("GITLAB_CI"):
         before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
         commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD")
-        if before_sha and before_sha != "0000000000000000000000000000000000000000":
+        if before_sha and before_sha != GITLAB_NO_BEFORE:
             commit_range = "{}...{}".format(before_sha, commit_sha)
         else:
             commit_range = "{}...{}".format(commit_sha, "HEAD")
