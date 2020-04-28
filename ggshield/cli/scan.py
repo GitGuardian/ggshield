@@ -135,13 +135,11 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
     # GITLAB
     if os.getenv("GITLAB_CI"):
         before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
-        if before_sha == "0000000000000000000000000000000000000000":
-            commit_range = "{}...{}".format(
-                before_sha, os.getenv("CI_COMMIT_SHA", "HEAD")
-            )
+        commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD")
+        if before_sha and before_sha != "0000000000000000000000000000000000000000":
+            commit_range = "{}...{}".format(before_sha, commit_sha)
         else:
-            commit_range = "{}...{}".format(before_sha, os.getenv("HEAD~1", "HEAD"))
-
+            commit_range = "{}...{}".format(commit_sha, "HEAD")
     # TRAVIS
     elif os.getenv("TRAVIS"):
         commit_range = os.getenv("TRAVIS_COMMIT_RANGE")
