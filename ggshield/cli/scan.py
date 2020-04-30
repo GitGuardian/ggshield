@@ -100,6 +100,7 @@ def scan(
                             commit_range=None,
                             verbose=verbose,
                             all_commits=True,
+                            ignored_matches=ctx.obj["config"]["ignored_matches"],
                         )
 
             except ValueError:

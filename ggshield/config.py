@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import Any, Dict
 
 import click
@@ -30,7 +29,6 @@ def load_config() -> Dict:
                     raise click.ClickException(
                         "Parsing error while opening {}".format(filename)
                     )
-                    sys.exit(1)
 
             break
 
@@ -44,7 +42,6 @@ def load_config() -> Dict:
                     raise click.ClickException(
                         "Parsing error while opening {}".format(filename)
                     )
-                    sys.exit(1)
 
             break
 
