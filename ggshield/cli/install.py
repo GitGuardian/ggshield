@@ -61,11 +61,10 @@ def create_hook(hook_dir_path: str, force: bool) -> int:
     if os.path.isdir(hook_path):
         raise click.ClickException("{} is a directory.".format(hook_path))
 
-    if os.path.isfile(hook_path):
-        if not force:
-            raise click.ClickException(
-                "{} already exists. Use --force to override.".format(hook_path)
-            )
+    if os.path.isfile(hook_path) and not force:
+        raise click.ClickException(
+            "{} already exists. Use --force to override.".format(hook_path)
+        )
 
     with open(hook_path, "w") as f:
         f.write("#!/bin/bash\n\nggshield scan -m pre-commit\n")

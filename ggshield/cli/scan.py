@@ -295,10 +295,9 @@ def generate_files_from_paths(
         if exclude_regex and exclude_regex.search(path):
             continue
 
-        elif path in path_blacklist:
-            continue
-
-        elif path.startswith("{}/{}".format(os.getcwd(), ".git/")):
+        if (path in path_blacklist) or path.startswith(
+            "{}/{}".format(os.getcwd(), ".git/")
+        ):
             continue
 
         with open(path, "r") as file:

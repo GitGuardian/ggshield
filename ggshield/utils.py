@@ -11,6 +11,11 @@ import click
 from .pygitguardian import PolicyBreak, ScanResult
 
 
+REGEX_PATCH_HEADER = re.compile(
+    r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
+)
+
+
 class Filemode(Enum):
     """
     Enum class for git filemode.
@@ -119,8 +124,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> List:
             line_post_index = post_index
 
         elif line_type == "@":
-            REGEX_PATCH_HEADER = r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
-            m = re.search(REGEX_PATCH_HEADER, line)
+            m = REGEX_PATCH_HEADER.search(line)
             pre_index = m.groupdict()["pre_index"]
             post_index = m.groupdict()["post_index"]
             line_content = m.groupdict()["line_content"][:-1]
