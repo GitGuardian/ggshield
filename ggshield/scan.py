@@ -9,10 +9,10 @@ from typing import Dict, Iterable, List, Optional, Pattern, Union
 import click
 from click import exceptions
 
-from ggshield.message import process_scan_result
-from ggshield.pygitguardian import GGClient
-from ggshield.scannable import Commit, File, Files
-from ggshield.utils import check_git_dir, is_git_dir, shell
+from .message import process_scan_result
+from .pygitguardian import GGClient
+from .scannable import Commit, File, Files
+from .utils import check_git_dir, is_git_dir, shell
 
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"

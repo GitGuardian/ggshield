@@ -1,19 +1,57 @@
-FROM python:3.8
+FROM python:3.8.1-buster as build
 
-LABEL maintainer="support@gitguardian.com"
+LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
+ENV PIPENV_VENV_IN_PROJECT true
 
-RUN pip install pipenv --upgrade
+ARG PYPI_USERNAME
+ARG PYPI_PASSWORD
+ARG PYPI_HOST
 
-RUN useradd --create-home app
-WORKDIR /home/app
+WORKDIR /app
 
-COPY . .
+# Install your required build dependencies here
+RUN set -e ; \
+    apt-get update ; \
+    apt-get dist-upgrade -y --no-install-recommends ; \
+    apt-get autoremove -y ; \
+    apt-get clean ; \
+    pip3 install pipenv --upgrade ; \
+    rm -rf /var/lib/apt/lists/*
 
-RUN set -ex && pipenv install --system --ignore-pipfile
+
+# COPY Pipfile Pipfile.lock ./
+# OR (choose depending on whether you need the ./setup.py to get executed or not)
+COPY . ./
+RUN sed -i '/editable/d' Pipfile.lock
+RUN pipenv install --ignore-pipfile
+
+
+FROM python:3.8.1-slim-buster
+
+LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
+
+RUN set -e ; \
+    apt-get update ; \
+    apt-get dist-upgrade -y --no-install-recommends ; \
+    apt-get autoremove -y ; \
+    apt-get clean ; \
+    rm -rf /var/lib/apt/lists/*
+
+
+ENV LC_ALL C.UTF-8
+ENV LANG C.UTF-8
+ENV PATH /app/.venv/bin:$PATH
+
+WORKDIR /app
+
+RUN set -ex; \
+    groupadd -g 1337 app; \
+    useradd -u 1337 -g 1337 -b /home -c "GitGuardian App User" -m -s /bin/sh app;
+
+COPY --from=build /app/.venv /app/.venv
+COPY ./ ./
 
 USER app
-
-CMD [ "ggshield" ]

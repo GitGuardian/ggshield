@@ -25,7 +25,7 @@ def cli_fs_runner(cli_runner):
 @pytest.fixture(scope="class")
 def mockHookDirPath():
     with mock.patch(
-        "ggshield.cli.install.get_global_hook_dir_path", return_value="global/hooks"
+        "ggshield.install.get_global_hook_dir_path", return_value="global/hooks"
     ):
         yield
 

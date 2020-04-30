@@ -3,10 +3,10 @@ import os
 
 import click
 
-from .cli.install import install
-from .cli.scan import scan
 from .config import load_config
+from .install import install
 from .pygitguardian import GGClient
+from .scan import scan
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
