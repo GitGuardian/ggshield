@@ -55,3 +55,5 @@ COPY --from=build /app/.venv /app/.venv
 COPY ./ ./
 
 USER app
+
+CMD ["ggshield"]
