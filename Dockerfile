@@ -32,6 +32,7 @@ LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 RUN set -e ; \
     apt-get update ; \
     apt-get dist-upgrade -y --no-install-recommends ; \
+    apt-get install -y --no-install-recommends git ; \
     apt-get autoremove -y ; \
     apt-get clean ; \
     rm -rf /var/lib/apt/lists/*
