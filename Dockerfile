@@ -6,10 +6,6 @@ ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
 ENV PIPENV_VENV_IN_PROJECT true
 
-ARG PYPI_USERNAME
-ARG PYPI_PASSWORD
-ARG PYPI_HOST
-
 WORKDIR /app
 
 # Install your required build dependencies here
