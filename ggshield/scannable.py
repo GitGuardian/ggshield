@@ -14,7 +14,7 @@ class Scannable:
         self.document = document
         self.result = None
 
-    def scan(self, client: GGClient):
+    def scan(self, client: GGClient) -> Dict[str, Any]:
         """ Call Scanning API via the client method. """
         try:
             self.result.update({"document": self.document})
@@ -34,7 +34,7 @@ class File(Scannable):
         self.filename = filename
         self.filemode = Filemode.FILE
 
-    def get_scan_dict(self):
+    def get_scan_dict(self) -> Dict[str, str]:
         """ Return a payload compatible with the scanning API. """
         return {"filename": self.filename, "document": self.document}
 
@@ -48,7 +48,7 @@ class File(Scannable):
             "has_leak": scan_result.has_secrets,
         }
 
-    def scan(self, client: GGClient):
+    def scan(self, client: GGClient) -> Dict[str, Any]:
         self.result = {}
         self.result = super().scan(client)
         self.result["filename"] = self.filename
@@ -60,16 +60,20 @@ class File(Scannable):
 
 
 class Files:
+    """
+    Files is a list of files. Useful for directory scanning.
+    """
+
     def __init__(self, files: List[File]):
         self._files = {file.filename: file for file in files}
         self.result = []
 
     @property
-    def files(self):
+    def files(self) -> Dict[str, File]:
         return self._files
 
     @property
-    def scan_list(self) -> List[Dict]:
+    def scannable_list(self) -> List[Dict[str, str]]:
         return [
             {"filename": entry.filename, "document": entry.document}
             for entry in self.files.values()
@@ -77,7 +81,7 @@ class Files:
 
     def process_result(
         self, scan_results: List[ScanResult], ignored_matches: Iterable[str],
-    ) -> Iterable[Dict]:
+    ) -> Iterable[Dict[str, Any]]:
         for i, input_file in enumerate(self.files.values()):
             remove_ignored(scan_results[i], ignored_matches)
             yield {
@@ -91,11 +95,11 @@ class Files:
     def scan(
         self, client: GGClient, ignored_matches: Iterable[str]
     ) -> List[Dict[str, Any]]:
-        scan, status_code = client.multi_content_scan(self.scan_list)
+        scan, status_code = client.multi_content_scan(self.scannable_list)
         if status_code != 200:
             raise Exception(str(scan))
 
-        return self.result
+        return list(self.process_result(scan, ignored_matches))
 
 
 class CommitFile(File):
@@ -104,12 +108,6 @@ class CommitFile(File):
     def __init__(self, document: str, filename: str, filemode: Filemode):
         super().__init__(document, filename)
         self.filemode = filemode
-
-    def scan(self, client: GGClient):
-        self.result = {}
-        self.result = super().scan(client)
-        self.result["filemode"] = self.filemode
-        return self.result
 
 
 class Commit(Files):
@@ -193,10 +191,3 @@ class Commit(Files):
 
             if document:
                 yield CommitFile(document, filename, filemode)
-
-    def scan(self, client: GGClient, ignored_matches: Iterable[str]) -> Dict[str, Any]:
-        scan, status_code = client.multi_content_scan(self.scan_list)
-        if status_code != 200:
-            raise Exception(str(scan))
-
-        return list(self.process_result(scan, ignored_matches))
