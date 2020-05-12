@@ -64,6 +64,9 @@ class Files:
     Files is a list of files. Useful for directory scanning.
     """
 
+    # API only scans 20 files at a time maximum
+    SCANNABLE_CHUNK = 20
+
     def __init__(self, files: List[File]):
         self._files = {file.filename: file for file in files}
         self.result = []
@@ -95,11 +98,16 @@ class Files:
     def scan(
         self, client: GGClient, ignored_matches: Iterable[str]
     ) -> List[Dict[str, Any]]:
-        scan, status_code = client.multi_content_scan(self.scannable_list)
-        if status_code != 200:
-            raise Exception(str(scan))
+        scannable_list = self.scannable_list
+        to_process = []
+        for i in range(0, len(scannable_list), 20):
+            scan, status_code = client.multi_content_scan(scannable_list[i : i + 20])
+            if status_code != 200:
+                click.echo(str(scan))
+                continue
+            to_process.extend(scan)
 
-        return list(self.process_result(scan, ignored_matches))
+        return list(self.process_result(to_process, ignored_matches))
 
 
 class CommitFile(File):

@@ -21,7 +21,9 @@ def cli(ctx: object):
         raise click.ClickException("GitGuardian Token is needed.")
 
     ctx.ensure_object(dict)
-    ctx.obj["client"] = GGClient(token=token, base_uri=base_uri)
+    ctx.obj["client"] = GGClient(
+        token=token, base_uri=base_uri, user_agent="ggshield", timeout=60
+    )
     ctx.obj["config"] = load_config()
 
 
