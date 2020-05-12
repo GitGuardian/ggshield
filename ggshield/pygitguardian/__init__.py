@@ -4,7 +4,7 @@ from .models import Detail, Match, PolicyBreak, ScanResult
 from .schemas import DetailSchema, DocumentSchema, ScanResultSchema
 
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 __all__ = [
     "Detail",

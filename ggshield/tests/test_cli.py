@@ -35,7 +35,7 @@ def test_scan_file(cli_fs_runner):
     os.system('echo "This is a file with no secrets." > file')
     assert os.path.isfile("file")
 
-    result = cli_fs_runner.invoke(cli, ["scan", "file"])
+    result = cli_fs_runner.invoke(cli, ["scan", "-v", "file"])
     assert not result.exception
     assert "No secrets have been found" in result.output
 

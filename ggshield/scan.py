@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import tempfile
+import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Pattern, Union
@@ -120,6 +121,8 @@ def scan(
     except exceptions.Abort:
         return_code = 0
     except Exception as error:
+        if verbose:
+            traceback.print_exc()
         raise click.ClickException(str(error))
 
     sys.exit(return_code)

@@ -41,7 +41,6 @@ def leak_message(
     :param hide_secrets: Option to hide secrets value
     :return: The formatted message to display
     """
-
     filename = scan_result["filename"]
     filemode = scan_result["filemode"]
     is_patch = filemode != Filemode.FILE

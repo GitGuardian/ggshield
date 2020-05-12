@@ -1,23 +1,7 @@
 from typing import List, Optional
 
 
-class BaseObject:
-    UNSET_STATUS_CODE = 600
-
-    def __init__(self):
-        self.status_code = 600
-
-    @property
-    def success(self):
-        """success returns True if call returned 200
-
-        :return: call status
-        :rtype: bool
-        """
-        return self.status_code == 200
-
-
-class Detail(BaseObject):
+class Detail:
     """Detail is a response object mostly returned on error or when the
     api output is a simple string
 
@@ -87,7 +71,7 @@ class PolicyBreak:
         )
 
 
-class ScanResult(BaseObject):
+class ScanResult:
     """ScanResult is a response object returned on a Content Scan
 
     Attributes:
