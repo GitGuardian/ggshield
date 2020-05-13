@@ -47,10 +47,10 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
             click.echo(
                 f"CI_COMMIT_BEFORE_SHA: {before_sha}\nCI_COMMIT_SHA: {commit_sha}"
             )
-        if before_sha and before_sha != GITLAB_NO_BEFORE:
-            commit_range = "{}...".format(before_sha)
-        else:
-            commit_range = "{}...".format(commit_sha)
+        # if commit_sha:
+        commit_range = "{}...HEAD".format(commit_sha)
+        # elif before_sha and before_sha != GITLAB_NO_BEFORE:
+        #     commit_range = "{}...HEAD".format(before_sha)
 
     # TRAVIS
     elif os.getenv("TRAVIS"):
