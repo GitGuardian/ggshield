@@ -1,10 +1,11 @@
 import os
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Pattern, Union
 
 import click
 
 from .git_shell import shell
 from .message import process_scan_result
+from .path import get_files_from_paths
 from .pygitguardian import GGClient
 from .scannable import Commit
 
@@ -12,6 +13,25 @@ from .scannable import Commit
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
 
 GITLAB_NO_BEFORE = "0000000000000000000000000000000000000000"
+
+
+def scan_path(
+    client: GGClient,
+    verbose: bool,
+    paths: Union[List, str],
+    compiled_exclude: Pattern,
+    recursive: bool,
+    yes: bool,
+    ignored_matches: Iterable[str],
+) -> int:
+    files = get_files_from_paths(paths, compiled_exclude, recursive, yes, verbose)
+    return process_scan_result(files.scan(client, ignored_matches))
+
+
+def scan_pre_commit(client: GGClient, ignored_matches: Iterable[str]):
+    return process_scan_result(
+        Commit().scan(client=client, ignored_matches=ignored_matches)
+    )
 
 
 def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> int:

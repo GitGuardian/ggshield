@@ -5,7 +5,7 @@ from typing import Dict, Iterable, List, Pattern, Union
 import click
 
 from .git_shell import is_git_dir, shell
-from .scannable import File
+from .scannable import File, Files
 
 
 def get_files_from_paths(
@@ -14,7 +14,7 @@ def get_files_from_paths(
     recursive: bool,
     yes: bool,
     verbose: bool,
-) -> List[File]:
+) -> Files:
     """
     Create a scan object from files content.
 
@@ -38,7 +38,7 @@ def get_files_from_paths(
             abort=True,
         )
 
-    return files
+    return Files(files)
 
 
 def get_filepaths(paths: Union[List, str], recursive: bool) -> Iterable[Path]:

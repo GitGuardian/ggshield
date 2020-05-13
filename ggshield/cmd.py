@@ -12,11 +12,8 @@ import click
 from .config import load_config
 from .git_shell import check_git_dir, shell
 from .install import install
-from .message import process_scan_result
-from .path import get_files_from_paths
 from .pygitguardian import GGClient
-from .scan import scan_ci, scan_commit_range
-from .scannable import Commit, Files
+from .scan import scan_ci, scan_commit_range, scan_path, scan_pre_commit
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -75,11 +72,8 @@ def scan(
         if mode:
             check_git_dir()
             if mode == "pre-commit":
-                return_code = process_scan_result(
-                    Commit().scan(
-                        client=client,
-                        ignored_matches=ctx.obj["config"]["ignored_matches"],
-                    )
+                return_code = scan_pre_commit(
+                    client=client, ignored_matches=ctx.obj["config"]["ignored_matches"],
                 )
 
             elif mode == "ci":
@@ -109,11 +103,14 @@ def scan(
                 click.echo(ctx.get_help())
 
         elif paths:
-            files = Files(
-                get_files_from_paths(paths, compiled_exclude, recursive, yes, verbose)
-            )
-            return_code = process_scan_result(
-                files.scan(client, ctx.obj["config"]["ignored_matches"])
+            return_code = scan_path(
+                client=client,
+                verbose=verbose,
+                paths=paths,
+                compiled_exclude=compiled_exclude,
+                recursive=recursive,
+                yes=yes,
+                ignored_matches=ctx.obj["config"]["ignored_matches"],
             )
 
         else:
