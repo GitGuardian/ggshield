@@ -4,7 +4,7 @@ import sys
 
 import click
 
-from .utils import check_git_dir, check_git_installed
+from .git_shell import check_git_dir, check_git_installed
 
 
 @click.command(context_settings={"ignore_unknown_options": True})

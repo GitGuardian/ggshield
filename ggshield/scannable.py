@@ -3,8 +3,9 @@ from typing import Any, Dict, Iterable, List, Union
 
 import click
 
+from .git_shell import shell
 from .pygitguardian import GGClient, ScanResult
-from .utils import Filemode, remove_ignored, shell
+from .utils import Filemode, remove_ignored
 
 
 class Scannable:

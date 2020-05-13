@@ -47,13 +47,11 @@ The package should run on MacOS, Linux and Windows.
 Usage: ggshield [OPTIONS] COMMAND [ARGS]...
 
 Options:
-  --token TEXT  GitGuardian Token.
   -h, --help    Show this message and exit.
 
 Commands:
   install  Command to install a pre-commit hook (local or global).
   scan     Command to scan various content.
-  token    Command to manage Gitguardian token.
 ```
 
 ## Scan command
