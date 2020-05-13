@@ -22,7 +22,7 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
     # GITLAB
     if os.getenv("GITLAB_CI"):
         before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
-        commit_sha = os.getenv("CI_COMMIT_SHA", "")
+        commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD~1")
         if verbose:
             click.echo(
                 f"CI_COMMIT_BEFORE_SHA: {before_sha}\nCI_COMMIT_SHA: {commit_sha}"
@@ -83,7 +83,7 @@ def scan_commit_range(
         results = commit.scan(client, ignored_matches)
 
         if any(result["has_leak"] for result in results) or verbose:
-            click.echo("\nCommit {} :".format(sha))
+            click.echo("\nCommit {}:".format(sha))
 
         return_code = max(
             return_code,
