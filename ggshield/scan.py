@@ -1,10 +1,12 @@
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Iterable, List, Pattern, Union
+from pathlib import Path
+from typing import Iterable, List, Set, Union
 
 import click
 
+from .filter import path_filter_set
 from .git_shell import get_list_all_commits, get_list_commit_SHA, shell
 from .message import process_scan_result
 from .path import get_files_from_paths
@@ -21,22 +23,30 @@ def scan_path(
     client: GGClient,
     verbose: bool,
     paths: Union[List, str],
-    compiled_exclude: Pattern,
+    paths_ignore: List[str],
     recursive: bool,
     yes: bool,
-    ignored_matches: Iterable[str],
+    matches_ignore: Iterable[str],
 ) -> int:
-    files = get_files_from_paths(paths, compiled_exclude, recursive, yes, verbose)
-    return process_scan_result(files.scan(client, ignored_matches))
+    files = get_files_from_paths(
+        paths=paths,
+        paths_ignore=paths_ignore,
+        recursive=recursive,
+        yes=yes,
+        verbose=verbose,
+    )
+    return process_scan_result(files.scan(client, matches_ignore))
 
 
-def scan_pre_commit(client: GGClient, ignored_matches: Iterable[str]):
+def scan_pre_commit(
+    client: GGClient, filter_set: Set[str], matches_ignore: Iterable[str]
+):
     return process_scan_result(
-        Commit().scan(client=client, ignored_matches=ignored_matches)
+        Commit(filter_set=filter_set).scan(client=client, matches_ignore=matches_ignore)
     )
 
 
-def gitlab_ci_range(verbose: bool):
+def gitlab_ci_range(verbose: bool) -> List[str]:
     before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
     commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD~1")
     if verbose:
@@ -58,7 +68,9 @@ def gitlab_ci_range(verbose: bool):
     )
 
 
-def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> int:
+def scan_ci(
+    client: GGClient, verbose: bool, filter_set: Set[str], matches_ignore: Iterable[str]
+) -> int:
     """ Scan commits in CI environment. """
     if not os.getenv("CI"):
         raise click.ClickException("--ci should only be used in a CI environment.")
@@ -93,12 +105,13 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
         client=client,
         commit_list=commit_list,
         verbose=verbose,
-        ignored_matches=ignored_matches,
+        filter_set=filter_set,
+        matches_ignore=matches_ignore,
     )
 
 
 def scan_repo(
-    client: GGClient, verbose: bool, repo: str, ignored_matches: Iterable[str]
+    client: GGClient, verbose: bool, repo: str, matches_ignore: Iterable[str],
 ) -> int:
     with tempfile.TemporaryDirectory() as tmpdirname:
         shell(["git", "clone", repo, tmpdirname])
@@ -107,7 +120,8 @@ def scan_repo(
                 client=client,
                 commit_list=get_list_all_commits(),
                 verbose=verbose,
-                ignored_matches=ignored_matches,
+                filter_set=path_filter_set(Path(os.getcwd()), []),
+                matches_ignore=matches_ignore,
             )
 
 
@@ -125,7 +139,8 @@ def scan_commit_range(
     client: GGClient,
     commit_list: List[str],
     verbose: bool,
-    ignored_matches: Iterable[str],
+    filter_set: Set[str],
+    matches_ignore: Iterable[str],
 ) -> int:
     """
     Scan every commit in a range.
@@ -137,8 +152,8 @@ def scan_commit_range(
     return_code = 0
 
     for sha in commit_list:
-        commit = Commit(sha)
-        results = commit.scan(client, ignored_matches)
+        commit = Commit(sha, filter_set)
+        results = commit.scan(client, matches_ignore)
 
         if any(result["has_leak"] for result in results) or verbose:
             click.echo("\nCommit {}:".format(sha))

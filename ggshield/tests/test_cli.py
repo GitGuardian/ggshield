@@ -111,8 +111,9 @@ class TestScanDirectory:
     def test_directory_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(cli, ["scan", "./", "-r", "-y"])
-        assert not result.exception
+        print(result.output)
         assert "No secrets have been found" in result.output
+        assert not result.exception
 
     @my_vcr.use_cassette()
     def test_directory_verbose(self, cli_fs_runner):

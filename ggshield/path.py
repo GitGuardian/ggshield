@@ -1,16 +1,17 @@
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Pattern, Union
+from typing import Dict, Iterable, List, Set, Union
 
 import click
 
-from .git_shell import is_git_dir, shell
+from .filter import path_filter_set
 from .scannable import File, Files
+from .utils import MAX_FILE_SIZE
 
 
 def get_files_from_paths(
     paths: Union[Path, str],
-    exclude_regex: Pattern[str],
+    paths_ignore: List[str],
     recursive: bool,
     yes: bool,
     verbose: bool,
@@ -19,13 +20,13 @@ def get_files_from_paths(
     Create a scan object from files content.
 
     :param paths: List of file/dir paths from the command
+    :param paths_ignore: List of file/dir paths to ignore (glob pattern)
     :param recursive: Recursive option
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
     """
-    files = list(
-        generate_files_from_paths(get_filepaths(paths, recursive), exclude_regex)
-    )
+    filepaths = get_filepaths(paths, paths_ignore, recursive)
+    files = list(generate_files_from_paths(filepaths, verbose))
 
     if verbose:
         for f in files:
@@ -41,7 +42,9 @@ def get_files_from_paths(
     return Files(files)
 
 
-def get_filepaths(paths: Union[List, str], recursive: bool) -> Iterable[Path]:
+def get_filepaths(
+    paths: Union[List, str], paths_ignore: Iterable[str], recursive: bool
+) -> Set[Path]:
     """
     Retrieve the filepaths from the command.
 
@@ -49,41 +52,33 @@ def get_filepaths(paths: Union[List, str], recursive: bool) -> Iterable[Path]:
     :param recursive: Recursive option
     :raise: click.FileError if directory is given without --recursive option
     """
+    targets = set()
     for path in paths:
         if os.path.isfile(path):
-            yield path
+            targets.add(path)
         elif os.path.isdir(path):
             if not recursive:
                 raise click.FileError(
                     click.format_filename(path), "Use --recursive to scan directories."
                 )
-            for root, dirs, sub_paths in os.walk(path):
-                for sub_path in sub_paths:
-                    yield root + "/" + sub_path
+            top_dir = Path(path)
+            _targets = {str(target) for target in top_dir.rglob(r"*")}
+            _targets.difference_update(path_filter_set(top_dir, paths_ignore))
+            targets.update(_targets)
+    return targets
 
 
-def generate_files_from_paths(
-    paths: Iterable[Path], exclude_regex: Pattern[str]
-) -> Iterable[Dict]:
-    """ Generate a list of scannable files from a list of filepaths."""
-    path_blacklist = (
-        [
-            "{}/{}".format(os.getcwd(), filename)
-            for filename in shell(["git", "ls-files", "-o", "-i", "--exclude-standard"])
-        ]
-        if is_git_dir()
-        else []
-    )
-
+def generate_files_from_paths(paths: Iterable[Path], verbose: bool) -> Iterable[Dict]:
+    """Generate a list of scannable files from a list of filepaths."""
     for path in paths:
-        if exclude_regex and exclude_regex.search(path):
+        if os.path.isdir(path):
             continue
 
-        if (path in path_blacklist) or path.startswith(
-            "{}/{}".format(os.getcwd(), ".git/")
-        ):
+        file_size = os.path.getsize(path)
+        if file_size > MAX_FILE_SIZE:
+            if verbose:
+                click.echo(f"ignoring file over 1MB: {path}")
             continue
-
         with open(path, "r") as file:
             try:
                 content = file.read()
@@ -91,6 +86,7 @@ def generate_files_from_paths(
                     yield File(
                         content,
                         click.format_filename(file.name[len(os.getcwd()) + 1 :]),
+                        file_size,
                     )
             except UnicodeDecodeError:
                 pass

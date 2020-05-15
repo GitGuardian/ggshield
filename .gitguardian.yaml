@@ -1,8 +1,13 @@
-# Exclude files and paths by regex string
-exclude: ''
+# Exclude files and paths by globbing
+paths-ignore:
+  - '**/README.md'
+  - 'doc/*'
+  - 'LICENSE'
+  - .dockerignore
+  - .gitignore
 
 # SHA256 matches
-ignored_matches:
+matches-ignore:
   - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
   - 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
   - 41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8

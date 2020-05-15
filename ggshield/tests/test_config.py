@@ -1,12 +1,12 @@
 import os
+import sys
 
-import click
 import pytest
 import yaml
 from click.testing import CliRunner
 from mock import patch
 
-from ggshield.config import load_config
+from ggshield.config import Config
 
 
 @pytest.fixture(scope="session")
@@ -23,12 +23,16 @@ def cli_fs_runner(cli_runner):
 
 @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
 @patch("ggshield.config.CONFIG_GLOBAL", [""])
-def test_parsing_error(cli_fs_runner):
+def test_parsing_error(cli_fs_runner, capsys):
     with open(".gitguardian.yml", "w") as file:
         file.write("Not a:\nyaml file.\n")
 
-    with pytest.raises(click.ClickException):
-        assert load_config()
+    Config()
+    out, err = capsys.readouterr()
+    sys.stdout.write(out)
+    sys.stderr.write(err)
+
+    assert "Parsing error while opening .gitguardian.yml" in out
 
 
 class TestConfig:
@@ -36,19 +40,19 @@ class TestConfig:
     @patch("ggshield.config.CONFIG_GLOBAL", [""])
     def test_exclude_regex(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"exclude": r"/tests/"}))
+            file.write(yaml.dump({"paths-ignore": ["/tests/"]}))
 
-        config = load_config()
-        assert config["exclude"] == r"/tests/"
+        config = Config()
+        assert r"/tests/" in config.paths_ignore
 
     @patch("ggshield.config.CONFIG_LOCAL", [".gitguardian.yml"])
     @patch("ggshield.config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_accumulation_matches(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"ignored_matches": ["one", "two"]}))
+            file.write(yaml.dump({"matches_ignore": ["one", "two"]}))
 
         with open(".gitguardian.yaml", "w") as file:
-            file.write(yaml.dump({"ignored_matches": ["three"]}))
+            file.write(yaml.dump({"matches_ignore": ["three"]}))
 
-        config = load_config()
-        assert config["ignored_matches"] == {"one", "two", "three"}
+        config = Config()
+        assert config.matches_ignore == {"one", "two", "three"}

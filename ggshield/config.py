@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict
+from typing import Dict, List
 
 import click
 import yaml
@@ -8,65 +8,58 @@ import yaml
 # The order is important, we look at the first existing file
 CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
 CONFIG_GLOBAL = [
-    "{}/.gitguardian".format(os.path.expanduser("~")),
-    "{}/.gitguardian.yml".format(os.path.expanduser("~")),
-    "{}/.gitguardian.yaml".format(os.path.expanduser("~")),
+    os.path.join(os.path.expanduser("~"), ".gitguardian"),
+    os.path.join(os.path.expanduser("~"), ".gitguardian.yml"),
+    os.path.join(os.path.expanduser("~"), ".gitguardian.yaml"),
 ]
 
 
-def load_config() -> Dict:
-    """ Return configuration. """
-    config = {}
-    _init_config(config)
+class Config:
+    def __init__(self):
+        self.matches_ignore = set()
+        self.paths_ignore = set()
+        self.load_configs(CONFIG_GLOBAL)
+        self.load_configs(CONFIG_LOCAL)
 
-    for filename in CONFIG_LOCAL:
-        if os.path.isfile(filename):
-            with open(filename, "r") as f:
-                try:
-                    _config = yaml.safe_load(f)
-                    _load_config(config, _config)
-                except yaml.scanner.ScannerError:
-                    raise click.ClickException(
-                        "Parsing error while opening {}".format(filename)
-                    )
+    def update_config(
+        self, matches_ignore: List[str] = [], paths_ignore: List[str] = [], **kwargs
+    ):
+        self.matches_ignore.update(matches_ignore)
+        self.paths_ignore.update(paths_ignore)
 
-            break
+        for key in kwargs:
+            click.echo("Unrecognized key in config: {}".format(key))
 
-    for filename in CONFIG_GLOBAL:
-        if os.path.isfile(filename):
-            with open(filename, "r") as f:
-                try:
-                    _config = yaml.safe_load(f)
-                    _load_config(config, _config)
-                except yaml.scanner.ScannerError:
-                    raise click.ClickException(
-                        "Parsing error while opening {}".format(filename)
-                    )
+    def load_config(self, filename: str) -> bool:
+        if not os.path.isfile(filename):
+            return False
 
-            break
+        with open(filename, "r") as f:
+            try:
+                _config = yaml.safe_load(f)
+                self.clean_keys(_config)
+                self.update_config(**_config)
+            except yaml.scanner.ScannerError:
+                raise click.ClickException(
+                    "Parsing error while opening {}".format(filename)
+                )
 
-    return config
+        return True
 
+    def load_configs(self, filenames: List[str]):
+        """
+        load_configs loads config files until one succeeds
+        """
+        for filename in filenames:
+            try:
+                if self.load_config(filename):
+                    return
+            except Exception as exc:
+                click.echo(str(exc))
 
-def _init_config(config: Dict[str, Any]):
-    """ Initiate all the options. """
-    config["ignored_matches"] = set()
-    config["exclude"] = ""
-
-
-def _load_config(config: Dict[str, Any], _config: Dict[str, Any]):
-    """ Load all the options (update config with _config) """
-    load_exclude(config, _config)
-    load_ignored_matches(config, _config)
-
-
-def load_ignored_matches(config: Dict[str, Any], _config: Dict[str, Any]):
-    """ Load ignored matches. """
-    if "ignored_matches" in _config:
-        config["ignored_matches"].update(_config["ignored_matches"])
-
-
-def load_exclude(config: Dict[str, Any], _config: Dict[str, Any]):
-    """ Load list of ignored files. """
-    if "exclude" in _config:
-        config["exclude"] = _config["exclude"]
+    @staticmethod
+    def clean_keys(yaml_config: Dict):
+        for key in list(yaml_config):
+            if "-" in key:
+                new_key = key.replace("-", "_")
+                yaml_config[new_key] = yaml_config.pop(key)

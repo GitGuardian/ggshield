@@ -1,12 +1,14 @@
-import hashlib
 import math
-import operator
 import re
 from enum import Enum
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
-from .pygitguardian import PolicyBreak, ScanResult
+from .filter import get_ignore_sha
+from .pygitguardian import ScanResult
 
+
+# max file size to accept
+MAX_FILE_SIZE = 1048576
 
 REGEX_PATCH_HEADER = re.compile(
     r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
@@ -233,33 +235,3 @@ def flatten_secrets(scan_result: ScanResult, hide_secrets: bool = True) -> List[
     secrets = sorted(secrets, key=lambda x: x["start"])
 
     return secrets
-
-
-def remove_ignored(scan_result: ScanResult, ignored_matches: Iterable[str]):
-    """
-    remove_ignored removes policy breaks from a Scan Result based on a sha
-    made from its matches.
-
-    :param scan_result: ScanResult to filter
-    :param ignored_matches: match SHAS to filter out
-    """
-
-    scan_result.policy_breaks = [
-        policy_break
-        for policy_break in scan_result.policy_breaks
-        if get_ignore_sha(policy_break) not in ignored_matches
-    ]
-    scan_result.policy_break_count = len(scan_result.policy_breaks)
-
-
-def get_ignore_sha(policy_break: PolicyBreak):
-    hashable = "".join(
-        [
-            f"{match.match},{match.match_type}"
-            for match in sorted(
-                policy_break.matches, key=operator.attrgetter("match_type")
-            )
-        ]
-    )
-
-    return hashlib.sha256(hashable.encode("UTF-8")).hexdigest()

@@ -1,11 +1,13 @@
+import os
 import re
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 import click
 
+from .filter import remove_ignored_from_result
 from .git_shell import shell
 from .pygitguardian import GGClient, ScanResult
-from .utils import Filemode, remove_ignored
+from .utils import MAX_FILE_SIZE, Filemode
 
 
 class Scannable:
@@ -30,10 +32,11 @@ class Scannable:
 class File(Scannable):
     """ Class representing a simple file. """
 
-    def __init__(self, document: str, filename: str):
+    def __init__(self, document: str, filename: str, filesize: Optional[int] = None):
         super().__init__(document)
         self.filename = filename
         self.filemode = Filemode.FILE
+        self.filesize = filesize if filesize else len(self.document.encode("utf-8"))
 
     def get_scan_dict(self) -> Dict[str, str]:
         """ Return a payload compatible with the scanning API. """
@@ -60,6 +63,20 @@ class File(Scannable):
         return self.result
 
 
+class CommitFile(File):
+    """ Class representing a commit file. """
+
+    def __init__(
+        self,
+        document: str,
+        filename: str,
+        filemode: Filemode,
+        filesize: Optional[int] = None,
+    ):
+        super().__init__(document, filename, filesize)
+        self.filemode = filemode
+
+
 class Files:
     """
     Files is a list of files. Useful for directory scanning.
@@ -69,7 +86,7 @@ class Files:
     SCANNABLE_CHUNK = 20
 
     def __init__(self, files: List[File]):
-        self._files = {file.filename: file for file in files}
+        self._files = {entry.filename: entry for entry in files}
         self.result = []
 
     @property
@@ -84,10 +101,10 @@ class Files:
         ]
 
     def process_result(
-        self, scan_results: List[ScanResult], ignored_matches: Iterable[str],
+        self, scan_results: List[ScanResult], matches_ignore: Iterable[str],
     ) -> Iterable[Dict[str, Any]]:
         for i, input_file in enumerate(self.files.values()):
-            remove_ignored(scan_results[i], ignored_matches)
+            remove_ignored_from_result(scan_results[i], matches_ignore)
             yield {
                 "content": input_file.document,
                 "scan": scan_results[i],
@@ -97,7 +114,7 @@ class Files:
             }
 
     def scan(
-        self, client: GGClient, ignored_matches: Iterable[str]
+        self, client: GGClient, matches_ignore: Iterable[str]
     ) -> List[Dict[str, Any]]:
         scannable_list = self.scannable_list
         to_process = []
@@ -108,15 +125,7 @@ class Files:
                 continue
             to_process.extend(scan)
 
-        return list(self.process_result(to_process, ignored_matches))
-
-
-class CommitFile(File):
-    """ Class representing a commit file. """
-
-    def __init__(self, document: str, filename: str, filemode: Filemode):
-        super().__init__(document, filename)
-        self.filemode = filemode
+        return list(self.process_result(to_process, matches_ignore))
 
 
 class Commit(Files):
@@ -124,10 +133,13 @@ class Commit(Files):
     Commit represents a commit which is a list of commit files.
     """
 
-    def __init__(self, sha: Union[str, None] = None):
+    def __init__(
+        self, sha: Optional[str] = None, filter_set: Optional[Set[str]] = set()
+    ):
         self.sha = sha
         self._patch = None
         self._files = None
+        self.filter_set = filter_set
 
     @property
     def patch(self):
@@ -190,13 +202,20 @@ class Commit(Files):
             +this is a test patch\n
         """
         list_diff = re.split(r"^diff --git ", self.patch, flags=re.MULTILINE)[1:]
+        work_dir = os.getcwd()
 
         for diff in list_diff:
             lines = diff.split("\n")
 
             filename = self.get_filename(lines[0])
+            if os.path.join(work_dir, filename) in self.filter_set:
+                continue
+
             filemode = self.get_filemode(lines[1])
             document = "\n".join(lines[filemode.start :])
+            file_size = len(document.encode("utf-8"))
+            if file_size > MAX_FILE_SIZE:
+                continue
 
             if document:
-                yield CommitFile(document, filename, filemode)
+                yield CommitFile(document, filename, filemode, file_size)

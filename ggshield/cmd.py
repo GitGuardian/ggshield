@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 import os
-import re
 import sys
 import traceback
+from pathlib import Path
 from typing import List, Union
 
 import click
 
-from .config import load_config
+from .config import Config
+from .filter import path_filter_set
 from .git_shell import check_git_dir
 from .install import install
 from .pygitguardian import GGClient
@@ -37,45 +38,40 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
     is_flag=True,
     help="Display the list of files before recursive scan",
 )
-@click.option(
-    "--exclude",
-    type=str,
-    help=(
-        "A regular expression that matches files and directories that should be "
-        "excluded on recursive searches. An empty value means no paths are excluded."
-    ),
-)
 @click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
 def scan(
     ctx: object,
     paths: Union[List, str],
     mode: str,
     recursive: bool,
-    exclude: bool,
     yes: bool,
     verbose: bool,
     repo: str,
 ) -> int:
     """ Command to scan various content. """
-    client = ctx.obj["client"]
+    token = os.getenv("GITGUARDIAN_API_KEY")
+    base_uri = os.getenv("GITGUARDIAN_API_URL")
+    if not token:
+        raise click.ClickException("GitGuardian Token is needed.")
+
+    client = GGClient(token=token, base_uri=base_uri, user_agent="ggshield", timeout=60)
     return_code = 0
 
-    compiled_exclude = None
-    if exclude:
-        compiled_exclude = re.compile(exclude)
-    elif ctx.obj["config"]["exclude"]:
-        compiled_exclude = re.compile(ctx.obj["config"]["exclude"])
-    ignored_matches = ctx.obj["config"]["ignored_matches"]
+    matches_ignore = ctx.obj["config"].matches_ignore
+    filter_set = path_filter_set(Path(os.getcwd()), ctx.obj["config"].paths_ignore)
     try:
         if mode:
             check_git_dir()
             if mode == "pre-commit":
                 return_code = scan_pre_commit(
-                    client=client, ignored_matches=ignored_matches,
+                    client=client, filter_set=filter_set, matches_ignore=matches_ignore,
                 )
             elif mode == "ci":
                 return_code = scan_ci(
-                    client=client, verbose=verbose, ignored_matches=ignored_matches,
+                    client=client,
+                    verbose=verbose,
+                    filter_set=filter_set,
+                    matches_ignore=matches_ignore,
                 )
             else:
                 click.echo(ctx.get_help())
@@ -84,17 +80,17 @@ def scan(
                 client=client,
                 verbose=verbose,
                 repo=repo,
-                ignored_matches=ignored_matches,
+                matches_ignore=matches_ignore,
             )
         elif paths:
             return_code = scan_path(
                 client=client,
                 verbose=verbose,
                 paths=paths,
-                compiled_exclude=compiled_exclude,
+                paths_ignore=ctx.obj["config"].paths_ignore,
                 recursive=recursive,
                 yes=yes,
-                ignored_matches=ignored_matches,
+                matches_ignore=matches_ignore,
             )
         else:
             click.echo(ctx.get_help())
@@ -111,16 +107,8 @@ def scan(
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 def cli(ctx: object):
-    token = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri = os.getenv("GITGUARDIAN_API_URL")
-    if not token:
-        raise click.ClickException("GitGuardian Token is needed.")
-
     ctx.ensure_object(dict)
-    ctx.obj["client"] = GGClient(
-        token=token, base_uri=base_uri, user_agent="ggshield", timeout=60
-    )
-    ctx.obj["config"] = load_config()
+    ctx.obj["config"] = Config()
 
 
 cli.add_command(scan)
