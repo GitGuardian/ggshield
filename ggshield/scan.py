@@ -5,7 +5,7 @@ from typing import Iterable, List, Pattern, Union
 
 import click
 
-from .git_shell import get_list_commit_SHA, shell
+from .git_shell import get_list_all_commits, get_list_commit_SHA, shell
 from .message import process_scan_result
 from .path import get_files_from_paths
 from .pygitguardian import GGClient
@@ -42,11 +42,11 @@ def gitlab_ci_range(verbose: bool):
     if verbose:
         click.echo(f"CI_COMMIT_BEFORE_SHA: {before_sha}\nCI_COMMIT_SHA: {commit_sha}")
     if before_sha and before_sha != GITLAB_NO_BEFORE:
-        commit_list = get_list_commit_SHA("{}~1...".format(before_sha), False)
+        commit_list = get_list_commit_SHA("{}~1...".format(before_sha))
         if len(commit_list):
             return commit_list
 
-    commit_list = get_list_commit_SHA("{}~1...".format(commit_sha), False)
+    commit_list = get_list_commit_SHA("{}~1...".format(commit_sha))
     if len(commit_list):
         return commit_list
 
@@ -70,16 +70,14 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
     # TRAVIS
     elif os.getenv("TRAVIS"):
 
-        commit_list = get_list_commit_SHA(os.getenv("TRAVIS_COMMIT_RANGE"), False)
+        commit_list = get_list_commit_SHA(os.getenv("TRAVIS_COMMIT_RANGE"))
     # CIRCLE
     elif os.getenv("CIRCLECI"):
-        commit_list = get_list_commit_SHA(os.getenv("CIRCLE_COMMIT_RANGE"), False)
+        commit_list = get_list_commit_SHA(os.getenv("CIRCLE_COMMIT_RANGE"))
 
     # GITHUB
     elif os.getenv("GITHUB_ACTIONS"):
-        commit_list = get_list_commit_SHA(
-            "{}...".format(os.getenv("GITHUB_SHA")), False
-        )
+        commit_list = get_list_commit_SHA("{}...".format(os.getenv("GITHUB_SHA")))
 
     else:
         raise click.ClickException(
@@ -95,7 +93,6 @@ def scan_ci(client: GGClient, verbose: bool, ignored_matches: Iterable[str]) -> 
         client=client,
         commit_list=commit_list,
         verbose=verbose,
-        all_commits=False,
         ignored_matches=ignored_matches,
     )
 
@@ -108,7 +105,7 @@ def scan_repo(
         with cd(tmpdirname):
             scan_commit_range(
                 client=client,
-                commit_list=None,
+                commit_list=get_list_all_commits(),
                 verbose=verbose,
                 ignored_matches=ignored_matches,
             )
@@ -128,7 +125,6 @@ def scan_commit_range(
     client: GGClient,
     commit_list: List[str],
     verbose: bool,
-    all_commits: bool,
     ignored_matches: Iterable[str],
 ) -> int:
     """

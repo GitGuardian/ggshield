@@ -1,10 +1,13 @@
 import subprocess
-from typing import List, Optional
+from typing import List
 
 import click
 
 
-def is_git_dir():
+COMMAND_TIMEOUT = 45
+
+
+def is_git_dir() -> bool:
     try:
         check_git_dir()
         return True
@@ -31,27 +34,32 @@ def check_git_installed():
             raise click.ClickException("Git is not installed.")
 
 
-def shell(command: List[str]) -> List:
+def shell(command: List[str]) -> List[str]:
     """ Execute a command in a subprocess. """
     try:
-        result = subprocess.run(command, check=True, capture_output=True)
+        result = subprocess.run(
+            command, check=True, capture_output=True, timeout=COMMAND_TIMEOUT
+        )
         output = result.stdout.decode("utf-8").rstrip().split("\n")
         return output
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+    except subprocess.CalledProcessError:
         pass
+    except subprocess.TimeoutExpired:
+        raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
     except Exception as exc:
-        raise click.ClickException("unhandled exception: {}".format(str(exc)))
+        raise click.ClickException("Unhandled exception: {}".format(str(exc)))
 
     return []
 
 
-def get_list_commit_SHA(commit_range: Optional[str], all_commits: bool) -> List[str]:
+def get_list_commit_SHA(commit_range: str) -> List[str]:
     """
     Retrieve the list of commit SHA from a range.
     :param commit_range: A range of commits (ORIGIN...HEAD)
     """
 
-    if all_commits:
-        return shell(["git", "rev-list", "--reverse", "--all"])
-
     return shell(["git", "rev-list", "--reverse", commit_range])
+
+
+def get_list_all_commits() -> List[str]:
+    return shell(["git", "rev-list", "--reverse", "--all"])
