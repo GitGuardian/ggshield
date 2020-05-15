@@ -52,13 +52,11 @@ def get_filepaths(paths: Union[List, str], recursive: bool) -> Iterable[Path]:
     for path in paths:
         if os.path.isfile(path):
             yield path
-
         elif os.path.isdir(path):
             if not recursive:
                 raise click.FileError(
                     click.format_filename(path), "Use --recursive to scan directories."
                 )
-
             for root, dirs, sub_paths in os.walk(path):
                 for sub_path in sub_paths:
                     yield root + "/" + sub_path
@@ -71,7 +69,7 @@ def generate_files_from_paths(
     path_blacklist = (
         [
             "{}/{}".format(os.getcwd(), filename)
-            for filename in shell("git ls-files -o -i --exclude-standard")
+            for filename in shell(["git", "ls-files", "-o", "-i", "--exclude-standard"])
         ]
         if is_git_dir()
         else []

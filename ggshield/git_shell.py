@@ -1,5 +1,5 @@
 import subprocess
-from typing import List
+from typing import List, Optional
 
 import click
 
@@ -31,8 +31,27 @@ def check_git_installed():
             raise click.ClickException("Git is not installed.")
 
 
-def shell(command: str) -> List:
+def shell(command: List[str]) -> List:
     """ Execute a command in a subprocess. """
-    return (
-        subprocess.check_output(command.split(" ")).decode("utf-8").rstrip().split("\n")
-    )
+    try:
+        result = subprocess.run(command, check=True, capture_output=True)
+        output = result.stdout.decode("utf-8").rstrip().split("\n")
+        return output
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
+    except Exception as exc:
+        raise click.ClickException("unhandled exception: {}".format(str(exc)))
+
+    return []
+
+
+def get_list_commit_SHA(commit_range: Optional[str], all_commits: bool) -> List[str]:
+    """
+    Retrieve the list of commit SHA from a range.
+    :param commit_range: A range of commits (ORIGIN...HEAD)
+    """
+
+    if all_commits:
+        return shell(["git", "rev-list", "--reverse", "--all"])
+
+    return shell(["git", "rev-list", "--reverse", commit_range])

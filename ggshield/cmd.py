@@ -2,18 +2,16 @@
 import os
 import re
 import sys
-import tempfile
 import traceback
-from contextlib import contextmanager
 from typing import List, Union
 
 import click
 
 from .config import load_config
-from .git_shell import check_git_dir, shell
+from .git_shell import check_git_dir
 from .install import install
 from .pygitguardian import GGClient
-from .scan import scan_ci, scan_commit_range, scan_path, scan_pre_commit
+from .scan import scan_ci, scan_path, scan_pre_commit, scan_repo
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -67,41 +65,27 @@ def scan(
         compiled_exclude = re.compile(exclude)
     elif ctx.obj["config"]["exclude"]:
         compiled_exclude = re.compile(ctx.obj["config"]["exclude"])
-
+    ignored_matches = ctx.obj["config"]["ignored_matches"]
     try:
         if mode:
             check_git_dir()
             if mode == "pre-commit":
                 return_code = scan_pre_commit(
-                    client=client, ignored_matches=ctx.obj["config"]["ignored_matches"],
+                    client=client, ignored_matches=ignored_matches,
                 )
-
             elif mode == "ci":
                 return_code = scan_ci(
-                    client=client,
-                    verbose=verbose,
-                    ignored_matches=ctx.obj["config"]["ignored_matches"],
+                    client=client, verbose=verbose, ignored_matches=ignored_matches,
                 )
-
             else:
                 click.echo(ctx.get_help())
-
         elif repo:
-            try:
-                with tempfile.TemporaryDirectory() as tmpdirname:
-                    shell(f"git clone {repo} {tmpdirname}")
-                    with cd(tmpdirname):
-                        scan_commit_range(
-                            client=client,
-                            commit_range=None,
-                            verbose=verbose,
-                            all_commits=True,
-                            ignored_matches=ctx.obj["config"]["ignored_matches"],
-                        )
-
-            except ValueError:
-                click.echo(ctx.get_help())
-
+            return_code = scan_repo(
+                client=client,
+                verbose=verbose,
+                repo=repo,
+                ignored_matches=ignored_matches,
+            )
         elif paths:
             return_code = scan_path(
                 client=client,
@@ -110,12 +94,10 @@ def scan(
                 compiled_exclude=compiled_exclude,
                 recursive=recursive,
                 yes=yes,
-                ignored_matches=ctx.obj["config"]["ignored_matches"],
+                ignored_matches=ignored_matches,
             )
-
         else:
             click.echo(ctx.get_help())
-
     except click.exceptions.Abort:
         return_code = 0
     except Exception as error:
@@ -124,16 +106,6 @@ def scan(
         raise click.ClickException(str(error))
 
     sys.exit(return_code)
-
-
-@contextmanager
-def cd(newdir):
-    prevdir = os.getcwd()
-    os.chdir(os.path.expanduser(newdir))
-    try:
-        yield
-    finally:
-        os.chdir(prevdir)
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)

@@ -23,7 +23,7 @@ def load_config() -> Dict:
         if os.path.isfile(filename):
             with open(filename, "r") as f:
                 try:
-                    _config = yaml.load(f, Loader=yaml.SafeLoader)
+                    _config = yaml.safe_load(f)
                     _load_config(config, _config)
                 except yaml.scanner.ScannerError:
                     raise click.ClickException(
@@ -36,7 +36,7 @@ def load_config() -> Dict:
         if os.path.isfile(filename):
             with open(filename, "r") as f:
                 try:
-                    _config = yaml.load(f, Loader=yaml.SafeLoader)
+                    _config = yaml.safe_load(f)
                     _load_config(config, _config)
                 except yaml.scanner.ScannerError:
                     raise click.ClickException(
