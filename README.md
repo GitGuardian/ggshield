@@ -25,9 +25,10 @@ You can also use ggshield via the [pre-commit](https://pre-commit.com/) framewor
    - The pre-commit framework
    - The global and local pre-commit hook
 
-5. [Output](#output)
-6. [Contributing](#contributing)
-7. [License](#license)
+5. [GitLab](#gitlab)
+6. [Output](#output)
+7. [Contributing](#contributing)
+8. [License](#license)
 
 # Installation
 
@@ -172,6 +173,19 @@ all you need to do is to add this line in the file:
 
 ```shell
 ggshield scan --mode pre-commit
+```
+
+# GitLab
+
+> You may be interested in using GitGuardian's [GitLab integration](https://dashboard.gitguardian.com/settings/workspace/integrations/gitlab) to ensure full coverage of your GitLab projects.
+
+Configuring GitLab pipelines to use **ggshield** is as simple as
+adding a step to your project's pipeline:
+
+```yaml
+🦉 gitguardian scan:
+  image: gitguardian/ggshield:latest
+  script: ggshield scan -m ci
 ```
 
 # Output
