@@ -93,7 +93,7 @@ class GGClient:
             else:
                 obj.status_code = response.status_code
         else:
-            obj = self.DETAIL_SCHEMA.load(response.json(), many=many)
+            obj = self.DETAIL_SCHEMA.load(response.json())
             obj.status_code = response.status_code
 
         return obj, response

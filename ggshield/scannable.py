@@ -119,12 +119,14 @@ class Files:
         scannable_list = self.scannable_list
         to_process = []
         for i in range(0, len(scannable_list), 20):
-            scan, status_code = client.multi_content_scan(scannable_list[i : i + 20])
+            chunk = scannable_list[i : i + 20]
+            scan, status_code = client.multi_content_scan(chunk)
             if status_code != 200:
-                for v in scannable_list[i : i + 20]:
-                    if isinstance(v, Detail):
-                        click.echo(f"error scanning:{v['filename']}: {v['detail']}")
-                scan = [ScanResult(0, [], []) * 20]
+                if isinstance(scan, Detail):
+                    click.echo("error scanning:")
+                    click.echo(",".join([entry["filename"] for entry in chunk]))
+                    click.echo(str(scan))
+                scan = [ScanResult(0, [], [])] * len(chunk)
             to_process.extend(scan)
 
         return list(self.process_result(to_process, matches_ignore))
