@@ -19,6 +19,7 @@ class GGClient:
     DETAIL_SCHEMA = DetailSchema()
     DOCUMENT_SCHEMA = DocumentSchema()
     SCAN_RESULT_SCHEMA = ScanResultSchema()
+    _version = "undefined"
 
     def __init__(
         self,
@@ -54,7 +55,7 @@ class GGClient:
         )
         self.timeout = timeout
         self.user_agent = "pygitguardian/{0} ({1};py{2})".format(
-            "1.0.3", platform.system(), platform.python_version()
+            self._version, platform.system(), platform.python_version()
         )
 
         if user_agent:

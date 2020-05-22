@@ -5,6 +5,7 @@ from .schemas import DetailSchema, DocumentSchema, ScanResultSchema
 
 
 __version__ = "1.0.1"
+GGClient._version = __version__
 
 __all__ = [
     "Detail",

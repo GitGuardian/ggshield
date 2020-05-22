@@ -9,6 +9,9 @@ from .scannable import File, Files
 from .utils import MAX_FILE_SIZE
 
 
+BINARY_FILE_EXTENSIONS = (".tar", ".xz", ".gz")
+
+
 def get_files_from_paths(
     paths: Union[Path, str],
     paths_ignore: List[str],
@@ -68,7 +71,7 @@ def get_filepaths(
     return targets
 
 
-def generate_files_from_paths(paths: Iterable[Path], verbose: bool) -> Iterable[Dict]:
+def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[Dict]:
     """Generate a list of scannable files from a list of filepaths."""
     for path in paths:
         if os.path.isdir(path):
@@ -78,6 +81,10 @@ def generate_files_from_paths(paths: Iterable[Path], verbose: bool) -> Iterable[
         if file_size > MAX_FILE_SIZE:
             if verbose:
                 click.echo(f"ignoring file over 1MB: {path}")
+            continue
+        if path.endswith(BINARY_FILE_EXTENSIONS):
+            if verbose:
+                click.echo(f"ignoring binary file extension: {path}")
             continue
         with open(path, "r") as file:
             try:

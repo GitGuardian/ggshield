@@ -64,7 +64,10 @@ def scan(
             check_git_dir()
             if mode == "pre-commit":
                 return_code = scan_pre_commit(
-                    client=client, filter_set=filter_set, matches_ignore=matches_ignore,
+                    client=client,
+                    filter_set=filter_set,
+                    matches_ignore=matches_ignore,
+                    verbose=verbose,
                 )
             elif mode == "ci":
                 return_code = scan_ci(

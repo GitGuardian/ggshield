@@ -3,14 +3,44 @@
 This module contains marshmallow schemas responsible for
 serializing/deserializing request and response objects
 """
-from marshmallow import Schema, fields, post_load, validate
+from marshmallow import (
+    EXCLUDE,
+    Schema,
+    ValidationError,
+    fields,
+    post_load,
+    validate,
+    validates,
+)
 
 from .models import Detail, Match, PolicyBreak, ScanResult
 
 
+MB = 1048576
+
+
 class DocumentSchema(Schema):
-    filename = fields.Str(validate=validate.Length(max=256))
-    document = fields.Str(validate=validate.Length(max=1000000), required=True)
+    class Meta:
+        unknown = EXCLUDE
+
+    filename = fields.String(validate=validate.Length(max=256))
+    document = fields.String(required=True)
+
+    @validates("document")
+    def validate_document(self, document: str) -> str:
+        """
+        validate that document is smaller than scan limit
+        """
+        encoded = document.encode("utf-8")
+        if len(encoded) > MB:
+            raise ValidationError(
+                "This file exceeds the maximum allowed size of {}B".format(MB)
+            )
+
+        if "\x00" in document:
+            raise ValidationError("Document has null characters")
+
+        return document
 
 
 class MatchSchema(Schema):

@@ -35,14 +35,14 @@ def scan_path(
         yes=yes,
         verbose=verbose,
     )
-    return process_scan_result(files.scan(client, matches_ignore))
+    return process_scan_result(files.scan(client, matches_ignore, verbose))
 
 
 def scan_pre_commit(
-    client: GGClient, filter_set: Set[str], matches_ignore: Iterable[str]
+    client: GGClient, filter_set: Set[str], matches_ignore: Iterable[str], verbose: bool
 ):
     return process_scan_result(
-        Commit(filter_set=filter_set).scan(client=client, matches_ignore=matches_ignore)
+        Commit(filter_set=filter_set).scan(client, matches_ignore, verbose)
     )
 
 
@@ -153,7 +153,7 @@ def scan_commit_range(
 
     for sha in commit_list:
         commit = Commit(sha, filter_set)
-        results = commit.scan(client, matches_ignore)
+        results = commit.scan(client, matches_ignore, verbose)
 
         if any(result["has_leak"] for result in results) or verbose:
             click.echo("\nCommit {}:".format(sha))

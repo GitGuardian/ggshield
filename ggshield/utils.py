@@ -46,12 +46,11 @@ def process_scan_to_secrets_and_lines(
     :param hide_secrets: Option to hide secrets value
     """
     content = scan_result["content"]
-    filemode = scan_result["filemode"]
-    is_patch = filemode != Filemode.FILE
+    is_patch = scan_result["filemode"] != Filemode.FILE
 
     # Patch
     if is_patch:
-        lines = list(get_lines_from_patch(content, filemode))
+        lines = list(get_lines_from_patch(content, scan_result["filemode"]))
 
     # File
     else:

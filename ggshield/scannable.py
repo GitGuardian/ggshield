@@ -6,7 +6,7 @@ import click
 
 from .filter import remove_ignored_from_result
 from .git_shell import shell
-from .pygitguardian import Detail, GGClient, ScanResult
+from .pygitguardian import GGClient, ScanResult
 from .utils import MAX_FILE_SIZE, Filemode
 
 
@@ -109,12 +109,12 @@ class Files:
                 "content": input_file.document,
                 "scan": scan_results[i],
                 "has_leak": scan_results[i].has_secrets,
-                "filemode": input_file.filemode.mode,
+                "filemode": input_file.filemode,
                 "filename": input_file.filename,
             }
 
     def scan(
-        self, client: GGClient, matches_ignore: Iterable[str]
+        self, client: GGClient, matches_ignore: Iterable[str], verbose: bool
     ) -> List[Dict[str, Any]]:
         scannable_list = self.scannable_list
         to_process = []
@@ -122,8 +122,11 @@ class Files:
             chunk = scannable_list[i : i + 20]
             scan, status_code = client.multi_content_scan(chunk)
             if status_code != 200:
-                if isinstance(scan, Detail):
-                    click.echo("error scanning:")
+                click.echo(
+                    "Error scanning some files. Results may be incomplete."
+                    "Add the following files to your paths-ignore:"
+                )
+                if verbose:
                     click.echo(",".join([entry["filename"] for entry in chunk]))
                     click.echo(str(scan))
                 scan = [ScanResult(0, [], [])] * len(chunk)

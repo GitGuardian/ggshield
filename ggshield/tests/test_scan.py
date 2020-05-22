@@ -62,7 +62,7 @@ ExpectedScan = namedtuple(
 expect = {
     "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
     "filename": "test.txt",
-    "filemode": Filemode.NEW.mode,
+    "filemode": Filemode.NEW,
     "error": False,
     "has_leak": False,
 }
@@ -103,7 +103,7 @@ def test_scan_patch(client, name, input_patch, expected):
     c._patch = input_patch
 
     with my_vcr.use_cassette(name):
-        results = c.scan(client, {})
+        results = c.scan(client, {}, False)
         assert process_scan_result(results) == expected.exit_code
         result = results[0]
         assert result["has_leak"] == expected.has_leak
