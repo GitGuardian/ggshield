@@ -33,7 +33,7 @@ def get_files_from_paths(
 
     if verbose:
         for f in files:
-            click.echo(f.filename)
+            click.echo(f"- {f.filename}")
 
     size = len(files)
     if size > 1 and not yes:
