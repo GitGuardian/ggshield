@@ -6,7 +6,7 @@ import click
 
 from .filter import remove_ignored_from_result
 from .git_shell import shell
-from .pygitguardian import GGClient, ScanResult
+from .pygitguardian import Detail, GGClient, ScanResult
 from .utils import MAX_FILE_SIZE, Filemode
 
 
@@ -121,8 +121,10 @@ class Files:
         for i in range(0, len(scannable_list), 20):
             scan, status_code = client.multi_content_scan(scannable_list[i : i + 20])
             if status_code != 200:
-                click.echo(str(scan))
-                continue
+                for v in scannable_list[i : i + 20]:
+                    if isinstance(v, Detail):
+                        click.echo(f"error scanning:{v['filename']}: {v['detail']}")
+                scan = [ScanResult(0, [], []) * 20]
             to_process.extend(scan)
 
         return list(self.process_result(to_process, matches_ignore))
