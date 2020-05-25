@@ -6,7 +6,6 @@ verify_ssl = true
 [packages]
 ggshield = {editable = true,path = "."}
 marshmallow ="*"
-requests = "*"
 click = "*"
 pyyaml = "*"
 
