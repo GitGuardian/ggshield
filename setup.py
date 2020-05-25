@@ -25,7 +25,7 @@ with open(join(current_path, "ggshield", "__init__.py")) as file:
 setup(
     author="GitGuardian",
     author_email="support@gitguardian.com",
-    description=readme(),
+    description="Detect policy breaks using GitGuardian's brains",
     entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli"]},
     include_package_data=True,
     install_requires=["requests", "click", "pyyaml"],
