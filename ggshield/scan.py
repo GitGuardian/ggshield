@@ -72,11 +72,16 @@ def github_actions_range(verbose: bool) -> List[str]:
     push_before_sha = os.getenv("GITHUB_PUSH_BEFORE_SHA")
     push_base_sha = os.getenv("GITHUB_PUSH_BASE_SHA")
     pull_req_base_sha = os.getenv("GITHUB_PULL_BASE_SHA")
+    default_branch = os.getenv("GITHUB_DEFAULT_BRANCH")
+    head_sha = os.getenv("GITHUB_SHA")
+
     if verbose:
         click.echo(
             f"github_push_before_sha: {push_before_sha}\n"
             f"github_push_base_sha: {push_base_sha}\n"
-            f"github_pull_base_sha: {pull_req_base_sha}"
+            f"github_pull_base_sha: {pull_req_base_sha}\n"
+            f"github_default_branch: {default_branch}\n"
+            f"github_head_sha: {head_sha}"
         )
 
     if pull_req_base_sha and pull_req_base_sha != NO_BEFORE:
@@ -94,12 +99,24 @@ def github_actions_range(verbose: bool) -> List[str]:
         if len(commit_list):
             return commit_list
 
+    if default_branch:
+        commit_list = get_list_commit_SHA("{}...".format(default_branch))
+        if len(commit_list):
+            return commit_list
+
+    if head_sha:
+        commit_list = get_list_commit_SHA("{}...".format(head_sha))
+        if len(commit_list):
+            return commit_list
+
     raise click.ClickException(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
         f"github_push_before_sha: {push_before_sha}\n"
         f"github_push_base_sha: {push_base_sha}\n"
         f"github_pull_base_sha: {pull_req_base_sha}"
+        f"github_default_branch: {default_branch}\n"
+        f"github_head_sha: {head_sha}"
     )
 
 
