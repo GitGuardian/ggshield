@@ -6,4 +6,7 @@ branding:
 runs:
   using: 'docker'
   image: 'Dockerfile'
-  entrypoint: 'ggshield scan -v --mode=ci'
+  args:
+    - scan
+    - -v
+    - --mode=ci
