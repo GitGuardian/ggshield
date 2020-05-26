@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   lint:
+    name: Lint package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,6 +24,7 @@ jobs:
         run: |
           black --check .
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,6 +47,7 @@ jobs:
           coverage report --fail-under=80
 
   scanning:
+    name: Docker build test and scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
