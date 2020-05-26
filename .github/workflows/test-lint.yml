@@ -50,9 +50,19 @@ jobs:
     name: Docker build test and scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: ggshield scan
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+      - name: Scan commit with ggshield
         uses: ./ # local action compiles docker image and runs scan ci
         env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}

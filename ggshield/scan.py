@@ -16,7 +16,7 @@ from .scannable import Commit
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB_ACTIONS]"
 
-GITLAB_NO_BEFORE = "0000000000000000000000000000000000000000"
+NO_BEFORE = "0000000000000000000000000000000000000000"
 
 
 def scan_path(
@@ -51,7 +51,7 @@ def gitlab_ci_range(verbose: bool) -> List[str]:
     commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD~1")
     if verbose:
         click.echo(f"CI_COMMIT_BEFORE_SHA: {before_sha}\nCI_COMMIT_SHA: {commit_sha}")
-    if before_sha and before_sha != GITLAB_NO_BEFORE:
+    if before_sha and before_sha != NO_BEFORE:
         commit_list = get_list_commit_SHA("{}~1...".format(before_sha))
         if len(commit_list):
             return commit_list
@@ -68,6 +68,41 @@ def gitlab_ci_range(verbose: bool) -> List[str]:
     )
 
 
+def github_actions_range(verbose: bool) -> List[str]:
+    push_before_sha = os.getenv("GITHUB_PUSH_BEFORE_SHA")
+    push_base_sha = os.getenv("GITHUB_PUSH_BASE_SHA")
+    pull_req_base_sha = os.getenv("GITHUB_PULL_BASE_SHA")
+    if verbose:
+        click.echo(
+            f"github_push_before_sha: {push_before_sha}\n"
+            f"github_push_base_sha: {push_base_sha}\n"
+            f"github_pull_base_sha: {pull_req_base_sha}"
+        )
+
+    if pull_req_base_sha and pull_req_base_sha != NO_BEFORE:
+        commit_list = get_list_commit_SHA("{}...".format(pull_req_base_sha))
+        if len(commit_list):
+            return commit_list
+
+    if push_before_sha and push_before_sha != NO_BEFORE:
+        commit_list = get_list_commit_SHA("{}...".format(push_before_sha))
+        if len(commit_list):
+            return commit_list
+
+    if push_base_sha and push_base_sha != "null":
+        commit_list = get_list_commit_SHA("{}...".format(push_base_sha))
+        if len(commit_list):
+            return commit_list
+
+    raise click.ClickException(
+        "Unable to get commit range. Please submit an issue with the following info:\n"
+        "  Repository URL: <Fill if public>\n"
+        f"github_push_before_sha: {push_before_sha}\n"
+        f"github_push_base_sha: {push_base_sha}\n"
+        f"github_pull_base_sha: {pull_req_base_sha}"
+    )
+
+
 def scan_ci(
     client: GGClient, verbose: bool, filter_set: Set[str], matches_ignore: Iterable[str]
 ) -> int:
@@ -81,7 +116,7 @@ def scan_ci(
 
     # GITHUB
     elif os.getenv("GITHUB_ACTIONS"):
-        commit_list = get_list_commit_SHA("{}...".format(os.getenv("GITHUB_SHA")))
+        commit_list = github_actions_range(verbose)
 
     # TRAVIS
     elif os.getenv("TRAVIS"):
