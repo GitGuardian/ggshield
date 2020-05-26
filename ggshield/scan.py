@@ -84,13 +84,13 @@ def github_actions_range(verbose: bool) -> List[str]:
             f"github_head_sha: {head_sha}"
         )
 
-    if pull_req_base_sha and pull_req_base_sha != NO_BEFORE:
-        commit_list = get_list_commit_SHA("{}..".format(pull_req_base_sha))
+    if push_before_sha and push_before_sha != NO_BEFORE:
+        commit_list = get_list_commit_SHA("{}...".format(push_before_sha))
         if len(commit_list):
             return commit_list
 
-    if push_before_sha and push_before_sha != NO_BEFORE:
-        commit_list = get_list_commit_SHA("{}...".format(push_before_sha))
+    if pull_req_base_sha and pull_req_base_sha != NO_BEFORE:
+        commit_list = get_list_commit_SHA("{}..".format(pull_req_base_sha))
         if len(commit_list):
             return commit_list
 
