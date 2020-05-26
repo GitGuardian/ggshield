@@ -1,0 +1,9 @@
+name: 'ggshield Local Action'
+description: 'Scan commits for policy breaks (using repository image)'
+branding:
+  icon: 'shield'
+  color: 'blue'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  entrypoint: 'ggshield scan -v --mode=ci'
