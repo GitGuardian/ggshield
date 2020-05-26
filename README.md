@@ -183,8 +183,12 @@ Configuring GitLab pipelines to use **ggshield** is as simple as
 adding a step to your project's pipeline:
 
 ```yaml
+stages:
+  - scanning
+
 🦉 gitguardian scan:
   image: gitguardian/ggshield:latest
+  stage: scanning
   script: ggshield scan -m ci
 ```
 

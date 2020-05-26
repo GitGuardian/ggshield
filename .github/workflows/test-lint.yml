@@ -1,0 +1,51 @@
+name: Application Test and Lint
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pipenv
+          pipenv install --dev --system --ignore-pipfile
+      - name: Lint with flake8
+        run: |
+          flake8
+      - name: Lint with black
+        run: |
+          black --check .
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pipenv
+          pipenv install --system --dev --ignore-pipfile
+      - name: Test with pytest
+        run: |
+          coverage run --source ggshield -m pytest --disable-pytest-warnings
+          coverage report --fail-under=80
+
+  scanning:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ggshield scan
+        uses: ./ # local action compiles docker image and runs scan ci
