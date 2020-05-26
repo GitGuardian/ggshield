@@ -140,9 +140,7 @@ class Commit(Files):
     Commit represents a commit which is a list of commit files.
     """
 
-    def __init__(
-        self, sha: Optional[str] = None, filter_set: Optional[Set[str]] = set()
-    ):
+    def __init__(self, sha: Optional[str] = None, filter_set: Optional[Set[str]] = {}):
         self.sha = sha
         self._patch = None
         self._files = None

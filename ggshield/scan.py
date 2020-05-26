@@ -79,6 +79,10 @@ def scan_ci(
     if os.getenv("GITLAB_CI"):
         commit_list = gitlab_ci_range(verbose)
 
+    # GITHUB
+    elif os.getenv("GITHUB_ACTIONS"):
+        commit_list = get_list_commit_SHA("{}...".format(os.getenv("GITHUB_SHA")))
+
     # TRAVIS
     elif os.getenv("TRAVIS"):
 
@@ -86,10 +90,6 @@ def scan_ci(
     # CIRCLE
     elif os.getenv("CIRCLECI"):
         commit_list = get_list_commit_SHA(os.getenv("CIRCLE_COMMIT_RANGE"))
-
-    # GITHUB
-    elif os.getenv("GITHUB_ACTIONS"):
-        commit_list = get_list_commit_SHA("{}...".format(os.getenv("GITHUB_SHA")))
 
     else:
         raise click.ClickException(
