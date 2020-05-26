@@ -6,9 +6,6 @@ branding:
 runs:
   using: 'docker'
   image: 'Dockerfile'
-  env:
-    GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
-    GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
   args:
     - ggshield
     - scan

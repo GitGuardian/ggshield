@@ -53,3 +53,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: ggshield scan
         uses: ./ # local action compiles docker image and runs scan ci
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
