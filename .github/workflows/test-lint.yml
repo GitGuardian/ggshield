@@ -47,5 +47,6 @@ jobs:
   scanning:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: ggshield scan
         uses: ./ # local action compiles docker image and runs scan ci

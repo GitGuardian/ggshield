@@ -55,9 +55,7 @@ def client():
     return GGClient(token=token, base_uri=base_uri)
 
 
-ExpectedScan = namedtuple(
-    "expectedScan", "exit_code has_leak matches first_match want", defaults=None
-)
+ExpectedScan = namedtuple("expectedScan", "exit_code has_leak matches first_match want")
 
 expect = {
     "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
