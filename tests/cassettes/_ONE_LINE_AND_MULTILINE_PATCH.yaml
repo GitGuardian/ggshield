@@ -1,0 +1,54 @@
+interactions:
+  - request:
+      body: '[{"filename": "test.txt", "document": "@@ -0,0 +1,29 @@\n+FacebookAppKeys:
+        294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----\n+MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l\n+bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I\n+NNmBkEo4M/xFxEtl9J7LKbE2gtNrlCQiJlPP1EMhwAjDOzQcJ3lgFB28dkqH5rMW\n+TQIhANrCE7O+wlCKe0WJqQ3lYlHG91XWyGVgfExJwBDsAD9LAiEAmDY5OSsH0n2A\n+22tthkAvcN1s66lG+0DztOVJ4QLI2z8CIBPeDGwGpx8pdIicN/5LFuLWbyAcoZaT\n+bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb\n+RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4\n+-----END
+        RSA PRIVATE KEY----- token: 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\n"}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '716'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.0.3 (Linux;py3.8.3)
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan
+    response:
+      body:
+        string:
+          '[{"policy_break_count":2,"policies":["Filenames","File extensions","Secrets
+          detection"],"policy_breaks":[{"type":"RSA Private Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"-----BEGIN
+          RSA PRIVATE KEY-----\n+MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l\n+bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I\n+NNmBkEo4M/xFxEtl9J7LKbE2gtNrlCQiJlPP1EMhwAjDOzQcJ3lgFB28dkqH5rMW\n+TQIhANrCE7O+wlCKe0WJqQ3lYlHG91XWyGVgfExJwBDsAD9LAiEAmDY5OSsH0n2A\n+22tthkAvcN1s66lG+0DztOVJ4QLI2z8CIBPeDGwGpx8pdIicN/5LFuLWbyAcoZaT\n+bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb\n+RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4\n+-----END
+          RSA PRIVATE KEY-----","index_start":86,"index_end":585,"line_start":2,"line_end":10}]},{"type":"SendGrid
+          Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":594,"index_end":662,"line_start":10,"line_end":10}]}]}]'
+      headers:
+        Allow:
+          - OPTIONS, POST
+        Connection:
+          - keep-alive
+        Content-Type:
+          - application/json
+        Date:
+          - Tue, 09 Jun 2020 10:02:47 GMT
+        Server:
+          - nginx
+        Transfer-Encoding:
+          - chunked
+        Vary:
+          - Accept-Encoding
+          - Cookie
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        content-length:
+          - '1001'
+      status:
+        code: 200
+        message: OK
+version: 1

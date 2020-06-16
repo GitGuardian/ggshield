@@ -1,0 +1,25 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+ggshield = {editable = true,path = "."}
+marshmallow ="*"
+click = "*"
+pyyaml = "*"
+pygitguardian = "==1.0.3"
+ipython = "*"
+
+[dev-packages]
+black = "==19.10b0"
+coverage = "*"
+flake8 = "*"
+flake8-isort = "*"
+flake8-quotes = "*"
+mock = "*"
+pre-commit = "*"
+pytest = "*"
+seed-isort-config = "*"
+snapshottest = "*"
+vcrpy = "*"

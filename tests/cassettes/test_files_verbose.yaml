@@ -1,0 +1,45 @@
+interactions:
+  - request:
+      body: '[{"document": "This is a file with no secrets.\n", "filename": "file1"},
+        {"document": "This is a file with no secrets.\n", "filename": "file2"}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '144'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.0.3 (Linux;py3.8.2) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan
+    response:
+      body:
+        string:
+          '[{"policy_break_count":0,"policies":["File extensions","Secrets detection","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["File
+          extensions","Secrets detection","Filenames"],"policy_breaks":[]}]'
+      headers:
+        Allow:
+          - POST, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '215'
+        Content-Type:
+          - application/json
+        Date:
+          - Mon, 18 May 2020 15:38:48 GMT
+        Server:
+          - nginx
+        Vary:
+          - Cookie
+        X-Frame-Options:
+          - SAMEORIGIN
+      status:
+        code: 200
+        message: OK
+version: 1

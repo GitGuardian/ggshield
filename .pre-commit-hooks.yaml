@@ -1,0 +1,5 @@
+- id: commit-ggshield
+  name: GitGuardian Shield (pre-commit)
+  language: python
+  entry: ggshield
+  args: ['scan', '-m', 'pre-commit']
