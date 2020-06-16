@@ -252,7 +252,7 @@ stages:
   - scanning
 
 🦉 gitguardian scan:
-  image: gitguardian/ggshield:latest
+  image: gitguardian/gg-shield:latest
   stage: scanning
   script: ggshield scan -m ci
 ```
@@ -367,7 +367,7 @@ pipeline {
     stages {
         stage('GitGuardian Scan') {
             agent {
-                docker { image 'gitguardian/ggshield:latest' }
+                docker { image 'gitguardian/gg-shield:latest' }
             }
             environment {
                 GITGUARDIAN_API_KEY = credentials('gitguardian-api-key')
