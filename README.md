@@ -4,14 +4,14 @@
 
 # GitGuardian Shield: protect your secrets with GitGuardian
 
-The GitGuardian shield (ggshield) is a CLI application that runs in your local environment
-or in a CI environment to help you detect policy breaks.
+The **GitGuardian shield** (gg-shield) is a CLI application that runs in your local environment
+or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 
-ggshield uses our [public API](https://api.gitguardian.com/doc) to scan your files and detect potential secrets or issues in your code.
+gg-shield uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets or issues in your code.
 
-You can also use ggshield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
+You can also use gg-shield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
 
-You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
+You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use gg-shield.
 
 Add the API Key to your environment variables:
 
@@ -61,7 +61,7 @@ Install and update using `pip`:
 $ pip install ggshield
 ```
 
-ggshield supports **Python 3.6 and newer**.
+gg-shield supports **Python 3.6 and newer**.
 
 The package should run on MacOS, Linux and Windows.
 
@@ -88,7 +88,7 @@ Commands:
 
 ## Scan command
 
-**ggshield** allows you to scan your files in 3 different ways:
+**gg-shield** allows you to scan your files in 3 different ways:
 
 - `Pre-commit`: scan every changes that have been staged in a git repository.
 - `CI`: scan every commit since the last build in your CI.
