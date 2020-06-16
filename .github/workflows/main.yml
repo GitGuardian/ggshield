@@ -1,4 +1,4 @@
-name: Application Release
+name: Application Main Branch
 
 on:
   pull_request:
