@@ -260,7 +260,7 @@ stages:
   - scanning
 
 🦉 gitguardian scan:
-  image: gitguardian/gg-shield:latest
+  image: gitguardian/ggshield:latest
   stage: scanning
   script: ggshield scan -m ci
 ```
@@ -315,7 +315,7 @@ adding a step to your project's workflow:
 pipelines:
   default:
     - step:
-        image: gitguardian/gg-shield:latest
+        image: gitguardian/ggshield:latest
         services:
           - docker
         script:
@@ -332,7 +332,7 @@ To add gg-shield to your pipelines configure your `.circleci/config.yml` to add 
 
 ```yaml
 orbs:
-  gg-shield: gitguardian/gg-shield
+  gg-shield: gitguardian/ggshield
 
 workflows:
   main:
@@ -375,7 +375,7 @@ pipeline {
     stages {
         stage('GitGuardian Scan') {
             agent {
-                docker { image 'gitguardian/gg-shield:latest' }
+                docker { image 'gitguardian/ggshield:latest' }
             }
             environment {
                 GITGUARDIAN_API_KEY = credentials('gitguardian-api-key')
