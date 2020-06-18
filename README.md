@@ -4,6 +4,14 @@
 
 # GitGuardian Shield: protect your secrets with GitGuardian
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/gg-shield/Main?color=%231B2D55&style=for-the-badge)
+![PyPI](https://img.shields.io/pypi/v/gg-shield?color=%231B2D55&style=for-the-badge)
+![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/gg-shield?color=%231B2D55&label=Docker&style=for-the-badge)
+![GitHub](https://img.shields.io/github/license/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)
+![GitHub stars](https://img.shields.io/github/stars/gitguardian/gg-shield?color=%231B2D55&style=for-the-badge)
+![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/gg-shield?color=%231B2D55&style=for-the-badge)
+![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)
+
 The **GitGuardian shield** (gg-shield) is a CLI application that runs in your local environment
 or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 

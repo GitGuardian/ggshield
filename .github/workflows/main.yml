@@ -37,7 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.6, 3.8]
 
     steps:
       - uses: actions/checkout@v2
@@ -54,6 +55,13 @@ jobs:
         run: |
           coverage run --source ggshield -m pytest --disable-pytest-warnings
           coverage report --fail-under=80
+          pipenv run coverage xml
+      - uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
 
   scanning:
     name: Docker build test and scan
