@@ -239,7 +239,7 @@ def add_detector(match: Match, is_patch: bool) -> Dict:
     if len(secret_lines) > 1:
         secret_size = max(
             match.index_start + len(secret_lines[0]),
-            max([len(line) for line in secret_lines[1:-1]]) - int(is_patch),
+            max((len(line) for line in secret_lines[1:-1]), default=0) - int(is_patch),
             match.index_end,
         )
 
