@@ -5,7 +5,7 @@
 # [GitGuardian Shield](https://github.com/GitGuardian/gg-shield): protect your secrets with GitGuardian
 
 [![PyPI](https://img.shields.io/pypi/v/ggshield?color=%231B2D55&style=for-the-badge)](https://pypi.org/project/ggshield/)
-[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/ggshield?color=%231B2D55&label=Docker&style=for-the-badge)](https://hub.docker.com/r/gitguardian/ggshield)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/ggshield?color=1B2D55&sort=semver&style=for-the-badge&label=Docker)](https://hub.docker.com/r/gitguardian/ggshield)
 [![License](https://img.shields.io/github/license/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)](LICENSE)
 ![GitHub stars](https://img.shields.io/github/stars/gitguardian/gg-shield?color=%231B2D55&style=for-the-badge)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/gg-shield/Application%20Main%20Branch?style=for-the-badge)
