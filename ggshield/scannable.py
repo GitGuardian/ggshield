@@ -145,7 +145,7 @@ class Commit(Files):
         return line.split(" ")[1][2:]
 
     @staticmethod
-    def get_filemode(line: str) -> str:
+    def get_filemode(line: str) -> Filemode:
         """
         Get the file mode from the line patch (new, modified or deleted)
 
@@ -153,16 +153,16 @@ class Commit(Files):
         """
         if line.startswith("index"):
             return Filemode.MODIFY
-        elif line.startswith("similarity"):
+        if line.startswith("similarity"):
             return Filemode.RENAME
-        elif line.startswith("new"):
+        if line.startswith("new"):
             return Filemode.NEW
-        elif line.startswith("deleted"):
+        if line.startswith("deleted"):
             return Filemode.DELETE
-        elif line.startswith("old"):
+        if line.startswith("old"):
             return Filemode.PERMISSION_CHANGE
-        else:
-            raise click.ClickException(f"Filemode is not detected:{line}")
+
+        raise click.ClickException(f"Filemode is not detected:{line}")
 
     def get_files(self) -> Iterable[CommitFile]:
         """

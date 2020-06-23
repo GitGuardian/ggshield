@@ -76,7 +76,7 @@ def test_scan_patch(client, name, input_patch, expected):
             == expected.exit_code
         )
         for result in results:
-            if len(result.scan.policy_breaks):
+            if result.scan.policy_breaks:
                 assert len(result.scan.policy_breaks[0].matches) == expected.matches
                 if expected.first_match:
                     assert (

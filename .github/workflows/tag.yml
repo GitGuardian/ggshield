@@ -1,7 +1,6 @@
 name: Application Release
 
 on:
-  pull_request:
   push:
     branches-ignore:
       - '*'

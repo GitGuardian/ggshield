@@ -27,9 +27,7 @@ MAX_SECRET_SIZE = 80
 
 def leak_message_located(
     flat_matches_dict: Dict[int, List[Match]],
-    issue_n: int,
     lines: List[Line],
-    show_secrets: bool,
     padding: int,
     offset: int,
     is_patch: bool,
@@ -71,11 +69,9 @@ def leak_message_located(
                 )
                 index = None if is_multiline else flat_match.index_end
                 click.echo(
-                    display_match_value(
-                        content(line)[flat_match.index_start : index]
-                    ),  # noqa
+                    display_match_value(content(line)[flat_match.index_start : index]),
                     nl=False,
-                ),  # noqa
+                )
 
                 if is_multiline:
                     for match_line_index, match_line in enumerate(
@@ -88,8 +84,8 @@ def leak_message_located(
                             ),
                             nl=False,
                         )
-                        click.echo(display_match_value(match_line), nl=False),  # noqa
-                    multiline_end = line + match_line_index
+                        click.echo(display_match_value(match_line), nl=False)
+                        multiline_end = line + match_line_index
                     index = flat_match.index_end
 
             click.echo(
@@ -181,9 +177,7 @@ def leak_message(result: Result, show_secrets: bool, nb_lines: int = 2):
         if policy_breaks[0].policy == "Secrets detection":
             leak_message_located(
                 flatten_policy_breaks_by_line(policy_breaks),
-                issue_n,
                 lines,
-                show_secrets,
                 padding,
                 offset,
                 is_patch,
