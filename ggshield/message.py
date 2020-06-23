@@ -8,6 +8,7 @@ from .filter import censor_content, leak_dictionary_by_ignore_sha
 from .scannable import Result
 from .text_utils import (
     STYLE,
+    Line,
     format_line_count_break,
     format_text,
     get_offset,
@@ -27,7 +28,7 @@ MAX_SECRET_SIZE = 80
 def leak_message_located(
     flat_matches_dict: Dict[int, List[Match]],
     issue_n: int,
-    lines: List[str],
+    lines: List[Line],
     show_secrets: bool,
     padding: int,
     offset: int,

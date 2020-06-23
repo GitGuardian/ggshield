@@ -21,6 +21,7 @@ class Config:
         self.paths_ignore = set()
         self.verbose = False
         self.show_secrets = False
+        self.all_policies = False
         self.load_configs(self.CONFIG_GLOBAL)
         self.load_configs(self.CONFIG_LOCAL)
 
@@ -29,6 +30,7 @@ class Config:
         matches_ignore: List[str] = [],
         paths_ignore: List[str] = [],
         show_secrets: bool = None,
+        all_policies: bool = None,
         verbose: bool = None,
         **kwargs,
     ):
@@ -40,6 +42,8 @@ class Config:
             self.verbose = verbose
         if show_secrets is not None:
             self.show_secrets = show_secrets
+        if all_policies:
+            self.all_policies = all_policies
 
         for key in kwargs:
             click.echo("Unrecognized key in config: {}".format(key))

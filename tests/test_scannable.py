@@ -68,7 +68,7 @@ def test_scan_patch(client, name, input_patch, expected):
     c._patch = input_patch
 
     with my_vcr.use_cassette(name):
-        results = c.scan(client, {}, False)
+        results = c.scan(client, {}, False, False)
         assert (
             process_results(results, verbose=True, show_secrets=True)
             == expected.exit_code

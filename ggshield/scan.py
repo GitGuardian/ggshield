@@ -20,7 +20,7 @@ NO_BEFORE = "0000000000000000000000000000000000000000"
 
 
 def process_results(
-    results: List[Result], verbose: bool, show_secrets: bool, nb_lines: int = 3
+    results: List[Result], verbose: bool, show_secrets: bool, nb_lines: int = 3,
 ) -> int:
     """
     Process a scan result.
@@ -53,6 +53,7 @@ def scan_path(
     recursive: bool,
     yes: bool,
     matches_ignore: Iterable[str],
+    all_policies: bool,
     show_secrets: bool,
 ) -> int:
     files = get_files_from_paths(
@@ -63,7 +64,12 @@ def scan_path(
         verbose=verbose,
     )
     return process_results(
-        results=files.scan(client, matches_ignore, verbose),
+        results=files.scan(
+            client=client,
+            matches_ignore=matches_ignore,
+            all_policies=all_policies,
+            verbose=verbose,
+        ),
         show_secrets=show_secrets,
         verbose=verbose,
     )
@@ -74,10 +80,16 @@ def scan_pre_commit(
     filter_set: Set[str],
     matches_ignore: Iterable[str],
     verbose: bool,
+    all_policies: bool,
     show_secrets: bool,
 ):
     return process_results(
-        results=Commit(filter_set=filter_set).scan(client, matches_ignore, verbose),
+        results=Commit(filter_set=filter_set).scan(
+            client=client,
+            matches_ignore=matches_ignore,
+            all_policies=all_policies,
+            verbose=verbose,
+        ),
         verbose=verbose,
         show_secrets=show_secrets,
     )
@@ -263,6 +275,7 @@ def scan_ci(
     verbose: bool,
     filter_set: Set[str],
     matches_ignore: Iterable[str],
+    all_policies: bool,
     show_secrets: bool,
 ) -> int:  # pragma: no cover
     """ Scan commits in CI environment. """
@@ -298,6 +311,7 @@ def scan_ci(
         verbose=verbose,
         filter_set=filter_set,
         matches_ignore=matches_ignore,
+        all_policies=all_policies,
         show_secrets=show_secrets,
     )
 
@@ -307,6 +321,7 @@ def scan_repo(
     verbose: bool,
     repo: str,
     matches_ignore: Iterable[str],
+    all_policies: bool,
     show_secrets: bool,
 ) -> int:  # pragma: no cover
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -318,6 +333,7 @@ def scan_repo(
                 verbose=verbose,
                 filter_set=path_filter_set(Path(os.getcwd()), []),
                 matches_ignore=matches_ignore,
+                all_policies=all_policies,
                 show_secrets=show_secrets,
             )
 
@@ -338,6 +354,7 @@ def scan_commit_range(
     verbose: bool,
     filter_set: Set[str],
     matches_ignore: Iterable[str],
+    all_policies: bool,
     show_secrets: bool,
 ) -> int:  # pragma: no cover
     """
@@ -351,7 +368,12 @@ def scan_commit_range(
 
     for sha in commit_list:
         commit = Commit(sha, filter_set)
-        results = commit.scan(client, matches_ignore, verbose)
+        results = commit.scan(
+            client=client,
+            matches_ignore=matches_ignore,
+            all_policies=all_policies,
+            verbose=verbose,
+        )
 
         if results or verbose:
             click.echo("\nCommit {}:".format(sha))
@@ -359,7 +381,7 @@ def scan_commit_range(
         return_code = max(
             return_code,
             process_results(
-                results=results, verbose=verbose, show_secrets=show_secrets
+                results=results, verbose=verbose, show_secrets=show_secrets,
             ),
         )
 

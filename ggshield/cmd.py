@@ -39,6 +39,14 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
     help="Show secrets in plaintext instead of hiding them",
 )
 @click.option(
+    "--all-policies",
+    is_flag=True,
+    default=None,
+    help="Present fails of all policies (Filenames, FileExtensions, Secret Detection)."
+    "By default, only Secret Detection is shown"
+    "",
+)
+@click.option(
     "--verbose",
     "-v",
     is_flag=True,
@@ -47,12 +55,13 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 )
 @click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
 def scan(
-    ctx: object,
+    ctx: click.Context,
     paths: Union[List, str],
     mode: str,
     recursive: bool,
     yes: bool,
     show_secrets: bool,
+    all_policies: bool,
     verbose: bool,
     repo: str,
 ) -> int:
@@ -72,6 +81,9 @@ def scan(
     if show_secrets is None:
         show_secrets = ctx.obj["config"].show_secrets
 
+    if all_policies is None:
+        all_policies = ctx.obj["config"].all_policies
+
     if verbose is None:
         verbose = ctx.obj["config"].verbose
 
@@ -84,6 +96,7 @@ def scan(
                     filter_set=filter_set,
                     matches_ignore=matches_ignore,
                     verbose=verbose,
+                    all_policies=all_policies,
                     show_secrets=show_secrets,
                 )
             elif mode == "ci":
@@ -92,6 +105,7 @@ def scan(
                     verbose=verbose,
                     filter_set=filter_set,
                     matches_ignore=matches_ignore,
+                    all_policies=all_policies,
                     show_secrets=show_secrets,
                 )
             else:
@@ -102,6 +116,7 @@ def scan(
                 verbose=verbose,
                 repo=repo,
                 matches_ignore=matches_ignore,
+                all_policies=all_policies,
                 show_secrets=show_secrets,
             )
         elif paths:
@@ -113,6 +128,7 @@ def scan(
                 recursive=recursive,
                 yes=yes,
                 matches_ignore=matches_ignore,
+                all_policies=all_policies,
                 show_secrets=show_secrets,
             )
         else:
@@ -135,7 +151,7 @@ def scan(
     help="Set a custom config file. Ignores local and global config files.",
 )
 @click.pass_context
-def cli(ctx: object, config_path: Path):
+def cli(ctx: click.Context, config_path: str):
     ctx.ensure_object(dict)
     if config_path:
         Config.CONFIG_LOCAL = [config_path]

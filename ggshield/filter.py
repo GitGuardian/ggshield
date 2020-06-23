@@ -17,7 +17,9 @@ REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")
 MAXIMUM_CENSOR_LENGTH = 60
 
 
-def is_ignored(policy_break: PolicyBreak, matches_ignore: Iterable[str]) -> bool:
+def is_ignored(
+    policy_break: PolicyBreak, all_policies: bool, matches_ignore: Iterable[str]
+) -> bool:
     """
     is_ignored checks if a policy break is ignored.
     There are 2 ways of ignoring a policy break:
@@ -28,6 +30,8 @@ def is_ignored(policy_break: PolicyBreak, matches_ignore: Iterable[str]) -> bool
     :param matches_ignore: Iterable of match ignores (plaintext secrets of SHAs)
     :return: True if ignored
     """
+    if not all_policies and policy_break.policy.lower() != "secrets detection":
+        return True
     if get_ignore_sha(policy_break) in matches_ignore or any(
         match.match in matches_ignore for match in policy_break.matches
     ):
@@ -35,7 +39,9 @@ def is_ignored(policy_break: PolicyBreak, matches_ignore: Iterable[str]) -> bool
     return False
 
 
-def remove_ignored_from_result(scan_result: ScanResult, matches_ignore: Iterable[str]):
+def remove_ignored_from_result(
+    scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[str]
+):
     """
     remove_ignored removes policy breaks from a Scan Result based on a sha
     made from its matches.
@@ -47,7 +53,7 @@ def remove_ignored_from_result(scan_result: ScanResult, matches_ignore: Iterable
     scan_result.policy_breaks = [
         policy_break
         for policy_break in scan_result.policy_breaks
-        if not is_ignored(policy_break, matches_ignore)
+        if not is_ignored(policy_break, all_policies, matches_ignore)
     ]
 
     scan_result.policy_break_count = len(scan_result.policy_breaks)
@@ -85,7 +91,7 @@ def leak_dictionary_by_ignore_sha(
             (match.index_start if match.index_start else -1 for match in x.matches)
         )
     )
-    sha_dict = OrderedDict()
+    sha_dict: Dict[str, List[PolicyBreak]] = OrderedDict()
     for policy_break in policy_breaks:
         policy_break.matches.sort(key=lambda x: x.index_start if x.index_start else -1)
         ignore_sha = get_ignore_sha(policy_break)

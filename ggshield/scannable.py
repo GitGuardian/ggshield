@@ -77,7 +77,11 @@ class Files:
         return [entry.scan_dict for entry in self.files.values()]
 
     def scan(
-        self, client: GGClient, matches_ignore: Iterable[str], verbose: bool
+        self,
+        client: GGClient,
+        matches_ignore: Iterable[str],
+        all_policies: bool,
+        verbose: bool,
     ) -> List[Result]:
         scannable_list = self.scannable_list
         results = []
@@ -88,7 +92,7 @@ class Files:
                 handle_scan_error()
                 continue
             for index, scanned in enumerate(scan.scan_results):
-                remove_ignored_from_result(scanned, matches_ignore)
+                remove_ignored_from_result(scanned, all_policies, matches_ignore)
                 if scanned.has_secrets:
                     results.append(
                         Result(
