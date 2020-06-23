@@ -1,4 +1,4 @@
-- id: commit-ggshield
+- id: ggshield
   name: GitGuardian Shield (pre-commit)
   language: python
   entry: ggshield
