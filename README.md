@@ -1,21 +1,21 @@
-<img src="doc/logo.svg">
+<a href="https://gitguardian.com/"><img src="doc/logo.svg"></a>
 
 ---
 
-# GitGuardian Shield: protect your secrets with GitGuardian
+# [GitGuardian Shield](https://github.com/GitGuardian/gg-shield): protect your secrets with GitGuardian
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/gg-shield/Main?color=%231B2D55&style=for-the-badge)
-![PyPI](https://img.shields.io/pypi/v/gg-shield?color=%231B2D55&style=for-the-badge)
-![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/gg-shield?color=%231B2D55&label=Docker&style=for-the-badge)
-![GitHub](https://img.shields.io/github/license/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)
+[![PyPI](https://img.shields.io/pypi/v/ggshield?color=%231B2D55&style=for-the-badge)](https://pypi.org/project/ggshield/)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/ggshield?color=%231B2D55&label=Docker&style=for-the-badge)](https://hub.docker.com/r/gitguardian/ggshield)
+[![License](https://img.shields.io/github/license/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)](LICENSE)
 ![GitHub stars](https://img.shields.io/github/stars/gitguardian/gg-shield?color=%231B2D55&style=for-the-badge)
-![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/gg-shield?color=%231B2D55&style=for-the-badge)
-![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/gg-shield/Application%20Main%20Branch?style=for-the-badge)
+[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/gg-shield?style=for-the-badge)](https://www.codefactor.io/repository/github/gitguardian/gg-shield)
+[![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/gg-shield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/gg-shield/)
 
 The **GitGuardian shield** (gg-shield) is a CLI application that runs in your local environment
 or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 
-gg-shield uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets or issues in your code.
+**GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets or issues in your code.
 
 You can also use gg-shield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
 
