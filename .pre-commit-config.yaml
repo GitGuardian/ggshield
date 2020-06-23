@@ -1,41 +1,44 @@
 default_stages: [commit]
 repos:
   - repo: https://github.com/ambv/black
-    rev: stable
+    rev: 19.10b0
     hooks:
       - id: black
         language_version: python3
 
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.1.0
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: master
     hooks:
       - id: flake8
-      # not python related
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.1.0
+    hooks:
       - id: check-json
       - id: check-added-large-files
       - id: check-yaml
 
   - repo: https://github.com/asottile/seed-isort-config
-    rev: master
+    rev: v2.2.0
     hooks:
       - id: seed-isort-config
         args: [--settings-path, ./]
 
   - repo: https://github.com/pre-commit/mirrors-isort
-    rev: master
+    rev: v4.3.21
     hooks:
       - id: isort
         args: [--settings-path, setup.cfg]
 
   - repo: https://github.com/Woile/commitizen
-    rev: master
+    rev: v1.23.0
     hooks:
       - id: commitizen
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
         stages: [commit-msg]
 
   - repo: https://github.com/prettier/prettier # to format JSON, YAML and markdown files among others
-    rev: master
+    rev: 2.0.5
     hooks:
       - id: prettier
 
@@ -49,8 +52,8 @@ repos:
         stages: [commit]
 
   - repo: https://github.com/gitguardian/gg-shield
-    rev: main
+    rev: v1.0.1
     hooks:
-      - id: ggshield
+      - id: commit-ggshield
         language_version: python3
         stages: [commit]
