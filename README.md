@@ -78,7 +78,7 @@ You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/
 Add the API Key to your environment variables:
 
 ```shell
-GITGUARDIAN_API_KEY=<GitGuardian API Key
+GITGUARDIAN_API_KEY=<GitGuardian API Key>
 ```
 
 # Commands
