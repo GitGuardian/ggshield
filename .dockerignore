@@ -2,4 +2,6 @@
 .*
 !Pipfile*
 !ggshield
+!README.md
+!LICENSE
 !setup*

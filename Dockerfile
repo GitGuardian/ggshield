@@ -1,4 +1,4 @@
-FROM python:3.8.1-buster as build
+FROM python:3.8-buster as build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
@@ -25,7 +25,7 @@ RUN sed -i '/editable/d' Pipfile.lock
 RUN pipenv install --ignore-pipfile
 
 
-FROM python:3.8.1-slim-buster
+FROM python:3.8-slim-buster
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
