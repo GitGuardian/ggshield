@@ -96,12 +96,12 @@ Commands:
 
 ## Scan command
 
-**gg-shield** allows you to scan your files in 3 different ways:
+**gg-shield** allows you to scan your files in 4 different ways:
 
 - `Pre-commit`: scan every changes that have been staged in a git repository.
-- `CI`: scan every commit since the last build in your CI.
+- `CI`: scan each commit since the last build in your CI.
 - `Files`: scan files or directories with the recursive option.
-- `Repo`: (`--repo <URL>`) scan all commits in a repository.
+- `Repo`: (`--repo <URL>`) scan all commits in a git repository.
 
 ```shell
 Usage: ggshield scan [OPTIONS] [PATHS]...
@@ -113,8 +113,11 @@ Options:
   -r, --recursive             Scan directory recursively
   -y, --yes                   Confirm recursive scan
   --show-secrets              Show secrets in plaintext instead of hiding them
+  --all-policies              Present fails of all policies (Filenames,
+                              FileExtensions, Secret Detection).By default,
+                              only Secret Detection is shown
   -v, --verbose               Display the list of files before recursive scan
-  --repo TEXT                 Scan a Git Repository (repo url)
+  --repo TEXT                 Scan Git Repository (repo url)
   -h, --help                  Show this message and exit.
 ```
 
@@ -154,12 +157,15 @@ paths-ignore:
   - 'doc/*'
   - 'LICENSE'
 
-# SHA256 of policy break obtained at output or plaintext matches
+# Ignore policy breaks with the SHA256 of the policy break obtained at output or the secret itself
 matches-ignore:
   - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
   - MY_TEST_CREDENTIAL
 
 show-secrets: false # default: false
+
+# By default only secrets are detected. Use all-policies to toggle this behaviour.
+all-policies: false # default: false
 
 verbose: false # default: false
 ```
@@ -211,7 +217,7 @@ $ SKIP=ggshield git commit -m "commit message"
 
 ## The global and local pre-commit hook
 
-To install pre-commit globally (for all current and future repo), you just need to execute the following command:
+To install pre-commit globally (for all current and future repos), you just need to execute the following command:
 
 ```shell
 $ ggshield install --mode global
@@ -425,12 +431,12 @@ $ ggshield scan -m pre-commit
 
 If you have questions you would like to ask the developers,
 or feedback you would like to provide,
-feel free to create an issue on our issue tracker
+feel free to create an issue on our issue tracker.
 
 We would love to hear from you.
 Additionally, if you have a feature you would like to suggest,
-feel free to create an issue on our issue tracker
+feel free to create an issue on our issue tracker.
 
 # License
 
-**GitGuardian-shield** is MIT licensed.
+**GitGuardian shield** is MIT licensed.

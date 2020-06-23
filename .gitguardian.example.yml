@@ -4,13 +4,14 @@ paths-ignore:
   - 'doc/*'
   - 'LICENSE'
 
-# SHA256 of policy break obtained at output or plaintext matches
+# Ignore policy breaks with the SHA256 of the policy break obtained at output or the secret itself
 matches-ignore:
   - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
   - MY_TEST_CREDENTIAL
 
 show-secrets: false # default: false
 
+# By default only secrets are detected. Use all-policies to toggle this behaviour.
 all-policies: false # default: false
 
 verbose: false # default: false
