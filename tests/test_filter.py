@@ -20,7 +20,7 @@ from .conftest import (
     _MULTI_SECRET_TWO_LINES_PATCH,
     _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
     _MULTILINE_SECRET,
-    _MULTIPLE_SECRETS,
+    _MULTIPLE_SECRETS_PATCH,
     _MULTIPLE_SECRETS_SCAN_RESULT,
     _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
     _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
@@ -28,6 +28,7 @@ from .conftest import (
     _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+    _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT,
 )
 
 
@@ -111,6 +112,20 @@ def test_get_ignore_sha(
             id="_SIMPLE_SECRET_PATCH_SCAN_RESULT-no remove",
         ),
         pytest.param(
+            _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT,
+            False,
+            [],
+            _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT.policy_break_count - 1,
+            id="_SIMPLE_SECRET_PATCH_WITH_FILENAME_SCAN_RESULT-not all policies",
+        ),
+        pytest.param(
+            _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT,
+            True,
+            [],
+            _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT.policy_break_count,
+            id="_SIMPLE_SECRET_PATCH_WITH_FILENAME_SCAN_RESULT-no remove",
+        ),
+        pytest.param(
             _SIMPLE_SECRET_PATCH_SCAN_RESULT,
             True,
             ["2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93"],
@@ -147,11 +162,9 @@ def test_remove_ignores(
     scan_result: ScanResult, all_policies: bool, ignores: Iterable, final_len: int
 ):
     copy_result = copy.deepcopy(scan_result)
-    print(copy_result)
     remove_ignored_from_result(
         copy_result, all_policies, ignores,
     )
-    print(copy_result)
 
     assert len(copy_result.policy_breaks) == final_len
     assert copy_result.policy_break_count == final_len
@@ -188,7 +201,6 @@ def test_remove_ignores(
 )
 def test_censor_match(input_match: Match, expected_value: str):
     value = censor_match(input_match)
-    print(value)
     assert len(value) == len(input_match.match)
     assert value == expected_value
 
@@ -196,39 +208,52 @@ def test_censor_match(input_match: Match, expected_value: str):
 @pytest.mark.parametrize(
     "content, policy_breaks",
     [
-        (_MULTIPLE_SECRETS, _MULTIPLE_SECRETS_SCAN_RESULT.policy_breaks,),
-        (
+        pytest.param(
+            _MULTIPLE_SECRETS_PATCH,
+            _MULTIPLE_SECRETS_SCAN_RESULT.policy_breaks,
+            id="_MULTIPLE_SECRETS",
+        ),
+        pytest.param(
             _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
             _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT.policy_breaks,
+            id="_ONE_LINE_AND_MULTILINE_PATCH_SCAN_CONTENT",
         ),
-        (
+        pytest.param(
             _MULTI_SECRET_ONE_LINE_PATCH,
             _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT.policy_breaks,
+            id="_MULTI_SECRET_ONE_LINE_PATCH",
         ),
-        (_SIMPLE_SECRET_PATCH, _SIMPLE_SECRET_PATCH_SCAN_RESULT.policy_breaks,),
-        (
+        pytest.param(
+            _SIMPLE_SECRET_PATCH,
+            _SIMPLE_SECRET_PATCH_SCAN_RESULT.policy_breaks,
+            id="_SIMPLE_SECRET_PATCH",
+        ),
+        pytest.param(
             _SIMPLE_SECRET_MULTILINE_PATCH,
             _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT.policy_breaks,
+            id="_SIMPLE_SECRET_MULTILINE_PATCH",
         ),
-        (
+        pytest.param(
+            _SIMPLE_SECRET_PATCH,
+            _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT.policy_breaks,
+            id="_SIMPLE_SECRET_WITH_FILENAME_PATCH",
+        ),
+        pytest.param(
             _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
             _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT.policy_breaks,
+            id="_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY",
         ),
-        (
+        pytest.param(
             _MULTI_SECRET_TWO_LINES_PATCH,
             _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT.policy_breaks,
+            id="_MULTI_SECRET_TWO_LINES_PATCH",
         ),
-    ],
-    ids=[
-        "_MULTIPLE_SECRETS",
-        "_ONE_LINE_AND_MULTILINE_PATCH_SCAN_CONTENT",
-        "_MULTI_SECRET_ONE_LINE_PATCH",
-        "_SIMPLE_SECRET_PATCH",
-        "_SIMPLE_SECRET_MULTILINE_PATCH",
-        "_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY",
-        "_MULTI_SECRET_TWO_LINES_PATCH",
     ],
 )
 def test_censor_content(content: str, policy_breaks: PolicyBreak):
-    new_content = censor_content(content, policy_breaks)
+    copy_policy_breaks = copy.deepcopy(policy_breaks)
+    new_content = censor_content(content, copy_policy_breaks)
     assert len(new_content) == len(content)
+    for policy_break in policy_breaks:
+        for match in policy_break.matches:
+            assert match.match not in new_content

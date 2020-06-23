@@ -152,6 +152,7 @@ def censor_content(content: str, policy_breaks: List[PolicyBreak]) -> str:
                 continue
 
             match.match = censor_match(match)
+
             content = "".join(
                 (
                     content[: match.index_start],

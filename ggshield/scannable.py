@@ -89,7 +89,7 @@ class Files:
             chunk = scannable_list[i : i + MULTI_DOCUMENT_LIMIT]
             scan = client.multi_content_scan(chunk)
             if not scan.success:
-                handle_scan_error()
+                handle_scan_error(scan, chunk)
                 continue
             for index, scanned in enumerate(scan.scan_results):
                 remove_ignored_from_result(scanned, all_policies, matches_ignore)

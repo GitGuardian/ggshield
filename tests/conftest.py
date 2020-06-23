@@ -7,24 +7,28 @@ from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
 
 
+_MULTIPLE_SECRETS_PATCH = """@@ -0,0 +1,2 @@
++FacebookAppKeys :
++String docker run --name geonetwork -d \
+            -p 8080:8080 -e MYSQL_HOST=google.com \
+            -e MYSQL_PORT=5434 -e MYSQL_USERNAME=root \
+            -e MYSQL_PASSWORD=m42ploz2wd geonetwork
+"""
+
 _MULTIPLE_SECRETS = (
-    "diff --git a/test.txt b/test.txt\n"
-    "new file mode 100644\n"
-    "index 0000000..b80e3df\n"
-    "--- /dev/null\n"
-    "+++ b/test\n"
-    "@@ -0,0 +1,2 @@\n"
-    "+FacebookAppKeys :\n"
-    "+String docker run --name geonetwork -d \
-                -p 8080:8080 -e MYSQL_HOST=google.com \
-                -e MYSQL_PORT=5434 -e MYSQL_USERNAME=root \
-                -e MYSQL_PASSWORD=m42ploz2wd geonetwork\n"
+    """diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..b80e3df
+--- /dev/null
++++ b/test
+"""
+    + _MULTIPLE_SECRETS_PATCH
 )
 
 _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
-        "policies": ["File extensions", "Secrets detection", "Filenames"],
         "policy_break_count": 1,
+        "policies": ["Secrets detection", "File extensions", "Filenames"],
         "policy_breaks": [
             {
                 "type": "MySQL Assignment",
@@ -33,34 +37,34 @@ _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "type": "host",
                         "match": "google.com",
-                        "index_end": 127,
-                        "line_end": 3,
-                        "index_start": 118,
+                        "index_start": 114,
+                        "index_end": 123,
                         "line_start": 3,
+                        "line_end": 3,
                     },
                     {
                         "type": "port",
                         "match": "5434",
-                        "index_end": 162,
-                        "line_end": 3,
-                        "index_start": 159,
+                        "index_start": 151,
+                        "index_end": 154,
                         "line_start": 3,
+                        "line_end": 3,
                     },
                     {
                         "type": "username",
                         "match": "root",
-                        "index_end": 185,
-                        "line_end": 3,
-                        "index_start": 182,
+                        "index_start": 174,
+                        "index_end": 177,
                         "line_start": 3,
+                        "line_end": 3,
                     },
                     {
                         "type": "password",
                         "match": "m42ploz2wd",
-                        "index_end": 230,
-                        "line_end": 3,
-                        "index_start": 221,
+                        "index_start": 209,
+                        "index_end": 218,
                         "line_start": 3,
+                        "line_end": 3,
                     },
                 ],
             }
@@ -101,6 +105,32 @@ _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
             }
         ],
         "policy_break_count": 1,
+    }
+)
+
+_SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
+    {
+        "policies": ["File extensions", "Filenames", "Secrets detection"],
+        "policy_breaks": [
+            {
+                "type": ".env",
+                "policy": "Filenames",
+                "matches": [{"type": "filename", "match": ".env"}],
+            },
+            {
+                "type": "GitHub Token",
+                "policy": "Secrets Detection",
+                "matches": [
+                    {
+                        "match": "368ac3edf9e850d1c0ff9d6c526496f8237ddf91",  # noqa
+                        "type": "apikey",
+                        "index_start": 29,
+                        "index_end": 69,
+                    }
+                ],
+            },
+        ],
+        "policy_break_count": 2,
     }
 )
 
