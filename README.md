@@ -273,15 +273,15 @@ stages:
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
 
-# Github
+# GitHub
 
-> You may be interested in using GitGuardian's [Github integration](https://dashboard.gitguardian.com/settings/workspace/integrations/github) to ensure full coverage of your Github projects as well as full git history scans and reporting.
+> You may be interested in using GitGuardian's [GitHub integration](https://dashboard.gitguardian.com/settings/workspace/integrations/github) to ensure full coverage of your GitHub projects as well as full git history scans and reporting.
 
-**ggshield's** support of Github comes in the form of Github actions.
+**ggshield's** support of GitHub comes in the form of GitHub actions.
 
 The action for this repository is hosted at [gg-shield-action](https://github.com/GitGuardian/gg-shield-action).
 
-Configuring a Github workflow to use **ggshield** is as simple as
+Configuring a GitHub workflow to use **ggshield** is as simple as
 adding a step to your project's workflow:
 
 ```yaml
