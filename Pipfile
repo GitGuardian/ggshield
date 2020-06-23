@@ -4,12 +4,10 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-ggshield = {editable = true,path = "."}
-marshmallow ="*"
 click = "*"
+ggshield = {editable = true,path = "."}
+pygitguardian = "==1.1.0"
 pyyaml = "*"
-pygitguardian = "==1.0.3"
-ipython = "*"
 
 [dev-packages]
 black = "==19.10b0"

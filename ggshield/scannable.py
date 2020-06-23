@@ -93,7 +93,7 @@ class Files:
                 continue
             for index, scanned in enumerate(scan.scan_results):
                 remove_ignored_from_result(scanned, all_policies, matches_ignore)
-                if scanned.has_secrets:
+                if scanned.has_policy_breaks:
                     results.append(
                         Result(
                             content=chunk[index]["document"],

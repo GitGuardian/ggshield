@@ -1,37 +1,55 @@
+import io
+import os
 import re
-from os.path import abspath, dirname, join
 
 from setuptools import find_packages, setup
 
 
 VERSION_RE = re.compile(r"__version__\s*=\s*\"(.*?)\"")
+HERE = os.path.abspath(os.path.dirname(__file__))
 
 
-def readme():
-    with open(abspath("README.md")) as f:
-        return f.read()
+def read(*args):
+    """Reads complete file contents."""
+    return io.open(os.path.join(HERE, *args), encoding="utf-8").read()
 
 
-current_path = abspath(dirname(__file__))
+def get_version():
+    """Reads the version from this module."""
+    init = read("ggshield", "__init__.py")
+    return VERSION_RE.search(init).group(1)
 
-
-with open(join(current_path, "ggshield", "__init__.py")) as file:
-    content = file.read()
-    result = re.search(VERSION_RE, content)
-    if result is None:
-        raise Exception("could not find package version")
-    __version__ = result.group(1)
 
 setup(
+    name="ggshield",
+    version=get_version(),
+    packages=find_packages(exclude=["tests"]),
+    description="Detect secrets from all sources using GitGuardian's brains",
+    long_description=read("README.md"),
+    long_description_content_type="text/markdown",
+    url="https://github.com/GitGuardian/gg-shield",
     author="GitGuardian",
     author_email="support@gitguardian.com",
-    description="Detect policy breaks using GitGuardian's brains",
+    maintainer="GitGuardian",
     entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli"]},
+    install_requires=["requests", "click", "pyyaml", "pygitguardian"],
     include_package_data=True,
-    install_requires=["requests", "click", "pyyaml"],
-    name="ggshield",
-    packages=find_packages(exclude=["tests"]),
-    url="https://gitlab.gitguardian.ovh/gg-code/prm/pre-commit.git",
-    version=__version__,
     zip_safe=True,
+    license="MIT",
+    keywords="cli devsecops secrets-detection security-tools gitguardian",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Intended Audience :: End Users/Desktop",
+        "Natural Language :: English",
+        "License :: OSI Approved :: MIT License",
+        "Environment :: Console",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Operating System :: OS Independent",
+        "Topic :: Security",
+    ],
 )
