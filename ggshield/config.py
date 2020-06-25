@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List
+from typing import Any, Dict, List, NamedTuple
 
 import click
 import yaml
@@ -9,6 +9,10 @@ import yaml
 
 
 class Config:
+    class Attribute(NamedTuple):
+        name: str
+        default: Any
+
     CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
     CONFIG_GLOBAL = [
         os.path.join(os.path.expanduser("~"), ".gitguardian"),
@@ -16,37 +20,34 @@ class Config:
         os.path.join(os.path.expanduser("~"), ".gitguardian.yaml"),
     ]
 
+    attributes: List[Attribute] = [
+        Attribute("all_policies", False),
+        Attribute("api_url", "https://api.gitguardian.com"),
+        Attribute("matches_ignore", set()),
+        Attribute("paths_ignore", set()),
+        Attribute("show_secrets", False),
+        Attribute("verbose", False),
+    ]
+
     def __init__(self):
-        self.matches_ignore = set()
-        self.paths_ignore = set()
-        self.verbose = False
-        self.show_secrets = False
-        self.all_policies = False
+        for attr in self.attributes:
+            setattr(self, attr.name, attr.default)
         self.load_configs(self.CONFIG_GLOBAL)
         self.load_configs(self.CONFIG_LOCAL)
 
     def update_config(
-        self,
-        matches_ignore: List[str] = [],
-        paths_ignore: List[str] = [],
-        show_secrets: bool = None,
-        all_policies: bool = None,
-        verbose: bool = None,
-        **kwargs,
+        self, **kwargs,
     ):
-        if matches_ignore is not None:
-            self.matches_ignore.update(matches_ignore)
-        if paths_ignore is not None:
-            self.paths_ignore.update(paths_ignore)
-        if verbose is not None:
-            self.verbose = verbose
-        if show_secrets is not None:
-            self.show_secrets = show_secrets
-        if all_policies:
-            self.all_policies = all_policies
-
-        for key in kwargs:
-            click.echo("Unrecognized key in config: {}".format(key))
+        for key, item in kwargs.items():
+            if key in list(
+                list(zip(*self.attributes))[0]
+            ):  # get list of first elements in tuple
+                if isinstance(item, list):
+                    getattr(self, key).update(item)
+                else:
+                    setattr(self, key, item)
+            else:
+                click.echo("Unrecognized key in config: {}".format(key))
 
     def load_config(self, filename: str) -> bool:
         if not os.path.isfile(filename):

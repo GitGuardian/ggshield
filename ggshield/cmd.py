@@ -67,7 +67,7 @@ def scan(
 ) -> int:
     """ Command to scan various content. """
     api_key = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri = os.getenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
+    base_uri = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
     if not api_key:
         raise click.ClickException("GitGuardian API Key is needed.")
 
