@@ -42,6 +42,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1. [Introduction](#introduction)
 1. [Installation](#installation)
 1. [Configuration](#configuration)
+   1. [On-premises](#on-premises-configuration)
 1. [Commands](#commands)
 
    - Scan
@@ -167,8 +168,23 @@ show-secrets: false # default: false
 # By default only secrets are detected. Use all-policies to toggle this behaviour.
 all-policies: false # default: false
 
+api-url: https://api.gitguardian.com # GITGUARDIAN_API_URL environment variable will override this setting
+
 verbose: false # default: false
 ```
+
+## On-premises configuration
+
+**ggshield** can be configured to run on your on-premises dashboard, request an API key from your dashboard administrator.
+
+You can modify your environment variables to include:
+
+```shell
+GITGUARDIAN_API_KEY=<GitGuardian API Key>
+GITGUARDIAN_API_URL=<GitGuardian on-premises API URL>
+```
+
+Alternatively to setting the `GITGUARDIAN_API_URL` environment variable, set the `api-url` in your `.gitguardian.yaml`.
 
 # Pre-commit
 
