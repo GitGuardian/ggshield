@@ -15,3 +15,5 @@ show-secrets: false # default: false
 all-policies: false # default: false
 
 verbose: false # default: false
+
+api-url: https://api.gitguardian.com
