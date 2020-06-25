@@ -40,10 +40,8 @@ class TestConfig:
     @patch("ggshield.config.Config.CONFIG_GLOBAL", [""])
     def test_defaults(self, cli_fs_runner):
         config = Config()
-        assert config.verbose is False
-        assert config.show_secrets is False
-        assert len(config.matches_ignore) == 0
-        assert len(config.paths_ignore) == 0
+        for attr in config.attributes:
+            assert getattr(config, attr.name) == attr.default
 
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
     @patch("ggshield.config.Config.CONFIG_GLOBAL", [""])
@@ -69,13 +67,30 @@ class TestConfig:
     @patch("ggshield.config.Config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_display_options_inheritance(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"verbose": True, "show_secrets": False}))
+            file.write(
+                yaml.dump(
+                    {
+                        "verbose": True,
+                        "show_secrets": False,
+                        "api_url": "https://gitguardian.com",
+                    }
+                )
+            )
         with open(".gitguardian.yaml", "w") as file:
-            file.write(yaml.dump({"verbose": False, "show_secrets": True}))
+            file.write(
+                yaml.dump(
+                    {
+                        "verbose": False,
+                        "show_secrets": True,
+                        "api_url": "https://gitguardian.com/ex",
+                    }
+                )
+            )
 
         config = Config()
         assert config.verbose is True
         assert config.show_secrets is False
+        assert config.api_url == "https://gitguardian.com"
 
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
     @patch("ggshield.config.Config.CONFIG_GLOBAL", [""])
