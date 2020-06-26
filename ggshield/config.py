@@ -23,6 +23,7 @@ class Config:
     attributes: List[Attribute] = [
         Attribute("all_policies", False),
         Attribute("api_url", "https://api.gitguardian.com"),
+        Attribute("exit_zero", False),
         Attribute("matches_ignore", set()),
         Attribute("paths_ignore", set()),
         Attribute("show_secrets", False),

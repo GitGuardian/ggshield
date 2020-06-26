@@ -39,6 +39,14 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
     help="Show secrets in plaintext instead of hiding them",
 )
 @click.option(
+    "--exit-zero",
+    is_flag=True,
+    default=None,
+    envvar="GITGUARDIAN_EXIT_ZERO",
+    help="Always return a 0 (non-error) status code, even if issues are found."
+    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option",
+)
+@click.option(
     "--all-policies",
     is_flag=True,
     default=None,
@@ -61,6 +69,7 @@ def scan(
     recursive: bool,
     yes: bool,
     show_secrets: bool,
+    exit_zero: bool,
     all_policies: bool,
     verbose: bool,
     repo: str,
@@ -86,6 +95,9 @@ def scan(
 
     if verbose is None:
         verbose = ctx.obj["config"].verbose
+
+    if exit_zero is None:
+        exit_zero = ctx.obj["config"].exit_zero
 
     try:
         if mode:
@@ -140,6 +152,8 @@ def scan(
             traceback.print_exc()
         raise click.ClickException(str(error))
 
+    if exit_zero:
+        return_code = 0
     sys.exit(return_code)
 
 

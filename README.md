@@ -74,7 +74,7 @@ gg-shield supports **Python 3.6 and newer**.
 
 The package should run on MacOS, Linux and Windows.
 
-You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
+You'll need an **API Key** from the [GitGuardian dashboard](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
 
 Add the API Key to your environment variables:
 
@@ -114,9 +114,15 @@ Options:
   -r, --recursive             Scan directory recursively
   -y, --yes                   Confirm recursive scan
   --show-secrets              Show secrets in plaintext instead of hiding them
+  --exit-zero                 Always return a 0 (non-error) status code, even
+                              if issues are found.The env var
+                              GITGUARDIAN_EXIT_ZERO can also be used to set
+                              this option
+
   --all-policies              Present fails of all policies (Filenames,
                               FileExtensions, Secret Detection).By default,
                               only Secret Detection is shown
+
   -v, --verbose               Display the list of files before recursive scan
   --repo TEXT                 Scan Git Repository (repo url)
   -h, --help                  Show this message and exit.
@@ -164,6 +170,11 @@ matches-ignore:
   - MY_TEST_CREDENTIAL
 
 show-secrets: false # default: false
+
+# Set to true if the desired exit code for the CLI is always 0,
+# otherwise the exit code will be 1 if issues are found.
+# the environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behaviour.
+exit-zero: false # default: false
 
 # By default only secrets are detected. Use all-policies to toggle this behaviour.
 all-policies: false # default: false

@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from ggshield.cmd import cli
 
-from .conftest import my_vcr
+from .conftest import _SIMPLE_SECRET, my_vcr
 
 
 @pytest.fixture(scope="session")
@@ -38,6 +38,26 @@ def test_scan_file(cli_fs_runner):
     result = cli_fs_runner.invoke(cli, ["scan", "-v", "file"])
     assert not result.exception
     assert "No secrets have been found" in result.output
+
+
+def test_scan_file_secret(cli_fs_runner):
+    os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')
+    assert os.path.isfile("file_secret")
+
+    with my_vcr.use_cassette("test_scan_file_secret"):
+        result = cli_fs_runner.invoke(cli, ["scan", "-v", "file_secret"])
+        assert result.exit_code == 1
+        assert result.exception
+
+
+def test_scan_file_secret_exit_zero(cli_fs_runner):
+    os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')
+    assert os.path.isfile("file_secret")
+
+    with my_vcr.use_cassette("test_scan_file_secret"):
+        result = cli_fs_runner.invoke(cli, ["scan", "--exit-zero", "-v", "file_secret"])
+        assert result.exit_code == 0
+        assert not result.exception
 
 
 class TestScanFiles:
