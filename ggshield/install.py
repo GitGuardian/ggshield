@@ -29,7 +29,7 @@ def install_global(force: bool) -> int:
 
     if not hook_dir_path:
         hook_dir_path = os.path.expanduser("~/.git/hooks")
-        subprocess.call(["git", "config", "--global", "core.hooksPath", hook_dir_path])
+        subprocess.run(["git", "config", "--global", "core.hooksPath", hook_dir_path])
 
     return create_hook(hook_dir_path, force)
 
