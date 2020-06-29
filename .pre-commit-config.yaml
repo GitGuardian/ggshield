@@ -44,7 +44,7 @@ repos:
 
   - repo: local
     hooks:
-      - id: ggshield
+      - id: ggshield-local
         name: GitGuardian Shield
         entry: ggshield scan -m pre-commit
         language: python
@@ -52,8 +52,8 @@ repos:
         stages: [commit]
 
   - repo: https://github.com/gitguardian/gg-shield
-    rev: v1.0.1
+    rev: v1.0.2
     hooks:
-      - id: commit-ggshield
+      - id: ggshield
         language_version: python3
         stages: [commit]

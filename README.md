@@ -216,7 +216,7 @@ repos:
   - repo: https://github.com/gitguardian/gg-shield
     rev: main
     hooks:
-      - id: commit-ggshield
+      - id: ggshield
         language_version: python3
         stages: [commit]
 ```
