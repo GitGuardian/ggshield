@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Dict, Iterable, List, NamedTuple, Optional, Set
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 import click
 from pygitguardian import GGClient
@@ -35,7 +35,7 @@ class File:
         self.filesize = filesize if filesize else len(self.document.encode("utf-8"))
 
     @property
-    def scan_dict(self) -> Dict[str, str]:
+    def scan_dict(self) -> Dict[str, Any]:
         """ Return a payload compatible with the scanning API. """
         return {
             "filename": self.filename
@@ -73,7 +73,7 @@ class Files:
         return self._files
 
     @property
-    def scannable_list(self) -> List[Dict[str, str]]:
+    def scannable_list(self) -> List[Dict[str, Any]]:
         return [entry.scan_dict for entry in self.files.values()]
 
     def scan(
@@ -111,10 +111,10 @@ class Commit(Files):
     Commit represents a commit which is a list of commit files.
     """
 
-    def __init__(self, sha: Optional[str] = None, filter_set: Optional[Set[str]] = {}):
+    def __init__(self, sha: Optional[str] = None, filter_set: Set[str] = set()):
         self.sha = sha
         self._patch = None
-        self._files = None
+        self._files = {}
         self.filter_set = filter_set
 
     @property

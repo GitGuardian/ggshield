@@ -2,7 +2,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, List, Set, Union
+from typing import Iterable, List, Set
 
 import click
 from pygitguardian import GGClient
@@ -48,7 +48,7 @@ def process_results(
 def scan_path(
     client: GGClient,
     verbose: bool,
-    paths: Union[List, str],
+    paths: List[str],
     paths_ignore: List[str],
     recursive: bool,
     yes: bool,
@@ -327,7 +327,7 @@ def scan_repo(
     with tempfile.TemporaryDirectory() as tmpdirname:
         shell(["git", "clone", repo, tmpdirname])
         with cd(tmpdirname):
-            scan_commit_range(
+            return scan_commit_range(
                 client=client,
                 commit_list=get_list_all_commits(),
                 verbose=verbose,

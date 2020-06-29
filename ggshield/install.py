@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from typing import Optional
 
 import click
 
@@ -34,7 +35,7 @@ def install_global(force: bool) -> int:
     return create_hook(hook_dir_path, force)
 
 
-def get_global_hook_dir_path() -> str:
+def get_global_hook_dir_path() -> Optional[str]:
     """ Return the default hooks path (if it exists). """
     with subprocess.Popen(
         ["git", "config", "--global", "--get", "core.hooksPath"], stdout=subprocess.PIPE
@@ -43,7 +44,7 @@ def get_global_hook_dir_path() -> str:
             return None
 
         return os.path.expanduser(
-            click.format_filename(process.communicate()[0]).strip()
+            click.format_filename(process.communicate()[0].decode("utf-8")).strip()
         )
 
 

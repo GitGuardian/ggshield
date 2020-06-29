@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Set, Union
+from typing import Iterable, List, Set, Union
 
 import click
 
@@ -13,7 +13,7 @@ BINARY_FILE_EXTENSIONS = (".tar", ".xz", ".gz")
 
 
 def get_files_from_paths(
-    paths: Union[Path, str],
+    paths: List[str],
     paths_ignore: List[str],
     recursive: bool,
     yes: bool,
@@ -46,7 +46,7 @@ def get_files_from_paths(
 
 def get_filepaths(
     paths: Union[List, str], paths_ignore: Iterable[str], recursive: bool
-) -> Set[Path]:
+) -> Set[str]:
     """
     Retrieve the filepaths from the command.
 
@@ -70,7 +70,7 @@ def get_filepaths(
     return targets
 
 
-def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[Dict]:
+def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[File]:
     """Generate a list of scannable files from a list of filepaths."""
     for path in paths:
         if os.path.isdir(path):
