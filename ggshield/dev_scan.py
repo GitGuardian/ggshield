@@ -9,7 +9,7 @@ import click
 from pygitguardian import GGClient
 
 from .filter import path_filter_set
-from .git_shell import check_git_dir, get_list_all_commits, shell
+from .git_shell import check_git_dir, get_list_all_commits, get_list_commit_SHA, shell
 from .message import process_results
 from .path import get_files_from_paths
 from .scannable import Commit
@@ -58,14 +58,32 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:
 
 
 @click.command()
+@click.argument("commit_range", nargs=1, type=click.STRING)
 @click.pass_context
-def range_cmd(ctx: click.Context) -> int:
+def range_cmd(ctx: click.Context, commit_range: str) -> int:
     """
-    scan a defined commit-range.
+    scan a defined COMMIT_RANGE in git.
+
+    git rev-list COMMIT_RANGE to list several commits to scan.
+    example: ggshield scan commit-range HEAD~1...
     """
     config = ctx.obj["config"]
     try:
-        return 0
+        commit_list = get_list_commit_SHA(commit_range)
+        if not commit_list:
+            raise click.ClickException("invalid commit range")
+        if config.verbose:
+            click.echo("Commits to scan: {}".format(len(commit_list)))
+
+        return scan_commit_range(
+            client=ctx.obj["client"],
+            commit_list=commit_list,
+            verbose=config.verbose,
+            filter_set=ctx.obj["filter_set"],
+            matches_ignore=config.matches_ignore,
+            all_policies=config.all_policies,
+            show_secrets=config.show_secrets,
+        )
     except click.exceptions.Abort:
         return 0
     except Exception as error:
