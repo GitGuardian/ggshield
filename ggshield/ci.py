@@ -1,98 +1,16 @@
 import os
-import tempfile
-from contextlib import contextmanager
-from pathlib import Path
-from typing import Iterable, List, Set
+import traceback
+from typing import List
 
 import click
-from pygitguardian import GGClient
 
-from .filter import path_filter_set
-from .git_shell import get_list_all_commits, get_list_commit_SHA, shell
-from .message import leak_message, no_leak_message
-from .path import get_files_from_paths
-from .scannable import Commit, Result
+from .dev_scan import scan_commit_range
+from .git_shell import check_git_dir, get_list_commit_SHA
 
 
 SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB ACTIONS | BITBUCKET PIPELINES]"
 
 NO_BEFORE = "0000000000000000000000000000000000000000"
-
-
-def process_results(
-    results: List[Result], verbose: bool, show_secrets: bool, nb_lines: int = 3,
-) -> int:
-    """
-    Process a scan result.
-
-    :param results: The results from scanning API
-    :param nb_lines: The number of lines to display before and after a secret in the
-    patch
-    :param show_secrets: Show secrets value
-    :param verbose: Display message even if there is no secrets
-    :return: The exit code
-    """
-
-    for result in results:
-        leak_message(result, show_secrets, nb_lines)
-
-    if results:
-        return 1
-
-    if verbose:
-        no_leak_message()
-
-    return 0
-
-
-def scan_path(
-    client: GGClient,
-    verbose: bool,
-    paths: List[str],
-    paths_ignore: List[str],
-    recursive: bool,
-    yes: bool,
-    matches_ignore: Iterable[str],
-    all_policies: bool,
-    show_secrets: bool,
-) -> int:
-    files = get_files_from_paths(
-        paths=paths,
-        paths_ignore=paths_ignore,
-        recursive=recursive,
-        yes=yes,
-        verbose=verbose,
-    )
-    return process_results(
-        results=files.scan(
-            client=client,
-            matches_ignore=matches_ignore,
-            all_policies=all_policies,
-            verbose=verbose,
-        ),
-        show_secrets=show_secrets,
-        verbose=verbose,
-    )
-
-
-def scan_pre_commit(
-    client: GGClient,
-    filter_set: Set[str],
-    matches_ignore: Iterable[str],
-    verbose: bool,
-    all_policies: bool,
-    show_secrets: bool,
-):
-    return process_results(
-        results=Commit(filter_set=filter_set).scan(
-            client=client,
-            matches_ignore=matches_ignore,
-            all_policies=all_policies,
-            verbose=verbose,
-        ),
-        verbose=verbose,
-        show_secrets=show_secrets,
-    )
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
@@ -270,119 +188,53 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def scan_ci(
-    client: GGClient,
-    verbose: bool,
-    filter_set: Set[str],
-    matches_ignore: Iterable[str],
-    all_policies: bool,
-    show_secrets: bool,
-) -> int:  # pragma: no cover
-    """ Scan commits in CI environment. """
-    if not (os.getenv("CI") or os.getenv("JENKINS_HOME")):
-        raise click.ClickException("--ci should only be used in a CI environment.")
-
-    if os.getenv("GITLAB_CI"):
-        commit_list = gitlab_ci_range(verbose)
-    elif os.getenv("GITHUB_ACTIONS"):
-        commit_list = github_actions_range(verbose)
-    elif os.getenv("TRAVIS"):
-        commit_list = travis_range(verbose)
-    elif os.getenv("JENKINS_HOME"):
-        commit_list = jenkins_range(verbose)
-    elif os.getenv("CIRCLECI"):
-        commit_list = circle_ci_range(verbose)
-    elif os.getenv("BITBUCKET_COMMIT"):
-        commit_list = bitbucket_pipelines_range(verbose)
-
-    else:
-        raise click.ClickException(
-            "Current CI is not detected or supported. Must be one of {}".format(
-                SUPPORTED_CI
-            )
-        )
-
-    if verbose:
-        click.echo("Commits to scan: {}".format(len(commit_list)))
-
-    return scan_commit_range(
-        client=client,
-        commit_list=commit_list,
-        verbose=verbose,
-        filter_set=filter_set,
-        matches_ignore=matches_ignore,
-        all_policies=all_policies,
-        show_secrets=show_secrets,
-    )
-
-
-def scan_repo(
-    client: GGClient,
-    verbose: bool,
-    repo: str,
-    matches_ignore: Iterable[str],
-    all_policies: bool,
-    show_secrets: bool,
-) -> int:  # pragma: no cover
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        shell(["git", "clone", repo, tmpdirname])
-        with cd(tmpdirname):
-            return scan_commit_range(
-                client=client,
-                commit_list=get_list_all_commits(),
-                verbose=verbose,
-                filter_set=path_filter_set(Path(os.getcwd()), []),
-                matches_ignore=matches_ignore,
-                all_policies=all_policies,
-                show_secrets=show_secrets,
-            )
-
-
-@contextmanager
-def cd(newdir):
-    prevdir = os.getcwd()
-    os.chdir(os.path.expanduser(newdir))
+@click.command()
+@click.pass_context
+def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
+    """
+    scan in a CI environment.
+    """
+    config = ctx.obj["config"]
     try:
-        yield
-    finally:
-        os.chdir(prevdir)
+        check_git_dir()
+        if not (os.getenv("CI") or os.getenv("JENKINS_HOME")):
+            raise click.ClickException("--ci should only be used in a CI environment.")
 
+        if os.getenv("GITLAB_CI"):
+            commit_list = gitlab_ci_range(config.verbose)
+        elif os.getenv("GITHUB_ACTIONS"):
+            commit_list = github_actions_range(config.verbose)
+        elif os.getenv("TRAVIS"):
+            commit_list = travis_range(config.verbose)
+        elif os.getenv("JENKINS_HOME"):
+            commit_list = jenkins_range(config.verbose)
+        elif os.getenv("CIRCLECI"):
+            commit_list = circle_ci_range(config.verbose)
+        elif os.getenv("BITBUCKET_COMMIT"):
+            commit_list = bitbucket_pipelines_range(config.verbose)
 
-def scan_commit_range(
-    client: GGClient,
-    commit_list: List[str],
-    verbose: bool,
-    filter_set: Set[str],
-    matches_ignore: Iterable[str],
-    all_policies: bool,
-    show_secrets: bool,
-) -> int:  # pragma: no cover
-    """
-    Scan every commit in a range.
+        else:
+            raise click.ClickException(
+                "Current CI is not detected or supported. Must be one of {}".format(
+                    SUPPORTED_CI
+                )
+            )
 
-    :param client: Public Scanning API client
-    :param commit_range: Range of commits to scan (A...B)
-    :param verbose: Display successfull scan's message
-    """
-    return_code = 0
+        if config.verbose:
+            click.echo("Commits to scan: {}".format(len(commit_list)))
 
-    for sha in commit_list:
-        commit = Commit(sha, filter_set)
-        results = commit.scan(
-            client=client,
-            matches_ignore=matches_ignore,
-            all_policies=all_policies,
-            verbose=verbose,
+        return scan_commit_range(
+            client=ctx.obj["client"],
+            commit_list=commit_list,
+            verbose=config.verbose,
+            filter_set=ctx.obj["filter_set"],
+            matches_ignore=config.matches_ignore,
+            all_policies=config.all_policies,
+            show_secrets=config.show_secrets,
         )
-
-        if results or verbose:
-            click.echo("\nCommit {}:".format(sha))
-
-        return_code = max(
-            return_code,
-            process_results(
-                results=results, verbose=verbose, show_secrets=show_secrets,
-            ),
-        )
-
-    return return_code
+    except click.exceptions.Abort:
+        return 0
+    except Exception as error:
+        if config.verbose:
+            traceback.print_exc()
+        raise click.ClickException(str(error))

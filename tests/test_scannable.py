@@ -3,9 +3,10 @@ from collections import namedtuple
 
 import pytest
 
-from ggshield.scan import process_results
+from ggshield.config import MAX_FILE_SIZE
+from ggshield.message import process_results
 from ggshield.scannable import Commit
-from ggshield.utils import MAX_FILE_SIZE, Filemode
+from ggshield.utils import Filemode
 
 from .conftest import (
     _MULTIPLE_SECRETS,

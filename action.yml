@@ -8,6 +8,6 @@ runs:
   image: 'Dockerfile'
   args:
     - ggshield
-    - scan
     - -v
-    - --mode=ci
+    - scan
+    - ci

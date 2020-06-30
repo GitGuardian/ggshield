@@ -1,12 +1,12 @@
 from enum import Enum, auto
-from typing import List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 import click
 
 
 LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
-STYLE = {
+STYLE: Dict[str, Dict[str, Any]] = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},
     "filename": {"fg": "bright_yellow", "bold": True},
     "patch": {"fg": "white"},
@@ -79,7 +79,7 @@ class Line(NamedTuple):
         )
 
 
-def format_text(text: str, style: str) -> str:
+def format_text(text: str, style: Dict[str, Any]) -> str:
     """ Return the formatted text with the given style. """
     return click.style(
         text, fg=style["fg"], bold=style.get("bold", False), dim=style.get("dim", False)

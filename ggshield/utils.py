@@ -1,14 +1,11 @@
 import re
 from enum import Enum
-from typing import List
+from typing import Iterable, List
 
 from pygitguardian.models import Match
 
 from .text_utils import Line, LineCategory
 
-
-# max file size to accept
-MAX_FILE_SIZE = 1048576
 
 REGEX_PATCH_HEADER = re.compile(
     r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
@@ -55,7 +52,7 @@ def get_lines_from_content(
     return list(get_lines_from_file(content))
 
 
-def get_lines_from_file(content: str) -> List:
+def get_lines_from_file(content: str) -> Iterable[Line]:
     """ Return the lines with line number from a file. """
     for line_count, line_content in enumerate(content.split("\n")):
         yield Line(

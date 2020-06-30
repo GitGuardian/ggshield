@@ -5,6 +5,10 @@ import click
 import yaml
 
 
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+# max file size to accept
+MAX_FILE_SIZE = 1048576
+
 # The order is important, we look at the first existing file
 
 

@@ -7,10 +7,11 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
+from .config import MAX_FILE_SIZE
 from .filter import remove_ignored_from_result
 from .git_shell import shell
 from .scannable_errors import handle_scan_error
-from .utils import MAX_FILE_SIZE, Filemode
+from .utils import Filemode
 
 
 class Result(NamedTuple):

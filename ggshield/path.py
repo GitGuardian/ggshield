@@ -4,9 +4,9 @@ from typing import Iterable, List, Set, Union
 
 import click
 
+from .config import MAX_FILE_SIZE
 from .filter import path_filter_set
 from .scannable import File, Files
-from .utils import MAX_FILE_SIZE
 
 
 BINARY_FILE_EXTENSIONS = (".tar", ".xz", ".gz")
