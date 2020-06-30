@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import click
 from pygitguardian.models import Match, PolicyBreak
@@ -141,7 +141,7 @@ def policy_break_header(
     )
 
 
-def leak_message(result: Result, show_secrets: bool, nb_lines: int = 2):
+def leak_message(result: Result, show_secrets: bool, nb_lines: int = 3):
     """
     Build readable message on the found policy breaks.
 
@@ -286,14 +286,14 @@ def no_leak_message():
 
 def get_lines_to_display(
     flat_matches_dict: Dict[int, List[Match]], lines: List, nb_lines: int
-) -> List[str]:
+) -> Set[str]:
     """ Retrieve the line indexes to display in the content with no secrets. """
-    lines_to_display = set()
+    lines_to_display: Set[str] = set()
 
     for line in sorted(flat_matches_dict):
         for match in flat_matches_dict[line]:
             lines_to_display.update(
-                range(match.line_start - nb_lines + 1, match.line_start + 1)
+                range(max(match.line_start - nb_lines + 1, 0), match.line_start + 1)
             )
             if match.line_end + 1 <= len(lines):
                 lines_to_display.update(
@@ -303,3 +303,27 @@ def get_lines_to_display(
                 )
 
     return lines_to_display
+
+
+def process_results(results: List[Result], show_secrets: bool, verbose: bool):
+    """
+    Process a scan result.
+
+    :param results: The results from scanning API
+    :param nb_lines: The number of lines to display before and after a secret in the
+    patch
+    :param show_secrets: Show secrets value
+    :param verbose: Display message even if there is no secrets
+    :return: The exit code
+    """
+
+    for result in results:
+        leak_message(result, show_secrets)
+
+    if results:
+        return 1
+
+    if verbose:
+        no_leak_message()
+
+    return 0

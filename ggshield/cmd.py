@@ -1,27 +1,28 @@
 #!/usr/bin/python3
 import os
 import sys
-import traceback
 from pathlib import Path
-from typing import List, Union
 
 import click
 from pygitguardian import GGClient
 
-from .config import Config
+from .ci import ci_cmd
+from .config import CONTEXT_SETTINGS, Config
+from .dev_scan import path_cmd, precommit_cmd, range_cmd, repo_cmd
 from .filter import path_filter_set
-from .git_shell import check_git_dir
 from .install import install
-from .scan import scan_ci, scan_path, scan_pre_commit, scan_repo
 
 
-CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-
-
-@click.command()
-@click.pass_context
-@click.argument(
-    "paths", nargs=-1, type=click.Path(exists=True, resolve_path=True), required=False
+@click.group(
+    invoke_without_command=True,
+    context_settings=CONTEXT_SETTINGS,
+    commands={
+        "commit-range": range_cmd,
+        "pre-commit": precommit_cmd,
+        "ci": ci_cmd,
+        "path": path_cmd,
+        "repo": repo_cmd,
+    },
 )
 @click.option(
     "--mode",
@@ -30,13 +31,11 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
     help="Scan mode (pre-commit or ci)",
     required=False,
 )
-@click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
-@click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
 @click.option(
     "--show-secrets",
     is_flag=True,
     default=None,
-    help="Show secrets in plaintext instead of hiding them",
+    help="Show secrets in plaintext instead of hiding them.",
 )
 @click.option(
     "--exit-zero",
@@ -44,128 +43,102 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
     default=None,
     envvar="GITGUARDIAN_EXIT_ZERO",
     help="Always return a 0 (non-error) status code, even if issues are found."
-    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option",
+    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
 )
 @click.option(
     "--all-policies",
     is_flag=True,
     default=None,
     help="Present fails of all policies (Filenames, FileExtensions, Secret Detection)."
-    "By default, only Secret Detection is shown"
-    "",
+    " By default, only Secret Detection is shown.",
 )
 @click.option(
     "--verbose",
     "-v",
     is_flag=True,
     default=None,
-    help="Display the list of files before recursive scan",
+    help="[DEPRECATED] verbose display mode. use -v in parent command.",
 )
-@click.option("--repo", nargs=1, help="Scan Git Repository (repo url)")
+@click.pass_context
 def scan(
     ctx: click.Context,
-    paths: Union[List, str],
     mode: str,
-    recursive: bool,
-    yes: bool,
     show_secrets: bool,
     exit_zero: bool,
     all_policies: bool,
     verbose: bool,
-    repo: str,
 ) -> int:
-    """ Command to scan various content. """
+    """ Command to scan various contents. """
     api_key = os.getenv("GITGUARDIAN_API_KEY")
     base_uri = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
     if not api_key:
         raise click.ClickException("GitGuardian API Key is needed.")
 
-    client = GGClient(
+    ctx.obj["client"] = GGClient(
         api_key=api_key, base_uri=base_uri, user_agent="ggshield", timeout=60
     )
     return_code = 0
 
-    matches_ignore = ctx.obj["config"].matches_ignore
-    filter_set = path_filter_set(Path(os.getcwd()), ctx.obj["config"].paths_ignore)
-    if show_secrets is None:
-        show_secrets = ctx.obj["config"].show_secrets
+    ctx.obj["filter_set"] = path_filter_set(
+        Path(os.getcwd()), ctx.obj["config"].paths_ignore
+    )
+    if show_secrets is not None:
+        ctx.obj["config"].show_secrets = show_secrets
 
-    if all_policies is None:
-        all_policies = ctx.obj["config"].all_policies
+    if all_policies is not None:
+        ctx.obj["config"].all_policies = all_policies
 
-    if verbose is None:
-        verbose = ctx.obj["config"].verbose
+    if verbose is not None:
+        ctx.obj["config"].verbose = verbose
 
-    if exit_zero is None:
-        exit_zero = ctx.obj["config"].exit_zero
+    if exit_zero is not None:
+        ctx.obj["config"].exit_zero = exit_zero
 
-    try:
+    if ctx.invoked_subcommand is None:
         if mode:
-            check_git_dir()
+            click.echo(
+                "--mode has been deprecated and will be removed "
+                "after ggshield version 1.2. prefer to use subcommands."
+            )
             if mode == "pre-commit":
-                return_code = scan_pre_commit(
-                    client=client,
-                    filter_set=filter_set,
-                    matches_ignore=matches_ignore,
-                    verbose=verbose,
-                    all_policies=all_policies,
-                    show_secrets=show_secrets,
-                )
+                return ctx.invoke(precommit_cmd)
             elif mode == "ci":
-                return_code = scan_ci(
-                    client=client,
-                    verbose=verbose,
-                    filter_set=filter_set,
-                    matches_ignore=matches_ignore,
-                    all_policies=all_policies,
-                    show_secrets=show_secrets,
-                )
+                return ctx.invoke(ci_cmd)
             else:
                 click.echo(ctx.get_help())
-        elif repo:
-            return_code = scan_repo(
-                client=client,
-                verbose=verbose,
-                repo=repo,
-                matches_ignore=matches_ignore,
-                all_policies=all_policies,
-                show_secrets=show_secrets,
-            )
-        elif paths:
-            return_code = scan_path(
-                client=client,
-                verbose=verbose,
-                paths=paths,
-                paths_ignore=ctx.obj["config"].paths_ignore,
-                recursive=recursive,
-                yes=yes,
-                matches_ignore=matches_ignore,
-                all_policies=all_policies,
-                show_secrets=show_secrets,
-            )
         else:
             click.echo(ctx.get_help())
-    except click.exceptions.Abort:
-        return_code = 0
-    except Exception as error:
-        if verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
-
-    if exit_zero:
-        return_code = 0
-    sys.exit(return_code)
+    return return_code
 
 
-@click.group(context_settings=CONTEXT_SETTINGS)
+@scan.resultcallback()
+@click.pass_context
+def exit_code(ctx: click.Context, exit_code: int, **kwargs):
+    """
+    exit_code guarantees that the return value of a scan is 0
+    when exit_zero is enabled
+    """
+
+    if ctx.obj["config"].exit_zero:
+        sys.exit(0)
+
+    sys.exit(exit_code)
+
+
+@click.group(
+    context_settings=CONTEXT_SETTINGS, commands={"scan": scan, "install": install}
+)
 @click.option(
     "-c",
     "--config-path",
     type=click.Path(exists=True, resolve_path=True, file_okay=True, dir_okay=False),
     help="Set a custom config file. Ignores local and global config files.",
 )
+@click.option(
+    "--verbose", "-v", is_flag=True, default=None, help="verbose display mode",
+)
 @click.pass_context
-def cli(ctx: click.Context, config_path: str):
+def cli(ctx: click.Context, config_path: str, verbose: bool):
     ctx.ensure_object(dict)
     if config_path:
         Config.CONFIG_LOCAL = [config_path]
@@ -173,9 +146,9 @@ def cli(ctx: click.Context, config_path: str):
 
     ctx.obj["config"] = Config()
 
+    if verbose is not None:
+        ctx.obj["config"].verbose = verbose
 
-cli.add_command(scan)
-cli.add_command(install)
 
 if __name__ == "__main__":
     cli()

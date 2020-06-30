@@ -1,6 +1,6 @@
 from os import getcwd
 
-from ggshield.scan import cd
+from ggshield.dev_scan import cd
 
 
 def test_cd_context_manager():

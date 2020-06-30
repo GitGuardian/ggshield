@@ -1,13 +1,8 @@
-- id: commit-ggshield
-  name: GitGuardian Shield (pre-commit)
-  language: python
-  entry: ggshield
-  args: ['scan', '-m', 'pre-commit']
 - id: ggshield
   name: GitGuardian Shield (pre-commit)
   language: python
   entry: ggshield
-  args: ['scan', '-m', 'pre-commit']
+  args: ['scan', 'pre-commit']
 - id: docker-ggshield
   name: GitGuardian Shield (docker)
   language: docker_image

@@ -38,6 +38,7 @@ snapshots[
 
 >>> Policy break 3(Secrets detection): SendGrid Key (Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1) (1 occurence)
 
+  7 | **********************+*****************************************
   8 | ****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | -----END RSA PRIVATE KEY----- token: SG._Yytrtvlj******************************************-**rRJLGFLBLf0M
                                            |_______________________________apikey______________________________|
@@ -60,6 +61,7 @@ snapshots[
                          |_______________________________apikey______________________________|
 
   2 | MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
+  3 | bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I
 
 >>> Policy break 3(Secrets detection): RSA Private Key (Ignore with SHA: bc9ae02c5ca67523e8381ac3908089afb0cf9b82c74e92997d5bedda0016bec4) (1 occurence)
 
@@ -68,6 +70,7 @@ snapshots[
                                                         
 
   2 | MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
+  3 | bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I
 """
 
 snapshots[
