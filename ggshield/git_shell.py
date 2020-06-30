@@ -39,7 +39,11 @@ def shell(command: List[str]) -> List[str]:
     """ Execute a command in a subprocess. """
     try:
         result = subprocess.run(
-            command, check=True, stdout=subprocess.PIPE, timeout=COMMAND_TIMEOUT
+            command,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=COMMAND_TIMEOUT,
         )
         return result.stdout.decode("utf-8").rstrip().split("\n")
     except subprocess.CalledProcessError:
@@ -58,7 +62,10 @@ def get_list_commit_SHA(commit_range: str) -> List[str]:
     :param commit_range: A range of commits (ORIGIN...HEAD)
     """
 
-    return shell([GIT_PATH, "rev-list", "--reverse", commit_range])
+    commit_list = shell([GIT_PATH, "rev-list", "--reverse", *commit_range.split()])
+    if "" in commit_list:
+        commit_list.remove("")
+    return commit_list
 
 
 def get_list_all_commits() -> List[str]:

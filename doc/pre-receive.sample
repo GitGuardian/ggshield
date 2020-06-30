@@ -1,0 +1,27 @@
+#!/bin/bash
+# gg-shield as a pre-commit hook
+# Move `pre-receive.sample` to `.git/hooks/pre-receive`
+# Do not forget to `chmod +x .git/hooks/pre-receive`
+# either set an environment variable machine wide `GITGUARDIAN_API_KEY`
+# or uncomment and insert your key in the following line
+
+#export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
+
+# Commit sha with all zeros
+zero_commit="0000000000000000000000000000000000000000"
+
+while read -r oldrev newrev refname; do
+    # Check if a zero sha
+    if [ "${oldrev}" = "${zero_commit}" ]; then
+        # List everything reachable from newrev but not any heads
+        span="$(git for-each-ref --format='%(refname)' 'refs/heads/*' | sed 's/^/\^/') ${newrev}"
+    else
+        span="${oldrev}...${newrev}"
+    fi
+
+    docker run -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
+
+    echo "ERROR: Your push was rejected because it contained a policy break"
+    echo "ERROR: Please contact your Git administrator if this was a false positive."
+    exit 1
+done
