@@ -6,4 +6,4 @@
 - id: docker-ggshield
   name: GitGuardian Shield (docker)
   language: docker_image
-  entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan -m pre-commit
+  entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan pre-commit

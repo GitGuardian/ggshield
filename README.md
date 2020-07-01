@@ -30,6 +30,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 ### Currently supported integrations
 
 - [Pre-commit hooks](#pre-commit)
+- [Pre-receive hooks](#pre-receive)
 - [GitLab](#gitlab)
 - [GitHub Actions](#github)
 - [Bitbucket Pipelines](#bitbucket)
@@ -53,14 +54,15 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    - The pre-commit framework
    - The global and local pre-commit hook
 
-1. [GitLab](#gitlab)
-1. [GitHub Actions](#github)
-1. [Circle CI](#circle-ci)
-1. [Travis CI](#travis-ci)
-1. [Jenkins](#jenkins)
-1. [Output](#output)
-1. [Contributing](#contributing)
-1. [License](#license)
+1) [Pre-receive hook](#pre-receive)
+1) [GitLab](#gitlab)
+1) [GitHub Actions](#github)
+1) [Circle CI](#circle-ci)
+1) [Travis CI](#travis-ci)
+1) [Jenkins](#jenkins)
+1) [Output](#output)
+1) [Contributing](#contributing)
+1) [License](#license)
 
 # Installation
 
@@ -88,45 +90,96 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 Usage: ggshield [OPTIONS] COMMAND [ARGS]...
 
 Options:
-  -h, --help    Show this message and exit.
+  -c, --config-path FILE  Set a custom config file. Ignores local and global
+                          config files.
+
+  -v, --verbose           Verbose display mode.
+  -h, --help              Show this message and exit.
 
 Commands:
   install  Command to install a pre-commit hook (local or global).
-  scan     Command to scan various content.
+  scan     Command to scan various contents.
 ```
 
 ## Scan command
 
-**gg-shield** allows you to scan your files in 4 different ways:
-
-- `Pre-commit`: scan every changes that have been staged in a git repository.
-- `CI`: scan each commit since the last build in your CI.
-- `Files`: scan files or directories with the recursive option.
-- `Repo`: (`--repo <URL>`) scan all commits in a git repository.
+`ggshield scan` is the main command for **gg-shield**, it has a few config
+options that can be used to override output behaviour.
 
 ```shell
-Usage: ggshield scan [OPTIONS] [PATHS]...
+Usage: ggshield scan [OPTIONS] COMMAND [ARGS]...
 
-  Command to scan various content.
+  Command to scan various contents.
 
 Options:
-  -m, --mode [pre-commit|ci]  Scan mode (pre-commit or ci)
-  -r, --recursive             Scan directory recursively
-  -y, --yes                   Confirm recursive scan
-  --show-secrets              Show secrets in plaintext instead of hiding them
-  --exit-zero                 Always return a 0 (non-error) status code, even
-                              if issues are found.The env var
-                              GITGUARDIAN_EXIT_ZERO can also be used to set
-                              this option
+  --show-secrets  Show secrets in plaintext instead of hiding them.
+  --exit-zero     Always return a 0 (non-error) status code, even if issues
+                  are found.The env var GITGUARDIAN_EXIT_ZERO can also be used
+                  to set this option.
 
-  --all-policies              Present fails of all policies (Filenames,
-                              FileExtensions, Secret Detection).By default,
-                              only Secret Detection is shown
+  --all-policies  Present fails of all policies (Filenames, FileExtensions,
+                  Secret Detection). By default, only Secret Detection is
+                  shown.
 
-  -v, --verbose               Display the list of files before recursive scan
-  --repo TEXT                 Scan Git Repository (repo url)
-  -h, --help                  Show this message and exit.
+  -v, --verbose   Verbose display mode.
+  -h, --help      Show this message and exit.
+
+Commands:
+  ci            scan in a CI environment.
+  commit-range  scan a defined COMMIT_RANGE in git.
+  path          scan files and directories.
+  pre-commit    scan as a pre-commit git hook.
+  repo          clone and scan a REPOSITORY.
 ```
+
+`ggshield scan` has different subcommands for each type of scan:
+
+- `CI`: scan each commit since the last build in your CI.
+
+  `ggshield scan ci`
+
+  No options or arguments
+
+- `Commit Range`: scan each commit in the given commit range
+
+  ```
+  Usage: ggshield scan commit-range [OPTIONS] COMMIT_RANGE
+
+    scan a defined COMMIT_RANGE in git.
+
+    git rev-list COMMIT_RANGE to list several commits to scan. example:
+    ggshield scan commit-range HEAD~1...
+  ```
+
+- `Path`: scan files or directories with the recursive option.
+
+  ```
+  Usage: ggshield scan path [OPTIONS] PATHS...
+
+    scan files and directories.
+
+  Options:
+    -r, --recursive  Scan directory recursively
+    -y, --yes        Confirm recursive scan
+    -h, --help       Show this message and exit.
+  ```
+
+- `Pre-commit`: scan every changes that have been staged in a git repository.
+
+  `ggshield scan pre-commit`
+
+  No options or arguments
+
+- `Repo`: scan all commits in a git repository.
+
+  ```
+  Usage: ggshield scan repo [OPTIONS] REPOSITORY
+
+    clone and scan a REPOSITORY.
+
+    REPOSITORY is the clone URI of the repository to scan. example:
+    ggshield scan repo git@github.com:GitGuardian/gg-shield.git
+  ```
 
 ## Install command
 
@@ -149,11 +202,13 @@ Options:
 
 Configuration in `ggshield` follows a `global>local>CLI` configuration scheme.
 
-Meaning options on local overwrite or extend global and options on CLI overwrite or extend local.
+Meaning options on `local` overwrite or extend `global` and options on CLI overwrite or extend local.
 
 `ggshield` will search for a `global` config file in the user's home directory (example: `~/.gitguardian.yml` on Linux and `%USERPROFILE%\.gitguardian` on Windows).
 
-`ggshield` will recognize as well a `local` config file in the user's working directory (`./.gitguardian.yml`)
+`ggshield` will recognize as well a `local` config file in the user's working directory (example: `./.gitguardian.yml`).
+
+You can also use the option `--config-path` on the main command to set another config file. In this case, neither `local` nor `global` config files will be evaluated (example: `ggshield --config-path=~/Desktop/only_config.yaml scan path -r .`)
 
 A sample config file can be found at [.gitguardian.example](./.gitguardian.example.yml)
 
@@ -276,10 +331,22 @@ If you already have a pre-commit executable file and you want to use gg-shield,
 all you need to do is to add this line in the file:
 
 ```shell
-ggshield scan --mode pre-commit
+ggshield scan pre-commit
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
+
+# Pre-receive
+
+A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
+
+You can find **gg-shield**'s pre-receive hook sample in the [doc/pre-receive.sample](doc/pre-receive.sample).
+
+> ⚠ gg-shield's pre-receive hook requires the host machine to have docker installed.
+
+- Move `pre-receive.sample` to `.git/hooks/pre-receive`
+- Do not forget to `chmod +x .git/hooks/pre-receive`
+- either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
 # GitLab
 
@@ -295,7 +362,7 @@ stages:
 🦉 gitguardian scan:
   image: gitguardian/ggshield:latest
   stage: scanning
-  script: ggshield scan -m ci
+  script: ggshield scan ci
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
@@ -352,7 +419,7 @@ pipelines:
         services:
           - docker
         script:
-          - ggshield scan -m ci
+          - ggshield scan ci
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
@@ -391,7 +458,7 @@ jobs:
       install:
         - pip install ggshield
       script:
-        - ggshield scan -m ci
+        - ggshield scan ci
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
@@ -414,7 +481,7 @@ pipeline {
                 GITGUARDIAN_API_KEY = credentials('gitguardian-api-key')
             }
             steps {
-                sh 'ggshield scan -m ci'
+                sh 'ggshield scan ci'
             }
         }
     }
@@ -428,7 +495,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 If no secrets or policy breaks have been found, the exit code will be 0:
 
 ```bash
-$ ggshield scan -m pre-commit
+$ ggshield scan pre-commit
 ```
 
 If a secret or other issue is found in your staged code or in your CI,
@@ -437,7 +504,7 @@ the filename where the policy break has been found and a patch
 giving you the position of the policy break in the file:
 
 ```shell
-$ ggshield scan -m pre-commit
+$ ggshield scan pre-commit
 
 🛡️  ⚔️  🛡️  2 policy breaks have been found in file production.rb
 
