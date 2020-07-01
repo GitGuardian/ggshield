@@ -68,7 +68,7 @@ def create_hook(hook_dir_path: str, force: bool) -> int:
         )
 
     with open(hook_path, "w") as f:
-        f.write("#!/bin/bash\n\nggshield scan -m pre-commit\n")
+        f.write("#!/bin/bash\n\nggshield scan pre-commit\n")
         os.chmod(hook_path, 0o700)
 
     click.echo(

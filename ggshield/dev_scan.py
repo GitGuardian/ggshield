@@ -28,12 +28,13 @@ def cd(newdir):
 @click.command()
 @click.argument("repository", nargs=1, type=click.STRING, required=True)
 @click.pass_context
-def repo_cmd(ctx: click.Context, repository: str) -> int:
+def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     """
     clone and scan a REPOSITORY.
 
-    REPOSITORY is the clone URI of the repository to scan
+    REPOSITORY is the clone URI of the repository to scan.
     example:
+    ggshield scan repo git@github.com:GitGuardian/gg-shield.git
     """
     config = ctx.obj["config"]
     try:
@@ -60,7 +61,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:
 @click.command()
 @click.argument("commit_range", nargs=1, type=click.STRING)
 @click.pass_context
-def range_cmd(ctx: click.Context, commit_range: str) -> int:
+def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
     """
     scan a defined COMMIT_RANGE in git.
 
@@ -95,7 +96,9 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:
 @click.command()
 @click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def precommit_cmd(ctx: click.Context, precommit_args: List[str]) -> int:
+def precommit_cmd(
+    ctx: click.Context, precommit_args: List[str]
+) -> int:  # pragma: no cover
     """
     scan as a pre-commit git hook.
     """
@@ -128,7 +131,9 @@ def precommit_cmd(ctx: click.Context, precommit_args: List[str]) -> int:
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
 @click.pass_context
-def path_cmd(ctx: click.Context, paths: List[str], recursive: bool, yes: bool) -> int:
+def path_cmd(
+    ctx: click.Context, paths: List[str], recursive: bool, yes: bool
+) -> int:  # pragma: no cover
     """
     scan files and directories.
     """
