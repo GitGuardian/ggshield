@@ -2,8 +2,6 @@ name: Application Release
 
 on:
   push:
-    branches-ignore:
-      - '*'
     tags:
       - 'v*'
 
