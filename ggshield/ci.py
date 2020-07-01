@@ -141,7 +141,7 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
     push_base_sha = os.getenv("GITHUB_PUSH_BASE_SHA")
     pull_req_base_sha = os.getenv("GITHUB_PULL_BASE_SHA")
     default_branch = os.getenv("GITHUB_DEFAULT_BRANCH")
-    head_sha = os.getenv("GITHUB_SHA")
+    head_sha = os.getenv("GITHUB_SHA", "HEAD")
 
     if verbose:
         click.echo(
@@ -173,7 +173,7 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
             return commit_list
 
     if head_sha:
-        commit_list = get_list_commit_SHA("{}...".format(head_sha))
+        commit_list = get_list_commit_SHA("{}~1...".format(head_sha))
         if commit_list:
             return commit_list
 
@@ -221,7 +221,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             )
 
         if config.verbose:
-            click.echo("Commits to scan: {}".format(len(commit_list)))
+            click.echo(f"Commits to scan: {len(commit_list)}")
 
         return scan_commit_range(
             client=ctx.obj["client"],
@@ -234,6 +234,8 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
         )
     except click.exceptions.Abort:
         return 0
+    except click.ClickException as exc:
+        raise exc
     except Exception as error:
         if config.verbose:
             traceback.print_exc()
