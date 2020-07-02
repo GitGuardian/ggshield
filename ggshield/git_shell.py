@@ -65,6 +65,9 @@ def get_list_commit_SHA(commit_range: str) -> List[str]:
     commit_list = shell([GIT_PATH, "rev-list", "--reverse", *commit_range.split()])
     if "" in commit_list:
         commit_list.remove("")
+        # only happens when git rev-list doesn't error
+        # but returns an empty range, example git rev-list HEAD...
+
     return commit_list
 
 
