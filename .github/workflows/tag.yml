@@ -44,8 +44,8 @@ jobs:
           draft: false
           prerelease: false
 
-  docker-tag:
-    name: Docker push ref tag
+  push_to_docker_hub:
+    name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
@@ -57,4 +57,20 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: gitguardian/ggshield
+          tag_with_ref: true
+
+  push_to_github_packages:
+    name: Push Docker image to GitHub Packages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Push to GitHub Packages
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: docker.pkg.github.com
+          repository: gitguardian/gg-shield/ggshield
           tag_with_ref: true
