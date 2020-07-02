@@ -340,13 +340,52 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 
-You can find **gg-shield**'s pre-receive hook sample in the [doc/pre-receive.sample](doc/pre-receive.sample).
+You can find **gg-shield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-python.sample](doc/pre-receive-python.sample).
 
-> ⚠ gg-shield's pre-receive hook requires the host machine to have docker installed.
+### Python git pre-receive hook
+
+> ⚠ this pre-receive hook requires the host machine to have python>=3.6 and pip installed
+
+[**pre-receive-python.sample**](doc/pre-receive-python.sample)
+
+- `# pip install ggshield`
+- Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
+- Do not forget to `chmod +x .git/hooks/pre-receive`
+- either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
+
+**How do I add ignored matches and use a custom config in this pre-receive hook?**
+
+- Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
+- Replace in the pre-receive hook
+  ```shell
+  ggshield scan commit-range "${span}" && continue
+  ```
+  with:
+  ```shell
+  ggshield -c <INSERT path to gitguardian.yaml> scan commit-range "${span}" && continue
+  ```
+
+### Docker git pre-receive hook
+
+> ⚠ this pre-receive hook requires the host machine to have docker installed.
+
+[**pre-receive.sample**](doc/pre-receive.sample)
 
 - Move `pre-receive.sample` to `.git/hooks/pre-receive`
 - Do not forget to `chmod +x .git/hooks/pre-receive`
 - either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
+
+**How do I add ignored matches and use a custom config in this pre-receive hook?**
+
+- Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
+- Replace in the pre-receive hook
+  ```shell
+  docker run --rm -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
+  ```
+  with:
+  ```shell
+  docker run --rm -v <INSERT path of gitguardian.yaml directory>:/data -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield -c /data/gitguardian.yaml scan commit-range "${span}" && continue
+  ```
 
 # GitLab
 
