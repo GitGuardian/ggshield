@@ -51,7 +51,7 @@ from .install import install
     is_flag=True,
     default=None,
     help="Present fails of all policies (Filenames, FileExtensions, Secret Detection)."
-    " By default, only Secret Detection is shown.",
+    "By default, only Secret Detection is shown.",
 )
 @click.option(
     "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode.",
