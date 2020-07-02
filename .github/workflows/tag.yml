@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  pypi:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
@@ -25,6 +25,24 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.pypi_password }}
+
+  release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: |
+            ## Changelog
+          draft: false
+          prerelease: false
 
   docker-tag:
     name: Docker push ref tag
