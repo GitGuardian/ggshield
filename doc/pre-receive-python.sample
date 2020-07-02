@@ -1,6 +1,10 @@
 #!/bin/bash
 # gg-shield as a pre-commit hook
-# Move `pre-receive.sample` to `.git/hooks/pre-receive`
+# Prequirements:
+# python >= 3.6, pip
+# Installation instructions:
+# Run: pip install ggshield
+# Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
 # Do not forget to `chmod +x .git/hooks/pre-receive`
 # either set an environment variable machine wide `GITGUARDIAN_API_KEY`
 # or uncomment and insert your key in the following line
@@ -19,7 +23,7 @@ while read -r oldrev newrev refname; do
         span="${oldrev}...${newrev}"
     fi
 
-    docker run --rm -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
+    ggshield scan commit-range "${span}" && continue
 
     echo "ERROR: Your push was rejected because it contained a policy break"
     echo "ERROR: Please contact your Git administrator if this was a false positive."
