@@ -54,7 +54,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    - The pre-commit framework
    - The global and local pre-commit hook
 
-1) [Pre-receive hook](#pre-receive)
+1) [Pre-receive hook](#git-pre-receive-hooks)
 1) [GitLab](#gitlab)
 1) [GitHub Actions](#github)
 1) [Circle CI](#circle-ci)
@@ -336,7 +336,7 @@ ggshield scan pre-commit
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
 
-# Pre-receive
+# Git pre-receive hooks
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 
