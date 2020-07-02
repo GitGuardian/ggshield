@@ -305,7 +305,7 @@ def get_lines_to_display(
     return lines_to_display
 
 
-def process_results(results: List[Result], show_secrets: bool, verbose: bool):
+def process_results(results: List[Result], show_secrets: bool, verbose: bool) -> int:
     """
     Process a scan result.
 
