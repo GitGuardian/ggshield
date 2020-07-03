@@ -348,7 +348,7 @@ You can find **gg-shield**'s pre-receive hook samples in the [doc/pre-receive.sa
 
 [**pre-receive-python.sample**](doc/pre-receive-python.sample)
 
-- `# pip install ggshield`
+- Install ggshield from pip: `pip install ggshield`
 - Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
 - Do not forget to `chmod +x .git/hooks/pre-receive`
 - either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
