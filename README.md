@@ -570,6 +570,14 @@ We would love to hear from you.
 Additionally, if you have a feature you would like to suggest,
 feel free to create an issue on our issue tracker.
 
+# Related open source projects
+* [truffleHog](https://github.com/dxa4481/truffleHog)
+* [gitleaks](https://github.com/zricethezav/gitleaks)
+* [gitrob](https://github.com/michenriksen/gitrob)
+* [git-hound](https://github.com/tillson/git-hound)
+* [AWS git-secrets](https://github.com/awslabs/git-secrets)
+* [detect-secrets](https://github.com/Yelp/detect-secrets)
+
 # License
 
 **GitGuardian shield** is MIT licensed.
