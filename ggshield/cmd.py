@@ -7,7 +7,7 @@ import click
 from pygitguardian import GGClient
 
 from .ci import ci_cmd
-from .config import CONTEXT_SETTINGS, Config
+from .config import CONTEXT_SETTINGS, Config, load_dot_env
 from .dev_scan import path_cmd, precommit_cmd, range_cmd, repo_cmd
 from .filter import path_filter_set
 from .install import install
@@ -135,7 +135,8 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs):
     "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode.",
 )
 @click.pass_context
-def cli(ctx: click.Context, config_path: str, verbose: bool):
+def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:
+    load_dot_env()
     ctx.ensure_object(dict)
     if config_path:
         Config.CONFIG_LOCAL = [config_path]

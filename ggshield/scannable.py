@@ -123,9 +123,9 @@ class Commit(Files):
         """ Get the change patch for the commit. """
         if not self._patch:
             if self.sha:
-                self._patch = "\n".join(shell(["git", "show", self.sha]))
+                self._patch = shell(["git", "show", self.sha])
             else:
-                self._patch = "\n".join(shell(["git", "diff", "--cached"]))
+                self._patch = shell(["git", "diff", "--cached"])
 
         return self._patch
 

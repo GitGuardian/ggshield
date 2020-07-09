@@ -3,6 +3,10 @@ from typing import Any, Dict, List, NamedTuple
 
 import click
 import yaml
+from dotenv import load_dotenv
+
+from .git_shell import get_git_root, is_git_dir
+from .text_utils import display_error
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -70,7 +74,7 @@ class Config:
 
         return True
 
-    def load_configs(self, filenames: List[str]):
+    def load_configs(self, filenames: List[str]) -> None:
         """
         load_configs loads config files until one succeeds
         """
@@ -82,8 +86,29 @@ class Config:
                 click.echo(str(exc))
 
     @staticmethod
-    def clean_keys(yaml_config: Dict):
+    def clean_keys(yaml_config: Dict) -> None:
         for key in list(yaml_config):
             if "-" in key:
                 new_key = key.replace("-", "_")
                 yaml_config[new_key] = yaml_config.pop(key)
+
+
+def load_dot_env():
+    """Loads .env file into sys.environ."""
+    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV")
+    dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH")
+    cwd_env = os.path.join(".", ".env")
+    if not dont_load_env:
+        if dotenv_path and os.path.isfile(dotenv_path):
+            load_dotenv(dotenv_path, override=True)
+            return
+        else:
+            display_error(
+                "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
+            )
+        if os.path.isfile(cwd_env):
+            load_dotenv(cwd_env, override=True)
+            return
+        if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
+            load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
+            return

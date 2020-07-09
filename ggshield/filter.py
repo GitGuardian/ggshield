@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Set
 
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 
-from .git_shell import is_git_dir, shell
+from .git_shell import is_git_dir, shell_split
 
 
 REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")
@@ -117,7 +117,7 @@ def path_filter_set(top_dir: Path, paths_ignore: Iterable[str]) -> Set[str]:
         filters.update(
             {
                 os.path.join(top_dir, filename)
-                for filename in shell(
+                for filename in shell_split(
                     ["git", "ls-files", "-o", "-i", "--exclude-standard"]
                 )
             }
