@@ -32,7 +32,7 @@ setup(
     author_email="support@gitguardian.com",
     maintainer="GitGuardian",
     entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli"]},
-    install_requires=["requests", "click", "pyyaml", "pygitguardian"],
+    install_requires=["click", "pygitguardian==1.1.0", "pyyaml", "python-dotenv"],
     include_package_data=True,
     zip_safe=True,
     license="MIT",

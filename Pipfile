@@ -8,6 +8,7 @@ click = "*"
 ggshield = {editable = true,path = "."}
 pygitguardian = "==1.1.0"
 pyyaml = "*"
+python-dotenv = "*"
 
 [dev-packages]
 black = "==19.10b0"
@@ -21,3 +22,4 @@ pytest = "*"
 seed-isort-config = "*"
 snapshottest = "*"
 vcrpy = "*"
+pipenv-setup = "*"

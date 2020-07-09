@@ -26,6 +26,10 @@ def check_git_dir():
             raise click.ClickException("Not a git directory.")
 
 
+def get_git_root():
+    return shell(["git", "rev-parse", "--show-toplevel"])
+
+
 def check_git_installed():
     """ Check if git is installed. """
     with subprocess.Popen(
@@ -35,7 +39,7 @@ def check_git_installed():
             raise click.ClickException("Git is not installed.")
 
 
-def shell(command: List[str]) -> List[str]:
+def shell(command: List[str]) -> str:
     """ Execute a command in a subprocess. """
     try:
         result = subprocess.run(
@@ -45,7 +49,7 @@ def shell(command: List[str]) -> List[str]:
             stderr=subprocess.PIPE,
             timeout=COMMAND_TIMEOUT,
         )
-        return result.stdout.decode("utf-8").rstrip().split("\n")
+        return result.stdout.decode("utf-8").rstrip()
     except subprocess.CalledProcessError:
         pass
     except subprocess.TimeoutExpired:
@@ -53,7 +57,11 @@ def shell(command: List[str]) -> List[str]:
     except Exception as exc:
         raise click.ClickException(f"Unhandled exception: {str(exc)}")
 
-    return []
+    return ""
+
+
+def shell_split(command: List[str]) -> List[str]:
+    return shell(command).split("\n")
 
 
 def get_list_commit_SHA(commit_range: str) -> List[str]:
@@ -62,7 +70,9 @@ def get_list_commit_SHA(commit_range: str) -> List[str]:
     :param commit_range: A range of commits (ORIGIN...HEAD)
     """
 
-    commit_list = shell([GIT_PATH, "rev-list", "--reverse", *commit_range.split()])
+    commit_list = shell_split(
+        [GIT_PATH, "rev-list", "--reverse", *commit_range.split()]
+    )
     if "" in commit_list:
         commit_list.remove("")
         # only happens when git rev-list doesn't error
@@ -72,4 +82,4 @@ def get_list_commit_SHA(commit_range: str) -> List[str]:
 
 
 def get_list_all_commits() -> List[str]:
-    return shell([GIT_PATH, "rev-list", "--reverse", "--all"])
+    return shell_split([GIT_PATH, "rev-list", "--reverse", "--all"])

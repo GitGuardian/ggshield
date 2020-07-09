@@ -118,3 +118,7 @@ def get_offset(padding: int, is_patch: bool = False) -> int:
         return len(LINE_DISPLAY["patch"].format("0" * padding, "0" * padding))
 
     return len(LINE_DISPLAY["file"].format("0" * padding))
+
+
+def display_error(msg: str) -> None:
+    click.echo(format_text(msg, STYLE["error"]), err=True)

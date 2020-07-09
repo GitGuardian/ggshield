@@ -32,9 +32,9 @@ def leak_message_located(
     offset: int,
     is_patch: bool,
     nb_lines: int = 2,
-):
+) -> None:
     """
-    Return the formatted lines with a multiline secret.
+    Display leak message of a policy break with location in content.
 
     :param lines: The lines list
     :param line_index: The last index in the line
