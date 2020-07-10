@@ -1,9 +1,8 @@
 name: Application Main Branch
 
 on:
+  pull_request:
   push:
-    branches:
-      - 'main'
     tags-ignore:
       - '*'
     paths-ignore:
@@ -31,6 +30,10 @@ jobs:
       - name: Lint with black
         run: |
           black --check .
+      - name: Lint with mypy
+        run: |
+          mypy --check ggshield
+
   build:
     name: Build and Test
     runs-on: ubuntu-latest
@@ -38,7 +41,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: [3.6, 3.8]
-
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -62,24 +64,6 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
 
-  scanning-released:
-    name: GitGuardian scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0 # fetch all history so multiple commits can be scanned
-      - name: GitGuardian scan
-        uses: GitGuardian/gg-shield-action@master
-        env:
-          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
-          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
-          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
-          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
-
   scanning:
     name: Docker build test and scan
     runs-on: ubuntu-latest
@@ -101,6 +85,7 @@ jobs:
   dockerhub-latest:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [lint, build, scanning]
     steps:
       - name: Checkout
@@ -116,6 +101,8 @@ jobs:
   github_packages-latest:
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint, build, scanning]
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -127,3 +114,23 @@ jobs:
           registry: docker.pkg.github.com
           repository: gitguardian/gg-shield/ggshield
           tags: latest
+
+  scanning-released:
+    name: GitGuardian scan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [dockerhub-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # fetch all history so multiple commits can be scanned
+      - name: GitGuardian scan
+        uses: GitGuardian/gg-shield-action@master
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
