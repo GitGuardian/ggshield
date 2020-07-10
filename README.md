@@ -43,7 +43,8 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1. [Introduction](#introduction)
 1. [Installation](#installation)
 1. [Configuration](#configuration)
-   1. [On-premises](#on-premises-configuration)
+   1. [Environment Variables](#environment-variables)
+   2. [On-premises](#on-premises-configuration)
 1. [Commands](#commands)
 
    - Scan
@@ -239,9 +240,35 @@ api-url: https://api.gitguardian.com # GITGUARDIAN_API_URL environment variable 
 verbose: false # default: false
 ```
 
+## Environment Variables
+
+Some configurations on `ggshield` can be done through environment variables.
+
+Environment variables will override settings set on your config file but will be overriden by command line options.
+
+At startup, `ggshield` will attempt to load environment variables from different enviroment files in the following order:
+
+- path pointed to by the enviroment variable `GITGUARDIAN_DOTENV_PATH`
+- `.env` at your current work directory.
+- `.env` at the root of the current git directory
+
+Only one file will be loaded of the three.
+
+Reference of current Environment Variables that affect `ggshield`:
+
+```yaml
+GITGUARDIAN_API_KEY: [Required] API Key for the GitGuardian API.
+
+GITGUARDIAN_API_URL: Custom URL for the scanning API.
+
+GITGUARDIAN_DONT_LOAD_ENV: If set to any value environment variables won't be loaded from a file.
+
+GITGUARDIAN_DOTENV_PATH: If set to a path, `ggshield` will attempt to load the environment from the specified file.
+```
+
 ## On-premises configuration
 
-**ggshield** can be configured to run on your on-premises dashboard, request an API key from your dashboard administrator.
+GitGuardian shield can be configured to run on your on-premises dashboard, request an API key from your dashboard administrator.
 
 You can modify your environment variables to include:
 
