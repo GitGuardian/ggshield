@@ -95,7 +95,7 @@ class Config:
 
 def load_dot_env():
     """Loads .env file into sys.environ."""
-    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", None)
+    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
     dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
     cwd_env = os.path.join(".", ".env")
     if not dont_load_env:
