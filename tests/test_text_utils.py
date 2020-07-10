@@ -12,7 +12,7 @@ from ggshield.text_utils import (
 
 
 def test_line_validation():
-    line_to_test = Line("hello", category=" ")
+    line_to_test = Line("hello", category=" ")  # type: ignore
     with pytest.raises(TypeError):
         line_to_test.build_line_count(0, False)
     Line("hello", category=None).build_line_count(0)
@@ -55,7 +55,7 @@ def test_line_validation():
         ),
     ],
 )
-def test_build_line_count(input: Line, padding: int, want: str):
+def test_build_line_count(input: Line, padding: int, want: str) -> None:
     result = input.build_line_count(padding)
     assert result == want
 
@@ -77,7 +77,7 @@ def test_build_line_count(input: Line, padding: int, want: str):
         ),
     ],
 )
-def test_get_padding(lines: List[Line], want: int):
+def test_get_padding(lines: List[Line], want: int) -> None:
     assert get_padding(lines) == want
 
 
@@ -85,7 +85,7 @@ def test_get_padding(lines: List[Line], want: int):
     "padding, is_patch, want",
     [pytest.param(4, True, 12, id="patch"), pytest.param(4, False, 7, id="file")],
 )
-def test_get_offset(padding: int, is_patch: bool, want: int):
+def test_get_offset(padding: int, is_patch: bool, want: int) -> None:
     assert get_offset(padding, is_patch) == want
 
 

@@ -4,6 +4,7 @@ from typing import Iterable, List, Set
 
 import pytest
 from pygitguardian.models import Match, PolicyBreak, ScanResult
+from snapshottest import Snapshot
 
 from ggshield.filter import (
     censor_content,
@@ -80,8 +81,8 @@ def test_get_ignore_sha(
     policy_breaks: List[PolicyBreak],
     duplicates: bool,
     expected_shas: Set[str],
-    snapshot,
-):
+    snapshot: Snapshot,
+) -> None:
     copy_policy_breaks = copy.deepcopy(policy_breaks)
     if duplicates:
         for policy_break in policy_breaks:
@@ -160,7 +161,7 @@ def test_get_ignore_sha(
 )
 def test_remove_ignores(
     scan_result: ScanResult, all_policies: bool, ignores: Iterable, final_len: int
-):
+) -> None:
     copy_result = copy.deepcopy(scan_result)
     remove_ignored_from_result(
         copy_result, all_policies, ignores,
@@ -199,7 +200,7 @@ def test_remove_ignores(
         ),
     ],
 )
-def test_censor_match(input_match: Match, expected_value: str):
+def test_censor_match(input_match: Match, expected_value: str) -> None:
     value = censor_match(input_match)
     assert len(value) == len(input_match.match)
     assert value == expected_value
@@ -250,7 +251,7 @@ def test_censor_match(input_match: Match, expected_value: str):
         ),
     ],
 )
-def test_censor_content(content: str, policy_breaks: PolicyBreak):
+def test_censor_content(content: str, policy_breaks: PolicyBreak) -> None:
     copy_policy_breaks = copy.deepcopy(policy_breaks)
     new_content = censor_content(content, copy_policy_breaks)
     assert len(new_content) == len(content)

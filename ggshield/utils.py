@@ -35,7 +35,7 @@ class Filemode(Enum):
 
 def get_lines_from_content(
     content: str, filemode: Filemode, is_patch: bool, show_secrets: bool
-) -> List[str]:
+) -> List[Line]:
     """
     Return the secrets and the lines with line number.
 
@@ -60,7 +60,7 @@ def get_lines_from_file(content: str) -> Iterable[Line]:
         )
 
 
-def get_lines_from_patch(content: str, filemode: Filemode) -> List:
+def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
     """ Return the lines with line number from a git patch. """
     content += "\n"
     pre_index = 0
@@ -78,20 +78,17 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> List:
             post_index += 1
             line_pre_index = pre_index
             line_post_index = post_index
-
         elif line_type == "@":
             m = REGEX_PATCH_HEADER.search(line)
-            pre_index = m.groupdict()["pre_index"]
-            post_index = m.groupdict()["post_index"]
+            if m is None:
+                continue
+            pre_index = int(m.groupdict()["pre_index"])
+            post_index = int(m.groupdict()["post_index"])
             line_content = m.groupdict()["line_content"][:-1]
 
             if filemode == Filemode.NEW or filemode == Filemode.DELETE:
                 pre_index = 1
                 post_index = 1
-
-            else:
-                pre_index = int(pre_index)
-                post_index = int(post_index)
 
             if line_content:
                 line_type = " "
@@ -100,13 +97,11 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> List:
                 line_pre_index = None
                 line_post_index = None
                 category = LineCategory.empty
-
         elif line_type == "+":
             post_index += 1
             line_post_index = post_index
             line_content = line[1:]
             category = LineCategory.addition
-
         elif line_type == "-":
             pre_index += 1
             line_pre_index = pre_index
@@ -124,7 +119,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> List:
 
 def update_policy_break_matches(
     matches: List[Match], lines: List[Line], is_patch: bool
-):
+) -> None:
     """
     Update secrets object with secret line and indexes in line.
 

@@ -17,7 +17,7 @@ def read(*args):
 def get_version():
     """Reads the version from this module."""
     init = read("ggshield", "__init__.py")
-    return VERSION_RE.search(init).group(1)
+    return VERSION_RE.search(init).group(1)  # type: ignore
 
 
 setup(

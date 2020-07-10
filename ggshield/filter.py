@@ -41,7 +41,7 @@ def is_ignored(
 
 def remove_ignored_from_result(
     scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[str]
-):
+) -> None:
     """
     remove_ignored removes policy breaks from a Scan Result based on a sha
     made from its matches.
@@ -59,7 +59,7 @@ def remove_ignored_from_result(
     scan_result.policy_break_count = len(scan_result.policy_breaks)
 
 
-def get_ignore_sha(policy_break: PolicyBreak):
+def get_ignore_sha(policy_break: PolicyBreak) -> str:
     hashable = "".join(
         [
             f"{match.match},{match.match_type}"

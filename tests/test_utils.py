@@ -90,7 +90,7 @@ def test_update_policy_break_matches(
     lines: List[Line],
     is_patch: bool,
     expected_matches: List[Match],
-):
+) -> None:
     update_policy_break_matches(matches, lines, is_patch=is_patch)
 
     for i, match in enumerate(expected_matches):
