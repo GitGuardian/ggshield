@@ -1,7 +1,7 @@
 import pytest
 
 from ggshield.message import leak_message, no_leak_message
-from ggshield.scannable import Result
+from ggshield.scannable import Filemode, Result
 
 from .conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
@@ -32,7 +32,7 @@ def test_message_no_secret(snapshot, capsys):
             Result(
                 content=_SIMPLE_SECRET_PATCH,
                 filename="leak.txt",
-                filemode="new file",
+                filemode=Filemode.NEW,
                 scan=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
             ),
             id="_SIMPLE_SECRET_PATCH_SCAN_RESULT",
@@ -41,7 +41,7 @@ def test_message_no_secret(snapshot, capsys):
             Result(
                 content=_MULTI_SECRET_ONE_LINE_PATCH,
                 filename="leak.txt",
-                filemode="new file",
+                filemode=Filemode.NEW,
                 scan=_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
             ),
             id="_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT",
@@ -50,7 +50,7 @@ def test_message_no_secret(snapshot, capsys):
             Result(
                 content=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
                 filename="leak.txt",
-                filemode="new file",
+                filemode=Filemode.NEW,
                 scan=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT,
             ),
             id="_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT",
@@ -59,7 +59,7 @@ def test_message_no_secret(snapshot, capsys):
             Result(
                 content=_MULTI_SECRET_TWO_LINES_PATCH,
                 filename="leak.txt",
-                filemode="new file",
+                filemode=Filemode.NEW,
                 scan=_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
             ),
             id="_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT",
@@ -68,7 +68,7 @@ def test_message_no_secret(snapshot, capsys):
             Result(
                 content=_SIMPLE_SECRET_MULTILINE_PATCH,
                 filename="leak.txt",
-                filemode="new file",
+                filemode=Filemode.NEW,
                 scan=_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
             ),
             id="_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT",
@@ -77,7 +77,7 @@ def test_message_no_secret(snapshot, capsys):
             Result(
                 content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
                 filename="leak.txt",
-                filemode="new file",
+                filemode=Filemode.NEW,
                 scan=_ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
             ),
             id="_ONE_LINE_AND_MULTILINE_PATCH_CONTENT",

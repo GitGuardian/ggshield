@@ -44,6 +44,10 @@ class Config:
         self.load_configs(self.CONFIG_GLOBAL)
         self.load_configs(self.CONFIG_LOCAL)
 
+    def __getattr__(self, name: str) -> Any:
+        # Required for dynamic types on mypy
+        return object.__getattribute__(self, name)
+
     def update_config(
         self, **kwargs,
     ):

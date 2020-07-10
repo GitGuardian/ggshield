@@ -2,6 +2,7 @@
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 from pygitguardian import GGClient
@@ -110,7 +111,7 @@ def scan(
 
 @scan.resultcallback()
 @click.pass_context
-def exit_code(ctx: click.Context, exit_code: int, **kwargs):
+def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     """
     exit_code guarantees that the return value of a scan is 0
     when exit_zero is enabled

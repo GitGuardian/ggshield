@@ -114,7 +114,7 @@ class Commit(Files):
 
     def __init__(self, sha: Optional[str] = None, filter_set: Set[str] = set()):
         self.sha = sha
-        self._patch = None
+        self._patch: Optional[str] = None
         self._files = {}
         self.filter_set = filter_set
 

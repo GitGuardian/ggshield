@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 import click
 from pygitguardian.models import Match, PolicyBreak
@@ -58,7 +58,7 @@ def leak_message_located(
             click.echo(
                 lines[line].build_line_count(padding, is_secret=True), nl=False,
             )
-            index = 0
+            index: Optional[int] = 0
             for flat_match in sorted(
                 flat_matches_dict[line], key=lambda x: x.index_start
             ):
@@ -112,7 +112,7 @@ def flatten_policy_breaks_by_line(
     flatten_policy_breaks_by_line flatens a list of policy breaks with the
     same ignore SHA into a dict
     """
-    flat_match_dict = dict()
+    flat_match_dict: Dict[int, List[Match]] = dict()
     for policy_break in policy_breaks:
         for match in policy_break.matches:
             flat_match_list = flat_match_dict.get(match.line_start)
@@ -141,7 +141,7 @@ def policy_break_header(
     )
 
 
-def leak_message(result: Result, show_secrets: bool, nb_lines: int = 3):
+def leak_message(result: Result, show_secrets: bool, nb_lines: int = 3) -> None:
     """
     Build readable message on the found policy breaks.
 
@@ -200,7 +200,7 @@ def display_detector(detector_line: List, offset: int) -> str:
     return format_text(format_detector_line(detector_line, offset), STYLE["detector"])
 
 
-def format_detector_line(detector_line: List, offset: int):
+def format_detector_line(detector_line: List, offset: int) -> str:
     """ Display detectors from detector_line. """
     message = " " * offset
     last_index = 0
@@ -286,9 +286,9 @@ def no_leak_message():
 
 def get_lines_to_display(
     flat_matches_dict: Dict[int, List[Match]], lines: List, nb_lines: int
-) -> Set[str]:
+) -> Set[int]:
     """ Retrieve the line indexes to display in the content with no secrets. """
-    lines_to_display: Set[str] = set()
+    lines_to_display: Set[int] = set()
 
     for line in sorted(flat_matches_dict):
         for match in flat_matches_dict[line]:
