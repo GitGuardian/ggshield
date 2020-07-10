@@ -3,6 +3,8 @@ name: Application Main Branch
 on:
   pull_request:
   push:
+    branches:
+      - '*'
     tags-ignore:
       - '*'
     paths-ignore:
