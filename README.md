@@ -407,11 +407,11 @@ You can find **gg-shield**'s pre-receive hook samples in the [doc/pre-receive.sa
 - Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
 - Replace in the pre-receive hook
   ```shell
-  docker run --rm -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
+  docker run --rm -v $(pwd):/data -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
   ```
   with:
   ```shell
-  docker run --rm -v <INSERT path of gitguardian.yaml directory>:/data -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield -c /data/gitguardian.yaml scan commit-range "${span}" && continue
+  docker run --rm -v $(pwd):/data -v <INSERT path of gitguardian.yaml directory>:/config -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield -c /config/gitguardian.yaml scan commit-range "${span}" && continue
   ```
 
 # GitLab

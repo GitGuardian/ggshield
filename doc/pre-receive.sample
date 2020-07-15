@@ -19,7 +19,7 @@ while read -r oldrev newrev refname; do
         span="${oldrev}...${newrev}"
     fi
 
-    docker run --rm -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
+    docker run --rm -v $(pwd):/data ggshield -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
 
     echo "ERROR: Your push was rejected because it contained a policy break"
     echo "ERROR: Please contact your Git administrator if this was a false positive."

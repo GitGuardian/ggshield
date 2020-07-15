@@ -51,6 +51,8 @@ RUN set -ex; \
 COPY --from=build /app/.venv /app/.venv
 COPY ./ ./
 
-USER app
+USER nobody
+
+WORKDIR /data
 
 CMD ["ggshield"]
