@@ -121,7 +121,7 @@ class Commit(Files):
     @property
     def patch(self):
         """ Get the change patch for the commit. """
-        if not self._patch:
+        if self._patch is None:
             if self.sha:
                 self._patch = shell(["git", "show", self.sha])
             else:
