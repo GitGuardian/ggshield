@@ -131,7 +131,7 @@ def update_policy_break_matches(
     line_index = 0
 
     for match in matches:
-        if not match.index_start:
+        if match.index_start is None:
             continue
         len_line = len(lines[line_index].content) + 1 + int(is_patch)
         # Update line_index until we find the secret start
