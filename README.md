@@ -244,11 +244,11 @@ verbose: false # default: false
 
 Some configurations on `ggshield` can be done through environment variables.
 
-Environment variables will override settings set on your config file but will be overriden by command line options.
+Environment variables will override settings set on your config file but will be overridden by command line options.
 
-At startup, `ggshield` will attempt to load environment variables from different enviroment files in the following order:
+At startup, `ggshield` will attempt to load environment variables from different environment files in the following order:
 
-- path pointed to by the enviroment variable `GITGUARDIAN_DOTENV_PATH`
+- path pointed to by the environment variable `GITGUARDIAN_DOTENV_PATH`
 - `.env` at your current work directory.
 - `.env` at the root of the current git directory
 
@@ -346,7 +346,7 @@ You just need to go in the repository and execute:
 $ ggshield install --mode local
 ```
 
-If a pre-commit executable file already exists, it will not be overriden.
+If a pre-commit executable file already exists, it will not be overridden.
 
 You can force override with the `--force` option:
 
