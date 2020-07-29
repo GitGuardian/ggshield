@@ -47,8 +47,8 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    2. [On-premises](#on-premises-configuration)
 1. [Commands](#commands)
 
-   - Scan
-   - Install
+   - [Scan](#scan-command)
+   - [Install](#install-command)
 
 1. [Pre-commit](#pre-commit)
 
@@ -176,10 +176,14 @@ Commands:
   ```
   Usage: ggshield scan repo [OPTIONS] REPOSITORY
 
-    clone and scan a REPOSITORY.
+    scan a REPOSITORY at a given URL or path
 
-    REPOSITORY is the clone URI of the repository to scan. example:
+    REPOSITORY is the clone URI or the path of the repository to scan.
+    Examples:
+
     ggshield scan repo git@github.com:GitGuardian/gg-shield.git
+
+    ggshield scan repo /repositories/gg-shield
   ```
 
 ## Install command
@@ -358,7 +362,13 @@ If you already have a pre-commit executable file and you want to use gg-shield,
 all you need to do is to add this line in the file:
 
 ```shell
-ggshield scan pre-commit
+$ ggshield scan pre-commit
+```
+
+If you want to try pre-commit scanning through the docker image:
+
+```shell
+$ docker run -e GITGUARDIAN_API_KEY -v $(pwd):/data --rm gitguardian/ggshield ggshield scan pre-commit
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
