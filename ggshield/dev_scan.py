@@ -10,10 +10,11 @@ from pygitguardian import GGClient
 
 from .config import Config
 from .filter import path_filter_set
-from .git_shell import check_git_dir, get_list_all_commits, get_list_commit_SHA, shell
+from .git_shell import check_git_dir, get_list_commit_SHA, is_git_dir, shell
 from .message import process_results
 from .path import get_files_from_paths
 from .scannable import Commit
+from .utils import REGEX_GIT_URL
 
 
 @contextmanager
@@ -31,9 +32,12 @@ def scan_repo_path(
 ) -> int:  # pragma: no cover
     try:
         with cd(repo_path):
+            if not is_git_dir():
+                raise click.ClickException(f"{repo_path} is not a git repository")
+
             return scan_commit_range(
                 client=client,
-                commit_list=get_list_all_commits(),
+                commit_list=get_list_commit_SHA("--all"),
                 verbose=config.verbose,
                 filter_set=path_filter_set(Path(os.getcwd()), []),
                 matches_ignore=config.matches_ignore,
@@ -66,10 +70,13 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     client: GGClient = ctx.obj["client"]
     if os.path.isdir(repository):
         return scan_repo_path(client, config, repository)
-    else:
+
+    if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
             shell(["git", "clone", repository, tmpdirname])
             return scan_repo_path(client, config, tmpdirname)
+
+    raise click.ClickException(f"{repository} is neither a valid path or git URL")
 
 
 @click.command()

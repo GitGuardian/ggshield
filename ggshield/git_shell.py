@@ -79,7 +79,3 @@ def get_list_commit_SHA(commit_range: str) -> List[str]:
         # but returns an empty range, example git rev-list HEAD...
 
     return commit_list
-
-
-def get_list_all_commits() -> List[str]:
-    return shell_split([GIT_PATH, "rev-list", "--reverse", "--all"])

@@ -11,6 +11,11 @@ REGEX_PATCH_HEADER = re.compile(
     r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
 )
 
+# Source: https://github.com/jonschlinkert/is-git-url MIT LICENSE
+REGEX_GIT_URL = re.compile(
+    r"(?:git|ssh|https?|git@[-\w.]+):(\/\/)?(.*?)(\.git)(\/?|\#[-\d\w._]+?)$"
+)
+
 
 class Filemode(Enum):
     """
