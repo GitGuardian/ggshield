@@ -76,7 +76,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
             shell(["git", "clone", repository, tmpdirname])
             return scan_repo_path(client, config, tmpdirname)
 
-    raise click.ClickException(f"{repository} is neither a valid path or git URL")
+    raise click.ClickException(f"{repository} is neither a valid path nor a git URL")
 
 
 @click.command()
