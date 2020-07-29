@@ -8,6 +8,7 @@ from typing import Iterable, List, Set
 import click
 from pygitguardian import GGClient
 
+from .config import Config
 from .filter import path_filter_set
 from .git_shell import check_git_dir, get_list_all_commits, get_list_commit_SHA, shell
 from .message import process_results
@@ -25,37 +26,50 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
-@click.command()
-@click.argument("repository", nargs=1, type=click.STRING, required=True)
-@click.pass_context
-def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
-    """
-    clone and scan a REPOSITORY.
-
-    REPOSITORY is the clone URI of the repository to scan.
-    example:
-    ggshield scan repo git@github.com:GitGuardian/gg-shield.git
-    """
-    config = ctx.obj["config"]
+def scan_repo_path(
+    client: GGClient, config: Config, repo_path: str
+) -> int:  # pragma: no cover
     try:
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            shell(["git", "clone", repository, tmpdirname])
-            with cd(tmpdirname):
-                return scan_commit_range(
-                    client=ctx.obj["client"],
-                    commit_list=get_list_all_commits(),
-                    verbose=config.verbose,
-                    filter_set=path_filter_set(Path(os.getcwd()), []),
-                    matches_ignore=config.matches_ignore,
-                    all_policies=config.all_policies,
-                    show_secrets=config.show_secrets,
-                )
+        with cd(repo_path):
+            return scan_commit_range(
+                client=client,
+                commit_list=get_list_all_commits(),
+                verbose=config.verbose,
+                filter_set=path_filter_set(Path(os.getcwd()), []),
+                matches_ignore=config.matches_ignore,
+                all_policies=config.all_policies,
+                show_secrets=config.show_secrets,
+            )
     except click.exceptions.Abort:
         return 0
     except Exception as error:
         if config.verbose:
             traceback.print_exc()
         raise click.ClickException(str(error))
+
+
+@click.command()
+@click.argument("repository", nargs=1, type=click.STRING, required=True)
+@click.pass_context
+def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
+    """
+    scan a REPOSITORY at a given URL or path
+
+    REPOSITORY is the clone URI or the path of the repository to scan.
+    Examples:
+
+    ggshield scan repo git@github.com:GitGuardian/gg-shield.git
+
+    ggshield scan repo /repositories/gg-shield
+    """
+    config: Config = ctx.obj["config"]
+    client: GGClient = ctx.obj["client"]
+    if os.path.isdir(repository):
+        return scan_repo_path(client, config, repository)
+    else:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            shell(["git", "clone", repository, tmpdirname])
+            return scan_repo_path(client, config, tmpdirname)
 
 
 @click.command()
