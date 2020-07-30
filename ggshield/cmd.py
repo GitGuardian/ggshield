@@ -15,8 +15,6 @@ from .install import install
 
 
 @click.group(
-    invoke_without_command=True,
-    context_settings=CONTEXT_SETTINGS,
     commands={
         "commit-range": range_cmd,
         "pre-commit": precommit_cmd,
@@ -24,14 +22,6 @@ from .install import install
         "path": path_cmd,
         "repo": repo_cmd,
     },
-)
-@click.option(
-    "--mode",
-    "-m",
-    type=click.Choice(["pre-commit", "ci"]),
-    help="Scan mode (pre-commit or ci)",
-    required=False,
-    hidden=True,
 )
 @click.option(
     "--show-secrets",
@@ -60,7 +50,6 @@ from .install import install
 @click.pass_context
 def scan(
     ctx: click.Context,
-    mode: str,
     show_secrets: bool,
     exit_zero: bool,
     all_policies: bool,
@@ -92,20 +81,6 @@ def scan(
     if exit_zero is not None:
         ctx.obj["config"].exit_zero = exit_zero
 
-    if ctx.invoked_subcommand is None:
-        if mode:
-            click.echo(
-                "--mode has been deprecated and will be removed "
-                "after ggshield version 1.2. prefer to use subcommands."
-            )
-            if mode == "pre-commit":
-                return ctx.invoke(precommit_cmd)
-            elif mode == "ci":
-                return ctx.invoke(ci_cmd)
-            else:
-                click.echo(ctx.get_help())
-        else:
-            click.echo(ctx.get_help())
     return return_code
 
 
