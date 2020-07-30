@@ -46,13 +46,11 @@ WORKDIR /app
 
 RUN set -ex; \
     groupadd -g 1337 app; \
-    useradd -u 1337 -g 1337 -b /home -c "GitGuardian App User" -m -s /bin/sh app;
+    useradd -u 1337 -g 1337 -b /home -c "GitGuardian App User" -m -s /bin/sh app; \
+    mkdir /data; chmod 777 /data
 
 COPY --from=build /app/.venv /app/.venv
 COPY ./ ./
-
-RUN mkdir /data
-RUN chmod 777 /data
 
 WORKDIR /data
 VOLUME [ "/data" ]

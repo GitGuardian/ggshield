@@ -32,7 +32,7 @@ def test_parsing_error(cli_fs_runner, capsys):
     sys.stdout.write(out)
     sys.stderr.write(err)
 
-    assert "Parsing error while opening .gitguardian.yml" in out
+    assert "Parsing error while reading .gitguardian.yml:" in out
 
 
 class TestConfig:
