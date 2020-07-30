@@ -2,7 +2,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import click
 from pygitguardian import GGClient
@@ -124,5 +124,13 @@ def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:
         ctx.obj["config"].verbose = verbose
 
 
+def cli_wrapper() -> NoReturn:
+    standalone_mode = not (
+        os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
+    )
+    return_code = cli.main(standalone_mode=standalone_mode)
+    exit(return_code)
+
+
 if __name__ == "__main__":
-    cli()
+    cli_wrapper()
