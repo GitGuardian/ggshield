@@ -31,7 +31,7 @@ setup(
     author="GitGuardian",
     author_email="support@gitguardian.com",
     maintainer="GitGuardian",
-    entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli"]},
+    entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli_wrapper"]},
     install_requires=["click", "pygitguardian==1.1.0", "pyyaml", "python-dotenv"],
     include_package_data=True,
     zip_safe=True,
