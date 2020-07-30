@@ -71,9 +71,9 @@ class Config:
                 _config = yaml.safe_load(f)
                 self.clean_keys(_config)
                 self.update_config(**_config)
-            except yaml.scanner.ScannerError:
+            except Exception as e:
                 raise click.ClickException(
-                    "Parsing error while opening {}".format(filename)
+                    f"Parsing error while reading {filename}:\n{str(e)}"
                 )
 
         return True
