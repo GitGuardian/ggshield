@@ -1,5 +1,5 @@
 import subprocess
-from typing import List
+from typing import Any, List
 
 import click
 
@@ -60,7 +60,7 @@ def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
     return ""
 
 
-def shell_split(command: List[str], **kwargs) -> List[str]:
+def shell_split(command: List[str], **kwargs: Any) -> List[str]:
     return shell(command, **kwargs).split("\n")
 
 
