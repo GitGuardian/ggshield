@@ -39,7 +39,7 @@ def check_git_installed():
             raise click.ClickException("Git is not installed.")
 
 
-def shell(command: List[str]) -> str:
+def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
     """ Execute a command in a subprocess. """
     try:
         result = subprocess.run(
@@ -47,7 +47,7 @@ def shell(command: List[str]) -> str:
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=COMMAND_TIMEOUT,
+            timeout=timeout,
         )
         return result.stdout.decode("utf-8").rstrip()
     except subprocess.CalledProcessError:
@@ -60,8 +60,8 @@ def shell(command: List[str]) -> str:
     return ""
 
 
-def shell_split(command: List[str]) -> List[str]:
-    return shell(command).split("\n")
+def shell_split(command: List[str], **kwargs) -> List[str]:
+    return shell(command, **kwargs).split("\n")
 
 
 def get_list_commit_SHA(commit_range: str) -> List[str]:
