@@ -118,7 +118,7 @@ def path_filter_set(top_dir: Path, paths_ignore: Iterable[str]) -> Set[str]:
             {
                 os.path.join(top_dir, filename)
                 for filename in shell_split(
-                    ["git", "ls-files", "-o", "-i", "--exclude-standard"]
+                    ["git", "ls-files", "-o", "-i", "--exclude-standard"], timeout=600
                 )
             }
         )
