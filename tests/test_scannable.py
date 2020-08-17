@@ -94,6 +94,9 @@ def test_scan_patch(client, name, input_patch, expected):
 
 
 PATCH_SEPARATION = """
+commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
+Author: Testificate Jose <test@test.test>
+Date:   Fri Oct 18 13:20:00 2012 +0100
 diff --git a/ggshield/tests/cassettes/test_files_yes.yaml b/ggshield/tests/cassettes/test_files_yes.yaml
 deleted file mode 100644
 index 0000000..0000000
@@ -146,6 +149,10 @@ def test_patch_separation():
     files = list(c.get_files())
 
     assert len(files) == 4
+
+    assert c.info.author == "Testificate Jose"
+    assert c.info.email == "test@test.test"
+    assert c.info.date == "Fri Oct 18 13:20:00 2012 +0100"
 
 
 def test_patch_separation_ignore():

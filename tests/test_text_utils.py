@@ -90,4 +90,4 @@ def test_get_offset(padding: int, is_patch: bool, want: int) -> None:
 
 
 def test_format_line_count_break():
-    assert format_line_count_break(5) == "  ..."
+    assert format_line_count_break(5) == "\x1b[36m\x1b[22m\x1b[22m  ...\x1b[0m"
