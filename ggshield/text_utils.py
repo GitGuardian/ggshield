@@ -9,6 +9,7 @@ LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 STYLE: Dict[str, Dict[str, Any]] = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},
     "filename": {"fg": "bright_yellow", "bold": True},
+    "commit_info": {"fg": "bright_yellow", "bold": False},
     "patch": {"fg": "white"},
     "secret": {"fg": "bright_red"},
     "error": {"fg": "red"},
@@ -95,7 +96,9 @@ def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
 def format_line_count_break(padding: int) -> str:
     """ Return the line count break.
     """
-    return " " * max(0, padding - len("...")) + "..."
+    return format_text(
+        " " * max(0, padding - len("...")) + "...", STYLE["detector_line_start"]
+    )
 
 
 def format_line_count(line_count: Union[int, None], padding: int) -> str:

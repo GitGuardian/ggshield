@@ -5,7 +5,7 @@ import click
 from pygitguardian.models import Match, PolicyBreak
 
 from .filter import censor_content, leak_dictionary_by_ignore_sha
-from .scannable import Result
+from .scannable import Commit, Result
 from .text_utils import (
     STYLE,
     Line,
@@ -49,10 +49,10 @@ def leak_message_located(
 
     lines_to_display = get_lines_to_display(flat_matches_dict, lines, nb_lines)
 
-    old_line = None
+    old_line: Optional[int] = None
     for line in sorted(lines_to_display):
         multiline_end = None
-        if old_line and line - old_line != 1:
+        if old_line is not None and line - old_line != 1:
             click.echo(format_line_count_break(padding))
         if line in flat_matches_dict:
             click.echo(
@@ -185,6 +185,15 @@ def leak_message(result: Result, show_secrets: bool, nb_lines: int = 3) -> None:
             )
 
 
+def build_commit_info(commit: Commit) -> str:
+    """ Return the formatted patch. """
+    return (
+        format_text(f"\ncommit {commit.sha}\n", STYLE["commit_info"])
+        + f"Author: {commit.info.author} <{commit.info.email}>\n"
+        + f"Date: {commit.info.date}"
+    )
+
+
 def display_patch(patch: str) -> str:
     """ Return the formatted patch. """
     return format_text(patch, STYLE["patch"])
@@ -275,7 +284,7 @@ def file_info(filename: str, nb_secrets: int) -> str:
     )
 
 
-def no_leak_message():
+def no_leak_message() -> None:
     """
     Build a message if no secret is found.
 

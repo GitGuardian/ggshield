@@ -16,6 +16,11 @@ REGEX_GIT_URL = re.compile(
     r"(?:git|ssh|https?|git@[-\w.]+):(\/\/)?(.*?)(\.git)(\/?|\#[-\d\w._]+?)$"
 )
 
+# REGEX_HEADER_INFO = re.compile(r"^Author:\ (.*)\ <(.*)>$\nDate:\s+(.*)$")
+REGEX_HEADER_INFO = re.compile(
+    r"Author:\s(?P<author>.+?)\ <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
+)
+
 
 class Filemode(Enum):
     """
@@ -33,7 +38,7 @@ class Filemode(Enum):
     PERMISSION_CHANGE = (7, "changed permissions")
     FILE = (0, "file")
 
-    def __init__(self, start, mode):
+    def __init__(self, start: int, mode: str):
         self.start = start
         self.mode = mode
 
@@ -76,6 +81,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
         line_content = ""
         line_pre_index = None
         line_post_index = None
+        category = None
 
         if line_type == " ":
             line_content = line[1:]

@@ -12,7 +12,7 @@ from .config import CPU_COUNT, MAX_FILE_SIZE
 from .filter import remove_ignored_from_result
 from .git_shell import shell
 from .scannable_errors import handle_scan_error
-from .utils import Filemode
+from .utils import REGEX_HEADER_INFO, Filemode
 
 
 class Result(NamedTuple):
@@ -120,6 +120,12 @@ class Files:
         return results
 
 
+class CommitInformation(NamedTuple):
+    author: str
+    email: str
+    date: str
+
+
 class Commit(Files):
     """
     Commit represents a commit which is a list of commit files.
@@ -130,9 +136,22 @@ class Commit(Files):
         self._patch: Optional[str] = None
         self._files = {}
         self.filter_set = filter_set
+        self._info: Optional[CommitInformation] = None
 
     @property
-    def patch(self):
+    def info(self) -> CommitInformation:
+        if self._info is None:
+            m = REGEX_HEADER_INFO.search(self.patch)
+
+            if m is None:
+                self._info = CommitInformation("unknown", "", "")
+            else:
+                self._info = CommitInformation(**m.groupdict())
+
+        return self._info
+
+    @property
+    def patch(self) -> str:
         """ Get the change patch for the commit. """
         if self._patch is None:
             if self.sha:
@@ -143,7 +162,7 @@ class Commit(Files):
         return self._patch
 
     @property
-    def files(self):
+    def files(self) -> Dict[str, File]:
         if not self._files:
             self._files = {entry.filename: entry for entry in list(self.get_files())}
 
