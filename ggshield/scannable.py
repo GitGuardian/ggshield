@@ -92,7 +92,7 @@ class Files:
             chunks.append(scannable_list[i : i + MULTI_DOCUMENT_LIMIT])
 
         with concurrent.futures.ThreadPoolExecutor(
-            max_workers=CPU_COUNT * 2
+            max_workers=CPU_COUNT * 2, thread_name_prefix="content_scan"
         ) as executor:
             future_to_scan = {
                 executor.submit(client.multi_content_scan, chunk): chunk
