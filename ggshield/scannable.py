@@ -1,3 +1,4 @@
+import concurrent.futures
 import os
 import re
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
@@ -7,7 +8,7 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
-from .config import MAX_FILE_SIZE
+from .config import CPU_COUNT, MAX_FILE_SIZE
 from .filter import remove_ignored_from_result
 from .git_shell import shell
 from .scannable_errors import handle_scan_error
@@ -86,23 +87,35 @@ class Files:
     ) -> List[Result]:
         scannable_list = self.scannable_list
         results = []
+        chunks = []
         for i in range(0, len(scannable_list), MULTI_DOCUMENT_LIMIT):
-            chunk = scannable_list[i : i + MULTI_DOCUMENT_LIMIT]
-            scan = client.multi_content_scan(chunk)
-            if not scan.success:
-                handle_scan_error(scan, chunk)
-                continue
-            for index, scanned in enumerate(scan.scan_results):
-                remove_ignored_from_result(scanned, all_policies, matches_ignore)
-                if scanned.has_policy_breaks:
-                    results.append(
-                        Result(
-                            content=chunk[index]["document"],
-                            scan=scanned,
-                            filemode=chunk[index]["filemode"],
-                            filename=chunk[index]["filename"],
+            chunks.append(scannable_list[i : i + MULTI_DOCUMENT_LIMIT])
+
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=CPU_COUNT * 2
+        ) as executor:
+            future_to_scan = {
+                executor.submit(client.multi_content_scan, chunk): chunk
+                for chunk in chunks
+            }
+
+            for future in concurrent.futures.as_completed(future_to_scan):
+                chunk = future_to_scan[future]
+                scan = future.result()
+                if not scan.success:
+                    handle_scan_error(scan, chunk)
+                    continue
+                for index, scanned in enumerate(scan.scan_results):
+                    remove_ignored_from_result(scanned, all_policies, matches_ignore)
+                    if scanned.has_policy_breaks:
+                        results.append(
+                            Result(
+                                content=chunk[index]["document"],
+                                scan=scanned,
+                                filemode=chunk[index]["filemode"],
+                                filename=chunk[index]["filename"],
+                            )
                         )
-                    )
 
         return results
 
