@@ -1,3 +1,4 @@
+import concurrent.futures
 import os
 import tempfile
 import traceback
@@ -8,7 +9,7 @@ from typing import Iterable, List, Set
 import click
 from pygitguardian import GGClient
 
-from .config import Config
+from .config import CPU_COUNT, Config
 from .filter import path_filter_set
 from .git_shell import check_git_dir, get_list_commit_SHA, is_git_dir, shell
 from .message import process_results
@@ -185,6 +186,27 @@ def path_cmd(
         raise click.ClickException(str(error))
 
 
+def scan_commit(
+    commit: Commit,
+    client: GGClient,
+    verbose: bool,
+    matches_ignore: Iterable[str],
+    all_policies: bool,
+    show_secrets: bool,
+) -> int:  # pragma: no cover
+    results = commit.scan(
+        client=client,
+        matches_ignore=matches_ignore,
+        all_policies=all_policies,
+        verbose=verbose,
+    )
+
+    if results or verbose:
+        click.echo(f"\nCommit {commit.sha}:")
+
+    return process_results(results=results, verbose=verbose, show_secrets=show_secrets)
+
+
 def scan_commit_range(
     client: GGClient,
     commit_list: List[str],
@@ -202,24 +224,21 @@ def scan_commit_range(
     :param verbose: Display successfull scan's message
     """
     return_code = 0
+    with concurrent.futures.ProcessPoolExecutor(max_workers=CPU_COUNT) as executor:
+        future_to_process = [
+            executor.submit(
+                scan_commit,
+                Commit(sha, filter_set),
+                client,
+                verbose,
+                matches_ignore,
+                all_policies,
+                show_secrets,
+            )
+            for sha in commit_list
+        ]
 
-    for sha in commit_list:
-        commit = Commit(sha, filter_set)
-        results = commit.scan(
-            client=client,
-            matches_ignore=matches_ignore,
-            all_policies=all_policies,
-            verbose=verbose,
-        )
-
-        if results or verbose:
-            click.echo("\nCommit {}:".format(sha))
-
-        return_code = max(
-            return_code,
-            process_results(
-                results=results, verbose=verbose, show_secrets=show_secrets,
-            ),
-        )
+        for future in concurrent.futures.as_completed(future_to_process):
+            return_code = max(return_code, future.result())
 
     return return_code
