@@ -138,7 +138,7 @@ def censor_match(match: Match) -> str:
 
     censored = REGEX_MATCH_HIDE.sub("*", match.match)
 
-    return (
+    return str(
         match.match[:start_privy_len]
         + censored[start_privy_len:end_privy_len]
         + match.match[end_privy_len:]

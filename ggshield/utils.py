@@ -16,7 +16,6 @@ REGEX_GIT_URL = re.compile(
     r"(?:git|ssh|https?|git@[-\w.]+):(\/\/)?(.*?)(\.git)(\/?|\#[-\d\w._]+?)$"
 )
 
-# REGEX_HEADER_INFO = re.compile(r"^Author:\ (.*)\ <(.*)>$\nDate:\s+(.*)$")
 REGEX_HEADER_INFO = re.compile(
     r"Author:\s(?P<author>.+?)\ <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
 )
