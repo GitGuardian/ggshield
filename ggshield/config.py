@@ -39,7 +39,7 @@ class Config:
         Attribute("verbose", False),
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         for attr in self.attributes:
             setattr(self, attr.name, attr.default)
         self.load_configs(self.CONFIG_GLOBAL)
@@ -49,9 +49,7 @@ class Config:
         # Required for dynamic types on mypy
         return object.__getattribute__(self, name)
 
-    def update_config(
-        self, **kwargs,
-    ):
+    def update_config(self, **kwargs: Any) -> None:
         for key, item in kwargs.items():
             if key in list(
                 list(zip(*self.attributes))[0]
@@ -98,7 +96,7 @@ class Config:
                 yaml_config[new_key] = yaml_config.pop(key)
 
 
-def load_dot_env():
+def load_dot_env() -> None:
     """Loads .env file into sys.environ."""
     dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
     dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)

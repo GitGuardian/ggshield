@@ -16,7 +16,7 @@ def is_git_dir() -> bool:
         return False
 
 
-def check_git_dir():
+def check_git_dir() -> None:
     """ Check if folder is git directory. """
     check_git_installed()
     with subprocess.Popen(
@@ -26,11 +26,11 @@ def check_git_dir():
             raise click.ClickException("Not a git directory.")
 
 
-def get_git_root():
+def get_git_root() -> str:
     return shell(["git", "rev-parse", "--show-toplevel"])
 
 
-def check_git_installed():
+def check_git_installed() -> None:
     """ Check if git is installed. """
     with subprocess.Popen(
         [GIT_PATH, "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

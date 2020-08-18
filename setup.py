@@ -1,6 +1,7 @@
 import io
 import os
 import re
+from typing import Any
 
 from setuptools import find_packages, setup
 
@@ -9,12 +10,12 @@ VERSION_RE = re.compile(r"__version__\s*=\s*\"(.*?)\"")
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 
-def read(*args):
+def read(*args: Any) -> str:
     """Reads complete file contents."""
-    return io.open(os.path.join(HERE, *args), encoding="utf-8").read()
+    return str(io.open(os.path.join(HERE, *args), encoding="utf-8").read())
 
 
-def get_version():
+def get_version() -> str:
     """Reads the version from this module."""
     init = read("ggshield", "__init__.py")
     return VERSION_RE.search(init).group(1)  # type: ignore
