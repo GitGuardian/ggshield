@@ -1,11 +1,26 @@
+import os
 import subprocess
+from functools import lru_cache
+from shutil import which
 from typing import Any, List
 
 import click
 
 
 COMMAND_TIMEOUT = 45
-GIT_PATH = "git"
+
+
+@lru_cache(None)
+def get_git_path(cwd: str) -> str:
+    git_path = str(which("git"))
+
+    if cwd in git_path:
+        raise Exception("unable to find git executable in PATH/PATHEXT")
+
+    return git_path
+
+
+GIT_PATH = get_git_path(os.getcwd())
 
 
 def is_git_dir() -> bool:
@@ -27,7 +42,7 @@ def check_git_dir() -> None:
 
 
 def get_git_root() -> str:
-    return shell(["git", "rev-parse", "--show-toplevel"])
+    return shell([GIT_PATH, "rev-parse", "--show-toplevel"])
 
 
 def check_git_installed() -> None:

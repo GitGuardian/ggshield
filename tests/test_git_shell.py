@@ -1,9 +1,9 @@
-from ggshield.git_shell import is_git_dir, shell
+from ggshield.git_shell import GIT_PATH, is_git_dir, shell
 
 
 def test_git_shell():
     assert "See 'git help git' for an overview of the system." in shell(
-        ["git", "--help"]
+        [GIT_PATH, "--help"]
     )
 
 

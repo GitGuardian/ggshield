@@ -10,7 +10,7 @@ from pygitguardian.models import ScanResult
 
 from .config import CPU_COUNT, MAX_FILE_SIZE
 from .filter import remove_ignored_from_result
-from .git_shell import shell
+from .git_shell import GIT_PATH, shell
 from .scannable_errors import handle_scan_error
 from .utils import REGEX_HEADER_INFO, Filemode
 
@@ -155,9 +155,9 @@ class Commit(Files):
         """ Get the change patch for the commit. """
         if self._patch is None:
             if self.sha:
-                self._patch = shell(["git", "show", self.sha])
+                self._patch = shell([GIT_PATH, "show", self.sha])
             else:
-                self._patch = shell(["git", "diff", "--cached"])
+                self._patch = shell([GIT_PATH, "diff", "--cached"])
 
         return self._patch
 

@@ -11,7 +11,7 @@ from pygitguardian import GGClient
 
 from .config import CPU_COUNT, Config
 from .filter import path_filter_set
-from .git_shell import check_git_dir, get_list_commit_SHA, is_git_dir, shell
+from .git_shell import GIT_PATH, check_git_dir, get_list_commit_SHA, is_git_dir, shell
 from .message import build_commit_info, process_results
 from .path import get_files_from_paths
 from .scannable import Commit
@@ -74,7 +74,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
 
     if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            shell(["git", "clone", repository, tmpdirname])
+            shell([GIT_PATH, "clone", repository, tmpdirname])
             return scan_repo_path(client, config, tmpdirname)
 
     raise click.ClickException(f"{repository} is neither a valid path nor a git URL")
