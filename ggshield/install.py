@@ -5,7 +5,7 @@ from typing import Optional
 
 import click
 
-from .git_shell import check_git_dir, check_git_installed
+from .git_shell import GIT_PATH, check_git_dir, check_git_installed
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -30,7 +30,9 @@ def install_global(force: bool) -> int:
 
     if not hook_dir_path:
         hook_dir_path = os.path.expanduser("~/.git/hooks")
-        subprocess.run(["git", "config", "--global", "core.hooksPath", hook_dir_path])
+        subprocess.run(
+            [GIT_PATH, "config", "--global", "core.hooksPath", hook_dir_path]
+        )
 
     return create_hook(hook_dir_path, force)
 
@@ -38,7 +40,8 @@ def install_global(force: bool) -> int:
 def get_global_hook_dir_path() -> Optional[str]:
     """ Return the default hooks path (if it exists). """
     with subprocess.Popen(
-        ["git", "config", "--global", "--get", "core.hooksPath"], stdout=subprocess.PIPE
+        [GIT_PATH, "config", "--global", "--get", "core.hooksPath"],
+        stdout=subprocess.PIPE,
     ) as process:
         if process.returncode:
             return None
