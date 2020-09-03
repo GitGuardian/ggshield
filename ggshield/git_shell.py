@@ -14,7 +14,7 @@ COMMAND_TIMEOUT = 45
 def get_git_path(cwd: str) -> str:
     git_path = str(which("git"))
 
-    if cwd in git_path:
+    if cwd in git_path and cwd not in os.environ.get("PATH", "").split(os.pathsep):
         raise Exception("unable to find git executable in PATH/PATHEXT")
 
     return git_path
