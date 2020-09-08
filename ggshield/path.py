@@ -4,6 +4,8 @@ from typing import Iterable, List, Set, Union
 
 import click
 
+from ggshield.git_shell import git_ls, is_git_dir
+
 from .config import MAX_FILE_SIZE
 from .filter import path_filter_set
 from .scannable import File, Files
@@ -64,8 +66,14 @@ def get_filepaths(
                     click.format_filename(path), "Use --recursive to scan directories."
                 )
             top_dir = Path(path)
-            _targets = {str(target) for target in top_dir.rglob(r"*")}
+
+            if is_git_dir(path):
+                _targets = {os.path.join(path, target) for target in git_ls(path)}
+            else:
+                _targets = {str(target) for target in top_dir.rglob(r"*")}
+
             _targets.difference_update(path_filter_set(top_dir, paths_ignore))
+
             targets.update(_targets)
     return targets
 

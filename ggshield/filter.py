@@ -1,15 +1,12 @@
 import hashlib
 import math
 import operator
-import os
 import re
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, Iterable, List, Set
 
 from pygitguardian.models import Match, PolicyBreak, ScanResult
-
-from .git_shell import GIT_PATH, is_git_dir, shell_split
 
 
 REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")
@@ -112,17 +109,6 @@ def path_filter_set(top_dir: Path, paths_ignore: Iterable[str]) -> Set[str]:
     for ignored in paths_ignore:
         filters.update({str(target) for target in top_dir.glob(ignored)})
 
-    if is_git_dir():
-        filters.update({str(target) for target in top_dir.glob(r".git/**/*")})
-        filters.update(
-            {
-                os.path.join(top_dir, filename)
-                for filename in shell_split(
-                    [GIT_PATH, "ls-files", "-o", "-i", "--exclude-standard"],
-                    timeout=600,
-                )
-            }
-        )
     return filters
 
 
