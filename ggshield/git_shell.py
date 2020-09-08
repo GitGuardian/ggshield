@@ -2,7 +2,7 @@ import os
 import subprocess
 from functools import lru_cache
 from shutil import which
-from typing import Any, List
+from typing import Any, List, Optional
 
 import click
 
@@ -23,28 +23,42 @@ def get_git_path(cwd: str) -> str:
 GIT_PATH = get_git_path(os.getcwd())
 
 
-def is_git_dir() -> bool:
+def is_git_dir(wd: Optional[str] = None) -> bool:
     try:
-        check_git_dir()
+        check_git_dir(wd)
         return True
     except click.ClickException:
         return False
 
 
-def check_git_dir() -> None:
+@lru_cache(None)
+def check_git_dir(wd: Optional[str] = None) -> None:
     """ Check if folder is git directory. """
     check_git_installed()
+
+    cmd = [GIT_PATH]
+    if wd is not None:
+        cmd.extend(("-C", wd))
+
+    cmd.append("status")
     with subprocess.Popen(
-        [GIT_PATH, "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     ) as process:
         if process.wait():
             raise click.ClickException("Not a git directory.")
 
 
-def get_git_root() -> str:
-    return shell([GIT_PATH, "rev-parse", "--show-toplevel"])
+@lru_cache(None)
+def get_git_root(wd: Optional[str] = None) -> str:
+    cmd = [GIT_PATH]
+    if wd is not None:
+        cmd.extend(("-C", wd))
+
+    cmd.extend(("rev-parse", "--show-toplevel"))
+    return shell(cmd)
 
 
+@lru_cache(None)
 def check_git_installed() -> None:
     """ Check if git is installed. """
     with subprocess.Popen(
@@ -77,6 +91,16 @@ def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
 
 def shell_split(command: List[str], **kwargs: Any) -> List[str]:
     return shell(command, **kwargs).split("\n")
+
+
+def git_ls(wd: Optional[str] = None) -> List[str]:
+    cmd = [GIT_PATH]
+    if wd is not None:
+        cmd.extend(("-C", wd))
+
+    cmd.extend(("ls-files", "--recurse-submodules"))
+
+    return shell_split(cmd, timeout=600)
 
 
 def get_list_commit_SHA(commit_range: str) -> List[str]:
