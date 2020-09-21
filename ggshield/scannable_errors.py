@@ -28,6 +28,4 @@ def handle_scan_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
                 )
         return
     except Exception:
-        click.echo(
-            f"Error {str(detail)}", err=True,
-        )
+        click.echo(f"Error {str(detail)}", err=True)

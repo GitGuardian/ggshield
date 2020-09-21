@@ -47,13 +47,13 @@ _EXPECT_NO_SECRET = {
         (
             "_ONE_LINE_AND_MULTILINE_PATCH",
             _ONE_LINE_AND_MULTILINE_PATCH,
-            ExpectedScan(exit_code=1, matches=1, first_match=None, want=None,),  # noqa
+            ExpectedScan(exit_code=1, matches=1, first_match=None, want=None),  # noqa
         ),
         (
             "no_secret",
             _NO_SECRET,
             ExpectedScan(
-                exit_code=0, matches=0, first_match=None, want=_EXPECT_NO_SECRET,
+                exit_code=0, matches=0, first_match=None, want=_EXPECT_NO_SECRET
             ),
         ),
     ],

@@ -45,7 +45,7 @@ from .install import install
     "By default, only Secret Detection is shown.",
 )
 @click.option(
-    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode.",
+    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
 )
 @click.pass_context
 def scan(
@@ -108,7 +108,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     help="Set a custom config file. Ignores local and global config files.",
 )
 @click.option(
-    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode.",
+    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
 )
 @click.pass_context
 def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:

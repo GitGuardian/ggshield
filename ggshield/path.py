@@ -40,7 +40,7 @@ def get_files_from_paths(
     size = len(files)
     if size > 1 and not yes:
         click.confirm(
-            f"{size} files will be scanned. Do you want to continue?", abort=True,
+            f"{size} files will be scanned. Do you want to continue?", abort=True
         )
 
     return Files(files)
@@ -97,8 +97,6 @@ def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[F
             try:
                 content = file.read()
                 if content:
-                    yield File(
-                        content, file.name, file_size,
-                    )
+                    yield File(content, file.name, file_size)
             except UnicodeDecodeError:
                 pass

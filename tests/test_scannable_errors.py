@@ -16,7 +16,7 @@ def test_handle_scan_error_api_key():
     "detail, status_code, chunk",
     [
         pytest.param(
-            Detail("Too many documents to scan"), 400, [], id="too many documents",
+            Detail("Too many documents to scan"), 400, [], id="too many documents"
         ),
         pytest.param(
             Detail(

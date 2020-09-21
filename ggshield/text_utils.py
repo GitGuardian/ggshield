@@ -94,8 +94,7 @@ def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
 
 
 def format_line_count_break(padding: int) -> str:
-    """ Return the line count break.
-    """
+    """Return the line count break."""
     return format_text(
         " " * max(0, padding - len("...")) + "...", STYLE["detector_line_start"]
     )
@@ -112,7 +111,7 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
 def get_padding(lines: List[Line]) -> int:
     """ Return the number of digit of the maximum line number. """
     # value can be None
-    return max(len(str(lines[-1].pre_index or 0)), len(str(lines[-1].post_index or 0)),)
+    return max(len(str(lines[-1].pre_index or 0)), len(str(lines[-1].post_index or 0)))
 
 
 def get_offset(padding: int, is_patch: bool = False) -> int:

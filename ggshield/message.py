@@ -55,9 +55,7 @@ def leak_message_located(
         if old_line is not None and line - old_line != 1:
             click.echo(format_line_count_break(padding))
         if line in flat_matches_dict:
-            click.echo(
-                lines[line].build_line_count(padding, is_secret=True), nl=False,
-            )
+            click.echo(lines[line].build_line_count(padding, is_secret=True), nl=False)
             index: Optional[int] = 0
             for flat_match in sorted(
                 flat_matches_dict[line], key=lambda x: x.index_start
@@ -94,13 +92,12 @@ def leak_message_located(
 
             click.echo(
                 display_detector(
-                    add_detectors(flat_matches_dict[line], is_patch), offset,
+                    add_detectors(flat_matches_dict[line], is_patch),
+                    offset,
                 )
             )
         else:
-            click.echo(
-                lines[line].build_line_count(padding, is_secret=False), nl=False,
-            )
+            click.echo(lines[line].build_line_count(padding, is_secret=False), nl=False)
             click.echo(f"{display_patch(content(line))}")
         old_line = multiline_end if multiline_end else line
 

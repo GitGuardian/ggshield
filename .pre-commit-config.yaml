@@ -1,7 +1,7 @@
 default_stages: [commit]
 repos:
   - repo: https://github.com/ambv/black
-    rev: 19.10b0
+    rev: 20.8b1
     hooks:
       - id: black
         language_version: python3
@@ -24,20 +24,20 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.5.1
+    rev: v5.5.3
     hooks:
       - id: isort
         args: [--settings-path, setup.cfg]
 
   - repo: https://github.com/Woile/commitizen
-    rev: v2.3.1
+    rev: v2.4.0
     hooks:
       - id: commitizen
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
         stages: [commit-msg]
 
   - repo: https://github.com/prettier/prettier # to format JSON, YAML and markdown files among others
-    rev: 2.1.1
+    rev: 2.1.2
     hooks:
       - id: prettier
 
@@ -51,7 +51,7 @@ repos:
         stages: [commit]
 
   - repo: https://github.com/gitguardian/gg-shield
-    rev: v1.2.2
+    rev: v1.2.3
     hooks:
       - id: ggshield
         language_version: python3
