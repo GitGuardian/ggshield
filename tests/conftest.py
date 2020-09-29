@@ -376,6 +376,6 @@ my_vcr = vcr.VCR(
 
 @pytest.fixture(scope="session")
 def client() -> GGClient:
-    api_key = os.getenv("GITGUARDIAN_API_KEY", "1234567890")
-    base_uri = os.getenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
+    api_key = os.getenv("TEST_GITGUARDIAN_API_KEY", "1234567890")
+    base_uri = os.getenv("TEST_GITGUARDIAN_API_URL", "https://api.gitguardian.com")
     return GGClient(api_key, base_uri)

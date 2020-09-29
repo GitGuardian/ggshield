@@ -9,12 +9,13 @@ from typing import Iterable, Iterator, List, Set
 import click
 from pygitguardian import GGClient
 
+from ggshield.scan import Commit
+
 from .config import CPU_COUNT, Config
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, check_git_dir, get_list_commit_SHA, is_git_dir, shell
 from .message import build_commit_info, process_results
 from .path import get_files_from_paths
-from .scannable import Commit
 from .utils import REGEX_GIT_URL
 
 

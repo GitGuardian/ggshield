@@ -1,4 +1,4 @@
-from ggshield.scannable import Commit
+from ggshield.scan import Commit
 from ggshield.utils import Filemode
 
 

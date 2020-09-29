@@ -5,10 +5,9 @@ import pytest
 
 from ggshield.config import MAX_FILE_SIZE
 from ggshield.message import process_results
-from ggshield.scannable import Commit
+from ggshield.scan import Commit
 from ggshield.utils import Filemode
-
-from .conftest import (
+from tests.conftest import (
     _MULTIPLE_SECRETS,
     _NO_SECRET,
     _ONE_LINE_AND_MULTILINE_PATCH,

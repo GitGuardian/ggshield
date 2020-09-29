@@ -4,8 +4,9 @@ from typing import Dict, List, Optional, Set
 import click
 from pygitguardian.models import Match, PolicyBreak
 
+from ggshield.scan import Commit, Result
+
 from .filter import censor_content, leak_dictionary_by_ignore_sha
-from .scannable import Commit, Result
 from .text_utils import (
     STYLE,
     Line,

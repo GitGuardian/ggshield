@@ -2,7 +2,7 @@ import click
 import pytest
 from pygitguardian.models import Detail
 
-from ggshield.scannable_errors import handle_scan_error
+from ggshield.scan.scannable_errors import handle_scan_error
 
 
 def test_handle_scan_error_api_key():

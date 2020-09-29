@@ -1,7 +1,7 @@
 import pytest
 
 from ggshield.message import leak_message, no_leak_message
-from ggshield.scannable import Filemode, Result
+from ggshield.scan import Filemode, Result
 
 from .conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,

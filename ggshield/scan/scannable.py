@@ -8,17 +8,18 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
-from .config import CPU_COUNT, MAX_FILE_SIZE
-from .filter import remove_ignored_from_result
-from .git_shell import GIT_PATH, shell
+from ggshield.config import CPU_COUNT, MAX_FILE_SIZE
+from ggshield.filter import remove_ignored_from_result
+from ggshield.git_shell import GIT_PATH, shell
+from ggshield.utils import REGEX_HEADER_INFO, Filemode
+
 from .scannable_errors import handle_scan_error
-from .utils import REGEX_HEADER_INFO, Filemode
 
 
 class Result(NamedTuple):
     """
     Return model for a scan which zips the information
-    betwen the Scan result and its input content.
+    between the Scan result and its input content.
     """
 
     content: str  # Text content scanned

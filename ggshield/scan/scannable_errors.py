@@ -4,7 +4,7 @@ from typing import Dict, List
 import click
 from pygitguardian.models import Detail
 
-from .text_utils import STYLE, display_error, format_text, pluralize
+from ggshield.text_utils import STYLE, display_error, format_text, pluralize
 
 
 def handle_scan_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
