@@ -8,8 +8,63 @@ from snapshottest import Snapshot
 snapshots = Snapshot()
 
 snapshots[
-    "test_message_no_secret 1"
-] = """No secrets have been found
+    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT] 1"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314) (1 occurence)
+
+"""
+
+snapshots[
+    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT] 2"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: dad5636a1ae5652c5301ea8368ab9538c7c9f630c084f75e1148232dbd12949b) (1 occurence)
+
+"""
+
+snapshots[
+    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT] 1"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314) (1 occurence)
+
+"""
+
+snapshots[
+    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT] 2"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: dad5636a1ae5652c5301ea8368ab9538c7c9f630c084f75e1148232dbd12949b) (1 occurence)
+
+"""
+
+snapshots[
+    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT] 1"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314) (1 occurence)
+
+"""
+
+snapshots[
+    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT] 2"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: dad5636a1ae5652c5301ea8368ab9538c7c9f630c084f75e1148232dbd12949b) (1 occurence)
+
 """
 
 snapshots[
@@ -33,7 +88,7 @@ snapshots[
   7 | +**********************+*****************************************
   8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +-----END RSA PRIVATE KEY----- token: SG._Yytrtvlj******************************************-**rRJLGFLBLf0M
-      
+
 
 
 >>> Policy break 3(Secrets detection): SendGrid Key (Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1) (1 occurence)
@@ -67,10 +122,30 @@ snapshots[
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5aeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
-                                                        
+
 
   2 | MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
   3 | bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I
+"""
+
+snapshots[
+    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT] 1"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): RSA Private Key (Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e) (1 occurence)
+
+"""
+
+snapshots[
+    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT] 2"
+] = """
+🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
+
+
+>>> Policy break 1(Secrets Detection): RSA Private Key (Ignore with SHA: bc9ae02c5ca67523e8381ac3908089afb0cf9b82c74e92997d5bedda0016bec4) (1 occurence)
+
 """
 
 snapshots[
@@ -94,81 +169,6 @@ snapshots[
 """
 
 snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT] 1"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT] 2"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: dad5636a1ae5652c5301ea8368ab9538c7c9f630c084f75e1148232dbd12949b) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT] 1"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT] 2"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: dad5636a1ae5652c5301ea8368ab9538c7c9f630c084f75e1148232dbd12949b) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT] 1"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT] 2"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): Facebook Access Tokens (Ignore with SHA: dad5636a1ae5652c5301ea8368ab9538c7c9f630c084f75e1148232dbd12949b) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT] 1"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): RSA Private Key (Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e) (1 occurence)
-
-"""
-
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT] 2"
-] = """
-🛡️  ⚔️  🛡️  1 policy break has been found in file leak.txt
-
-
->>> Policy break 1(Secrets Detection): RSA Private Key (Ignore with SHA: bc9ae02c5ca67523e8381ac3908089afb0cf9b82c74e92997d5bedda0016bec4) (1 occurence)
-
+    "test_message_no_secret 1"
+] = """No secrets have been found
 """

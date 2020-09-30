@@ -81,7 +81,7 @@ def get_filepaths(
 def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[File]:
     """Generate a list of scannable files from a list of filepaths."""
     for path in paths:
-        if os.path.isdir(path):
+        if os.path.isdir(path) or not os.path.exists(path):
             continue
 
         file_size = os.path.getsize(path)

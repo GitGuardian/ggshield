@@ -226,11 +226,11 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
         return scan_commit_range(
             client=ctx.obj["client"],
             commit_list=commit_list,
+            output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,
             filter_set=ctx.obj["filter_set"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
-            show_secrets=config.show_secrets,
         )
     except click.exceptions.Abort:
         return 0

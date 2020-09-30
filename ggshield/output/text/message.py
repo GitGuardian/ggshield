@@ -4,10 +4,9 @@ from typing import Dict, List, Optional, Set
 import click
 from pygitguardian.models import Match, PolicyBreak
 
+from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.scan import Commit, Result
-
-from .filter import censor_content, leak_dictionary_by_ignore_sha
-from .text_utils import (
+from ggshield.text_utils import (
     STYLE,
     Line,
     format_line_count_break,
@@ -16,7 +15,7 @@ from .text_utils import (
     get_padding,
     pluralize,
 )
-from .utils import Filemode, get_lines_from_content, update_policy_break_matches
+from ggshield.utils import Filemode, get_lines_from_content, update_policy_break_matches
 
 
 ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
@@ -285,8 +284,6 @@ def file_info(filename: str, nb_secrets: int) -> str:
 def no_leak_message() -> None:
     """
     Build a message if no secret is found.
-
-    :return: The formatted message to display
     """
     click.echo(format_text("No secrets have been found", STYLE["no_secret"]))
 
@@ -310,27 +307,3 @@ def get_lines_to_display(
                 )
 
     return lines_to_display
-
-
-def process_results(results: List[Result], show_secrets: bool, verbose: bool) -> int:
-    """
-    Process a scan result.
-
-    :param results: The results from scanning API
-    :param nb_lines: The number of lines to display before and after a secret in the
-    patch
-    :param show_secrets: Show secrets value
-    :param verbose: Display message even if there is no secrets
-    :return: The exit code
-    """
-
-    for result in results:
-        leak_message(result, show_secrets)
-
-    if results:
-        return 1
-
-    if verbose:
-        no_leak_message()
-
-    return 0

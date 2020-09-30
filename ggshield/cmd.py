@@ -7,6 +7,8 @@ from typing import Any, NoReturn
 import click
 from pygitguardian import GGClient
 
+from ggshield.output.text.text_output import TextHandler
+
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Config, load_dot_env
 from .dev_scan import path_cmd, precommit_cmd, range_cmd, repo_cmd
@@ -69,17 +71,23 @@ def scan(
     ctx.obj["filter_set"] = path_filter_set(
         Path(os.getcwd()), ctx.obj["config"].paths_ignore
     )
+    config: Config = ctx.obj["config"]
+
     if show_secrets is not None:
-        ctx.obj["config"].show_secrets = show_secrets
+        config.show_secrets = show_secrets
 
     if all_policies is not None:
-        ctx.obj["config"].all_policies = all_policies
+        config.all_policies = all_policies
 
     if verbose is not None:
-        ctx.obj["config"].verbose = verbose
+        config.verbose = verbose
 
     if exit_zero is not None:
-        ctx.obj["config"].exit_zero = exit_zero
+        config.exit_zero = exit_zero
+
+    ctx.obj["output_handler"] = TextHandler(
+        show_secrets=config.show_secrets, verbose=config.verbose
+    )
 
     return return_code
 
