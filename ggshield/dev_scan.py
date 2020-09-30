@@ -252,6 +252,6 @@ def scan_commit_range(
             scans.append(future.result())
 
         return_code = output_handler.process_scan(
-            ScanCollection(id="commit-range", results=scans)
+            ScanCollection(id="commit-range", scans=scans)
         )[1]
     return return_code
