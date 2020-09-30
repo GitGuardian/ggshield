@@ -4,7 +4,6 @@ from collections import namedtuple
 import pytest
 
 from ggshield.config import MAX_FILE_SIZE
-from ggshield.message import process_results
 from ggshield.scan import Commit
 from ggshield.utils import Filemode
 from tests.conftest import (
@@ -70,10 +69,6 @@ def test_scan_patch(client, name, input_patch, expected):
     with my_vcr.use_cassette(name):
         results = c.scan(
             client=client, matches_ignore={}, all_policies=True, verbose=False
-        )
-        assert (
-            process_results(results, verbose=True, show_secrets=True)
-            == expected.exit_code
         )
         for result in results:
             if result.scan.policy_breaks:

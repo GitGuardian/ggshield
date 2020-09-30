@@ -18,6 +18,12 @@ CPU_COUNT = os.cpu_count() or 1
 
 
 class Config:
+    all_policies: bool
+    api_url: str
+    exit_zero: bool
+    verbose: bool
+    show_secrets: bool
+
     class Attribute(NamedTuple):
         name: str
         default: Any

@@ -9,12 +9,13 @@ from typing import Iterable, Iterator, List, Set
 import click
 from pygitguardian import GGClient
 
-from ggshield.scan import Commit
+from ggshield.output import OutputHandler
+from ggshield.output.text.message import build_commit_info
+from ggshield.scan import Commit, ScanCollection
 
 from .config import CPU_COUNT, Config
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, check_git_dir, get_list_commit_SHA, is_git_dir, shell
-from .message import build_commit_info, process_results
 from .path import get_files_from_paths
 from .utils import REGEX_GIT_URL
 
@@ -30,7 +31,7 @@ def cd(newdir: str) -> Iterator[None]:
 
 
 def scan_repo_path(
-    client: GGClient, config: Config, repo_path: str
+    client: GGClient, output_handler: OutputHandler, config: Config, repo_path: str
 ) -> int:  # pragma: no cover
     try:
         with cd(repo_path):
@@ -40,11 +41,11 @@ def scan_repo_path(
             return scan_commit_range(
                 client=client,
                 commit_list=get_list_commit_SHA("--all"),
+                output_handler=output_handler,
                 verbose=config.verbose,
                 filter_set=path_filter_set(Path(os.getcwd()), []),
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
-                show_secrets=config.show_secrets,
             )
     except click.exceptions.Abort:
         return 0
@@ -71,12 +72,22 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     config: Config = ctx.obj["config"]
     client: GGClient = ctx.obj["client"]
     if os.path.isdir(repository):
-        return scan_repo_path(client, config, repository)
+        return scan_repo_path(
+            client=client,
+            output_handler=ctx.obj["output_handler"],
+            config=config,
+            repo_path=repository,
+        )
 
     if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
             shell([GIT_PATH, "clone", repository, tmpdirname])
-            return scan_repo_path(client, config, tmpdirname)
+            return scan_repo_path(
+                client=client,
+                output_handler=ctx.obj["output_handler"],
+                config=config,
+                repo_path=tmpdirname,
+            )
 
     raise click.ClickException(f"{repository} is neither a valid path nor a git URL")
 
@@ -102,11 +113,11 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
         return scan_commit_range(
             client=ctx.obj["client"],
             commit_list=commit_list,
+            output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,
             filter_set=ctx.obj["filter_set"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
-            show_secrets=config.show_secrets,
         )
     except click.exceptions.Abort:
         return 0
@@ -126,19 +137,19 @@ def precommit_cmd(
     scan as a pre-commit git hook.
     """
     config = ctx.obj["config"]
+    output_handler: OutputHandler = ctx.obj["output_handler"]
     try:
         check_git_dir()
-
-        return process_results(
-            results=Commit(filter_set=ctx.obj["filter_set"]).scan(
-                client=ctx.obj["client"],
-                matches_ignore=config.matches_ignore,
-                all_policies=config.all_policies,
-                verbose=config.verbose,
-            ),
+        results = Commit(filter_set=ctx.obj["filter_set"]).scan(
+            client=ctx.obj["client"],
+            matches_ignore=config.matches_ignore,
+            all_policies=config.all_policies,
             verbose=config.verbose,
-            show_secrets=config.show_secrets,
         )
+
+        return output_handler.process_scan(
+            ScanCollection(id="pre-commit", results=results)
+        )[1]
     except click.exceptions.Abort:
         return 0
     except Exception as error:
@@ -161,6 +172,7 @@ def path_cmd(
     scan files and directories.
     """
     config = ctx.obj["config"]
+    output_handler: OutputHandler = ctx.obj["output_handler"]
     try:
         files = get_files_from_paths(
             paths=paths,
@@ -169,16 +181,15 @@ def path_cmd(
             yes=yes,
             verbose=config.verbose,
         )
-        return process_results(
-            results=files.scan(
-                client=ctx.obj["client"],
-                matches_ignore=config.matches_ignore,
-                all_policies=config.all_policies,
-                verbose=config.verbose,
-            ),
-            show_secrets=config.show_secrets,
+        results = files.scan(
+            client=ctx.obj["client"],
+            matches_ignore=config.matches_ignore,
+            all_policies=config.all_policies,
             verbose=config.verbose,
         )
+        scan = ScanCollection(id="path_scan", results=results)
+
+        return output_handler.process_scan(scan)[1]
     except click.exceptions.Abort:
         return 0
     except Exception as error:
@@ -193,8 +204,7 @@ def scan_commit(
     verbose: bool,
     matches_ignore: Iterable[str],
     all_policies: bool,
-    show_secrets: bool,
-) -> int:  # pragma: no cover
+) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
         client=client,
         matches_ignore=matches_ignore,
@@ -202,20 +212,19 @@ def scan_commit(
         verbose=verbose,
     )
 
-    if results or verbose:
-        click.echo(build_commit_info(commit))
-
-    return process_results(results=results, verbose=verbose, show_secrets=show_secrets)
+    return ScanCollection(
+        "commit", results=results, optional_info=build_commit_info(commit)
+    )
 
 
 def scan_commit_range(
     client: GGClient,
     commit_list: List[str],
+    output_handler: OutputHandler,
     verbose: bool,
     filter_set: Set[str],
     matches_ignore: Iterable[str],
     all_policies: bool,
-    show_secrets: bool,
 ) -> int:  # pragma: no cover
     """
     Scan every commit in a range.
@@ -225,7 +234,7 @@ def scan_commit_range(
     :param verbose: Display successfull scan's message
     """
     return_code = 0
-    with concurrent.futures.ProcessPoolExecutor(max_workers=CPU_COUNT) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=CPU_COUNT) as executor:
         future_to_process = [
             executor.submit(
                 scan_commit,
@@ -234,12 +243,15 @@ def scan_commit_range(
                 verbose,
                 matches_ignore,
                 all_policies,
-                show_secrets,
             )
             for sha in commit_list
         ]
 
+        scans: List[ScanCollection] = []
         for future in concurrent.futures.as_completed(future_to_process):
-            return_code = max(return_code, future.result())
+            scans.append(future.result())
 
+        return_code = output_handler.process_scan(
+            ScanCollection(id="commit-range", results=scans)
+        )[1]
     return return_code
