@@ -1,3 +1,4 @@
 [tool.black]
 target-version = ['py36']
 line-length = 88
+exclude = 'snap_'

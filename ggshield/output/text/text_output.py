@@ -10,21 +10,27 @@ from .message import leak_message, no_leak_message
 
 class TextHandler(OutputHandler):
     def process_scan(self, scan: ScanCollection, top: bool = True) -> Tuple[str, int]:
+        return_code = 0
         if scan.optional_info and (scan.results or self.verbose):
             click.echo(scan.optional_info)
-        if not scan.results:
+
+        if scan.results:
+            return_code = 1
+            for result in scan.results:
+                self.process_result(result)
+        else:
             if self.verbose:
                 no_leak_message()
-            return "", 0
 
-        for result in scan.results:
-            if isinstance(result, ScanCollection):
-                self.process_scan(result, top=False)
-            else:
-                self.process_result(result)
+        if scan.scans:
+            for sub_scan in scan.scans:
+                inner_scan_str, inner_return_code = self.process_scan(
+                    sub_scan, top=False
+                )
+                return_code = max(return_code, inner_return_code)
 
-        return "", 1
+        return "", return_code
 
-    def process_result(self, result: Result) -> Tuple[str, int]:
+    def process_result(self, result: Result) -> str:
         leak_message(result, self.show_secrets)
-        return "", 0
+        return ""

@@ -14,5 +14,5 @@ class OutputHandler:
     def process_scan(self, scan: ScanCollection, top: bool = True) -> Tuple[Any, int]:
         pass
 
-    def process_result(self, result: Result) -> Tuple[Any, int]:
+    def process_result(self, result: Result) -> Any:
         pass

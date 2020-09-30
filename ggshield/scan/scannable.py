@@ -29,8 +29,9 @@ class Result(NamedTuple):
 
 
 class ScanCollection(NamedTuple):
-    id: Optional[str]
-    results: List[Any]
+    id: str
+    results: Optional[List[Result]] = None
+    scans: Optional[List[Any]] = None
     # Foward references are not support in mypy for NamedTuples
     # Correct typing would be Union
     optional_info: Optional[str] = None

@@ -11,7 +11,9 @@ from .conftest import _SIMPLE_SECRET, my_vcr
 
 @pytest.fixture(scope="session")
 def cli_runner():
-    os.environ["GITGUARDIAN_API_KEY"] = os.getenv("GITGUARDIAN_API_KEY", "1234567890")
+    os.environ["GITGUARDIAN_API_KEY"] = os.getenv(
+        "TEST_GITGUARDIAN_API_KEY", "1234567890"
+    )
     os.environ["GITGUARDIAN_API_URL"] = "https://api.gitguardian.com/"
     return CliRunner()
 
@@ -81,15 +83,20 @@ class TestScanFiles:
         result = cli_fs_runner.invoke(
             cli, ["scan", "path", "file1", "file2", "-r", "-y"]
         )
+        assert result.exit_code == 0
         assert not result.exception
         assert "" in result.output
 
     @my_vcr.use_cassette()
-    def test_files_verbose(self, cli_fs_runner):
+    def test_files_verbose(self, cli_fs_runner: CliRunner):
         self.create_files()
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "path", "file1", "file2", "-r"], input="y\n"
+            cli,
+            ["-v", "scan", "path", "file1", "file2", "-r"],
+            input="y\n",
+            catch_exceptions=True,
         )
+        assert result.exit_code == 0
         assert not result.exception
         assert "file1\n" in result.output
         assert "file2\n" in result.output
@@ -109,6 +116,7 @@ class TestScanFiles:
         result = cli_fs_runner.invoke(
             cli, ["-v", "scan", "path", "file1", "file2", "-r", "-y"]
         )
+        assert result.exit_code == 0
         assert not result.exception
         assert "file1\n" in result.output
         assert "file2\n" in result.output
