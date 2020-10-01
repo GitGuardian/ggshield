@@ -11,6 +11,7 @@ from pygitguardian import GGClient
 
 from ggshield.output import OutputHandler
 from ggshield.output.text.message import build_commit_info
+from ggshield.output.text.text_output import TextHandler
 from ggshield.scan import Commit, ScanCollection
 
 from .config import CPU_COUNT, Config
@@ -145,7 +146,9 @@ def precommit_cmd(
     scan as a pre-commit git hook.
     """
     config = ctx.obj["config"]
-    output_handler: OutputHandler = ctx.obj["output_handler"]
+    output_handler = TextHandler(
+        show_secrets=config.show_secrets, verbose=config.verbose, output=None
+    )
     try:
         check_git_dir()
         results = Commit(filter_set=ctx.obj["filter_set"]).scan(

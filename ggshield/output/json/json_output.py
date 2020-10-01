@@ -46,7 +46,11 @@ class JSONHandler(OutputHandler):
                 return_code = max(return_code, inner_return_code)
 
         if top:
-            click.echo(JSONScanCollectionSchema().dumps(scan_dict))
+            if self.output:
+                with open(self.output, "w+") as f:
+                    f.write(JSONScanCollectionSchema().dumps(scan_dict))
+            else:
+                click.echo(JSONScanCollectionSchema().dumps(scan_dict))
 
         return scan_dict, return_code
 

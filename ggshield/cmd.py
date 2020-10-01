@@ -2,7 +2,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, NoReturn, Type
+from typing import Any, NoReturn, Optional, Type
 
 import click
 from pygitguardian import GGClient
@@ -57,6 +57,13 @@ from .install import install
 @click.option(
     "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
 )
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(exists=False, resolve_path=True),
+    default=None,
+    help="Route ggshield output to file.",
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
@@ -65,6 +72,7 @@ def scan(
     all_policies: bool,
     verbose: bool,
     json_output: bool,
+    output: Optional[str],
 ) -> int:
     """ Command to scan various contents. """
     api_key = os.getenv("GITGUARDIAN_API_KEY")
@@ -99,7 +107,7 @@ def scan(
         output_handler_cls = JSONHandler
 
     ctx.obj["output_handler"] = output_handler_cls(
-        show_secrets=config.show_secrets, verbose=config.verbose
+        show_secrets=config.show_secrets, verbose=config.verbose, output=output
     )
 
     return return_code
