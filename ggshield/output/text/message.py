@@ -1,21 +1,10 @@
 import os
+from io import StringIO
 from typing import Dict, List, Optional, Set
 
-import click
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.scan import Commit, Result
-from ggshield.text_utils import (
-    STYLE,
-    Line,
-    format_line_count_break,
-    format_text,
-    get_offset,
-    get_padding,
-    pluralize,
-)
-from ggshield.utils import Filemode, get_lines_from_content, update_policy_break_matches
+from ggshield.text_utils import STYLE, Line, format_text, pluralize
 
 
 ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
@@ -31,8 +20,8 @@ def leak_message_located(
     padding: int,
     offset: int,
     is_patch: bool,
-    nb_lines: int = 2,
-) -> None:
+    nb_lines: int,
+) -> str:
     """
     Display leak message of a policy break with location in content.
 
@@ -42,6 +31,7 @@ def leak_message_located(
     :param padding: The line padding
     :param offset: The offset due to the line display
     """
+    leak_msg = StringIO()
 
     # Line content
     def content(i: int) -> str:
@@ -53,53 +43,52 @@ def leak_message_located(
     for line in sorted(lines_to_display):
         multiline_end = None
         if old_line is not None and line - old_line != 1:
-            click.echo(format_line_count_break(padding))
+            leak_msg.write(format_line_count_break(padding))
         if line in flat_matches_dict:
-            click.echo(lines[line].build_line_count(padding, is_secret=True), nl=False)
+            leak_msg.write(lines[line].build_line_count(padding, is_secret=True))
             index: Optional[int] = 0
             for flat_match in sorted(
                 flat_matches_dict[line], key=lambda x: x.index_start
             ):
                 is_multiline = flat_match.line_start != flat_match.line_end
-                click.echo(
+                leak_msg.write(
                     f"{display_patch(content(line)[index:flat_match.index_start])}",
-                    nl=False,
                 )
                 index = None if is_multiline else flat_match.index_end
-                click.echo(
+                leak_msg.write(
                     display_match_value(content(line)[flat_match.index_start : index]),
-                    nl=False,
                 )
 
                 if is_multiline:
                     for match_line_index, match_line in enumerate(
                         flat_match.match.splitlines(False)[1:], 1
                     ):
-                        click.echo()
-                        click.echo(
+                        leak_msg.write("\n")
+                        leak_msg.write(
                             lines[line + match_line_index].build_line_count(
                                 padding, is_secret=True
                             ),
-                            nl=False,
                         )
-                        click.echo(display_match_value(match_line), nl=False)
+                        leak_msg.write(display_match_value(match_line))
                         multiline_end = line + match_line_index
                     index = flat_match.index_end
 
-            click.echo(
-                f"{display_patch(content(multiline_end if multiline_end else line)[index:])}"  # noqa
+            leak_msg.write(
+                f"{display_patch(content(multiline_end if multiline_end else line)[index:])}\n"  # noqa
             )
 
-            click.echo(
+            leak_msg.write(
                 display_detector(
                     add_detectors(flat_matches_dict[line], is_patch),
                     offset,
                 )
             )
         else:
-            click.echo(lines[line].build_line_count(padding, is_secret=False), nl=False)
-            click.echo(f"{display_patch(content(line))}")
+            leak_msg.write(lines[line].build_line_count(padding, is_secret=False))
+            leak_msg.write(f"{display_patch(content(line))}\n")
         old_line = multiline_end if multiline_end else line
+
+    return leak_msg.getvalue()
 
 
 def flatten_policy_breaks_by_line(
@@ -135,59 +124,6 @@ def policy_break_header(
         format_text(ignore_sha, STYLE["ignore_sha"]),
         len(policy_breaks),
         pluralize("occurence", len(policy_breaks), "occurences"),
-    )
-
-
-def leak_message(result: Result, show_secrets: bool, nb_lines: int = 3) -> None:
-    """
-    Build readable message on the found policy breaks.
-
-    :param result: The result from scanning API
-    :param nb_lines: The number of lines to display before and after a secret in the
-    patch
-    :param show_secrets: Option to show secrets value
-    :return: The formatted message to display
-    """
-    policy_breaks = result.scan.policy_breaks
-    is_patch = result.filemode != Filemode.FILE
-    sha_dict = leak_dictionary_by_ignore_sha(policy_breaks)
-
-    if show_secrets:
-        content = result.content
-    else:
-        content = censor_content(result.content, result.scan.policy_breaks)
-
-    lines = get_lines_from_content(content, result.filemode, is_patch, show_secrets)
-    padding = get_padding(lines)
-    offset = get_offset(padding, is_patch)
-
-    if len(lines) == 0:
-        raise click.ClickException("Parsing of scan result failed.")
-
-    click.echo(file_info(result.filename, len(sha_dict)))
-
-    for issue_n, (ignore_sha, policy_breaks) in enumerate(sha_dict.items(), 1):
-        click.echo(policy_break_header(issue_n, policy_breaks, ignore_sha))
-        for policy_break in policy_breaks:
-            update_policy_break_matches(policy_break.matches, lines, is_patch)
-
-        if policy_breaks[0].policy == "Secrets detection":
-            leak_message_located(
-                flatten_policy_breaks_by_line(policy_breaks),
-                lines,
-                padding,
-                offset,
-                is_patch,
-                nb_lines,
-            )
-
-
-def build_commit_info(commit: Commit) -> str:
-    """ Return the formatted patch. """
-    return (
-        format_text(f"\ncommit {commit.sha}\n", STYLE["commit_info"])
-        + f"Author: {commit.info.author} <{commit.info.email}>\n"
-        + f"Date: {commit.info.date}"
     )
 
 
@@ -281,11 +217,11 @@ def file_info(filename: str, nb_secrets: int) -> str:
     )
 
 
-def no_leak_message() -> None:
+def no_leak_message() -> str:
     """
     Build a message if no secret is found.
     """
-    click.echo(format_text("No secrets have been found", STYLE["no_secret"]))
+    return format_text("No secrets have been found\n", STYLE["no_secret"])
 
 
 def get_lines_to_display(
@@ -307,3 +243,10 @@ def get_lines_to_display(
                 )
 
     return lines_to_display
+
+
+def format_line_count_break(padding: int) -> str:
+    """Return the line count break."""
+    return format_text(
+        " " * max(0, padding - len("...")) + "...\n", STYLE["detector_line_start"]
+    )

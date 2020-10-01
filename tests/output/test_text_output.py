@@ -1,7 +1,10 @@
+from copy import deepcopy
+
 import pytest
 
-from ggshield.output.text.message import leak_message, no_leak_message
+from ggshield.output import TextHandler
 from ggshield.scan import Result
+from ggshield.scan.scannable import ScanCollection
 from ggshield.utils import Filemode
 from tests.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
@@ -19,12 +22,10 @@ from tests.conftest import (
 )
 
 
-def test_message_no_secret(snapshot, capsys):
-    no_leak_message()
-    captured = capsys.readouterr()
-    snapshot.assert_match(captured.out)
-
-
+@pytest.mark.parametrize(
+    "show_secrets",
+    [pytest.param(True, id="show_secrets"), pytest.param(False, id="hide_secrets")],
+)
 @pytest.mark.parametrize(
     "result_input",
     [
@@ -84,11 +85,17 @@ def test_message_no_secret(snapshot, capsys):
         ),
     ],
 )
-def test_leak_message(result_input, snapshot, capsys, client):
-    leak_message(result_input, show_secrets=False)
-    no_secret_captured = capsys.readouterr()
-    snapshot.assert_match(no_secret_captured.out)
+def test_leak_message(result_input, snapshot, show_secrets):
+    output_handler = TextHandler(show_secrets=show_secrets, verbose=True)
+    new_result = deepcopy(result_input)
+    output, exit_code = output_handler.process_scan(
+        ScanCollection(
+            id="scan",
+            type="test",
+            results=[new_result],
+            optional_header="> This is an example header",
+        )
+    )
 
-    leak_message(result_input, show_secrets=True)
-    secret_captured = capsys.readouterr()
-    snapshot.assert_match(secret_captured.out)
+    assert exit_code == 1
+    snapshot.assert_match(output)

@@ -11,6 +11,7 @@ from pygitguardian.models import ScanResult
 from ggshield.config import CPU_COUNT, MAX_FILE_SIZE
 from ggshield.filter import remove_ignored_from_result
 from ggshield.git_shell import GIT_PATH, shell
+from ggshield.text_utils import STYLE, format_text
 from ggshield.utils import REGEX_HEADER_INFO, Filemode
 
 from .scannable_errors import handle_scan_error
@@ -167,6 +168,15 @@ class Commit(Files):
                 self._info = CommitInformation(**m.groupdict())
 
         return self._info
+
+    @property
+    def optional_header(self) -> str:
+        """ Return the formatted patch. """
+        return (
+            format_text(f"\ncommit {self.sha}\n", STYLE["commit_info"])
+            + f"Author: {self.info.author} <{self.info.email}>\n"
+            + f"Date: {self.info.date}\n"
+        )
 
     @property
     def patch(self) -> str:

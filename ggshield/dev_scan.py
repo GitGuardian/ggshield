@@ -9,9 +9,7 @@ from typing import Iterable, Iterator, List, Set
 import click
 from pygitguardian import GGClient
 
-from ggshield.output import OutputHandler
-from ggshield.output.text.message import build_commit_info
-from ggshield.output.text.text_output import TextHandler
+from ggshield.output import OutputHandler, TextHandler
 from ggshield.scan import Commit, ScanCollection
 
 from .config import CPU_COUNT, Config
@@ -227,7 +225,7 @@ def scan_commit(
         commit.sha or "unknown",
         type="commit",
         results=results,
-        optional_header=build_commit_info(commit),
+        optional_header=commit.optional_header,
         extra_info=commit.info._asdict(),
     )
 

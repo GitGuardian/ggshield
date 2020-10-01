@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, NamedTuple, Optional, Union
 
 import click
 
@@ -93,33 +93,12 @@ def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
     return plural or (name + "s")
 
 
-def format_line_count_break(padding: int) -> str:
-    """Return the line count break."""
-    return format_text(
-        " " * max(0, padding - len("...")) + "...", STYLE["detector_line_start"]
-    )
-
-
 def format_line_count(line_count: Union[int, None], padding: int) -> str:
     """ Return the padded line count. """
     if line_count is None:
         return " " * padding
 
     return " " * max(0, padding - len(str(line_count))) + str(line_count)
-
-
-def get_padding(lines: List[Line]) -> int:
-    """ Return the number of digit of the maximum line number. """
-    # value can be None
-    return max(len(str(lines[-1].pre_index or 0)), len(str(lines[-1].post_index or 0)))
-
-
-def get_offset(padding: int, is_patch: bool = False) -> int:
-    """ Return the offset due to the line display. """
-    if is_patch:
-        return len(LINE_DISPLAY["patch"].format("0" * padding, "0" * padding))
-
-    return len(LINE_DISPLAY["file"].format("0" * padding))
 
 
 def display_error(msg: str) -> None:
