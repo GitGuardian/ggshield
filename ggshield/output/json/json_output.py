@@ -1,8 +1,10 @@
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple
 
+import click
 from pygitguardian.models import PolicyBreak
 
 from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result
 from ggshield.scan.scannable import ScanCollection
@@ -13,22 +15,38 @@ from ggshield.utils import Filemode, get_lines_from_content, update_policy_break
 class JSONHandler(OutputHandler):
     def process_scan(
         self, scan: ScanCollection, top: bool = True
-    ) -> Tuple[Union[List[Dict[str, Any]], Dict[str, Any]], int]:
-        scan_dict: Dict[str, Any] = {"id": scan.id}
+    ) -> Tuple[Dict[str, Any], int]:
+        scan_dict: Dict[str, Any] = {
+            "id": scan.id,
+            "type": scan.type,
+            "total_issues": 0,
+            "total_occurrences": 0,
+        }
         return_code = 0
+
+        if scan.extra_info:
+            scan_dict["extra_info"] = scan.extra_info
 
         if scan.results:
             return_code = 1
             for result in scan.results:
-                scan_dict.setdefault("results", []).append(self.process_result(result))
+                result_dict = self.process_result(result)
+                scan_dict.setdefault("results", []).append(result_dict)
+                scan_dict["total_issues"] += result_dict["total_issues"]
+                scan_dict["total_occurrences"] += result_dict["total_occurrences"]
 
         if scan.scans:
-            for inner_scan in scan.scans:
+            for inner_scan in scan.scans_with_results:
                 inner_scan_dict, inner_return_code = self.process_scan(
                     inner_scan, top=False
                 )
                 scan_dict.setdefault("scans", []).append(inner_scan_dict)
+                scan_dict["total_issues"] += inner_scan_dict["total_issues"]
+                scan_dict["total_occurrences"] += inner_scan_dict["total_occurrences"]
                 return_code = max(return_code, inner_return_code)
+
+        if top:
+            click.echo(JSONScanCollectionSchema().dumps(scan_dict))
 
         return scan_dict, return_code
 
@@ -37,6 +55,8 @@ class JSONHandler(OutputHandler):
             "filename": result.filename,
             "mode": result.filemode.name,
             "issues": [],
+            "total_occurrences": 0,
+            "total_issues": 0,
         }
         content = result.content
         is_patch = result.filemode != Filemode.FILE
@@ -59,6 +79,7 @@ class JSONHandler(OutputHandler):
                 is_patch,
             )
             result_dict["issues"].append(flattened_dict)
+            result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
 
         return result_dict
 
@@ -70,14 +91,14 @@ class JSONHandler(OutputHandler):
         is_patch: bool,
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
-            "matches": [],
+            "occurrences": [],
             "ignore_sha": ignore_sha,
             "policy": policy_breaks[0].policy,
             "break_type": policy_breaks[0].break_type,
-            "occurences": len(policy_breaks),
+            "total_occurrences": len(policy_breaks),
         }
         for policy_break in policy_breaks:
             update_policy_break_matches(policy_break.matches, lines, is_patch)
-            flattened_dict["matches"].extend(policy_break.matches)
+            flattened_dict["occurrences"].extend(policy_break.matches)
 
         return flattened_dict

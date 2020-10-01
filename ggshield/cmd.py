@@ -2,12 +2,12 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Type
 
 import click
 from pygitguardian import GGClient
 
-from ggshield.output.text.text_output import TextHandler
+from ggshield.output import JSONHandler, OutputHandler, TextHandler
 
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Config, load_dot_env
@@ -40,6 +40,14 @@ from .install import install
     "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
 )
 @click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="JSON output results",
+)
+@click.option(
     "--all-policies",
     is_flag=True,
     default=None,
@@ -56,6 +64,7 @@ def scan(
     exit_zero: bool,
     all_policies: bool,
     verbose: bool,
+    json_output: bool,
 ) -> int:
     """ Command to scan various contents. """
     api_key = os.getenv("GITGUARDIAN_API_KEY")
@@ -85,7 +94,11 @@ def scan(
     if exit_zero is not None:
         config.exit_zero = exit_zero
 
-    ctx.obj["output_handler"] = TextHandler(
+    output_handler_cls: Type[OutputHandler] = TextHandler
+    if json_output:
+        output_handler_cls = JSONHandler
+
+    ctx.obj["output_handler"] = output_handler_cls(
         show_secrets=config.show_secrets, verbose=config.verbose
     )
 

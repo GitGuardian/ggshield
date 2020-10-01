@@ -11,8 +11,8 @@ from .message import leak_message, no_leak_message
 class TextHandler(OutputHandler):
     def process_scan(self, scan: ScanCollection, top: bool = True) -> Tuple[str, int]:
         return_code = 0
-        if scan.optional_info and (scan.results or self.verbose):
-            click.echo(scan.optional_info)
+        if scan.optional_header and (scan.results or self.verbose):
+            click.echo(scan.optional_header)
 
         if scan.results:
             return_code = 1
