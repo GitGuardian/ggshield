@@ -3,7 +3,7 @@ from collections import namedtuple
 import pytest
 
 from ggshield.output import JSONHandler
-from ggshield.output.json.schemas import ScanCollectionSchema
+from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import Commit
 from ggshield.scan.scannable import ScanCollection
 from ggshield.utils import Filemode
@@ -51,9 +51,9 @@ def test_json_output(client, name, input_patch, expected, snapshot):
         )
 
         flat_results, exit_code = handler.process_scan(
-            scan=ScanCollection("path", results), top=True
+            scan=ScanCollection(id="path", type="test", results=results), top=True
         )
 
         assert exit_code == expected
-        json_flat_results = ScanCollectionSchema().dumps(flat_results)
-        snapshot.assert_match(ScanCollectionSchema().loads(json_flat_results))
+        json_flat_results = JSONScanCollectionSchema().dumps(flat_results)
+        snapshot.assert_match(JSONScanCollectionSchema().loads(json_flat_results))

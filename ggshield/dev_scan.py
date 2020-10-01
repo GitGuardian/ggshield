@@ -31,7 +31,11 @@ def cd(newdir: str) -> Iterator[None]:
 
 
 def scan_repo_path(
-    client: GGClient, output_handler: OutputHandler, config: Config, repo_path: str
+    client: GGClient,
+    output_handler: OutputHandler,
+    config: Config,
+    repo_path: str,
+    scan_id: str,
 ) -> int:  # pragma: no cover
     try:
         with cd(repo_path):
@@ -46,6 +50,7 @@ def scan_repo_path(
                 filter_set=path_filter_set(Path(os.getcwd()), []),
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
+                scan_id=scan_id,
             )
     except click.exceptions.Abort:
         return 0
@@ -77,6 +82,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
             output_handler=ctx.obj["output_handler"],
             config=config,
             repo_path=repository,
+            scan_id=repository,
         )
 
     if REGEX_GIT_URL.match(repository):
@@ -87,6 +93,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
                 output_handler=ctx.obj["output_handler"],
                 config=config,
                 repo_path=tmpdirname,
+                scan_id=repository,
             )
 
     raise click.ClickException(f"{repository} is neither a valid path nor a git URL")
@@ -118,6 +125,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             filter_set=ctx.obj["filter_set"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
+            scan_id=commit_range,
         )
     except click.exceptions.Abort:
         return 0
@@ -148,7 +156,7 @@ def precommit_cmd(
         )
 
         return output_handler.process_scan(
-            ScanCollection(id="pre-commit", results=results)
+            ScanCollection(id="cached", type="pre-commit", results=results)
         )[1]
     except click.exceptions.Abort:
         return 0
@@ -187,7 +195,7 @@ def path_cmd(
             all_policies=config.all_policies,
             verbose=config.verbose,
         )
-        scan = ScanCollection(id="path_scan", results=results)
+        scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 
         return output_handler.process_scan(scan)[1]
     except click.exceptions.Abort:
@@ -213,7 +221,11 @@ def scan_commit(
     )
 
     return ScanCollection(
-        "commit", results=results, optional_info=build_commit_info(commit)
+        commit.sha or "unknown",
+        type="commit",
+        results=results,
+        optional_header=build_commit_info(commit),
+        extra_info=commit.info._asdict(),
     )
 
 
@@ -225,6 +237,7 @@ def scan_commit_range(
     filter_set: Set[str],
     matches_ignore: Iterable[str],
     all_policies: bool,
+    scan_id: str,
 ) -> int:  # pragma: no cover
     """
     Scan every commit in a range.
@@ -252,6 +265,6 @@ def scan_commit_range(
             scans.append(future.result())
 
         return_code = output_handler.process_scan(
-            ScanCollection(id="commit-range", scans=scans)
+            ScanCollection(id=scan_id, type="commit-range", scans=scans)
         )[1]
     return return_code

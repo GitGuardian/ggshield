@@ -4,11 +4,14 @@ from pygitguardian.models import MatchSchema
 
 
 class FlattenedPolicyBreak(Schema):
-    break_type = fields.String(data_key="break_type", required=True)
     policy = fields.String(required=True)
-    matches = fields.List(fields.Nested(MatchSchema), required=True)
+    occurrences = fields.List(fields.Nested(MatchSchema), required=True)
+    break_type = fields.String(data_key="type", required=True)
     ignore_sha = fields.String(required=True)
-    occurences = fields.Integer(required=True)
+    total_occurrences = fields.Integer(required=True)
+
+    class Meta:
+        ordered = True
 
 
 class JSONResultSchema(Schema):
@@ -16,9 +19,22 @@ class JSONResultSchema(Schema):
     filename = fields.String(required=True)
     issues = fields.List(fields.Nested(FlattenedPolicyBreak), required=True)
     total_issues = fields.Integer(required=True)
+    total_occurrences = fields.Integer(required=True)
+
+    class Meta:
+        ordered = True
 
 
-class ScanCollectionSchema(Schema):
+class JSONScanCollectionSchema(Schema):
     id = fields.String()
-    results = fields.List(fields.Nested(JSONResultSchema))
-    scans = fields.List(fields.Nested(lambda: ScanCollectionSchema()))
+    type = fields.String()
+    results = fields.List(
+        fields.Nested(JSONResultSchema), data_key="entities_with_issues"
+    )
+    scans = fields.List(fields.Nested(lambda: JSONScanCollectionSchema()))
+    extra_info = fields.Dict(keys=fields.Str(), values=fields.Str())
+    total_issues = fields.Integer(required=True)
+    total_occurrences = fields.Integer(required=True)
+
+    class Meta:
+        ordered = True
