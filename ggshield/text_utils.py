@@ -19,6 +19,7 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "detector_line_start": {"fg": "cyan"},
     "line_count": {"fg": "white", "dim": True},
     "line_count_secret": {"fg": "yellow"},
+    "progress": {"fg": "bright_yellow", "bold": False},
 }
 
 
