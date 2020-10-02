@@ -12,7 +12,7 @@ snapshots["test_json_output[_MULTIPLE_SECRETS] 1"] = {
     "results": [
         {
             "filename": "test.txt",
-            "issues": [
+            "incidents": [
                 {
                     "break_type": "MySQL Assignment",
                     "ignore_sha": "6ea3195be80ceae4996cda16955ac052425901b50896b02f797e61777fd297e7",
@@ -35,18 +35,18 @@ snapshots["test_json_output[_MULTIPLE_SECRETS] 1"] = {
                 }
             ],
             "mode": "NEW",
-            "total_issues": 1,
+            "total_incidents": 1,
             "total_occurrences": 1,
         }
     ],
-    "total_issues": 1,
+    "total_incidents": 1,
     "total_occurrences": 1,
     "type": "test",
 }
 
 snapshots["test_json_output[_NO_SECRET] 1"] = {
     "id": "path",
-    "total_issues": 0,
+    "total_incidents": 0,
     "total_occurrences": 0,
     "type": "test",
 }
@@ -56,7 +56,7 @@ snapshots["test_json_output[_ONE_LINE_AND_MULTILINE_PATCH] 1"] = {
     "results": [
         {
             "filename": "test.txt",
-            "issues": [
+            "incidents": [
                 {
                     "break_type": "RSA Private Key",
                     "ignore_sha": "bc9ae02c5ca67523e8381ac3908089afb0cf9b82c74e92997d5bedda0016bec4",
@@ -81,11 +81,11 @@ snapshots["test_json_output[_ONE_LINE_AND_MULTILINE_PATCH] 1"] = {
                 },
             ],
             "mode": "NEW",
-            "total_issues": 2,
+            "total_incidents": 2,
             "total_occurrences": 2,
         }
     ],
-    "total_issues": 2,
+    "total_incidents": 2,
     "total_occurrences": 2,
     "type": "test",
 }
@@ -95,7 +95,7 @@ snapshots["test_json_output[_SIMPLE_SECRET] 1"] = {
     "results": [
         {
             "filename": "test.txt",
-            "issues": [
+            "incidents": [
                 {
                     "break_type": "SendGrid Key",
                     "ignore_sha": "eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908",
@@ -109,11 +109,11 @@ snapshots["test_json_output[_SIMPLE_SECRET] 1"] = {
                 }
             ],
             "mode": "NEW",
-            "total_issues": 1,
+            "total_incidents": 1,
             "total_occurrences": 1,
         }
     ],
-    "total_issues": 1,
+    "total_incidents": 1,
     "total_occurrences": 1,
     "type": "test",
 }

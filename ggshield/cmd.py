@@ -36,7 +36,7 @@ from .install import install
     is_flag=True,
     default=None,
     envvar="GITGUARDIAN_EXIT_ZERO",
-    help="Always return a 0 (non-error) status code, even if issues are found."
+    help="Always return a 0 (non-error) status code, even if incidents are found."
     "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
 )
 @click.option(
