@@ -19,7 +19,7 @@ class JSONHandler(OutputHandler):
         scan_dict: Dict[str, Any] = {
             "id": scan.id,
             "type": scan.type,
-            "total_issues": 0,
+            "total_incidents": 0,
             "total_occurrences": 0,
         }
         return_code = 0
@@ -32,7 +32,7 @@ class JSONHandler(OutputHandler):
             for result in scan.results:
                 result_dict = self.process_result(result)
                 scan_dict.setdefault("results", []).append(result_dict)
-                scan_dict["total_issues"] += result_dict["total_issues"]
+                scan_dict["total_incidents"] += result_dict["total_incidents"]
                 scan_dict["total_occurrences"] += result_dict["total_occurrences"]
 
         if scan.scans:
@@ -41,7 +41,7 @@ class JSONHandler(OutputHandler):
                     inner_scan, top=False
                 )
                 scan_dict.setdefault("scans", []).append(inner_scan_dict)
-                scan_dict["total_issues"] += inner_scan_dict["total_issues"]
+                scan_dict["total_incidents"] += inner_scan_dict["total_incidents"]
                 scan_dict["total_occurrences"] += inner_scan_dict["total_occurrences"]
                 return_code = max(return_code, inner_return_code)
 
@@ -58,9 +58,9 @@ class JSONHandler(OutputHandler):
         result_dict: Dict[str, Any] = {
             "filename": result.filename,
             "mode": result.filemode.name,
-            "issues": [],
+            "incidents": [],
             "total_occurrences": 0,
-            "total_issues": 0,
+            "total_incidents": 0,
         }
         content = result.content
         is_patch = result.filemode != Filemode.FILE
@@ -73,7 +73,7 @@ class JSONHandler(OutputHandler):
         )
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
 
-        result_dict["total_issues"] = len(sha_dict)
+        result_dict["total_incidents"] = len(sha_dict)
 
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(
@@ -82,7 +82,7 @@ class JSONHandler(OutputHandler):
                 lines,
                 is_patch,
             )
-            result_dict["issues"].append(flattened_dict)
+            result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
 
         return result_dict

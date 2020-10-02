@@ -17,8 +17,8 @@ class FlattenedPolicyBreak(Schema):
 class JSONResultSchema(Schema):
     mode = fields.String(required=True)
     filename = fields.String(required=True)
-    issues = fields.List(fields.Nested(FlattenedPolicyBreak), required=True)
-    total_issues = fields.Integer(required=True)
+    incidents = fields.List(fields.Nested(FlattenedPolicyBreak), required=True)
+    total_incidents = fields.Integer(required=True)
     total_occurrences = fields.Integer(required=True)
 
     class Meta:
@@ -29,11 +29,11 @@ class JSONScanCollectionSchema(Schema):
     id = fields.String()
     type = fields.String()
     results = fields.List(
-        fields.Nested(JSONResultSchema), data_key="entities_with_issues"
+        fields.Nested(JSONResultSchema), data_key="entities_with_incidents"
     )
     scans = fields.List(fields.Nested(lambda: JSONScanCollectionSchema()))
     extra_info = fields.Dict(keys=fields.Str(), values=fields.Str())
-    total_issues = fields.Integer(required=True)
+    total_incidents = fields.Integer(required=True)
     total_occurrences = fields.Integer(required=True)
 
     class Meta:

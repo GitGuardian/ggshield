@@ -15,7 +15,7 @@
 The **GitGuardian shield** (gg-shield) is a CLI application that runs in your local environment
 or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 
-**GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets or issues in your code. **The `/v1/scan` endpoint of the [public API](https://api.gitguardian.com/doc) is stateless. We will not store any files you are sending or any secrets we have detected**.
+**GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets in your code. **The `/v1/scan` endpoint of the [public API](https://api.gitguardian.com/doc) is stateless. We will not store any files you are sending or any secrets we have detected**.
 
 You can also use gg-shield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
 
@@ -114,15 +114,17 @@ Usage: ggshield scan [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --show-secrets  Show secrets in plaintext instead of hiding them.
-  --exit-zero     Always return a 0 (non-error) status code, even if issues
+  --exit-zero     Always return a 0 (non-error) status code, even if incidents
                   are found.The env var GITGUARDIAN_EXIT_ZERO can also be used
                   to set this option.
 
+  --json             JSON output results  [default: False]
   --all-policies  Present fails of all policies (Filenames, FileExtensions,
                   Secret Detection). By default, only Secret Detection is
                   shown.
 
   -v, --verbose   Verbose display mode.
+  -o, --output PATH  Route ggshield output to file.
   -h, --help      Show this message and exit.
 
 Commands:
@@ -232,7 +234,7 @@ matches-ignore:
 show-secrets: false # default: false
 
 # Set to true if the desired exit code for the CLI is always 0,
-# otherwise the exit code will be 1 if issues are found.
+# otherwise the exit code will be 1 if incidents are found.
 # the environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behaviour.
 exit-zero: false # default: false
 

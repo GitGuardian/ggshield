@@ -15,7 +15,7 @@ show-secrets: false # default: false
 all-policies: false # default: false
 
 # Set to true if the desired exit code for the CLI is always 0,
-# otherwise the exit code will be 1 if issues are found
+# otherwise the exit code will be 1 if incidents are found
 # the environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behaviour.
 exit-zero: false # default: false
 
