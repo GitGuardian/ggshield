@@ -58,7 +58,7 @@ jobs:
         run: |
           coverage run --source ggshield -m pytest --disable-pytest-warnings
           coverage report --fail-under=80
-          pipenv run coverage xml
+          coverage xml
       - uses: codecov/codecov-action@v1
         with:
           file: ./coverage.xml
