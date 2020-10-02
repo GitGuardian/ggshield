@@ -11,6 +11,7 @@ from pygitguardian import GGClient
 
 from ggshield.output import OutputHandler, TextHandler
 from ggshield.scan import Commit, ScanCollection
+from ggshield.text_utils import STYLE, format_text
 
 from .config import CPU_COUNT, Config
 from .filter import path_filter_set
@@ -262,8 +263,15 @@ def scan_commit_range(
         ]
 
         scans: List[ScanCollection] = []
-        for future in concurrent.futures.as_completed(future_to_process):
-            scans.append(future.result())
+        with click.progressbar(
+            length=len(future_to_process),
+            label=format_text("Scanning Commits", STYLE["progress"]),
+        ) as bar:
+            processed = 0
+            for future in concurrent.futures.as_completed(future_to_process):
+                scans.append(future.result())
+                processed += 1
+                bar.update(processed)
 
         return_code = output_handler.process_scan(
             ScanCollection(id=scan_id, type="commit-range", scans=scans)
