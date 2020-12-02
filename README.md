@@ -375,7 +375,7 @@ $ docker run -e GITGUARDIAN_API_KEY -v $(pwd):/data --rm gitguardian/ggshield gg
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
 
-# Git pre-receive hooks
+# Pre-receive
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 
