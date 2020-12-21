@@ -6,6 +6,8 @@ import vcr
 from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
 
+from ggshield.config import Cache
+
 
 _MULTIPLE_SECRETS_PATCH = """@@ -0,0 +1,2 @@
 +FacebookAppKeys :
@@ -379,3 +381,10 @@ def client() -> GGClient:
     api_key = os.getenv("TEST_GITGUARDIAN_API_KEY", "1234567890")
     base_uri = os.getenv("TEST_GITGUARDIAN_API_URL", "https://api.gitguardian.com")
     return GGClient(api_key, base_uri)
+
+
+@pytest.fixture(scope="session")
+def cache() -> Cache:
+    c = Cache()
+    c.purge()
+    return c

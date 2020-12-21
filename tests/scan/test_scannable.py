@@ -62,13 +62,17 @@ _EXPECT_NO_SECRET = {
         "_NO_SECRET",
     ],
 )
-def test_scan_patch(client, name, input_patch, expected):
+def test_scan_patch(client, cache, name, input_patch, expected):
     c = Commit()
     c._patch = input_patch
 
     with my_vcr.use_cassette(name):
         results = c.scan(
-            client=client, matches_ignore={}, all_policies=True, verbose=False
+            client=client,
+            cache=cache,
+            matches_ignore={},
+            all_policies=True,
+            verbose=False,
         )
         for result in results:
             if result.scan.policy_breaks:

@@ -10,9 +10,10 @@ from pygitguardian import GGClient
 from ggshield.output import JSONHandler, OutputHandler, TextHandler
 
 from .ci import ci_cmd
-from .config import CONTEXT_SETTINGS, Config, load_dot_env
+from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
 from .dev_scan import path_cmd, precommit_cmd, range_cmd, repo_cmd
 from .filter import path_filter_set
+from .ignore import ignore
 from .install import install
 
 
@@ -128,7 +129,8 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 
 
 @click.group(
-    context_settings=CONTEXT_SETTINGS, commands={"scan": scan, "install": install}
+    context_settings=CONTEXT_SETTINGS,
+    commands={"scan": scan, "install": install, "ignore": ignore},
 )
 @click.option(
     "-c",
@@ -148,6 +150,7 @@ def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:
         Config.CONFIG_GLOBAL = []
 
     ctx.obj["config"] = Config()
+    ctx.obj["cache"] = Cache()
 
     if verbose is not None:
         ctx.obj["config"].verbose = verbose

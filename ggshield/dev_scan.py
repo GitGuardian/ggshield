@@ -13,7 +13,7 @@ from ggshield.output import OutputHandler, TextHandler
 from ggshield.scan import Commit, ScanCollection
 from ggshield.text_utils import STYLE, format_text
 
-from .config import CPU_COUNT, Config
+from .config import CPU_COUNT, Cache, Config
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, check_git_dir, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
@@ -32,6 +32,7 @@ def cd(newdir: str) -> Iterator[None]:
 
 def scan_repo_path(
     client: GGClient,
+    cache: Cache,
     output_handler: OutputHandler,
     config: Config,
     repo_path: str,
@@ -44,6 +45,7 @@ def scan_repo_path(
 
             return scan_commit_range(
                 client=client,
+                cache=cache,
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
                 verbose=config.verbose,
@@ -75,10 +77,12 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     ggshield scan repo /repositories/gg-shield
     """
     config: Config = ctx.obj["config"]
+    cache: Cache = ctx.obj["cache"]
     client: GGClient = ctx.obj["client"]
     if os.path.isdir(repository):
         return scan_repo_path(
             client=client,
+            cache=cache,
             output_handler=ctx.obj["output_handler"],
             config=config,
             repo_path=repository,
@@ -90,6 +94,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
             shell([GIT_PATH, "clone", repository, tmpdirname])
             return scan_repo_path(
                 client=client,
+                cache=cache,
                 output_handler=ctx.obj["output_handler"],
                 config=config,
                 repo_path=tmpdirname,
@@ -119,6 +124,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
 
         return scan_commit_range(
             client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,
@@ -152,6 +158,7 @@ def precommit_cmd(
         check_git_dir()
         results = Commit(filter_set=ctx.obj["filter_set"]).scan(
             client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             verbose=config.verbose,
@@ -193,6 +200,7 @@ def path_cmd(
         )
         results = files.scan(
             client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             verbose=config.verbose,
@@ -211,12 +219,14 @@ def path_cmd(
 def scan_commit(
     commit: Commit,
     client: GGClient,
+    cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[str],
     all_policies: bool,
 ) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
         client=client,
+        cache=cache,
         matches_ignore=matches_ignore,
         all_policies=all_policies,
         verbose=verbose,
@@ -233,6 +243,7 @@ def scan_commit(
 
 def scan_commit_range(
     client: GGClient,
+    cache: Cache,
     commit_list: List[str],
     output_handler: OutputHandler,
     verbose: bool,
@@ -255,6 +266,7 @@ def scan_commit_range(
                 scan_commit,
                 Commit(sha, filter_set),
                 client,
+                cache,
                 verbose,
                 matches_ignore,
                 all_policies,

@@ -40,14 +40,18 @@ _EXPECT_NO_SECRET = {
         "_NO_SECRET",
     ],
 )
-def test_json_output(client, name, input_patch, expected, snapshot):
+def test_json_output(client, cache, name, input_patch, expected, snapshot):
     c = Commit()
     c._patch = input_patch
     handler = JSONHandler(verbose=True, show_secrets=False)
 
     with my_vcr.use_cassette(name):
         results = c.scan(
-            client=client, matches_ignore={}, all_policies=True, verbose=False
+            client=client,
+            cache=cache,
+            matches_ignore={},
+            all_policies=True,
+            verbose=False,
         )
 
         flat_results, exit_code = handler.process_scan(

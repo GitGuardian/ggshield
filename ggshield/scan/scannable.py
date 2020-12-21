@@ -8,7 +8,7 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
-from ggshield.config import CPU_COUNT, MAX_FILE_SIZE
+from ggshield.config import CPU_COUNT, MAX_FILE_SIZE, Cache
 from ggshield.filter import remove_ignored_from_result
 from ggshield.git_shell import GIT_PATH, shell
 from ggshield.text_utils import STYLE, format_text
@@ -100,10 +100,12 @@ class Files:
     def scan(
         self,
         client: GGClient,
+        cache: Cache,
         matches_ignore: Iterable[str],
         all_policies: bool,
         verbose: bool,
     ) -> List[Result]:
+        cache.purge()
         scannable_list = self.scannable_list
         results = []
         chunks = []
@@ -127,6 +129,8 @@ class Files:
                 for index, scanned in enumerate(scan.scan_results):
                     remove_ignored_from_result(scanned, all_policies, matches_ignore)
                     if scanned.has_policy_breaks:
+                        for policy_break in scanned.policy_breaks:
+                            cache.add_found_policy_break(policy_break)
                         results.append(
                             Result(
                                 content=chunk[index]["document"],
@@ -135,7 +139,7 @@ class Files:
                                 filename=chunk[index]["filename"],
                             )
                         )
-
+        cache.save()
         return results
 
 

@@ -225,6 +225,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
 
         return scan_commit_range(
             client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,

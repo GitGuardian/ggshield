@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -6,7 +7,7 @@ import yaml
 from click.testing import CliRunner
 from mock import patch
 
-from ggshield.config import Config
+from ggshield.config import Cache, Config, replace_in_keys
 
 
 @pytest.fixture(scope="session")
@@ -112,3 +113,56 @@ class TestConfig:
 
         config = Config()
         assert config.matches_ignore == {"one", "two", "three"}
+
+
+class TestUtils:
+    def test_replace_in_keys(self):
+        data = {"last-found-secrets": {"XXX"}}
+        replace_in_keys(data, "-", "_")
+        assert data == {"last_found_secrets": {"XXX"}}
+        replace_in_keys(data, "_", "-")
+        assert data == {"last-found-secrets": {"XXX"}}
+
+
+class TestCache:
+    def test_defaults(self, cli_fs_runner):
+        cache = Cache()
+        for attr in cache.attributes:
+            assert getattr(cache, attr.name) == attr.default
+
+    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
+    def test_load_cache_and_purge(self, cli_fs_runner):
+        with open(".cache_ggshield", "w") as file:
+            json.dump({"last_found_secrets": ["XXX"]}, file)
+        cache = Cache()
+        assert cache.last_found_secrets == {"XXX"}
+
+        cache.purge()
+        assert cache.last_found_secrets == set()
+
+    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
+    def test_load_invalid_cache(self, cli_fs_runner, capsys):
+        with open(".cache_ggshield", "w") as file:
+            json.dump({"invalid_option": True}, file)
+
+        Cache()
+        captured = capsys.readouterr()
+        assert "Unrecognized key in cache" in captured.out
+
+    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
+    def test_save_cache(self, cli_fs_runner):
+        with open(".cache_ggshield", "w") as file:
+            json.dump({}, file)
+        cache = Cache()
+        cache.update_cache(**{"last_found_secrets": {"XXX"}})
+        cache.save()
+        with open(".cache_ggshield", "r") as file:
+            file_content = json.load(file)
+            assert file_content == {"last_found_secrets": ["XXX"]}
+
+    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
+    def test_save_cache_first_time(self, cli_fs_runner):
+        os.remove(".cache_ggshield")
+        cache = Cache()
+        cache.save()
+        assert os.path.isfile(".cache_ggshield") is True

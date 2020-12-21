@@ -49,6 +49,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
    - [Scan](#scan-command)
    - [Install](#install-command)
+   - [Ignore](#ignore-command)
 
 1. [Pre-commit](#pre-commit)
 
@@ -100,6 +101,7 @@ Options:
 Commands:
   install  Command to install a pre-commit hook (local or global).
   scan     Command to scan various contents.
+  ignore   Command to permanently ignore some secrets.
 ```
 
 ## Scan command
@@ -203,6 +205,24 @@ Options:
   -m, --mode [local|global]  Hook installation mode  [required]
   -f, --force                Force override
   -h, --help                 Show this message and exit.
+```
+
+## Ignore command
+
+The `ignore` command allows you to ignore some secrets.
+For the time being, it only handles the `--last-found` option that ignore all secrets found by the last run `scan` command.
+Under the hood, these secrets are added to the matches-ignore section of your local config file (if no local config file is found, a `.gitguardian.yaml` file is created).
+
+Warning: Using this command will discard any comment present in the config file.
+
+```shell
+Usage: ggshield ignore
+
+  Command to ignore all secrets found by the previous scan.
+
+Options:
+  -h, --help                 Show this message and exit.
+  --last-found               Ignore all secrets found by last run scan
 ```
 
 # Configuration
