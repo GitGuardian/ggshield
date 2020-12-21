@@ -123,3 +123,6 @@ venv.bak/
 
 # test file
 test-secret-files.json
+
+# cache
+.cache_ggshield
