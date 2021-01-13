@@ -48,7 +48,7 @@ def leak_message_located(
             leak_msg.write(lines[line].build_line_count(padding, is_secret=True))
             index: Optional[int] = 0
             for flat_match in sorted(
-                flat_matches_dict[line], key=lambda x: x.index_start
+                flat_matches_dict[line], key=lambda x: x.index_start  # type: ignore
             ):
                 is_multiline = flat_match.line_start != flat_match.line_end
                 leak_msg.write(
