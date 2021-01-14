@@ -2,7 +2,11 @@ from typing import List
 
 import pytest
 
-from ggshield.output.text.message import format_line_count_break, no_leak_message
+from ggshield.output.text.message import (
+    clip_long_line,
+    format_line_count_break,
+    no_leak_message,
+)
 from ggshield.output.text.text_output import get_offset, get_padding
 from ggshield.text_utils import Line
 
@@ -39,6 +43,33 @@ def test_get_padding(lines: List[Line], want: int) -> None:
 )
 def test_get_offset(padding: int, is_patch: bool, want: int) -> None:
     assert get_offset(padding, is_patch) == want
+
+
+@pytest.mark.parametrize(
+    "params, want",
+    [
+        # should not clip anything
+        (("123456789", 10, False, False, 0), "123456789"),
+        (("123456789", 10, True, False, 0), "123456789"),
+        (("123456789", 10, False, True, 0), "123456789"),
+        (("123456789", 10, True, True, 0), "123456789"),
+        # edge case: should not clip anything
+        (("123456789", 9, True, True, 0), "123456789"),
+        # edge case: should only clip after
+        (("123456789", 8, True, True, 0), "1234567…"),
+        # should clip as expected
+        (("123456789", 5, False, False, 0), "123456789"),
+        (("123456789", 5, True, False, 0), "…6789"),
+        (("123456789", 5, False, True, 0), "1234…"),
+        (("123456789", 5, True, True, 0), "…456…"),
+        (("123456789", 4, True, False, 0), "…789"),
+        (("123456789", 4, False, True, 0), "123…"),
+        (("123456789", 4, True, True, 0), "…45…"),
+        (("123456789", 4, True, True, 6), "…3456…"),
+    ],
+)
+def test_clip_long_line(params, want):
+    assert clip_long_line(*params) == want
 
 
 def test_format_line_count_break():
