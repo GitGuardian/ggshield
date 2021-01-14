@@ -1,6 +1,7 @@
 import os
+import shutil
 from io import StringIO
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from pygitguardian.models import Match, PolicyBreak
 
@@ -19,8 +20,8 @@ def leak_message_located(
     lines: List[Line],
     padding: int,
     offset: int,
-    is_patch: bool,
     nb_lines: int,
+    clip_long_lines: bool = False,
 ) -> str:
     """
     Display leak message of a policy break with location in content.
@@ -32,61 +33,93 @@ def leak_message_located(
     :param offset: The offset due to the line display
     """
     leak_msg = StringIO()
-
-    # Line content
-    def content(i: int) -> str:
-        return lines[i].content
+    max_width = shutil.get_terminal_size()[0] - offset if clip_long_lines else 0
 
     lines_to_display = get_lines_to_display(flat_matches_dict, lines, nb_lines)
 
-    old_line: Optional[int] = None
-    for line in sorted(lines_to_display):
+    old_line_number: Optional[int] = None
+    for line_number in sorted(lines_to_display):
         multiline_end = None
-        if old_line is not None and line - old_line != 1:
+        line = lines[line_number]
+        line_content = line.content
+
+        if old_line_number is not None and line_number - old_line_number != 1:
             leak_msg.write(format_line_count_break(padding))
-        if line in flat_matches_dict:
-            leak_msg.write(lines[line].build_line_count(padding, is_secret=True))
-            index: Optional[int] = 0
+
+        # The current line number matches a found secret
+        if line_number in flat_matches_dict:
             for flat_match in sorted(
-                flat_matches_dict[line], key=lambda x: x.index_start  # type: ignore
+                flat_matches_dict[line_number],
+                key=lambda x: x.index_start,  # type: ignore
             ):
                 is_multiline = flat_match.line_start != flat_match.line_end
-                leak_msg.write(
-                    f"{display_patch(content(line)[index:flat_match.index_start])}",
-                )
-                index = None if is_multiline else flat_match.index_end
-                leak_msg.write(
-                    display_match_value(content(line)[flat_match.index_start : index]),
-                )
 
                 if is_multiline:
+                    detector_position = float("inf"), float("-inf")
+
+                    # Iterate on the different (and consecutive) lines of the secret
                     for match_line_index, match_line in enumerate(
-                        flat_match.match.splitlines(False)[1:], 1
+                        flat_match.match.splitlines(False)
                     ):
-                        leak_msg.write("\n")
+                        multiline_line_number = line_number + match_line_index
                         leak_msg.write(
-                            lines[line + match_line_index].build_line_count(
+                            lines[multiline_line_number].build_line_count(
                                 padding, is_secret=True
-                            ),
+                            )
                         )
-                        leak_msg.write(display_match_value(match_line))
-                        multiline_end = line + match_line_index
-                    index = flat_match.index_end
 
-            leak_msg.write(
-                f"{display_patch(content(multiline_end if multiline_end else line)[index:])}\n"  # noqa
-            )
+                        if match_line_index == 0:
+                            # The first line of the secret may contain something else
+                            # before
+                            formatted_line, secret_position = format_line_with_secret(
+                                line_content,
+                                flat_match.index_start,
+                                len(line_content),
+                                max_width,
+                            )
+                        elif multiline_line_number == flat_match.line_end:
+                            # The last line of the secret may contain something else
+                            # after
+                            last_line_content = lines[flat_match.line_end].content
+                            formatted_line, secret_position = format_line_with_secret(
+                                last_line_content, 0, len(match_line), max_width
+                            )
+                            multiline_end = multiline_line_number
+                        else:
+                            # All the other lines have nothing else but a part of the
+                            # secret in them
+                            formatted_line, secret_position = format_line_with_secret(
+                                match_line, 0, len(match_line), max_width
+                            )
+                        leak_msg.write(formatted_line)
 
-            leak_msg.write(
-                display_detector(
-                    add_detectors(flat_matches_dict[line], is_patch),
-                    offset,
-                )
-            )
+                        detector_position = (
+                            min(detector_position[0], secret_position[0]),
+                            max(detector_position[1], secret_position[1]),
+                        )
+
+                else:
+                    leak_msg.write(line.build_line_count(padding, is_secret=True))
+                    formatted_line, detector_position = format_line_with_secret(
+                        line_content,
+                        flat_match.index_start,
+                        flat_match.index_end,
+                        max_width,
+                    )
+                    leak_msg.write(formatted_line)
+
+                detector_position = int(detector_position[0]), int(detector_position[1])
+                detector = format_detector(flat_match.match_type, *detector_position)
+                leak_msg.write(display_detector(detector, offset))
+
+        # The current line is just here for context
         else:
-            leak_msg.write(lines[line].build_line_count(padding, is_secret=False))
-            leak_msg.write(f"{display_patch(content(line))}\n")
-        old_line = multiline_end if multiline_end else line
+            leak_msg.write(line.build_line_count(padding, is_secret=False))
+            if clip_long_lines:
+                line_content = clip_long_line(line_content, max_width, after=True)
+            leak_msg.write(f"{display_patch(line_content)}\n")
+
+        old_line_number = multiline_end if multiline_end else line_number
 
     return leak_msg.getvalue()
 
@@ -127,6 +160,98 @@ def policy_break_header(
     )
 
 
+def clip_long_line(
+    content: str,
+    max_length: int,
+    before: bool = False,
+    after: bool = False,
+    min_length: int = 10,
+) -> str:
+    """
+    Add a "…" character before and/or after the given string
+    if it exceeds a maximum length.
+    """
+    ellipsis = "…"
+    content_length = len(content)
+    if content_length > max_length:
+        if before and after and content_length > max_length + 1:
+            content = (
+                ellipsis
+                + content[
+                    (content_length - max(max_length, min_length)) // 2
+                    + 1 : (content_length + max(max_length, min_length)) // 2
+                    - 1
+                ]
+                + ellipsis
+            )
+        elif after:
+            content = content[: max(max_length - 1, min_length)] + ellipsis
+        elif before:
+            content = ellipsis + content[min(-max_length + 1, -min_length) :]
+    return content
+
+
+def format_line_with_secret(
+    line_content: str,
+    secret_index_start: int,
+    secret_index_end: int,
+    max_width: Optional[int] = None,
+) -> Tuple[str, Tuple[int, int]]:
+    """
+    Format a line containing a secret.
+    :param line_content: the whole line, as a string
+    :param secret_index_start: the index in the line, as an integer, where the secret
+    starts
+    :param secret_index_end: the index in the line, as an integer, where the secret
+    ends
+    :param max_width: if set, context will be clipped if needed
+    :return The formatted detector as a string, and the position (start and end index)
+    of the secret in it.
+    """
+    context_before = line_content[:secret_index_start]
+    secret = line_content[secret_index_start:secret_index_end]
+    context_after = line_content[secret_index_end:]
+    secret_length = len(secret)
+
+    # Clip the context if it is too long
+    if max_width:
+        context_max_length = max_width - secret_length
+        if len(context_before) + len(context_after) > context_max_length:
+            # Both before and after context are too long, cut them to the same size
+            if (
+                len(context_before) > context_max_length // 2
+                and len(context_after) > context_max_length // 2
+            ):
+                context_before = clip_long_line(
+                    context_before, context_max_length // 2, before=True
+                )
+                context_after = clip_long_line(
+                    context_after, context_max_length // 2, after=True
+                )
+            # Only the before context is too long, clip it but use the maximum space
+            # available
+            elif len(context_before) > context_max_length // 2:
+                context_before = clip_long_line(
+                    context_before, context_max_length - len(context_after), before=True
+                )
+            # Only the after context is too long, same idea
+            elif len(context_after) > context_max_length // 2:
+                context_after = clip_long_line(
+                    context_after, context_max_length - len(context_before), after=True
+                )
+
+    formatted_line = (
+        (display_patch(context_before) if context_before else "")
+        + display_match_value(secret)
+        + (display_patch(context_after) if context_after else "")
+        + "\n"
+    )
+
+    secret_display_index_start = len(context_before)
+    secret_display_index_end = secret_display_index_start + secret_length
+    return formatted_line, (secret_display_index_start, secret_display_index_end)
+
+
 def display_patch(patch: str) -> str:
     """ Return the formatted patch. """
     return format_text(patch, STYLE["patch"])
@@ -137,74 +262,24 @@ def display_match_value(match_value: str) -> str:
     return format_text(match_value, STYLE["secret"])
 
 
-def display_detector(detector_line: List, offset: int) -> str:
+def display_detector(detector: str, offset: int) -> str:
     """ Return the formatted detector line. """
-    return format_text(format_detector_line(detector_line, offset), STYLE["detector"])
+    return " " * offset + format_text(detector, STYLE["detector"])
 
 
-def format_detector_line(detector_line: List, offset: int) -> str:
-    """ Display detectors from detector_line. """
-    message = " " * offset
-    last_index = 0
-
-    for detector in detector_line:
-        spaces = detector["start_index"] - last_index
-        # Overlay
-        if spaces < 0:
-            message += "\n"
-            spaces = offset + detector["start_index"]
-
-        message += "{}{}".format(" " * spaces, detector["display"])
-
-        last_index = max(
-            detector["end_index"], detector["start_index"] + len(detector["display"])
-        )
-
-    return message + "\n"
-
-
-def add_detectors(flat_matches: List[Match], is_patch: bool) -> List[Dict]:
-    return [add_detector(match, is_patch) for match in flat_matches]
-
-
-def add_detector(match: Match, is_patch: bool) -> Dict:
+def format_detector(match_type: str, index_start: int, index_end: int) -> str:
     """ Return detector object to add in detector_line. """
-    secret_lines = match.match.split("\n")
-    detector_size = len(match.match_type)
 
-    # Multiline secret
-    if len(secret_lines) > 1:
-        secret_size = max(
-            match.index_start + len(secret_lines[0]),
-            max((len(line) for line in secret_lines[1:-1]), default=0) - int(is_patch),
-            match.index_end,
-        )
-
-    # Single line secret
-    else:
-        secret_size = len(secret_lines[0])
+    detector_size = len(match_type)
+    secret_size = index_end - index_start
 
     display = ""
     if secret_size < MAX_SECRET_SIZE:
         before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
         after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
-        display = "|{}{}{}|".format(before, match.match_type, after)
+        display = "|{}{}{}|".format(before, match_type, after)
 
-    # Multiline
-    if match.line_start != match.line_end:
-        return {
-            "display": display,
-            "start_index": 0,
-            "end_index": secret_size,
-            "match": match,
-        }
-
-    return {
-        "display": display,
-        "start_index": match.index_start,
-        "end_index": max(match.index_end, match.index_start + len(display)),
-        "match": match,
-    }
+    return " " * index_start + format_text(display, STYLE["detector"]) + "\n"
 
 
 def file_info(filename: str, nb_secrets: int) -> str:

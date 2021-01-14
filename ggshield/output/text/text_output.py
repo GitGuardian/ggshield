@@ -110,8 +110,8 @@ class TextHandler(OutputHandler):
                         lines,
                         padding,
                         offset,
-                        is_patch,
                         self.nb_lines,
+                        clip_long_lines=not self.verbose,
                     )
                 )
 
