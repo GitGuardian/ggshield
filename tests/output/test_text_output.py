@@ -27,6 +27,10 @@ from tests.conftest import (
     [pytest.param(True, id="show_secrets"), pytest.param(False, id="hide_secrets")],
 )
 @pytest.mark.parametrize(
+    "verbose",
+    [pytest.param(True, id="verbose"), pytest.param(False, id="clip_long_lines")],
+)
+@pytest.mark.parametrize(
     "result_input",
     [
         pytest.param(
@@ -85,8 +89,8 @@ from tests.conftest import (
         ),
     ],
 )
-def test_leak_message(result_input, snapshot, show_secrets):
-    output_handler = TextHandler(show_secrets=show_secrets, verbose=True)
+def test_leak_message(result_input, snapshot, show_secrets, verbose):
+    output_handler = TextHandler(show_secrets=show_secrets, verbose=verbose)
     new_result = deepcopy(result_input)
     output, exit_code = output_handler.process_scan(
         ScanCollection(
