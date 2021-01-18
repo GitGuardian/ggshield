@@ -45,6 +45,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1. [Configuration](#configuration)
    1. [Environment Variables](#environment-variables)
    2. [On-premises](#on-premises-configuration)
+   3. [Ignoring a secret](#ignoring-a-secret)
 1. [Commands](#commands)
 
    - [Scan](#scan-command)
@@ -304,6 +305,36 @@ GITGUARDIAN_API_URL=<GitGuardian on-premises API URL>
 ```
 
 Alternatively to setting the `GITGUARDIAN_API_URL` environment variable, set the `api-url` in your `.gitguardian.yaml`.
+
+## Ignoring a secret
+
+Useful for ignoring a revoked test credential or a false positive, there are three ways to ignore a secret with gg-shield:
+
+### In code
+
+> ⚠ this will also ignore the secret in the GitGuardian dashboard.
+
+Secrets can be ignored in code by suffixing the line with a `ggignore` comment.
+
+Examples:
+
+```py
+def send_to_notifier() -> int:
+  return send_slack_message(token="xoxb-23s2js9912ksk120wsjp") # ggignore
+```
+
+```go
+func main() {
+  high_entropy_test := "A@@E*JN#DK@OE@K(JEN@I@#)" // ggignore
+}
+
+```
+
+### Through configuration
+
+> ⚠ Your secret will still show up on the GitGuardian dashboard as potential incident.
+
+You can use the [ignore command](#ignore-command) to ignore the last found secrets in your scan or directly add the ignore SHA that accompanies the incident or one of the secret matches to the [#configuration file](#configuration)
 
 # Pre-commit
 
