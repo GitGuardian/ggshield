@@ -334,7 +334,9 @@ func main() {
 
 > ⚠ Your secret will still show up on the GitGuardian dashboard as potential incident.
 
-You can use the [ignore command](#ignore-command) to ignore the last found secrets in your scan or directly add the ignore SHA that accompanies the incident or one of the secret matches to the [#configuration file](#configuration)
+You can use the [ignore command](#ignore-command) to ignore the last found secrets in your scan or directly add the ignore SHA that accompanies the incident or one of the secret matches to the [configuration file](#configuration)
+
+> ⚠ A secret ignored on the GitGuardian dashboard will still show as a potential incident on ggshield.
 
 # Pre-commit
 
