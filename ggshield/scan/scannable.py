@@ -130,7 +130,9 @@ class Files:
                     remove_ignored_from_result(scanned, all_policies, matches_ignore)
                     if scanned.has_policy_breaks:
                         for policy_break in scanned.policy_breaks:
-                            cache.add_found_policy_break(policy_break)
+                            cache.add_found_policy_break(
+                                policy_break, chunk[index]["filename"]
+                            )
                         results.append(
                             Result(
                                 content=chunk[index]["document"],

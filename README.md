@@ -249,8 +249,10 @@ paths-ignore:
 
 # Ignore policy breaks with the SHA256 of the policy break obtained at output or the secret itself
 matches-ignore:
-  - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
-  - MY_TEST_CREDENTIAL
+  - name:
+    matches: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+  - name: credentials
+    matches: MY_TEST_CREDENTIAL
 
 show-secrets: false # default: false
 
@@ -265,6 +267,18 @@ all-policies: false # default: false
 api-url: https://api.gitguardian.com # GITGUARDIAN_API_URL environment variable will override this setting
 
 verbose: false # default: false
+```
+
+_Notes_
+
+Old configuration of `matches-ignore` with list of secrets is
+deprecated but still supported :
+
+```yml
+# Ignore policy breaks with the SHA256 of the policy break obtained at output or the secret itself
+matches-ignore:
+  - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+  - MY_TEST_CREDENTIAL
 ```
 
 ## Environment Variables

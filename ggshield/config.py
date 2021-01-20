@@ -37,7 +37,7 @@ class Config:
     all_policies: bool
     api_url: str
     exit_zero: bool
-    matches_ignore: set
+    matches_ignore: list
     paths_ignore: set
     show_secrets: bool
     verbose: bool
@@ -54,7 +54,7 @@ class Config:
         Attribute("all_policies", False),
         Attribute("api_url", "https://api.gitguardian.com"),
         Attribute("exit_zero", False),
-        Attribute("matches_ignore", set()),
+        Attribute("matches_ignore", list()),
         Attribute("paths_ignore", set()),
         Attribute("show_secrets", False),
         Attribute("verbose", False),
@@ -78,8 +78,8 @@ class Config:
     def update_config(self, **kwargs: Any) -> None:
         for key, item in kwargs.items():
             if key in self.get_attributes_keys():
-                if isinstance(item, list):
-                    getattr(self, key).update(item)
+                if isinstance(getattr(self, key), list):
+                    getattr(self, key).extend(item)
                 else:
                     setattr(self, key, item)
             else:
@@ -142,10 +142,15 @@ class Config:
                 )
         return True
 
-    def add_ignored_match(self, secret_hash: str) -> None:
+    def add_ignored_match(self, secret: dict) -> None:
         """ Add secret to matches_ignore. """
-        current_ignored = self.matches_ignore
-        current_ignored.add(secret_hash)
+
+        if secret["match"] not in [d["match"] for d in self.matches_ignore]:
+            self.matches_ignore.append(secret)
+        else:
+            for d in self.matches_ignore:
+                if d["match"] == secret["match"] and d["name"] == "":
+                    d.update({"name": secret["name"]})
 
 
 def load_dot_env() -> None:
@@ -171,11 +176,11 @@ def load_dot_env() -> None:
 
 class Cache:
 
-    last_found_secrets: set
+    last_found_secrets: list
 
     CACHE_FILENAME = "./.cache_ggshield"
     attributes: List[Attribute] = [
-        Attribute("last_found_secrets", set()),
+        Attribute("last_found_secrets", list()),
     ]
 
     def __init__(self) -> None:
@@ -190,6 +195,19 @@ class Cache:
         return list(
             list(zip(*self.attributes))[0]
         )  # get list of first elements in tuple
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if isinstance(value, list):
+            attribute = getattr(self, name)
+
+            if isinstance(attribute, list):
+                for elem in value:
+                    if elem not in attribute:
+                        attribute.append(elem)
+            else:
+                getattr(self, name).update(value)
+        else:
+            super().__setattr__(name, value)
 
     def create_empty_cache(self) -> None:
         # Creates a new file
@@ -221,9 +239,14 @@ class Cache:
         for key, item in kwargs.items():
             if key in self.get_attributes_keys():
                 if isinstance(item, list):
-                    getattr(self, key).update(item)
+                    attr = getattr(self, key)
+                    for elem in item:
+                        if elem not in attr:
+                            attr.append(elem)
                 else:
                     setattr(self, key, item)
+
+                setattr(self, key, item)
             else:
                 click.echo("Unrecognized key in cache: {}".format(key))
 
@@ -254,12 +277,17 @@ class Cache:
         for attr in self.attributes:
             # Deep copy to avoid mutating the default value
             default = copy.copy(attr.default)
-            setattr(self, attr.name, default)
+            super().__setattr__(attr.name, default)
 
-    def add_found_secret(self, hash: str) -> None:
-        self.last_found_secrets.add(hash)
+    def add_found_secret(self, match: dict) -> None:
+        self.last_found_secrets.append(match)
 
-    def add_found_policy_break(self, policy_break: PolicyBreak) -> None:
+    def add_found_policy_break(self, policy_break: PolicyBreak, filename: str) -> None:
         if policy_break.policy.lower() == "secrets detection":
             for match in policy_break.matches:
-                self.add_found_secret(match.match)
+                self.add_found_secret(
+                    {
+                        "name": f"{match.match_type} - {filename}",
+                        "match": match.match,
+                    }
+                )
