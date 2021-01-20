@@ -106,13 +106,25 @@ class TestConfig:
     @patch("ggshield.config.Config.CONFIG_GLOBAL", [".gitguardian.yaml"])
     def test_accumulation_matches(self, cli_fs_runner):
         with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"matches_ignore": ["one", "two"]}))
+            file.write(
+                yaml.dump(
+                    {
+                        "matches_ignore": [
+                            {"name": "", "match": "one"},
+                            {"name": "", "match": "two"},
+                        ]
+                    }
+                )
+            )
 
         with open(".gitguardian.yaml", "w") as file:
-            file.write(yaml.dump({"matches_ignore": ["three"]}))
-
+            file.write(yaml.dump({"matches_ignore": [{"name": "", "match": "three"}]}))
         config = Config()
-        assert config.matches_ignore == {"one", "two", "three"}
+        assert config.matches_ignore == [
+            {"match": "three", "name": ""},
+            {"match": "one", "name": ""},
+            {"match": "two", "name": ""},
+        ]
 
 
 class TestUtils:
@@ -133,12 +145,12 @@ class TestCache:
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
     def test_load_cache_and_purge(self, cli_fs_runner):
         with open(".cache_ggshield", "w") as file:
-            json.dump({"last_found_secrets": ["XXX"]}, file)
+            json.dump({"last_found_secrets": [{"name": "", "match": "XXX"}]}, file)
         cache = Cache()
-        assert cache.last_found_secrets == {"XXX"}
+        assert cache.last_found_secrets == [{"name": "", "match": "XXX"}]
 
         cache.purge()
-        assert cache.last_found_secrets == set()
+        assert cache.last_found_secrets == []
 
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
     def test_load_invalid_cache(self, cli_fs_runner, capsys):

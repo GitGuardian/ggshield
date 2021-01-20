@@ -6,12 +6,12 @@ from ggshield.scan import Commit
 from tests.conftest import _MULTIPLE_SECRETS, my_vcr
 
 
-FOUND_SECRETS = {
-    "5434",
-    "google.com",
-    "m42ploz2wd",
-    "root",
-}
+FOUND_SECRETS = [
+    {"name": "port", "match": "5434"},
+    {"name": "host", "match": "google.com"},
+    {"name": "password", "match": "m42ploz2wd"},
+    {"name": "username", "match": "root"},
+]
 
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
@@ -25,10 +25,10 @@ def test_cache_catches_last_found_secrets(client):
     c = Commit()
     c._patch = _MULTIPLE_SECRETS
     config = Config()
-    setattr(config, "matches_ignore", set())
+    setattr(config, "matches_ignore", [])
     cache = Cache()
     cache.purge()
-    assert cache.last_found_secrets == set()
+    assert cache.last_found_secrets == list()
 
     with my_vcr.use_cassette("multiple_secrets"):
         c.scan(
@@ -38,10 +38,22 @@ def test_cache_catches_last_found_secrets(client):
             all_policies=True,
             verbose=False,
         )
-    assert config.matches_ignore == set()
-    assert cache.last_found_secrets == FOUND_SECRETS
+    assert config.matches_ignore == list()
+
+    cache_found_secrets = sorted(
+        cache.last_found_secrets, key=lambda match: (match["name"], match["match"])
+    )
+    found_secrets = sorted(
+        FOUND_SECRETS, key=lambda match: (match["name"], match["match"])
+    )
+
+    assert [found_secret["match"] for found_secret in cache_found_secrets] == [
+        found_secret["match"] for found_secret in found_secrets
+    ]
+    ignore_last_found(config, cache)
+    for ignore in config.matches_ignore:
+        assert "test.txt" in ignore["name"]
     cache.load_cache()
-    assert cache.last_found_secrets == FOUND_SECRETS
 
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
@@ -67,9 +79,40 @@ def test_cache_catches_nothing(client):
             all_policies=True,
             verbose=False,
         )
+
         assert results == []
         assert config.matches_ignore == FOUND_SECRETS
-        assert cache.last_found_secrets == set()
+        assert cache.last_found_secrets == []
+
+
+@patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
+@patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")
+def test_cache_old_config(client):
+    """
+    GIVEN a cache of last found secrets same as config ignored-matches
+          and config ignored-matches is a list of strings
+    WHEN I run a scan (therefore finding no secret)
+    THEN config matches is unchanged and cache is empty
+    """
+    c = Commit()
+    c._patch = _MULTIPLE_SECRETS
+    config = Config()
+    config.matches_ignore = [d["match"] for d in FOUND_SECRETS]
+    cache = Cache()
+    cache.last_found_secrets = FOUND_SECRETS
+
+    with my_vcr.use_cassette("multiple_secrets"):
+        results = c.scan(
+            client=client,
+            cache=cache,
+            matches_ignore=config.matches_ignore,
+            all_policies=True,
+            verbose=False,
+        )
+
+        assert results == []
+        assert config.matches_ignore == [d["match"] for d in FOUND_SECRETS]
+        assert cache.last_found_secrets == []
 
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
@@ -81,12 +124,22 @@ def test_ignore_last_found(client):
     THEN config ignored-matches is updated accordingly
     """
     config = Config()
-    setattr(config, "matches_ignore", set())
+    setattr(config, "matches_ignore", list())
 
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
     ignore_last_found(config, cache)
-    assert config.matches_ignore == FOUND_SECRETS
+
+    matches_ignore = sorted(
+        config.matches_ignore, key=lambda match: (match["name"], match["match"])
+    )
+
+    found_secrets = sorted(
+        FOUND_SECRETS,
+        key=lambda match: (match["name"], match["match"]),
+    )
+
+    assert matches_ignore == found_secrets
     assert cache.last_found_secrets == FOUND_SECRETS
 
 
@@ -100,13 +153,20 @@ def test_ignore_last_found_with_manually_added_secrets(client):
     """
     manually_added_secret = "m42ploz2wd"
     config = Config()
-    config.matches_ignore = {manually_added_secret}
+    config.matches_ignore = [{"name": "", "match": manually_added_secret}]
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
 
     ignore_last_found(config, cache)
 
-    assert config.matches_ignore == FOUND_SECRETS
+    matches_ignore = sorted(
+        config.matches_ignore, key=lambda match: (match["name"], match["match"])
+    )
+
+    found_secrets = sorted(
+        FOUND_SECRETS, key=lambda match: (match["name"], match["match"])
+    )
+    assert matches_ignore == found_secrets
 
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
@@ -118,17 +178,28 @@ def test_ignore_last_found_preserve_previous_config(client):
     THEN existing config option are not wiped out
     """
     config = Config()
-    previous_secrets = {"previous_secret", "other_previous_secret"}
+    previous_secrets = [
+        {"name": "", "match": "previous_secret"},
+        {"name": "", "match": "other_previous_secret"},
+    ]
+
     previous_paths = {"some_path", "some_other_path"}
-    config.matches_ignore = previous_secrets
+    config.matches_ignore = previous_secrets.copy()
     config.paths_ignore = previous_paths
     config.exit_zero = True
 
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
-
     ignore_last_found(config, cache)
+    matches_ignore = sorted(
+        config.matches_ignore, key=lambda match: (match["name"], match["match"])
+    )
 
-    assert config.matches_ignore == FOUND_SECRETS.union(previous_secrets)
+    found_secrets = sorted(
+        FOUND_SECRETS + previous_secrets,
+        key=lambda match: (match["name"], match["match"]),
+    )
+
+    assert matches_ignore == found_secrets
     assert config.paths_ignore == previous_paths
     assert config.exit_zero is True

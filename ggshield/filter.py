@@ -4,7 +4,7 @@ import operator
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Iterable, List, Set
+from typing import Any, Dict, Iterable, List, Set
 
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 
@@ -15,7 +15,7 @@ MAXIMUM_CENSOR_LENGTH = 60
 
 
 def is_ignored(
-    policy_break: PolicyBreak, all_policies: bool, matches_ignore: Iterable[str]
+    policy_break: PolicyBreak, all_policies: bool, matches_ignore: Iterable[Any]
 ) -> bool:
     """
     is_ignored checks if a policy break is ignored.
@@ -27,6 +27,10 @@ def is_ignored(
     :param matches_ignore: Iterable of match ignores (plaintext secrets of SHAs)
     :return: True if ignored
     """
+
+    matches_ignore = [
+        match["match"] if isinstance(match, dict) else match for match in matches_ignore
+    ]
     if not all_policies and policy_break.policy.lower() != "secrets detection":
         return True
     if get_ignore_sha(policy_break) in matches_ignore or any(
@@ -37,7 +41,7 @@ def is_ignored(
 
 
 def remove_ignored_from_result(
-    scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[str]
+    scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[Any]
 ) -> None:
     """
     remove_ignored removes policy breaks from a Scan Result based on a sha
