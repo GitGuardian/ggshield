@@ -206,7 +206,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             commit_list = github_actions_range(config.verbose)
         elif os.getenv("TRAVIS"):
             commit_list = travis_range(config.verbose)
-        elif os.getenv("JENKINS_HOME"):
+        elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
             commit_list = jenkins_range(config.verbose)
         elif os.getenv("CIRCLECI"):
             commit_list = circle_ci_range(config.verbose)
