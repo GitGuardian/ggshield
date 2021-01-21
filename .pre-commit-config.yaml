@@ -31,7 +31,7 @@ repos:
         args: [--settings-path, setup.cfg]
 
   - repo: https://github.com/Woile/commitizen
-    rev: v2.13.0
+    rev: v2.14.0
     hooks:
       - id: commitizen
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
@@ -52,7 +52,7 @@ repos:
         stages: [commit]
 
   - repo: https://github.com/gitguardian/gg-shield
-    rev: v1.2.3
+    rev: v1.3.0
     hooks:
       - id: ggshield
         language_version: python3
