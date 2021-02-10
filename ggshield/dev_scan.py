@@ -101,6 +101,11 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
                 scan_id=repository,
             )
 
+    if any(host in repository for host in ("gitlab.com", "github.com")):
+        raise click.ClickException(
+            f"{repository} doesn't seem to be a valid git URL.\n"
+            f"Did you mean {repository}.git?"
+        )
     raise click.ClickException(f"{repository} is neither a valid path nor a git URL")
 
 
