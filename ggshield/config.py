@@ -211,7 +211,11 @@ class Cache:
 
     def create_empty_cache(self) -> None:
         # Creates a new file
-        with open(self.CACHE_FILENAME, "w"):
+        try:
+            with open(self.CACHE_FILENAME, "w"):
+                pass
+        except PermissionError:
+            # Hotfix: for the time being we skip cache handling if permission denied
             pass
 
     def load_cache(self) -> bool:
@@ -221,17 +225,24 @@ class Cache:
 
         _cache: dict = {}
         if os.stat(self.CACHE_FILENAME).st_size != 0:
-            with open(self.CACHE_FILENAME, "r") as f:
-                try:
-                    _cache = json.load(f)
-                    # Convert back all sets that were serialized as lists
-                    for attr in self.attributes:
-                        if type(attr.default) is set and attr.name in _cache:
-                            _cache[attr.name] = set(_cache[attr.name]) or set()
-                except Exception as e:
-                    raise click.ClickException(
-                        f"Parsing error while reading {self.CACHE_FILENAME}:\n{str(e)}"
-                    )
+            try:
+                f = open(self.CACHE_FILENAME, "r")
+            except PermissionError:
+                # Hotfix: for the time being we skip cache handling if permission denied
+                return True
+            else:
+                with f:
+                    try:
+                        _cache = json.load(f)
+                        # Convert back all sets that were serialized as lists
+                        for attr in self.attributes:
+                            if type(attr.default) is set and attr.name in _cache:
+                                _cache[attr.name] = set(_cache[attr.name]) or set()
+                    except Exception as e:
+                        raise click.ClickException(
+                            "Parsing error while"
+                            f"reading {self.CACHE_FILENAME}:\n{str(e)}"
+                        )
         self.update_cache(**_cache)
         return True
 
@@ -263,14 +274,20 @@ class Cache:
         if not os.path.isfile(self.CACHE_FILENAME):
             return False
 
-        with open(self.CACHE_FILENAME, "w") as f:
-            try:
-                json.dump(self.to_dict(), f)
+        try:
+            f = open(self.CACHE_FILENAME, "w")
+        except PermissionError:
+            # Hotfix: for the time being we skip cache handling if permission denied
+            return True
+        else:
+            with f:
+                try:
+                    json.dump(self.to_dict(), f)
 
-            except Exception as e:
-                raise click.ClickException(
-                    f"Error while saving cache in {self.CACHE_FILENAME}:\n{str(e)}"
-                )
+                except Exception as e:
+                    raise click.ClickException(
+                        f"Error while saving cache in {self.CACHE_FILENAME}:\n{str(e)}"
+                    )
         return True
 
     def purge(self) -> None:
