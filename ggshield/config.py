@@ -147,12 +147,20 @@ class Config:
     def add_ignored_match(self, secret: dict) -> None:
         """ Add secret to matches_ignore. """
 
-        if secret["match"] not in [d["match"] for d in self.matches_ignore]:
+        matches_ignore = [
+            match["match"] if isinstance(match, dict) else match
+            for match in self.matches_ignore
+        ]
+        if secret["match"] not in matches_ignore:
             self.matches_ignore.append(secret)
         else:
-            for d in self.matches_ignore:
-                if d["match"] == secret["match"] and d["name"] == "":
-                    d.update({"name": secret["name"]})
+            for match in self.matches_ignore:
+                if (
+                    isinstance(match, dict)
+                    and match["match"] == secret["match"]
+                    and match["name"] == ""
+                ):
+                    match.update({"name": secret["name"]})
 
 
 def load_dot_env() -> None:

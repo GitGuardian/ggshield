@@ -24,7 +24,8 @@ def is_ignored(
     - matching one of the match.match values
 
     :param policy_break: Policy Break occurrence to judge
-    :param matches_ignore: Iterable of match ignores (plaintext secrets of SHAs)
+    :param matches_ignore: Iterable of match ignores
+    (plaintext secrets of SHAs or this type{"name": some_name, "match": sha})
     :return: True if ignored
     """
 
