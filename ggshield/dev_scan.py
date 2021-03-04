@@ -265,7 +265,9 @@ def scan_commit_range(
     :param verbose: Display successfull scan's message
     """
     return_code = 0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=CPU_COUNT) as executor:
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(CPU_COUNT, 4)
+    ) as executor:
         future_to_process = [
             executor.submit(
                 scan_commit,
