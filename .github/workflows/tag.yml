@@ -43,7 +43,10 @@ jobs:
             ## Changelog
           draft: false
           prerelease: false
-
+      - name: Release Notary Action
+        uses: aevea/release-notary@v0.9.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
