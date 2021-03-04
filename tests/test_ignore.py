@@ -7,10 +7,10 @@ from tests.conftest import _MULTIPLE_SECRETS, my_vcr
 
 
 FOUND_SECRETS = [
-    {"name": "port", "match": "5434"},
-    {"name": "host", "match": "google.com"},
-    {"name": "password", "match": "m42ploz2wd"},
-    {"name": "username", "match": "root"},
+    {
+        "name": "port",
+        "match": "41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8",
+    },
 ]
 
 
@@ -151,7 +151,9 @@ def test_ignore_last_found_with_manually_added_secrets(client):
     WHEN I run ignore command
     THEN only new discovered secrets are added to the config
     """
-    manually_added_secret = "m42ploz2wd"
+    manually_added_secret = (
+        "41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8"
+    )
     config = Config()
     config.matches_ignore = [{"name": "", "match": manually_added_secret}]
     cache = Cache()

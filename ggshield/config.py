@@ -8,6 +8,8 @@ import yaml
 from dotenv import load_dotenv
 from pygitguardian.models import PolicyBreak
 
+from ggshield.filter import get_ignore_sha
+
 from .git_shell import get_git_root, is_git_dir
 from .text_utils import display_error
 
@@ -296,15 +298,11 @@ class Cache:
             default = copy.copy(attr.default)
             super().__setattr__(attr.name, default)
 
-    def add_found_secret(self, match: dict) -> None:
-        self.last_found_secrets.append(match)
-
     def add_found_policy_break(self, policy_break: PolicyBreak, filename: str) -> None:
-        if policy_break.policy.lower() == "secrets detection":
-            for match in policy_break.matches:
-                self.add_found_secret(
-                    {
-                        "name": f"{match.match_type} - {filename}",
-                        "match": match.match,
-                    }
-                )
+        if policy_break.is_secret:
+            self.last_found_secrets.append(
+                {
+                    "name": f"{policy_break.break_type} - {filename}",
+                    "match": get_ignore_sha(policy_break),
+                }
+            )
