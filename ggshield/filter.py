@@ -18,12 +18,12 @@ def is_ignored(
     policy_break: PolicyBreak, all_policies: bool, matches_ignore: Iterable[Any]
 ) -> bool:
     """
-    is_ignored checks if a policy break is ignored.
-    There are 2 ways of ignoring a policy break:
-    - matching the policy break sha
+    is_ignored checks if a occurrence is ignored.
+    There are 2 ways of ignoring a occurrence:
+    - matching the occurrence sha
     - matching one of the match.match values
 
-    :param policy_break: Policy Break to judge
+    :param policy_break: Policy Break occurrence to judge
     :param matches_ignore: Iterable of match ignores (plaintext secrets of SHAs)
     :return: True if ignored
     """
@@ -44,7 +44,7 @@ def remove_ignored_from_result(
     scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[Any]
 ) -> None:
     """
-    remove_ignored removes policy breaks from a Scan Result based on a sha
+    remove_ignored removes occurrences from a Scan Result based on a sha
     made from its matches.
 
     :param scan_result: ScanResult to filter
@@ -77,10 +77,10 @@ def leak_dictionary_by_ignore_sha(
     policy_breaks: List[PolicyBreak],
 ) -> Dict[str, List[PolicyBreak]]:
     """
-    leak_dictionary_by_ignore_sha sorts matches and policy breaks by
+    leak_dictionary_by_ignore_sha sorts matches and incidents by
     first appearance in file.
 
-    sort policy breaks by first appearance on file,
+    sort incidents by first appearance on file,
     file wide matches have no index
     so give it -1 so they get bumped to the top
 

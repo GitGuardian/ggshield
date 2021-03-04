@@ -24,7 +24,7 @@ def leak_message_located(
     clip_long_lines: bool = False,
 ) -> str:
     """
-    Display leak message of a policy break with location in content.
+    Display leak message of an incident with location in content.
 
     :param lines: The lines list
     :param line_index: The last index in the line
@@ -128,8 +128,8 @@ def flatten_policy_breaks_by_line(
     policy_breaks: List[PolicyBreak],
 ) -> Dict[int, List[Match]]:
     """
-    flatten_policy_breaks_by_line flatens a list of policy breaks with the
-    same ignore SHA into a dict
+    flatten_policy_breaks_by_line flatens a list of occurrences with the
+    same ignore SHA into a dict of incidents.
     """
     flat_match_dict: Dict[int, List[Match]] = dict()
     for policy_break in policy_breaks:
@@ -149,14 +149,14 @@ def flatten_policy_breaks_by_line(
 def policy_break_header(
     issue_n: int, policy_breaks: List[PolicyBreak], ignore_sha: str
 ) -> str:
-    return "\n{} Policy break {}({}): {} (Ignore with SHA: {}) ({} {})\n".format(
+    return "\n{} Incident {}({}): {} (Ignore with SHA: {}) ({} {})\n".format(
         format_text(">>>", STYLE["detector_line_start"]),
         issue_n,
         format_text(policy_breaks[0].policy, STYLE["detector"]),
         format_text(policy_breaks[0].break_type, STYLE["detector"]),
         format_text(ignore_sha, STYLE["ignore_sha"]),
         len(policy_breaks),
-        pluralize("occurence", len(policy_breaks), "occurences"),
+        pluralize("occurrence", len(policy_breaks), "occurrences"),
     )
 
 
@@ -287,7 +287,7 @@ def file_info(filename: str, nb_secrets: int) -> str:
     return "\n{} {} {} been found in file {}\n".format(
         ICON_BY_OS.get(os.name, ICON_BY_OS["default"]),
         format_text(str(nb_secrets), STYLE["nb_secrets"]),
-        pluralize("policy break has", nb_secrets, "policy breaks have"),
+        pluralize("incident has", nb_secrets, "incidents have"),
         format_text(filename, STYLE["filename"]),
     )
 

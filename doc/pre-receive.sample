@@ -21,7 +21,7 @@ while read -r oldrev newrev refname; do
 
     docker run --rm -v $(pwd):/data ggshield -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
 
-    echo "ERROR: Your push was rejected because it contained a policy break"
+    echo "ERROR: Your push was rejected because it contained a security incident"
     echo "ERROR: Please contact your Git administrator if this was a false positive."
     exit 1
 done
