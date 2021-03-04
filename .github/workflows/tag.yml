@@ -43,8 +43,10 @@ jobs:
             ## Changelog
           draft: false
           prerelease: false
-      - name: Release Notary Action
-        uses: aevea/release-notary@v0.9.1
+      - name: Release notary
+        uses: docker://aevea/release-notary
+        with:
+          args: release-notary publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   push_to_docker_hub:
