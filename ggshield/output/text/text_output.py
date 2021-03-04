@@ -69,7 +69,7 @@ class TextHandler(OutputHandler):
 
     def process_result(self, result: Result) -> str:
         """
-        Build readable message on the found policy breaks.
+        Build readable message on the found incidents.
 
         :param result: The result from scanning API
         :param nb_lines: The number of lines to display before and after a secret in the

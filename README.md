@@ -247,7 +247,7 @@ paths-ignore:
   - 'doc/*'
   - 'LICENSE'
 
-# Ignore policy breaks with the SHA256 of the policy break obtained at output or the secret itself
+# Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
 matches-ignore:
   - name:
     matches: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
@@ -275,7 +275,7 @@ Old configuration of `matches-ignore` with list of secrets is
 deprecated but still supported :
 
 ```yml
-# Ignore policy breaks with the SHA256 of the policy break obtained at output or the secret itself
+# Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
 matches-ignore:
   - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
   - MY_TEST_CREDENTIAL
