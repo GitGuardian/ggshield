@@ -52,7 +52,7 @@ repos:
         stages: [commit]
 
   - repo: https://github.com/gitguardian/gg-shield
-    rev: v1.3.0
+    rev: v1.3.1
     hooks:
       - id: ggshield
         language_version: python3

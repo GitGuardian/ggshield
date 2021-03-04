@@ -1,7 +1,7 @@
 import copy
 import json
 import os
-from typing import Any, Dict, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple, Set
 
 import click
 import yaml
@@ -37,8 +37,8 @@ class Config:
     all_policies: bool
     api_url: str
     exit_zero: bool
-    matches_ignore: list
-    paths_ignore: set
+    matches_ignore: List
+    paths_ignore: Set
     show_secrets: bool
     verbose: bool
 
@@ -175,8 +175,7 @@ def load_dot_env() -> None:
 
 
 class Cache:
-
-    last_found_secrets: list
+    last_found_secrets: List
 
     CACHE_FILENAME = "./.cache_ggshield"
     attributes: List[Attribute] = [
