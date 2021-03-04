@@ -1,4 +1,5 @@
 from mock import patch
+from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.config import Cache, Config
 from ggshield.ignore import ignore_last_found
@@ -169,6 +170,43 @@ def test_ignore_last_found_with_manually_added_secrets(client):
         FOUND_SECRETS, key=lambda match: (match["name"], match["match"])
     )
     assert matches_ignore == found_secrets
+
+
+@patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
+@patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")
+def test_do_not_duplicate_last_found_secrets(client):
+    """
+    GIVEN 2 policy breaks on different files with the same ignore sha
+    WHEN add_found_policy_break is called
+    THEN only one element should be added
+    """
+    policy_break = PolicyBreak(
+        "a", "Secrets detection", [Match("apikey", "apikey", 0, 0, 0, 0)]
+    )
+    cache = Cache()
+
+    cache.add_found_policy_break(policy_break, "a")
+    cache.add_found_policy_break(policy_break, "b")
+
+    assert len(cache.last_found_secrets) == 1
+
+
+@patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
+@patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")
+def test_do_not_add_policy_breaks_to_last_found(client):
+    """
+    GIVEN 2 policy breaks on different files with the same ignore sha
+    WHEN add_found_policy_break is called
+    THEN only one element should be added
+    """
+    policy_break = PolicyBreak(
+        "a", "gitignore", [Match("apikey", "apikey", 0, 0, 0, 0)]
+    )
+    cache = Cache()
+
+    cache.add_found_policy_break(policy_break, "a")
+
+    assert len(cache.last_found_secrets) == 0
 
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])
