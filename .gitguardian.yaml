@@ -1,11 +1,6 @@
-# Exclude files and paths by globbing
-paths-ignore:
-  - '**/README.md'
-  - 'doc/*'
-  - 'LICENSE'
-  - .dockerignore
-  - .gitignore
-# SHA256 matches
+all-policies: false
+api-url: https://api.gitguardian.com
+exit-zero: false
 matches-ignore:
   - 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
   - 139ed5c2b5ae84b0fbb1bfbce6015ac96e5af5050a16d0ffdba612440fb0ee4d
@@ -15,3 +10,13 @@ matches-ignore:
   - ba0855f684d0a568d17dff7e26c5e9d47d60a7e903e997e59c0ff2ff3cd5daa0
   - m42ploz2wd
   - 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+  - match: 1a56aa9f3d76450ec4731ba7ae247176dfb460dca2989c40ed634eb9a2c1c262
+    name: Generic High Entropy Secret - tests/output/snapshots/snap_test_text_output.py
+paths-ignore:
+  - '**/README.md'
+  - doc/*
+  - LICENSE
+  - .dockerignore
+  - .gitignore
+show-secrets: false
+verbose: false
