@@ -135,8 +135,8 @@ class Config:
 
         with open(config_file, "w") as f:
             try:
-                stream = yaml.dump(self.to_dict(), default_flow_style=False)
-                f.write(stream.replace("- ", "  - "))
+                stream = yaml.dump(self.to_dict(), indent=2, default_flow_style=False)
+                f.write(stream)
 
             except Exception as e:
                 raise click.ClickException(
