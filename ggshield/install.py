@@ -70,9 +70,9 @@ def create_hook(hook_dir_path: str, force: bool, local_hook_support: bool) -> in
             "{} already exists. Use --force to override.".format(hook_path)
         )
 
-    local_hook_guard=''
+    local_hook_str = ""
     if local_hook_support:
-        local_hook_guard = """
+        local_hook_str = """
 if [[ -f .git/hooks/pre-commit ]]; then
     if ! .git/hooks/pre-commit $@; then
         echo 'Local pre-commit hook failed, please see output above'
@@ -81,7 +81,7 @@ if [[ -f .git/hooks/pre-commit ]]; then
 fi
 """
     with open(hook_path, "w") as f:
-        f.write("#!/bin/bash\n\n{}\nggshield scan pre-commit\n".format(local_hook_guard))
+        f.write("#!/bin/bash\n\n{}\nggshield scan pre-commit\n".format(local_hook_str))
         os.chmod(hook_path, 0o700)
 
     click.echo(
