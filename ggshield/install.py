@@ -34,7 +34,7 @@ def install_global(force: bool) -> int:
             [GIT_PATH, "config", "--global", "core.hooksPath", hook_dir_path]
         )
 
-    return create_hook(hook_dir_path, force)
+    return create_hook(hook_dir_path, force, True)
 
 
 def get_global_hook_dir_path() -> Optional[str]:
@@ -54,10 +54,10 @@ def get_global_hook_dir_path() -> Optional[str]:
 def install_local(force: bool) -> int:
     """ Local pre-commit hook installation. """
     check_git_dir()
-    return create_hook(".git/hooks", force)
+    return create_hook(".git/hooks", force, False)
 
 
-def create_hook(hook_dir_path: str, force: bool) -> int:
+def create_hook(hook_dir_path: str, force: bool, local_hook_support: bool) -> int:
     """Create hook directory (if needed) and pre-commit file. """
     os.makedirs(hook_dir_path, exist_ok=True)
     hook_path = "{}/pre-commit".format(hook_dir_path)
@@ -70,8 +70,18 @@ def create_hook(hook_dir_path: str, force: bool) -> int:
             "{} already exists. Use --force to override.".format(hook_path)
         )
 
+    local_hook_guard=''
+    if local_hook_support:
+        local_hook_guard = """
+if [[ -f .git/hooks/pre-commit ]]; then
+    if ! .git/hooks/pre-commit $@; then
+        echo 'Local pre-commit hook failed, please see output above'
+        exit 1
+    fi
+fi
+"""
     with open(hook_path, "w") as f:
-        f.write("#!/bin/bash\n\nggshield scan pre-commit\n")
+        f.write("#!/bin/bash\n\n{}\nggshield scan pre-commit\n".format(local_hook_guard))
         os.chmod(hook_path, 0o700)
 
     click.echo(
