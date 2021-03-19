@@ -51,6 +51,15 @@ repos:
         types: [python]
         stages: [commit]
 
+  - repo: local
+    hooks:
+      - id: ggshield-local
+        name: GitGuardian Shield
+        entry: pipenv run ggshield scan pre-push
+        language: system
+        types: [python]
+        stages: [push]
+
   - repo: https://github.com/gitguardian/gg-shield
     rev: v1.3.1
     hooks:

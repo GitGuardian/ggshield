@@ -4,13 +4,10 @@ from typing import List
 
 import click
 
-from ggshield.utils import SupportedCI, SupportedScanMode
+from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode
 
 from .dev_scan import scan_commit_range
 from .git_shell import check_git_dir, get_list_commit_SHA
-
-
-NO_BEFORE = "0000000000000000000000000000000000000000"
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
@@ -119,7 +116,7 @@ def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD")
     if verbose:
         click.echo(f"CI_COMMIT_BEFORE_SHA: {before_sha}\nCI_COMMIT_SHA: {commit_sha}")
-    if before_sha and before_sha != NO_BEFORE:
+    if before_sha and before_sha != EMPTY_SHA:
         commit_list = get_list_commit_SHA("{}~1...".format(before_sha))
         if commit_list:
             return commit_list
@@ -152,12 +149,12 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
             f"github_head_sha: {head_sha}"
         )
 
-    if push_before_sha and push_before_sha != NO_BEFORE:
+    if push_before_sha and push_before_sha != EMPTY_SHA:
         commit_list = get_list_commit_SHA("{}...".format(push_before_sha))
         if commit_list:
             return commit_list
 
-    if pull_req_base_sha and pull_req_base_sha != NO_BEFORE:
+    if pull_req_base_sha and pull_req_base_sha != EMPTY_SHA:
         commit_list = get_list_commit_SHA("{}..".format(pull_req_base_sha))
         if commit_list:
             return commit_list
