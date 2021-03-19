@@ -9,13 +9,13 @@ from typing import Iterable, Iterator, List, Set
 import click
 from pygitguardian import GGClient
 
-from ggshield.output import OutputHandler, TextHandler
+from ggshield.output import OutputHandler
 from ggshield.scan import Commit, ScanCollection
 from ggshield.text_utils import STYLE, format_text
 
 from .config import CPU_COUNT, Cache, Config
 from .filter import path_filter_set
-from .git_shell import GIT_PATH, check_git_dir, get_list_commit_SHA, is_git_dir, shell
+from .git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
 from .utils import REGEX_GIT_URL, SupportedScanMode
 
@@ -140,41 +140,6 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             scan_id=commit_range,
             mode_header=SupportedScanMode.COMMIT_RANGE.value,
         )
-    except click.exceptions.Abort:
-        return 0
-    except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
-
-
-@click.command()
-@click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
-@click.pass_context
-def precommit_cmd(
-    ctx: click.Context, precommit_args: List[str]
-) -> int:  # pragma: no cover
-    """
-    scan as a pre-commit git hook.
-    """
-    config = ctx.obj["config"]
-    output_handler = TextHandler(
-        show_secrets=config.show_secrets, verbose=config.verbose, output=None
-    )
-    try:
-        check_git_dir()
-        results = Commit(filter_set=ctx.obj["filter_set"]).scan(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
-            matches_ignore=config.matches_ignore,
-            all_policies=config.all_policies,
-            verbose=config.verbose,
-            mode_header=SupportedScanMode.PRE_COMMIT.value,
-        )
-
-        return output_handler.process_scan(
-            ScanCollection(id="cached", type="pre-commit", results=results)
-        )[1]
     except click.exceptions.Abort:
         return 0
     except Exception as error:

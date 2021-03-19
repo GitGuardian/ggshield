@@ -11,8 +11,9 @@ from ggshield.output import JSONHandler, OutputHandler, TextHandler
 
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
-from .dev_scan import path_cmd, precommit_cmd, range_cmd, repo_cmd
+from .dev_scan import path_cmd, range_cmd, repo_cmd
 from .filter import path_filter_set
+from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
 from .install import install
 
@@ -21,6 +22,7 @@ from .install import install
     commands={
         "commit-range": range_cmd,
         "pre-commit": precommit_cmd,
+        "pre-push": prepush_cmd,
         "ci": ci_cmd,
         "path": path_cmd,
         "repo": repo_cmd,

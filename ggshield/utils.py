@@ -20,6 +20,9 @@ REGEX_HEADER_INFO = re.compile(
     r"Author:\s(?P<author>.+?)\ <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
 )
 
+EMPTY_SHA = "0000000000000000000000000000000000000000"
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 
 class Filemode(Enum):
     """
