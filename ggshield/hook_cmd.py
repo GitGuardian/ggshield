@@ -1,5 +1,7 @@
+import os
+import sys
 import traceback
-from typing import List
+from typing import List, Optional, Tuple
 
 import click
 
@@ -45,6 +47,37 @@ def precommit_cmd(
         raise click.ClickException(str(error))
 
 
+def collect_from_stdin() -> Tuple[str, str]:
+    """
+    Collect pre-commit variables from stdin.
+    """
+    prepush_input = [line for line in sys.stdin.readlines()]
+    if len(prepush_input) < 4:
+        local_commit = EMPTY_SHA
+        remote_commit = EMPTY_SHA
+    else:
+        local_commit = prepush_input[1].strip()
+        remote_commit = prepush_input[3].strip()
+
+    return (local_commit, remote_commit)
+
+
+def collect_from_precommit_env() -> Tuple[Optional[str], Optional[str]]:
+    """
+    Collect from pre-commit framework environment.
+    """
+    # pre-commit framework <2.2.0
+    local_commit = os.getenv("PRE_COMMIT_SOURCE", None)
+    remote_commit = os.getenv("PRE_COMMIT_ORIGIN", None)
+
+    if local_commit is None or remote_commit is None:
+        # pre-commit framework >=2.2.0
+        local_commit = os.getenv("PRE_COMMIT_FROM_REF", None)
+        remote_commit = os.getenv("PRE_COMMIT_TO_REF", None)
+
+    return (local_commit, remote_commit)
+
+
 @click.command()
 @click.argument("prepush_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
@@ -53,17 +86,9 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
     scan as a pre-push git hook.
     """
     config = ctx.obj["config"]
-    local_commit = remote_commit = ""
-    before = after = EMPTY_SHA
-    if len(prepush_args) < 4:
-        local_commit = EMPTY_SHA
-    else:
-        _, local_commit, _, remote_commit = (
-            prepush_args[0],
-            prepush_args[1],
-            prepush_args[2],
-            prepush_args[3],
-        )
+    local_commit, remote_commit = collect_from_precommit_env()
+    if local_commit is None or remote_commit is None:
+        local_commit, remote_commit = collect_from_stdin()
 
     if local_commit == EMPTY_SHA:
         click.echo("Deletion event or nothing to scan.")
@@ -79,15 +104,17 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
 
     commit_list = get_list_commit_SHA(f"{before}...{after}")
     if not commit_list:
-        raise click.ClickException(
+        click.echo(
             "Unable to get commit range."
-            " Please submit an issue with the following info:\n"
-            "  Repository URL: <Fill if public>\n"
             f"  before: {before}\n"
             f"  after: {after}\n"
-            f"  local_commit: {local_commit}\n"
-            f"  remote_commit: {remote_commit}\n"
+            "Skipping pre-push hook\n"
         )
+        return 0
+
+    if len(commit_list) > 100:
+        click.echo("Too many commits for scanning. Skipping pre-push hook\n")
+        return 0
 
     if config.verbose:
         click.echo(f"Commits to scan: {len(commit_list)}")
