@@ -163,3 +163,20 @@ def update_policy_break_matches(
         match.index_end = match.index_end - index - int(is_patch) + 1
         match.line_start = start_line
         match.line_end = line_index
+
+
+class SupportedCI(Enum):
+    GITLAB = "GITLAB"
+    TRAVIS = "TRAVIS"
+    CIRCLECI = "CIRCLECI"
+    JENKINS = "JENKINS HOME"
+    GITHUB = "GITHUB ACTIONS"
+    BITBUCKET = "BITBUCKET PIPELINES"
+
+
+class SupportedScanMode(Enum):
+    REPO = "repo"
+    PATH = "path"
+    COMMIT_RANGE = "commit_range"
+    PRE_COMMIT = "pre_commit"
+    CI = "ci"

@@ -4,9 +4,8 @@ import pytest
 
 from ggshield.output import JSONHandler
 from ggshield.output.json.schemas import JSONScanCollectionSchema
-from ggshield.scan import Commit
-from ggshield.scan.scannable import ScanCollection
-from ggshield.utils import Filemode
+from ggshield.scan import Commit, ScanCollection
+from ggshield.utils import Filemode, SupportedScanMode
 from tests.conftest import (
     _MULTIPLE_SECRETS,
     _NO_SECRET,
@@ -52,6 +51,7 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             matches_ignore={},
             all_policies=True,
             verbose=False,
+            mode_header=SupportedScanMode.PATH.value,
         )
 
         flat_results, exit_code = handler.process_scan(
