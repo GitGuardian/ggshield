@@ -57,6 +57,7 @@ repos:
         name: GitGuardian Shield
         entry: pipenv run ggshield scan pre-push
         language: system
+        pass_filenames: false
         types: [python]
         stages: [push]
 
