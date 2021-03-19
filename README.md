@@ -442,6 +442,44 @@ $ docker run -e GITGUARDIAN_API_KEY -v $(pwd):/data --rm gitguardian/ggshield gg
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
 
+# Pre-push
+
+Pre-push hooks are executed just before `git push` sends data to the remote host.
+It will pickup and scan the range of commits between the local ref and the origin ref.
+
+If incidents are detected in this range the push will be cancelled.
+
+## With the pre-commit framework
+
+In order to use **ggshield** with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
+
+Make sure you have pre-commit installed:
+
+```shell
+$ pip install pre-commit
+```
+
+Create a `.pre-commit-config.yaml` file in your root repository:
+
+```yaml
+repos:
+  - repo: https://github.com/gitguardian/gg-shield
+    rev: main
+    hooks:
+      - id: ggshield-push
+        language_version: python3
+        stages: [push]
+```
+
+Then install the hook with the command:
+
+```shell
+$ pre-commit install --hook-type pre-push
+pre-commit installed at .git/hooks/pre-push
+```
+
+Now you're good to go!
+
 # Pre-receive
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
