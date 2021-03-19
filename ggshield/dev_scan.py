@@ -17,7 +17,7 @@ from .config import CPU_COUNT, Cache, Config
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, check_git_dir, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
-from .utils import REGEX_GIT_URL
+from .utils import REGEX_GIT_URL, SupportedScanMode
 
 
 @contextmanager
@@ -53,6 +53,7 @@ def scan_repo_path(
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
                 scan_id=scan_id,
+                mode_header=SupportedScanMode.REPO.value,
             )
     except click.exceptions.Abort:
         return 0
@@ -137,6 +138,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=commit_range,
+            mode_header=SupportedScanMode.COMMIT_RANGE.value,
         )
     except click.exceptions.Abort:
         return 0
@@ -167,6 +169,7 @@ def precommit_cmd(
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             verbose=config.verbose,
+            mode_header=SupportedScanMode.PRE_COMMIT.value,
         )
 
         return output_handler.process_scan(
@@ -209,6 +212,7 @@ def path_cmd(
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             verbose=config.verbose,
+            mode_header=SupportedScanMode.PATH.value,
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 
@@ -228,6 +232,7 @@ def scan_commit(
     verbose: bool,
     matches_ignore: Iterable[str],
     all_policies: bool,
+    mode_header: str,
 ) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
         client=client,
@@ -235,6 +240,7 @@ def scan_commit(
         matches_ignore=matches_ignore,
         all_policies=all_policies,
         verbose=verbose,
+        mode_header=mode_header,
     )
 
     return ScanCollection(
@@ -256,12 +262,13 @@ def scan_commit_range(
     matches_ignore: Iterable[str],
     all_policies: bool,
     scan_id: str,
+    mode_header: str,
 ) -> int:  # pragma: no cover
     """
     Scan every commit in a range.
 
     :param client: Public Scanning API client
-    :param commit_range: Range of commits to scan (A...B)
+    :param commit_list: List of commits sha to scan
     :param verbose: Display successfull scan's message
     """
     return_code = 0
@@ -277,6 +284,7 @@ def scan_commit_range(
                 verbose,
                 matches_ignore,
                 all_policies,
+                mode_header,
             )
             for sha in commit_list
         ]

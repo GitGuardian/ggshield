@@ -104,6 +104,7 @@ class Files:
         matches_ignore: Iterable[str],
         all_policies: bool,
         verbose: bool,
+        mode_header: str,
     ) -> List[Result]:
         cache.purge()
         scannable_list = self.scannable_list
@@ -116,7 +117,11 @@ class Files:
             max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"
         ) as executor:
             future_to_scan = {
-                executor.submit(client.multi_content_scan, chunk): chunk
+                executor.submit(
+                    client.multi_content_scan,
+                    chunk,
+                    {"mode": mode_header},
+                ): chunk
                 for chunk in chunks
             }
 

@@ -4,11 +4,11 @@ from typing import List
 
 import click
 
+from ggshield.utils import SupportedCI, SupportedScanMode
+
 from .dev_scan import scan_commit_range
 from .git_shell import check_git_dir, get_list_commit_SHA
 
-
-SUPPORTED_CI = "[GITLAB | TRAVIS | CIRCLE | GITHUB ACTIONS | BITBUCKET PIPELINES]"
 
 NO_BEFORE = "0000000000000000000000000000000000000000"
 
@@ -202,26 +202,33 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
 
         if os.getenv("GITLAB_CI"):
             commit_list = gitlab_ci_range(config.verbose)
+            ci_env = SupportedCI.GITLAB
         elif os.getenv("GITHUB_ACTIONS"):
             commit_list = github_actions_range(config.verbose)
+            ci_env = SupportedCI.GITHUB
         elif os.getenv("TRAVIS"):
             commit_list = travis_range(config.verbose)
+            ci_env = SupportedCI.TRAVIS
         elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
             commit_list = jenkins_range(config.verbose)
+            ci_env = SupportedCI.JENKINS
         elif os.getenv("CIRCLECI"):
             commit_list = circle_ci_range(config.verbose)
+            ci_env = SupportedCI.CIRCLECI
         elif os.getenv("BITBUCKET_COMMIT"):
             commit_list = bitbucket_pipelines_range(config.verbose)
+            ci_env = SupportedCI.BITBUCKET
 
         else:
             raise click.ClickException(
-                "Current CI is not detected or supported. Must be one of {}".format(
-                    SUPPORTED_CI
-                )
+                f"Current CI is not detected or supported."
+                f"Must be one of [{' | '.join([ci.value for ci in SupportedCI])}]"
             )
 
         if config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}")
+
+        mode_header = "/".join([SupportedScanMode.CI.value, ci_env.value])
 
         return scan_commit_range(
             client=ctx.obj["client"],
@@ -233,6 +240,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),
+            mode_header=mode_header,
         )
     except click.exceptions.Abort:
         return 0
