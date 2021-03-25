@@ -195,19 +195,23 @@ Commands:
 
 ## Install command
 
-The `install` command allows you to use ggshield as a pre-commit hook on your machine, either locally or globally for all repositories.
+The `install` command allows you to use ggshield as a pre-commit or pre-push hook
+on your machine, either locally or globally for all repositories.
 
-You will find further details in the pre-commit part of this documentation.
+You will find further details in the pre-commit/pre-push part of this documentation.
 
 ```shell
 Usage: ggshield install [OPTIONS]
 
-  Command to install a pre-commit hook (local or global).
+  Command to install a pre-commit or pre-push hook (local or global).
 
 Options:
-  -m, --mode [local|global]  Hook installation mode  [required]
-  -f, --force                Force override
-  -h, --help                 Show this message and exit.
+  -m, --mode [local|global]       Hook installation mode  [required]
+  -t, --hook-type [pre-commit|pre-push]
+                                  Type of hook to install
+  -f, --force                     Force override
+  -a, --append                    Append to existing script
+
 ```
 
 ## Ignore command
@@ -473,11 +477,40 @@ repos:
         stages: [push]
 ```
 
-Then install the hook with the command:
+## With the install command
+
+To install the pre-push hook globally (for all current and future repos), you just need to execute the following command:
 
 ```shell
-$ pre-commit install --hook-type pre-push
-pre-commit installed at .git/hooks/pre-push
+$ ggshield install --mode global -t pre-push
+```
+
+It will do the following:
+
+- check if a global hook folder is defined in the global git configuration
+- create the `~/.git/hooks` folder (if needed)
+- create a `pre-push` file which will be executed before every commit
+- give executable access to this file
+
+You can also install the hook locally on desired repositories.
+You just need to go in the repository and execute:
+
+```shell
+$ ggshield install --mode local -t "pre-push"
+```
+
+If a pre-commit executable file already exists, it will not be overridden.
+
+You can force override with the `--force` option:
+
+```shell
+$ ggshield install --mode local --force  -t "pre-push"
+```
+
+Or you can append to the existing `pre-push` script with the `--append` option:
+
+```shell
+$ ggshield install --mode local --force  -t "pre-push"
 ```
 
 Now you're good to go!
