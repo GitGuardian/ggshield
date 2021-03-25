@@ -57,6 +57,8 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    - The pre-commit framework
    - The global and local pre-commit hook
 
+1. [Pre-push](#pre-push)
+
 1) [Pre-receive hook](#git-pre-receive-hooks)
 1) [GitLab](#gitlab)
 1) [GitHub Actions](#github)
