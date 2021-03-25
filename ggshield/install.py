@@ -1,14 +1,11 @@
 import os
 import subprocess
 import sys
-from typing import Literal, Optional
+from typing import Optional
 
 import click
 
 from .git_shell import GIT_PATH, check_git_dir, check_git_installed
-
-
-HOOK_TYPE = Literal["pre-commit", "pre-push"]
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -28,7 +25,7 @@ HOOK_TYPE = Literal["pre-commit", "pre-push"]
 )
 @click.option("--force", "-f", is_flag=True, help="Force override")
 @click.option("--append", "-a", is_flag=True, help="Append to existing script")
-def install(mode: str, hook_type: HOOK_TYPE, force: bool, append: bool) -> int:
+def install(mode: str, hook_type: str, force: bool, append: bool) -> int:
     """ Command to install a pre-commit or pre-push hook (local or global). """
     return_code = (
         install_global(hook_type=hook_type, force=force, append=append)
@@ -38,7 +35,7 @@ def install(mode: str, hook_type: HOOK_TYPE, force: bool, append: bool) -> int:
     sys.exit(return_code)
 
 
-def install_global(hook_type: HOOK_TYPE, force: bool, append: bool) -> int:
+def install_global(hook_type: str, force: bool, append: bool) -> int:
     """ Global pre-commit/pre-push hook installation. """
     check_git_installed()
     hook_dir_path = get_global_hook_dir_path()
@@ -72,7 +69,7 @@ def get_global_hook_dir_path() -> Optional[str]:
         )
 
 
-def install_local(hook_type: HOOK_TYPE, force: bool, append: bool) -> int:
+def install_local(hook_type: str, force: bool, append: bool) -> int:
     """ Local pre-commit/pre-push hook installation. """
     check_git_dir()
     return create_hook(
@@ -88,7 +85,7 @@ def create_hook(
     hook_dir_path: str,
     force: bool,
     local_hook_support: bool,
-    hook_type: HOOK_TYPE,
+    hook_type: str,
     append: bool,
 ) -> int:
     """Create hook directory (if needed) and pre-commit/pre-push file. """
