@@ -10,8 +10,8 @@ from tests.conftest import _SIMPLE_SECRET
 
 def test_cd_context_manager():
     prev = getcwd()
-    with cd("/tmp"):
-        assert getcwd() == "/tmp"
+    with cd("/tmp"):  # nosec
+        assert getcwd() == "/tmp"  # nosec
     assert getcwd() == prev
 
 
