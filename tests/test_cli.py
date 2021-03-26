@@ -28,7 +28,7 @@ def test_scan_file(cli_fs_runner):
 
 
 def test_scan_file_secret(cli_fs_runner):
-    os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')
+    os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
     assert os.path.isfile("file_secret")
 
     with my_vcr.use_cassette("test_scan_file_secret"):
@@ -38,7 +38,7 @@ def test_scan_file_secret(cli_fs_runner):
 
 
 def test_scan_file_secret_exit_zero(cli_fs_runner):
-    os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')
+    os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
     assert os.path.isfile("file_secret")
 
     with my_vcr.use_cassette("test_scan_file_secret"):
