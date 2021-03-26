@@ -95,7 +95,7 @@ def create_hook(
     if os.path.isdir(hook_path):
         raise click.ClickException(f"{hook_path} is a directory.")
 
-    if os.path.isfile(hook_path) and (not force and not append):
+    if os.path.isfile(hook_path) and not (force or append):
         raise click.ClickException(
             f"{hook_path} already exists."
             " Use --force to override or --append to add to current script"

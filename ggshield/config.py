@@ -19,6 +19,9 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 # max file size to accept
 MAX_FILE_SIZE = 1048576
 
+# Max commits to scan on a prepush
+MAX_PREPUSH_COMMITS = 100
+
 CPU_COUNT = os.cpu_count() or 1
 
 
