@@ -211,7 +211,7 @@ Options:
                                   Type of hook to install
   -f, --force                     Force override
   -a, --append                    Append to existing script
-
+  -h, --help                      Show this message and exit.
 ```
 
 ## Ignore command
@@ -450,6 +450,9 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 # Pre-push
 
+> ⚠ Pre-push hooks will not scan more than a 100 commits to avoid developer interruption.
+> In case there are more than a 100 commits in a push the hook will be skipped.
+
 Pre-push hooks are executed just before `git push` sends data to the remote host.
 It will pickup and scan the range of commits between the local ref and the origin ref.
 
@@ -475,6 +478,13 @@ repos:
       - id: ggshield-push
         language_version: python3
         stages: [push]
+```
+
+Then install the hook with the command:
+
+```shell
+$ pre-commit install --hook-type push
+pre-commit installed at .git/hooks/pre-push
 ```
 
 ## With the install command

@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 
 import click
 
+from ggshield.config import MAX_PREPUSH_COMMITS
 from ggshield.dev_scan import scan_commit_range
 from ggshield.output import TextHandler
 from ggshield.scan import Commit, ScanCollection
@@ -53,6 +54,7 @@ def collect_from_stdin() -> Tuple[str, str]:
     """
     prepush_input = [line for line in sys.stdin.readlines()]
     if len(prepush_input) < 4:
+        # Then it's either a tag or a deletion event
         local_commit = EMPTY_SHA
         remote_commit = EMPTY_SHA
     else:
@@ -112,7 +114,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         )
         return 0
 
-    if len(commit_list) > 100:
+    if len(commit_list) > MAX_PREPUSH_COMMITS:
         click.echo("Too many commits for scanning. Skipping pre-push hook\n")
         return 0
 

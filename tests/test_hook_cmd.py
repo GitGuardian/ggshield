@@ -166,6 +166,8 @@ def test_prepush_new_branch(
     )
     get_list_mock.assert_called_once_with(EMPTY_TREE + "..." + "a" * 40)
     scan_commit_range_mock.assert_called_once()
+
+    assert "New tree event. Scanning all changes" in result.output
     assert "Commits to scan: 10" in result.output
     assert result.exit_code == 0
 
