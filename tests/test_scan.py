@@ -1,6 +1,7 @@
 from os import getcwd
 from unittest.mock import patch
 
+from ggshield.config import Cache
 from ggshield.dev_scan import cd
 from ggshield.scan import Commit
 from ggshield.utils import SupportedScanMode
@@ -22,6 +23,7 @@ def test_request_headers(scan_mock, client):
 
     c.scan(
         client=client,
+        cache=Cache(),
         matches_ignore={},
         all_policies=True,
         verbose=False,

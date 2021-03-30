@@ -30,13 +30,32 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
-      - uses: actions/checkout@v2
-      - name: Release notary
-        uses: docker://aevea/release-notary
+      - name: Read info
+        id: tags
+        shell: bash
+        run: |
+          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/v/}
+          echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
+      - name: Checkout
+        uses: actions/checkout@v2
         with:
-          args: release-notary publish
+          fetch-depth: 0
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tags.outputs.tag }}
+          release_name: ${{ steps.tags.outputs.tag }}
+          draft: false
+          prerelease: false
+
+      - name: Release Notary Action
+        uses: docker://aevea/release-notary:0.9.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
