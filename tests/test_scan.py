@@ -1,5 +1,5 @@
 from os import getcwd
-from unittest.mock import patch
+from unittest.mock import ANY, Mock, patch
 
 from ggshield.config import Cache
 from ggshield.dev_scan import cd
@@ -16,7 +16,7 @@ def test_cd_context_manager():
 
 
 @patch("pygitguardian.GGClient.multi_content_scan")
-def test_request_headers(scan_mock, client):
+def test_request_headers(scan_mock: Mock, client):
     c = Commit()
     c._patch = _SIMPLE_SECRET
     mode = SupportedScanMode.PATH
@@ -29,4 +29,4 @@ def test_request_headers(scan_mock, client):
         verbose=False,
         mode_header=mode.value,
     )
-    assert {"mode": mode.value} in scan_mock.call_args.args
+    scan_mock.assert_called_with(ANY, {"mode": mode.value})
