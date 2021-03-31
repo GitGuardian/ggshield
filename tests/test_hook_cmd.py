@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from click.testing import CliRunner
 
@@ -55,7 +55,8 @@ def test_prepush_pre_commit_framework_new(
     THEN it should pass onto scan and return 0
     """
     scan_commit_range_mock.return_value = 0
-    get_list_mock.return_value = ["a" for _ in range(20)]
+    commit_list = ["a" for _ in range(20)]
+    get_list_mock.return_value = commit_list
 
     result = cli_fs_runner.invoke(
         cli,
@@ -63,7 +64,18 @@ def test_prepush_pre_commit_framework_new(
         env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
     )
     get_list_mock.assert_called_once_with("b" * 40 + "..." + "a" * 40)
-    scan_commit_range_mock.assert_called_once()
+    scan_commit_range_mock.assert_called_once_with(
+        client=ANY,
+        cache=ANY,
+        commit_list=commit_list,
+        output_handler=ANY,
+        verbose=True,
+        filter_set=set(),
+        matches_ignore=ANY,
+        all_policies=False,
+        scan_id=ANY,
+        mode_header="pre_push",
+    )
     assert "Commits to scan: 20" in result.output
     assert result.exit_code == 0
 
