@@ -9,7 +9,7 @@ from ggshield.config import MAX_PREPUSH_COMMITS
 from ggshield.dev_scan import scan_commit_range
 from ggshield.output import TextHandler
 from ggshield.scan import Commit, ScanCollection
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE
+from ggshield.utils import EMPTY_SHA, EMPTY_TREE, SupportedScanMode
 
 from .git_shell import check_git_dir, get_list_commit_SHA
 
@@ -35,6 +35,7 @@ def precommit_cmd(
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             verbose=config.verbose,
+            mode_header=SupportedScanMode.PRE_COMMIT.value,
         )
 
         return output_handler.process_scan(
@@ -133,6 +134,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),
+            mode_header=SupportedScanMode.PRE_PUSH.value,
         )
     except click.exceptions.Abort:
         return 0
