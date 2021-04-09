@@ -483,7 +483,7 @@ repos:
 Then install the hook with the command:
 
 ```shell
-$ pre-commit install --hook-type push
+$ pre-commit install --hook-type pre-push
 pre-commit installed at .git/hooks/pre-push
 ```
 
