@@ -198,6 +198,17 @@ Commands:
     ggshield scan repo /repositories/gg-shield
   ```
 
+- `Docker Archive`: scan a Docker image archive file created with the `docker save` command.
+
+```
+Usage: ggshield scan docker-archive [OPTIONS] DOCKER_ARCHIVE
+
+  scan Docker image archive file.
+
+Options:
+  -h, --help  Show this message and exit.
+```
+
 ## Install command
 
 The `install` command allows you to use ggshield as a pre-commit or pre-push hook
