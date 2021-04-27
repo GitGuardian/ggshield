@@ -14,6 +14,7 @@ from ggshield.scan import Commit, ScanCollection
 from ggshield.text_utils import STYLE, format_text
 
 from .config import CPU_COUNT, Cache, Config
+from .docker import get_files_from_docker_archive
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
@@ -269,3 +270,40 @@ def scan_commit_range(
             ScanCollection(id=scan_id, type="commit-range", scans=scans)
         )[1]
     return return_code
+
+
+@click.command()
+@click.argument(
+    "docker_archive", type=click.Path(exists=True, resolve_path=True), required=True
+)
+@click.pass_context
+def docker_archive_cmd(
+    ctx: click.Context,
+    docker_archive: str,
+) -> int:  # pragma: no cover
+    """
+    scan Docker image archive file.
+    """
+    config = ctx.obj["config"]
+    output_handler: OutputHandler = ctx.obj["output_handler"]
+    try:
+        files = get_files_from_docker_archive(docker_archive)
+        results = files.scan(
+            client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
+            matches_ignore=config.matches_ignore,
+            all_policies=config.all_policies,
+            verbose=config.verbose,
+            mode_header=SupportedScanMode.PATH.value,
+        )
+        scan = ScanCollection(
+            id=docker_archive, type="scan_docker_archive", results=results
+        )
+
+        return output_handler.process_scan(scan)[1]
+    except click.exceptions.Abort:
+        return 0
+    except Exception as error:
+        if config.verbose:
+            traceback.print_exc()
+        raise click.ClickException(str(error))
