@@ -12,10 +12,20 @@ COMMAND_TIMEOUT = 45
 
 @lru_cache(None)
 def get_git_path(cwd: str) -> str:
-    git_path = str(which("git"))
+    git_path = which("git")
 
-    if cwd in git_path and cwd not in os.environ.get("PATH", "").split(os.pathsep):
+    if git_path is None:
         raise Exception("unable to find git executable in PATH/PATHEXT")
+
+    # lower()ing these would provide additional coverage on case-
+    # insensitive filesystems but detection is problematic
+    git_path = os.path.abspath(git_path)
+    cwd = os.path.abspath(cwd)
+    path_env = list(map(os.path.abspath, os.environ.get("PATH", "").split(os.pathsep)))
+
+    # git was found - ignore git in cwd if cwd not in PATH
+    if cwd == os.path.dirname(git_path) and cwd not in path_env:
+        raise Exception("rejecting git executable in CWD not in PATH")
 
     return git_path
 
