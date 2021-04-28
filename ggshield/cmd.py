@@ -143,6 +143,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 @click.option(
     "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
 )
+@click.version_option()
 @click.pass_context
 def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:
     load_dot_env()
