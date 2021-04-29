@@ -4,7 +4,7 @@ import tempfile
 import traceback
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, Iterator, List, Set
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Set
 
 import click
 from pygitguardian import GGClient
@@ -14,7 +14,7 @@ from ggshield.scan import Commit, ScanCollection
 from ggshield.text_utils import STYLE, format_text
 
 from .config import CPU_COUNT, Cache, Config
-from .docker import get_files_from_docker_archive
+from .docker import docker_save_to_tmp, get_files_from_docker_archive
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
@@ -273,37 +273,58 @@ def scan_commit_range(
 
 
 @click.command()
-@click.argument(
-    "docker_archive", type=click.Path(exists=True, resolve_path=True), required=True
+@click.option(
+    "--archive",
+    "-a",
+    type=click.Path(exists=True, readable=True),
+    help="Docker archive to scan",
 )
+@click.option("--name", "-n", help="Docker image name to scan")
 @click.pass_context
 def docker_archive_cmd(
     ctx: click.Context,
-    docker_archive: str,
+    archive: Optional[str],
+    name: Optional[str],
 ) -> int:  # pragma: no cover
     """
     scan Docker image archive file.
     """
-    config = ctx.obj["config"]
-    output_handler: OutputHandler = ctx.obj["output_handler"]
-    try:
-        files = get_files_from_docker_archive(docker_archive)
-        results = files.scan(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
-            matches_ignore=config.matches_ignore,
-            all_policies=config.all_policies,
-            verbose=config.verbose,
-            mode_header=SupportedScanMode.PATH.value,
-        )
-        scan = ScanCollection(
-            id=docker_archive, type="scan_docker_archive", results=results
-        )
 
-        return output_handler.process_scan(scan)[1]
-    except click.exceptions.Abort:
-        return 0
-    except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+    with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
+        if name is not None:
+            archive = str(docker_save_to_tmp(name, temporary_dir))
+
+        if archive is None:
+            return 1
+
+        config = ctx.obj["config"]
+        output_handler: OutputHandler = ctx.obj["output_handler"]
+        try:
+            files = get_files_from_docker_archive(archive)
+            with click.progressbar(
+                length=len(files.files), label="Scanning"
+            ) as progressbar:
+
+                def update_progress(chunk: List[Dict[str, Any]]) -> None:
+                    progressbar.update(len(chunk))
+
+                results = files.scan(
+                    client=ctx.obj["client"],
+                    cache=ctx.obj["cache"],
+                    matches_ignore=config.matches_ignore,
+                    all_policies=config.all_policies,
+                    verbose=config.verbose,
+                    mode_header=SupportedScanMode.PATH.value,
+                    on_file_chunk_scanned=update_progress,
+                )
+            scan = ScanCollection(
+                id=archive, type="scan_docker_archive", results=results
+            )
+
+            return output_handler.process_scan(scan)[1]
+        except click.exceptions.Abort:
+            return 0
+        except Exception as error:
+            if config.verbose:
+                traceback.print_exc()
+            raise click.ClickException(str(error))

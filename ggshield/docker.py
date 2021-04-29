@@ -1,15 +1,39 @@
 import json
 import os.path
+import subprocess
 import tarfile
 from itertools import chain
+from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple
 
 from .config import MAX_FILE_SIZE
 from .scan import File, Files
 
 
+class DockerArchiveCreationError(Exception):
+    pass
+
+
 class InvalidDockerArchiveException(Exception):
     pass
+
+
+def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
+    """
+    Do a `docker save <image_name> -o <temporary_path>` and return the
+    `temporary_path`.
+    """
+    temparary_archive_filename = Path(temporary_path) / (
+        image_name.replace("/", "--") + ".tar"
+    )
+
+    status_code = subprocess.call(
+        ["docker", "save", image_name, "-o", str(temparary_archive_filename)]
+    )
+    if status_code != 0:
+        raise DockerArchiveCreationError()
+
+    return temparary_archive_filename
 
 
 def get_files_from_docker_archive(archive_path: str) -> Files:
@@ -120,14 +144,18 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if not file_info.isfile():
             continue
 
-        if file_info.size > MAX_FILE_SIZE:
+        if file_info.size > MAX_FILE_SIZE * 0.95:
             continue
 
         file = layer_archive.extractfile(file_info)
         if file is None:
             continue
 
-        file_content = file.read().decode(errors="replace").replace("\0", "�")
+        file_content_raw = file.read()
+        if len(file_content_raw) > MAX_FILE_SIZE * 0.95:
+            continue
+
+        file_content = file_content_raw.decode(errors="replace").replace("\0", "�")
         yield File(
             document=file_content,
             filename=os.path.join(archive.name, layer_filename, file_info.name),  # type: ignore # noqa
