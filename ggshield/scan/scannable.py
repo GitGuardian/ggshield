@@ -1,7 +1,7 @@
 import concurrent.futures
 import os
 import re
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
 import click
 from pygitguardian import GGClient
@@ -105,6 +105,9 @@ class Files:
         all_policies: bool,
         verbose: bool,
         mode_header: str,
+        on_file_chunk_scanned: Callable[
+            [List[Dict[str, Any]]], None
+        ] = lambda chunk: None,
     ) -> List[Result]:
         cache.purge()
         scannable_list = self.scannable_list
@@ -127,6 +130,8 @@ class Files:
 
             for future in concurrent.futures.as_completed(future_to_scan):
                 chunk = future_to_scan[future]
+                on_file_chunk_scanned(chunk)
+
                 scan = future.result()
                 if not scan.success:
                     handle_scan_error(scan, chunk)
