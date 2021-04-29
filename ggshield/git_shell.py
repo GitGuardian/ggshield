@@ -21,7 +21,9 @@ def get_git_path(cwd: str) -> str:
     # insensitive filesystems but detection is problematic
     git_path = os.path.abspath(git_path)
     cwd = os.path.abspath(cwd)
-    path_env = list(map(os.path.abspath, os.environ.get("PATH", "").split(os.pathsep)))
+    path_env = [
+        os.path.abspath(p) for p in os.environ.get("PATH", "").split(os.pathsep)
+    ]
 
     # git was found - ignore git in cwd if cwd not in PATH
     if cwd == os.path.dirname(git_path) and cwd not in path_env:
