@@ -185,6 +185,24 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
+def drone_range(verbose: bool) -> List[str]:  # pragma: no cover
+    before_sha = os.getenv("DRONE_COMMIT_BEFORE")
+
+    if verbose:
+        click.echo(f"DRONE_COMMIT_BEFORE: {before_sha}\n")
+
+    if before_sha and before_sha != EMPTY_SHA:
+        commit_list = get_list_commit_SHA("{}..".format(before_sha))
+        if commit_list:
+            return commit_list
+
+    raise click.ClickException(
+        "Unable to get commit range. Please submit an issue with the following info:\n"
+        "  Repository URL: <Fill if public>\n"
+        f"  DRONE_COMMIT_BEFORE: {before_sha}"
+    )
+
+
 @click.command()
 @click.pass_context
 def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
@@ -215,6 +233,9 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
         elif os.getenv("BITBUCKET_COMMIT"):
             commit_list = bitbucket_pipelines_range(config.verbose)
             ci_env = SupportedCI.BITBUCKET
+        elif os.getenv("DRONE"):
+            commit_list = drone_range(config.verbose)
+            ci_env = SupportedCI.DRONE
 
         else:
             raise click.ClickException(

@@ -37,6 +37,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 - [Circle CI Orbs](#circle-ci)
 - [Travis CI](#travis-ci)
 - [Jenkins](#jenkins)
+- [Drone](#Drone)
 
 ## Table of Contents
 
@@ -65,6 +66,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1) [Circle CI](#circle-ci)
 1) [Travis CI](#travis-ci)
 1) [Jenkins](#jenkins)
+1) [Drone](#Drone)
 1) [Output](#output)
 1) [Contributing](#contributing)
 1) [License](#license)
@@ -717,6 +719,25 @@ pipeline {
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `gitguardian-api-key` credential in your project settings.
+
+# Drone
+
+To add gg-shield to your pipelines configure your `.drone.yml` to add a gg-shield stage:
+
+```groovy
+kind: pipeline
+type: docker
+name: default
+
+steps:
+- name: gg-shield
+  image: gitguardian/ggshield:latest
+  commands:
+  - ggshield scan ci
+```
+
+Drone CI integration handles only pull-request or merge-request events, push events are not handled.
+Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable for your Drone CI workers.
 
 # Output
 
