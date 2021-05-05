@@ -38,6 +38,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 - [Travis CI](#travis-ci)
 - [Jenkins](#jenkins)
 - [Drone](#Drone)
+- [Azure Pipelines](#Azure)
 
 ## Table of Contents
 
@@ -67,6 +68,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1) [Travis CI](#travis-ci)
 1) [Jenkins](#jenkins)
 1) [Drone](#Drone)
+1) [Azure Pipelines](#Azure)
 1) [Output](#output)
 1) [Contributing](#contributing)
 1) [License](#license)
@@ -738,6 +740,29 @@ steps:
 
 Drone CI integration handles only pull-request or merge-request events, push events are not handled.
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable for your Drone CI workers.
+
+# Azure Pipelines
+
+> ⚠ Azure Pipelines does not support commit ranges outside of GitHub Pull Requests, therefore on push events in a regular branch only your latest commit will be scanned.
+> This limitation doesn't apply to GitHub Pull Requests where all the commits in the pull request will be scanned.
+
+To add gg-shield to your pipelines configure your `azure-pipelines.yml` to add a gg-shield scanning job:
+
+```yml
+jobs:
+- job: GitGuardianShield
+  pool:
+    vmImage: 'ubuntu-latest'
+  container: gitguardian/ggshield:latest
+  steps:
+  - script: ggshield scan ci
+    env:
+      GITGUARDIAN_API_KEY: $(gitguardianApiKey)
+```
+
+Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `gitguardianApiKey` secret variable in your pipeline settings.
+
+- [Defining secret variables in Azure Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#secret-variables)
 
 # Output
 
