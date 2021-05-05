@@ -65,7 +65,7 @@ def get_lines_from_content(
 
 
 def get_lines_from_file(content: str) -> Iterable[Line]:
-    """ Return the lines with line number from a file. """
+    """Return the lines with line number from a file."""
     for line_count, line_content in enumerate(content.split("\n")):
         yield Line(
             content=line_content, category=LineCategory.data, pre_index=line_count + 1
@@ -73,7 +73,7 @@ def get_lines_from_file(content: str) -> Iterable[Line]:
 
 
 def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
-    """ Return the lines with line number from a git patch. """
+    """Return the lines with line number from a git patch."""
     content += "\n"
     pre_index = 0
     post_index = 0

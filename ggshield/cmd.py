@@ -77,7 +77,7 @@ def scan(
     json_output: bool,
     output: Optional[str],
 ) -> int:
-    """ Command to scan various contents. """
+    """Command to scan various contents."""
     api_key = os.getenv("GITGUARDIAN_API_KEY")
     base_uri = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
     if not api_key:

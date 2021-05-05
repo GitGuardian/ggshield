@@ -45,7 +45,7 @@ def is_git_dir(wd: Optional[str] = None) -> bool:
 
 @lru_cache(None)
 def check_git_dir(wd: Optional[str] = None) -> None:
-    """ Check if folder is git directory. """
+    """Check if folder is git directory."""
     check_git_installed()
 
     cmd = [GIT_PATH]
@@ -72,7 +72,7 @@ def get_git_root(wd: Optional[str] = None) -> str:
 
 @lru_cache(None)
 def check_git_installed() -> None:
-    """ Check if git is installed. """
+    """Check if git is installed."""
     with subprocess.Popen(
         [GIT_PATH, "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     ) as process:
@@ -81,7 +81,7 @@ def check_git_installed() -> None:
 
 
 def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
-    """ Execute a command in a subprocess. """
+    """Execute a command in a subprocess."""
     try:
         result = subprocess.run(
             command,

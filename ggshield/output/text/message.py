@@ -253,22 +253,22 @@ def format_line_with_secret(
 
 
 def display_patch(patch: str) -> str:
-    """ Return the formatted patch. """
+    """Return the formatted patch."""
     return format_text(patch, STYLE["patch"])
 
 
 def display_match_value(match_value: str) -> str:
-    """ Return the formatted match value. """
+    """Return the formatted match value."""
     return format_text(match_value, STYLE["secret"])
 
 
 def display_detector(detector: str, offset: int) -> str:
-    """ Return the formatted detector line. """
+    """Return the formatted detector line."""
     return " " * offset + format_text(detector, STYLE["detector"])
 
 
 def format_detector(match_type: str, index_start: int, index_end: int) -> str:
-    """ Return detector object to add in detector_line. """
+    """Return detector object to add in detector_line."""
 
     detector_size = len(match_type)
     secret_size = index_end - index_start
@@ -283,7 +283,7 @@ def format_detector(match_type: str, index_start: int, index_end: int) -> str:
 
 
 def file_info(filename: str, nb_secrets: int) -> str:
-    """ Return the formatted file info (number of secrets + filename). """
+    """Return the formatted file info (number of secrets + filename)."""
     return "\n{} {} {} been found in file {}\n".format(
         ICON_BY_OS.get(os.name, ICON_BY_OS["default"]),
         format_text(str(nb_secrets), STYLE["nb_secrets"]),
@@ -302,7 +302,7 @@ def no_leak_message() -> str:
 def get_lines_to_display(
     flat_matches_dict: Dict[int, List[Match]], lines: List, nb_lines: int
 ) -> Set[int]:
-    """ Retrieve the line indexes to display in the content with no secrets. """
+    """Retrieve the line indexes to display in the content with no secrets."""
     lines_to_display: Set[int] = set()
 
     for line in sorted(flat_matches_dict):

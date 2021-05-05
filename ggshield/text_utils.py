@@ -50,7 +50,7 @@ class Line(NamedTuple):
     post_index: Optional[int] = None
 
     def build_line_count(self, padding: int, is_secret: bool = False) -> str:
-        """ Return the formatted line count. """
+        """Return the formatted line count."""
         line_count_style = (
             STYLE["line_count_secret"] if is_secret else STYLE["line_count"]
         )
@@ -82,7 +82,7 @@ class Line(NamedTuple):
 
 
 def format_text(text: str, style: Dict[str, Any]) -> str:
-    """ Return the formatted text with the given style. """
+    """Return the formatted text with the given style."""
     return click.style(
         text, fg=style["fg"], bold=style.get("bold", False), dim=style.get("dim", False)
     )
@@ -95,7 +95,7 @@ def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
 
 
 def format_line_count(line_count: Union[int, None], padding: int) -> str:
-    """ Return the padded line count. """
+    """Return the padded line count."""
     if line_count is None:
         return " " * padding
 

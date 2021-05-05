@@ -31,7 +31,7 @@ class Attribute(NamedTuple):
 
 
 def replace_in_keys(data: Dict, old_char: str, new_char: str) -> None:
-    """ Replace old_char with new_char in data keys. """
+    """Replace old_char with new_char in data keys."""
     for key in list(data):
         if old_char in key:
             new_key = key.replace(old_char, new_char)
@@ -107,7 +107,7 @@ class Config:
         return True
 
     def load_configs(self, filenames: List[str]) -> None:
-        """ Loads config files until one succeeds. """
+        """Loads config files until one succeeds."""
         for filename in filenames:
             try:
                 if self.load_config(filename):
@@ -148,7 +148,7 @@ class Config:
         return True
 
     def add_ignored_match(self, secret: dict) -> None:
-        """ Add secret to matches_ignore. """
+        """Add secret to matches_ignore."""
 
         matches_ignore = [
             match["match"] if isinstance(match, dict) else match

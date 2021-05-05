@@ -47,7 +47,7 @@ class ScanCollection(NamedTuple):
 
 
 class File:
-    """ Class representing a simple file. """
+    """Class representing a simple file."""
 
     def __init__(self, document: str, filename: str, filesize: Optional[int] = None):
         self.document = document
@@ -57,7 +57,7 @@ class File:
 
     @property
     def scan_dict(self) -> Dict[str, Any]:
-        """ Return a payload compatible with the scanning API. """
+        """Return a payload compatible with the scanning API."""
         return {
             "filename": self.filename
             if len(self.filename) <= 256
@@ -68,7 +68,7 @@ class File:
 
 
 class CommitFile(File):
-    """ Class representing a commit file. """
+    """Class representing a commit file."""
 
     def __init__(
         self,
@@ -182,7 +182,7 @@ class Commit(Files):
 
     @property
     def optional_header(self) -> str:
-        """ Return the formatted patch. """
+        """Return the formatted patch."""
         return (
             format_text(f"\ncommit {self.sha}\n", STYLE["commit_info"])
             + f"Author: {self.info.author} <{self.info.email}>\n"
@@ -191,7 +191,7 @@ class Commit(Files):
 
     @property
     def patch(self) -> str:
-        """ Get the change patch for the commit. """
+        """Get the change patch for the commit."""
         if self._patch is None:
             if self.sha:
                 self._patch = shell([GIT_PATH, "show", self.sha])

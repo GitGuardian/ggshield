@@ -30,6 +30,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 ### Currently supported integrations
 
 - [Pre-commit hooks](#pre-commit)
+- [Pre-push hooks](#pre-push)
 - [Pre-receive hooks](#pre-receive)
 - [GitLab](#gitlab)
 - [GitHub Actions](#github)
@@ -750,14 +751,14 @@ To add gg-shield to your pipelines configure your `azure-pipelines.yml` to add a
 
 ```yml
 jobs:
-- job: GitGuardianShield
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: gitguardian/ggshield:latest
-  steps:
-  - script: ggshield scan ci
-    env:
-      GITGUARDIAN_API_KEY: $(gitguardianApiKey)
+  - job: GitGuardianShield
+    pool:
+      vmImage: 'ubuntu-latest'
+    container: gitguardian/ggshield:latest
+    steps:
+      - script: ggshield scan ci
+        env:
+          GITGUARDIAN_API_KEY: $(gitguardianApiKey)
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `gitguardianApiKey` secret variable in your pipeline settings.

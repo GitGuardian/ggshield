@@ -11,7 +11,7 @@ pyyaml = "*"
 python-dotenv = "*"
 
 [dev-packages]
-black = "==20.8b1"
+black = "==21.5b0"
 coverage = "*"
 flake8 = "*"
 flake8-isort = "*"
