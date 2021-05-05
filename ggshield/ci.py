@@ -203,6 +203,24 @@ def drone_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
+def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
+    head_commit = os.getenv("BUILD_SOURCEVERSION")
+
+    if verbose:
+        click.echo(f"BUILD_SOURCEVERSION: {head_commit}\n")
+
+    if head_commit:
+        commit_list = get_list_commit_SHA("{}~1...".format(head_commit))
+        if commit_list:
+            return commit_list
+
+    raise click.ClickException(
+        "Unable to get commit range. Please submit an issue with the following info:\n"
+        "  Repository URL: <Fill if public>\n"
+        f"  BUILD_SOURCEVERSION: {head_commit}"
+    )
+
+
 @click.command()
 @click.pass_context
 def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
@@ -212,7 +230,9 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
     config = ctx.obj["config"]
     try:
         check_git_dir()
-        if not (os.getenv("CI") or os.getenv("JENKINS_HOME")):
+        if not (
+            os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")
+        ):
             raise click.ClickException("--ci should only be used in a CI environment.")
 
         if os.getenv("GITLAB_CI"):
@@ -236,6 +256,9 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
         elif os.getenv("DRONE"):
             commit_list = drone_range(config.verbose)
             ci_env = SupportedCI.DRONE
+        elif os.getenv("BUILD_BUILDID"):
+            commit_list = azure_range(config.verbose)
+            ci_env = SupportedCI.AZURE
 
         else:
             raise click.ClickException(

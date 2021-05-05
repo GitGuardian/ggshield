@@ -176,6 +176,7 @@ class SupportedCI(Enum):
     GITHUB = "GITHUB ACTIONS"
     BITBUCKET = "BITBUCKET PIPELINES"
     DRONE = "DRONE"
+    AZURE = "AZURE PIPELINES"
 
 
 class SupportedScanMode(Enum):
