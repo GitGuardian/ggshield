@@ -28,31 +28,15 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    continue-on-error: true
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
-      - name: Read info
-        id: tags
-        shell: bash
-        run: |
-          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/v/}
-          echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tags.outputs.tag }}
-          release_name: ${{ steps.tags.outputs.tag }}
-          draft: false
-          prerelease: false
-
       - name: Release Notary Action
-        uses: docker://aevea/release-notary:0.9.1
+        uses: docker://aevea/release-notary:0.9.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
