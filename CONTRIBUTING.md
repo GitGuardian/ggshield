@@ -48,6 +48,27 @@
    $ pre-commit install
    ```
 
+## Testing
+
+### Run all tests on gg-shield
+
+```sh
+$ make test
+```
+
+### Verify coverage of your patch
+
+```sh
+$ make coverage
+$ open htmlcov/index.html
+```
+
+### Run linting locally
+
+```sh
+$ make lint
+```
+
 ## Style guides
 
 ### Git commit message
