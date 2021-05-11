@@ -1,5 +1,5 @@
 SHELL :=/bin/bash
-.PHONY: all test coverage black flake8
+.PHONY: all test coverage black flake8 lint
 .SILENT:
 
 all:
@@ -14,7 +14,10 @@ test:
 	pipenv run pytest --disable-pytest-warnings -vvv $(test)
 
 coverage:
-	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings && pipenv run coverage report --fail-under=80
+	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings
+	pipenv run coverage report --fail-under=80
+	pipenv run coverage xml
+	pipenv run coverage html
 
 black:
 	pipenv run black .
@@ -24,3 +27,5 @@ flake8:
 
 isort:
 	pipenv run isort **/*.py
+
+lint: isort black flake8
