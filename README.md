@@ -799,16 +799,6 @@ $ ggshield scan pre-commit
 Lines that are too long are truncated to match the size of the terminal,
 unless the verbose mode is used (`-v` or `--verbose`).
 
-# Contributing
-
-If you have questions you would like to ask the developers,
-or feedback you would like to provide,
-feel free to create an issue on our issue tracker.
-
-We would love to hear from you.
-Additionally, if you have a feature you would like to suggest,
-feel free to create an issue on our issue tracker.
-
 # Related open source projects
 
 - [truffleHog](https://github.com/dxa4481/truffleHog)
