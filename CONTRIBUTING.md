@@ -13,11 +13,11 @@
 
 ### Propose a new feature
 
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues).
+- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues/new?assignees=&labels=feature+request&template=feature_request.md&title=Feature+Request) with a `feature request` label.
 
 ### Implement a new CI integration
 
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues).
+- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues/new?assignees=&labels=CI+integration&template=feature_request.md&title=CI+Integration:).
 - No core contributor review is necessary on this feature.
 - Submit a Pull request
 
@@ -50,7 +50,7 @@
 
 ## Testing
 
-### Run all tests on gg-shield
+### Run all tests on GitGuardian Shield
 
 ```sh
 $ make test
