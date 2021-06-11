@@ -186,3 +186,4 @@ class SupportedScanMode(Enum):
     PRE_COMMIT = "pre_commit"
     PRE_PUSH = "pre_push"
     CI = "ci"
+    DOCKER = "docker"
