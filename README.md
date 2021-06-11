@@ -198,13 +198,12 @@ Commands:
     ggshield scan repo /repositories/gg-shield
   ```
 
-- `Docker Archive`: scan a Docker image archive file created with the `docker save` command.
+- `Docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command.
 
 ```
-Usage: ggshield scan docker-archive [OPTIONS] DOCKER_ARCHIVE
+Usage: ggshield scan docker [OPTIONS] IMAGE_NAME
 
-  scan Docker image archive file.
-
+  ggshield will try to pull the image if it's not available on the local
 Options:
   -h, --help  Show this message and exit.
 ```

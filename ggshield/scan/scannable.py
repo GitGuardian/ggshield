@@ -267,7 +267,7 @@ class Commit(Files):
             filemode = self.get_filemode(lines[1])
             document = "\n".join(lines[filemode.start :])
             file_size = len(document.encode("utf-8"))
-            if file_size > MAX_FILE_SIZE:
+            if file_size > MAX_FILE_SIZE * 0.90:
                 continue
 
             if document:

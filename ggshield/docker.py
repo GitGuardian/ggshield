@@ -23,12 +23,14 @@ class DockerArchiveCreationError(Exception):
 
 
 def docker_pull_image(image_name: str) -> None:
+    """
+    Pull docker image and raise exception on timeout or failed to find image
+    """
     command = ["docker", "pull", image_name]
     try:
         subprocess.run(
             command,
             check=True,
-            stderr=subprocess.PIPE,
             timeout=DOCKER_COMMAND_TIMEOUT,
         )
     except subprocess.CalledProcessError:
@@ -96,7 +98,7 @@ def docker_scan_archive(
 
 
 @click.command()
-@click.argument("name", nargs=1, type=click.STRING)
+@click.argument("name", nargs=1, type=click.STRING, required=True)
 @click.pass_context
 def docker_name_cmd(
     ctx: click.Context,
@@ -136,7 +138,9 @@ def docker_name_cmd(
 
 
 @click.command(hidden=True)
-@click.argument("archive", nargs=1, type=click.STRING)
+@click.argument(
+    "archive", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
+)
 @click.pass_context
 def docker_archive_cmd(
     ctx: click.Context,
@@ -144,6 +148,8 @@ def docker_archive_cmd(
 ) -> int:  # pragma: no cover
     """
     scan a docker archive <ARCHIVE> without attempting to save or pull the image.
+
+    Hidden command `ggshield scan docker-archive`
     """
     config = ctx.obj["config"]
     output_handler: OutputHandler = ctx.obj["output_handler"]

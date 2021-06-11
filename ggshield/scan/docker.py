@@ -9,6 +9,23 @@ from ggshield.config import MAX_FILE_SIZE
 from .scannable import File, Files
 
 
+DEFAULT_DOCKER_BANLIST = {
+    "/usr/",
+    "/lib/",
+    "/share/",
+    "/etc/",
+    "/bin/",
+    "/node_modules/",
+    "/include/",
+    "/texlive/",
+    "/var/",
+    "/fonts/",
+    "/npm/",
+    "/site-packages/",
+    "/gems/",
+}
+
+
 class InvalidDockerArchiveException(Exception):
     pass
 
@@ -121,7 +138,10 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if not file_info.isfile():
             continue
 
-        if file_info.size > MAX_FILE_SIZE * 0.95:
+        if file_info.size > MAX_FILE_SIZE * 0.85:
+            continue
+
+        if any(dir in "/" + file_info.path for dir in DEFAULT_DOCKER_BANLIST):
             continue
 
         file = layer_archive.extractfile(file_info)
@@ -129,7 +149,7 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
             continue
 
         file_content_raw = file.read()
-        if len(file_content_raw) > MAX_FILE_SIZE * 0.95:
+        if len(file_content_raw) > MAX_FILE_SIZE * 0.85:
             continue
 
         file_content = file_content_raw.decode(errors="replace").replace("\0", "�")
