@@ -11,7 +11,8 @@ from ggshield.output import JSONHandler, OutputHandler, TextHandler
 
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
-from .dev_scan import docker_archive_cmd, path_cmd, range_cmd, repo_cmd
+from .dev_scan import path_cmd, range_cmd, repo_cmd
+from .docker import docker_archive_cmd, docker_name_cmd
 from .filter import path_filter_set
 from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
@@ -26,6 +27,7 @@ from .install import install
         "ci": ci_cmd,
         "path": path_cmd,
         "repo": repo_cmd,
+        "docker": docker_name_cmd,
         "docker-archive": docker_archive_cmd,
     },
 )

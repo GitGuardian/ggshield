@@ -1,21 +1,40 @@
-import json
-import os.path
 import subprocess
-import tarfile
-from itertools import chain
+import tempfile
+import traceback
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable, List
 
-from .config import MAX_FILE_SIZE
-from .scan import File, Files
+import click
+from pygitguardian.client import GGClient
+
+from ggshield.config import Cache
+from ggshield.output import OutputHandler
+from ggshield.scan import ScanCollection, get_files_from_docker_archive
+
+from .utils import SupportedScanMode
+
+
+# bailout if docker command takes longer than 6 minutes
+DOCKER_COMMAND_TIMEOUT = 360
 
 
 class DockerArchiveCreationError(Exception):
     pass
 
 
-class InvalidDockerArchiveException(Exception):
-    pass
+def docker_pull_image(image_name: str) -> None:
+    command = ["docker", "pull", image_name]
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            stderr=subprocess.PIPE,
+            timeout=DOCKER_COMMAND_TIMEOUT,
+        )
+    except subprocess.CalledProcessError:
+        raise click.ClickException(f'Image "{image_name}" not found')
+    except subprocess.TimeoutExpired:
+        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
 
 def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
@@ -23,141 +42,128 @@ def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
     Do a `docker save <image_name> -o <temporary_path>` and return the
     `temporary_path`.
     """
-    temparary_archive_filename = Path(temporary_path) / (
+    temp_archive_filename = Path(temporary_path) / (
         image_name.replace("/", "--") + ".tar"
     )
+    command = ["docker", "save", image_name, "-o", str(temp_archive_filename)]
 
-    status_code = subprocess.call(
-        ["docker", "save", image_name, "-o", str(temparary_archive_filename)]
-    )
-    if status_code != 0:
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            stderr=subprocess.PIPE,
+            timeout=DOCKER_COMMAND_TIMEOUT,
+        )
+    except subprocess.CalledProcessError as exc:
+        err_string = str(exc.stderr)
+        if "No such image" in err_string or "reference does not exist" in err_string:
+            docker_pull_image(image_name)
+
+            return docker_save_to_tmp(image_name, temporary_path)
         raise DockerArchiveCreationError()
+    except subprocess.TimeoutExpired:
+        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
-    return temparary_archive_filename
+    return temp_archive_filename
 
 
-def get_files_from_docker_archive(archive_path: str) -> Files:
-    """
-    Extracts files to scan from a Docker image archive.
-    Only the configuration and the layers generated with a `COPY` and `ADD`
-    command are scanned.
-    """
-    with tarfile.open(archive_path) as archive:
-        manifest, config, config_file_to_scan = _get_config(archive)
+def docker_scan_archive(
+    archive: str,
+    client: GGClient,
+    cache: Cache,
+    verbose: bool,
+    matches_ignore: Iterable[str],
+    all_policies: bool,
+    scan_id: str,
+) -> ScanCollection:
+    files = get_files_from_docker_archive(archive)
+    with click.progressbar(length=len(files.files), label="Scanning") as progressbar:
 
-        layer_files_to_scan = _get_layers_files(
-            archive, filter(_should_scan_layer, _get_layer_infos(manifest, config))
+        def update_progress(chunk: List[Dict[str, Any]]) -> None:
+            progressbar.update(len(chunk))
+
+        results = files.scan(
+            client=client,
+            cache=cache,
+            matches_ignore=matches_ignore,
+            all_policies=all_policies,
+            verbose=verbose,
+            mode_header=SupportedScanMode.DOCKER.value,
+            on_file_chunk_scanned=update_progress,
         )
 
-        return Files(list(chain((config_file_to_scan,), layer_files_to_scan)))
+    return ScanCollection(id=scan_id, type="scan_docker_archive", results=results)
 
 
-def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, File]:
+@click.command()
+@click.argument("name", nargs=1, type=click.STRING)
+@click.pass_context
+def docker_name_cmd(
+    ctx: click.Context,
+    name: str,
+) -> int:  # pragma: no cover
     """
-    Extracts Docker image archive manifest and configuration.
-    Returns a tuple with:
-     - the deserialized manifest,
-     - the deserialized configuration,
-     - the configuration File object to scan.
+    scan a docker image <NAME>.
+
+    ggshield will try to pull the image if it's not available on the local machine
     """
-    manifest_file = archive.extractfile("manifest.json")
-    if manifest_file is None:
-        raise InvalidDockerArchiveException("No manifest file found.")
 
-    manifest = json.load(manifest_file)[0]
+    with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
+        archive = str(docker_save_to_tmp(name, temporary_dir))
 
-    config_file_path = manifest.get("Config")
-    config_file_info = archive.getmember(config_file_path)
+        config = ctx.obj["config"]
+        output_handler: OutputHandler = ctx.obj["output_handler"]
 
-    if config_file_info is None:
-        raise InvalidDockerArchiveException("No config file found.")
+        try:
+            scan = docker_scan_archive(
+                archive=archive,
+                client=ctx.obj["client"],
+                cache=ctx.obj["cache"],
+                verbose=config.verbose,
+                matches_ignore=config.matches_ignore,
+                all_policies=config.all_policies,
+                scan_id=name,
+            )
 
-    config_file = archive.extractfile(config_file_info)
-    if config_file is None:
-        raise InvalidDockerArchiveException("Config file could not be extracted.")
+            return output_handler.process_scan(scan)[1]
+        except click.exceptions.Abort:
+            return 0
+        except Exception as error:
+            if config.verbose:
+                traceback.print_exc()
 
-    config_file_content = config_file.read().decode()
-
-    return (
-        manifest,
-        json.loads(config_file_content),
-        File(
-            config_file_content,
-            filename=os.path.join(archive.name, config_file_path),  # type: ignore
-            filesize=config_file_info.size,
-        ),
-    )
+            raise click.ClickException(str(error))
 
 
-def _get_layer_infos(
-    manifest: Dict[str, Any], config: Dict[str, Any]
-) -> Iterable[Dict[str, Dict]]:
+@click.command(hidden=True)
+@click.argument("archive", nargs=1, type=click.STRING)
+@click.pass_context
+def docker_archive_cmd(
+    ctx: click.Context,
+    archive: str,
+) -> int:  # pragma: no cover
     """
-    Extracts the non-empty layers information with:
-    - the filename,
-    - the command used to generate the layer,
-    - and the date and time of creation.
+    scan a docker archive <ARCHIVE> without attempting to save or pull the image.
     """
-    return (
-        {
-            "filename": filename,
-            "created": info["created"],
-            "created_by": info["created_by"],
-        }
-        for info, filename in zip(
-            (layer for layer in config["history"] if not layer.get("empty_layer")),
-            manifest["Layers"],
+    config = ctx.obj["config"]
+    output_handler: OutputHandler = ctx.obj["output_handler"]
+
+    try:
+        scan = docker_scan_archive(
+            archive=archive,
+            client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
+            verbose=config.verbose,
+            matches_ignore=config.matches_ignore,
+            all_policies=config.all_policies,
+            scan_id=archive,
         )
-    )
 
+        return output_handler.process_scan(scan)[1]
+    except click.exceptions.Abort:
+        return 0
+    except Exception as error:
+        if config.verbose:
+            traceback.print_exc()
 
-def _should_scan_layer(layer_info: Dict) -> bool:
-    """
-    Returns True if a layer should be scanned, False otherwise.
-    Only COPY and ADD layers should be scanned.
-    """
-    cmd = layer_info["created_by"]
-    return "COPY" in cmd or "ADD" in cmd
-
-
-def _get_layers_files(
-    archive: tarfile.TarFile, layers_info: Iterable[Dict]
-) -> Iterable[File]:
-    """
-    Extracts File objects to be scanned for given layers.
-    """
-    for layer_info in layers_info:
-        yield from _get_layer_files(archive, layer_info)
-
-
-def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[File]:
-    """
-    Extracts File objects to be scanner for given layer.
-    """
-    layer_filename = layer_info["filename"]
-    layer_archive = tarfile.TarFile(
-        name=os.path.join(archive.name, layer_filename),  # type: ignore
-        fileobj=archive.extractfile(layer_filename),
-    )
-
-    for file_info in layer_archive:
-        if not file_info.isfile():
-            continue
-
-        if file_info.size > MAX_FILE_SIZE * 0.95:
-            continue
-
-        file = layer_archive.extractfile(file_info)
-        if file is None:
-            continue
-
-        file_content_raw = file.read()
-        if len(file_content_raw) > MAX_FILE_SIZE * 0.95:
-            continue
-
-        file_content = file_content_raw.decode(errors="replace").replace("\0", "�")
-        yield File(
-            document=file_content,
-            filename=os.path.join(archive.name, layer_filename, file_info.name),  # type: ignore # noqa
-            filesize=file_info.size,
-        )
+        raise click.ClickException(str(error))
