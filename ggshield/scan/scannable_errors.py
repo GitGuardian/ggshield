@@ -11,14 +11,21 @@ def handle_scan_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
 
-    display_error("Error scanning. Results may be incomplete.")
+    details = None
+
+    display_error("\nError scanning. Results may be incomplete.")
     try:
+        # try to load as list of dicts to get per file details
         details = literal_eval(detail.detail)
-        if isinstance(details, list) and details:
-            display_error(
-                f"Add the following {pluralize('file', len(details))}"
-                " to your paths-ignore:"
-            )
+    except Exception:
+        pass
+
+    if isinstance(details, list) and details:
+        # if the details had per file details
+        display_error(
+            f"Add the following {pluralize('file', len(details))}"
+            " to your paths-ignore:"
+        )
         for i, inner_detail in enumerate(details):
             if inner_detail:
                 click.echo(
@@ -27,5 +34,12 @@ def handle_scan_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
                     err=True,
                 )
         return
-    except Exception:
-        click.echo(f"Error {str(detail)}", err=True)
+    else:
+        # if the details had a request error
+        filenames = ", ".join([file_dict["filename"] for file_dict in chunk])
+        display_error(
+            "The following chunk is affected:\n"
+            f"{format_text(filenames, STYLE['filename'])}"
+        )
+
+        display_error(str(detail))
