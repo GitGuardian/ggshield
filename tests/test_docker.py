@@ -1,26 +1,150 @@
-from pathlib import Path
+import subprocess
+from unittest.mock import Mock, patch
 
-from ggshield.docker import get_files_from_docker_archive
+import click
+import pytest
+
+from ggshield.cmd import cli
+from ggshield.docker import docker_pull_image, docker_save_to_tmp
+from ggshield.scan.scannable import File, Files, ScanCollection
+from tests.scan.test_docker import DOCKER_EXAMPLE_PATH
+
+from .conftest import _SIMPLE_SECRET, my_vcr
 
 
-DOCKER_EXAMPLE_PATH = Path(__file__).parent / "data" / "docker-example.tar.xz"
+class TestDockerPull:
+    def test_docker_pull_image_success(self):
+        with patch("subprocess.run") as call:
+            docker_pull_image("ggshield-non-existant")
+            call.assert_called_once_with(
+                ["docker", "pull", "ggshield-non-existant"], check=True, timeout=360
+            )
+
+    def test_docker_pull_image_non_exist(self):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=None)
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='Image "ggshield-non-existant" not found',
+            ):
+                docker_pull_image("ggshield-non-existant")
+
+    def test_docker_pull_image_timeout(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=None, timeout=360),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='docker pull ggshield-non-existant" timed out',
+            ):
+                docker_pull_image("ggshield-non-existant")
 
 
-def test_get_files_from_docker_archive():
-    files = get_files_from_docker_archive(DOCKER_EXAMPLE_PATH)
+class TestDockerSave:
+    def test_docker_save_image_success(self):
+        with patch("subprocess.run") as call:
+            docker_save_to_tmp("ggshield-non-existant", "/tmp/as/")
+            call.assert_called_once_with(
+                [
+                    "docker",
+                    "save",
+                    "ggshield-non-existant",
+                    "-o",
+                    "/tmp/as/ggshield-non-existant.tar",
+                ],
+                check=True,
+                stderr=-1,
+                timeout=360,
+            )
 
-    expected_files = {
-        "6f19b02ab98ac5757d206a2f0f5a4741ad82d39b08b948321196988acb9de8b1.json": None,
-        "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc/layer.tar/app/file_one": "Hello, I am the first file!\n",  # noqa: E501
-        "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f/layer.tar/app/file_three.sh": "echo Life is beautiful.\n",  # noqa: E501
-        "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f/layer.tar/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",  # noqa: E501
-    }
+    def test_docker_save_image_non_exist(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(
+                1, cmd=None, stderr="reference does not exist".encode("utf-8")
+            ),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='Image "ggshield-non-existant" not found',
+            ):
+                docker_save_to_tmp("ggshield-non-existant", "/tmp/as/")
 
-    assert set(files.files) == {
-        str(DOCKER_EXAMPLE_PATH / file_path) for file_path in expected_files
-    }
+    def test_docker_save_image_timeout(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=None, timeout=360),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='Command "docker save ggshield-non-existant -o /tmp/as/ggshield-non-existant.tar" timed out',  # noqa: E501
+            ):
+                docker_save_to_tmp("ggshield-non-existant", "/tmp/as/")
 
-    for file_path, expected_content in expected_files.items():
-        full_path = DOCKER_EXAMPLE_PATH / file_path
-        file = files.files[str(full_path)]
-        assert expected_content is None or file.document == expected_content
+
+class TestDockerCMD:
+    @patch("ggshield.docker.docker_save_to_tmp")
+    @patch("ggshield.docker.docker_scan_archive")
+    def test_docker_scan(
+        self, scan_mock: Mock, save_mock, cli_fs_runner: click.testing.CliRunner
+    ):
+        scan_mock.return_value = ScanCollection(
+            id="gg-shield-non-existant", type="docker", results=[]
+        )
+        result = cli_fs_runner.invoke(
+            cli,
+            ["-v", "scan", "docker", "gg-shield-non-existant"],
+        )
+        assert result.exit_code == 0
+
+    @patch("ggshield.docker.docker_save_to_tmp")
+    @patch("ggshield.docker.docker_scan_archive")
+    def test_docker_scan_abort(
+        self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
+    ):
+        save_mock.side_effect = click.exceptions.Abort()
+        scan_mock.return_value = ScanCollection(
+            id="gg-shield-non-existant", type="docker", results=[]
+        )
+        result = cli_fs_runner.invoke(
+            cli,
+            ["-v", "scan", "docker", "gg-shield-non-existant"],
+        )
+        assert result.output == ""
+        assert result.exit_code == 0
+
+    @patch("ggshield.docker.docker_save_to_tmp")
+    @patch("ggshield.docker.docker_scan_archive")
+    def test_docker_scan_failed_to_save(
+        self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
+    ):
+        save_mock.side_effect = click.exceptions.ClickException(
+            'Image "ggshield-non-existant" not found'
+        )
+        scan_mock.return_value = ScanCollection(
+            id="gg-shield-non-existant", type="docker", results=[]
+        )
+        result = cli_fs_runner.invoke(
+            cli,
+            ["-v", "scan", "docker", "gg-shield-non-existant"],
+        )
+        assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
+        assert result.exit_code == 1
+
+    @patch("ggshield.docker.get_files_from_docker_archive")
+    def test_docker_scan_archive(
+        self, get_files_mock: Mock, cli_fs_runner: click.testing.CliRunner
+    ):
+        get_files_mock.return_value = Files(
+            files=[File(document=_SIMPLE_SECRET, filename="file_secret")]
+        )
+        with my_vcr.use_cassette("test_scan_file_secret"):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "scan", "docker-archive", str(DOCKER_EXAMPLE_PATH)],
+            )
+            get_files_mock.assert_called_once()
+            assert "1 incident has been found in file file_secret" in result.output
+            assert result.exit_code == 1
