@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import click
@@ -7,9 +8,11 @@ import pytest
 from ggshield.cmd import cli
 from ggshield.docker import docker_pull_image, docker_save_to_tmp
 from ggshield.scan.scannable import File, Files, ScanCollection
-from tests.scan.test_docker import DOCKER_EXAMPLE_PATH
 
 from .conftest import _SIMPLE_SECRET, my_vcr
+
+
+DOCKER_EXAMPLE_PATH = Path(__file__).parent / "data" / "docker-example.tar.xz"
 
 
 class TestDockerPull:
