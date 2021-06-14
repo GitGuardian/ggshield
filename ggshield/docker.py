@@ -62,7 +62,7 @@ def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
             docker_pull_image(image_name)
 
             return docker_save_to_tmp(image_name, temporary_path)
-        raise DockerArchiveCreationError()
+        raise click.ClickException("Unable to save docker archive")
     except subprocess.TimeoutExpired:
         raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
@@ -103,7 +103,7 @@ def docker_scan_archive(
 def docker_name_cmd(
     ctx: click.Context,
     name: str,
-) -> int:  # pragma: no cover
+) -> int:
     """
     scan a docker image <NAME>.
 
@@ -111,12 +111,12 @@ def docker_name_cmd(
     """
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
-        archive = str(docker_save_to_tmp(name, temporary_dir))
-
         config = ctx.obj["config"]
         output_handler: OutputHandler = ctx.obj["output_handler"]
 
         try:
+            archive = str(docker_save_to_tmp(name, temporary_dir))
+
             scan = docker_scan_archive(
                 archive=archive,
                 client=ctx.obj["client"],

@@ -9,14 +9,16 @@ from ggshield.config import MAX_FILE_SIZE
 from .scannable import File, Files
 
 
-DEFAULT_DOCKER_BANLIST = {
+DEFAULT_FS_BANLIST = {
     "/usr/",
     "/lib/",
     "/share/",
     "/etc/",
     "/bin/",
+    "/sbin/",
     "/node_modules/",
     "/include/",
+    "/vendor/",
     "/texlive/",
     "/var/",
     "/fonts/",
@@ -24,6 +26,8 @@ DEFAULT_DOCKER_BANLIST = {
     "/site-packages/",
     "/gems/",
 }
+
+DEFAULT_EXTENSION_BANLIST = {".md", ".html", ".css", ".lock", ".storyboard", ".xib"}
 
 
 class InvalidDockerArchiveException(Exception):
@@ -61,8 +65,8 @@ def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, File]:
     manifest = json.load(manifest_file)[0]
 
     config_file_path = manifest.get("Config")
-    config_file_info = archive.getmember(config_file_path)
 
+    config_file_info = archive.getmember(config_file_path)
     if config_file_info is None:
         raise InvalidDockerArchiveException("No config file found.")
 
@@ -138,10 +142,13 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if not file_info.isfile():
             continue
 
-        if file_info.size > MAX_FILE_SIZE * 0.85:
+        if file_info.size > MAX_FILE_SIZE * 0.95:
             continue
 
-        if any(dir in "/" + file_info.path for dir in DEFAULT_DOCKER_BANLIST):
+        if any(dir in "/" + file_info.path for dir in DEFAULT_FS_BANLIST):
+            continue
+
+        if any(file_info.path.endswith(ext) for ext in DEFAULT_EXTENSION_BANLIST):
             continue
 
         file = layer_archive.extractfile(file_info)
@@ -149,7 +156,7 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
             continue
 
         file_content_raw = file.read()
-        if len(file_content_raw) > MAX_FILE_SIZE * 0.85:
+        if len(file_content_raw) > MAX_FILE_SIZE * 0.95:
             continue
 
         file_content = file_content_raw.decode(errors="replace").replace("\0", "�")
