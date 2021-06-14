@@ -1,7 +1,7 @@
 {
   "_meta": {
     "hash": {
-      "sha256": "bdd0446e3426acc1c362fcff96e4ec0692ed9606374008a05d5181b377704cef"
+      "sha256": "d308118a847754f18fe021f76794579a88c6d11cf73b07377f987cc4b68ef266"
     },
     "pipfile-spec": 6,
     "requires": {},
@@ -59,11 +59,11 @@
     },
     "pygitguardian": {
       "hashes": [
-        "sha256:7c1553cbaf88c4e39a9de3aefb1059e95615a9f103fd12215183624497514391",
-        "sha256:f7bf28bc3c809774f9de5c5af8911a3cf87249591b357238c70b1f346bda88d8"
+        "sha256:208bb5913f14069a73d689b8618f2d9ed0b546a2734871acd59408a6057049d8",
+        "sha256:fac32caebac04521dee003772f59ee0e6d856c4ae37a58c0b3f110d78d3a51f0"
       ],
       "index": "pypi",
-      "version": "==1.1.3"
+      "version": "==1.2.0"
     },
     "python-dotenv": {
       "hashes": [
@@ -151,11 +151,11 @@
     },
     "black": {
       "hashes": [
-        "sha256:0e80435b8a88f383c9149ae89d671eb2095b72344b0fe8a1d61d2ff5110ed173",
-        "sha256:9dc2042018ca10735366d944c2c12d9cad6dec74a3d5f679d09384ea185d9943"
+        "sha256:dc132348a88d103016726fe360cb9ede02cecf99b76e3660ce6c596be132ce04",
+        "sha256:dfb8c5a069012b2ab1e972e7b908f5fb42b6bbabcba0a788b86dc05067c7d9c7"
       ],
       "index": "pypi",
-      "version": "==21.5b0"
+      "version": "==21.6b0"
     },
     "cached-property": {
       "hashes": [
