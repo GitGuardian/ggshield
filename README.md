@@ -200,13 +200,13 @@ Commands:
 
 - `Docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command.
 
-```
-Usage: ggshield scan docker [OPTIONS] IMAGE_NAME
+  ```
+  Usage: ggshield scan docker [OPTIONS] IMAGE_NAME
 
-  ggshield will try to pull the image if it's not available on the local
-Options:
-  -h, --help  Show this message and exit.
-```
+    ggshield will try to pull the image if it's not available localy
+  Options:
+    -h, --help  Show this message and exit.
+  ```
 
 ## Install command
 

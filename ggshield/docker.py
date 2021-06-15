@@ -100,14 +100,11 @@ def docker_scan_archive(
 @click.command()
 @click.argument("name", nargs=1, type=click.STRING, required=True)
 @click.pass_context
-def docker_name_cmd(
-    ctx: click.Context,
-    name: str,
-) -> int:
+def docker_name_cmd(ctx: click.Context, name: str) -> int:
     """
     scan a docker image <NAME>.
 
-    ggshield will try to pull the image if it's not available on the local machine
+    ggshield will try to pull the image if it's not available locally.
     """
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:

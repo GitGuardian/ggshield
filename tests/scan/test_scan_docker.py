@@ -38,9 +38,15 @@ class TestDockerScan:
     @pytest.mark.parametrize(
         ["op", "want"],
         [
-            pytest.param("COPY", True),
-            pytest.param("ADD", True),
-            pytest.param("RUN", False),
+            pytest.param(
+                "/bin/sh -c #(nop) COPY dir:xxx in / ",
+                True,
+            ),
+            pytest.param("/bin/sh -c #(nop) ADD dir:xxx in / ", True),
+            pytest.param(
+                '/bin/sh -c #(nop)  CMD ["/usr/bin/bash"',
+                False,
+            ),
         ],
     )
     def test_should_scan_layer(self, op: str, want: bool):
