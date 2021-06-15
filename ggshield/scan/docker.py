@@ -14,7 +14,6 @@ DEFAULT_FS_BANLIST = {
     "/usr/",
     "/lib/",
     "/share/",
-    "/etc/",
     "/bin/",
     "/sbin/",
     "/node_modules/",
