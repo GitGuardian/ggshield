@@ -203,7 +203,7 @@ Commands:
   ```
   Usage: ggshield scan docker [OPTIONS] IMAGE_NAME
 
-    ggshield will try to pull the image if it's not available localy
+    ggshield will try to pull the image if it's not available locally
   Options:
     -h, --help  Show this message and exit.
   ```
