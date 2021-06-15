@@ -1,5 +1,6 @@
 import json
 import os.path
+import re
 import tarfile
 from itertools import chain
 from typing import Any, Dict, Iterable, Tuple
@@ -28,6 +29,8 @@ DEFAULT_FS_BANLIST = {
 }
 
 DEFAULT_EXTENSION_BANLIST = {".md", ".html", ".css", ".lock", ".storyboard", ".xib"}
+
+LAYER_TO_SCAN_PATTERN = re.compile(r"\b(copy|add)\b", re.IGNORECASE)
 
 
 class InvalidDockerArchiveException(Exception):
@@ -115,7 +118,7 @@ def _should_scan_layer(layer_info: Dict) -> bool:
     Only COPY and ADD layers should be scanned.
     """
     cmd = layer_info["created_by"]
-    return "COPY" in cmd or "ADD" in cmd
+    return LAYER_TO_SCAN_PATTERN.search(cmd) is not None
 
 
 def _get_layers_files(
@@ -159,7 +162,11 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if len(file_content_raw) > MAX_FILE_SIZE * 0.95:
             continue
 
-        file_content = file_content_raw.decode(errors="replace").replace("\0", "�")
+        file_content = (
+            file_content_raw.decode(errors="replace")
+            .replace("\0", " ")  # null character, not replaced by replace
+            .replace("\uFFFD", " ")  # replacement character
+        )
         yield File(
             document=file_content,
             filename=os.path.join(archive.name, layer_filename, file_info.name),  # type: ignore # noqa
