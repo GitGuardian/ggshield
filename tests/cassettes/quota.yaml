@@ -1,0 +1,38 @@
+interactions:
+  - request:
+      body: null
+      headers:
+        Accept:
+          - "*/*"
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.1.3 (Linux;py3.9.5)
+      method: GET
+      uri: https://api.gitguardian.com/v1/quotas
+    response:
+      body:
+        string: '{"content": {"count": 2,"limit": 5000,"remaining": 4998,"since": "2021-04-18"}}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Connection:
+          - keep-alive
+        Content-Length:
+          - "79"
+        Content-Type:
+          - application/json
+        Date:
+          - Wed, 19 May 2021 15:57:19 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - nginx
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
+      status:
+        code: 200
+        message: OK
+version: 1
