@@ -279,3 +279,20 @@ class TestScanRepo:
             "Error: trial.gitguardian.com/gitguardian/gg-shield is"
             " neither a valid path nor a git URL" in result.output
         )
+
+
+@pytest.mark.parametrize(
+    "cassette, json_output",
+    [
+        ("quota", True),
+        ("quota", False),
+        ("quota_half_remaining", False),
+        ("quota_low_remaining", False),
+    ],
+)
+def test_quota(cassette, json_output, snapshot, cli_fs_runner):
+    with my_vcr.use_cassette(cassette):
+        cmd = ["quota", "--json"] if json_output else ["quota"]
+        result = cli_fs_runner.invoke(cli, cmd, color=True)
+        assert result.exit_code == 0
+        snapshot.assert_match(result.output)

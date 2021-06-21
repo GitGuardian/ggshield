@@ -2,10 +2,9 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, NoReturn, Optional, Type
+from typing import Any, NoReturn, Optional, Type, cast
 
 import click
-from pygitguardian import GGClient
 
 from ggshield.output import JSONHandler, OutputHandler, TextHandler
 
@@ -17,6 +16,8 @@ from .filter import path_filter_set
 from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
 from .install import install
+from .quota import quota
+from .utils import json_output_option_decorator, retrieve_client
 
 
 @click.group(
@@ -46,14 +47,6 @@ from .install import install
     "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
 )
 @click.option(
-    "--json",
-    "json_output",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="JSON output results",
-)
-@click.option(
     "--all-policies",
     is_flag=True,
     default=None,
@@ -81,14 +74,7 @@ def scan(
     output: Optional[str],
 ) -> int:
     """Command to scan various contents."""
-    api_key = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
-    if not api_key:
-        raise click.ClickException("GitGuardian API Key is needed.")
-
-    ctx.obj["client"] = GGClient(
-        api_key=api_key, base_uri=base_uri, user_agent="ggshield", timeout=60
-    )
+    ctx.obj["client"] = retrieve_client(ctx)
     return_code = 0
 
     ctx.obj["filter_set"] = path_filter_set(
@@ -119,6 +105,9 @@ def scan(
     return return_code
 
 
+scan = cast(click.Group, json_output_option_decorator(scan))
+
+
 @scan.resultcallback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
@@ -135,7 +124,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 
 @click.group(
     context_settings=CONTEXT_SETTINGS,
-    commands={"scan": scan, "install": install, "ignore": ignore},
+    commands={"scan": scan, "install": install, "ignore": ignore, "quota": quota},
 )
 @click.option(
     "-c",

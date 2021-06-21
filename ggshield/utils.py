@@ -1,7 +1,10 @@
+import os
 import re
 from enum import Enum
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
+import click
+from pygitguardian import GGClient
 from pygitguardian.models import Match
 
 from .text_utils import Line, LineCategory
@@ -187,3 +190,25 @@ class SupportedScanMode(Enum):
     PRE_PUSH = "pre_push"
     CI = "ci"
     DOCKER = "docker"
+
+
+json_output_option_decorator = click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="JSON output results",
+)
+
+
+def retrieve_client(ctx: click.Context) -> GGClient:
+    api_key: Optional[str] = os.getenv("GITGUARDIAN_API_KEY")
+    base_uri: str = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
+
+    if not api_key:
+        raise click.ClickException("GitGuardian API Key is needed.")
+
+    return GGClient(
+        api_key=api_key, base_uri=base_uri, user_agent="ggshield", timeout=60
+    )
