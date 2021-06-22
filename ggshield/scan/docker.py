@@ -83,7 +83,7 @@ def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, File]:
         json.loads(config_file_content),
         File(
             config_file_content,
-            filename=os.path.join(archive.name, config_file_path),  # type: ignore
+            filename="Dockerfile or build-args",  # noqa: E501
             filesize=config_file_info.size,
         ),
     )
