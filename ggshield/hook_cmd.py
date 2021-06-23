@@ -53,7 +53,7 @@ def collect_from_stdin() -> Tuple[str, str]:
     """
     Collect pre-commit variables from stdin.
     """
-    prepush_input = [line for line in sys.stdin.readlines()]
+    prepush_input = sys.stdin.read().split()
     if len(prepush_input) < 4:
         # Then it's either a tag or a deletion event
         local_commit = EMPTY_SHA
@@ -89,6 +89,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
     scan as a pre-push git hook.
     """
     config = ctx.obj["config"]
+
     local_commit, remote_commit = collect_from_precommit_env()
     if local_commit is None or remote_commit is None:
         local_commit, remote_commit = collect_from_stdin()
@@ -101,14 +102,17 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         click.echo("New tree event. Scanning all changes.")
         before = EMPTY_TREE
         after = local_commit
+        cmd_range = f"--max-count={MAX_PREPUSH_COMMITS+1} {EMPTY_TREE} {local_commit}"
     else:
         before = remote_commit
         after = local_commit
+        cmd_range = f"{remote_commit}...{local_commit}"
 
-    commit_list = get_list_commit_SHA(f"{before}...{after}")
+    commit_list = get_list_commit_SHA(cmd_range)
+
     if not commit_list:
         click.echo(
-            "Unable to get commit range."
+            "Unable to get commit range.\n"
             f"  before: {before}\n"
             f"  after: {after}\n"
             "Skipping pre-push hook\n"
