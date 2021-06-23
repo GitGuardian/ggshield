@@ -176,9 +176,7 @@ def test_prepush_new_branch(
         ["-v", "scan", "pre-push"],
         env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
     )
-    get_list_mock.assert_called_once_with(
-        "--max-count=101 " + EMPTY_TREE + " " + "a" * 40
-    )
+    get_list_mock.assert_called_once_with(f"--max-count=101 {EMPTY_TREE} { 'a' * 40}")
     scan_commit_range_mock.assert_called_once()
 
     assert "New tree event. Scanning all changes" in result.output
