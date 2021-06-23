@@ -176,7 +176,7 @@ def test_prepush_new_branch(
         ["-v", "scan", "pre-push"],
         env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
     )
-    get_list_mock.assert_called_once_with(EMPTY_TREE + "..." + "a" * 40)
+    get_list_mock.assert_called_once_with(EMPTY_TREE + " " + "a" * 40)
     scan_commit_range_mock.assert_called_once()
 
     assert "New tree event. Scanning all changes" in result.output
@@ -207,4 +207,34 @@ def test_prepush_deletion(
         env={"PRE_COMMIT_FROM_REF": EMPTY_SHA, "PRE_COMMIT_TO_REF": "a" * 40},
     )
     assert "Deletion event or nothing to scan.\n" in result.output
+    assert result.exit_code == 0
+
+
+@patch("ggshield.hook_cmd.get_list_commit_SHA")
+@patch("ggshield.hook_cmd.scan_commit_range")
+@patch("ggshield.hook_cmd.check_git_dir")
+def test_prepush_stdin_input_no_newline(
+    check_dir_mock: Mock,
+    scan_commit_range_mock: Mock,
+    get_list_mock: Mock,
+    cli_fs_runner: CliRunner,
+):
+    """
+    GIVEN 20 commits through stdin input
+    WHEN the command is run
+    THEN it should pass onto scan and return 0
+    """
+    scan_commit_range_mock.return_value = 0
+    get_list_mock.return_value = ["a" for _ in range(20)]
+
+    result = cli_fs_runner.invoke(
+        cli,
+        ["-v", "scan", "pre-push"],
+        input="refs/heads/main bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main 649061dcda8bff94e02adbaac70ca64cfb84bc78",  # noqa: E501
+    )
+    get_list_mock.assert_called_once_with(
+        "649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
+    )  # noqa: E501
+    scan_commit_range_mock.assert_called_once()
+    assert "Commits to scan: 20" in result.output
     assert result.exit_code == 0
