@@ -3,6 +3,7 @@ import shutil
 from io import StringIO
 from typing import Dict, List, Optional, Set, Tuple
 
+from pygitguardian.client import VERSIONS
 from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
 from ggshield.text_utils import STYLE, Line, format_text, pluralize
@@ -280,6 +281,10 @@ def format_detector(match_type: str, index_start: int, index_end: int) -> str:
         display = "|{}{}{}|".format(before, match_type, after)
 
     return " " * index_start + format_text(display, STYLE["detector"]) + "\n"
+
+
+def secrets_engine_version() -> str:
+    return f"\nsecrets-engine-version: {VERSIONS.secrets_engine_version}"
 
 
 def file_info(filename: str, nb_secrets: int) -> str:

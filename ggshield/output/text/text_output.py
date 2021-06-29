@@ -15,6 +15,7 @@ from .message import (
     leak_message_located,
     no_leak_message,
     policy_break_header,
+    secrets_engine_version,
 )
 
 
@@ -40,6 +41,9 @@ class TextHandler(OutputHandler):
         scan_buf = StringIO()
         if scan.optional_header and (scan.results or self.verbose):
             scan_buf.write(scan.optional_header)
+
+        if top and (scan.results or self.verbose):
+            scan_buf.write(secrets_engine_version())
 
         if scan.results:
             return_code = 1
