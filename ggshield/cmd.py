@@ -17,6 +17,7 @@ from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
 from .install import install
 from .quota import quota
+from .status import status
 from .utils import json_output_option_decorator, retrieve_client
 
 
@@ -124,7 +125,13 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 
 @click.group(
     context_settings=CONTEXT_SETTINGS,
-    commands={"scan": scan, "install": install, "ignore": ignore, "quota": quota},
+    commands={
+        "scan": scan,
+        "install": install,
+        "ignore": ignore,
+        "quota": quota,
+        "api-status": status,
+    },
 )
 @click.option(
     "-c",

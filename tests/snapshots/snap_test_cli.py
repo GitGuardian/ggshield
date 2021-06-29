@@ -7,6 +7,21 @@ from snapshottest import Snapshot
 
 snapshots = Snapshot()
 
+snapshots['test_api_status[test_health_check-False] 1'] = '''status: \x1b[32m\x1b[22m\x1b[22mhealthy\x1b[0m
+app-version: 1.26.0-rc.4
+secrets-engine-version-version: 2.43.0
+
+'''
+
+snapshots['test_api_status[test_health_check-True] 1'] = '''{"detail": "Valid API key.", "status_code": 200, "app_version": "1.26.0-rc.4", "secrets_engine_version": "2.43.0"}
+'''
+
+snapshots['test_api_status[test_health_check_error-False] 1'] = '''status: \x1b[31m\x1b[22m\x1b[22munhealthy (Configuration error.)\x1b[0m
+app-version: 1.26.0-rc.4
+secrets-engine-version-version: 2.43.0
+
+'''
+
 snapshots['test_quota[quota-False] 1'] = '''Quota available: \x1b[32m\x1b[22m\x1b[22m4998\x1b[0m
 Quota used in the last 30 days: 2
 Total Quota of the workspace: 5000

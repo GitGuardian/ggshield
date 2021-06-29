@@ -3,7 +3,7 @@ import shutil
 from io import StringIO
 from typing import Dict, List, Optional, Set, Tuple
 
-from pygitguardian.models import Match, PolicyBreak
+from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
 from ggshield.text_utils import STYLE, Line, format_text, pluralize
 
@@ -340,3 +340,13 @@ def format_quota_color(remaining: int, limit: int) -> str:
         color = "green"
 
     return format_text(str(remaining), {"fg": color})
+
+
+def format_healthcheck_status(health_check: HealthCheckResponse) -> str:
+    (color, status) = (
+        ("red", f"unhealthy ({health_check.detail})")
+        if health_check.status_code != 200
+        else ("green", "healthy")
+    )
+
+    return format_text(status, {"fg": color})
