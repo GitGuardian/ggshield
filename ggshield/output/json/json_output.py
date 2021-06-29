@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Tuple
 
 import click
+from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
 from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
@@ -26,6 +27,9 @@ class JSONHandler(OutputHandler):
 
         if scan.extra_info:
             scan_dict["extra_info"] = scan.extra_info
+
+        if top and scan.results:
+            scan_dict["secrets_engine_version"] = VERSIONS.secrets_engine_version
 
         if scan.results:
             return_code = 1

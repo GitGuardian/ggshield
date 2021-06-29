@@ -35,6 +35,7 @@ class JSONScanCollectionSchema(Schema):
     extra_info = fields.Dict(keys=fields.Str(), values=fields.Str())
     total_incidents = fields.Integer(required=True)
     total_occurrences = fields.Integer(required=True)
+    secrets_engine_version = fields.String(required=False)
 
     class Meta:
         ordered = True

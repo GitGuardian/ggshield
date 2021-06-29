@@ -31,6 +31,7 @@ snapshots['test_json_output[_MULTIPLE_SECRETS] 1'] = {
             'total_occurrences': 1
         }
     ],
+    'secrets_engine_version': '2.43.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -73,6 +74,7 @@ snapshots['test_json_output[_ONE_LINE_AND_MULTILINE_PATCH] 1'] = {
             'total_occurrences': 2
         }
     ],
+    'secrets_engine_version': '2.43.0',
     'total_incidents': 2,
     'total_occurrences': 2,
     'type': 'test'
@@ -99,6 +101,7 @@ snapshots['test_json_output[_SIMPLE_SECRET] 1'] = {
             'total_occurrences': 1
         }
     ],
+    'secrets_engine_version': '2.43.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'

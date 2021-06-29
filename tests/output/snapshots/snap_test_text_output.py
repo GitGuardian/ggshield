@@ -7,105 +7,92 @@ from snapshottest import Snapshot
 
 snapshots = Snapshot()
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-verbose-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-verbose-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-verbose-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-verbose-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-verbose-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-verbose-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa\x1b[0m) (1 occurrence)
@@ -128,11 +115,10 @@ snapshots[
 \x1b[37m\x1b[22m\x1b[2m \x1b[0m \x1b[37m\x1b[22m\x1b[2m8\x1b[0m | \x1b[37m\x1b[22m\x1b[22m****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4\x1b[0m
 \x1b[33m\x1b[22m\x1b[22m \x1b[0m \x1b[33m\x1b[22m\x1b[22m9\x1b[0m | \x1b[37m\x1b[22m\x1b[22m…-- token: \x1b[0m\x1b[91m\x1b[22m\x1b[22mSG._Yytrtvlj******************************************-**rRJLGFLBLf0M\x1b[0m
       \x1b[93m\x1b[1m\x1b[22m           \x1b[93m\x1b[1m\x1b[22m|_______________________________apikey______________________________|\x1b[0m
-\x1b[0m"""
+\x1b[0m'''
 
-snapshots[
-    "test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa\x1b[0m) (1 occurrence)
@@ -155,11 +141,10 @@ snapshots[
 \x1b[37m\x1b[22m\x1b[2m \x1b[0m \x1b[37m\x1b[22m\x1b[2m8\x1b[0m | \x1b[37m\x1b[22m\x1b[22mRF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4\x1b[0m
 \x1b[33m\x1b[22m\x1b[22m \x1b[0m \x1b[33m\x1b[22m\x1b[22m9\x1b[0m | \x1b[37m\x1b[22m\x1b[22m…-- token: \x1b[0m\x1b[91m\x1b[22m\x1b[22mSG._YytrtvljkWqCrkMa3r5hw.yijiPf2qxr2rYArkz3xlLrbv5Zr7-gtrRJLGFLBLf0M\x1b[0m
       \x1b[93m\x1b[1m\x1b[22m           \x1b[93m\x1b[1m\x1b[22m|_______________________________apikey______________________________|\x1b[0m
-\x1b[0m"""
+\x1b[0m'''
 
-snapshots[
-    "test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-verbose-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-verbose-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa\x1b[0m) (1 occurrence)
@@ -182,11 +167,10 @@ snapshots[
 \x1b[37m\x1b[22m\x1b[2m \x1b[0m \x1b[37m\x1b[22m\x1b[2m8\x1b[0m | \x1b[37m\x1b[22m\x1b[22m****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4\x1b[0m
 \x1b[33m\x1b[22m\x1b[22m \x1b[0m \x1b[33m\x1b[22m\x1b[22m9\x1b[0m | \x1b[37m\x1b[22m\x1b[22m-----END RSA PRIVATE KEY----- token: \x1b[0m\x1b[91m\x1b[22m\x1b[22mSG._Yytrtvlj******************************************-**rRJLGFLBLf0M\x1b[0m
       \x1b[93m\x1b[1m\x1b[22m                                     \x1b[93m\x1b[1m\x1b[22m|_______________________________apikey______________________________|\x1b[0m
-\x1b[0m"""
+\x1b[0m'''
 
-snapshots[
-    "test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-verbose-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-verbose-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mFacebook Access Tokens\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa\x1b[0m) (1 occurrence)
@@ -209,68 +193,60 @@ snapshots[
 \x1b[37m\x1b[22m\x1b[2m \x1b[0m \x1b[37m\x1b[22m\x1b[2m8\x1b[0m | \x1b[37m\x1b[22m\x1b[22mRF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4\x1b[0m
 \x1b[33m\x1b[22m\x1b[22m \x1b[0m \x1b[33m\x1b[22m\x1b[22m9\x1b[0m | \x1b[37m\x1b[22m\x1b[22m-----END RSA PRIVATE KEY----- token: \x1b[0m\x1b[91m\x1b[22m\x1b[22mSG._YytrtvljkWqCrkMa3r5hw.yijiPf2qxr2rYArkz3xlLrbv5Zr7-gtrRJLGFLBLf0M\x1b[0m
       \x1b[93m\x1b[1m\x1b[22m                                     \x1b[93m\x1b[1m\x1b[22m|_______________________________apikey______________________________|\x1b[0m
-\x1b[0m"""
+\x1b[0m'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mRSA Private Key\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mRSA Private Key\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-verbose-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mRSA Private Key\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-verbose-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mRSA Private Key\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mGitHub Token\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mGitHub Token\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-verbose-hide_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mGitHub Token\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93\x1b[0m) (1 occurrence)
-"""
+'''
 
-snapshots[
-    "test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-verbose-show_secrets] 1"
-] = """> This is an example header
+snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
+secrets-engine-version: 2.43.0
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
 \x1b[36m\x1b[22m\x1b[22m>>>\x1b[0m Incident 1(\x1b[93m\x1b[1m\x1b[22mSecrets Detection\x1b[0m): \x1b[93m\x1b[1m\x1b[22mGitHub Token\x1b[0m (Ignore with SHA: \x1b[36m\x1b[22m\x1b[22m2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93\x1b[0m) (1 occurrence)
-"""
+'''
