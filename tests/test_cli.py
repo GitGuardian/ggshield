@@ -296,3 +296,19 @@ def test_quota(cassette, json_output, snapshot, cli_fs_runner):
         result = cli_fs_runner.invoke(cli, cmd, color=True)
         assert result.exit_code == 0
         snapshot.assert_match(result.output)
+
+
+@pytest.mark.parametrize(
+    "cassette, json_output",
+    [
+        ("test_health_check", True),
+        ("test_health_check", False),
+        ("test_health_check_error", False),
+    ],
+)
+def test_api_status(cassette, json_output, snapshot, cli_fs_runner):
+    with my_vcr.use_cassette(cassette):
+        cmd = ["api-status", "--json"] if json_output else ["api-status"]
+        result = cli_fs_runner.invoke(cli, cmd, color=True)
+        assert result.exit_code == 0
+        snapshot.assert_match(result.output)

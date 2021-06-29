@@ -1,0 +1,86 @@
+interactions:
+  - request:
+      body: null
+      headers:
+        Accept:
+          - "*/*"
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.1.0 (Linux;py3.8.3)
+      method: GET
+      uri: https://api.gitguardian.com/v1/health
+    response:
+      body:
+        string: '{"detail":"Valid API key."}'
+      headers:
+        Allow:
+          - OPTIONS, GET
+        Connection:
+          - keep-alive
+        Content-Length:
+          - "27"
+        Content-Type:
+          - application/json
+        Date:
+          - Fri, 19 Jun 2020 13:32:39 GMT
+        Server:
+          - nginx
+        Vary:
+          - Cookie
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-App-Version:
+          - 1.26.0-rc.4
+        X-Secrets-Engine-Version:
+          - 2.43.0
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: null
+      headers:
+        Accept:
+          - "*/*"
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.1.0 (Linux;py3.8.3)
+      method: GET
+      uri: https://api.gitguardian.com/v1/health
+    response:
+      body:
+        string: '{"detail":"Valid API key."}'
+      headers:
+        Allow:
+          - OPTIONS, GET
+        Connection:
+          - keep-alive
+        Content-Length:
+          - "27"
+        Content-Type:
+          - application/json
+        Date:
+          - Fri, 19 Jun 2020 14:58:35 GMT
+        Server:
+          - nginx
+        Vary:
+          - Cookie
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-App-Version:
+          - 1.26.0-rc.4
+        X-Secrets-Engine-Version:
+          - 2.43.0
+      status:
+        code: 200
+        message: OK
+version: 1
