@@ -134,7 +134,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
 
 
 def update_policy_break_matches(
-    matches: List[Match], lines: List[Line], is_patch: bool
+    matches: List[Match], lines: List[Line], is_patch: bool, user_display: bool = False
 ) -> None:
     """
     Update secrets object with secret line and indexes in line.
@@ -142,6 +142,7 @@ def update_policy_break_matches(
     :param secrets: List of secrets sorted by start index
     :param lines: List of content lines with indexes (post_index and pre_index)
     :param is_patch: True if is patch from git, False if file
+    :param user_display: Get line results as if treating the complete file
     """
     index = 0
     line_index = 0
@@ -165,10 +166,17 @@ def update_policy_break_matches(
             line_index += 1
             len_line = len(lines[line_index].content) + 1 + int(is_patch)
 
+        if user_display:
+            match.line_start = (
+                lines[start_line].pre_index or lines[start_line].post_index
+            )
+            match.line_end = lines[line_index].pre_index or lines[line_index].post_index
+        else:
+            match.line_start = start_line
+            match.line_end = line_index
+
         match.index_start = start_index
         match.index_end = match.index_end - index - int(is_patch) + 1
-        match.line_start = start_line
-        match.line_end = line_index
 
 
 class SupportedCI(Enum):

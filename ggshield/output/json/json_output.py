@@ -106,7 +106,7 @@ class JSONHandler(OutputHandler):
             "total_occurrences": len(policy_breaks),
         }
         for policy_break in policy_breaks:
-            update_policy_break_matches(policy_break.matches, lines, is_patch)
+            update_policy_break_matches(policy_break.matches, lines, is_patch, True)
             flattened_dict["occurrences"].extend(policy_break.matches)
 
         return flattened_dict
