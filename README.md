@@ -45,6 +45,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
 1. [Introduction](#introduction)
 1. [Installation](#installation)
+1. [Updating](#updating)
 1. [Configuration](#configuration)
    1. [Environment Variables](#environment-variables)
    2. [On-premises](#on-premises-configuration)
@@ -92,6 +93,15 @@ Add the API Key to your environment variables:
 
 ```shell
 GITGUARDIAN_API_KEY=<GitGuardian API Key>
+```
+
+# Updating
+
+To update ggshield you can add the option `-U/--upgrade` to the pip install
+command.
+
+```shell
+$ pip install -U ggshield
 ```
 
 # Commands
