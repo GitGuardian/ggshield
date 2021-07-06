@@ -55,6 +55,8 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    - [Scan](#scan-command)
    - [Install](#install-command)
    - [Ignore](#ignore-command)
+   - [Quota](#quota-command)
+   - [API Status](#api-status-command)
 
 1. [Pre-commit](#pre-commit)
 
@@ -255,6 +257,52 @@ Usage: ggshield ignore
 Options:
   -h, --help                 Show this message and exit.
   --last-found               Ignore all secrets found by last run scan
+```
+
+## Quota command
+
+Show remaining quota of the workspace.
+
+```
+Usage: ggshield quota [OPTIONS]
+
+  Command to show quotas overview.
+
+Options:
+  --json      JSON output results  [default: False]
+  -h, --help  Show this message and exit.
+```
+
+Example:
+
+```
+❯ ggshield quota
+Quota available: 9440
+Quota used in the last 30 days: 560
+Total Quota of the workspace: 10000
+```
+
+## API Status command
+
+Show API status and version.
+
+```
+Usage: ggshield api-status [OPTIONS]
+
+  Command to show api status.
+
+Options:
+  --json      JSON output results  [default: False]
+  -h, --help  Show this message and exit.
+```
+
+Example:
+
+```
+❯ ggshield api-status
+status: healthy
+app-version: 1.27.0-rc.1
+secrets-engine-version-version: 2.44.0
 ```
 
 # Configuration
