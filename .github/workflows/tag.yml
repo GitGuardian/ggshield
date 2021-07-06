@@ -99,7 +99,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ggshield homebrew-pypi-poet
-          poet -f ggshield | sed 's/Shiny new formula/Detect secret in sourcecode, scan your repos and docker images for leaks/g' | sed '7a\  license "MIT"' > brew/Formula/ggshield.rb
+          poet -f ggshield | sed 's/Shiny new formula/Detect secret in source code, scan your repos and docker images for leaks/g' | sed '7a\  license "MIT"' > brew/Formula/ggshield.rb
 
       - name: Push brew
         run: |
