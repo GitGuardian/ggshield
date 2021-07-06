@@ -92,7 +92,7 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: GitGuardian/homebrew-ggshield
-          token: ${{ secrets.ACTIONS_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           path: ./brew
 
       - name: Install dependencies
