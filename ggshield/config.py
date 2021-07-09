@@ -46,6 +46,7 @@ class Config:
     paths_ignore: Set
     show_secrets: bool
     verbose: bool
+    allow_self_signed: bool
 
     CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
     CONFIG_GLOBAL = [
@@ -63,6 +64,7 @@ class Config:
         Attribute("paths_ignore", set()),
         Attribute("show_secrets", False),
         Attribute("verbose", False),
+        Attribute("allow_self_signed", False),
     ]
 
     def __init__(self) -> None:
