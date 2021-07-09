@@ -142,9 +142,17 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 @click.option(
     "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
 )
+@click.option(
+    "--allow-self-signed",
+    is_flag=True,
+    default=None,
+    help="Ignore ssl verification.",
+)
 @click.version_option()
 @click.pass_context
-def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:
+def cli(
+    ctx: click.Context, config_path: str, verbose: bool, allow_self_signed: bool
+) -> None:
     load_dot_env()
     ctx.ensure_object(dict)
     if config_path:
@@ -156,6 +164,9 @@ def cli(ctx: click.Context, config_path: str, verbose: bool) -> None:
 
     if verbose is not None:
         ctx.obj["config"].verbose = verbose
+
+    if allow_self_signed is not None:
+        ctx.obj["config"].allow_self_signed = allow_self_signed
 
 
 def cli_wrapper() -> NoReturn:

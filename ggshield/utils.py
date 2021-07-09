@@ -6,6 +6,7 @@ from typing import Iterable, List, Optional
 import click
 from pygitguardian import GGClient
 from pygitguardian.models import Match
+from requests import Session
 
 from .text_utils import Line, LineCategory
 
@@ -217,6 +218,14 @@ def retrieve_client(ctx: click.Context) -> GGClient:
     if not api_key:
         raise click.ClickException("GitGuardian API Key is needed.")
 
+    session = Session()
+    if ctx.obj["config"].allow_self_signed:
+        session.verify = False
+
     return GGClient(
-        api_key=api_key, base_uri=base_uri, user_agent="ggshield", timeout=60
+        api_key=api_key,
+        base_uri=base_uri,
+        user_agent="ggshield",
+        timeout=60,
+        session=session,
     )
