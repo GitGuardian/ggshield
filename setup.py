@@ -28,7 +28,7 @@ setup(
     description="Detect secrets from all sources using GitGuardian's brains",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
-    url="https://github.com/GitGuardian/gg-shield",
+    url="https://github.com/GitGuardian/ggshield",
     author="GitGuardian",
     author_email="support@gitguardian.com",
     maintainer="GitGuardian",
