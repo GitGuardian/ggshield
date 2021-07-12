@@ -61,7 +61,7 @@ repos:
         types: [python]
         stages: [push]
 
-  - repo: https://github.com/gitguardian/gg-shield
+  - repo: https://github.com/gitguardian/ggshield
     rev: v1.6.1
     hooks:
       - id: ggshield
