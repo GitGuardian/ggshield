@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Iterable, List, Optional
 
 import click
+import urllib3
 from pygitguardian import GGClient
 from pygitguardian.models import Match
 from requests import Session
@@ -220,6 +221,7 @@ def retrieve_client(ctx: click.Context) -> GGClient:
 
     session = Session()
     if ctx.obj["config"].allow_self_signed:
+        urllib3.disable_warnings()
         session.verify = False
 
     return GGClient(
