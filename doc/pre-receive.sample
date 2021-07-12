@@ -1,5 +1,5 @@
 #!/bin/bash
-# gg-shield as a pre-commit hook
+# ggshield as a pre-commit hook
 # Move `pre-receive.sample` to `.git/hooks/pre-receive`
 # Do not forget to `chmod +x .git/hooks/pre-receive`
 # either set an environment variable machine wide `GITGUARDIAN_API_KEY`

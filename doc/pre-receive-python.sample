@@ -1,5 +1,5 @@
 #!/bin/bash
-# gg-shield as a pre-commit hook
+# ggshield as a pre-commit hook
 # Prequirements:
 # python >= 3.6, pip
 # Installation instructions:

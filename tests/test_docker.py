@@ -94,11 +94,11 @@ class TestDockerCMD:
         self, scan_mock: Mock, save_mock, cli_fs_runner: click.testing.CliRunner
     ):
         scan_mock.return_value = ScanCollection(
-            id="gg-shield-non-existant", type="docker", results=[]
+            id="ggshield-non-existant", type="docker", results=[]
         )
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "docker", "gg-shield-non-existant"],
+            ["-v", "scan", "docker", "ggshield-non-existant"],
         )
         assert result.exit_code == 0
 
@@ -109,11 +109,11 @@ class TestDockerCMD:
     ):
         save_mock.side_effect = click.exceptions.Abort()
         scan_mock.return_value = ScanCollection(
-            id="gg-shield-non-existant", type="docker", results=[]
+            id="ggshield-non-existant", type="docker", results=[]
         )
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "docker", "gg-shield-non-existant"],
+            ["-v", "scan", "docker", "ggshield-non-existant"],
         )
         assert result.output == ""
         assert result.exit_code == 0
@@ -127,11 +127,11 @@ class TestDockerCMD:
             'Image "ggshield-non-existant" not found'
         )
         scan_mock.return_value = ScanCollection(
-            id="gg-shield-non-existant", type="docker", results=[]
+            id="ggshield-non-existant", type="docker", results=[]
         )
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "docker", "gg-shield-non-existant"],
+            ["-v", "scan", "docker", "ggshield-non-existant"],
         )
         assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
         assert result.exit_code == 1

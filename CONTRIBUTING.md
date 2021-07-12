@@ -3,7 +3,7 @@
 ### Submit a bug report
 
 - Make sure you can reproduce it in the latest version of GitGuardian Shield.
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues).
+- Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues).
 
 ### Fix an open and confirmed bug
 
@@ -13,11 +13,11 @@
 
 ### Propose a new feature
 
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues/new?assignees=&labels=feature+request&template=feature_request.md&title=Feature+Request) with a `feature request` label.
+- Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues/new?assignees=&labels=feature+request&template=feature_request.md&title=Feature+Request) with a `feature request` label.
 
 ### Implement a new CI integration
 
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/gg-shield/issues/new?assignees=&labels=CI+integration&template=feature_request.md&title=CI+Integration:).
+- Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues/new?assignees=&labels=CI+integration&template=feature_request.md&title=CI+Integration:).
 - No core contributor review is necessary on this feature.
 - Submit a Pull request
 

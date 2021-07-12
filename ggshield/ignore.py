@@ -9,7 +9,7 @@ from ggshield.config import Cache, Config
 @click.option(
     "--last-found",
     is_flag=True,
-    help="Ignore secrets found in the last gg-shield scan run",
+    help="Ignore secrets found in the last ggshield scan run",
 )
 @click.pass_context
 def ignore(ctx: click.Context, last_found: bool) -> int:

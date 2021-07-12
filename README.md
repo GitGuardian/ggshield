@@ -1,25 +1,25 @@
-<a href="https://gitguardian.com/"><img src="https://cdn.jsdelivr.net/gh/gitguardian/gg-shield/doc/logo.svg"></a>
+<a href="https://gitguardian.com/"><img src="https://cdn.jsdelivr.net/gh/gitguardian/ggshield/doc/logo.svg"></a>
 
 ---
 
-# [GitGuardian Shield](https://github.com/GitGuardian/gg-shield): protect your secrets with GitGuardian
+# [GitGuardian Shield](https://github.com/GitGuardian/ggshield): protect your secrets with GitGuardian
 
 [![PyPI](https://img.shields.io/pypi/v/ggshield?color=%231B2D55&style=for-the-badge)](https://pypi.org/project/ggshield/)
 [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/ggshield?color=1B2D55&sort=semver&style=for-the-badge&label=Docker)](https://hub.docker.com/r/gitguardian/ggshield)
-[![License](https://img.shields.io/github/license/GitGuardian/gg-shield?color=%231B2D55&style=for-the-badge)](LICENSE)
-![GitHub stars](https://img.shields.io/github/stars/gitguardian/gg-shield?color=%231B2D55&style=for-the-badge)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/gg-shield/Application%20Main%20Branch?style=for-the-badge)
-[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/gg-shield?style=for-the-badge)](https://www.codefactor.io/repository/github/gitguardian/gg-shield)
-[![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/gg-shield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/gg-shield/)
+[![License](https://img.shields.io/github/license/GitGuardian/ggshield?color=%231B2D55&style=for-the-badge)](LICENSE)
+![GitHub stars](https://img.shields.io/github/stars/gitguardian/ggshield?color=%231B2D55&style=for-the-badge)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/ggshield/Application%20Main%20Branch?style=for-the-badge)
+[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/ggshield?style=for-the-badge)](https://www.codefactor.io/repository/github/gitguardian/ggshield)
+[![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
-The **GitGuardian shield** (gg-shield) is a CLI application that runs in your local environment
+The **GitGuardian shield** (ggshield) is a CLI application that runs in your local environment
 or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 
 **GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets in your code. **The `/v1/scan` endpoint of the [public API](https://api.gitguardian.com/doc) is stateless. We will not store any files you are sending or any secrets we have detected**.
 
-You can also use gg-shield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
+You can also use ggshield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
 
-You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use gg-shield.
+You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
 
 Add the API Key to your environment variables:
 
@@ -85,7 +85,7 @@ Install and update using `pip`:
 $ pip install ggshield
 ```
 
-gg-shield supports **Python 3.6 and newer**.
+ggshield supports **Python 3.6 and newer**.
 
 The package should run on MacOS, Linux and Windows.
 
@@ -126,7 +126,7 @@ Commands:
 
 ## Scan command
 
-`ggshield scan` is the main command for **gg-shield**, it has a few config
+`ggshield scan` is the main command for **ggshield**, it has a few config
 options that can be used to override output behaviour.
 
 ```shell
@@ -205,9 +205,9 @@ Commands:
     REPOSITORY is the clone URI or the path of the repository to scan.
     Examples:
 
-    ggshield scan repo git@github.com:GitGuardian/gg-shield.git
+    ggshield scan repo git@github.com:GitGuardian/ggshield.git
 
-    ggshield scan repo /repositories/gg-shield
+    ggshield scan repo /repositories/ggshield
   ```
 
 - `Docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command.
@@ -401,7 +401,7 @@ Alternatively to setting the `GITGUARDIAN_API_URL` environment variable, set the
 
 ## Ignoring a secret
 
-Useful for ignoring a revoked test credential or a false positive, there are three ways to ignore a secret with gg-shield:
+Useful for ignoring a revoked test credential or a false positive, there are three ways to ignore a secret with ggshield:
 
 ### In code
 
@@ -447,7 +447,7 @@ Create a `.pre-commit-config.yaml` file in your root repository:
 
 ```yaml
 repos:
-  - repo: https://github.com/gitguardian/gg-shield
+  - repo: https://github.com/gitguardian/ggshield
     rev: main
     hooks:
       - id: ggshield
@@ -506,7 +506,7 @@ You can force override with the `--force` option:
 $ ggshield install --mode local --force
 ```
 
-If you already have a pre-commit executable file and you want to use gg-shield,
+If you already have a pre-commit executable file and you want to use ggshield,
 all you need to do is to add this line in the file:
 
 ```shell
@@ -545,7 +545,7 @@ Create a `.pre-commit-config.yaml` file in your root repository:
 
 ```yaml
 repos:
-  - repo: https://github.com/gitguardian/gg-shield
+  - repo: https://github.com/gitguardian/ggshield
     rev: main
     hooks:
       - id: ggshield-push
@@ -602,7 +602,7 @@ Now you're good to go!
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 
-You can find **gg-shield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-python.sample](doc/pre-receive-python.sample).
+You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-python.sample](doc/pre-receive-python.sample).
 
 ### Python git pre-receive hook
 
@@ -674,7 +674,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 **ggshield's** support of GitHub comes in the form of GitHub actions.
 
-The action for this repository is hosted at [gg-shield-action](https://github.com/GitGuardian/gg-shield-action).
+The action for this repository is hosted at [ggshield-action](https://github.com/GitGuardian/ggshield-action).
 
 Configuring a GitHub workflow to use **ggshield** is as simple as
 adding a step to your project's workflow:
@@ -694,7 +694,7 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history so multiple commits can be scanned
       - name: GitGuardian scan
-        uses: GitGuardian/gg-shield-action@master
+        uses: GitGuardian/ggshield-action@master
         env:
           GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
@@ -727,19 +727,19 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 # Circle CI
 
-Circle CI is supported in **gg-shield** through [gg-shield-orb](https://github.com/GitGuardian/gg-shield-orb).
+Circle CI is supported in **ggshield** through [ggshield-orb](https://github.com/GitGuardian/ggshield-orb).
 
-To add gg-shield to your pipelines configure your `.circleci/config.yml` to add the gg-shield orb:
+To add ggshield to your pipelines configure your `.circleci/config.yml` to add the ggshield orb:
 
 ```yaml
 orbs:
-  gg-shield: gitguardian/ggshield
+  ggshield: gitguardian/ggshield
 
 workflows:
   main:
     jobs:
-      - gg-shield/scan:
-          name: gg-shield-scan # best practice is to name each orb job
+      - ggshield/scan:
+          name: ggshield-scan # best practice is to name each orb job
           base_revision: << pipeline.git.base_revision >>
           revision: <<pipeline.git.revision>>
 ```
@@ -748,7 +748,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 # Travis CI
 
-To add gg-shield to your pipelines configure your `.travis.yml` to add a gg-shield scanning job:
+To add ggshield to your pipelines configure your `.travis.yml` to add a ggshield scanning job:
 
 ```yml
 jobs:
@@ -768,7 +768,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 # Jenkins
 
-To add gg-shield to your pipelines configure your `Jenkinsfile` to add a gg-shield stage:
+To add ggshield to your pipelines configure your `Jenkinsfile` to add a ggshield stage:
 
 ```groovy
 pipeline {
@@ -793,7 +793,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 # Drone
 
-To add gg-shield to your pipelines configure your `.drone.yml` to add a gg-shield stage:
+To add ggshield to your pipelines configure your `.drone.yml` to add a ggshield stage:
 
 ```groovy
 kind: pipeline
@@ -801,7 +801,7 @@ type: docker
 name: default
 
 steps:
-- name: gg-shield
+- name: ggshield
   image: gitguardian/ggshield:latest
   commands:
   - ggshield scan ci
@@ -815,7 +815,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 > ⚠ Azure Pipelines does not support commit ranges outside of GitHub Pull Requests, therefore on push events in a regular branch only your latest commit will be scanned.
 > This limitation doesn't apply to GitHub Pull Requests where all the commits in the pull request will be scanned.
 
-To add gg-shield to your pipelines configure your `azure-pipelines.yml` to add a gg-shield scanning job:
+To add ggshield to your pipelines configure your `azure-pipelines.yml` to add a ggshield scanning job:
 
 ```yml
 jobs:
