@@ -284,7 +284,7 @@ def format_detector(match_type: str, index_start: int, index_end: int) -> str:
 
 
 def secrets_engine_version() -> str:
-    return f"\nsecrets-engine-version: {VERSIONS.secrets_engine_version}"
+    return f"\nsecrets-engine-version: {VERSIONS.secrets_engine_version}\n"
 
 
 def file_info(filename: str, nb_secrets: int) -> str:
@@ -301,7 +301,7 @@ def no_leak_message() -> str:
     """
     Build a message if no secret is found.
     """
-    return format_text("No secrets have been found\n", STYLE["no_secret"])
+    return format_text("\nNo secrets have been found\n", STYLE["no_secret"])
 
 
 def get_lines_to_display(
