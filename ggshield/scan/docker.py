@@ -102,7 +102,7 @@ def _get_layer_infos(
         {
             "filename": filename,
             "created": info["created"],
-            "created_by": info["created_by"],
+            "created_by": info.get("created_by"),
         }
         for info, filename in zip(
             (layer for layer in config["history"] if not layer.get("empty_layer")),
@@ -117,7 +117,7 @@ def _should_scan_layer(layer_info: Dict) -> bool:
     Only COPY and ADD layers should be scanned.
     """
     cmd = layer_info["created_by"]
-    return LAYER_TO_SCAN_PATTERN.search(cmd) is not None
+    return LAYER_TO_SCAN_PATTERN.search(cmd) is not None if cmd else True
 
 
 def _get_layers_files(
@@ -132,7 +132,7 @@ def _get_layers_files(
 
 def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[File]:
     """
-    Extracts File objects to be scanner for given layer.
+    Extracts File objects to be scanned for given layer.
     """
     layer_filename = layer_info["filename"]
     layer_archive = tarfile.TarFile(

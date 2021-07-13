@@ -13,6 +13,9 @@ from .conftest import _SIMPLE_SECRET, my_vcr
 
 
 DOCKER_EXAMPLE_PATH = Path(__file__).parent / "data" / "docker-example.tar.xz"
+DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
+    Path(__file__).parent / "data" / "docker-incomplete-manifest-example.tar.xz"
+)
 
 
 class TestDockerPull:
@@ -137,8 +140,14 @@ class TestDockerCMD:
         assert result.exit_code == 1
 
     @patch("ggshield.docker.get_files_from_docker_archive")
+    @pytest.mark.parametrize(
+        "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
+    )
     def test_docker_scan_archive(
-        self, get_files_mock: Mock, cli_fs_runner: click.testing.CliRunner
+        self,
+        get_files_mock: Mock,
+        cli_fs_runner: click.testing.CliRunner,
+        image_path: Path,
     ):
         get_files_mock.return_value = Files(
             files=[File(document=_SIMPLE_SECRET, filename="file_secret")]
@@ -146,7 +155,12 @@ class TestDockerCMD:
         with my_vcr.use_cassette("test_scan_file_secret"):
             result = cli_fs_runner.invoke(
                 cli,
-                ["-v", "scan", "docker-archive", str(DOCKER_EXAMPLE_PATH)],
+                [
+                    "-v",
+                    "scan",
+                    "docker-archive",
+                    str(image_path),
+                ],
             )
             get_files_mock.assert_called_once()
             assert "1 incident has been found in file file_secret" in result.output
