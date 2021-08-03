@@ -29,17 +29,18 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
 ### Currently supported integrations
 
+- [Azure Pipelines](#Azure)
+- [Bitbucket Pipelines](#bitbucket)
+- [Circle CI Orbs](#circle-ci)
+- [Docker](#Docker)
+- [Drone](#Drone)
+- [GitHub Actions](#github)
+- [GitLab](#gitlab)
+- [Jenkins](#jenkins)
 - [Pre-commit hooks](#pre-commit)
 - [Pre-push hooks](#pre-push)
 - [Pre-receive hooks](#pre-receive)
-- [GitLab](#gitlab)
-- [GitHub Actions](#github)
-- [Bitbucket Pipelines](#bitbucket)
-- [Circle CI Orbs](#circle-ci)
 - [Travis CI](#travis-ci)
-- [Jenkins](#jenkins)
-- [Drone](#Drone)
-- [Azure Pipelines](#Azure)
 
 ## Table of Contents
 
@@ -648,6 +649,15 @@ You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sam
   ```shell
   docker run --rm -v $(pwd):/data -v <INSERT path of gitguardian.yaml directory>:/config -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield -c /config/gitguardian.yaml scan commit-range "${span}" && continue
   ```
+
+# Docker
+
+The GitGuardian Shield docker scanning tool (`ggshield scan docker`) is used to
+scan local docker images for secrets present in the image's creation process
+(`dockerfile` and build arguments) and in the image's layers' filesystem.
+
+If the image is not available locally on the user's machine, GitGuardian shield
+will attempt to pull the image using `docker pull <IMAGE_NAME>`.
 
 # GitLab
 
