@@ -28,7 +28,7 @@ def test_prepush_too_many(get_list_mock: Mock, cli_fs_runner: CliRunner):
     """
     GIVEN a prepush range with a 101 commits
     WHEN the command is run
-    THEN it should return 0 and warn too many commits for scanning
+    THEN it should return 0 warn too many commits for scanning, and scan last 50
     """
     get_list_mock.return_value = ["a" for _ in range(101)]
     result = cli_fs_runner.invoke(
@@ -37,7 +37,7 @@ def test_prepush_too_many(get_list_mock: Mock, cli_fs_runner: CliRunner):
         env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
     )
     assert result.exit_code == 0
-    assert "Too many commits for scanning." in result.output
+    assert "Too many commits. Scanning last 50" in result.output
 
 
 @patch("ggshield.hook_cmd.get_list_commit_SHA")
@@ -63,7 +63,9 @@ def test_prepush_pre_commit_framework_new(
         ["-v", "scan", "pre-push"],
         env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
     )
-    get_list_mock.assert_called_once_with("b" * 40 + "..." + "a" * 40)
+    get_list_mock.assert_called_once_with(
+        "--max-count=51 " + "b" * 40 + "..." + "a" * 40
+    )
     scan_commit_range_mock.assert_called_once_with(
         client=ANY,
         cache=ANY,
@@ -102,7 +104,9 @@ def test_prepush_pre_commit_framework_old(
         ["-v", "scan", "pre-push"],
         env={"PRE_COMMIT_SOURCE": "a" * 40, "PRE_COMMIT_ORIGIN": "b" * 40},
     )
-    get_list_mock.assert_called_once_with("b" * 40 + "..." + "a" * 40)
+    get_list_mock.assert_called_once_with(
+        "--max-count=51 " + "b" * 40 + "..." + "a" * 40
+    )
     scan_commit_range_mock.assert_called_once()
     assert "Commits to scan: 20" in result.output
     assert result.exit_code == 0
@@ -128,7 +132,7 @@ def test_prepush_stdin_input(
     result = cli_fs_runner.invoke(
         cli, ["-v", "scan", "pre-push"], input="main\naaaa\norigin/main\nbbbb\n"
     )
-    get_list_mock.assert_called_once_with("bbbb" + "..." + "aaaa")
+    get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
     scan_commit_range_mock.assert_called_once()
     assert "Commits to scan: 20" in result.output
     assert result.exit_code == 0
@@ -169,18 +173,18 @@ def test_prepush_new_branch(
     THEN it should warn of new branch and return 0
     """
     scan_commit_range_mock.return_value = 0
-    get_list_mock.return_value = ["a" for _ in range(10)]
+    get_list_mock.return_value = ["a" for _ in range(60)]
 
     result = cli_fs_runner.invoke(
         cli,
         ["-v", "scan", "pre-push"],
         env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
     )
-    get_list_mock.assert_called_once_with(f"--max-count=101 {EMPTY_TREE} { 'a' * 40}")
+    get_list_mock.assert_called_once_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
     scan_commit_range_mock.assert_called_once()
 
-    assert "New tree event. Scanning all changes" in result.output
-    assert "Commits to scan: 10" in result.output
+    assert "New tree event. Scanning last 50 commits" in result.output
+    assert "Commits to scan: 50" in result.output
     assert result.exit_code == 0
 
 
@@ -233,7 +237,7 @@ def test_prepush_stdin_input_no_newline(
         input="refs/heads/main bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main 649061dcda8bff94e02adbaac70ca64cfb84bc78",  # noqa: E501
     )
     get_list_mock.assert_called_once_with(
-        "649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
+        "--max-count=51 649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
     )  # noqa: E501
     scan_commit_range_mock.assert_called_once()
     assert "Commits to scan: 20" in result.output
