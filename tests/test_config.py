@@ -178,3 +178,16 @@ class TestCache:
         cache = Cache()
         cache.save()
         assert os.path.isfile(".cache_ggshield") is True
+
+    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
+    def test_max_commits_for_hook_setting(self, cli_fs_runner):
+        """
+        GIVEN a yaml config with `max-commits-for-hook=75`
+        WHEN the config gets parsed
+        THEN the default value of max_commits_for_hook (50) should be replaced with 75
+        """
+        with open(".gitguardian.yml", "w") as file:
+            file.write(yaml.dump({"max-commits-for-hook": 75}))
+
+        config = Config()
+        assert config.max_commits_for_hook == 75

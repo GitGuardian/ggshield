@@ -5,7 +5,6 @@ from typing import List, Optional, Tuple
 
 import click
 
-from ggshield.config import MAX_PREPUSH_COMMITS
 from ggshield.dev_scan import scan_commit_range
 from ggshield.output import TextHandler
 from ggshield.scan import Commit, ScanCollection
@@ -99,14 +98,18 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         return 0
 
     if remote_commit == EMPTY_SHA:
-        click.echo("New tree event. Scanning all changes.")
+        click.echo(
+            f"New tree event. Scanning last {config.max_commits_for_hook} commits."
+        )
         before = EMPTY_TREE
         after = local_commit
-        cmd_range = f"--max-count={MAX_PREPUSH_COMMITS+1} {EMPTY_TREE} {local_commit}"
+        cmd_range = (
+            f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {local_commit}"
+        )
     else:
         before = remote_commit
         after = local_commit
-        cmd_range = f"{remote_commit}...{local_commit}"
+        cmd_range = f"--max-count={config.max_commits_for_hook+1} {remote_commit}...{local_commit}"  # noqa
 
     commit_list = get_list_commit_SHA(cmd_range)
 
@@ -119,9 +122,11 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         )
         return 0
 
-    if len(commit_list) > MAX_PREPUSH_COMMITS:
-        click.echo("Too many commits for scanning. Skipping pre-push hook\n")
-        return 0
+    if len(commit_list) > config.max_commits_for_hook:
+        click.echo(
+            f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n"
+        )
+        commit_list = commit_list[-config.max_commits_for_hook :]
 
     if config.verbose:
         click.echo(f"Commits to scan: {len(commit_list)}")

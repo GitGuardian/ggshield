@@ -19,9 +19,6 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 # max file size to accept
 MAX_FILE_SIZE = 1048576
 
-# Max commits to scan on a prepush
-MAX_PREPUSH_COMMITS = 100
-
 CPU_COUNT = os.cpu_count() or 1
 
 
@@ -47,6 +44,7 @@ class Config:
     show_secrets: bool
     verbose: bool
     allow_self_signed: bool
+    max_commits_for_hook: int
 
     CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
     CONFIG_GLOBAL = [
@@ -65,6 +63,7 @@ class Config:
         Attribute("show_secrets", False),
         Attribute("verbose", False),
         Attribute("allow_self_signed", False),
+        Attribute("max_commits_for_hook", 50),
     ]
 
     def __init__(self) -> None:
