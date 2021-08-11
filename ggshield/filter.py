@@ -4,7 +4,7 @@ import operator
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 
@@ -56,6 +56,22 @@ def remove_ignored_from_result(
         policy_break
         for policy_break in scan_result.policy_breaks
         if not is_ignored(policy_break, all_policies, matches_ignore)
+    ]
+
+    scan_result.policy_break_count = len(scan_result.policy_breaks)
+
+
+def remove_results_from_banlisted_detectors(
+    scan_result: ScanResult,
+    banlisted_detectors: Optional[Set[str]] = None,
+) -> None:
+    if not banlisted_detectors:
+        return
+
+    scan_result.policy_breaks = [
+        policy_break
+        for policy_break in scan_result.policy_breaks
+        if policy_break.break_type not in banlisted_detectors
     ]
 
     scan_result.policy_break_count = len(scan_result.policy_breaks)

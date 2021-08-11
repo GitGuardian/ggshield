@@ -2,7 +2,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, NoReturn, Optional, Type, cast
+from typing import Any, List, NoReturn, Optional, Type, cast
 
 import click
 
@@ -64,6 +64,13 @@ from .utils import json_output_option_decorator, retrieve_client
     default=None,
     help="Route ggshield output to file.",
 )
+@click.option(
+    "--banlist-detector",
+    "-b",
+    default=None,
+    help="Exclude results from a detector.",
+    multiple=True,
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
@@ -73,6 +80,7 @@ def scan(
     verbose: bool,
     json_output: bool,
     output: Optional[str],
+    banlist_detector: Optional[List[str]] = None,
 ) -> int:
     """Command to scan various contents."""
     ctx.obj["client"] = retrieve_client(ctx)
@@ -94,6 +102,9 @@ def scan(
 
     if exit_zero is not None:
         config.exit_zero = exit_zero
+
+    if banlist_detector:
+        config.banlisted_detectors.update(banlist_detector)
 
     output_handler_cls: Type[OutputHandler] = TextHandler
     if json_output:

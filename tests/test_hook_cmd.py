@@ -77,6 +77,7 @@ def test_prepush_pre_commit_framework_new(
         all_policies=False,
         scan_id=ANY,
         mode_header="pre_push",
+        banlisted_detectors=set(),
     )
     assert "Commits to scan: 20" in result.output
     assert result.exit_code == 0

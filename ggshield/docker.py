@@ -2,7 +2,7 @@ import subprocess
 import tempfile
 import traceback
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 import click
 from pygitguardian.client import GGClient
@@ -77,6 +77,7 @@ def docker_scan_archive(
     matches_ignore: Iterable[str],
     all_policies: bool,
     scan_id: str,
+    banlisted_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
     with click.progressbar(length=len(files.files), label="Scanning") as progressbar:
@@ -92,6 +93,7 @@ def docker_scan_archive(
             verbose=verbose,
             mode_header=SupportedScanMode.DOCKER.value,
             on_file_chunk_scanned=update_progress,
+            banlisted_detectors=banlisted_detectors,
         )
 
     return ScanCollection(id=scan_id, type="scan_docker_archive", results=results)
@@ -122,6 +124,7 @@ def docker_name_cmd(ctx: click.Context, name: str) -> int:
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
                 scan_id=name,
+                banlisted_detectors=config.banlisted_detectors,
             )
 
             return output_handler.process_scan(scan)[1]
@@ -160,6 +163,7 @@ def docker_archive_cmd(
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=archive,
+            banlisted_detectors=config.banlisted_detectors,
         )
 
         return output_handler.process_scan(scan)[1]
