@@ -45,6 +45,7 @@ class Config:
     verbose: bool
     allow_self_signed: bool
     max_commits_for_hook: int
+    banlisted_detectors: Set[str]
 
     CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
     CONFIG_GLOBAL = [
@@ -65,6 +66,7 @@ class Config:
             Attribute("verbose", False),
             Attribute("allow_self_signed", False),
             Attribute("max_commits_for_hook", 50),
+            Attribute("banlisted_detectors", set()),
         ]
 
         for attr in self.attributes:

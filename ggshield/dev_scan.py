@@ -4,7 +4,7 @@ import tempfile
 import traceback
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, Iterator, List, Set
+from typing import Iterable, Iterator, List, Optional, Set
 
 import click
 from pygitguardian import GGClient
@@ -54,6 +54,7 @@ def scan_repo_path(
                 all_policies=config.all_policies,
                 scan_id=scan_id,
                 mode_header=SupportedScanMode.REPO.value,
+                banlisted_detectors=config.banlisted_detectors,
             )
     except click.exceptions.Abort:
         return 0
@@ -139,6 +140,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             all_policies=config.all_policies,
             scan_id=commit_range,
             mode_header=SupportedScanMode.COMMIT_RANGE.value,
+            banlisted_detectors=config.banlisted_detectors,
         )
     except click.exceptions.Abort:
         return 0
@@ -175,6 +177,7 @@ def path_cmd(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.matches_ignore,
+            banlisted_detectors=config.banlisted_detectors,
             all_policies=config.all_policies,
             verbose=config.verbose,
             mode_header=SupportedScanMode.PATH.value,
@@ -198,11 +201,13 @@ def scan_commit(
     matches_ignore: Iterable[str],
     all_policies: bool,
     mode_header: str,
+    banlisted_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
         client=client,
         cache=cache,
         matches_ignore=matches_ignore,
+        banlisted_detectors=banlisted_detectors,
         all_policies=all_policies,
         verbose=verbose,
         mode_header=mode_header,
@@ -228,6 +233,7 @@ def scan_commit_range(
     all_policies: bool,
     scan_id: str,
     mode_header: str,
+    banlisted_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
     Scan every commit in a range.
@@ -250,6 +256,7 @@ def scan_commit_range(
                 matches_ignore,
                 all_policies,
                 mode_header,
+                banlisted_detectors,
             )
             for sha in commit_list
         ]

@@ -35,6 +35,7 @@ def precommit_cmd(
             all_policies=config.all_policies,
             verbose=config.verbose,
             mode_header=SupportedScanMode.PRE_COMMIT.value,
+            banlisted_detectors=config.banlisted_detectors,
         )
 
         return output_handler.process_scan(
@@ -144,6 +145,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),
             mode_header=SupportedScanMode.PRE_PUSH.value,
+            banlisted_detectors=config.banlisted_detectors,
         )
     except click.exceptions.Abort:
         return 0

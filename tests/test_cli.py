@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from ggshield.cmd import cli
 
-from .conftest import _SIMPLE_SECRET, my_vcr
+from .conftest import _ONE_LINE_AND_MULTILINE_PATCH, _SIMPLE_SECRET, my_vcr
 
 
 @pytest.fixture(scope="class")
@@ -322,3 +322,43 @@ def test_ssl_verify(cli_fs_runner, verify):
         cli_fs_runner.invoke(cli, cmd)
         _, kwargs = client_mock.call_args
         assert kwargs["session"].verify == verify
+
+
+@pytest.mark.parametrize(
+    "banlisted_detectors, nb_secret",
+    [
+        ([], 2),
+        (["-b", "RSA Private Key"], 1),
+        (["-b", "SendGrid Key"], 1),
+        (["-b", "host"], 2),
+        (["-b", "SendGrid Key", "-b", "host"], 1),
+        (["-b", "SendGrid Key", "-b", "RSA Private Key"], 0),
+    ],
+)
+def test_banlisted_detectors(
+    cli_fs_runner,
+    banlisted_detectors,
+    nb_secret,
+):
+    os.system(f'echo "{_ONE_LINE_AND_MULTILINE_PATCH}" > file_secret')  # nosec
+
+    with my_vcr.use_cassette("_ONE_LINE_AND_MULTILINE_PATCH"):
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "scan",
+                "--exit-zero",
+                "-v",
+                *banlisted_detectors,
+                "path",
+                "file_secret",
+            ],
+        )
+        if nb_secret:
+            plural = nb_secret > 1
+            assert (
+                f"{nb_secret} incident{'s' if plural else ''} "
+                f"{'have' if plural else 'has'} been found"
+            ) in result.output
+        else:
+            assert "No secrets have been found" in result.output

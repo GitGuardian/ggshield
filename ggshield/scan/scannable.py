@@ -9,7 +9,10 @@ from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
 from ggshield.config import CPU_COUNT, MAX_FILE_SIZE, Cache
-from ggshield.filter import remove_ignored_from_result
+from ggshield.filter import (
+    remove_ignored_from_result,
+    remove_results_from_banlisted_detectors,
+)
 from ggshield.git_shell import GIT_PATH, shell
 from ggshield.text_utils import STYLE, format_text
 from ggshield.utils import REGEX_HEADER_INFO, Filemode
@@ -105,6 +108,7 @@ class Files:
         all_policies: bool,
         verbose: bool,
         mode_header: str,
+        banlisted_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
@@ -138,6 +142,9 @@ class Files:
                     continue
                 for index, scanned in enumerate(scan.scan_results):
                     remove_ignored_from_result(scanned, all_policies, matches_ignore)
+                    remove_results_from_banlisted_detectors(
+                        scanned, banlisted_detectors
+                    )
                     if scanned.has_policy_breaks:
                         for policy_break in scanned.policy_breaks:
                             cache.add_found_policy_break(

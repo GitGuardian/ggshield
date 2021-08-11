@@ -282,6 +282,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),
             mode_header=mode_header,
+            banlisted_detectors=config.banlisted_detectors,
         )
     except click.exceptions.Abort:
         return 0

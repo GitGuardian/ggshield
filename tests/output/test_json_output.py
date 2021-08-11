@@ -52,6 +52,7 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             all_policies=True,
             verbose=False,
             mode_header=SupportedScanMode.PATH.value,
+            banlisted_detectors=None,
         )
 
         flat_results, exit_code = handler.process_scan(
