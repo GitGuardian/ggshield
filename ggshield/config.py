@@ -54,19 +54,19 @@ class Config:
     ]
     DEFAULT_CONFIG_LOCAL = "./.gitguardian.yaml"
 
-    attributes: List[Attribute] = [
-        Attribute("all_policies", False),
-        Attribute("api_url", "https://api.gitguardian.com"),
-        Attribute("exit_zero", False),
-        Attribute("matches_ignore", list()),
-        Attribute("paths_ignore", set()),
-        Attribute("show_secrets", False),
-        Attribute("verbose", False),
-        Attribute("allow_self_signed", False),
-        Attribute("max_commits_for_hook", 50),
-    ]
-
     def __init__(self) -> None:
+        self.attributes: List[Attribute] = [
+            Attribute("all_policies", False),
+            Attribute("api_url", "https://api.gitguardian.com"),
+            Attribute("exit_zero", False),
+            Attribute("matches_ignore", list()),
+            Attribute("paths_ignore", set()),
+            Attribute("show_secrets", False),
+            Attribute("verbose", False),
+            Attribute("allow_self_signed", False),
+            Attribute("max_commits_for_hook", 50),
+        ]
+
         for attr in self.attributes:
             setattr(self, attr.name, attr.default)
         self.load_configs(self.CONFIG_GLOBAL)
