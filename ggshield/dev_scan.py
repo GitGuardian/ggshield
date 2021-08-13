@@ -263,14 +263,12 @@ def scan_commit_range(
 
         scans: List[ScanCollection] = []
         with click.progressbar(
+            iterable=concurrent.futures.as_completed(future_to_process),
             length=len(future_to_process),
             label=format_text("Scanning Commits", STYLE["progress"]),
-        ) as bar:
-            processed = 0
-            for future in concurrent.futures.as_completed(future_to_process):
+        ) as completed_futures:
+            for future in completed_futures:
                 scans.append(future.result())
-                processed += 1
-                bar.update(processed)
 
         return_code = output_handler.process_scan(
             ScanCollection(id=scan_id, type="commit-range", scans=scans)
