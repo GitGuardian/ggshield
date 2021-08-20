@@ -5,14 +5,14 @@ verify_ssl = true
 
 [packages]
 click = "*"
-ggshield = {editable = true, path = "."}
+ggshield = { editable = true, path = "." }
 pygitguardian = "==1.2.2"
 python-dotenv = "*"
 pyyaml = "*"
-yaspin = "==v2.0.0"
+yaspin = "~=2.0.0"
 
 [dev-packages]
-black = "==21.6b0"
+black = "==21.7b0"
 coverage = "*"
 flake8 = "*"
 flake8-isort = "*"
