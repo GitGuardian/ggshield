@@ -1,7 +1,7 @@
 [tool.black]
 target-version = ['py36']
 line-length = 88
-exclude = 'snap_'
+exclude = '/(\.eggs|\.git|\.hg|\.mypy_cache|\.nox|\.tox|\.venv|\.svn|_build|buck-out|build|dist|venv|snapshots|_snap)/'
 
 [tool.pytest.ini_options]
 addopts = "--pdbcls=IPython.terminal.debugger:Pdb --durations=10 --durations-min=3.0 --tb=short"
@@ -10,3 +10,42 @@ testpaths = [
   "tests/",
 ]
 
+[tool.isort]
+profile = "black"
+lines_after_imports = 2
+
+[tool.coverage.report]
+exclude_lines = [
+  "@abstractmethod",
+  "if TYPE_CHECKING:",
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "assert False"]
+omit = ["tests/*"]
+fail_under = 80
+show_missing = true
+
+[tool.coverage.run]
+source = ["."]
+omit = [".venv/*"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+follow_imports = "silent"
+ignore_missing_imports = true
+no_implicit_optional = true
+strict_equality = true
+strict_optional = true
+warn_incomplete_stub = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*"]
+ignore_errors = true
