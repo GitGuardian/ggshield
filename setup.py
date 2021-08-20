@@ -5,6 +5,7 @@ from typing import Any
 
 from setuptools import find_packages, setup
 
+
 VERSION_RE = re.compile(r"__version__\s*=\s*\"(.*?)\"")
 HERE = os.path.abspath(os.path.dirname(__file__))
 

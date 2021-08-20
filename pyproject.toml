@@ -6,9 +6,7 @@ exclude = '/(\.eggs|\.git|\.hg|\.mypy_cache|\.nox|\.tox|\.venv|\.svn|_build|buck
 [tool.pytest.ini_options]
 addopts = "--pdbcls=IPython.terminal.debugger:Pdb --durations=10 --durations-min=3.0 --tb=short"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
-testpaths = [
-  "tests/",
-]
+testpaths = ["tests/"]
 
 [tool.isort]
 profile = "black"
