@@ -3,7 +3,7 @@ interactions:
       body: null
       headers:
         Accept:
-          - "*/*"
+          - '*/*'
         Accept-Encoding:
           - gzip, deflate
         Connection:
@@ -21,7 +21,7 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - "27"
+          - '27'
         Content-Type:
           - application/json
         Date:
@@ -45,7 +45,7 @@ interactions:
       body: null
       headers:
         Accept:
-          - "*/*"
+          - '*/*'
         Accept-Encoding:
           - gzip, deflate
         Connection:
@@ -63,7 +63,7 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - "27"
+          - '27'
         Content-Type:
           - application/json
         Date:
