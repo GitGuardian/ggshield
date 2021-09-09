@@ -5,6 +5,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import HealthCheckResponse
 
 from ggshield.output.text.message import format_healthcheck_status
+from ggshield.text_utils import STYLE, format_text
 
 from .utils import json_output_option_decorator, retrieve_client
 
@@ -23,9 +24,9 @@ def status(ctx: click.Context, json_output: bool) -> int:
         response.to_json()
         if json_output
         else (
-            f"status: {format_healthcheck_status(response)}\n"
-            f"app-version: {response.app_version or 'Unknown'}\n"
-            "secrets-engine-version-version: "
+            f"{format_text('status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
+            f"{format_text('app version:', STYLE['key'])} {response.app_version or 'Unknown'}\n"
+            f"{format_text('secrets engine version:', STYLE['key'])} "
             f"{response.secrets_engine_version or 'Unknown'}\n"
         )
     )
