@@ -11,6 +11,7 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "filename": {"fg": "bright_yellow", "bold": True},
     "commit_info": {"fg": "bright_yellow", "bold": False},
     "patch": {"fg": "white"},
+    "key": {"fg": "bright_white", "bold": True},
     "secret": {"fg": "bright_red"},
     "error": {"fg": "red"},
     "no_secret": {"fg": "white"},
