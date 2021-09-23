@@ -58,15 +58,15 @@ class Config:
     def __init__(self) -> None:
         self.attributes: List[Attribute] = [
             Attribute("all_policies", False),
+            Attribute("allow_self_signed", False),
             Attribute("api_url", "https://api.gitguardian.com"),
+            Attribute("banlisted_detectors", set()),
             Attribute("exit_zero", False),
             Attribute("matches_ignore", list()),
+            Attribute("max_commits_for_hook", 50),
             Attribute("paths_ignore", set()),
             Attribute("show_secrets", False),
             Attribute("verbose", False),
-            Attribute("allow_self_signed", False),
-            Attribute("max_commits_for_hook", 50),
-            Attribute("banlisted_detectors", set()),
         ]
 
         for attr in self.attributes:

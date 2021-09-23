@@ -524,8 +524,11 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 # Pre-push
 
-> ⚠ Pre-push hooks will not scan more than a 100 commits to avoid developer interruption.
-> In case there are more than a 100 commits in a push the hook will be skipped.
+⚠ Pre-push hooks will not scan more than 50 commits to avoid developer interruption by default.
+
+In case there are more than a 50 commits in a push the hook will be skipped.
+The amount of commits to scan before skipping the hook can be configured by the key `max-commits-for-hook` in
+a GitGuardian configuration file (for example: `.gitguardian.yaml`).
 
 Pre-push hooks are executed just before `git push` sends data to the remote host.
 It will pickup and scan the range of commits between the local ref and the origin ref.
