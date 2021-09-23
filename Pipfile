@@ -9,10 +9,10 @@ ggshield = { editable = true, path = "." }
 pygitguardian = "==1.2.2"
 python-dotenv = "*"
 pyyaml = "*"
-yaspin = "~=2.0.0"
+yaspin = "~=2.1.0"
 
 [dev-packages]
-black = "==21.8b0"
+black = "==21.9b0"
 coverage = "*"
 flake8 = "*"
 flake8-isort = "*"
