@@ -1,14 +1,43 @@
+import _thread as thread
 import os
 import sys
+import threading
 import traceback
-from typing import List
+from typing import Any, Callable, List
 
 import click
 
 from ggshield.dev_scan import scan_commit_range
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE, SupportedScanMode
+from ggshield.text_utils import display_error
+from ggshield.utils import EMPTY_SHA, EMPTY_TREE, PRERECEIVE_TIMEOUT, SupportedScanMode
 
 from .git_shell import check_git_dir, get_list_commit_SHA
+
+
+def quit_function() -> None:  # pragma: no cover
+    display_error("Pre-receive hook took too long")
+    thread.interrupt_main()  # raises KeyboardInterrupt
+
+
+# https://stackoverflow.com/questions/492519/timeout-on-a-function-call
+def exit_after(s: float) -> Callable:  # pragma: no cover
+    """
+    use as decorator to exit process if function takes longer than s seconds
+    """
+
+    def outer(fn: Callable) -> Callable:
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            timer = threading.Timer(s, quit_function)
+            timer.start()
+            try:
+                result = fn(*args, **kwargs)
+            finally:
+                timer.cancel()
+            return result
+
+        return inner
+
+    return outer
 
 
 def get_breakglass_option() -> bool:
@@ -26,6 +55,7 @@ def get_breakglass_option() -> bool:
 @click.command()
 @click.argument("prereceive_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
+@exit_after(PRERECEIVE_TIMEOUT)
 def prereceive_cmd(ctx: click.Context, prereceive_args: List[str]) -> int:
     """
     scan as a pre-push git hook.
