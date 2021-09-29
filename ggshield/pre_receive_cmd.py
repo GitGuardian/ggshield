@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 from typing import List
@@ -10,6 +11,18 @@ from ggshield.utils import EMPTY_SHA, EMPTY_TREE, SupportedScanMode
 from .git_shell import check_git_dir, get_list_commit_SHA
 
 
+def get_breakglass_option() -> bool:
+    """Test all options passed to git for `breakglass`"""
+    raw_option_count = os.getenv("GIT_PUSH_OPTION_COUNT", None)
+    if raw_option_count is not None:
+        option_count = int(raw_option_count)
+        for option in range(option_count):
+            if os.getenv(f"GIT_PUSH_OPTION_{option}", "") == "breakglass":
+                return True
+
+    return False
+
+
 @click.command()
 @click.argument("prereceive_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
@@ -20,6 +33,11 @@ def prereceive_cmd(
     scan as a pre-push git hook.
     """
     config = ctx.obj["config"]
+
+    breakglass = get_breakglass_option()
+    if breakglass:
+        click.echo("breakglass detected. Skipping GitGuardian pre-receive hook.")
+        return 0
 
     oldref, newref, *_ = sys.stdin.read().strip().split()
 
