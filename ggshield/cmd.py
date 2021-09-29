@@ -7,6 +7,7 @@ from typing import Any, List, NoReturn, Optional, Type, cast
 import click
 
 from ggshield.output import JSONHandler, OutputHandler, TextHandler
+from ggshield.pre_receive_cmd import prereceive_cmd
 
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
@@ -26,6 +27,7 @@ from .utils import json_output_option_decorator, retrieve_client
         "commit-range": range_cmd,
         "pre-commit": precommit_cmd,
         "pre-push": prepush_cmd,
+        "pre-receive": prereceive_cmd,
         "ci": ci_cmd,
         "path": path_cmd,
         "repo": repo_cmd,
