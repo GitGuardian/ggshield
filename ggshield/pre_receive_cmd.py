@@ -26,9 +26,7 @@ def get_breakglass_option() -> bool:
 @click.command()
 @click.argument("prereceive_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def prereceive_cmd(
-    ctx: click.Context, prereceive_args: List[str]
-) -> int:  # pragma: no cover
+def prereceive_cmd(ctx: click.Context, prereceive_args: List[str]) -> int:
     """
     scan as a pre-push git hook.
     """
@@ -36,10 +34,14 @@ def prereceive_cmd(
 
     breakglass = get_breakglass_option()
     if breakglass:
-        click.echo("breakglass detected. Skipping GitGuardian pre-receive hook.")
+        click.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
         return 0
 
-    oldref, newref, *_ = sys.stdin.read().strip().split()
+    args = sys.stdin.read().strip().split()
+    if len(args) < 3:
+        raise click.ClickException(f"Invalid input arguments: {args}")
+
+    oldref, newref, *_ = args
 
     if newref == EMPTY_SHA:
         click.echo("Deletion event or nothing to scan.")
