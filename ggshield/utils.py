@@ -198,6 +198,7 @@ class SupportedScanMode(Enum):
     COMMIT_RANGE = "commit_range"
     PRE_COMMIT = "pre_commit"
     PRE_PUSH = "pre_push"
+    PRE_RECEIVE = "pre_receive"
     CI = "ci"
     DOCKER = "docker"
 
