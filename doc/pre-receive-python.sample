@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # ggshield as a pre-commit hook
 # Prequirements:
 # python >= 3.6, pip
@@ -11,21 +11,5 @@
 
 #export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
 
-# Commit sha with all zeros
-zero_commit="0000000000000000000000000000000000000000"
-
-while read -r oldrev newrev refname; do
-    # Check if a zero sha
-    if [ "${oldrev}" = "${zero_commit}" ]; then
-        # List everything reachable from newrev but not any heads
-        span="$(git for-each-ref --format='%(refname)' 'refs/heads/*' | sed 's/^/\^/') ${newrev}"
-    else
-        span="${oldrev}...${newrev}"
-    fi
-
-    ggshield scan commit-range "${span}" && continue
-
-    echo "ERROR: Your push was rejected because it contained a security incident"
-    echo "ERROR: Please contact your Git administrator if this was a false positive."
-    exit 1
-done
+set -e
+ggshield scan pre-receive

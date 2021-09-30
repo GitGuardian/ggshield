@@ -65,18 +65,17 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    - The global and local pre-commit hook
 
 1. [Pre-push](#pre-push)
-
-1) [Pre-receive hook](#git-pre-receive-hooks)
-1) [GitLab](#gitlab)
-1) [GitHub Actions](#github)
-1) [Circle CI](#circle-ci)
-1) [Travis CI](#travis-ci)
-1) [Jenkins](#jenkins)
-1) [Drone](#Drone)
-1) [Azure Pipelines](#Azure)
-1) [Output](#output)
-1) [Contributing](#contributing)
-1) [License](#license)
+1. [Pre-receive](#pre-receive)
+1. [GitLab](#gitlab)
+1. [GitHub Actions](#github)
+1. [Circle CI](#circle-ci)
+1. [Travis CI](#travis-ci)
+1. [Jenkins](#jenkins)
+1. [Drone](#Drone)
+1. [Azure Pipelines](#Azure)
+1. [Output](#output)
+1. [Contributing](#contributing)
+1. [License](#license)
 
 # Installation
 
@@ -608,9 +607,20 @@ A pre-receive hook allows you to reject commits from being pushed to a git repos
 
 You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-python.sample](doc/pre-receive-python.sample).
 
-### Python git pre-receive hook
+**ggshield**'s pre-receive hook can be skipped if the developer passes the option `breakglass` to the git push.
 
-> ⚠ this pre-receive hook requires the host machine to have python>=3.6 and pip installed
+For this setting to work the remote must have push options enabled. (`git config receive.advertisePushOptions true`)
+
+Examples:
+
+```sh
+$ git push -o breakglass
+$ git push --push-option=breakglass
+```
+
+## Installed git pre-receive hook
+
+> ⚠ this pre-receive hook requires the host machine to have python>=3.8 and pip installed
 
 [**pre-receive-python.sample**](doc/pre-receive-python.sample)
 
@@ -631,7 +641,7 @@ You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sam
   ggshield -c <INSERT path to gitguardian.yaml> scan commit-range "${span}" && continue
   ```
 
-### Docker git pre-receive hook
+## Docker git pre-receive hook
 
 > ⚠ this pre-receive hook requires the host machine to have docker installed.
 
