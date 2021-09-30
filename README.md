@@ -618,16 +618,15 @@ $ git push -o breakglass
 $ git push --push-option=breakglass
 ```
 
-## Installed git pre-receive hook
-
-> ⚠ this pre-receive hook requires the host machine to have python>=3.8 and pip installed
+## Install ggshield git pre-receive hook locally
 
 [**pre-receive-python.sample**](doc/pre-receive-python.sample)
 
-- Install ggshield from pip: `pip install ggshield`
-- Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
-- Do not forget to `chmod +x .git/hooks/pre-receive`
-- either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
+1. This pre-receive hook requires the host machine to have python>=3.8 and pip installed
+1. Install ggshield from pip: `pip install ggshield`
+1. Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
+1. Do not forget to `chmod +x .git/hooks/pre-receive`
+1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
 **How do I add ignored matches and use a custom config in this pre-receive hook?**
 
@@ -641,15 +640,14 @@ $ git push --push-option=breakglass
   ggshield -c <INSERT path to gitguardian.yaml> scan commit-range "${span}" && continue
   ```
 
-## Docker git pre-receive hook
-
-> ⚠ this pre-receive hook requires the host machine to have docker installed.
+## Install ggshield git pre-receive hook with docker
 
 [**pre-receive.sample**](doc/pre-receive.sample)
 
-- Move `pre-receive.sample` to `.git/hooks/pre-receive`
-- Do not forget to `chmod +x .git/hooks/pre-receive`
-- either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
+1. This pre-receive hook requires the host machine to have docker installed.
+1. Move `pre-receive.sample` to `.git/hooks/pre-receive`
+1. Do not forget to `chmod +x .git/hooks/pre-receive`
+1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
 **How do I add ignored matches and use a custom config in this pre-receive hook?**
 
