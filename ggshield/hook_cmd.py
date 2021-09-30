@@ -1,6 +1,5 @@
 import os
 import sys
-import traceback
 from typing import List, Optional, Tuple
 
 import click
@@ -8,7 +7,7 @@ import click
 from ggshield.dev_scan import scan_commit_range
 from ggshield.output import TextHandler
 from ggshield.scan import Commit, ScanCollection
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE, SupportedScanMode
+from ggshield.utils import EMPTY_SHA, EMPTY_TREE, SupportedScanMode, handle_exception
 
 from .git_shell import check_git_dir, get_list_commit_SHA
 
@@ -41,12 +40,8 @@ def precommit_cmd(
         return output_handler.process_scan(
             ScanCollection(id="cached", type="pre-commit", results=results)
         )[1]
-    except click.exceptions.Abort:
-        return 0
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)
 
 
 def collect_from_stdin() -> Tuple[str, str]:
@@ -147,11 +142,5 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             mode_header=SupportedScanMode.PRE_PUSH.value,
             banlisted_detectors=config.banlisted_detectors,
         )
-    except click.exceptions.Abort:
-        return 0
-    except click.ClickException as exc:
-        raise exc
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)

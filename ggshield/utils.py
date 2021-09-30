@@ -1,5 +1,6 @@
 import os
 import re
+import traceback
 from enum import Enum
 from typing import Iterable, List, Optional
 
@@ -233,3 +234,17 @@ def retrieve_client(ctx: click.Context) -> GGClient:
         timeout=60,
         session=session,
     )
+
+
+def handle_exception(e: Exception, verbose: bool) -> int:
+    """
+    Handle exception from a scan command.
+    """
+    if isinstance(e, click.exceptions.Abort):
+        return 0
+    elif isinstance(e, click.ClickException):
+        raise e
+    else:
+        if verbose:
+            traceback.print_exc()
+        raise click.ClickException(str(e))
