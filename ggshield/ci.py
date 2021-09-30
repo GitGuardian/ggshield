@@ -1,10 +1,9 @@
 import os
-import traceback
 from typing import List
 
 import click
 
-from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode
+from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode, handle_exception
 
 from .dev_scan import scan_commit_range
 from .git_shell import check_git_dir, get_list_commit_SHA
@@ -284,11 +283,5 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             mode_header=mode_header,
             banlisted_detectors=config.banlisted_detectors,
         )
-    except click.exceptions.Abort:
-        return 0
-    except click.ClickException as exc:
-        raise exc
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)

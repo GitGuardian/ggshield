@@ -1,7 +1,6 @@
 import concurrent.futures
 import os
 import tempfile
-import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Set
@@ -17,7 +16,7 @@ from .config import CPU_COUNT, Cache, Config
 from .filter import path_filter_set
 from .git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
-from .utils import REGEX_GIT_URL, SupportedScanMode
+from .utils import REGEX_GIT_URL, SupportedScanMode, handle_exception
 
 
 @contextmanager
@@ -56,12 +55,8 @@ def scan_repo_path(
                 mode_header=SupportedScanMode.REPO.value,
                 banlisted_detectors=config.banlisted_detectors,
             )
-    except click.exceptions.Abort:
-        return 0
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)
 
 
 @click.command()
@@ -142,12 +137,8 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             mode_header=SupportedScanMode.COMMIT_RANGE.value,
             banlisted_detectors=config.banlisted_detectors,
         )
-    except click.exceptions.Abort:
-        return 0
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)
 
 
 @click.command()
@@ -185,12 +176,8 @@ def path_cmd(
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 
         return output_handler.process_scan(scan)[1]
-    except click.exceptions.Abort:
-        return 0
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)
 
 
 def scan_commit(

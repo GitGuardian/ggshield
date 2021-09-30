@@ -2,14 +2,19 @@ import _thread as thread
 import os
 import sys
 import threading
-import traceback
 from typing import Any, Callable, List
 
 import click
 
 from ggshield.dev_scan import scan_commit_range
 from ggshield.text_utils import display_error
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE, PRERECEIVE_TIMEOUT, SupportedScanMode
+from ggshield.utils import (
+    EMPTY_SHA,
+    EMPTY_TREE,
+    PRERECEIVE_TIMEOUT,
+    SupportedScanMode,
+    handle_exception,
+)
 
 from .git_shell import check_git_dir, get_list_commit_SHA
 
@@ -140,11 +145,5 @@ Use it carefully: if those secrets are false positives and you still want your p
             )
         return return_code
 
-    except click.exceptions.Abort:
-        return 0
-    except click.ClickException as exc:
-        raise exc
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)

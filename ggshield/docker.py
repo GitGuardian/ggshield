@@ -1,6 +1,5 @@
 import subprocess
 import tempfile
-import traceback
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
 
@@ -11,8 +10,7 @@ from yaspin import yaspin
 from ggshield.config import Cache
 from ggshield.output import OutputHandler
 from ggshield.scan import ScanCollection, get_files_from_docker_archive
-
-from .utils import SupportedScanMode
+from ggshield.utils import SupportedScanMode, handle_exception
 
 
 # bailout if docker command takes longer than 6 minutes
@@ -130,13 +128,8 @@ def docker_name_cmd(ctx: click.Context, name: str) -> int:
             )
 
             return output_handler.process_scan(scan)[1]
-        except click.exceptions.Abort:
-            return 0
         except Exception as error:
-            if config.verbose:
-                traceback.print_exc()
-
-            raise click.ClickException(str(error))
+            return handle_exception(error, config.verbose)
 
 
 @click.command(hidden=True)
@@ -169,10 +162,5 @@ def docker_archive_cmd(
         )
 
         return output_handler.process_scan(scan)[1]
-    except click.exceptions.Abort:
-        return 0
     except Exception as error:
-        if config.verbose:
-            traceback.print_exc()
-
-        raise click.ClickException(str(error))
+        return handle_exception(error, config.verbose)
