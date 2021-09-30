@@ -28,6 +28,9 @@ REGEX_HEADER_INFO = re.compile(
 
 EMPTY_SHA = "0000000000000000000000000000000000000000"
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+# GitHub timeouts every pre-receive hook after 5s with an error.
+# We try and anticipate that so we can control the return code
 PRERECEIVE_TIMEOUT = 4.5
 
 

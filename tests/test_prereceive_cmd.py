@@ -106,7 +106,6 @@ class TestPreReceive:
         WHEN the command is run
         THEN it should return 0
         """
-        scan_commit_range_mock.return_value = 0
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         result = cli_fs_runner.invoke(
