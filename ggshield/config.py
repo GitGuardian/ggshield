@@ -224,18 +224,8 @@ class Cache:
         else:
             super().__setattr__(name, value)
 
-    def create_empty_cache(self) -> None:
-        # Creates a new file
-        try:
-            with open(self.CACHE_FILENAME, "w"):
-                pass
-        except PermissionError:
-            # Hotfix: for the time being we skip cache handling if permission denied
-            pass
-
     def load_cache(self) -> bool:
         if not os.path.isfile(self.CACHE_FILENAME):
-            self.create_empty_cache()
             return True
 
         _cache: dict = {}
@@ -286,9 +276,6 @@ class Cache:
         return _cache
 
     def save(self) -> bool:
-        if not os.path.isfile(self.CACHE_FILENAME):
-            return False
-
         try:
             f = open(self.CACHE_FILENAME, "w")
         except PermissionError:
