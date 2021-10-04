@@ -32,7 +32,7 @@ class TestDockerPull:
 
     def test_docker_pull_image_non_exist(self):
         with patch(
-            "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=None)
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=[])
         ):
             with pytest.raises(
                 click.exceptions.ClickException,
@@ -43,7 +43,7 @@ class TestDockerPull:
     def test_docker_pull_image_timeout(self):
         with patch(
             "subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd=None, timeout=DOCKER_TIMEOUT),
+            side_effect=subprocess.TimeoutExpired(cmd=[], timeout=DOCKER_TIMEOUT),
         ):
             with pytest.raises(
                 click.exceptions.ClickException,
@@ -74,7 +74,7 @@ class TestDockerSave:
         with patch(
             "subprocess.run",
             side_effect=subprocess.CalledProcessError(
-                1, cmd=None, stderr="reference does not exist".encode("utf-8")
+                1, cmd=[], stderr="reference does not exist".encode("utf-8")
             ),
         ):
             with pytest.raises(
@@ -88,7 +88,7 @@ class TestDockerSave:
     def test_docker_save_image_timeout(self):
         with patch(
             "subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd=None, timeout=DOCKER_TIMEOUT),
+            side_effect=subprocess.TimeoutExpired(cmd=[], timeout=DOCKER_TIMEOUT),
         ):
             with pytest.raises(
                 click.exceptions.ClickException,
