@@ -5,8 +5,18 @@ import click
 
 from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode, handle_exception
 
+from .config import Cache
 from .dev_scan import scan_commit_range
 from .git_shell import check_git_dir, get_list_commit_SHA
+
+
+class ReadOnlyCache(Cache):
+    """
+    A version of Cache which does not write anything to the disk.
+    """
+
+    def save(self) -> bool:  # pragma: no cover
+        return True
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
@@ -272,7 +282,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
 
         return scan_commit_range(
             client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
+            cache=ReadOnlyCache(),
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,
