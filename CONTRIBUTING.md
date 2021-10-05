@@ -52,6 +52,8 @@
 
 ### Run all tests on GitGuardian Shield
 
+Set the `TEST_GITGUARDIAN_API_KEY` environment variable to a valid GitGuardian API key.
+
 ```sh
 $ make test
 ```
