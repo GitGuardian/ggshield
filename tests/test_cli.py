@@ -155,6 +155,29 @@ class TestScanDirectory:
         assert result.exit_code == 0
         assert not result.exception
 
+    def test_directory_verbose_ignored_abort(self, cli_fs_runner):
+        self.create_files()
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "-v",
+                "scan",
+                "--exclude",
+                "file1",
+                "--exclude",
+                "dir/file2",
+                "path",
+                "./",
+                "-r",
+            ],
+            input="n\n",
+        )
+        assert result.exit_code == 0
+        assert not result.exception
+        assert "file1\n" not in result.output
+        assert "dir/file2\n" not in result.output
+        assert "dir/subdir/file3\n" in result.output
+
     @my_vcr.use_cassette()
     def test_directory_verbose_yes(self, cli_fs_runner):
         self.create_files()
