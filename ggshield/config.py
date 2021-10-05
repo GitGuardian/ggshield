@@ -88,6 +88,8 @@ class Config:
             if key in self.get_attributes_keys():
                 if isinstance(getattr(self, key), list):
                     getattr(self, key).extend(item)
+                elif isinstance(getattr(self, key), set):
+                    getattr(self, key).update(item)
                 else:
                     setattr(self, key, item)
             else:
