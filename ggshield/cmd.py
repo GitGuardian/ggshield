@@ -73,6 +73,13 @@ from .utils import json_output_option_decorator, retrieve_client
     help="Exclude results from a detector.",
     multiple=True,
 )
+@click.option(
+    "--exclude",
+    default=None,
+    type=click.Path(),
+    help="Do not scan the specified path.",
+    multiple=True,
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
@@ -83,14 +90,16 @@ def scan(
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
 ) -> int:
     """Command to scan various contents."""
     ctx.obj["client"] = retrieve_client(ctx)
     return_code = 0
 
-    ctx.obj["filter_set"] = path_filter_set(
-        Path(os.getcwd()), ctx.obj["config"].paths_ignore
-    )
+    paths_ignore = ctx.obj["config"].paths_ignore
+    if exclude is not None:
+        paths_ignore.update(exclude)
+    ctx.obj["filter_set"] = path_filter_set(Path(os.getcwd()), paths_ignore)
     config: Config = ctx.obj["config"]
 
     if show_secrets is not None:

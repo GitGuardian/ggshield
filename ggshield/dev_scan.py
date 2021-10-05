@@ -159,7 +159,7 @@ def path_cmd(
     try:
         files = get_files_from_paths(
             paths=paths,
-            paths_ignore=config.paths_ignore,
+            paths_ignore=ctx.obj["filter_set"],
             recursive=recursive,
             yes=yes,
             verbose=config.verbose,
