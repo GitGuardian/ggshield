@@ -16,7 +16,7 @@ from ggshield.utils import (
     handle_exception,
 )
 
-from .git_shell import check_git_dir, get_list_commit_SHA
+from .git_shell import get_list_commit_SHA
 
 
 def quit_function() -> None:  # pragma: no cover
@@ -117,7 +117,6 @@ def prereceive_cmd(ctx: click.Context, prereceive_args: List[str]) -> int:
         click.echo(f"Commits to scan: {len(commit_list)}")
 
     try:
-        check_git_dir()
         return_code = scan_commit_range(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
