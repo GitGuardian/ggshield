@@ -9,10 +9,8 @@ from ggshield.utils import EMPTY_SHA, EMPTY_TREE
 class TestPreReceive:
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_input(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -35,10 +33,8 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_input_secret(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -64,10 +60,8 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_input_no_commits(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -93,10 +87,8 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_breakglass_2ndoption(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -128,10 +120,39 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
+    def test_stdin_skip_web_pushes(
+        self,
+        scan_commit_range_mock: Mock,
+        get_list_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN 20 commits through stdin input but it's a webpush and --web was not passed
+        WHEN the command is run
+        THEN it should return 0 and display SKIP
+        """
+        get_list_mock.return_value = ["a" for _ in range(20)]
+
+        result = cli_fs_runner.invoke(
+            cli,
+            ["-v", "scan", "pre-receive"],
+            input="bbbb\naaaa\norigin/main\n",
+            env={
+                "GL_PROTOCOL": "web",
+            },
+        )
+        get_list_mock.assert_not_called()
+        scan_commit_range_mock.assert_not_called()
+        assert (
+            "GL-HOOK-ERR: SKIP: web push detected. Skipping GitGuardian pre-receive hook.\n"
+            in result.output
+        )
+        assert result.exit_code == 0
+
+    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
+    @patch("ggshield.pre_receive_cmd.scan_commit_range")
     def test_stdin_input_empty(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -148,10 +169,8 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_input_creation(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -179,10 +198,8 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_input_deletion(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
@@ -201,10 +218,8 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    @patch("ggshield.pre_receive_cmd.check_git_dir")
     def test_stdin_input_no_newline(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
