@@ -59,9 +59,15 @@ def get_breakglass_option() -> bool:
 
 @click.command()
 @click.argument("prereceive_args", nargs=-1, type=click.UNPROCESSED)
+@click.option(
+    "--web",
+    is_flag=True,
+    default=None,
+    help="Scan commits added through the web interface (gitlab only)",
+)
 @click.pass_context
 @exit_after(PRERECEIVE_TIMEOUT)
-def prereceive_cmd(ctx: click.Context, prereceive_args: List[str]) -> int:
+def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) -> int:
     """
     scan as a pre-push git hook.
     """
@@ -70,6 +76,14 @@ def prereceive_cmd(ctx: click.Context, prereceive_args: List[str]) -> int:
     breakglass = get_breakglass_option()
     if breakglass:
         click.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
+
+        return 0
+
+    if not web and os.getenv("GL_PROTOCOL", "") == "web":
+        click.echo(
+            "GL-HOOK-ERR: SKIP: web push detected. Skipping GitGuardian pre-receive hook."
+        )
+
         return 0
 
     args = sys.stdin.read().strip().split()
