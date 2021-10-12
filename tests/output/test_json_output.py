@@ -11,6 +11,9 @@ from tests.conftest import (
     _NO_SECRET,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _SIMPLE_SECRET,
+    _SINGLE_ADD_PATCH,
+    _SINGLE_DELETE_PATCH,
+    _SINGLE_MOVE_PATCH,
     my_vcr,
 )
 
@@ -31,12 +34,18 @@ _EXPECT_NO_SECRET = {
         ("simple_secret", _SIMPLE_SECRET, 1),
         ("_ONE_LINE_AND_MULTILINE_PATCH", _ONE_LINE_AND_MULTILINE_PATCH, 1),
         ("no_secret", _NO_SECRET, 0),
+        ("single_add", _SINGLE_ADD_PATCH, 1),
+        ("single_delete", _SINGLE_DELETE_PATCH, 1),
+        ("single_move", _SINGLE_MOVE_PATCH, 1),
     ],
     ids=[
         "_MULTIPLE_SECRETS",
         "_SIMPLE_SECRET",
         "_ONE_LINE_AND_MULTILINE_PATCH",
         "_NO_SECRET",
+        "_SINGLE_ADD_PATCH",
+        "_SINGLE_DELETE_PATCH",
+        "_SINGLE_MOVE_PATCH",
     ],
 )
 def test_json_output(client, cache, name, input_patch, expected, snapshot):
