@@ -2,15 +2,15 @@ from typing import Any, Dict, List, Tuple
 
 import click
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak
+from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.output.json.schemas import JSONScanCollectionSchema
+from ggshield.output.json.schemas import ExtendedMatch, JSONScanCollectionSchema
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result
 from ggshield.scan.scannable import ScanCollection
 from ggshield.text_utils import Line
-from ggshield.utils import Filemode, get_lines_from_content, update_policy_break_matches
+from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 
 class JSONHandler(OutputHandler):
@@ -106,7 +106,38 @@ class JSONHandler(OutputHandler):
             "total_occurrences": len(policy_breaks),
         }
         for policy_break in policy_breaks:
-            update_policy_break_matches(policy_break.matches, lines, is_patch, True)
-            flattened_dict["occurrences"].extend(policy_break.matches)
+            matches = JSONHandler.make_matches(policy_break.matches, lines, is_patch)
+            flattened_dict["occurrences"].extend(matches)
 
         return flattened_dict
+
+    @staticmethod
+    def make_matches(
+        matches: List[Match], lines: List[Line], is_patch: bool
+    ) -> List[ExtendedMatch]:
+        res = []
+        for match in matches:
+            if match.index_start is None or match.index_end is None:
+                res.append(match)
+                continue
+            indices = find_match_indices(match, lines, is_patch)
+            line_start = lines[indices.line_index_start]
+            line_end = lines[indices.line_index_end]
+            line_index_start = line_start.pre_index or line_start.post_index
+            line_index_end = line_end.pre_index or line_end.post_index
+
+            res.append(
+                ExtendedMatch(
+                    match=match.match,
+                    match_type=match.match_type,
+                    index_start=indices.index_start,
+                    index_end=indices.index_end,
+                    line_start=line_index_start,
+                    line_end=line_index_end,
+                    pre_line_start=line_start.pre_index,
+                    post_line_start=line_start.post_index,
+                    pre_line_end=line_end.pre_index,
+                    post_line_end=line_end.post_index,
+                )
+            )
+        return res

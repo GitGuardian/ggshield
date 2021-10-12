@@ -8,7 +8,7 @@ from snapshottest import Snapshot
 snapshots = Snapshot()
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -16,7 +16,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -24,7 +24,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -32,7 +32,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -40,7 +40,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -48,7 +48,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -56,7 +56,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -64,7 +64,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -72,7 +72,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -80,7 +80,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -88,7 +88,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -96,7 +96,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -104,7 +104,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -131,7 +131,7 @@ secrets-engine-version: 2.43.0
 \x1b[0m'''
 
 snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -158,7 +158,7 @@ secrets-engine-version: 2.43.0
 \x1b[0m'''
 
 snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-verbose-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -185,7 +185,7 @@ secrets-engine-version: 2.43.0
 \x1b[0m'''
 
 snapshots['test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-verbose-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m3\x1b[0m incidents have been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -212,7 +212,7 @@ secrets-engine-version: 2.43.0
 \x1b[0m'''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -220,7 +220,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -228,7 +228,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -236,7 +236,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -244,7 +244,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -252,7 +252,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -260,7 +260,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-verbose-hide_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 
@@ -268,7 +268,7 @@ secrets-engine-version: 2.43.0
 '''
 
 snapshots['test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-verbose-show_secrets] 1'] = '''> This is an example header
-secrets-engine-version: 2.43.0
+secrets-engine-version: 2.52.1
 
 🛡️  ⚔️  🛡️  \x1b[94m\x1b[1m\x1b[22m1\x1b[0m incident has been found in file \x1b[93m\x1b[1m\x1b[22mleak.txt\x1b[0m
 

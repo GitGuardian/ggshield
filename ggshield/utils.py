@@ -2,7 +2,7 @@ import os
 import re
 import traceback
 from enum import Enum
-from typing import Iterable, List, Optional
+from typing import Iterable, List, NamedTuple, Optional
 
 import click
 import urllib3
@@ -140,50 +140,53 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
             )
 
 
-def update_policy_break_matches(
-    matches: List[Match], lines: List[Line], is_patch: bool, user_display: bool = False
-) -> None:
-    """
-    Update secrets object with secret line and indexes in line.
+class MatchIndices(NamedTuple):
+    line_index_start: int
+    line_index_end: int
+    index_start: int
+    index_end: int
 
-    :param secrets: List of secrets sorted by start index
-    :param lines: List of content lines with indexes (post_index and pre_index)
+
+def find_match_indices(match: Match, lines: List[Line], is_patch: bool) -> MatchIndices:
+    """Utility function.
+
+    Returns a MatchIndices instance where
+     - line_index_{start,end} are the indices in the lines of the line objects
+       containing the start and end of the match
+     - index_{start,end} are the indices of the match in the line_{start,end} objects
+
+    :param match: a Match where index_{start,end} are not None
+    :param lines: List of content lines with indices (post_index and pre_index)
     :param is_patch: True if is patch from git, False if file
-    :param user_display: Get line results as if treating the complete file
+
+    :return: MatchIndices
     """
     index = 0
     line_index = 0
-
-    for match in matches:
-        if match.index_start is None:
-            continue
+    len_line = len(lines[line_index].content) + 1 + int(is_patch)
+    # Update line_index until we find the secret start
+    while match.index_start >= index + len_line:
+        index += len_line
+        line_index += 1
         len_line = len(lines[line_index].content) + 1 + int(is_patch)
-        # Update line_index until we find the secret start
-        while match.index_start >= index + len_line:
-            index += len_line
-            line_index += 1
-            len_line = len(lines[line_index].content) + 1 + int(is_patch)
 
-        start_line = line_index
-        start_index = match.index_start - index - int(is_patch)
+    line_index_start = line_index
+    index_start = match.index_start - index - int(is_patch)
 
-        # Update line_index until we find the secret end
-        while match.index_end > index + len_line:
-            index += len_line
-            line_index += 1
-            len_line = len(lines[line_index].content) + 1 + int(is_patch)
+    # Update line_index until we find the secret end
+    while match.index_end > index + len_line:
+        index += len_line
+        line_index += 1
+        len_line = len(lines[line_index].content) + 1 + int(is_patch)
 
-        if user_display:
-            match.line_start = (
-                lines[start_line].pre_index or lines[start_line].post_index
-            )
-            match.line_end = lines[line_index].pre_index or lines[line_index].post_index
-        else:
-            match.line_start = start_line
-            match.line_end = line_index
-
-        match.index_start = start_index
-        match.index_end = match.index_end - index - int(is_patch) + 1
+    line_index_end = line_index
+    index_end = match.index_end - index - int(is_patch) + 1
+    return MatchIndices(
+        line_index_start,
+        line_index_end,
+        index_start,
+        index_end,
+    )
 
 
 class SupportedCI(Enum):
@@ -221,7 +224,6 @@ json_output_option_decorator = click.option(
 def retrieve_client(ctx: click.Context) -> GGClient:
     api_key: Optional[str] = os.getenv("GITGUARDIAN_API_KEY")
     base_uri: str = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
-
     if not api_key:
         raise click.ClickException("GitGuardian API Key is needed.")
 

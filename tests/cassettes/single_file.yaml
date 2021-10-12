@@ -1,0 +1,70 @@
+interactions:
+  - request:
+      body: '[{"filename": "test_file", "document": "+sg_key = \"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\";\n"}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '129'
+        Content-Type:
+          - application/json
+        Cookie:
+          - AWSALB=NtWCvqBoT3OZkQWaGhpWm5z0MyJXI8ehqR2+f7unbJ8DOY0zvr3hcR6iN9J1vT+PBuqbGD2u6VkcqTQxeaJixxFarhQsHN7DAZ2juZ1iFyTKpbnP75LlNB151CMD;
+            AWSALBCORS=NtWCvqBoT3OZkQWaGhpWm5z0MyJXI8ehqR2+f7unbJ8DOY0zvr3hcR6iN9J1vT+PBuqbGD2u6VkcqTQxeaJixxFarhQsHN7DAZ2juZ1iFyTKpbnP75LlNB151CMD
+        User-Agent:
+          - pygitguardian/1.2.2 (Linux;py3.8.10)
+        mode:
+          - path
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan
+    response:
+      body:
+        string:
+          '[{"policy_break_count":1,"policies":["Secrets detection","File extensions","Filenames"],"policy_breaks":[{"type":"SendGrid
+          Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":11,"index_end":79,"line_start":1,"line_end":1}]}]}]'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '330'
+        Content-Type:
+          - application/json
+        Date:
+          - Tue, 19 Oct 2021 13:43:42 GMT
+        Referrer-Policy:
+          - strict-origin-when-cross-origin
+        Server:
+          - nginx
+        Set-Cookie:
+          - AWSALB=BmDgdlgKC9c/hXWcTbNXf8kgWulzCc6ZPPZrJb1ASPyxqnmSIWZTVwWwF9cgEULvi8YWSf/7RvJFOleAr8XvejYU1SI5gcc9rn1MRHBvrXUjvP1RBZZZXoM6xkV5;
+            Expires=Tue, 26 Oct 2021 13:43:42 GMT; Path=/
+          - AWSALBCORS=BmDgdlgKC9c/hXWcTbNXf8kgWulzCc6ZPPZrJb1ASPyxqnmSIWZTVwWwF9cgEULvi8YWSf/7RvJFOleAr8XvejYU1SI5gcc9rn1MRHBvrXUjvP1RBZZZXoM6xkV5;
+            Expires=Tue, 26 Oct 2021 13:43:42 GMT; Path=/; SameSite=None; Secure
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
+        Vary:
+          - Cookie
+        X-App-Version:
+          - 1.30.0-rc.2
+        X-Content-Type-Options:
+          - nosniff
+          - nosniff
+        X-Frame-Options:
+          - DENY
+          - SAMEORIGIN
+        X-Secrets-Engine-Version:
+          - 2.52.1
+        X-XSS-Protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

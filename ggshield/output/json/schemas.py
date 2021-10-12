@@ -1,10 +1,76 @@
-from marshmallow import fields
-from pygitguardian.models import BaseSchema, MatchSchema
+from typing import Any, Dict, Optional
+
+from marshmallow import fields, post_dump
+from pygitguardian.models import BaseSchema, Match, MatchSchema
+
+
+class ExtendedMatchSchema(MatchSchema):
+    pre_line_start = fields.Int(required=False, allow_none=True)
+    pre_line_end = fields.Int(required=False, allow_none=True)
+    post_line_start = fields.Int(required=False, allow_none=True)
+    post_line_end = fields.Int(required=False, allow_none=True)
+
+    @post_dump
+    def remove_none_extra(
+        self, data: Dict[str, Optional[int]], many: bool
+    ) -> Dict[str, Optional[int]]:
+        OPTIONAL_OUTPUT_FIELDS = (
+            "pre_line_start",
+            "pre_line_end",
+            "post_line_start",
+            "post_line_end",
+        )
+
+        return {
+            key: value
+            for key, value in data.items()
+            if key not in OPTIONAL_OUTPUT_FIELDS or value is not None
+        }
+
+
+class ExtendedMatch(Match):
+    """Match extended with information about pre and post commit
+    line indices"""
+
+    SCHEMA = ExtendedMatchSchema()
+
+    def __init__(
+        self,
+        pre_line_start: Optional[int] = None,
+        pre_line_end: Optional[int] = None,
+        post_line_start: Optional[int] = None,
+        post_line_end: Optional[int] = None,
+        **kwargs: Any,
+    ):
+        self.pre_line_start = pre_line_start
+        self.pre_line_end = pre_line_end
+        self.post_line_start = post_line_start
+        self.post_line_end = post_line_end
+        super().__init__(**kwargs)
+
+    @classmethod
+    def from_match(
+        cls,
+        match: Match,
+        pre_line_start: Optional[int] = None,
+        pre_line_end: Optional[int] = None,
+        post_line_start: Optional[int] = None,
+        post_line_end: Optional[int] = None,
+    ) -> "ExtendedMatch":
+        match_dict = match.to_dict()
+        match_dict["match_type"] = match_dict["type"]
+        return cls(
+            pre_line_start=pre_line_start,
+            pre_line_end=pre_line_end,
+            post_line_start=post_line_start,
+            post_line_end=post_line_end,
+            **match_dict,
+        )
 
 
 class FlattenedPolicyBreak(BaseSchema):
     policy = fields.String(required=True)
-    occurrences = fields.List(fields.Nested(MatchSchema), required=True)
+    occurrences = fields.List(fields.Nested(ExtendedMatchSchema), required=True)
     break_type = fields.String(data_key="type", required=True)
     ignore_sha = fields.String(required=True)
     total_occurrences = fields.Integer(required=True)

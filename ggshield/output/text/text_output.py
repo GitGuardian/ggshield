@@ -2,12 +2,13 @@ from io import StringIO
 from typing import ClassVar, List, Tuple
 
 import click
+from pygitguardian.models import Match
 
 from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result, ScanCollection
 from ggshield.text_utils import LINE_DISPLAY, Line
-from ggshield.utils import Filemode, get_lines_from_content, update_policy_break_matches
+from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 from .message import (
     file_info,
@@ -105,7 +106,9 @@ class TextHandler(OutputHandler):
         for issue_n, (ignore_sha, policy_breaks) in enumerate(sha_dict.items(), 1):
             result_buf.write(policy_break_header(issue_n, policy_breaks, ignore_sha))
             for policy_break in policy_breaks:
-                update_policy_break_matches(policy_break.matches, lines, is_patch)
+                policy_break.matches = TextHandler.make_matches(
+                    policy_break.matches, lines, is_patch
+                )
 
             if policy_breaks[0].policy == "Secrets detection":
                 result_buf.write(
@@ -120,3 +123,25 @@ class TextHandler(OutputHandler):
                 )
 
         return result_buf.getvalue()
+
+    @staticmethod
+    def make_matches(
+        matches: List[Match], lines: List[Line], is_patch: bool
+    ) -> List[Match]:
+        res = []
+        for match in matches:
+            if match.index_start is None or match.index_end is None:
+                res.append(match)
+                continue
+            indices = find_match_indices(match, lines, is_patch)
+            res.append(
+                Match(
+                    match=match.match,
+                    match_type=match.match_type,
+                    index_start=indices.index_start,
+                    index_end=indices.index_end,
+                    line_start=indices.line_index_start,
+                    line_end=indices.line_index_end,
+                )
+            )
+        return res

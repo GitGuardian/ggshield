@@ -16,6 +16,7 @@ repos:
     rev: v0.910
     hooks:
       - id: mypy
+        additional_dependencies: [types-requests, types-pyyaml]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
@@ -61,3 +62,8 @@ repos:
       - id: ggshield
         language_version: python3
         stages: [commit]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.8.0
+    hooks:
+      - id: isort

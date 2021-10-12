@@ -31,7 +31,7 @@ snapshots['test_json_output[_MULTIPLE_SECRETS] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.43.0',
+    'secrets_engine_version': '2.52.1',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -74,7 +74,7 @@ snapshots['test_json_output[_ONE_LINE_AND_MULTILINE_PATCH] 1'] = {
             'total_occurrences': 2
         }
     ],
-    'secrets_engine_version': '2.43.0',
+    'secrets_engine_version': '2.52.1',
     'total_incidents': 2,
     'total_occurrences': 2,
     'type': 'test'
@@ -101,7 +101,88 @@ snapshots['test_json_output[_SIMPLE_SECRET] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.43.0',
+    'secrets_engine_version': '2.52.1',
+    'total_incidents': 1,
+    'total_occurrences': 1,
+    'type': 'test'
+}
+
+snapshots['test_json_output[_SINGLE_ADD_PATCH] 1'] = {
+    'id': 'path',
+    'results': [
+        {
+            'filename': 'test',
+            'incidents': [
+                {
+                    'break_type': 'SendGrid Key',
+                    'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
+                    'occurrences': [
+                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:1, line_end:1, index_start:10, index_end:79')
+                    ],
+                    'policy': 'Secrets detection',
+                    'total_occurrences': 1
+                }
+            ],
+            'mode': 'NEW',
+            'total_incidents': 1,
+            'total_occurrences': 1
+        }
+    ],
+    'secrets_engine_version': '2.52.1',
+    'total_incidents': 1,
+    'total_occurrences': 1,
+    'type': 'test'
+}
+
+snapshots['test_json_output[_SINGLE_DELETE_PATCH] 1'] = {
+    'id': 'path',
+    'results': [
+        {
+            'filename': 'test',
+            'incidents': [
+                {
+                    'break_type': 'SendGrid Key',
+                    'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
+                    'occurrences': [
+                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:10, index_end:79')
+                    ],
+                    'policy': 'Secrets detection',
+                    'total_occurrences': 1
+                }
+            ],
+            'mode': 'MODIFY',
+            'total_incidents': 1,
+            'total_occurrences': 1
+        }
+    ],
+    'secrets_engine_version': '2.52.1',
+    'total_incidents': 1,
+    'total_occurrences': 1,
+    'type': 'test'
+}
+
+snapshots['test_json_output[_SINGLE_MOVE_PATCH] 1'] = {
+    'id': 'path',
+    'results': [
+        {
+            'filename': 'test',
+            'incidents': [
+                {
+                    'break_type': 'SendGrid Key',
+                    'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
+                    'occurrences': [
+                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:1, line_end:1, index_start:10, index_end:79')
+                    ],
+                    'policy': 'Secrets detection',
+                    'total_occurrences': 1
+                }
+            ],
+            'mode': 'MODIFY',
+            'total_incidents': 1,
+            'total_occurrences': 1
+        }
+    ],
+    'secrets_engine_version': '2.52.1',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
