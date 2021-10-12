@@ -1,12 +1,15 @@
 #!/bin/sh
 # ggshield as a pre-commit hook
-# Move `pre-receive.sample` to `.git/hooks/pre-receive`
+# Prequirements:
+# python >= 3.6, pip
+# Installation instructions:
+# Run: pip install ggshield
+# Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
 # Do not forget to `chmod +x .git/hooks/pre-receive`
 # either set an environment variable machine wide `GITGUARDIAN_API_KEY`
 # or uncomment and insert your key in the following line
-# if you use more than 2 push options, be sure to export them to the container
 
 #export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
 
-set -x
-docker run -i --rm -v $(pwd):/data ggshield -e GIT_PUSH_OPTION_COUNT -e GIT_PUSH_OPTION_0 -e GIT_PUSH_OPTION_1 -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan pre-receive
+set -e
+ggshield scan pre-receive

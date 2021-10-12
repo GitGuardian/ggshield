@@ -605,11 +605,11 @@ Now you're good to go!
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 
-You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-python.sample](doc/pre-receive-python.sample).
+You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-docker.sample](doc/pre-receive-docker.sample).
 
 **ggshield**'s pre-receive hook can be skipped if the developer passes the option `breakglass` to the git push.
 
-For this setting to work the remote must have push options enabled. (`git config receive.advertisePushOptions true`)
+For this setting to work the remote must have push options enabled. (`git config receive.advertisePushOptions true`).
 
 Examples:
 
@@ -618,13 +618,16 @@ $ git push -o breakglass
 $ git push --push-option=breakglass
 ```
 
-## Install ggshield git pre-receive hook locally
+## Install ggshield git pre-receive hook
 
-[**pre-receive-python.sample**](doc/pre-receive-python.sample)
+[**pre-receive.sample**](doc/pre-receive.sample)
 
 1. This pre-receive hook requires the host machine to have python>=3.8 and pip installed
 1. Install ggshield from pip: `pip install ggshield`
-1. Move `pre-receive-python.sample` to `.git/hooks/pre-receive`
+1. Move `pre-receive-python.sample` to `.git/hooks/pre-receive` or to your provider's git hook directory
+
+   - https://docs.gitlab.com/ee/administration/server_hooks.html
+
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
 1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
@@ -633,33 +636,24 @@ $ git push --push-option=breakglass
 - Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
 - Replace in the pre-receive hook
   ```shell
-  ggshield scan commit-range "${span}" && continue
+  ggshield scan pre-receive
   ```
   with:
   ```shell
-  ggshield -c <INSERT path to gitguardian.yaml> scan commit-range "${span}" && continue
+  ggshield -c <INSERT path to gitguardian.yaml> scan pre-receive
   ```
 
 ## Install ggshield git pre-receive hook with docker
 
-[**pre-receive.sample**](doc/pre-receive.sample)
+> For the pre-receive hook to work, the directory where the repositories are stored
+> must also be mounted on the container.
+
+[**pre-receive-docker.sample**](doc/pre-receive-docker.sample)
 
 1. This pre-receive hook requires the host machine to have docker installed.
 1. Move `pre-receive.sample` to `.git/hooks/pre-receive`
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
 1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
-
-**How do I add ignored matches and use a custom config in this pre-receive hook?**
-
-- Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
-- Replace in the pre-receive hook
-  ```shell
-  docker run --rm -v $(pwd):/data -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan commit-range "${span}" && continue
-  ```
-  with:
-  ```shell
-  docker run --rm -v $(pwd):/data -v <INSERT path of gitguardian.yaml directory>:/config -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield -c /config/gitguardian.yaml scan commit-range "${span}" && continue
-  ```
 
 # Docker
 
