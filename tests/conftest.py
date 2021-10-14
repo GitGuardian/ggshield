@@ -10,6 +10,9 @@ from pygitguardian.models import ScanResult
 from ggshield.config import Cache
 
 
+os.environ.setdefault("PYTHONBREAKPOINT", "ipdb.set_trace")
+
+
 _MULTIPLE_SECRETS_PATCH = """@@ -0,0 +1,2 @@
 +FacebookAppKeys :
 +String docker run --name geonetwork -d \
