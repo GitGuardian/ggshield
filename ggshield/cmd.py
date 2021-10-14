@@ -19,7 +19,11 @@ from .ignore import ignore
 from .install import install
 from .quota import quota
 from .status import status
-from .utils import json_output_option_decorator, retrieve_client
+from .utils import (
+    IGNORED_DEFAULT_PATTERNS,
+    json_output_option_decorator,
+    retrieve_client,
+)
 
 
 @click.group(
@@ -80,6 +84,12 @@ from .utils import json_output_option_decorator, retrieve_client
     help="Do not scan the specified path.",
     multiple=True,
 )
+@click.option(
+    "--ignore-default-excludes",
+    default=False,
+    is_flag=True,
+    help="Ignore excluded patterns by default. [default: False]",
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
@@ -91,6 +101,7 @@ def scan(
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
+    ignore_default_excludes: bool = False,
 ) -> int:
     """Command to scan various contents."""
     ctx.obj["client"] = retrieve_client(ctx)
@@ -99,6 +110,10 @@ def scan(
     paths_ignore = ctx.obj["config"].paths_ignore
     if exclude is not None:
         paths_ignore.update(exclude)
+
+    if not ignore_default_excludes and not ctx.obj["config"].ignore_default_excludes:
+        paths_ignore.update(IGNORED_DEFAULT_PATTERNS)
+
     ctx.obj["filter_set"] = path_filter_set(Path(os.getcwd()), paths_ignore)
     config: Config = ctx.obj["config"]
 

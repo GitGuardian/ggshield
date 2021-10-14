@@ -385,3 +385,53 @@ def test_banlisted_detectors(
             ) in result.output
         else:
             assert "No secrets have been found" in result.output
+
+
+def test_ignore_default_excludes(cli_fs_runner):
+    """
+    GIVEN a path scan
+    WHEN no options are passed
+    THEN ignored patterns by default should be used
+    """
+    os.makedirs("node_modules")
+    os.system('echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > node_modules/test.js')
+
+    result = cli_fs_runner.invoke(cli, ["scan", "-v", "path", "--recursive", "."])
+    assert result.exit_code == 0, "node_modules should have been ignored"
+    assert result.exception is None
+
+
+def test_ignore_default_excludes_with_configuration(cli_fs_runner):
+    """
+    GIVEN a path scan
+    WHEN ignore-default-excludes has been put to true in the configuration
+    THEN ignored patterns by default should NOT be used
+    """
+    os.makedirs("node_modules")
+    os.system('echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > node_modules/test.js')
+    os.system('echo "ignore-default-excludes: true" > .gitguardian.yml')
+
+    with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
+        result = cli_fs_runner.invoke(cli, ["scan", "-v", "path", "--recursive", "."])
+    assert result.exit_code == 0, "node_modules should not have been ignored"
+    assert (
+        "node_modules/test.js" in result.output
+    ), "node_modules should not have been ignored"
+    assert result.exception is None
+
+
+def test_ignore_default_excludes_with_flag(cli_fs_runner):
+    """
+    GIVEN a path scan
+    WHEN --ignore-default-excludes has been used
+    THEN ignored patterns by default should NOT be used
+    """
+    os.makedirs("node_modules")
+    os.system('echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > node_modules/test.js')
+
+    with my_vcr.use_cassette("ignore_default_excludes_from_flag"):
+        result = cli_fs_runner.invoke(
+            cli, ["scan", "-v", "--ignore-default-excludes", "path", "--recursive", "."]
+        )
+    assert result.exit_code == 1, "node_modules should not have been ignored"
+    assert result.exception

@@ -46,6 +46,7 @@ class Config:
     allow_self_signed: bool
     max_commits_for_hook: int
     banlisted_detectors: Set[str]
+    ignore_default_excludes: bool
 
     CONFIG_LOCAL = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
     CONFIG_GLOBAL = [
@@ -67,6 +68,7 @@ class Config:
             Attribute("paths_ignore", set()),
             Attribute("show_secrets", False),
             Attribute("verbose", False),
+            Attribute("ignore_default_excludes", False),
         ]
 
         for attr in self.attributes:

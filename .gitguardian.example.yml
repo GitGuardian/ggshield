@@ -34,3 +34,6 @@ allow-self-signed: false # default: False
 # Detectors to ignore.
 banlisted-detectors: # default: []
   - Generic Password
+
+# Use default excluded vendors folders
+ignore-default-excludes: false # default: false

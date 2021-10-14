@@ -144,6 +144,8 @@ Options:
   --all-policies  Present fails of all policies (Filenames, FileExtensions,
                   Secret Detection). By default, only Secret Detection is
                   shown.
+  --ignore-default-excludes    Ignore excluded patterns by default. [default:
+                               False]
 
   -v, --verbose   Verbose display mode.
   -o, --output PATH  Route ggshield output to file.

@@ -33,6 +33,17 @@ EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 # We try and anticipate that so we can control the return code
 PRERECEIVE_TIMEOUT = 4.5
 
+IGNORED_DEFAULT_PATTERNS = [
+    "**/vendor/**/*",
+    "**/vendors/**/*",
+    "**/node_modules/**/*",
+    "top-1000.txt*",
+    "**/*.storyboard*",
+    "**/*.xib",
+    "**/*.mdx*",
+    "**/*.sops",
+]
+
 
 class Filemode(Enum):
     """
