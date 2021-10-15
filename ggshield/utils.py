@@ -34,6 +34,12 @@ EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 PRERECEIVE_TIMEOUT = 4.5
 
 IGNORED_DEFAULT_PATTERNS = [
+    "**/.git/**/*",
+    "**/.pytest_cache/**/*",
+    "**/.mypy_cache/**/*",
+    "**/.venv/**/*",
+    "**/.eggs/**/*",
+    "**/.eggs-info/**/*",
     "**/vendor/**/*",
     "**/vendors/**/*",
     "**/node_modules/**/*",

@@ -163,6 +163,8 @@ def path_cmd(
             recursive=recursive,
             yes=yes,
             verbose=config.verbose,
+            # when scanning a path explicitly we should not care if it is a git repository or not
+            ignore_git=True,
         )
         results = files.scan(
             client=ctx.obj["client"],

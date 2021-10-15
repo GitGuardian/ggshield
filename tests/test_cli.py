@@ -435,3 +435,28 @@ def test_ignore_default_excludes_with_flag(cli_fs_runner):
         )
     assert result.exit_code == 1, "node_modules should not have been ignored"
     assert result.exception
+
+
+def test_scan_path_should_detect_non_git_files(cli_fs_runner):
+    """
+    GIVEN a path scan on a git repository
+    WHEN some files are not followed by git
+    THEN those files should still be picked on by ggshield for analysis
+    """
+    os.makedirs("git_repo")
+    os.system(
+        'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > git_repo/committed_file.js'
+    )
+    os.system("git init")
+    os.system("git add .")
+    os.system("git commit -m 'initial commit'")
+    os.system(
+        'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > git_repo/not_committed.js'
+    )
+
+    result = cli_fs_runner.invoke(cli, ["scan", "-v", "path", "--recursive", "."])
+    assert all(
+        string in result.output
+        for string in ["Do you want to continue", "not_committed"]
+    ), "not_committed files not should have been ignored"
+    assert result.exception is None

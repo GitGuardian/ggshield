@@ -19,6 +19,7 @@ def get_files_from_paths(
     recursive: bool,
     yes: bool,
     verbose: bool,
+    ignore_git: bool = False,
 ) -> Files:
     """
     Create a scan object from files content.
@@ -28,8 +29,9 @@ def get_files_from_paths(
     :param recursive: Recursive option
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
+    :param ignore_git: Ignore that the folder is a git repository
     """
-    filepaths = get_filepaths(paths, paths_ignore, recursive)
+    filepaths = get_filepaths(paths, paths_ignore, recursive, ignore_git=ignore_git)
     files = list(generate_files_from_paths(filepaths, verbose))
 
     if verbose:
@@ -46,13 +48,17 @@ def get_files_from_paths(
 
 
 def get_filepaths(
-    paths: Union[List, str], paths_ignore: Iterable[str], recursive: bool
+    paths: Union[List, str],
+    paths_ignore: Iterable[str],
+    recursive: bool,
+    ignore_git: bool,
 ) -> Set[str]:
     """
     Retrieve the filepaths from the command.
 
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
+    :param ignore_git: Ignore that the folder is a git repository
     :raise: click.FileError if directory is given without --recursive option
     """
     targets = set()
@@ -66,7 +72,7 @@ def get_filepaths(
                 )
             top_dir = Path(path)
 
-            if is_git_dir(path):
+            if is_git_dir(path) and not ignore_git:
                 _targets = {os.path.join(path, target) for target in git_ls(path)}
             else:
                 _targets = {str(target) for target in top_dir.rglob(r"*")}
