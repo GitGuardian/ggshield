@@ -64,7 +64,7 @@ def scan_repo_path(
 @click.pass_context
 def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     """
-    scan a REPOSITORY at a given URL or path
+    scan a REPOSITORY's commits at a given URL or path.
 
     REPOSITORY is the clone URI or the path of the repository to scan.
     Examples:

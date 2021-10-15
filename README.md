@@ -156,7 +156,7 @@ Commands:
   commit-range  scan a defined COMMIT_RANGE in git.
   path          scan files and directories.
   pre-commit    scan as a pre-commit git hook.
-  repo          clone and scan a REPOSITORY.
+  repo          scan a REPOSITORY's commits at a given URL or path.
 ```
 
 `ggshield scan` has different subcommands for each type of scan:
