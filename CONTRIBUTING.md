@@ -48,6 +48,12 @@
    $ pre-commit install
    ```
 
+1. Install pre-commit hooks for messages
+
+   ```sh
+   $ pre-commit install --hook-type commit-msg
+   ```
+
 ## Testing
 
 ### Run all tests on GitGuardian Shield
