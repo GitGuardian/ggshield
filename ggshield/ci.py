@@ -123,10 +123,24 @@ def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
 def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
     commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD")
+    merge_request_target_branch = os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
+
     if verbose:
-        click.echo(f"CI_COMMIT_BEFORE_SHA: {before_sha}\nCI_COMMIT_SHA: {commit_sha}")
+        click.echo(
+            f"CI_MERGE_REQUEST_TARGET_BRANCH_NAME: {merge_request_target_branch}\n"
+            f"CI_COMMIT_BEFORE_SHA: {before_sha}\n"
+            f"CI_COMMIT_SHA: {commit_sha}"
+        )
+
     if before_sha and before_sha != EMPTY_SHA:
         commit_list = get_list_commit_SHA("{}~1...".format(before_sha))
+        if commit_list:
+            return commit_list
+
+    if merge_request_target_branch and merge_request_target_branch != EMPTY_SHA:
+        commit_list = get_list_commit_SHA(
+            "origin/{}...".format(merge_request_target_branch)
+        )
         if commit_list:
             return commit_list
 
@@ -137,6 +151,7 @@ def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     raise click.ClickException(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
+        f"  CI_MERGE_REQUEST_TARGET_BRANCH_NAME: {merge_request_target_branch}\n"
         f"  CI_COMMIT_BEFORE_SHA: {before_sha}\n"
         f"  CI_COMMIT_SHA: {commit_sha}"
     )
