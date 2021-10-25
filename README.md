@@ -626,7 +626,7 @@ $ git push --push-option=breakglass
 
 1. This pre-receive hook requires the host machine to have python>=3.8 and pip installed
 1. Install ggshield from pip: `pip install ggshield`
-1. Move `pre-receive-python.sample` to `.git/hooks/pre-receive` or to your provider's git hook directory
+1. Move `pre-receive.sample` to `.git/hooks/pre-receive` or to your provider's git hook directory
 
    - https://docs.gitlab.com/ee/administration/server_hooks.html
 
@@ -653,7 +653,7 @@ $ git push --push-option=breakglass
 [**pre-receive-docker.sample**](doc/pre-receive-docker.sample)
 
 1. This pre-receive hook requires the host machine to have docker installed.
-1. Move `pre-receive.sample` to `.git/hooks/pre-receive`
+1. Move `pre-receive-docker.sample` to `.git/hooks/pre-receive`
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
 1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
