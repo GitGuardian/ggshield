@@ -175,7 +175,7 @@ def test_do_not_duplicate_last_found_secrets(client):
     THEN only one element should be added
     """
     policy_break = PolicyBreak(
-        "a", "Secrets detection", [Match("apikey", "apikey", 0, 0, 0, 0)]
+        "a", "Secrets detection", None, [Match("apikey", "apikey", 0, 0, 0, 0)]
     )
     cache = Cache()
 
@@ -194,7 +194,7 @@ def test_do_not_add_policy_breaks_to_last_found(client):
     THEN only one element should be added
     """
     policy_break = PolicyBreak(
-        "a", "gitignore", [Match("apikey", "apikey", 0, 0, 0, 0)]
+        "a", "gitignore", None, [Match("apikey", "apikey", 0, 0, 0, 0)]
     )
     cache = Cache()
 
