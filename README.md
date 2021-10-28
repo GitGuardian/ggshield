@@ -50,7 +50,9 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1. [Configuration](#configuration)
    1. [Environment Variables](#environment-variables)
    2. [On-premises](#on-premises-configuration)
-   3. [Ignoring a secret](#ignoring-a-secret)
+   3. [Ignoring files](#ignoring-files)
+   4. [Ignoring a secret](#ignoring-a-secret)
+   5. [Ignoring a detector](#ignoring-a-detector)
 1. [Commands](#commands)
 
    - [Scan](#scan-command)
@@ -401,6 +403,40 @@ GITGUARDIAN_API_URL=<GitGuardian on-premises API URL>
 
 Alternatively to setting the `GITGUARDIAN_API_URL` environment variable, set the `api-url` in your `.gitguardian.yaml`.
 
+## Ignoring files
+
+By default ggshield ignores certain files and directories.
+This list can be found in [ggshield/utils.py](ggshield/utils.py) under `IGNORED_DEFAULT_PATTERNS`.
+
+You can turn this feature with the flag `--ignore-default-excludes` or
+the key `ignore-default-excludes` in your `.gitguardian.yaml`
+
+```yml
+#.gitguardian.yml
+# Use default excluded vendors folders
+ignore-default-excludes: false # default: false
+```
+
+```sh
+ggshield scan --ignore-default-excludes path example_file.md
+```
+
+You can also add custom patterns to ignore by using the `--exclude` option or
+the key `paths-ignore` in your `.gitguardian.yaml`
+
+```yml
+# .gitguardian.yml
+# Exclude files and paths by globbing
+paths-ignore:
+  - '**/README.md'
+  - 'doc/*'
+  - 'LICENSE'
+```
+
+```sh
+ggshield scan --exclude dir/subdir path -r dir
+```
+
 ## Ignoring a secret
 
 Useful for ignoring a revoked test credential or a false positive, there are three ways to ignore a secret with ggshield:
@@ -432,6 +468,25 @@ func main() {
 You can use the [ignore command](#ignore-command) to ignore the last found secrets in your scan or directly add the ignore SHA that accompanies the incident or one of the secret matches to the [configuration file](#configuration)
 
 > ⚠ A secret ignored on the GitGuardian dashboard will still show as a potential incident on ggshield.
+
+## Ignoring a detector
+
+> ⚠ Your secret will still show up on the GitGuardian dashboard as potential incident.
+
+You can ignore a detector using the CLI option `-b` or `--banlist-detector` or through the configuration:
+
+Examples:
+
+```yaml
+# .gitguardian.yaml
+banlisted-detectors: # default: []
+  - Generic Password
+  - Generic High Entropy Secret
+```
+
+```sh
+ggshield scan -b "Generic High Entropy Secret" path example_file.md
+```
 
 # Pre-commit
 
