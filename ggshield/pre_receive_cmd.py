@@ -2,7 +2,7 @@ import _thread as thread
 import os
 import sys
 import threading
-from typing import Any, Callable, List
+from typing import Any, List
 
 import click
 
@@ -20,29 +20,33 @@ from .git_shell import get_list_commit_SHA
 
 
 def quit_function() -> None:  # pragma: no cover
-    display_error("Pre-receive hook took too long")
+    display_error("\nPre-receive hook took too long")
     thread.interrupt_main()  # raises KeyboardInterrupt
 
 
-# https://stackoverflow.com/questions/492519/timeout-on-a-function-call
-def exit_after(s: float) -> Callable:  # pragma: no cover
-    """
-    use as decorator to exit process if function takes longer than s seconds
-    """
+class ExitAfter:
+    timeout_secs: float
+    timer: threading.Timer
 
-    def outer(fn: Callable) -> Callable:
-        def inner(*args: Any, **kwargs: Any) -> Any:
-            timer = threading.Timer(s, quit_function)
-            timer.start()
-            try:
-                result = fn(*args, **kwargs)
-            finally:
-                timer.cancel()
-            return result
+    def __init__(self, timeout_secs: float):
+        self.timeout_secs = timeout_secs
 
-        return inner
+    def __enter__(self) -> None:
+        if self.timeout_secs:
+            self.timer = threading.Timer(self.timeout_secs, quit_function)
+            self.timer.start()
 
-    return outer
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+        if self.timeout_secs:
+            self.timer.cancel()
+
+
+def get_prereceive_timeout() -> float:
+    try:
+        return float(os.getenv("GITGUARDIAN_TIMEOUT", PRERECEIVE_TIMEOUT))
+    except BaseException as e:
+        display_error(f"Unable to parse GITGUARDIAN_TIMEOUT: {str(e)}")
+        return PRERECEIVE_TIMEOUT
 
 
 def get_breakglass_option() -> bool:
@@ -66,7 +70,6 @@ def get_breakglass_option() -> bool:
     help="Scan commits added through the web interface (gitlab only)",
 )
 @click.pass_context
-@exit_after(PRERECEIVE_TIMEOUT)
 def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) -> int:
     """
     scan as a pre-receive git hook.
@@ -131,22 +134,23 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         click.echo(f"Commits to scan: {len(commit_list)}")
 
     try:
-        return_code = scan_commit_range(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
-            commit_list=commit_list,
-            output_handler=ctx.obj["output_handler"],
-            verbose=config.verbose,
-            filter_set=ctx.obj["filter_set"],
-            matches_ignore=config.matches_ignore,
-            all_policies=config.all_policies,
-            scan_id=" ".join(commit_list),
-            mode_header=SupportedScanMode.PRE_RECEIVE.value,
-            banlisted_detectors=config.banlisted_detectors,
-        )
-        if return_code:
-            click.echo(
-                """Rewrite your git history to delete evidence of your secrets.
+        with ExitAfter(get_prereceive_timeout()):
+            return_code = scan_commit_range(
+                client=ctx.obj["client"],
+                cache=ctx.obj["cache"],
+                commit_list=commit_list,
+                output_handler=ctx.obj["output_handler"],
+                verbose=config.verbose,
+                filter_set=ctx.obj["filter_set"],
+                matches_ignore=config.matches_ignore,
+                all_policies=config.all_policies,
+                scan_id=" ".join(commit_list),
+                mode_header=SupportedScanMode.PRE_RECEIVE.value,
+                banlisted_detectors=config.banlisted_detectors,
+            )
+            if return_code:
+                click.echo(
+                    """Rewrite your git history to delete evidence of your secrets.
 Use environment variables to use your secrets instead and store them in a file not tracked by git.
 
 If you don't want to go through this painful git history rewrite in the future,
@@ -155,8 +159,8 @@ https://docs.gitguardian.com/internal-repositories-monitoring/integrations/git_h
 
 Use it carefully: if those secrets are false positives and you still want your push to pass, run:
 'git push -o breakglass'"""
-            )
-        return return_code
+                )
+            return return_code
 
     except Exception as error:
         return handle_exception(error, config.verbose)

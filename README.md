@@ -390,6 +390,9 @@ GITGUARDIAN_API_URL: Custom URL for the scanning API.
 GITGUARDIAN_DONT_LOAD_ENV: If set to any value environment variables won't be loaded from a file.
 
 GITGUARDIAN_DOTENV_PATH: If set to a path, `ggshield` will attempt to load the environment from the specified file.
+
+GITGUARDIAN_TIMEOUT: If set to a float, `ggshield scan pre-receive` will timeout
+after the specified value. Set to 0 to disable the timeout
 ```
 
 ## On-premises configuration
