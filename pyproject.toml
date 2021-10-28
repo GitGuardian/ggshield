@@ -4,7 +4,7 @@ line-length = 88
 exclude = '/(\.eggs|\.git|\.hg|\.mypy_cache|\.nox|\.tox|\.venv|\.svn|_build|buck-out|build|dist|venv|snapshots|_snap)/'
 
 [tool.pytest.ini_options]
-addopts = "--pdbcls=IPython.terminal.debugger:Pdb --durations=10 --durations-min=3.0 --tb=short"
+addopts = "--pdbcls=IPython.terminal.debugger:Pdb --durations=10 --durations-min=3.0 --tb=short --disable-socket"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 testpaths = ["tests/"]
 
