@@ -1,6 +1,7 @@
 interactions:
   - request:
-      body: '[{"document": "This is a file with no secrets.\n", "filename": "file1"},
+      body:
+        '[{"document": "This is a file with no secrets.\n", "filename": "file1"},
         {"document": "This is a file with no secrets.\n", "filename": "file2"}]'
       headers:
         Accept:

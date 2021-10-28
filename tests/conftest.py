@@ -403,7 +403,7 @@ def cli_runner():
     return CliRunner()
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def cli_fs_runner(cli_runner):
     with cli_runner.isolated_filesystem():
         yield cli_runner
