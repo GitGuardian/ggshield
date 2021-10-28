@@ -2,7 +2,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, List, NoReturn, Optional, Type, cast
+from typing import Any, List, Optional, Type, cast
 
 import click
 
@@ -206,13 +206,17 @@ def cli(
         ctx.obj["config"].allow_self_signed = allow_self_signed
 
 
-def cli_wrapper() -> NoReturn:
+def cli_wrapper() -> int:
     standalone_mode = not (
         os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
     )
-    return_code = cli.main(standalone_mode=standalone_mode)
-    exit(return_code)
+    try:
+        return_code: int = cli.main(standalone_mode=standalone_mode)
+    except click.exceptions.Abort:
+        return_code = 0
+
+    return return_code
 
 
 if __name__ == "__main__":
-    cli_wrapper()
+    exit(cli_wrapper())
