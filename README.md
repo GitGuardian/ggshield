@@ -12,14 +12,16 @@
 [![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/ggshield?style=for-the-badge)](https://www.codefactor.io/repository/github/gitguardian/ggshield)
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
-The **GitGuardian shield** (ggshield) is a CLI application that runs in your local environment
-or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
+**GitGuardian shield** (ggshield) is a CLI application that runs in your local environment or in a CI environment to help you detect more than 200 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 
-**GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan your files and detect potential secrets in your code. **The `/v1/scan` endpoint of the [public API](https://api.gitguardian.com/doc) is stateless. We will not store any files you are sending or any secrets we have detected**.
+**GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian)
+to scan and detect potential secrets on files and other text content.
 
-You can also use ggshield via the [pre-commit](https://pre-commit.com/) framework on your repositories, or as a standalone pre-commit either globally or locally.
+Only metadata such as call time, request size and scan mode is stored from scans using GitGuardian shield,
+therefore secrets and policy breaks incidents will not be displayed on your dashboard and **your files and secrets won't be stored**.
 
-You'll need an **API Key** from [GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
+You'll need an **API Key** from
+[GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
 
 Add the API Key to your environment variables:
 
@@ -661,6 +663,7 @@ Now you're good to go!
 # Pre-receive
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
+Refer to [our learning center](https://www.gitguardian.com/secrets-detection/secrets-detection-application-security#4) for more information.
 
 You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-docker.sample](doc/pre-receive-docker.sample).
 

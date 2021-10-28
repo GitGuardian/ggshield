@@ -69,7 +69,7 @@ def get_breakglass_option() -> bool:
 @exit_after(PRERECEIVE_TIMEOUT)
 def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) -> int:
     """
-    scan as a pre-push git hook.
+    scan as a pre-receive git hook.
     """
     config = ctx.obj["config"]
 
