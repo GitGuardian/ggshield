@@ -147,14 +147,32 @@ def flatten_policy_breaks_by_line(
     return flat_match_dict
 
 
+_validity_translate = {
+    "cannot_check": "Cannot Check",
+    "invalid": "Invalid",
+    "unknown": "Unknown",
+    "valid": "Valid",
+}
+
+
 def policy_break_header(
     issue_n: int, policy_breaks: List[PolicyBreak], ignore_sha: str
 ) -> str:
-    return "\n{} Incident {}({}): {} (Ignore with SHA: {}) ({} {})\n".format(
+    """
+    Build a header for the policy break.
+    """
+    validity_msg = (
+        f" (Validity: {format_text( _validity_translate[policy_breaks[0].validity], STYLE['nb_secrets'])}) "
+        if policy_breaks[0].validity
+        else ""
+    )
+
+    return "\n{} Incident {}({}): {}{} (Ignore with SHA: {}) ({} {})\n".format(
         format_text(">>>", STYLE["detector_line_start"]),
         issue_n,
         format_text(policy_breaks[0].policy, STYLE["detector"]),
         format_text(policy_breaks[0].break_type, STYLE["detector"]),
+        validity_msg,
         format_text(ignore_sha, STYLE["ignore_sha"]),
         len(policy_breaks),
         pluralize("occurrence", len(policy_breaks), "occurrences"),
