@@ -125,4 +125,5 @@ jobs:
           git config user.email github-actions@github.com
           git commit -am "update from ggshield"
           git tag ${{ steps.tags.outputs.tag }}
+          git push
           git push --tags
