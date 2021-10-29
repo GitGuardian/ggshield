@@ -7,18 +7,20 @@ from snapshottest import Snapshot
 
 snapshots = Snapshot()
 
-snapshots['test_api_status[test_health_check-False] 1'] = '''\x1b[97m\x1b[1m\x1b[22mstatus:\x1b[0m \x1b[32m\x1b[22m\x1b[22mhealthy\x1b[0m
-\x1b[97m\x1b[1m\x1b[22mapp version:\x1b[0m 1.26.0-rc.4
-\x1b[97m\x1b[1m\x1b[22msecrets engine version:\x1b[0m 2.43.0
+snapshots['test_api_status[test_health_check-False] 1'] = '''\x1b[97m\x1b[1m\x1b[22mAPI URL:\x1b[0m https://api.gitguardian.com/
+\x1b[97m\x1b[1m\x1b[22mStatus:\x1b[0m \x1b[32m\x1b[22m\x1b[22mhealthy\x1b[0m
+\x1b[97m\x1b[1m\x1b[22mApp version:\x1b[0m 1.26.0-rc.4
+\x1b[97m\x1b[1m\x1b[22mSecrets engine version:\x1b[0m 2.43.0
 
 '''
 
 snapshots['test_api_status[test_health_check-True] 1'] = '''{"detail": "Valid API key.", "status_code": 200, "app_version": "1.26.0-rc.4", "secrets_engine_version": "2.43.0"}
 '''
 
-snapshots['test_api_status[test_health_check_error-False] 1'] = '''\x1b[97m\x1b[1m\x1b[22mstatus:\x1b[0m \x1b[31m\x1b[22m\x1b[22munhealthy (Configuration error.)\x1b[0m
-\x1b[97m\x1b[1m\x1b[22mapp version:\x1b[0m 1.26.0-rc.4
-\x1b[97m\x1b[1m\x1b[22msecrets engine version:\x1b[0m 2.43.0
+snapshots['test_api_status[test_health_check_error-False] 1'] = '''\x1b[97m\x1b[1m\x1b[22mAPI URL:\x1b[0m https://api.gitguardian.com/
+\x1b[97m\x1b[1m\x1b[22mStatus:\x1b[0m \x1b[31m\x1b[22m\x1b[22munhealthy (Configuration error.)\x1b[0m
+\x1b[97m\x1b[1m\x1b[22mApp version:\x1b[0m 1.26.0-rc.4
+\x1b[97m\x1b[1m\x1b[22mSecrets engine version:\x1b[0m 2.43.0
 
 '''
 

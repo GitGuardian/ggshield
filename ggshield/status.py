@@ -24,9 +24,10 @@ def status(ctx: click.Context, json_output: bool) -> int:
         response.to_json()
         if json_output
         else (
-            f"{format_text('status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
-            f"{format_text('app version:', STYLE['key'])} {response.app_version or 'Unknown'}\n"
-            f"{format_text('secrets engine version:', STYLE['key'])} "
+            f"{format_text('API URL:', STYLE['key'])} {client.base_uri}\n"
+            f"{format_text('Status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
+            f"{format_text('App version:', STYLE['key'])} {response.app_version or 'Unknown'}\n"
+            f"{format_text('Secrets engine version:', STYLE['key'])} "
             f"{response.secrets_engine_version or 'Unknown'}\n"
         )
     )
