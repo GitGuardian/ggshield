@@ -736,9 +736,22 @@ stages:
   image: gitguardian/ggshield:latest
   stage: scanning
   script: ggshield scan ci
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 0
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
+
+> For ggshield to scan every commit in a merge request pipeline the CI
+> must clone the full repository instead of just fetching the branch.
+> The following snippet ensures this behavior.
+
+```yml
+variables:
+GIT_STRATEGY: clone
+GIT_DEPTH: 0
+```
 
 # GitHub
 
