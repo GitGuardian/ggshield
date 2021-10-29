@@ -90,13 +90,15 @@ def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
             stderr=subprocess.PIPE,
             timeout=timeout,
         )
-        return result.stdout.decode("utf-8").rstrip()
+        return result.stdout.decode("utf-8", errors="ignore").rstrip()
     except subprocess.CalledProcessError:
         pass
     except subprocess.TimeoutExpired:
         raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
     except Exception as exc:
-        raise click.ClickException(f"Unhandled exception: {str(exc)}")
+        raise click.ClickException(
+            f"Unhandled exception: {' '.join(command)}\n\t{str(exc)}"
+        )
 
     return ""
 
