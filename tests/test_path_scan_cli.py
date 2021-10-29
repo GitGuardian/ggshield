@@ -26,7 +26,7 @@ class TestPathScan:
         assert not result.exception
         assert "No secrets have been found" in result.output
 
-    def test_scan_file_secret(self, cli_fs_runner, snapshot):
+    def test_scan_file_secret(self, cli_fs_runner):
         os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
 
@@ -39,7 +39,7 @@ class TestPathScan:
                 in result.output
             )
 
-    def test_scan_file_secret_with_validity(self, cli_fs_runner, snapshot):
+    def test_scan_file_secret_with_validity(self, cli_fs_runner):
         os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
 
@@ -51,6 +51,27 @@ class TestPathScan:
             "Incident 1(Secrets detection): SendGrid Key (Validity: Valid)  (Ignore with SHA: 530e5a4a7ea00814db8845d"
             in result.output
         )
+
+    @pytest.mark.parametrize("validity", [True, False])
+    def test_scan_file_secret_json_with_validity(self, cli_fs_runner, validity):
+        os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
+        assert os.path.isfile("file_secret")
+
+        cassette_name = "test_scan_file_secret"
+        if validity:
+            cassette_name = "test_scan_file_secret_with_validity"
+
+        with my_vcr.use_cassette(cassette_name):
+            result = cli_fs_runner.invoke(
+                cli, ["-v", "scan", "--json", "path", "file_secret"]
+            )
+        assert result.exit_code == 1
+        assert result.exception
+
+        if validity:
+            assert '"validity": "valid"' in result.output
+        else:
+            assert '"validity": "valid"' not in result.output
 
     def test_scan_file_secret_exit_zero(self, cli_fs_runner):
         os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec

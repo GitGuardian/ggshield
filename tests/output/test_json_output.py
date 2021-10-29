@@ -32,6 +32,7 @@ _EXPECT_NO_SECRET = {
     [
         ("multiple_secrets", _MULTIPLE_SECRETS, 1),
         ("simple_secret", _SIMPLE_SECRET, 1),
+        ("test_scan_file_secret_with_validity", _SIMPLE_SECRET, 1),
         ("_ONE_LINE_AND_MULTILINE_PATCH", _ONE_LINE_AND_MULTILINE_PATCH, 1),
         ("no_secret", _NO_SECRET, 0),
         ("single_add", _SINGLE_ADD_PATCH, 1),
@@ -41,6 +42,7 @@ _EXPECT_NO_SECRET = {
     ids=[
         "_MULTIPLE_SECRETS",
         "_SIMPLE_SECRET",
+        "_SIMPLE_SECRET-validity",
         "_ONE_LINE_AND_MULTILINE_PATCH",
         "_NO_SECRET",
         "_SINGLE_ADD_PATCH",

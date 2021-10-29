@@ -105,6 +105,10 @@ class JSONHandler(OutputHandler):
             "break_type": policy_breaks[0].break_type,
             "total_occurrences": len(policy_breaks),
         }
+
+        if policy_breaks[0].validity:
+            flattened_dict["validity"] = policy_breaks[0].validity
+
         for policy_break in policy_breaks:
             matches = JSONHandler.make_matches(policy_break.matches, lines, is_patch)
             flattened_dict["occurrences"].extend(matches)
