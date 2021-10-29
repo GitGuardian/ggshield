@@ -393,6 +393,9 @@ GITGUARDIAN_DOTENV_PATH: If set to a path, `ggshield` will attempt to load the e
 
 GITGUARDIAN_TIMEOUT: If set to a float, `ggshield scan pre-receive` will timeout
 after the specified value. Set to 0 to disable the timeout
+
+GITGUARDIAN_CRASH_LOG: If set to True, ggshield will display a full traceback
+when crashing
 ```
 
 ## On-premises configuration
