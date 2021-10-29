@@ -45,12 +45,12 @@ class TestPathScan:
 
         with my_vcr.use_cassette("test_scan_file_secret_with_validity"):
             result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "file_secret"])
-            assert result.exit_code == 1
-            assert result.exception
-            assert (
-                "SendGrid Key (Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1)"
-                in result.output
-            )
+        assert result.exit_code == 1
+        assert result.exception
+        assert (
+            "Incident 1(Secrets detection): SendGrid Key (Validity: Valid)  (Ignore with SHA: 530e5a4a7ea00814db8845d"
+            in result.output
+        )
 
     def test_scan_file_secret_exit_zero(self, cli_fs_runner):
         os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
