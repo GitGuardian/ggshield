@@ -6,9 +6,6 @@ from typing import Any, List, Optional, Type, cast
 
 import click
 
-from ggshield.output import JSONHandler, OutputHandler, TextHandler
-from ggshield.pre_receive_cmd import prereceive_cmd
-
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
 from .dev_scan import path_cmd, range_cmd, repo_cmd
@@ -17,13 +14,31 @@ from .filter import path_filter_set
 from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
 from .install import install
+from .output import JSONHandler, OutputHandler, TextHandler
+from .pre_receive_cmd import prereceive_cmd
 from .quota import quota
 from .status import status
+from .text_utils import display_error
 from .utils import (
     IGNORED_DEFAULT_PATTERNS,
     json_output_option_decorator,
     retrieve_client,
 )
+
+
+def get_max_commits_for_hook() -> Optional[int]:
+    """
+    Get the maximum number of commits that should be processed for a hook.
+    """
+    try:
+        max_commits = os.getenv("GITGUARDIAN_MAX_COMMITS_FOR_HOOK", None)
+        if max_commits is not None:
+            return int(max_commits)
+    except BaseException as e:
+        display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
+        return None
+
+    return None
 
 
 @click.group(
@@ -131,6 +146,10 @@ def scan(
 
     if banlist_detector:
         config.banlisted_detectors.update(banlist_detector)
+
+    max_commits = get_max_commits_for_hook()
+    if max_commits:
+        config.max_commits_for_hook = max_commits
 
     output_handler_cls: Type[OutputHandler] = TextHandler
     if json_output:
