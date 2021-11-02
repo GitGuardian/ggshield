@@ -182,7 +182,7 @@ class TestPreReceive:
         """
 
         scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = ["a" for _ in range(60)]
+        get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
 
         result = cli_fs_runner.invoke(
             cli,
@@ -194,9 +194,34 @@ class TestPreReceive:
         assert "New tree event. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
-        get_list_mock.assert_called_once_with(
-            f"--max-count=21 {EMPTY_TREE} { 'a' * 40}"
+        assert get_list_mock.call_count == 2
+        get_list_mock.assert_called_with(f"--max-count=21 {EMPTY_TREE} { 'a' * 40}")
+        scan_commit_range_mock.assert_called_once()
+
+    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
+    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    def test_new_branch_diff_with_head_success(
+        self,
+        scan_commit_range_mock: Mock,
+        get_list_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a ref creation event
+        WHEN the command is run and its able to diff with HEAD
+        THEN it should scan the rev-list presented
+        """
+
+        scan_commit_range_mock.return_value = 0
+        get_list_mock.side_effect = [["a" for _ in range(60)]]
+
+        result = cli_fs_runner.invoke(
+            cli, ["-v", "scan", "pre-receive"], input=f"{EMPTY_SHA}\n{'a'*40}\nmain"
         )
+
+        assert result.exit_code == 0
+        assert get_list_mock.call_count == 1
+        get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
@@ -214,7 +239,7 @@ class TestPreReceive:
         """
 
         scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = ["a" for _ in range(60)]
+        get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
 
         result = cli_fs_runner.invoke(
             cli, ["-v", "scan", "pre-receive"], input=f"{EMPTY_SHA}\n{'a'*40}\nmain"
@@ -223,9 +248,8 @@ class TestPreReceive:
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
         assert result.exit_code == 0
-        get_list_mock.assert_called_once_with(
-            f"--max-count=51 {EMPTY_TREE} { 'a' * 40}"
-        )
+        assert get_list_mock.call_count == 2
+        get_list_mock.assert_called_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")

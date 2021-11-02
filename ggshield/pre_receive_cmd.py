@@ -76,8 +76,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     """
     config = ctx.obj["config"]
 
-    breakglass = get_breakglass_option()
-    if breakglass:
+    if get_breakglass_option():
         click.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
 
         return 0
@@ -93,27 +92,31 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     if len(args) < 3:
         raise click.ClickException(f"Invalid input arguments: {args}")
 
-    oldref, newref, *_ = args
+    before, after, *_ = args
+    commit_list = []
 
-    if newref == EMPTY_SHA:
+    if after == EMPTY_SHA:
         click.echo("Deletion event or nothing to scan.")
         return 0
 
-    if oldref == EMPTY_SHA:
-        click.echo(
-            f"New tree event. Scanning last {config.max_commits_for_hook} commits."
-        )
-        before = EMPTY_TREE
-        after = newref
-        cmd_range = f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {after}"
-    else:
-        before = oldref
-        after = newref
-        cmd_range = (
-            f"--max-count={config.max_commits_for_hook+1} {before}...{after}"  # noqa
+    if before == EMPTY_SHA:
+        before = "HEAD"
+        commit_list = get_list_commit_SHA(
+            f"--max-count={config.max_commits_for_hook+1} {before}...{after}"
         )
 
-    commit_list = get_list_commit_SHA(cmd_range)
+        if not commit_list:
+            before = EMPTY_TREE
+            click.echo(
+                f"New tree event. Scanning last {config.max_commits_for_hook} commits."
+            )
+            commit_list = get_list_commit_SHA(
+                f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {after}"
+            )
+    else:
+        commit_list = get_list_commit_SHA(
+            f"--max-count={config.max_commits_for_hook+1} {before}...{after}"
+        )
 
     if not commit_list:
         click.echo(
