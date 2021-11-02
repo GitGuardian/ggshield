@@ -25,7 +25,7 @@ verbose: false # default: false
 
 api-url: https://api.gitguardian.com
 
-# Maximum commits to scan in a pre-push hook.
+# Maximum commits to scan in a hook.
 max-commits-for-hook: 50 # default: 50
 
 # Accept self-signed certificates for the API.
