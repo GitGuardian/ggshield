@@ -226,11 +226,8 @@ def cli(
 
 
 def cli_wrapper() -> int:
-    standalone_mode = not (
-        os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
-    )
     try:
-        return_code: int = cli.main(standalone_mode=standalone_mode)
+        return_code: int = cli.main(standalone_mode=False)
     except click.exceptions.Abort:
         return_code = 0
 
