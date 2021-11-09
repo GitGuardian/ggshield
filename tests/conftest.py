@@ -400,6 +400,20 @@ _SINGLE_DELETE_PATCH = (
     " something\n"
     '-sg_key = "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";\n'  # noqa
 )
+_PATCH_WITH_NONEWLINE_BEFORE_SECRET = """
+diff --git a/artifactory b/artifactory
+index 2ace9c7..4c7699d 100644
+--- a/artifactory
++++ b/artifactory
+@@ -1,3 +1,3 @@
+ some line
+ some other line
+-deleted line
+\\ No newline at end of file
++sg_key = "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"
+\\ No newline at end of file
+"""
+
 
 my_vcr = vcr.VCR(
     cassette_library_dir=join(dirname(realpath(__file__)), "cassettes"),

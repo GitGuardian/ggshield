@@ -9,6 +9,7 @@ from ggshield.utils import (
     get_lines_from_content,
 )
 from tests.conftest import (
+    _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,
     _SINGLE_ADD_PATCH,
     _SINGLE_DELETE_PATCH,
@@ -46,6 +47,13 @@ from tests.conftest import (
             _SECRET_RAW_FILE,
             False,
             [MatchIndices(0, 0, 11, 80)],
+            id="file",
+        ),
+        pytest.param(
+            "no_newline_before_secret",
+            _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
+            True,
+            [MatchIndices(5, 5, 10, 79)],
             id="file",
         ),
     ],
