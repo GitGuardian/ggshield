@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import Iterable, List, Set, Union
 
@@ -7,6 +8,7 @@ import click
 from ggshield.git_shell import git_ls, is_git_dir
 
 from .config import MAX_FILE_SIZE
+from .filter import is_filepath_excluded
 from .scan import File, Files
 
 
@@ -15,7 +17,7 @@ BINARY_FILE_EXTENSIONS = (".tar", ".xz", ".gz")
 
 def get_files_from_paths(
     paths: List[str],
-    paths_ignore: List[str],
+    exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     yes: bool,
     verbose: bool,
@@ -31,7 +33,9 @@ def get_files_from_paths(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository
     """
-    filepaths = get_filepaths(paths, paths_ignore, recursive, ignore_git=ignore_git)
+    filepaths = get_filepaths(
+        paths, exclusion_regexes, recursive, ignore_git=ignore_git
+    )
     files = list(generate_files_from_paths(filepaths, verbose))
 
     if verbose:
@@ -49,7 +53,7 @@ def get_files_from_paths(
 
 def get_filepaths(
     paths: Union[List, str],
-    paths_ignore: Iterable[str],
+    exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     ignore_git: bool,
 ) -> Set[str]:
@@ -77,9 +81,9 @@ def get_filepaths(
             else:
                 _targets = {str(target) for target in top_dir.rglob(r"*")}
 
-            _targets.difference_update(paths_ignore)
-
-            targets.update(_targets)
+            for file_path in _targets:
+                if not is_filepath_excluded(file_path, exclusion_regexes):
+                    targets.add(file_path)
     return targets
 
 

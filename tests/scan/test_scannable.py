@@ -1,9 +1,9 @@
-import os
 from collections import namedtuple
 
 import pytest
 
 from ggshield.config import MAX_FILE_SIZE
+from ggshield.filter import init_exclusion_regexes
 from ggshield.scan import Commit
 from ggshield.utils import Filemode, SupportedScanMode
 from tests.conftest import (
@@ -158,7 +158,7 @@ def test_patch_separation_ignore():
     c = Commit()
     c._patch = PATCH_SEPARATION
     file_to_ignore = ".env"
-    c.filter_set = {os.path.join(os.getcwd(), file_to_ignore)}
+    c.exclusion_regexes = init_exclusion_regexes([file_to_ignore])
     files = list(c.get_files())
 
     assert len(files) == 3
