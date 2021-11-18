@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import os
 import sys
-from pathlib import Path
 from typing import Any, List, Optional, Type, cast
 
 import click
@@ -10,7 +9,7 @@ from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
 from .dev_scan import path_cmd, range_cmd, repo_cmd
 from .docker import docker_archive_cmd, docker_name_cmd
-from .filter import path_filter_set
+from .filter import init_exclusion_regexes
 from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
 from .install import install
@@ -129,7 +128,7 @@ def scan(
     if not ignore_default_excludes and not ctx.obj["config"].ignore_default_excludes:
         paths_ignore.update(IGNORED_DEFAULT_PATTERNS)
 
-    ctx.obj["filter_set"] = path_filter_set(Path(os.getcwd()), paths_ignore)
+    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(paths_ignore)
     config: Config = ctx.obj["config"]
 
     if show_secrets is not None:

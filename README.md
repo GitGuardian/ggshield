@@ -442,7 +442,7 @@ paths-ignore:
 ```
 
 ```sh
-ggshield scan --exclude dir/subdir path -r dir
+ggshield scan --exclude dir/subdir/** path -r dir
 ```
 
 ## Ignoring a secret

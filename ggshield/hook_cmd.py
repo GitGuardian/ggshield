@@ -27,7 +27,7 @@ def precommit_cmd(
     )
     try:
         check_git_dir()
-        results = Commit(filter_set=ctx.obj["filter_set"]).scan(
+        results = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"]).scan(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.matches_ignore,
@@ -135,7 +135,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,
-            filter_set=ctx.obj["filter_set"],
+            exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),

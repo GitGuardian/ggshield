@@ -5,7 +5,8 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd import cli
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE
+from ggshield.filter import init_exclusion_regexes
+from ggshield.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_PATTERNS
 
 
 class TestPrepush:
@@ -88,22 +89,31 @@ class TestPrepush:
         get_list_mock.assert_called_once_with(
             "--max-count=51 " + "b" * 40 + "..." + "a" * 40
         )
+
         scan_commit_range_mock.assert_called_once_with(
             client=ANY,
             cache=ANY,
             commit_list=commit_list,
             output_handler=ANY,
             verbose=True,
-            filter_set=set(),
+            exclusion_regexes=ANY,
             matches_ignore=ANY,
             all_policies=False,
             scan_id=ANY,
             mode_header="pre_push",
             banlisted_detectors=set(),
         )
-        scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
+
+        expected_exclusion_regexes = init_exclusion_regexes(IGNORED_DEFAULT_PATTERNS)
+        expected_exclusion_patterns = [r.pattern for r in expected_exclusion_regexes]
+        result_exclusion_regexes = scan_commit_range_mock.call_args_list[0][1][
+            "exclusion_regexes"
+        ]
+        result_exclusion_patterns = [r.pattern for r in result_exclusion_regexes]
+
+        assert sorted(result_exclusion_patterns) == sorted(expected_exclusion_patterns)
 
     @patch("ggshield.hook_cmd.get_list_commit_SHA")
     @patch("ggshield.hook_cmd.scan_commit_range")

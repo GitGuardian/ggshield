@@ -1,5 +1,4 @@
 import concurrent.futures
-import os
 import re
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
@@ -10,6 +9,7 @@ from pygitguardian.models import ScanResult
 
 from ggshield.config import CPU_COUNT, MAX_FILE_SIZE, Cache
 from ggshield.filter import (
+    is_filepath_excluded,
     remove_ignored_from_result,
     remove_results_from_banlisted_detectors,
 )
@@ -173,11 +173,13 @@ class Commit(Files):
     Commit represents a commit which is a list of commit files.
     """
 
-    def __init__(self, sha: Optional[str] = None, filter_set: Set[str] = set()):
+    def __init__(
+        self, sha: Optional[str] = None, exclusion_regexes: Set[re.Pattern] = set()
+    ):
         self.sha = sha
         self._patch: Optional[str] = None
         self._files = {}
-        self.filter_set = filter_set
+        self.exclusion_regexes = exclusion_regexes
         self._info: Optional[CommitInformation] = None
 
     @property
@@ -262,13 +264,12 @@ class Commit(Files):
             +this is a test patch\n
         """
         list_diff = re.split(r"^diff --git ", self.patch, flags=re.MULTILINE)[1:]
-        work_dir = os.getcwd()
 
         for diff in list_diff:
             lines = diff.split("\n")
 
             filename = self.get_filename(lines[0])
-            if os.path.join(work_dir, filename) in self.filter_set:
+            if is_filepath_excluded(filename, self.exclusion_regexes):
                 continue
 
             filemode = self.get_filemode(lines[1])

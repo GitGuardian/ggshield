@@ -3,13 +3,20 @@ import math
 import operator
 import re
 from collections import OrderedDict
-from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set
 
+import click
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 
 
 REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")
+REGEX_SPECIAL_CHARS = set(".^$+*?{}()[]\\|")
+INVALID_PATTERNS_REGEX = re.compile(
+    r"(\*\*\*)"  # the "***" sequence is not valid
+    r"|(\*\*[^/])"  # a "**" sequence must be immediately followed by a "/"
+    r"|([^/]\*\*)"  # a "**" sequence must be either at the start of the string or
+    # immediately preceded by a "/"
+)
 
 MAXIMUM_CENSOR_LENGTH = 60
 
@@ -118,7 +125,37 @@ def leak_dictionary_by_ignore_sha(
     return sha_dict
 
 
-def path_filter_set(top_dir: Path, paths_ignore: Iterable[str]) -> Set[str]:
+def translate_user_pattern(pattern: str) -> str:
+    """
+    Translate the user pattern into a regex. This function assumes that the given
+    pattern is valid and has been normalized beforehand.
+    """
+
+    # Escape each special character
+    pattern = "".join(
+        f"\\{char}" if char in REGEX_SPECIAL_CHARS else char for char in pattern
+    )
+
+    # Handle start/end of pattern
+    if pattern[-1] != "/":
+        pattern += "$"
+    if pattern[0] == "/":
+        pattern = "^" + pattern[1:]
+    else:
+        pattern = "(^|/)" + pattern
+
+    # Replace * and ** sequences
+    pattern = re.sub(r"\\\*\\\*/", "([^/]+/)*", pattern)
+    pattern = re.sub(r"\\\*", "([^/]+)", pattern)
+
+    return pattern
+
+
+def is_pattern_valid(pattern: str) -> bool:
+    return bool(pattern) and not INVALID_PATTERNS_REGEX.search(pattern)
+
+
+def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern]:
     """
     filter_set creates a set of paths of the ignored
     entries from 3 sources:
@@ -126,11 +163,16 @@ def path_filter_set(top_dir: Path, paths_ignore: Iterable[str]) -> Set[str]:
     files in .git
     files ignore in .gitignore
     """
-    filters = set()
-    for ignored in paths_ignore:
-        filters.update({str(target) for target in top_dir.glob(ignored)})
+    res = set()
+    for path in paths_ignore:
+        if not is_pattern_valid(path):
+            raise click.ClickException(f"{path} is not a valid exclude pattern.")
+        res.add(re.compile(translate_user_pattern(path)))
+    return res
 
-    return filters
+
+def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> bool:
+    return any(r.search(filepath) for r in exclusion_regexes)
 
 
 def censor_match(match: Match) -> str:

@@ -1,8 +1,8 @@
 import concurrent.futures
 import os
+import re
 import tempfile
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Iterable, Iterator, List, Optional, Set
 
 import click
@@ -13,7 +13,6 @@ from ggshield.scan import Commit, ScanCollection
 from ggshield.text_utils import STYLE, format_text
 
 from .config import CPU_COUNT, Cache, Config
-from .filter import path_filter_set
 from .git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
 from .utils import REGEX_GIT_URL, SupportedScanMode, handle_exception
@@ -48,7 +47,7 @@ def scan_repo_path(
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
                 verbose=config.verbose,
-                filter_set=path_filter_set(Path(os.getcwd()), []),
+                exclusion_regexes=set(),
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
                 scan_id=scan_id,
@@ -130,7 +129,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
             verbose=config.verbose,
-            filter_set=ctx.obj["filter_set"],
+            exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=commit_range,
@@ -159,7 +158,7 @@ def path_cmd(
     try:
         files = get_files_from_paths(
             paths=paths,
-            paths_ignore=ctx.obj["filter_set"],
+            exclusion_regexes=ctx.obj["exclusion_regexes"],
             recursive=recursive,
             yes=yes,
             verbose=config.verbose,
@@ -217,7 +216,7 @@ def scan_commit_range(
     commit_list: List[str],
     output_handler: OutputHandler,
     verbose: bool,
-    filter_set: Set[str],
+    exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[str],
     all_policies: bool,
     scan_id: str,
@@ -238,7 +237,7 @@ def scan_commit_range(
         future_to_process = [
             executor.submit(
                 scan_commit,
-                Commit(sha, filter_set),
+                Commit(sha, exclusion_regexes),
                 client,
                 cache,
                 verbose,
