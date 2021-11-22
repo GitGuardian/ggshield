@@ -51,8 +51,11 @@ jobs:
           release_name: ${{ steps.tags.outputs.tag }}
           draft: false
           prerelease: false
+      - name: Sleep for 3 seconds (otherwise release notary will not get the latest release)
+        run: sleep 3s
+        shell: bash
       - name: Release Notary Action
-        uses: docker://aevea/release-notary:0.9.3
+        uses: docker://aevea/release-notary:0.9.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
