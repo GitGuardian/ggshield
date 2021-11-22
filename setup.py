@@ -35,7 +35,7 @@ setup(
     entry_points={"console_scripts": ["ggshield=ggshield.cmd:cli_wrapper"]},
     install_requires=[
         "click",
-        "pygitguardian==1.3.1",
+        "pygitguardian==1.3.2",
         "pyyaml",
         "python-dotenv",
         "yaspin",
