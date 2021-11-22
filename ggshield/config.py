@@ -280,6 +280,10 @@ class Cache:
         return _cache
 
     def save(self) -> bool:
+        if not self.last_found_secrets:
+            # if there are no found secrets, don't modify the cache file
+            return True
+
         try:
             f = open(self.CACHE_FILENAME, "w")
         except PermissionError:
