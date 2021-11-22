@@ -9,7 +9,7 @@ from tests.conftest import _MULTIPLE_SECRETS, my_vcr
 
 FOUND_SECRETS = [
     {
-        "name": "port",
+        "name": "MySQL Assignment - test.txt",
         "match": "41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8",
     },
 ]
@@ -21,7 +21,7 @@ def compare_matches_ignore(match):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_cache_catches_last_found_secrets(client):
+def test_cache_catches_last_found_secrets(client, isolated_fs):
     """
     GIVEN an empty cache and an empty config matches-ignore section
     WHEN I run a scan with multiple secrets
@@ -60,7 +60,7 @@ def test_cache_catches_last_found_secrets(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_cache_catches_nothing(client):
+def test_cache_catches_nothing(client, isolated_fs):
     """
     GIVEN a cache of last found secrets same as config ignored-matches
     WHEN I run a scan (therefore finding no secret)
@@ -90,7 +90,7 @@ def test_cache_catches_nothing(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_cache_old_config_no_new_secret(client):
+def test_cache_old_config_no_new_secret(client, isolated_fs):
     """
     GIVEN a cache of last found secrets same as config ignored-matches
           and config ignored-matches is a list of strings
@@ -121,7 +121,7 @@ def test_cache_old_config_no_new_secret(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_ignore_last_found(client):
+def test_ignore_last_found(client, isolated_fs):
     """
     GIVEN a cache of last found secrets not empty
     WHEN I run a ignore last found command
@@ -144,7 +144,7 @@ def test_ignore_last_found(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_ignore_last_found_with_manually_added_secrets(client):
+def test_ignore_last_found_with_manually_added_secrets(client, isolated_fs):
     """
     GIVEN a cache containing part of config ignored-matches secrets
     WHEN I run ignore command
@@ -168,7 +168,7 @@ def test_ignore_last_found_with_manually_added_secrets(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_do_not_duplicate_last_found_secrets(client):
+def test_do_not_duplicate_last_found_secrets(client, isolated_fs):
     """
     GIVEN 2 policy breaks on different files with the same ignore sha
     WHEN add_found_policy_break is called
@@ -187,9 +187,9 @@ def test_do_not_duplicate_last_found_secrets(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_do_not_add_policy_breaks_to_last_found(client):
+def test_do_not_add_policy_breaks_to_last_found(client, isolated_fs):
     """
-    GIVEN 2 policy breaks on different files with the same ignore sha
+    GIVEN 1 policy breaks on different files with the same ignore sha
     WHEN add_found_policy_break is called
     THEN only one element should be added
     """
@@ -205,7 +205,7 @@ def test_do_not_add_policy_breaks_to_last_found(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_ignore_last_found_preserve_previous_config(client):
+def test_ignore_last_found_preserve_previous_config(client, isolated_fs):
     """
     GIVEN a cache containing new secrets AND a config not empty
     WHEN I run ignore command
@@ -236,7 +236,9 @@ def test_ignore_last_found_preserve_previous_config(client):
 
 @patch("ggshield.config.Config.CONFIG_LOCAL", ["/tmp/.gitguardian.yml"])  # nosec
 @patch("ggshield.config.Config.DEFAULT_CONFIG_LOCAL", "/tmp/.gitguardian.yml")  # nosec
-def test_ignore_last_found_compatible_with_previous_matches_ignore_format(client):
+def test_ignore_last_found_compatible_with_previous_matches_ignore_format(
+    client, isolated_fs
+):
     """
     GIVEN a cache containing new secrets
         AND a config's matches_ignore not empty as a list of strings

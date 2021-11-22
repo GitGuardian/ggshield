@@ -172,12 +172,20 @@ class TestCache:
             file_content = json.load(file)
             assert file_content == {"last_found_secrets": ["XXX"]}
 
+    @pytest.mark.parametrize("with_entry", [True, False])
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
-    def test_save_cache_first_time(self, cli_fs_runner):
-        os.remove(".cache_ggshield")
+    def test_save_cache_first_time(self, isolated_fs, with_entry):
+        """
+        GIVEN no existing cache
+        WHEN save is called but there are (new entries/no entries in memory)
+        THEN it should (create/not create) the file
+        """
         cache = Cache()
+        if with_entry:
+            cache.update_cache(**{"last_found_secrets": {"XXX"}})
         cache.save()
-        assert os.path.isfile(".cache_ggshield") is True
+
+        assert os.path.isfile(".cache_ggshield") is with_entry
 
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
     def test_max_commits_for_hook_setting(self, cli_fs_runner):
