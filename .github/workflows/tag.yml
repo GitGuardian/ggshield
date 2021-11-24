@@ -108,7 +108,7 @@ jobs:
 
   push_to_tap:
     needs: pypi
-    name: Push GitGuardian tap
+    name: Push to GitGuardian taps
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
@@ -123,22 +123,44 @@ jobs:
         run: |
           echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/v/}
           echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
+
+      - name: Checkout Homebrew-tap
+        uses: actions/checkout@master
+        with:
+          repository: GitGuardian/homebrew-tap
+          token: ${{ secrets.PAT_GITHUB }}
+          path: ./homebrew-tap
+
       - name: Checkout Homebrew-ggshield
         uses: actions/checkout@master
         with:
           repository: GitGuardian/homebrew-ggshield
           token: ${{ secrets.PAT_GITHUB }}
-          path: ./brew
+          path: ./homebrew-ggshield
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ggshield homebrew-pypi-poet
-          poet -f ggshield | sed 's/Shiny new formula/Detect secret in source code, scan your repos and docker images for leaks/g' | sed '7a\  license "MIT"' > brew/Formula/ggshield.rb
+          poet -f ggshield \
+              | sed 's/Shiny new formula/Detect secrets in source code, scan your repos and docker images for leaks/g' \
+              | sed '7a\  license "MIT"' \
+              | tee homebrew-ggshield/Formula/ggshield.rb homebrew-tap/Formula/ggshield.rb
 
-      - name: Push brew
+      - name: Push to gitguardian/homebrew-tap
         run: |
-          cd ./brew
+          cd ./homebrew-tap
+          git add Formula/ggshield.rb
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -am "update from ggshield"
+          git tag ${{ steps.tags.outputs.tag }}
+          git push
+          git push --tags
+
+      - name: Push to gitguardian/homebrew-ggshield
+        run: |
+          cd ./homebrew-ggshield
           git add Formula/ggshield.rb
           git config user.name github-actions
           git config user.email github-actions@github.com
