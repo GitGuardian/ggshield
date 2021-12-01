@@ -39,7 +39,7 @@ def precommit_cmd(
 
         return output_handler.process_scan(
             ScanCollection(id="cached", type="pre-commit", results=results)
-        )[1]
+        )
     except Exception as error:
         return handle_exception(error, config.verbose)
 

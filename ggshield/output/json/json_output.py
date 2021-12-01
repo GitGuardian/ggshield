@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Tuple
 
-import click
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import Match, PolicyBreak
 
@@ -14,7 +13,12 @@ from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 
 class JSONHandler(OutputHandler):
-    def process_scan(
+    def _process_scan_impl(self, scan: ScanCollection) -> Tuple[str, int]:
+        scan_dict, return_code = self.create_scan_dict(scan, top=True)
+        text = JSONScanCollectionSchema().dumps(scan_dict)
+        return text, return_code
+
+    def create_scan_dict(
         self, scan: ScanCollection, top: bool = True
     ) -> Tuple[Dict[str, Any], int]:
         scan_dict: Dict[str, Any] = {
@@ -41,20 +45,13 @@ class JSONHandler(OutputHandler):
 
         if scan.scans:
             for inner_scan in scan.scans_with_results:
-                inner_scan_dict, inner_return_code = self.process_scan(
+                inner_scan_dict, inner_return_code = self.create_scan_dict(
                     inner_scan, top=False
                 )
                 scan_dict.setdefault("scans", []).append(inner_scan_dict)
                 scan_dict["total_incidents"] += inner_scan_dict["total_incidents"]
                 scan_dict["total_occurrences"] += inner_scan_dict["total_occurrences"]
                 return_code = max(return_code, inner_return_code)
-
-        if top:
-            if self.output:
-                with open(self.output, "w+") as f:
-                    f.write(JSONScanCollectionSchema().dumps(scan_dict))
-            else:
-                click.echo(JSONScanCollectionSchema().dumps(scan_dict))
 
         return scan_dict, return_code
 

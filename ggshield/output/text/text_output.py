@@ -37,7 +37,9 @@ def get_offset(padding: int, is_patch: bool = False) -> int:
 class TextHandler(OutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def process_scan(self, scan: ScanCollection, top: bool = True) -> Tuple[str, int]:
+    def _process_scan_impl(
+        self, scan: ScanCollection, top: bool = True
+    ) -> Tuple[str, int]:
         return_code = 0
         scan_buf = StringIO()
         if scan.optional_header and (scan.results or self.verbose):
@@ -61,21 +63,13 @@ class TextHandler(OutputHandler):
 
         if scan.scans:
             for sub_scan in scan.scans:
-                inner_scan_str, inner_return_code = self.process_scan(
+                inner_scan_str, inner_return_code = self._process_scan_impl(
                     sub_scan, top=False
                 )
                 scan_buf.write(inner_scan_str)
                 return_code = max(return_code, inner_return_code)
 
-        scan_str = scan_buf.getvalue()
-        if top:
-            if self.output:
-                with open(self.output, "w+") as f:
-                    click.echo(scan_str, file=f)
-            else:
-                click.echo(scan_str)
-
-        return scan_str, return_code
+        return scan_buf.getvalue(), return_code
 
     def process_result(self, result: Result) -> str:
         """

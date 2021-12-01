@@ -66,10 +66,9 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             banlisted_detectors=None,
         )
 
-        flat_results, exit_code = handler.process_scan(
-            scan=ScanCollection(id="path", type="test", results=results), top=True
+        json_flat_results, exit_code = handler._process_scan_impl(
+            scan=ScanCollection(id="path", type="test", results=results)
         )
 
         assert exit_code == expected
-        json_flat_results = JSONScanCollectionSchema().dumps(flat_results)
         snapshot.assert_match(JSONScanCollectionSchema().loads(json_flat_results))
