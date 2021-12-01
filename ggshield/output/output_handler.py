@@ -1,6 +1,6 @@
 from typing import Any, Optional, Tuple
 
-from ggshield.scan import Result, ScanCollection
+from ggshield.scan import ScanCollection
 
 
 class OutputHandler:
@@ -21,7 +21,4 @@ class OutputHandler:
         self.output = output
 
     def process_scan(self, scan: ScanCollection, top: bool = True) -> Tuple[Any, int]:
-        pass
-
-    def process_result(self, result: Result) -> Any:
         pass
