@@ -21,6 +21,13 @@ class OutputHandler(ABC):
         self.verbose = verbose
         self.output = output
 
+    def echo(self, message: str, err: bool = False) -> None:
+        """Print a message.
+
+        Default implementation forwards the arguments to click.echo().
+        """
+        click.echo(message, err=err)
+
     def process_scan(self, scan: ScanCollection) -> int:
         """Process a scan collection, write the report to :attr:`self.output`
 

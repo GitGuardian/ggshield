@@ -120,17 +120,20 @@ class TestPreReceive:
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    def test_stdin_skip_web_pushes(
+    def test_stdin_supports_gitlab_web_ui(
         self,
         scan_commit_range_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
         """
-        GIVEN 20 commits through stdin input but it's a webpush and --web was not passed
-        WHEN the command is run
-        THEN it should return 0 and display SKIP
+        GIVEN 20 commits through stdin input but it's a webpush
+        WHEN the command is run and there are secrets
+        THEN it should return a special remediation message
+        AND all of the message lines should have the proper prefix for them to appear in
+            the UI
         """
+        scan_commit_range_mock.return_value = 1
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         result = cli_fs_runner.invoke(
@@ -141,13 +144,11 @@ class TestPreReceive:
                 "GL_PROTOCOL": "web",
             },
         )
-        get_list_mock.assert_not_called()
-        scan_commit_range_mock.assert_not_called()
-        assert (
-            "GL-HOOK-ERR: SKIP: web push detected. Skipping GitGuardian pre-receive hook.\n"
-            in result.output
-        )
-        assert result.exit_code == 0
+        get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
+        scan_commit_range_mock.assert_called_once()
+        for line in result.output.splitlines():
+            assert line.startswith("GL-HOOK-ERR: ")
+        assert result.exit_code == 1
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")

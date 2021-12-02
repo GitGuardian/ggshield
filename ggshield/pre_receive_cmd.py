@@ -17,6 +17,8 @@ from ggshield.utils import (
 )
 
 from .git_shell import get_list_commit_SHA
+from .output import OutputHandler
+from .scan import ScanCollection
 
 
 def quit_function() -> None:  # pragma: no cover
@@ -39,6 +41,35 @@ class ExitAfter:
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
         if self.timeout_secs:
             self.timer.cancel()
+
+
+class GitLabWebUIOutputHandler(OutputHandler):
+    PREFIX = "GL-HOOK-ERR: "
+    """
+    Wraps an OutputHandler to prefix all the messages printed with GitLab Web UI prefix.
+
+    See https://docs.gitlab.com/ee/administration/server_hooks.html#custom-error-messages
+    """
+
+    def __init__(self, handler: OutputHandler):
+        super(GitLabWebUIOutputHandler, self).__init__(
+            show_secrets=handler.show_secrets,
+            verbose=handler.verbose,
+            output=handler.output,
+        )
+        self.handler = handler
+
+    def echo(self, message: str, err: bool = False) -> None:
+        click.echo(self.wrap_message(message), err=err)
+
+    def _process_scan_impl(self, scan: ScanCollection) -> str:
+        output = self.handler._process_scan_impl(scan)
+        return self.wrap_message(output)
+
+    @staticmethod
+    def wrap_message(message: str) -> str:
+        lines = (f"{GitLabWebUIOutputHandler.PREFIX}{x}" for x in message.splitlines())
+        return "\n".join(lines)
 
 
 def get_prereceive_timeout() -> float:
@@ -67,7 +98,8 @@ def get_breakglass_option() -> bool:
     "--web",
     is_flag=True,
     default=None,
-    help="Scan commits added through the web interface (gitlab only)",
+    help="Deprecated",
+    hidden=True,
 )
 @click.pass_context
 def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) -> int:
@@ -75,17 +107,14 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     scan as a pre-receive git hook.
     """
     config = ctx.obj["config"]
+    out = ctx.obj["output_handler"]
+
+    if os.getenv("GL_PROTOCOL") == "web":
+        # We are inside GitLab web UI, wrap the output handler
+        out = GitLabWebUIOutputHandler(out)
 
     if get_breakglass_option():
-        click.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
-
-        return 0
-
-    if not web and os.getenv("GL_PROTOCOL", "") == "web":
-        click.echo(
-            "GL-HOOK-ERR: SKIP: web push detected. Skipping GitGuardian pre-receive hook."
-        )
-
+        out.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
         return 0
 
     args = sys.stdin.read().strip().split()
@@ -96,7 +125,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     commit_list = []
 
     if after == EMPTY_SHA:
-        click.echo("Deletion event or nothing to scan.")
+        out.echo("Deletion event or nothing to scan.")
         return 0
 
     if before == EMPTY_SHA:
@@ -107,7 +136,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
 
         if not commit_list:
             before = EMPTY_TREE
-            click.echo(
+            out.echo(
                 f"New tree event. Scanning last {config.max_commits_for_hook} commits."
             )
             commit_list = get_list_commit_SHA(
@@ -119,7 +148,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         )
 
     if not commit_list:
-        click.echo(
+        out.echo(
             "Unable to get commit range.\n"
             f"  before: {before}\n"
             f"  after: {after}\n"
@@ -128,13 +157,13 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         return 0
 
     if len(commit_list) > config.max_commits_for_hook:
-        click.echo(
+        out.echo(
             f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n"
         )
         commit_list = commit_list[-config.max_commits_for_hook :]
 
     if config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}")
+        out.echo(f"Commits to scan: {len(commit_list)}")
 
     try:
         with ExitAfter(get_prereceive_timeout()):
@@ -142,7 +171,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 commit_list=commit_list,
-                output_handler=ctx.obj["output_handler"],
+                output_handler=out,
                 verbose=config.verbose,
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
                 matches_ignore=config.matches_ignore,
@@ -152,7 +181,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 banlisted_detectors=config.banlisted_detectors,
             )
             if return_code:
-                click.echo(
+                out.echo(
                     """Rewrite your git history to delete evidence of your secrets.
 Use environment variables to use your secrets instead and store them in a file not tracked by git.
 
@@ -161,7 +190,8 @@ you can set up ggshield in your pre commit:
 https://docs.gitguardian.com/internal-repositories-monitoring/integrations/git_hooks/pre_commit
 
 Use it carefully: if those secrets are false positives and you still want your push to pass, run:
-'git push -o breakglass'"""
+'git push -o breakglass'""",
+                    err=True,
                 )
             return return_code
 
