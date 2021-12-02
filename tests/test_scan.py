@@ -1,3 +1,4 @@
+import platform
 from os import getcwd
 from unittest.mock import ANY, Mock, patch
 
@@ -11,7 +12,10 @@ from tests.conftest import _SIMPLE_SECRET
 def test_cd_context_manager():
     prev = getcwd()
     with cd("/tmp"):  # nosec
-        assert getcwd() == "/tmp"  # nosec
+        if platform.system() == "Darwin":
+            assert getcwd() == "/private/tmp"  # nosec
+        else:
+            assert getcwd() == "/tmp"  # nosec
     assert getcwd() == prev
 
 
