@@ -39,6 +39,7 @@ class TestPathScan:
                 in result.output
             )
 
+    @pytest.mark.xfail
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
         os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
@@ -52,6 +53,7 @@ class TestPathScan:
             in result.output
         )
 
+    @pytest.mark.xfail
     @pytest.mark.parametrize("validity", [True, False])
     def test_scan_file_secret_json_with_validity(self, cli_fs_runner, validity):
         os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
@@ -284,6 +286,7 @@ class TestScanDirectory:
         ), "node_modules should not have been ignored"
         assert result.exception is None
 
+    @pytest.mark.xfail
     def test_ignore_default_excludes_with_flag(self, cli_fs_runner):
         """
         GIVEN a path scan

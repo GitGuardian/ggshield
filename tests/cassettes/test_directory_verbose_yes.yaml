@@ -1,9 +1,11 @@
 interactions:
   - request:
       body:
-        '[{"document": "This is a file with no secrets.\n", "filename": "dir/subdir/file3"},
-        {"document": "This is a file with no secrets.\n", "filename": "dir/file2"},
-        {"document": "This is a file with no secrets.\n", "filename": "file1"}]'
+        '[{"filename": "/tmp/tmpwf27_o7k/file1", "document": "This is a file with
+        no secrets.\n"}, {"filename": "/tmp/tmpwf27_o7k/dir/subdir/file4", "document":
+        "This is a file with no secrets.\n"}, {"filename": "/tmp/tmpwf27_o7k/dir/subdir/file3",
+        "document": "This is a file with no secrets.\n"}, {"filename": "/tmp/tmpwf27_o7k/dir/file2",
+        "document": "This is a file with no secrets.\n"}]'
       headers:
         Accept:
           - '*/*'
@@ -12,36 +14,60 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '231'
+          - '382'
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.0.3 (Linux;py3.8.2) ggshield
+          - pygitguardian/1.3.3 (Linux;py3.8.10) ggshield
+        mode:
+          - path
       method: POST
       uri: https://api.gitguardian.com/v1/multiscan
     response:
       body:
         string:
-          '[{"policy_break_count":0,"policies":["File extensions","Secrets detection","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["File
-          extensions","Secrets detection","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["File
-          extensions","Secrets detection","Filenames"],"policy_breaks":[]}]'
+          '[{"policy_break_count":0,"policies":["Secrets detection","File extensions","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["Secrets
+          detection","File extensions","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["Secrets
+          detection","File extensions","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["Secrets
+          detection","File extensions","Filenames"],"policy_breaks":[]}]'
       headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
         Allow:
           - POST, OPTIONS
         Connection:
           - keep-alive
         Content-Length:
-          - '322'
+          - '429'
         Content-Type:
           - application/json
         Date:
-          - Mon, 18 May 2020 15:38:51 GMT
+          - Thu, 02 Dec 2021 11:59:16 GMT
+        Referrer-Policy:
+          - strict-origin-when-cross-origin
         Server:
           - nginx
+        Set-Cookie:
+          - AWSALB=RT/U+/spA99q24pO/VkFIWKAbODfAjyb6Ac59pRphSRNlW3yDRKdpLxPpdXZDAGc0+OUVmBMFKY/M951kMMuAiCL7s4pPGsYlrMzHJvkNrbZxbtDzhAQQJlnbrr0;
+            Expires=Thu, 09 Dec 2021 11:59:16 GMT; Path=/
+          - AWSALBCORS=RT/U+/spA99q24pO/VkFIWKAbODfAjyb6Ac59pRphSRNlW3yDRKdpLxPpdXZDAGc0+OUVmBMFKY/M951kMMuAiCL7s4pPGsYlrMzHJvkNrbZxbtDzhAQQJlnbrr0;
+            Expires=Thu, 09 Dec 2021 11:59:16 GMT; Path=/; SameSite=None; Secure
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
+        X-App-Version:
+          - 1.32.0-rc.2
+        X-Content-Type-Options:
+          - nosniff
+          - nosniff
         X-Frame-Options:
+          - DENY
           - SAMEORIGIN
+        X-Secrets-Engine-Version:
+          - 2.56.0
+        X-XSS-Protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK

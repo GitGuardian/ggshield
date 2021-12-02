@@ -14,7 +14,7 @@ snapshots['test_json_output[_MULTIPLE_SECRETS] 1'] = {
             'filename': 'test.txt',
             'incidents': [
                 {
-                    'break_type': 'MySQL Assignment',
+                    'break_type': 'MySQL Credentials',
                     'ignore_sha': '6ea3195be80ceae4996cda16955ac052425901b50896b02f797e61777fd297e7',
                     'occurrences': [
                         GenericRepr('match:go******om, match_type:host, line_start:2, line_end:2, index_start:78, index_end:88'),
@@ -31,7 +31,7 @@ snapshots['test_json_output[_MULTIPLE_SECRETS] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -74,7 +74,7 @@ snapshots['test_json_output[_ONE_LINE_AND_MULTILINE_PATCH] 1'] = {
             'total_occurrences': 2
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 2,
     'total_occurrences': 2,
     'type': 'test'
@@ -93,8 +93,7 @@ snapshots['test_json_output[_SIMPLE_SECRET-validity] 1'] = {
                         GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:10, index_end:79')
                     ],
                     'policy': 'Secrets detection',
-                    'total_occurrences': 1,
-                    'validity': 'valid'
+                    'total_occurrences': 1
                 }
             ],
             'mode': 'NEW',
@@ -102,7 +101,7 @@ snapshots['test_json_output[_SIMPLE_SECRET-validity] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -129,7 +128,7 @@ snapshots['test_json_output[_SIMPLE_SECRET] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -156,7 +155,7 @@ snapshots['test_json_output[_SINGLE_ADD_PATCH] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -183,7 +182,7 @@ snapshots['test_json_output[_SINGLE_DELETE_PATCH] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -210,7 +209,7 @@ snapshots['test_json_output[_SINGLE_MOVE_PATCH] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
