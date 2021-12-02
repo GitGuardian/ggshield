@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
-from ggshield.text_utils import STYLE, Line, format_text, pluralize
+from ggshield.text_utils import STYLE, Line, format_text, pluralize, translate_validity
 
 
 ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
@@ -147,14 +147,6 @@ def flatten_policy_breaks_by_line(
     return flat_match_dict
 
 
-_validity_translate = {
-    "cannot_check": "Cannot Check",
-    "invalid": "Invalid",
-    "unknown": "Unknown",
-    "valid": "Valid",
-}
-
-
 def policy_break_header(
     issue_n: int, policy_breaks: List[PolicyBreak], ignore_sha: str
 ) -> str:
@@ -162,7 +154,7 @@ def policy_break_header(
     Build a header for the policy break.
     """
     validity_msg = (
-        f" (Validity: {format_text( _validity_translate[policy_breaks[0].validity], STYLE['nb_secrets'])}) "
+        f" (Validity: {format_text(translate_validity(policy_breaks[0].validity), STYLE['nb_secrets'])}) "
         if policy_breaks[0].validity
         else ""
     )

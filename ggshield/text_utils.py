@@ -105,3 +105,15 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
 
 def display_error(msg: str) -> None:
     click.echo(format_text(msg, STYLE["error"]), err=True)
+
+
+_VALIDITY_TEXT_FOR_ID = {
+    "cannot_check": "Cannot Check",
+    "invalid": "Invalid",
+    "unknown": "Unknown",
+    "valid": "Valid",
+}
+
+
+def translate_validity(validity_id: Optional[str]) -> str:
+    return _VALIDITY_TEXT_FOR_ID[validity_id or "unknown"]
