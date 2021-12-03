@@ -54,10 +54,7 @@ class TextHandler(OutputHandler):
             if self.verbose:
                 has_results = False
                 if scan.scans:
-                    for sub_scan in scan.scans:
-                        if sub_scan.results:
-                            has_results = True
-                            break
+                    has_results = any(x.results for x in scan.scans)
 
                 if not has_results:
                     scan_buf.write(no_leak_message())
