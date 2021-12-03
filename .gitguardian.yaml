@@ -18,5 +18,6 @@ paths-ignore:
   - LICENSE
   - .dockerignore
   - .gitignore
+  - .env
 show-secrets: false
 verbose: false
