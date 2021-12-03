@@ -1,6 +1,9 @@
 interactions:
   - request:
-      body: '[{"filename": "/tmp/tmpcqb97chx/node_modules/test.js", "document": "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx\n"}]'
+      body:
+        '[{"filename": "/tmp/tmpgzt78qik/.gitguardian.yml", "document": "ignore-default-excludes:
+        true\n"}, {"filename": "/tmp/tmpgzt78qik/node_modules/test.js", "document":
+        "// Test"}]'
       headers:
         Accept:
           - '*/*'
@@ -9,7 +12,7 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '113'
+          - '176'
         Content-Type:
           - application/json
         User-Agent:
@@ -20,7 +23,9 @@ interactions:
       uri: https://api.gitguardian.com/v1/multiscan
     response:
       body:
-        string: '[{"policy_break_count":0,"policies":["Secrets detection","File extensions","Filenames"],"policy_breaks":[]}]'
+        string:
+          '[{"policy_break_count":0,"policies":["Secrets detection","File extensions","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["Secrets
+          detection","File extensions","Filenames"],"policy_breaks":[]}]'
       headers:
         Access-Control-Expose-Headers:
           - X-App-Version
@@ -29,20 +34,20 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '108'
+          - '215'
         Content-Type:
           - application/json
         Date:
-          - Fri, 03 Dec 2021 09:42:45 GMT
+          - Fri, 03 Dec 2021 10:14:52 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=QEr7EGQ/csSYCLVbWo/tPDi6msa4KpovgdERDcP1A4L6t8yqJl8Eo+aWioMRVbHuVOvJUlbE5mt0MveL2c11yXFHG2X0hIm87J/e7rPRpYdNkm/ZI7tsQ2PSXu7j;
-            Expires=Fri, 10 Dec 2021 09:42:45 GMT; Path=/
-          - AWSALBCORS=QEr7EGQ/csSYCLVbWo/tPDi6msa4KpovgdERDcP1A4L6t8yqJl8Eo+aWioMRVbHuVOvJUlbE5mt0MveL2c11yXFHG2X0hIm87J/e7rPRpYdNkm/ZI7tsQ2PSXu7j;
-            Expires=Fri, 10 Dec 2021 09:42:45 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=VRiaBIt323ZyiKY8QyZQIK3NdTu4AoUw2zwAB2+D8VrHFb8fpnv2Pgf87C/FCkwHI0mNc7cqU8Ox6YMGZRL1Irlk7bgC3rwkZuvFHQQZ6ThX6x/26ABz41RNQHLR;
+            Expires=Fri, 10 Dec 2021 10:14:51 GMT; Path=/
+          - AWSALBCORS=VRiaBIt323ZyiKY8QyZQIK3NdTu4AoUw2zwAB2+D8VrHFb8fpnv2Pgf87C/FCkwHI0mNc7cqU8Ox6YMGZRL1Irlk7bgC3rwkZuvFHQQZ6ThX6x/26ABz41RNQHLR;
+            Expires=Fri, 10 Dec 2021 10:14:51 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:

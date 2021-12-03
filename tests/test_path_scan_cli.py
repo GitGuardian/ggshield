@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -6,6 +7,13 @@ from click.testing import CliRunner
 from ggshield.cmd import cli
 
 from .conftest import _ONE_LINE_AND_MULTILINE_PATCH, _SIMPLE_SECRET, my_vcr
+
+
+def create_normally_ignored_file() -> Path:
+    path = Path("node_modules", "test.js")
+    path.parent.mkdir()
+    path.write_text("// Test")
+    return path
 
 
 class TestPathScan:
@@ -255,13 +263,11 @@ class TestScanDirectory:
         WHEN no options are passed
         THEN ignored patterns by default should be used
         """
-        os.makedirs("node_modules")
-        os.system(
-            'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > node_modules/test.js'
-        )
+        path = create_normally_ignored_file()
 
         result = cli_fs_runner.invoke(cli, ["scan", "-v", "path", "--recursive", "."])
-        assert result.exit_code == 0, "node_modules should have been ignored"
+        assert str(path) not in result.output
+        assert result.exit_code == 0
         assert result.exception is None
 
     def test_ignore_default_excludes_with_configuration(self, cli_fs_runner):
@@ -270,41 +276,33 @@ class TestScanDirectory:
         WHEN ignore-default-excludes has been put to true in the configuration
         THEN ignored patterns by default should NOT be used
         """
-        os.makedirs("node_modules")
-        os.system(
-            'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > node_modules/test.js'
-        )
+        path = create_normally_ignored_file()
         os.system('echo "ignore-default-excludes: true" > .gitguardian.yml')
 
         with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
             result = cli_fs_runner.invoke(
-                cli, ["scan", "-v", "path", "--recursive", "."]
+                cli, ["scan", "-v", "path", "--recursive", "-y", "."]
             )
-        assert result.exit_code == 0, "node_modules should not have been ignored"
-        assert (
-            "node_modules/test.js" in result.output
-        ), "node_modules should not have been ignored"
+        assert str(path) in result.output
+        assert result.exit_code == 0
         assert result.exception is None
 
-    @pytest.mark.xfail
     def test_ignore_default_excludes_with_flag(self, cli_fs_runner):
         """
         GIVEN a path scan
         WHEN --ignore-default-excludes has been used
         THEN ignored patterns by default should NOT be used
         """
-        os.makedirs("node_modules")
-        os.system(
-            'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > node_modules/test.js'
-        )
+        path = create_normally_ignored_file()
 
         with my_vcr.use_cassette("ignore_default_excludes_from_flag"):
             result = cli_fs_runner.invoke(
                 cli,
                 ["scan", "-v", "--ignore-default-excludes", "path", "--recursive", "."],
             )
-        assert result.exit_code == 1, "node_modules should not have been ignored"
-        assert result.exception
+        assert str(path) in result.output
+        assert result.exit_code == 0
+        assert result.exception is None
 
     @pytest.mark.parametrize(
         "banlisted_detectors, nb_secret",
