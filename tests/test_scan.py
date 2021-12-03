@@ -1,5 +1,4 @@
-import platform
-from os import getcwd
+import os
 from unittest.mock import ANY, Mock, patch
 
 from ggshield.config import Cache
@@ -10,13 +9,11 @@ from tests.conftest import _SIMPLE_SECRET
 
 
 def test_cd_context_manager():
-    prev = getcwd()
-    with cd("/tmp"):  # nosec
-        if platform.system() == "Darwin":
-            assert getcwd() == "/private/tmp"  # nosec
-        else:
-            assert getcwd() == "/tmp"  # nosec
-    assert getcwd() == prev
+    prev = os.getcwd()
+    target = os.path.realpath("/tmp")
+    with cd(target):
+        assert os.getcwd() == target
+    assert os.getcwd() == prev
 
 
 @patch("pygitguardian.GGClient.multi_content_scan")
