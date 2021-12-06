@@ -87,13 +87,14 @@ snapshots['test_json_output[_SIMPLE_SECRET-validity] 1'] = {
             'filename': 'test.txt',
             'incidents': [
                 {
-                    'break_type': 'SendGrid Key',
-                    'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
+                    'break_type': 'GitGuardian Test Token Checked',
+                    'ignore_sha': '46f13affa984345d1d71d82fe9375419e5f27e4c8e2d148737225ffd9159d23c',
                     'occurrences': [
-                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:10, index_end:79')
+                        GenericRepr('match:ggt*-*-*******ert, match_type:apikey, line_start:2, line_end:2, index_start:111, index_end:128')
                     ],
                     'policy': 'Secrets detection',
-                    'total_occurrences': 1
+                    'total_occurrences': 1,
+                    'validity': 'valid'
                 }
             ],
             'mode': 'NEW',
@@ -117,7 +118,7 @@ snapshots['test_json_output[_SIMPLE_SECRET] 1'] = {
                     'break_type': 'SendGrid Key',
                     'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
                     'occurrences': [
-                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:10, index_end:79')
+                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:9, index_end:78')
                     ],
                     'policy': 'Secrets detection',
                     'total_occurrences': 1

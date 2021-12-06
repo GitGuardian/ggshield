@@ -6,7 +6,12 @@ from click.testing import CliRunner
 
 from ggshield.cmd import cli
 
-from .conftest import _ONE_LINE_AND_MULTILINE_PATCH, _SIMPLE_SECRET, my_vcr
+from .conftest import (
+    _ONE_LINE_AND_MULTILINE_PATCH,
+    UNCHECKED_SECRET,
+    VALID_SECRET,
+    my_vcr,
+)
 
 
 def create_normally_ignored_file() -> Path:
@@ -35,21 +40,21 @@ class TestPathScan:
         assert "No secrets have been found" in result.output
 
     def test_scan_file_secret(self, cli_fs_runner):
-        os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
+        os.system(f'echo "{UNCHECKED_SECRET}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "file_secret"])
+            print(result.output)
             assert result.exit_code == 1
             assert result.exception
             assert (
-                "SendGrid Key (Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1)"
+                "GitGuardian Development Secret (Validity: Cannot Check)  (Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4)"  # noqa
                 in result.output
             )
 
-    @pytest.mark.xfail
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
-        os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
+        os.system(f'echo "{VALID_SECRET}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret_with_validity"):
@@ -57,20 +62,17 @@ class TestPathScan:
         assert result.exit_code == 1
         assert result.exception
         assert (
-            "Incident 1(Secrets detection): SendGrid Key (Validity: Valid)  (Ignore with SHA: 530e5a4a7ea00814db8845d"
+            "Incident 1(Secrets detection): GitGuardian Test Token Checked (Validity: Valid)  (Ignore with SHA: 56c12"
             in result.output
         )
 
-    @pytest.mark.xfail
     @pytest.mark.parametrize("validity", [True, False])
     def test_scan_file_secret_json_with_validity(self, cli_fs_runner, validity):
-        os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
+        secret = VALID_SECRET if validity else UNCHECKED_SECRET
+        os.system(f'echo "{secret}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
 
-        cassette_name = "test_scan_file_secret"
-        if validity:
-            cassette_name = "test_scan_file_secret_with_validity"
-
+        cassette_name = f"test_scan_file_secret-{validity}"
         with my_vcr.use_cassette(cassette_name):
             result = cli_fs_runner.invoke(
                 cli, ["-v", "scan", "--json", "path", "file_secret"]
@@ -84,7 +86,7 @@ class TestPathScan:
             assert '"validity": "valid"' not in result.output
 
     def test_scan_file_secret_exit_zero(self, cli_fs_runner):
-        os.system(f'echo "{_SIMPLE_SECRET}" > file_secret')  # nosec
+        os.system(f'echo "{UNCHECKED_SECRET}" > file_secret')  # nosec
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):

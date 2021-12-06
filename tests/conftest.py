@@ -79,17 +79,40 @@ _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
     }
 )
 
+# This long token is a test token, always reported as an uncheckable secret
+GG_TEST_TOKEN = (
+    "8a784aab7090f6a4ba3b9f7a6594e2e727007a26590b58ed314e4b9ed4536479sRZlRup3xvtMVfiHWA"
+    "anbe712Jtc3nY8veZux5raL1bhpaxiv0rfyhFoAIMZUCh2Njyk7gRVsSQFPrEphSJnxa16SIdWKb03sRft"
+    "770LUTTYTAy3IM18A7Su4HjiHlGA9ihLj9ou3luadfRAATlKH6kAZwTw289Kq9uip67zxyWkUJdh6PTeFp"
+    "MgCh3AhHcZ21VeZHlu12345"
+)
 
-_SIMPLE_SECRET = (
+# This is another test token, this one is always report as a valid secret
+GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
+
+UNCHECKED_SECRET = (
     "diff --git a/test.txt b/test.txt\n"
     "new file mode 100644\n"
     "index 0000000..b80e3df\n"
     "--- /dev/null\n"
     "+++ b/test\n"
     "@@ -0,0 +2 @@\n"
-    "+Sendgrid:\n"
-    '+sg_key = "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";\n'  # noqa
+    "+# gg token\n"
+    f'+apikey = "{GG_TEST_TOKEN}";\n'
 )
+
+VALID_SECRET = (
+    "diff --git a/test.txt b/test.txt\n"
+    "new file mode 100644\n"
+    "index 0000000..b80e3df\n"
+    "--- /dev/null\n"
+    "+++ b/test\n"
+    "@@ -0,0 +2 @@\n"
+    "+# gg token\n"
+    f'+apikey = "{GG_VALID_TOKEN}";\n'
+)
+
+_SIMPLE_SECRET = UNCHECKED_SECRET
 
 _SIMPLE_SECRET_PATCH = """@@ -0,0 +1 @@
 +github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
