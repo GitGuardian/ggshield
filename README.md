@@ -31,7 +31,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
 ### Currently supported integrations
 
-- [Azure Pipelines](#Azure)
+- [Azure Pipelines](#azure-pipelines)
 - [Bitbucket Pipelines](#bitbucket)
 - [Circle CI Orbs](#circle-ci)
 - [Docker](#Docker)
@@ -76,7 +76,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 1. [Travis CI](#travis-ci)
 1. [Jenkins](#jenkins)
 1. [Drone](#Drone)
-1. [Azure Pipelines](#Azure)
+1. [Azure Pipelines](#azure-pipelines)
 1. [Output](#output)
 1. [Contributing](#contributing)
 1. [License](#license)
