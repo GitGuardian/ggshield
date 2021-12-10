@@ -9,57 +9,17 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.1.0 (Linux;py3.8.3)
-      method: GET
-      uri: https://api.gitguardian.com/v1/health
-    response:
-      body:
-        string: '{"error":"Configuration error."}'
-      headers:
-        Allow:
-          - OPTIONS, GET
-        Connection:
-          - keep-alive
-        Content-Length:
-          - '27'
-        Content-Type:
-          - application/json
-        Date:
-          - Fri, 19 Jun 2020 13:32:39 GMT
-        Server:
-          - nginx
-        Vary:
-          - Cookie
-        X-Content-Type-Options:
-          - nosniff
-        X-Frame-Options:
-          - DENY
-        X-App-Version:
-          - 1.26.0-rc.4
-        X-Secrets-Engine-Version:
-          - 2.43.0
-      status:
-        code: 400
-        message: OK
-  - request:
-      body: null
-      headers:
-        Accept:
-          - '*/*'
-        Accept-Encoding:
-          - gzip, deflate
-        Connection:
-          - keep-alive
-        User-Agent:
-          - pygitguardian/1.1.0 (Linux;py3.8.3)
+          - pygitguardian/1.3.3 (Linux;py3.8.10) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/health
     response:
       body:
         string: '{"detail":"Valid API key."}'
       headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
         Allow:
-          - OPTIONS, GET
+          - GET, HEAD, OPTIONS
         Connection:
           - keep-alive
         Content-Length:
@@ -67,19 +27,32 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Fri, 19 Jun 2020 14:58:35 GMT
+          - Thu, 02 Dec 2021 13:06:59 GMT
+        Referrer-Policy:
+          - strict-origin-when-cross-origin
         Server:
           - nginx
+        Set-Cookie:
+          - AWSALB=Aa6GkRK53kT3+oPFbfE+sHWHh28SYFhCBwG99XZWxE4Poi0cXFgtTj0flvr6yvsBwE/Y+SigsqY96fztAHapVeZ2qF10vUiaBVJZ0V6noak5xNnuHCiRky0JdZJl;
+            Expires=Thu, 09 Dec 2021 13:06:59 GMT; Path=/
+          - AWSALBCORS=Aa6GkRK53kT3+oPFbfE+sHWHh28SYFhCBwG99XZWxE4Poi0cXFgtTj0flvr6yvsBwE/Y+SigsqY96fztAHapVeZ2qF10vUiaBVJZ0V6noak5xNnuHCiRky0JdZJl;
+            Expires=Thu, 09 Dec 2021 13:06:59 GMT; Path=/; SameSite=None; Secure
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
+        X-App-Version:
+          - 1.32.0-rc.2
         X-Content-Type-Options:
+          - nosniff
           - nosniff
         X-Frame-Options:
           - DENY
-        X-App-Version:
-          - 1.26.0-rc.4
+          - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.43.0
+          - 2.56.0
+        X-XSS-Protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK

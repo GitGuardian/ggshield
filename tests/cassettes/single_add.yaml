@@ -12,8 +12,11 @@ interactions:
           - '139'
         Content-Type:
           - application/json
+        Cookie:
+          - AWSALB=2GWGzdj7U2WVC6y7UyzQObnGlXLmrMCQWiOT7TaZm387VQGN4puOgiSrHYS++lcpc08qkV1u9/TrXlB8P6012CiYKClzPkQMgHBnp/CtB5PNsC+7zWWg7gMu4lFq;
+            AWSALBCORS=2GWGzdj7U2WVC6y7UyzQObnGlXLmrMCQWiOT7TaZm387VQGN4puOgiSrHYS++lcpc08qkV1u9/TrXlB8P6012CiYKClzPkQMgHBnp/CtB5PNsC+7zWWg7gMu4lFq
         User-Agent:
-          - pygitguardian/1.2.2 (Linux;py3.8.10)
+          - pygitguardian/1.3.3 (Linux;py3.8.10)
         mode:
           - path
       method: POST
@@ -35,22 +38,22 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Tue, 19 Oct 2021 13:33:55 GMT
+          - Thu, 02 Dec 2021 13:07:00 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=H3mzMz591PmmhPUf1eqABw5MBZukIaJ62lwhON3FPc3RERSJU5ojtTmxjeS+cHhB0y7IHXZIelosqScp9ZbYsarhm30PlL89DE6vN+u43OhQx4TljePIUxQ2lWEj;
-            Expires=Tue, 26 Oct 2021 13:33:55 GMT; Path=/
-          - AWSALBCORS=H3mzMz591PmmhPUf1eqABw5MBZukIaJ62lwhON3FPc3RERSJU5ojtTmxjeS+cHhB0y7IHXZIelosqScp9ZbYsarhm30PlL89DE6vN+u43OhQx4TljePIUxQ2lWEj;
-            Expires=Tue, 26 Oct 2021 13:33:55 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=7rP7OFm+jnrrH0o+lB/oeYRPdBG20co0z6ii9XPBDisVRI8mlT2Hyteo/ObNWAvvvhmwL5aeV/VYIFLbAMN+v21La1UnU+0Vy0Q/cj8CGUfbfx8n0alkKGoB34/I;
+            Expires=Thu, 09 Dec 2021 13:07:00 GMT; Path=/
+          - AWSALBCORS=7rP7OFm+jnrrH0o+lB/oeYRPdBG20co0z6ii9XPBDisVRI8mlT2Hyteo/ObNWAvvvhmwL5aeV/VYIFLbAMN+v21La1UnU+0Vy0Q/cj8CGUfbfx8n0alkKGoB34/I;
+            Expires=Thu, 09 Dec 2021 13:07:00 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
         X-App-Version:
-          - 1.30.0-rc.2
+          - 1.32.0-rc.2
         X-Content-Type-Options:
           - nosniff
           - nosniff
@@ -58,7 +61,7 @@ interactions:
           - DENY
           - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.52.1
+          - 2.56.0
         X-XSS-Protection:
           - 1; mode=block
       status:

@@ -56,7 +56,7 @@ jobs:
           pipenv install --system --dev --ignore-pipfile
       - name: Test with pytest
         run: |
-          coverage run --source ggshield -m pytest --disable-pytest-warnings
+          coverage run --source ggshield -m pytest --disable-pytest-warnings --disable-socket
           coverage report --fail-under=80
           coverage xml
       - uses: codecov/codecov-action@v1

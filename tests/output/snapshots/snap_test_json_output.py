@@ -14,7 +14,7 @@ snapshots['test_json_output[_MULTIPLE_SECRETS] 1'] = {
             'filename': 'test.txt',
             'incidents': [
                 {
-                    'break_type': 'MySQL Assignment',
+                    'break_type': 'MySQL Credentials',
                     'ignore_sha': '6ea3195be80ceae4996cda16955ac052425901b50896b02f797e61777fd297e7',
                     'occurrences': [
                         GenericRepr('match:go******om, match_type:host, line_start:2, line_end:2, index_start:78, index_end:88'),
@@ -31,7 +31,7 @@ snapshots['test_json_output[_MULTIPLE_SECRETS] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -74,7 +74,7 @@ snapshots['test_json_output[_ONE_LINE_AND_MULTILINE_PATCH] 1'] = {
             'total_occurrences': 2
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 2,
     'total_occurrences': 2,
     'type': 'test'
@@ -87,10 +87,10 @@ snapshots['test_json_output[_SIMPLE_SECRET-validity] 1'] = {
             'filename': 'test.txt',
             'incidents': [
                 {
-                    'break_type': 'SendGrid Key',
-                    'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
+                    'break_type': 'GitGuardian Test Token Checked',
+                    'ignore_sha': '46f13affa984345d1d71d82fe9375419e5f27e4c8e2d148737225ffd9159d23c',
                     'occurrences': [
-                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:10, index_end:79')
+                        GenericRepr('match:ggt*-*-*******ert, match_type:apikey, line_start:2, line_end:2, index_start:111, index_end:128')
                     ],
                     'policy': 'Secrets detection',
                     'total_occurrences': 1,
@@ -102,7 +102,7 @@ snapshots['test_json_output[_SIMPLE_SECRET-validity] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -118,7 +118,7 @@ snapshots['test_json_output[_SIMPLE_SECRET] 1'] = {
                     'break_type': 'SendGrid Key',
                     'ignore_sha': 'eea2fa13bdf04725685594cb0115eab7519f3f0a9aa9f339c34ef4a1ae18d908',
                     'occurrences': [
-                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:10, index_end:79')
+                        GenericRepr('match:SG._Yytrtvlj******************************************-**rRJLGFLBLf0M, match_type:apikey, line_start:2, line_end:2, index_start:9, index_end:78')
                     ],
                     'policy': 'Secrets detection',
                     'total_occurrences': 1
@@ -129,7 +129,7 @@ snapshots['test_json_output[_SIMPLE_SECRET] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -156,7 +156,7 @@ snapshots['test_json_output[_SINGLE_ADD_PATCH] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -183,7 +183,7 @@ snapshots['test_json_output[_SINGLE_DELETE_PATCH] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'
@@ -210,7 +210,7 @@ snapshots['test_json_output[_SINGLE_MOVE_PATCH] 1'] = {
             'total_occurrences': 1
         }
     ],
-    'secrets_engine_version': '2.52.1',
+    'secrets_engine_version': '2.56.0',
     'total_incidents': 1,
     'total_occurrences': 1,
     'type': 'test'

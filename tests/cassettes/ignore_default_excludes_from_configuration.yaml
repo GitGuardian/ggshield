@@ -1,9 +1,9 @@
 interactions:
   - request:
       body:
-        '[{"filename": "/tmp/tmphnur001d/file1", "document": "This is a file with
-        no secrets.\n"}, {"filename": "/tmp/tmphnur001d/file2", "document": "This is
-        a file with no secrets.\n"}]'
+        '[{"filename": "/tmp/tmpgzt78qik/.gitguardian.yml", "document": "ignore-default-excludes:
+        true\n"}, {"filename": "/tmp/tmpgzt78qik/node_modules/test.js", "document":
+        "// Test"}]'
       headers:
         Accept:
           - '*/*'
@@ -12,7 +12,7 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '178'
+          - '176'
         Content-Type:
           - application/json
         User-Agent:
@@ -38,16 +38,16 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Thu, 02 Dec 2021 13:06:53 GMT
+          - Fri, 03 Dec 2021 10:14:52 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=4yQ+X16Ox9AeVA59cc7FpQzE3+W7m/pKnr8phjubKS7fIH/txz1DELabWP6ibcW3917BBaQRZaxWCHraktMxpRO7I15NEdnVqIJmuW9oHW3VV7kq8JyBhmob5wDA;
-            Expires=Thu, 09 Dec 2021 13:06:53 GMT; Path=/
-          - AWSALBCORS=4yQ+X16Ox9AeVA59cc7FpQzE3+W7m/pKnr8phjubKS7fIH/txz1DELabWP6ibcW3917BBaQRZaxWCHraktMxpRO7I15NEdnVqIJmuW9oHW3VV7kq8JyBhmob5wDA;
-            Expires=Thu, 09 Dec 2021 13:06:53 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=VRiaBIt323ZyiKY8QyZQIK3NdTu4AoUw2zwAB2+D8VrHFb8fpnv2Pgf87C/FCkwHI0mNc7cqU8Ox6YMGZRL1Irlk7bgC3rwkZuvFHQQZ6ThX6x/26ABz41RNQHLR;
+            Expires=Fri, 10 Dec 2021 10:14:51 GMT; Path=/
+          - AWSALBCORS=VRiaBIt323ZyiKY8QyZQIK3NdTu4AoUw2zwAB2+D8VrHFb8fpnv2Pgf87C/FCkwHI0mNc7cqU8Ox6YMGZRL1Irlk7bgC3rwkZuvFHQQZ6ThX6x/26ABz41RNQHLR;
+            Expires=Fri, 10 Dec 2021 10:14:51 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
