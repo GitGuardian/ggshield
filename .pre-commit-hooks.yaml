@@ -22,4 +22,4 @@
   name: GitGuardian Shield (pre-push,docker)
   language: docker_image
   entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan pre-push
-  description: Runs ggshield to detect hadrcoded secrets, security vulnerabilities and policy breaks in docker images.
+  description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks in docker images.
