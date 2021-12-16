@@ -1,7 +1,7 @@
 - id: ggshield
   name: GitGuardian Shield (pre-commit)
   entry: ggshield
-  description: Runs ggshield to detect hadrcoded secrets, security vulnerabilities and policy breaks.
+  description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
   stages: [commit]
   args: ['scan', 'pre-commit']
   language: python
