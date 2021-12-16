@@ -13,7 +13,7 @@
 - id: ggshield-push
   name: GitGuardian Shield (pre-push)
   entry: ggshield
-  description: Runs ggshield to detect hadrcoded secrets, security vulnerabilities and policy breaks.
+  description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
   args: ['scan', 'pre-push']
   stages: [push]
   pass_filenames: false
