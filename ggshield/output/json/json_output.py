@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, cast
 
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import Match, PolicyBreak
@@ -13,22 +13,21 @@ from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 
 class JSONHandler(OutputHandler):
-    def _process_scan_impl(self, scan: ScanCollection) -> Tuple[str, int]:
-        scan_dict, return_code = self.create_scan_dict(scan, top=True)
+    def _process_scan_impl(self, scan: ScanCollection) -> str:
+        scan_dict = self.create_scan_dict(scan, top=True)
         text = JSONScanCollectionSchema().dumps(scan_dict)
-        return text, return_code
+        # dumps() return type is not defined, so cast `text`, otherwise mypy complains
+        return cast(str, text)
 
     def create_scan_dict(
         self, scan: ScanCollection, top: bool = True
-    ) -> Tuple[Dict[str, Any], int]:
+    ) -> Dict[str, Any]:
         scan_dict: Dict[str, Any] = {
             "id": scan.id,
             "type": scan.type,
             "total_incidents": 0,
             "total_occurrences": 0,
         }
-        return_code = 0
-
         if scan.extra_info:
             scan_dict["extra_info"] = scan.extra_info
 
@@ -36,7 +35,6 @@ class JSONHandler(OutputHandler):
             scan_dict["secrets_engine_version"] = VERSIONS.secrets_engine_version
 
         if scan.results:
-            return_code = 1
             for result in scan.results:
                 result_dict = self.process_result(result)
                 scan_dict.setdefault("results", []).append(result_dict)
@@ -45,15 +43,12 @@ class JSONHandler(OutputHandler):
 
         if scan.scans:
             for inner_scan in scan.scans_with_results:
-                inner_scan_dict, inner_return_code = self.create_scan_dict(
-                    inner_scan, top=False
-                )
+                inner_scan_dict = self.create_scan_dict(inner_scan, top=False)
                 scan_dict.setdefault("scans", []).append(inner_scan_dict)
                 scan_dict["total_incidents"] += inner_scan_dict["total_incidents"]
                 scan_dict["total_occurrences"] += inner_scan_dict["total_occurrences"]
-                return_code = max(return_code, inner_return_code)
 
-        return scan_dict, return_code
+        return scan_dict
 
     def process_result(self, result: Result) -> Dict[str, Any]:
         result_dict: Dict[str, Any] = {

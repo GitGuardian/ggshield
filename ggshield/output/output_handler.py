@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Optional
 
 import click
 
@@ -27,20 +27,29 @@ class OutputHandler(ABC):
         :param scan: The scan collection to process
         :return: The exit code
         """
-        text, exit_code = self._process_scan_impl(scan)
+        text = self._process_scan_impl(scan)
         if self.output:
             with open(self.output, "w+") as f:
                 f.write(text)
         else:
             click.echo(text)
-        return exit_code
+        return OutputHandler._get_exit_code(scan)
 
     @abstractmethod
-    def _process_scan_impl(self, scan: ScanCollection) -> Tuple[str, int]:
+    def _process_scan_impl(self, scan: ScanCollection) -> str:
         """Implementation of scan processing,
         called by :meth:`OutputHandler.process_scan`
 
         :param scan: The scan collection to process
-        :return: A tuple of content, exit code
+        :return: The content
         """
-        return "", -1
+        raise NotImplementedError()
+
+
+    @staticmethod
+    def _get_exit_code(scan: ScanCollection) -> int:
+        if scan.results:
+            return 1
+        if scan.scans and any(x.results for x in scan.scans):
+            return 1
+        return 0

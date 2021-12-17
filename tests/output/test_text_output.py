@@ -92,7 +92,7 @@ from tests.conftest import (
 def test_leak_message(result_input, snapshot, show_secrets, verbose):
     output_handler = TextHandler(show_secrets=show_secrets, verbose=verbose)
     new_result = deepcopy(result_input)
-    output, exit_code = output_handler._process_scan_impl(
+    output = output_handler._process_scan_impl(
         ScanCollection(
             id="scan",
             type="test",
@@ -101,5 +101,4 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
         )
     )
 
-    assert exit_code == 1
     snapshot.assert_match(output)
