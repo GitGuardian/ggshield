@@ -34,7 +34,7 @@ def get_offset(padding: int, is_patch: bool = False) -> int:
     return len(LINE_DISPLAY["file"].format("0" * padding))
 
 
-class TextHandler(OutputHandler):
+class TextOutputHandler(OutputHandler):
     nb_lines: ClassVar[int] = 3
 
     def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
@@ -98,7 +98,7 @@ class TextHandler(OutputHandler):
         for issue_n, (ignore_sha, policy_breaks) in enumerate(sha_dict.items(), 1):
             result_buf.write(policy_break_header(issue_n, policy_breaks, ignore_sha))
             for policy_break in policy_breaks:
-                policy_break.matches = TextHandler.make_matches(
+                policy_break.matches = TextOutputHandler.make_matches(
                     policy_break.matches, lines, is_patch
                 )
 

@@ -12,7 +12,7 @@ from ggshield.text_utils import Line
 from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 
-class JSONHandler(OutputHandler):
+class JSONOutputHandler(OutputHandler):
     def _process_scan_impl(self, scan: ScanCollection) -> str:
         scan_dict = self.create_scan_dict(scan, top=True)
         text = JSONScanCollectionSchema().dumps(scan_dict)
@@ -102,7 +102,9 @@ class JSONHandler(OutputHandler):
             flattened_dict["validity"] = policy_breaks[0].validity
 
         for policy_break in policy_breaks:
-            matches = JSONHandler.make_matches(policy_break.matches, lines, is_patch)
+            matches = JSONOutputHandler.make_matches(
+                policy_break.matches, lines, is_patch
+            )
             flattened_dict["occurrences"].extend(matches)
 
         return flattened_dict

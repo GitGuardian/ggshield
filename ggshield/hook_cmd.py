@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 import click
 
 from ggshield.dev_scan import scan_commit_range
-from ggshield.output import TextHandler
+from ggshield.output import TextOutputHandler
 from ggshield.scan import Commit, ScanCollection
 from ggshield.utils import EMPTY_SHA, EMPTY_TREE, SupportedScanMode, handle_exception
 
@@ -22,7 +22,7 @@ def precommit_cmd(
     scan as a pre-commit git hook.
     """
     config = ctx.obj["config"]
-    output_handler = TextHandler(
+    output_handler = TextOutputHandler(
         show_secrets=config.show_secrets, verbose=config.verbose, output=None
     )
     try:

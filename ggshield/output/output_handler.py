@@ -40,11 +40,12 @@ class OutputHandler(ABC):
         """Implementation of scan processing,
         called by :meth:`OutputHandler.process_scan`
 
+        Must return a string for the report.
+
         :param scan: The scan collection to process
         :return: The content
         """
         raise NotImplementedError()
-
 
     @staticmethod
     def _get_exit_code(scan: ScanCollection) -> int:

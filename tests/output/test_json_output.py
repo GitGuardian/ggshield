@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import pytest
 
-from ggshield.output import JSONHandler, OutputHandler
+from ggshield.output import JSONOutputHandler, OutputHandler
 from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import Commit, ScanCollection
 from ggshield.utils import Filemode, SupportedScanMode
@@ -53,7 +53,7 @@ _EXPECT_NO_SECRET = {
 def test_json_output(client, cache, name, input_patch, expected, snapshot):
     c = Commit()
     c._patch = input_patch
-    handler = JSONHandler(verbose=True, show_secrets=False)
+    handler = JSONOutputHandler(verbose=True, show_secrets=False)
 
     with my_vcr.use_cassette(name):
         results = c.scan(
