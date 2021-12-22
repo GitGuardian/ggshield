@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import ClassVar, List, Tuple
+from typing import ClassVar, List
 
 import click
 from pygitguardian.models import Match
@@ -34,11 +34,10 @@ def get_offset(padding: int, is_patch: bool = False) -> int:
     return len(LINE_DISPLAY["file"].format("0" * padding))
 
 
-class TextHandler(OutputHandler):
+class TextOutputHandler(OutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def process_scan(self, scan: ScanCollection, top: bool = True) -> Tuple[str, int]:
-        return_code = 0
+    def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
         scan_buf = StringIO()
         if scan.optional_header and (scan.results or self.verbose):
             scan_buf.write(scan.optional_header)
@@ -47,7 +46,6 @@ class TextHandler(OutputHandler):
             scan_buf.write(secrets_engine_version())
 
         if scan.results:
-            return_code = 1
             for result in scan.results:
                 scan_buf.write(self.process_result(result))
         else:
@@ -61,21 +59,10 @@ class TextHandler(OutputHandler):
 
         if scan.scans:
             for sub_scan in scan.scans:
-                inner_scan_str, inner_return_code = self.process_scan(
-                    sub_scan, top=False
-                )
+                inner_scan_str = self._process_scan_impl(sub_scan, top=False)
                 scan_buf.write(inner_scan_str)
-                return_code = max(return_code, inner_return_code)
 
-        scan_str = scan_buf.getvalue()
-        if top:
-            if self.output:
-                with open(self.output, "w+") as f:
-                    click.echo(scan_str, file=f)
-            else:
-                click.echo(scan_str)
-
-        return scan_str, return_code
+        return scan_buf.getvalue()
 
     def process_result(self, result: Result) -> str:
         """
@@ -111,7 +98,7 @@ class TextHandler(OutputHandler):
         for issue_n, (ignore_sha, policy_breaks) in enumerate(sha_dict.items(), 1):
             result_buf.write(policy_break_header(issue_n, policy_breaks, ignore_sha))
             for policy_break in policy_breaks:
-                policy_break.matches = TextHandler.make_matches(
+                policy_break.matches = TextOutputHandler.make_matches(
                     policy_break.matches, lines, is_patch
                 )
 

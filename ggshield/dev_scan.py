@@ -176,7 +176,7 @@ def path_cmd(
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 
-        return output_handler.process_scan(scan)[1]
+        return output_handler.process_scan(scan)
     except Exception as error:
         return handle_exception(error, config.verbose)
 
@@ -260,5 +260,5 @@ def scan_commit_range(
 
         return_code = output_handler.process_scan(
             ScanCollection(id=scan_id, type="commit-range", scans=scans)
-        )[1]
+        )
     return return_code

@@ -1,6 +1,6 @@
-from .json import JSONHandler
+from .json import JSONOutputHandler
 from .output_handler import OutputHandler
-from .text import TextHandler
+from .text import TextOutputHandler
 
 
-__all__ = ["TextHandler", "OutputHandler", "JSONHandler"]
+__all__ = ["TextOutputHandler", "OutputHandler", "JSONOutputHandler"]

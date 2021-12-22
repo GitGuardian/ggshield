@@ -127,7 +127,7 @@ def docker_name_cmd(ctx: click.Context, name: str) -> int:
                 banlisted_detectors=config.banlisted_detectors,
             )
 
-            return output_handler.process_scan(scan)[1]
+            return output_handler.process_scan(scan)
         except Exception as error:
             return handle_exception(error, config.verbose)
 
@@ -161,6 +161,6 @@ def docker_archive_cmd(
             banlisted_detectors=config.banlisted_detectors,
         )
 
-        return output_handler.process_scan(scan)[1]
+        return output_handler.process_scan(scan)
     except Exception as error:
         return handle_exception(error, config.verbose)

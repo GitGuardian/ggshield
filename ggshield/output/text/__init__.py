@@ -1,4 +1,4 @@
-from .text_output import TextHandler
+from .text_output_handler import TextOutputHandler
 
 
-__all__ = ["TextHandler"]
+__all__ = ["TextOutputHandler"]

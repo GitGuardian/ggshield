@@ -13,7 +13,7 @@ from .filter import init_exclusion_regexes
 from .hook_cmd import precommit_cmd, prepush_cmd
 from .ignore import ignore
 from .install import install
-from .output import JSONHandler, OutputHandler, TextHandler
+from .output import JSONOutputHandler, OutputHandler, TextOutputHandler
 from .pre_receive_cmd import prereceive_cmd
 from .quota import quota
 from .status import status
@@ -150,9 +150,9 @@ def scan(
     if max_commits:
         config.max_commits_for_hook = max_commits
 
-    output_handler_cls: Type[OutputHandler] = TextHandler
+    output_handler_cls: Type[OutputHandler] = TextOutputHandler
     if json_output:
-        output_handler_cls = JSONHandler
+        output_handler_cls = JSONOutputHandler
 
     ctx.obj["output_handler"] = output_handler_cls(
         show_secrets=config.show_secrets, verbose=config.verbose, output=output

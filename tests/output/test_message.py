@@ -7,7 +7,7 @@ from ggshield.output.text.message import (
     format_line_count_break,
     no_leak_message,
 )
-from ggshield.output.text.text_output import get_offset, get_padding
+from ggshield.output.text.text_output_handler import get_offset, get_padding
 from ggshield.text_utils import Line
 
 

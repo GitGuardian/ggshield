@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from ggshield.output import TextHandler
+from ggshield.output import TextOutputHandler
 from ggshield.scan import Result
 from ggshield.scan.scannable import ScanCollection
 from ggshield.utils import Filemode
@@ -90,9 +90,9 @@ from tests.conftest import (
     ],
 )
 def test_leak_message(result_input, snapshot, show_secrets, verbose):
-    output_handler = TextHandler(show_secrets=show_secrets, verbose=verbose)
+    output_handler = TextOutputHandler(show_secrets=show_secrets, verbose=verbose)
     new_result = deepcopy(result_input)
-    output, exit_code = output_handler.process_scan(
+    output = output_handler._process_scan_impl(
         ScanCollection(
             id="scan",
             type="test",
@@ -101,5 +101,4 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
         )
     )
 
-    assert exit_code == 1
     snapshot.assert_match(output)

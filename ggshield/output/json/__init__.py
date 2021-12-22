@@ -1,4 +1,4 @@
-from .json_output import JSONHandler
+from .json_output_handler import JSONOutputHandler
 
 
-__all__ = ["JSONHandler"]
+__all__ = ["JSONOutputHandler"]
