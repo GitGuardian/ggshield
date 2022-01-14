@@ -36,14 +36,12 @@ class ScanCollection(NamedTuple):
     id: str
     type: str
     results: Optional[List[Result]] = None
-    scans: Optional[List[Any]] = None
-    # Foward references are not support in mypy for NamedTuples
-    # Correct typing would be Union
+    scans: Optional[List["ScanCollection"]] = None  # type: ignore[misc]
     optional_header: Optional[str] = None  # To be printed in Text Output
     extra_info: Optional[Dict[str, str]] = None  # To be included in JSON Output
 
     @property
-    def scans_with_results(self) -> List[Any]:
+    def scans_with_results(self) -> List["ScanCollection"]:
         if self.scans:
             return [scan for scan in self.scans if scan.results]
         return []
