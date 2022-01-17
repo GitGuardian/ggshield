@@ -38,7 +38,6 @@ setup(
         "pygitguardian==1.3.1",
         "pyyaml",
         "python-dotenv",
-        "yaspin",
     ],
     include_package_data=True,
     zip_safe=True,

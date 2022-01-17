@@ -5,7 +5,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 
 import click
 from pygitguardian.client import GGClient
-from yaspin import yaspin
 
 from ggshield.config import Cache
 from ggshield.output import OutputHandler
@@ -49,16 +48,18 @@ def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
     command = ["docker", "save", image_name, "-o", str(temp_archive_filename)]
 
     try:
-        with yaspin(text="Saving docker image"):
-            subprocess.run(
-                command,
-                check=True,
-                stderr=subprocess.PIPE,
-                timeout=DOCKER_COMMAND_TIMEOUT,
-            )
+        click.echo("Saving docker image... ", nl=False)
+        subprocess.run(
+            command,
+            check=True,
+            stderr=subprocess.PIPE,
+            timeout=DOCKER_COMMAND_TIMEOUT,
+        )
+        click.echo("OK")
     except subprocess.CalledProcessError as exc:
         err_string = str(exc.stderr)
         if "No such image" in err_string or "reference does not exist" in err_string:
+            click.echo("need to download image first")
             docker_pull_image(image_name)
 
             return docker_save_to_tmp(image_name, temporary_path)
