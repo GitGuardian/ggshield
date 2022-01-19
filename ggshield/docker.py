@@ -20,16 +20,18 @@ class DockerArchiveCreationError(Exception):
     pass
 
 
-def docker_pull_image(image_name: str) -> None:
+def docker_pull_image(image_name: str, timeout: int) -> None:
     """
     Pull docker image and raise exception on timeout or failed to find image
+
+    Timeout after `timeout` seconds.
     """
     command = ["docker", "pull", image_name]
     try:
         subprocess.run(
             command,
             check=True,
-            timeout=DOCKER_COMMAND_TIMEOUT,
+            timeout=timeout,
         )
     except subprocess.CalledProcessError:
         raise click.ClickException(f'Image "{image_name}" not found')
@@ -37,10 +39,12 @@ def docker_pull_image(image_name: str) -> None:
         raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
 
-def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
+def docker_save_to_tmp(image_name: str, temporary_path: str, timeout: int) -> Path:
     """
     Do a `docker save <image_name> -o <temporary_path>` and return the
     `temporary_path`.
+
+    Limit docker commands to run at most `timeout` seconds.
     """
     temp_archive_filename = Path(temporary_path) / (
         image_name.replace("/", "--") + ".tar"
@@ -53,16 +57,16 @@ def docker_save_to_tmp(image_name: str, temporary_path: str) -> Path:
             command,
             check=True,
             stderr=subprocess.PIPE,
-            timeout=DOCKER_COMMAND_TIMEOUT,
+            timeout=timeout,
         )
         click.echo("OK")
     except subprocess.CalledProcessError as exc:
         err_string = str(exc.stderr)
         if "No such image" in err_string or "reference does not exist" in err_string:
             click.echo("need to download image first")
-            docker_pull_image(image_name)
+            docker_pull_image(image_name, timeout)
 
-            return docker_save_to_tmp(image_name, temporary_path)
+            return docker_save_to_tmp(image_name, temporary_path, timeout)
         raise click.ClickException("Unable to save docker archive")
     except subprocess.TimeoutExpired:
         raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
@@ -101,9 +105,17 @@ def docker_scan_archive(
 
 
 @click.command()
+@click.option(
+    "--docker-timeout",
+    type=click.INT,
+    default=DOCKER_COMMAND_TIMEOUT,
+    help="Timeout for Docker commands.",
+    metavar="SECONDS",
+    show_default=True,
+)
 @click.argument("name", nargs=1, type=click.STRING, required=True)
 @click.pass_context
-def docker_name_cmd(ctx: click.Context, name: str) -> int:
+def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
     """
     scan a docker image <NAME>.
 
@@ -115,7 +127,7 @@ def docker_name_cmd(ctx: click.Context, name: str) -> int:
         output_handler: OutputHandler = ctx.obj["output_handler"]
 
         try:
-            archive = str(docker_save_to_tmp(name, temporary_dir))
+            archive = str(docker_save_to_tmp(name, temporary_dir, docker_timeout))
 
             scan = docker_scan_archive(
                 archive=archive,
