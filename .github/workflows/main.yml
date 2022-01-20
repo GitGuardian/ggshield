@@ -85,7 +85,7 @@ jobs:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
 
-  dockerhub-latest:
+  dockerhub-unstable:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -99,9 +99,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: gitguardian/ggshield
-          tags: latest
+          tags: unstable
 
-  github_packages-latest:
+  github_packages-unstable:
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -116,13 +116,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: docker.pkg.github.com
           repository: gitguardian/ggshield/ggshield
-          tags: latest
+          tags: unstable
 
   scanning-released:
     name: GitGuardian scan
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [dockerhub-latest]
+    needs: [dockerhub-unstable]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
