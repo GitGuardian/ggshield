@@ -55,14 +55,15 @@ class TestDockerPull:
 class TestDockerSave:
     def test_docker_save_image_success(self):
         with patch("subprocess.run") as call:
-            docker_save_to_tmp("ggshield-non-existant", "/tmp/as/", DOCKER_TIMEOUT)
+            tmp_archive = Path("/tmp/as/archive.tar")
+            docker_save_to_tmp("ggshield-non-existant", tmp_archive, DOCKER_TIMEOUT)
             call.assert_called_once_with(
                 [
                     "docker",
                     "save",
                     "ggshield-non-existant",
                     "-o",
-                    "/tmp/as/ggshield-non-existant.tar",
+                    str(tmp_archive),
                 ],
                 check=True,
                 stderr=-1,
@@ -80,7 +81,9 @@ class TestDockerSave:
                 click.exceptions.ClickException,
                 match='Image "ggshield-non-existant" not found',
             ):
-                docker_save_to_tmp("ggshield-non-existant", "/tmp/as/", DOCKER_TIMEOUT)
+                docker_save_to_tmp(
+                    "ggshield-non-existant", Path("/tmp/as/archive.tar"), DOCKER_TIMEOUT
+                )
 
     def test_docker_save_image_timeout(self):
         with patch(
@@ -89,9 +92,11 @@ class TestDockerSave:
         ):
             with pytest.raises(
                 click.exceptions.ClickException,
-                match='Command "docker save ggshield-non-existant -o /tmp/as/ggshield-non-existant.tar" timed out',  # noqa: E501
+                match='Command "docker save ggshield-non-existant -o /tmp/as/archive.tar" timed out',  # noqa: E501
             ):
-                docker_save_to_tmp("ggshield-non-existant", "/tmp/as/", DOCKER_TIMEOUT)
+                docker_save_to_tmp(
+                    "ggshield-non-existant", Path("/tmp/as/archive.tar"), DOCKER_TIMEOUT
+                )
 
 
 class TestDockerCMD:

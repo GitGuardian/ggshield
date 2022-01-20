@@ -3,6 +3,7 @@ import os.path
 import re
 import tarfile
 from itertools import chain
+from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple
 
 from ggshield.config import MAX_FILE_SIZE
@@ -36,7 +37,7 @@ class InvalidDockerArchiveException(Exception):
     pass
 
 
-def get_files_from_docker_archive(archive_path: str) -> Files:
+def get_files_from_docker_archive(archive_path: Path) -> Files:
     """
     Extracts files to scan from a Docker image archive.
     Only the configuration and the layers generated with a `COPY` and `ADD`
