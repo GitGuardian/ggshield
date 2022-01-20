@@ -39,17 +39,13 @@ def docker_pull_image(image_name: str, timeout: int) -> None:
         raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
 
-def docker_save_to_tmp(image_name: str, temporary_path: str, timeout: int) -> Path:
+def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) -> None:
     """
-    Do a `docker save <image_name> -o <temporary_path>` and return the
-    `temporary_path`.
+    Do a `docker save <image_name> -o <destination_path>`
 
     Limit docker commands to run at most `timeout` seconds.
     """
-    temp_archive_filename = Path(temporary_path) / (
-        image_name.replace("/", "--") + ".tar"
-    )
-    command = ["docker", "save", image_name, "-o", str(temp_archive_filename)]
+    command = ["docker", "save", image_name, "-o", str(destination_path)]
 
     try:
         click.echo("Saving docker image... ", nl=False)
@@ -66,16 +62,16 @@ def docker_save_to_tmp(image_name: str, temporary_path: str, timeout: int) -> Pa
             click.echo("need to download image first")
             docker_pull_image(image_name, timeout)
 
-            return docker_save_to_tmp(image_name, temporary_path, timeout)
-        raise click.ClickException("Unable to save docker archive")
+            docker_save_to_tmp(image_name, destination_path, timeout)
+        raise click.ClickException(
+            f"Unable to save docker archive:\nError: {err_string}"
+        )
     except subprocess.TimeoutExpired:
         raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
-    return temp_archive_filename
-
 
 def docker_scan_archive(
-    archive: str,
+    archive: Path,
     client: GGClient,
     cache: Cache,
     verbose: bool,
@@ -127,7 +123,8 @@ def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
         output_handler: OutputHandler = ctx.obj["output_handler"]
 
         try:
-            archive = str(docker_save_to_tmp(name, temporary_dir, docker_timeout))
+            archive = Path(temporary_dir) / "archive.tar"
+            docker_save_to_tmp(name, archive, docker_timeout)
 
             scan = docker_scan_archive(
                 archive=archive,
@@ -152,7 +149,7 @@ def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
 @click.pass_context
 def docker_archive_cmd(
     ctx: click.Context,
-    archive: str,
+    archive: Path,
 ) -> int:  # pragma: no cover
     """
     scan a docker archive <ARCHIVE> without attempting to save or pull the image.
@@ -170,7 +167,7 @@ def docker_archive_cmd(
             verbose=config.verbose,
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
-            scan_id=archive,
+            scan_id=str(archive),
             banlisted_detectors=config.banlisted_detectors,
         )
 
