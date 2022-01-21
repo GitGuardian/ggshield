@@ -89,6 +89,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: gitguardian/ggshield
           tag_with_ref: true
+          tags: latest
 
   push_to_github_packages:
     name: Push Docker image to GitHub Packages
@@ -105,6 +106,7 @@ jobs:
           registry: docker.pkg.github.com
           repository: gitguardian/ggshield/ggshield
           tag_with_ref: true
+          tags: latest
 
   push_to_tap:
     needs: pypi
