@@ -38,7 +38,7 @@ jobs:
 
   build:
     name: Build and Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -54,9 +54,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade pipenv
           pipenv install --system --dev --ignore-pipfile
+      - name: Install Windows dev dependencies
+        if: ${{ matrix.os }} == "windows-latest"
+        run: |
+          # Those are win32-only dependencies from pytest
+          python -m pip install atomicwrites colorama
       - name: Test with pytest
         run: |
           coverage run --source ggshield -m pytest --disable-pytest-warnings --disable-socket
+      - name: Gather coverage report
+        run: |
           coverage report --fail-under=80
           coverage xml
       - uses: codecov/codecov-action@v1
