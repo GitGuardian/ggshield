@@ -172,6 +172,22 @@ class TestCache:
             file_content = json.load(file)
             assert file_content == {"last_found_secrets": ["XXX"]}
 
+    def test_read_only_fs(self):
+        """
+        GIVEN a read-only file-system
+        WHEN save is called
+        THEN it shouldn't raise an exception
+        """
+        cache = Cache()
+        cache.update_cache(**{"last_found_secrets": {"XXX"}})
+        # don't use mock.patch decorator on the test, since Cache.__init__ also calls open
+        with patch("builtins.open") as open_mock:
+            # The read-only FS is simulated with patched builtin open raising an error
+            open_mock.side_effect = OSError("Read-only file system")
+            assert cache.save() is True
+            # Make sure our patched open was called
+            open_mock.assert_called_once()
+
     @pytest.mark.parametrize("with_entry", [True, False])
     @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
     def test_save_cache_first_time(self, isolated_fs, with_entry):

@@ -286,7 +286,7 @@ class Cache:
 
         try:
             f = open(self.CACHE_FILENAME, "w")
-        except PermissionError:
+        except OSError:
             # Hotfix: for the time being we skip cache handling if permission denied
             return True
         else:
