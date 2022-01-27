@@ -9,7 +9,10 @@
 # either set an environment variable machine wide `GITGUARDIAN_API_KEY`
 # or uncomment and insert your key in the following line
 
-#export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
+# export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
+
+# (set this if you are using a self-hosted GitGuardian instance)
+# export GITGUARDIAN_API_URL="https://dashboard.gitguardian.mycorp.local/exposed/"
 
 set -e
 ggshield scan pre-receive
