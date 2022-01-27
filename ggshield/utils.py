@@ -10,6 +10,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import Match
 from requests import Session
 
+from .config import Config
 from .text_utils import Line, LineCategory
 
 
@@ -241,14 +242,14 @@ json_output_option_decorator = click.option(
 )
 
 
-def retrieve_client(ctx: click.Context) -> GGClient:
+def retrieve_client(config: Config) -> GGClient:
     api_key: Optional[str] = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri: str = os.getenv("GITGUARDIAN_API_URL", ctx.obj["config"].api_url)
+    base_uri: str = os.getenv("GITGUARDIAN_API_URL", config.api_url)
     if not api_key:
         raise click.ClickException("GitGuardian API Key is needed.")
 
     session = Session()
-    if ctx.obj["config"].allow_self_signed:
+    if config.allow_self_signed:
         urllib3.disable_warnings()
         session.verify = False
 
