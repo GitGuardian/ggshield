@@ -14,7 +14,7 @@ from .utils import json_output_option_decorator, retrieve_client
 @click.pass_context
 def status(ctx: click.Context, json_output: bool) -> int:
     """Command to show api status."""
-    client: GGClient = retrieve_client(ctx)
+    client: GGClient = retrieve_client(ctx.obj["config"])
     response: HealthCheckResponse = client.health_check()
 
     if not isinstance(response, HealthCheckResponse):

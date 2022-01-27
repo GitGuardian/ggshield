@@ -118,7 +118,7 @@ def scan(
     ignore_default_excludes: bool = False,
 ) -> int:
     """Command to scan various contents."""
-    ctx.obj["client"] = retrieve_client(ctx)
+    ctx.obj["client"] = retrieve_client(ctx.obj["config"])
     return_code = 0
 
     paths_ignore = ctx.obj["config"].paths_ignore

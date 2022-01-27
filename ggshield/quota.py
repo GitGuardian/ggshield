@@ -14,7 +14,7 @@ from .utils import json_output_option_decorator, retrieve_client
 @click.pass_context
 def quota(ctx: click.Context, json_output: bool) -> int:
     """Command to show quotas overview."""
-    client: GGClient = retrieve_client(ctx)
+    client: GGClient = retrieve_client(ctx.obj["config"])
     response: Union[Detail, QuotaResponse] = client.quota_overview()
 
     if not isinstance(response, (Detail, QuotaResponse)):
