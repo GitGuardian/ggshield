@@ -253,13 +253,16 @@ def retrieve_client(config: Config) -> GGClient:
         urllib3.disable_warnings()
         session.verify = False
 
-    return GGClient(
-        api_key=api_key,
-        base_uri=base_uri,
-        user_agent="ggshield",
-        timeout=60,
-        session=session,
-    )
+    try:
+        return GGClient(
+            api_key=api_key,
+            base_uri=base_uri,
+            user_agent="ggshield",
+            timeout=60,
+            session=session,
+        )
+    except ValueError as e:
+        raise click.ClickException(f"Failed to create API client. {e}")
 
 
 def handle_exception(e: Exception, verbose: bool) -> int:

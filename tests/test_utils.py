@@ -1,5 +1,10 @@
+import os
+from unittest import mock
+
+import click
 import pytest
 
+from ggshield.config import Config
 from ggshield.scan import Commit
 from ggshield.scan.scannable import File, Files
 from ggshield.utils import (
@@ -7,6 +12,7 @@ from ggshield.utils import (
     SupportedScanMode,
     find_match_indices,
     get_lines_from_content,
+    retrieve_client,
 )
 from tests.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
@@ -94,3 +100,25 @@ def test_make_indices_patch(client, cache, name, content, is_patch, expected_ind
         assert expected_indices.line_index_end == match_indices.line_index_end
         assert expected_indices.index_start == match_indices.index_start
         assert expected_indices.index_end == match_indices.index_end
+
+
+def test_retrieve_client_invalid_api_url():
+    """
+    GIVEN a GITGUARDIAN_API_URL missing its https scheme
+    WHEN retrieve_client() is called
+    THEN it raises a ClickException
+    """
+    with pytest.raises(click.ClickException, match="Invalid protocol"):
+        with mock.patch.dict(os.environ, {"GITGUARDIAN_API_URL": "no-scheme.com"}):
+            retrieve_client(Config())
+
+
+def test_retrieve_client_invalid_api_key():
+    """
+    GIVEN a GITGUARDIAN_API_KEY with a non-latin-1 character
+    WHEN retrieve_client() is called
+    THEN it raises a ClickException
+    """
+    with pytest.raises(click.ClickException, match="Invalid value for API Key"):
+        with mock.patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "\u2023"}):
+            retrieve_client(Config())
