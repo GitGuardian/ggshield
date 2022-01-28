@@ -11,7 +11,7 @@
 
 # export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
 
-# (set this if you are using a self-hosted GitGuardian instance)
+# Set this if you use a self-hosted GitGuardian instance
 # export GITGUARDIAN_API_URL="https://dashboard.gitguardian.mycorp.local/exposed/"
 
 set -e
