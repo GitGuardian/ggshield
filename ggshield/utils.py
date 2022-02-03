@@ -74,13 +74,12 @@ class Filemode(Enum):
 
 
 def get_lines_from_content(
-    content: str, filemode: Filemode, is_patch: bool, show_secrets: bool
+    content: str, filemode: Filemode, is_patch: bool
 ) -> List[Line]:
     """
     Return the secrets and the lines with line number.
 
     :param scan_result: Scan result from the API call
-    :param show_secrets: Option to hide secrets value
     :param is_patch: Is the content a patch
     """
 

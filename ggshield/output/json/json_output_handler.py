@@ -64,9 +64,7 @@ class JSONOutputHandler(OutputHandler):
         if not self.show_secrets:
             content = censor_content(result.content, result.scan.policy_breaks)
 
-        lines = get_lines_from_content(
-            content, result.filemode, is_patch, self.show_secrets
-        )
+        lines = get_lines_from_content(content, result.filemode, is_patch)
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
 
         result_dict["total_incidents"] = len(sha_dict)
