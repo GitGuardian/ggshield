@@ -27,12 +27,12 @@ class TestPathScan:
     """
 
     def create_files(self):
-        os.system('echo "This is a file with no secrets." > file1')
-        os.system('echo "This is a file with no secrets." > file2')
+        Path("file1").write_text("This is a file with no secrets.")
+        Path("file2").write_text("This is a file with no secrets.")
 
     @my_vcr.use_cassette("test_scan_file")
     def test_scan_file(self, cli_fs_runner):
-        os.system('echo "This is a file with no secrets." > file')
+        Path("file").write_text("This is a file with no secrets.")
         assert os.path.isfile("file")
 
         result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "file"])
@@ -40,7 +40,7 @@ class TestPathScan:
         assert "No secrets have been found" in result.output
 
     def test_scan_file_secret(self, cli_fs_runner):
-        os.system(f'echo "{UNCHECKED_SECRET}" > file_secret')  # nosec
+        Path("file_secret").write_text(UNCHECKED_SECRET)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):
@@ -54,7 +54,7 @@ class TestPathScan:
             )
 
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
-        os.system(f'echo "{VALID_SECRET}" > file_secret')  # nosec
+        Path("file_secret").write_text(VALID_SECRET)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret_with_validity"):
@@ -69,7 +69,7 @@ class TestPathScan:
     @pytest.mark.parametrize("validity", [True, False])
     def test_scan_file_secret_json_with_validity(self, cli_fs_runner, validity):
         secret = VALID_SECRET if validity else UNCHECKED_SECRET
-        os.system(f'echo "{secret}" > file_secret')  # nosec
+        Path("file_secret").write_text(secret)
         assert os.path.isfile("file_secret")
 
         cassette_name = f"test_scan_file_secret-{validity}"
@@ -86,7 +86,7 @@ class TestPathScan:
             assert '"validity": "valid"' not in result.output
 
     def test_scan_file_secret_exit_zero(self, cli_fs_runner):
-        os.system(f'echo "{UNCHECKED_SECRET}" > file_secret')  # nosec
+        Path("file_secret").write_text(UNCHECKED_SECRET)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):
@@ -155,13 +155,19 @@ class TestScanDirectory:
     Tests related to ggshield scan path -r
     """
 
+    @staticmethod
+    def path_line(path_str):
+        # Turn a path string into a \n terminated line
+        # Takes care of Windows paths
+        return str(Path(path_str)) + "\n"
+
     def create_files(self):
         os.makedirs("dir", exist_ok=True)
         os.makedirs("dir/subdir", exist_ok=True)
-        os.system('echo "This is a file with no secrets." > file1')
-        os.system('echo "This is a file with no secrets." > dir/file2')
-        os.system('echo "This is a file with no secrets." > dir/subdir/file3')
-        os.system('echo "This is a file with no secrets." > dir/subdir/file4')
+        Path("file1").write_text("This is a file with no secrets.")
+        Path("dir/file2").write_text("This is a file with no secrets.")
+        Path("dir/subdir/file3").write_text("This is a file with no secrets.")
+        Path("dir/subdir/file4").write_text("This is a file with no secrets.")
 
     def test_directory_error(self, cli_fs_runner):
         result = cli_fs_runner.invoke(cli, ["scan", "path", "-r", "./ewe-failing-test"])
@@ -190,8 +196,8 @@ class TestScanDirectory:
         )
         assert not result.exception
         assert "file1\n" in result.output
-        assert "dir/file2\n" in result.output
-        assert "dir/subdir/file3\n" in result.output
+        assert self.path_line("dir/file2") in result.output
+        assert self.path_line("dir/subdir/file3") in result.output
         assert "No secrets have been found" in result.output
 
     def test_directory_verbose_abort(self, cli_fs_runner):
@@ -231,8 +237,8 @@ class TestScanDirectory:
         result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "./", "-r", "-y"])
         assert not result.exception
         assert "file1\n" in result.output
-        assert "dir/file2\n" in result.output
-        assert "dir/subdir/file3\n" in result.output
+        assert self.path_line("dir/file2") in result.output
+        assert self.path_line("dir/subdir/file3") in result.output
         assert "No secrets have been found" in result.output
 
     def test_scan_path_should_detect_non_git_files(self, cli_fs_runner):
@@ -242,14 +248,14 @@ class TestScanDirectory:
         THEN those files should still be picked on by ggshield for analysis
         """
         os.makedirs("git_repo")
-        os.system(
-            'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > git_repo/committed_file.js'
+        Path("git_repo/committed_file.js").write_text(
+            "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx"
         )
         os.system("git init")
         os.system("git add .")
         os.system("git commit -m 'initial commit'")
-        os.system(
-            'echo "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx" > git_repo/not_committed.js'
+        Path("git_repo/not_committed.js").write_text(
+            "NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxx"
         )
 
         result = cli_fs_runner.invoke(cli, ["scan", "-v", "path", "--recursive", "."])
@@ -279,7 +285,7 @@ class TestScanDirectory:
         THEN ignored patterns by default should NOT be used
         """
         path = create_normally_ignored_file()
-        os.system('echo "ignore-default-excludes: true" > .gitguardian.yml')
+        Path(".gitguardian.yml").write_text("ignore-default-excludes: true")
 
         with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
             result = cli_fs_runner.invoke(
@@ -323,7 +329,7 @@ class TestScanDirectory:
         banlisted_detectors,
         nb_secret,
     ):
-        os.system(f'echo "{_ONE_LINE_AND_MULTILINE_PATCH}" > file_secret')  # nosec
+        Path("file_secret").write_text(_ONE_LINE_AND_MULTILINE_PATCH)
 
         with my_vcr.use_cassette("_ONE_LINE_AND_MULTILINE_PATCH"):
             result = cli_fs_runner.invoke(
