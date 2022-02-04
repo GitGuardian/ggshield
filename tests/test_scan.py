@@ -8,11 +8,11 @@ from ggshield.utils import SupportedScanMode
 from tests.conftest import _SIMPLE_SECRET
 
 
-def test_cd_context_manager():
+def test_cd_context_manager(tmpdir):
     prev = os.getcwd()
-    target = os.path.realpath("/tmp")
-    with cd(target):
-        assert os.getcwd() == target
+    assert prev != tmpdir
+    with cd(tmpdir):
+        assert os.getcwd() == tmpdir
     assert os.getcwd() == prev
 
 
