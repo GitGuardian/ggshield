@@ -83,6 +83,18 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
 # Installation
 
+## On MacOS
+### Using Homebrew
+
+You can install ggshield using Homebrew by running the following command:
+
+```shell
+$ brew install gitguardian/tap/ggshield
+```
+
+## On other Operating Systems
+### Using pip
+
 Install and update using `pip`:
 
 ```shell
