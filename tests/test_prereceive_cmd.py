@@ -3,7 +3,19 @@ from unittest.mock import Mock, patch
 from click.testing import CliRunner
 
 from ggshield.cmd import cli
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE
+from ggshield.scan import Result, ScanCollection
+from ggshield.utils import EMPTY_SHA, EMPTY_TREE, Filemode
+
+from .conftest import (
+    _SIMPLE_SECRET_PATCH,
+    _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+    _SIMPLE_SECRET_TOKEN,
+)
+
+
+def contains_secret(line: str, secret: str) -> bool:
+    """Returns True if `line` contains an obfuscated version of `secret`"""
+    return f'"{secret[:6]}' in line and f'{secret[-6:]}"' in line
 
 
 class TestPreReceive:
@@ -119,35 +131,52 @@ class TestPreReceive:
         assert result.exit_code == 0
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
-    def test_stdin_skip_web_pushes(
+    @patch("ggshield.dev_scan.scan_commit")
+    def test_stdin_supports_gitlab_web_ui(
         self,
-        scan_commit_range_mock: Mock,
+        scan_commit_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
         """
-        GIVEN 20 commits through stdin input but it's a webpush and --web was not passed
-        WHEN the command is run
-        THEN it should return 0 and display SKIP
+        GIVEN 1 webpush commit
+        WHEN the command is run and there are secrets
+        THEN it should return a special remediation message
+        AND the GL-HOOK-ERR line should be there
+        AND it should contain an obfuscated version of the secret
         """
-        get_list_mock.return_value = ["a" for _ in range(20)]
+        old_sha = "56781234"
+        new_sha = "1234abcd"
+        get_list_mock.return_value = [new_sha]
+        scan_commit_mock.return_value = ScanCollection(
+            new_sha,
+            type="commit",
+            results=[
+                Result(
+                    _SIMPLE_SECRET_PATCH,
+                    Filemode.MODIFY,
+                    "server.conf",
+                    _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                )
+            ],
+        )
 
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
+            input=f"{old_sha}\n{new_sha}\norigin/main\n",
             env={
                 "GL_PROTOCOL": "web",
             },
         )
-        get_list_mock.assert_not_called()
-        scan_commit_range_mock.assert_not_called()
-        assert (
-            "GL-HOOK-ERR: SKIP: web push detected. Skipping GitGuardian pre-receive hook.\n"
-            in result.output
-        )
-        assert result.exit_code == 0
+        get_list_mock.assert_called_once_with(f"--max-count=51 {old_sha}...{new_sha}")
+        scan_commit_mock.assert_called_once()
+        web_ui_lines = [
+            x for x in result.output.splitlines() if x.startswith("GL-HOOK-ERR: ")
+        ]
+        assert web_ui_lines
+        assert any(contains_secret(x, _SIMPLE_SECRET_TOKEN) for x in web_ui_lines)
+        assert result.exit_code == 1
 
     @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
     @patch("ggshield.pre_receive_cmd.scan_commit_range")

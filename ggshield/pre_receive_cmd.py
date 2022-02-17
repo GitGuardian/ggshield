@@ -7,6 +7,7 @@ from typing import Any, List
 import click
 
 from ggshield.dev_scan import scan_commit_range
+from ggshield.output import GitLabWebUIOutputHandler
 from ggshield.text_utils import display_error
 from ggshield.utils import (
     EMPTY_SHA,
@@ -67,7 +68,8 @@ def get_breakglass_option() -> bool:
     "--web",
     is_flag=True,
     default=None,
-    help="Scan commits added through the web interface (gitlab only)",
+    help="Deprecated",
+    hidden=True,
 )
 @click.pass_context
 def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) -> int:
@@ -75,17 +77,14 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     scan as a pre-receive git hook.
     """
     config = ctx.obj["config"]
+    output_handler = ctx.obj["output_handler"]
+
+    if os.getenv("GL_PROTOCOL") == "web":
+        # We are inside GitLab web UI
+        output_handler = GitLabWebUIOutputHandler(show_secrets=config.show_secrets)
 
     if get_breakglass_option():
         click.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
-
-        return 0
-
-    if not web and os.getenv("GL_PROTOCOL", "") == "web":
-        click.echo(
-            "GL-HOOK-ERR: SKIP: web push detected. Skipping GitGuardian pre-receive hook."
-        )
-
         return 0
 
     args = sys.stdin.read().strip().split()
@@ -142,7 +141,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 commit_list=commit_list,
-                output_handler=ctx.obj["output_handler"],
+                output_handler=output_handler,
                 verbose=config.verbose,
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
                 matches_ignore=config.matches_ignore,
