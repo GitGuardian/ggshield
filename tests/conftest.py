@@ -114,8 +114,9 @@ VALID_SECRET = (
 
 _SIMPLE_SECRET = UNCHECKED_SECRET
 
-_SIMPLE_SECRET_PATCH = """@@ -0,0 +1 @@
-+github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
+_SIMPLE_SECRET_TOKEN = "368ac3edf9e850d1c0ff9d6c526496f8237ddf91"
+_SIMPLE_SECRET_PATCH = f"""@@ -0,0 +1 @@
++github_token: {_SIMPLE_SECRET_TOKEN}
 """
 _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
@@ -126,7 +127,7 @@ _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                 "policy": "Secrets Detection",
                 "matches": [
                     {
-                        "match": "368ac3edf9e850d1c0ff9d6c526496f8237ddf91",  # noqa
+                        "match": _SIMPLE_SECRET_TOKEN,
                         "type": "apikey",
                         "index_start": 29,
                         "index_end": 69,
@@ -152,7 +153,7 @@ _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                 "policy": "Secrets Detection",
                 "matches": [
                     {
-                        "match": "368ac3edf9e850d1c0ff9d6c526496f8237ddf91",  # noqa
+                        "match": _SIMPLE_SECRET_TOKEN,  # noqa
                         "type": "apikey",
                         "index_start": 29,
                         "index_end": 69,

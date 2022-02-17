@@ -48,6 +48,14 @@ class ScanCollection(NamedTuple):
             return [scan for scan in self.scans if scan.results]
         return []
 
+    def get_all_results(self) -> Iterable[Result]:
+        """Returns an iterable on all results and sub-scan results"""
+        if self.results:
+            yield from self.results
+        if self.scans:
+            for scan in self.scans:
+                yield from scan.results
+
 
 class File:
     """Class representing a simple file."""
