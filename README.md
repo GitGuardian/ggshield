@@ -698,16 +698,14 @@ $ git push --push-option=breakglass
 
 ## Install ggshield git pre-receive hook
 
-[**pre-receive.sample**](doc/pre-receive.sample)
-
 1. This pre-receive hook requires the host machine to have python>=3.8 and pip installed
 1. Install ggshield from pip: `pip install ggshield`
-1. Move `pre-receive.sample` to `.git/hooks/pre-receive` or to your provider's git hook directory
-
-   - https://docs.gitlab.com/ee/administration/server_hooks.html
+1. Move [**pre-receive.sample**](doc/pre-receive.sample) to `.git/hooks/pre-receive` or to your provider's git hook directory:
+   - [GitHub Enterprise](https://docs.github.com/en/enterprise-server@3.4/admin/policies/enforcing-policy-with-pre-receive-hooks/managing-pre-receive-hooks-on-the-github-enterprise-server-appliance)
+   - [GitLab](https://docs.gitlab.com/ee/administration/server_hooks.html)
 
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
-1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
+1. Either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
 **How do I add ignored matches and use a custom config in this pre-receive hook?**
 
@@ -726,12 +724,10 @@ $ git push --push-option=breakglass
 > For the pre-receive hook to work, the directory where the repositories are stored
 > must also be mounted on the container.
 
-[**pre-receive-docker.sample**](doc/pre-receive-docker.sample)
-
 1. This pre-receive hook requires the host machine to have docker installed.
-1. Move `pre-receive-docker.sample` to `.git/hooks/pre-receive`
+1. Move [**pre-receive-docker.sample**](doc/pre-receive-docker.sample) to `.git/hooks/pre-receive`
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
-1. either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
+1. Either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
 # Docker
 
