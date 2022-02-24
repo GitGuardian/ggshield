@@ -20,11 +20,11 @@ REGEX_PATCH_HEADER = re.compile(
 
 # Source: https://github.com/jonschlinkert/is-git-url MIT LICENSE
 REGEX_GIT_URL = re.compile(
-    r"(?:git|ssh|https?|git@[-\w.]+):(\/\/)?(.*?)(\.git)(\/?|\#[-\d\w._]+?)$"
+    r"(?:git|ssh|https?|git@[-\w.]+):(//)?(.*?)(\.git)(/?|#[-\d\w._]+?)$"
 )
 
 REGEX_HEADER_INFO = re.compile(
-    r"Author:\s(?P<author>.+?)\ <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
+    r"Author:\s(?P<author>.+?) <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
 )
 
 EMPTY_SHA = "0000000000000000000000000000000000000000"
