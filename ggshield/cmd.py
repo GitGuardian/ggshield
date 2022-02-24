@@ -7,7 +7,7 @@ import click
 
 from .ci import ci_cmd
 from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
-from .dev_scan import path_cmd, range_cmd, repo_cmd
+from .dev_scan import archive_cmd, path_cmd, range_cmd, repo_cmd
 from .docker import docker_archive_cmd, docker_name_cmd
 from .filter import init_exclusion_regexes
 from .hook_cmd import precommit_cmd, prepush_cmd
@@ -53,6 +53,7 @@ def get_max_commits_for_hook() -> Optional[int]:
         "docker": docker_name_cmd,
         "docker-archive": docker_archive_cmd,
         "pypi": pypi_cmd,
+        "archive": archive_cmd,
     },
 )
 @click.option(

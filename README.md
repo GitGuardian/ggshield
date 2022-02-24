@@ -84,6 +84,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 # Installation
 
 ## On MacOS
+
 ### Using Homebrew
 
 You can install ggshield using Homebrew by running the following command:
@@ -93,6 +94,7 @@ $ brew install gitguardian/tap/ggshield
 ```
 
 ## On other Operating Systems
+
 ### Using pip
 
 Install and update using `pip`:
@@ -250,6 +252,13 @@ Commands:
   You can use `pip` environment variables or configuration files to set `pip download` parameters as explained in [pip documentation](https://pip.pypa.io/en/stable/topics/configuration/#environment-variables)
   For example, you can set `pip` `--index-url` parameter by setting `PIP_INDEX_URL` environment variable.
 
+- `archive`: scan an archive files.
+
+  ```
+  scan archive <PATH>
+  ```
+
+  No options or arguments.
 
 ## Install command
 

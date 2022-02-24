@@ -231,6 +231,7 @@ class SupportedScanMode(Enum):
     CI = "ci"
     DOCKER = "docker"
     PYPI = "pypi"
+    ARCHIVE = "archive"
 
 
 json_output_option_decorator = click.option(
