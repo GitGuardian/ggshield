@@ -8,6 +8,7 @@ import yaml
 from dotenv import load_dotenv
 from pygitguardian.models import PolicyBreak
 
+from ggshield.config_types import IgnoredMatch
 from ggshield.filter import get_ignore_sha
 
 from .git_shell import get_git_root, is_git_dir
@@ -39,8 +40,8 @@ class Config:
     all_policies: bool
     api_url: str
     exit_zero: bool
-    matches_ignore: List
-    paths_ignore: Set
+    matches_ignore: List[IgnoredMatch]
+    paths_ignore: Set[str]
     show_secrets: bool
     verbose: bool
     allow_self_signed: bool
