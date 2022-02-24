@@ -79,7 +79,8 @@ def get_lines_from_content(
     """
     Return the secrets and the lines with line number.
 
-    :param scan_result: Scan result from the API call
+    :param content: Content to scan
+    :param filemode: Filemode of the content
     :param is_patch: Is the content a patch
     """
 

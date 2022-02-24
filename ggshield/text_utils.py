@@ -36,13 +36,10 @@ class Line(NamedTuple):
     Line object making easier to handle line
     by line display.
 
-    :param content: Content of the line
-    :param category: The line category [+|-| ]
-        (addition, deletion, untouched)
-    :param pre_index: Line index
-        (deletion for patches, line index for files)
-    :param post_index: Line index
-        (addition for patches)
+    - content: Content of the line
+    - category: The line category [+|-| ] (addition, deletion, untouched)
+    - pre_index: Line index (deletion for patches, line index for files)
+    - post_index: Line index (addition for patches)
     """
 
     content: str

@@ -16,7 +16,7 @@ repos:
     rev: v0.910-1
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests, types-pyyaml]
+        additional_dependencies: [types-requests, types-pyyaml, types-click]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
