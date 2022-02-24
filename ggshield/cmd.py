@@ -15,6 +15,7 @@ from .ignore import ignore
 from .install import install
 from .output import JSONOutputHandler, OutputHandler, TextOutputHandler
 from .pre_receive_cmd import prereceive_cmd
+from .pypi import pypi_cmd
 from .quota import quota
 from .status import status
 from .text_utils import display_error
@@ -51,6 +52,7 @@ def get_max_commits_for_hook() -> Optional[int]:
         "repo": repo_cmd,
         "docker": docker_name_cmd,
         "docker-archive": docker_archive_cmd,
+        "pypi": pypi_cmd,
     },
 )
 @click.option(

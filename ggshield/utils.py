@@ -230,6 +230,7 @@ class SupportedScanMode(Enum):
     PRE_RECEIVE = "pre_receive"
     CI = "ci"
     DOCKER = "docker"
+    PYPI = "pypi"
 
 
 json_output_option_decorator = click.option(

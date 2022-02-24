@@ -238,6 +238,19 @@ Commands:
     -h, --help  Show this message and exit.
   ```
 
+- `pypi`: scan a pypi package.
+
+  ```
+  ggshield scan pypi PACKAGE_NAME
+  ```
+
+  No options or arguments.
+
+  Under the hood this command uses the `pip download` command to download the python package.
+  You can use `pip` environment variables or configuration files to set `pip download` parameters as explained in [pip documentation](https://pip.pypa.io/en/stable/topics/configuration/#environment-variables)
+  For example, you can set `pip` `--index-url` parameter by setting `PIP_INDEX_URL` environment variable.
+
+
 ## Install command
 
 The `install` command allows you to use ggshield as a pre-commit or pre-push hook
