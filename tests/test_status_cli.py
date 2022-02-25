@@ -4,9 +4,10 @@ import pytest
 
 from ggshield.cmd import cli
 
-from .conftest import my_vcr
+from .conftest import my_vcr, skipwindows
 
 
+@skipwindows
 @pytest.mark.parametrize(
     "cassette, json_output",
     [
@@ -24,6 +25,7 @@ def test_quota(cassette, json_output, snapshot, cli_fs_runner):
         snapshot.assert_match(result.output)
 
 
+@skipwindows
 @pytest.mark.parametrize(
     "cassette, json_output",
     [

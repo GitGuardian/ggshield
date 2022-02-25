@@ -11,6 +11,7 @@ from .conftest import (
     UNCHECKED_SECRET,
     VALID_SECRET,
     my_vcr,
+    skipwindows,
 )
 
 
@@ -208,6 +209,7 @@ class TestScanDirectory:
         assert result.exit_code == 0
         assert not result.exception
 
+    @skipwindows
     def test_directory_verbose_ignored_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
@@ -265,6 +267,7 @@ class TestScanDirectory:
         ), "not_committed files not should have been ignored"
         assert result.exception is None
 
+    @skipwindows
     def test_ignore_default_excludes(self, cli_fs_runner):
         """
         GIVEN a path scan

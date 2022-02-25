@@ -19,9 +19,11 @@ from tests.conftest import (
     _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+    skipwindows,
 )
 
 
+@skipwindows
 @pytest.mark.parametrize(
     "show_secrets",
     [pytest.param(True, id="show_secrets"), pytest.param(False, id="hide_secrets")],
