@@ -4,10 +4,9 @@ import pytest
 
 from ggshield.cmd import cli
 
-from .conftest import my_vcr, skipwindows
+from .conftest import my_vcr
 
 
-@skipwindows
 @pytest.mark.parametrize(
     "cassette, json_output",
     [
@@ -20,12 +19,11 @@ from .conftest import my_vcr, skipwindows
 def test_quota(cassette, json_output, snapshot, cli_fs_runner):
     with my_vcr.use_cassette(cassette):
         cmd = ["quota", "--json"] if json_output else ["quota"]
-        result = cli_fs_runner.invoke(cli, cmd, color=True)
+        result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert result.exit_code == 0
         snapshot.assert_match(result.output)
 
 
-@skipwindows
 @pytest.mark.parametrize(
     "cassette, json_output",
     [
@@ -37,7 +35,7 @@ def test_quota(cassette, json_output, snapshot, cli_fs_runner):
 def test_api_status(cassette, json_output, snapshot, cli_fs_runner):
     with my_vcr.use_cassette(cassette):
         cmd = ["api-status", "--json"] if json_output else ["api-status"]
-        result = cli_fs_runner.invoke(cli, cmd, color=True)
+        result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert result.exit_code == 0
         snapshot.assert_match(result.output)
 
