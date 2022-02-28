@@ -9,6 +9,7 @@ from ggshield.scan.docker import (
     _should_scan_layer,
     get_files_from_docker_archive,
 )
+from tests.conftest import skipwindows
 
 
 DOCKER_EXAMPLE_PATH = Path(__file__).parent.parent / "data" / "docker-example.tar.xz"
@@ -77,6 +78,7 @@ class TestDockerScan:
         with pytest.raises(InvalidDockerArchiveException, match=match):
             _get_config(tarfile)
 
+    @skipwindows
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )

@@ -1,6 +1,8 @@
 import copy
 import random
-from typing import Iterable, List, Set
+import re
+from pathlib import Path
+from typing import Iterable, List, Set, Union
 
 import pytest
 from pygitguardian.models import Match, PolicyBreak, ScanResult
@@ -10,6 +12,7 @@ from ggshield.filter import (
     censor_content,
     censor_match,
     get_ignore_sha,
+    is_filepath_excluded,
     remove_ignored_from_result,
 )
 
@@ -256,3 +259,18 @@ def test_censor_content(content: str, policy_breaks: List[PolicyBreak]) -> None:
     for policy_break in policy_breaks:
         for match in policy_break.matches:
             assert match.match not in new_content
+
+
+@pytest.mark.parametrize(
+    "path,regexes,excluded",
+    [
+        ("foo", {"foo"}, True),
+        (Path("dir/foo"), {"foo"}, True),
+    ],
+)
+def test_is_filepath_excluded(
+    path: Union[str, Path], regexes: Set[str], excluded: bool
+) -> None:
+    path = str(path)
+    regexes = {re.compile(x) for x in regexes}
+    assert is_filepath_excluded(path, regexes) == excluded

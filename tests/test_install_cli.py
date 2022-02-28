@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -43,7 +44,7 @@ class TestInstallLocal:
 
     def test_local_exist_not_force(self, cli_fs_runner):
         os.makedirs(".git/hooks", exist_ok=True)
-        os.system('echo "pre-commit file" > .git/hooks/pre-commit')
+        Path(".git/hooks/pre-commit").write_text("pre-commit file")
         assert os.path.isfile(".git/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
@@ -53,7 +54,7 @@ class TestInstallLocal:
 
     def test_local_exist_force(self, cli_fs_runner):
         os.makedirs(".git/hooks", exist_ok=True)
-        os.system('echo "pre-commit file" > .git/hooks/pre-commit')
+        Path(".git/hooks/pre-commit").write_text("pre-commit file")
         assert os.path.isfile(".git/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-f", "-m", "local"])
@@ -250,7 +251,7 @@ class TestInstallGlobal:
 
     def test_global_exist_not_force(self, cli_fs_runner, mockHookDirPath):
         os.makedirs("global/hooks", exist_ok=True)
-        os.system('echo "pre-commit file" > global/hooks/pre-commit')
+        Path("global/hooks/pre-commit").write_text("pre-commit file")
         assert os.path.isfile("global/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
@@ -260,7 +261,7 @@ class TestInstallGlobal:
 
     def test_global_exist_force(self, cli_fs_runner, mockHookDirPath):
         os.makedirs("global/hooks", exist_ok=True)
-        os.system('echo "pre-commit file" > global/hooks/pre-commit')
+        Path("global/hooks/pre-commit").write_text("pre-commit file")
         assert os.path.isfile("global/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global", "-f"])
