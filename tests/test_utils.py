@@ -86,7 +86,6 @@ def test_make_indices_patch(client, cache, name, content, is_patch, expected_ind
         content=result.content,
         filemode=result.filemode,
         is_patch=is_patch,
-        show_secrets=True,
     )
     matches = [
         match

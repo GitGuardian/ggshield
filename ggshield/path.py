@@ -27,7 +27,6 @@ def get_files_from_paths(
     Create a scan object from files content.
 
     :param paths: List of file/dir paths from the command
-    :param paths_ignore: List of file/dir paths to ignore (glob pattern)
     :param recursive: Recursive option
     :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned

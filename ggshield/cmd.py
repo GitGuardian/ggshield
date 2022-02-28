@@ -164,7 +164,7 @@ def scan(
 scan = cast(click.Group, json_output_option_decorator(scan))
 
 
-@scan.resultcallback()
+@scan.result_callback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     """

@@ -13,6 +13,7 @@ from ggshield.scan import Commit, ScanCollection
 from ggshield.text_utils import STYLE, format_text
 
 from .config import CPU_COUNT, Cache, Config
+from .config_types import IgnoredMatch
 from .git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from .path import get_files_from_paths
 from .utils import REGEX_GIT_URL, SupportedScanMode, handle_exception
@@ -186,7 +187,7 @@ def scan_commit(
     client: GGClient,
     cache: Cache,
     verbose: bool,
-    matches_ignore: Iterable[str],
+    matches_ignore: Iterable[IgnoredMatch],
     all_policies: bool,
     mode_header: str,
     banlisted_detectors: Optional[Set[str]] = None,
@@ -217,7 +218,7 @@ def scan_commit_range(
     output_handler: OutputHandler,
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
-    matches_ignore: Iterable[str],
+    matches_ignore: Iterable[IgnoredMatch],
     all_policies: bool,
     scan_id: str,
     mode_header: str,

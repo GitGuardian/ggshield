@@ -84,9 +84,7 @@ class TextOutputHandler(OutputHandler):
         else:
             content = censor_content(result.content, result.scan.policy_breaks)
 
-        lines = get_lines_from_content(
-            content, result.filemode, is_patch, self.show_secrets
-        )
+        lines = get_lines_from_content(content, result.filemode, is_patch)
         padding = get_padding(lines)
         offset = get_offset(padding, is_patch)
 

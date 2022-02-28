@@ -3,10 +3,12 @@ import math
 import operator
 import re
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 import click
 from pygitguardian.models import Match, PolicyBreak, ScanResult
+
+from ggshield.config_types import IgnoredMatch
 
 
 REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")
@@ -22,7 +24,9 @@ MAXIMUM_CENSOR_LENGTH = 60
 
 
 def is_ignored(
-    policy_break: PolicyBreak, all_policies: bool, matches_ignore: Iterable[Any]
+    policy_break: PolicyBreak,
+    all_policies: bool,
+    matches_ignore: Iterable[IgnoredMatch],
 ) -> bool:
     """
     is_ignored checks if a occurrence is ignored.
@@ -32,7 +36,6 @@ def is_ignored(
 
     :param policy_break: Policy Break occurrence to judge
     :param matches_ignore: Iterable of match ignores
-    (plaintext secrets of SHAs or this type{"name": some_name, "match": sha})
     :return: True if ignored
     """
 
@@ -49,7 +52,7 @@ def is_ignored(
 
 
 def remove_ignored_from_result(
-    scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[Any]
+    scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[IgnoredMatch]
 ) -> None:
     """
     remove_ignored removes occurrences from a Scan Result based on a sha

@@ -249,7 +249,7 @@ def test_censor_match(input_match: Match, expected_value: str) -> None:
         ),
     ],
 )
-def test_censor_content(content: str, policy_breaks: PolicyBreak) -> None:
+def test_censor_content(content: str, policy_breaks: List[PolicyBreak]) -> None:
     copy_policy_breaks = copy.deepcopy(policy_breaks)
     new_content = censor_content(content, copy_policy_breaks)
     assert len(new_content) == len(content)

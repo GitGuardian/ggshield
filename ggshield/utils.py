@@ -20,11 +20,11 @@ REGEX_PATCH_HEADER = re.compile(
 
 # Source: https://github.com/jonschlinkert/is-git-url MIT LICENSE
 REGEX_GIT_URL = re.compile(
-    r"(?:git|ssh|https?|git@[-\w.]+):(\/\/)?(.*?)(\.git)(\/?|\#[-\d\w._]+?)$"
+    r"(?:git|ssh|https?|git@[-\w.]+):(//)?(.*?)(\.git)(/?|#[-\d\w._]+?)$"
 )
 
 REGEX_HEADER_INFO = re.compile(
-    r"Author:\s(?P<author>.+?)\ <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
+    r"Author:\s(?P<author>.+?) <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
 )
 
 EMPTY_SHA = "0000000000000000000000000000000000000000"
@@ -74,13 +74,13 @@ class Filemode(Enum):
 
 
 def get_lines_from_content(
-    content: str, filemode: Filemode, is_patch: bool, show_secrets: bool
+    content: str, filemode: Filemode, is_patch: bool
 ) -> List[Line]:
     """
     Return the secrets and the lines with line number.
 
-    :param scan_result: Scan result from the API call
-    :param show_secrets: Option to hide secrets value
+    :param content: Content to scan
+    :param filemode: Filemode of the content
     :param is_patch: Is the content a patch
     """
 
