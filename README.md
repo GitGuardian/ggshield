@@ -151,27 +151,32 @@ Usage: ggshield scan [OPTIONS] COMMAND [ARGS]...
   Command to scan various contents.
 
 Options:
-  --show-secrets  Show secrets in plaintext instead of hiding them.
-  --exit-zero     Always return a 0 (non-error) status code, even if incidents
-                  are found.The env var GITGUARDIAN_EXIT_ZERO can also be used
-                  to set this option.
-
-  --json             JSON output results  [default: False]
-  --all-policies  Present fails of all policies (Filenames, FileExtensions,
-                  Secret Detection). By default, only Secret Detection is
-                  shown.
+  --show-secrets               Show secrets in plaintext instead of hiding
+                               them.
+  --exit-zero                  Always return a 0 (non-error) status code, even
+                               if incidents are found.The env var
+                               GITGUARDIAN_EXIT_ZERO can also be used to set
+                               this option.
+  --all-policies               Present fails of all policies (Filenames,
+                               FileExtensions, Secret Detection).By default,
+                               only Secret Detection is shown.
+  -v, --verbose                Verbose display mode.
+  -o, --output PATH            Route ggshield output to file.
+  -b, --banlist-detector TEXT  Exclude results from a detector.
+  --exclude PATH               Do not scan the specified path.
   --ignore-default-excludes    Ignore excluded patterns by default. [default:
                                False]
-
-  -v, --verbose   Verbose display mode.
-  -o, --output PATH  Route ggshield output to file.
-  -h, --help      Show this message and exit.
+  --json                       JSON output results  [default: False]
+  -h, --help                   Show this message and exit.
 
 Commands:
   ci            scan in a CI environment.
   commit-range  scan a defined COMMIT_RANGE in git.
+  docker        scan a docker image <NAME>.
   path          scan files and directories.
   pre-commit    scan as a pre-commit git hook.
+  pre-push      scan as a pre-push git hook.
+  pre-receive   scan as a pre-receive git hook.
   repo          scan a REPOSITORY's commits at a given URL or path.
 ```
 
