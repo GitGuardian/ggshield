@@ -75,7 +75,7 @@ def get_filepaths(
                 )
             top_dir = Path(path)
 
-            if is_git_dir(path) and not ignore_git:
+            if not ignore_git and is_git_dir(path):
                 _targets = {os.path.join(path, target) for target in git_ls(path)}
             else:
                 _targets = {str(target) for target in top_dir.rglob(r"*")}
