@@ -725,7 +725,7 @@ $ git push --push-option=breakglass
 > must also be mounted on the container.
 
 1. This pre-receive hook requires the host machine to have docker installed.
-1. Move [**pre-receive-docker.sample**](doc/pre-receive-docker.sample) to `.git/hooks/pre-receive`
+1. Copy [**pre-receive-docker.sample**](doc/pre-receive-docker.sample) to `.git/hooks/pre-receive`
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
 1. Either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
