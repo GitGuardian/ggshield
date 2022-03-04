@@ -1,3 +1,0 @@
-include:
-  - project: 'gg-code/sre/gitguardian-oss'
-    file: '/ggshield.yml'
