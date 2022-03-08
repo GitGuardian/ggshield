@@ -435,6 +435,9 @@ after the specified value. Set to 0 to disable the timeout
 
 GITGUARDIAN_MAX_COMMITS_FOR_HOOK: if set to an int, `ggshield scan pre-receive` and `ggshield scan pre-push`
 will not scan more than the specified value of commits in a single scan.
+
+GITGUARDIAN_CRASH_LOG: If set to True, ggshield will display a full traceback
+when crashing
 ```
 
 ## On-premises configuration

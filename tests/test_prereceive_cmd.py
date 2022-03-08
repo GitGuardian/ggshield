@@ -1,3 +1,5 @@
+import os
+import time
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
@@ -328,3 +330,37 @@ class TestPreReceive:
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
+
+    @patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": "0.1"})
+    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
+    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    def test_timeout(
+        self,
+        scan_commit_range_mock: Mock,
+        get_list_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a scan taking too long
+        WHEN ggshield hits the timeout
+        THEN it stops and return 0
+        """
+
+        def sleepy_scan(*args, **kwargs):
+            # Sleep for 5 seconds. Do not use a time.sleep(5) because our time limit is
+            # not able to interrupt it before it ends.
+            for _ in range(100):
+                time.sleep(0.05)
+
+        scan_commit_range_mock.side_effect = sleepy_scan
+        scan_commit_range_mock.return_value = 2
+        get_list_mock.return_value = ["a" for _ in range(20)]
+
+        start = time.time()
+        result = cli_fs_runner.invoke(
+            cli, ["-v", "scan", "pre-receive"], input="bbbb\naaaa\norigin/main\n"
+        )
+        duration = time.time() - start
+        assert duration < 0.3
+        assert result.exit_code == 0
+        scan_commit_range_mock.assert_called_once()
