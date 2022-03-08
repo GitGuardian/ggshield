@@ -2,7 +2,8 @@ import _thread as thread
 import os
 import sys
 import threading
-from typing import Any, List
+from types import TracebackType
+from typing import List, Optional, Type
 
 import click
 
@@ -20,7 +21,7 @@ from ggshield.utils import (
 from .git_shell import get_list_commit_SHA
 
 
-def quit_function() -> None:  # pragma: no cover
+def quit_function() -> None:
     display_error("\nPre-receive hook took too long")
     thread.interrupt_main()  # raises KeyboardInterrupt
 
@@ -37,9 +38,18 @@ class ExitAfter:
             self.timer = threading.Timer(self.timeout_secs, quit_function)
             self.timer.start()
 
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         if self.timeout_secs:
             self.timer.cancel()
+        if exc_type == KeyboardInterrupt:
+            # Turn the KeyboardInterrupt raised by quit_function into a more appropriate
+            # exception
+            raise TimeoutError()
 
 
 def get_prereceive_timeout() -> float:
@@ -163,6 +173,7 @@ Use it carefully: if those secrets are false positives and you still want your p
 'git push -o breakglass'"""
                 )
             return return_code
-
+    except TimeoutError:
+        return 0
     except Exception as error:
         return handle_exception(error, config.verbose)

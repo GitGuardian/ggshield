@@ -227,13 +227,14 @@ def cli(
         ctx.obj["config"].allow_self_signed = allow_self_signed
 
 
-def cli_wrapper() -> int:
-    try:
-        return_code: int = cli.main(standalone_mode=False)
-    except click.exceptions.Abort:
-        return_code = 0
+def cli_wrapper(args: Optional[List[str]] = None) -> Any:
+    """
+    Wrapper around cli.main() to handle the GITGUARDIAN_CRASH_LOG variable.
 
-    return return_code
+    `args` is only used by unit-tests.
+    """
+    show_crash_log = os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
+    return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
 
 
 if __name__ == "__main__":
