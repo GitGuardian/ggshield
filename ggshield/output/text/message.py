@@ -9,7 +9,7 @@ from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 from ggshield.text_utils import STYLE, Line, format_text, pluralize, translate_validity
 
 
-ICON_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
+DECORATION_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
 
 # MAX_SECRET_SIZE controls the max length of |-----| under a secret
 # avoids occupying a lot of space in a CI terminal.
@@ -297,10 +297,23 @@ def secrets_engine_version() -> str:
     return f"\nsecrets-engine-version: {VERSIONS.secrets_engine_version}\n"
 
 
+def _file_info_decoration() -> str:
+    """Returns the decoration to show at the beginning of the file_info line.
+
+    The decoration can differ from one OS to the other.
+    """
+    return DECORATION_BY_OS.get(os.name, _file_info_default_decoration())
+
+
+def _file_info_default_decoration() -> str:
+    """Returns the header decoration to use if there is no OS-specific decoration"""
+    return DECORATION_BY_OS["default"]
+
+
 def file_info(filename: str, nb_secrets: int) -> str:
     """Return the formatted file info (number of secrets + filename)."""
     return "\n{} {} {} been found in file {}\n".format(
-        ICON_BY_OS.get(os.name, ICON_BY_OS["default"]),
+        _file_info_decoration(),
         format_text(str(nb_secrets), STYLE["nb_secrets"]),
         pluralize("incident has", nb_secrets, "incidents have"),
         format_text(filename, STYLE["filename"]),
