@@ -8,11 +8,10 @@ import yaml
 from dotenv import load_dotenv
 from pygitguardian.models import PolicyBreak
 
-from ggshield.config_types import IgnoredMatch
 from ggshield.filter import get_ignore_sha
-
-from .git_shell import get_git_root, is_git_dir
-from .text_utils import display_error
+from ggshield.git_shell import get_git_root, is_git_dir
+from ggshield.text_utils import display_error
+from ggshield.types import IgnoredMatch
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])

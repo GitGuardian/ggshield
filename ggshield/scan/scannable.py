@@ -8,7 +8,6 @@ from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
 from ggshield.config import CPU_COUNT, MAX_FILE_SIZE, Cache
-from ggshield.config_types import IgnoredMatch
 from ggshield.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
@@ -16,6 +15,7 @@ from ggshield.filter import (
 )
 from ggshield.git_shell import GIT_PATH, shell
 from ggshield.text_utils import STYLE, format_text
+from ggshield.types import IgnoredMatch
 from ggshield.utils import REGEX_HEADER_INFO, Filemode
 
 from .scannable_errors import handle_scan_error
