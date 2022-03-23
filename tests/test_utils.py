@@ -4,6 +4,7 @@ from unittest import mock
 import click
 import pytest
 
+from ggshield.client import retrieve_client
 from ggshield.config import Config
 from ggshield.scan import Commit
 from ggshield.scan.scannable import File, Files
@@ -12,7 +13,6 @@ from ggshield.utils import (
     SupportedScanMode,
     find_match_indices,
     get_lines_from_content,
-    retrieve_client,
 )
 from tests.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,

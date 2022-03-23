@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import pytest
 
-from ggshield.config import MAX_FILE_SIZE
+from ggshield.constants import MAX_FILE_SIZE
 from ggshield.filter import init_exclusion_regexes
 from ggshield.scan import Commit
 from ggshield.utils import Filemode, SupportedScanMode

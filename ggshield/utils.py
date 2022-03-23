@@ -1,17 +1,16 @@
 import os
 import re
 import traceback
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional
+from typing import Iterable, List, NamedTuple
 
 import click
-import urllib3
-from pygitguardian import GGClient
+from dotenv import load_dotenv
 from pygitguardian.models import Match
-from requests import Session
 
-from .config import Config
-from .text_utils import Line, LineCategory
+from .git_shell import get_git_root, is_git_dir
+from .text_utils import Line, LineCategory, display_error
 
 
 REGEX_PATCH_HEADER = re.compile(
@@ -244,29 +243,6 @@ json_output_option_decorator = click.option(
 )
 
 
-def retrieve_client(config: Config) -> GGClient:
-    api_key: Optional[str] = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri: str = os.getenv("GITGUARDIAN_API_URL", config.api_url)
-    if not api_key:
-        raise click.ClickException("GitGuardian API Key is needed.")
-
-    session = Session()
-    if config.allow_self_signed:
-        urllib3.disable_warnings()
-        session.verify = False
-
-    try:
-        return GGClient(
-            api_key=api_key,
-            base_uri=base_uri,
-            user_agent="ggshield",
-            timeout=60,
-            session=session,
-        )
-    except ValueError as e:
-        raise click.ClickException(f"Failed to create API client. {e}")
-
-
 def handle_exception(e: Exception, verbose: bool) -> int:
     """
     Handle exception from a scan command.
@@ -279,3 +255,38 @@ def handle_exception(e: Exception, verbose: bool) -> int:
         if verbose:
             traceback.print_exc()
         raise click.ClickException(str(e))
+
+
+def load_dot_env() -> None:
+    """Loads .env file into sys.environ."""
+    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
+    dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
+    cwd_env = os.path.join(".", ".env")
+    if not dont_load_env:
+        if dotenv_path and os.path.isfile(dotenv_path):
+            load_dotenv(dotenv_path, override=True)
+            return
+        elif dotenv_path:
+            display_error(
+                "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
+            )
+        if os.path.isfile(cwd_env):
+            load_dotenv(cwd_env, override=True)
+            return
+        if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
+            load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
+            return
+
+
+def isoformat_to_datetime_utc(date: str) -> datetime:
+    """
+    Ensure the text date will always be translated to UTC.
+    In case the command is run on a non UTC instance and if the given date has no timezone info,
+    the method assumes that the date is given in the local timezone.
+    """
+    date = datetime.fromisoformat(date)
+    if timezone.is_naive(date):
+        date = timezone.make_aware(date)
+    if date.tzinfo != timezone.utc:
+        return date.astimezone(timezone.utc)
+    return date

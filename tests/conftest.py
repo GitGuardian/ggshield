@@ -9,7 +9,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
-from ggshield.config import Cache
+from ggshield.cache import Cache
 
 
 os.environ.setdefault("PYTHONBREAKPOINT", "ipdb.set_trace")

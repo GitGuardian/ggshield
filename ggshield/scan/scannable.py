@@ -7,7 +7,8 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
-from ggshield.config import CPU_COUNT, MAX_FILE_SIZE, Cache
+from ggshield.cache import Cache
+from ggshield.constants import CPU_COUNT, MAX_FILE_SIZE
 from ggshield.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,

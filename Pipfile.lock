@@ -1,7 +1,7 @@
 {
   "_meta": {
     "hash": {
-      "sha256": "1a39eea6ba45cf79496f2bf7dd9662a5523839b9f4eeac1fb7e7171c6ecf8d47"
+      "sha256": "d73a74755d6b94d52a15862ea0b415049cbd25dac39c912db6cffb2f434a67bf"
     },
     "pipfile-spec": 6,
     "requires": {},
@@ -14,6 +14,14 @@
     ]
   },
   "default": {
+    "appdirs": {
+      "hashes": [
+        "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41",
+        "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"
+      ],
+      "index": "pypi",
+      "version": "==1.4.4"
+    },
     "certifi": {
       "hashes": [
         "sha256:78884e7c1d4b00ce3cea67b44566851c4343c120abd683433ce934a68ea58872",
@@ -816,7 +824,7 @@
         "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b",
         "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"
       ],
-      "markers": "python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+      "markers": "python_version >= '3.7'",
       "version": "==0.10.2"
     },
     "tomli": {

@@ -1,7 +1,7 @@
 import os
 from unittest.mock import ANY, Mock, patch
 
-from ggshield.config import Cache
+from ggshield.cache import Cache
 from ggshield.dev_scan import cd
 from ggshield.scan import Commit
 from ggshield.utils import SupportedScanMode
