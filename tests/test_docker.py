@@ -74,7 +74,7 @@ class TestDockerSave:
                 timeout=DOCKER_TIMEOUT,
             )
 
-    def test_docker_save_image_non_exist(self):
+    def test_docker_save_image_does_not_exist(self):
         with patch(
             "subprocess.run",
             side_effect=subprocess.CalledProcessError(
@@ -84,6 +84,50 @@ class TestDockerSave:
             with pytest.raises(
                 click.exceptions.ClickException,
                 match='Image "ggshield-non-existant" not found',
+            ):
+                docker_save_to_tmp(
+                    "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+                )
+
+    def test_docker_save_image_need_pull(self):
+        """
+        GIVEN a Docker image we do not have locally
+        WHEN we try to save it
+        THEN we first pull it and then save it
+
+        This test expects the following calls to `docker` commands:
+
+        - docker save <image_name> -o <something>
+          -> Fake failure
+        - docker pull <image_name>
+          -> Fake success
+        - docker save <image_name> -o <something>
+          -> Fake success
+        """
+        with patch(
+            "subprocess.run",
+            side_effect=[
+                subprocess.CalledProcessError(
+                    1, cmd=[], stderr="reference does not exist".encode("utf-8")
+                ),
+                None,
+                None,
+            ],
+        ):
+            docker_save_to_tmp(
+                "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+            )
+
+    def test_docker_save_image_fails(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(
+                1, cmd=[], stderr="docker failed weirdly".encode("utf-8")
+            ),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match="Unable to save docker archive:",
             ):
                 docker_save_to_tmp(
                     "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
