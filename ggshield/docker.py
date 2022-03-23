@@ -63,9 +63,10 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
             docker_pull_image(image_name, timeout)
 
             docker_save_to_tmp(image_name, destination_path, timeout)
-        raise click.ClickException(
-            f"Unable to save docker archive:\nError: {err_string}"
-        )
+        else:
+            raise click.ClickException(
+                f"Unable to save docker archive:\nError: {err_string}"
+            )
     except subprocess.TimeoutExpired:
         raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
 
