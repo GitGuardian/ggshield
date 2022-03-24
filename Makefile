@@ -29,3 +29,6 @@ isort:
 	pipenv run isort **/*.py
 
 lint: isort black flake8
+
+update-pipfile-lock:
+	scripts/update-pipfile-lock/update-pipfile-lock
