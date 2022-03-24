@@ -5,6 +5,7 @@ from typing import Any, List, Optional, Type
 
 import click
 
+from .auth import auth
 from .cache import Cache
 from .ci import ci_cmd
 from .client import retrieve_client
@@ -181,6 +182,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
         "scan": scan,
+        "auth": auth,
         "install": install,
         "ignore": ignore,
         "quota": quota,
