@@ -89,6 +89,7 @@ $ make lint
 
 ### Python
 
-- We're committed to support python 3.6+ for now
+- We're committed to support python 3.7+ for now
 - Document new functions added if they're not obvious
 - Black, flake and isort should keep the rest of your code standard
+- If you add, update or remove dependencies, update the `Pipfile.lock` file by running `make update-pipfile-lock`
