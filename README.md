@@ -32,7 +32,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 ### Currently supported integrations
 
 - [Azure Pipelines](#azure-pipelines)
-- [Bitbucket Pipelines](#bitbucket)
+- [BitBucket Pipelines](#bitbucket)
 - [Circle CI Orbs](#circle-ci)
 - [Docker](#Docker)
 - [Drone](#Drone)
@@ -46,15 +46,8 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
 1. [Installation](#installation)
 1. [Updating](#updating)
-1. [Configuration](#configuration)
-   1. [Environment Variables](#environment-variables)
-   2. [On-premises](#on-premises-configuration)
-   3. [Ignoring files](#ignoring-files)
-   4. [Ignoring a secret](#ignoring-a-secret)
-   5. [Ignoring a detector](#ignoring-a-detector)
 1. [Commands](#commands)
 
    - [Scan](#scan-command)
@@ -63,22 +56,35 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
    - [Quota](#quota-command)
    - [API Status](#api-status-command)
 
-1. [Pre-commit](#pre-commit)
+1. [Configuration](#configuration)
 
-   - The pre-commit framework
-   - The global and local pre-commit hook
+   1. [Environment Variables](#environment-variables)
+   2. [On-premises](#on-premises-configuration)
+   3. [Ignoring files](#ignoring-files)
+   4. [Ignoring a secret](#ignoring-a-secret)
+   5. [Ignoring a detector](#ignoring-a-detector)
 
-1. [Pre-push](#pre-push)
-1. [Pre-receive](#pre-receive)
-1. [GitLab](#gitlab)
-1. [GitHub Actions](#github)
-1. [Circle CI](#circle-ci)
-1. [Travis CI](#travis-ci)
-1. [Jenkins](#jenkins)
-1. [Drone](#Drone)
-1. [Azure Pipelines](#azure-pipelines)
+1. [Integration](#integration)
+
+   - [Pre-commit](#pre-commit)
+
+     - The pre-commit framework
+     - The global and local pre-commit hook
+
+   - [Pre-push](#pre-push)
+   - [Pre-receive](#pre-receive)
+   - [Docker](#docker)
+   - [GitLab](#gitlab)
+   - [GitHub Actions](#github)
+   - [BitBucket](#bitbucket)
+   - [Circle CI](#circle-ci)
+   - [Travis CI](#travis-ci)
+   - [Jenkins](#jenkins)
+   - [Drone](#Drone)
+   - [Azure Pipelines](#azure-pipelines)
+
 1. [Output](#output)
-1. [Contributing](#contributing)
+1. [Related open source projects](#related-open-source-projects)
 1. [License](#license)
 
 # Installation
@@ -540,9 +546,11 @@ banlisted-detectors: # default: []
 ggshield scan -b "Generic High Entropy Secret" path example_file.md
 ```
 
-# Pre-commit
+# Integration
 
-## The pre-commit framework
+## Pre-commit
+
+### The pre-commit framework
 
 In order to use **ggshield** with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
 
@@ -585,7 +593,7 @@ Another way is to add SKIP=hook_id before the command:
 $ SKIP=ggshield git commit -m "commit message"
 ```
 
-## The global and local pre-commit hook
+### The global and local pre-commit hook
 
 To install pre-commit globally (for all current and future repos), you just need to execute the following command:
 
@@ -630,9 +638,7 @@ $ docker run -e GITGUARDIAN_API_KEY -v $(pwd):/data --rm gitguardian/ggshield gg
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
 
-# Pre-push
-
-⚠ Pre-push hooks will not scan more than 50 commits to avoid developer interruption by default.
+## Pre-push
 
 In case there are more than a 50 commits in a push the hook will be skipped.
 The amount of commits to scan before skipping the hook can be configured by the key `max-commits-for-hook` in
@@ -643,7 +649,7 @@ It will pickup and scan the range of commits between the local ref and the origi
 
 If incidents are detected in this range the push will be cancelled.
 
-## With the pre-commit framework
+### With the pre-commit framework
 
 In order to use **ggshield** with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
 
@@ -672,7 +678,7 @@ $ pre-commit install --hook-type pre-push
 pre-commit installed at .git/hooks/pre-push
 ```
 
-## With the install command
+### With the install command
 
 To install the pre-push hook globally (for all current and future repos), you just need to execute the following command:
 
@@ -710,7 +716,7 @@ $ ggshield install --mode local --force  -t "pre-push"
 
 Now you're good to go!
 
-# Pre-receive
+## Pre-receive
 
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 Refer to [our learning center](https://www.gitguardian.com/secrets-detection/secrets-detection-application-security#4) for more information.
@@ -728,7 +734,7 @@ $ git push -o breakglass
 $ git push --push-option=breakglass
 ```
 
-## Install ggshield git pre-receive hook
+### Install ggshield git pre-receive hook
 
 1. This pre-receive hook requires the host machine to have python>=3.8 and pip installed
 1. Install ggshield from pip: `pip install ggshield`
@@ -752,7 +758,7 @@ $ git push --push-option=breakglass
   ggshield -c <INSERT path to gitguardian.yaml> scan pre-receive
   ```
 
-## Install ggshield git pre-receive hook with docker
+### Install ggshield git pre-receive hook with docker
 
 > For the pre-receive hook to work, the directory where the repositories are stored
 > must also be mounted on the container.
@@ -762,7 +768,7 @@ $ git push --push-option=breakglass
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
 1. Either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
-# Docker
+## Docker
 
 The GitGuardian Shield docker scanning tool (`ggshield scan docker`) is used to
 scan local docker images for secrets present in the image's creation process
@@ -771,7 +777,7 @@ scan local docker images for secrets present in the image's creation process
 If the image is not available locally on the user's machine, GitGuardian shield
 will attempt to pull the image using `docker pull <IMAGE_NAME>`.
 
-# GitLab
+## GitLab
 
 > You may be interested in using GitGuardian's [GitLab integration](https://dashboard.gitguardian.com/settings/workspace/integrations/gitlab) to ensure full coverage of your GitLab projects as well as full git history scans and reporting.
 
@@ -803,7 +809,7 @@ GIT_STRATEGY: clone
 GIT_DEPTH: 0
 ```
 
-# GitHub
+## GitHub
 
 > You may be interested in using GitGuardian's [GitHub integration](https://dashboard.gitguardian.com/settings/workspace/integrations/github) to ensure full coverage of your GitHub projects as well as full git history scans and reporting.
 
@@ -840,11 +846,11 @@ jobs:
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` secret in your project settings.
 
-# Bitbucket
+## BitBucket
 
-> ⚠ Bitbucket pipelines do not support commit ranges therefore only your latest commit in a pushed group or in a new branch will be scanned.
+> ⚠ BitBucket pipelines do not support commit ranges therefore only your latest commit in a pushed group or in a new branch will be scanned.
 
-Configuring a Bitbucket pipeline to use **ggshield** is as simple as
+Configuring a BitBucket pipeline to use **ggshield** is as simple as
 adding a step to your project's workflow:
 
 ```yml
@@ -860,7 +866,7 @@ pipelines:
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
 
-# Circle CI
+## Circle CI
 
 Circle CI is supported in **ggshield** through [ggshield-orb](https://github.com/GitGuardian/ggshield-orb).
 
@@ -881,7 +887,7 @@ workflows:
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
 
-# Travis CI
+## Travis CI
 
 To add ggshield to your pipelines configure your `.travis.yml` to add a ggshield scanning job:
 
@@ -901,7 +907,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 - [Defining encrypted variables in .travis.yml](https://docs.travis-ci.com/user/environment-variables/#defining-encrypted-variables-in-travisyml)
 
-# Jenkins
+## Jenkins
 
 To add ggshield to your pipelines configure your `Jenkinsfile` to add a ggshield stage:
 
@@ -926,7 +932,7 @@ pipeline {
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `gitguardian-api-key` credential in your project settings.
 
-# Drone
+## Drone
 
 To add ggshield to your pipelines configure your `.drone.yml` to add a ggshield stage:
 
@@ -945,7 +951,7 @@ steps:
 Drone CI integration handles only pull-request or merge-request events, push events are not handled.
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable for your Drone CI workers.
 
-# Azure Pipelines
+## Azure Pipelines
 
 > ⚠ Azure Pipelines does not support commit ranges outside of GitHub Pull Requests, therefore on push events in a regular branch only your latest commit will be scanned.
 > This limitation doesn't apply to GitHub Pull Requests where all the commits in the pull request will be scanned.
