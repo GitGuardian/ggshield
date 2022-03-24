@@ -11,6 +11,7 @@ from .utils import json_output_option_decorator, retrieve_client
 
 
 @click.command()
+@json_output_option_decorator
 @click.pass_context
 def quota(ctx: click.Context, json_output: bool) -> int:
     """Command to show quotas overview."""
@@ -36,6 +37,3 @@ def quota(ctx: click.Context, json_output: bool) -> int:
     )
 
     return 0
-
-
-quota = json_output_option_decorator(quota)

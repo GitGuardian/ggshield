@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 import sys
-from typing import Any, List, Optional, Type, cast
+from typing import Any, List, Optional, Type
 
 import click
 
@@ -56,6 +56,7 @@ def get_max_commits_for_hook() -> Optional[int]:
         "archive": archive_cmd,
     },
 )
+@json_output_option_decorator
 @click.option(
     "--show-secrets",
     is_flag=True,
@@ -162,9 +163,6 @@ def scan(
     )
 
     return return_code
-
-
-scan = cast(click.Group, json_output_option_decorator(scan))
 
 
 @scan.result_callback()
