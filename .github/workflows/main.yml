@@ -73,6 +73,45 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
 
+  build_packages:
+    # This job ensures the build-packages script is tested on each build, not only at release time
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install packaging tools
+        shell: bash
+        run: |
+          curl -L https://github.com/goreleaser/nfpm/releases/download/v2.15.0/nfpm_amd64.deb -o nfpm_amd64.deb
+          sudo dpkg -i nfpm_amd64.deb
+
+          pip install shiv==1.0.1
+
+      # Append the abbreviated git sha1 to the version number to avoid confusing
+      # these packages with those produced at release time
+      - name: Fake version number
+        shell: bash
+        run: |
+          version=$(git describe --tags | sed -e 's/^v//' -e 's/-[0-9]*-g/+/')
+          echo "Set version number to '$version'"
+          sed -i "s/__version__ = .*/__version__ = \"$version\"/" ggshield/__init__.py
+
+      - name: Create packages
+        shell: bash
+        run: scripts/build-packages/build-packages
+
+      # Make packages downloadable from the workflow page
+      - name: Upload packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: packages
+          path: |
+            dist
+            packages
+
   scanning:
     name: Docker build test and scan
     runs-on: ubuntu-latest
