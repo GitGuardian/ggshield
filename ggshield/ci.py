@@ -15,8 +15,8 @@ class ReadOnlyCache(Cache):
     A version of Cache which does not write anything to the disk.
     """
 
-    def save(self) -> bool:  # pragma: no cover
-        return True
+    def save(self) -> None:  # pragma: no cover
+        return None
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
