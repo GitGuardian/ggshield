@@ -58,78 +58,69 @@ class TestUserConfig:
     @patch("ggshield.config.LOCAL_CONFIG_PATHS", [".gitguardian.yml"])
     @patch("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
     def test_display_options(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"verbose": True, "show_secrets": True}))
+        write_local(".gitguardian.yml", {"verbose": True, "show_secrets": True})
 
         config = Config()
         assert config.verbose is True
         assert config.show_secrets is True
 
-    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.Config.CONFIG_GLOBAL", [""])
+    @patch("ggshield.config.LOCAL_CONFIG_PATHS", [".gitguardian.yml"])
+    @patch("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
     def test_unknown_option(self, cli_fs_runner, capsys):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"verbosity": True}))
+        write_local(".gitguardian.yml", {"verbosity": True})
 
         Config()
         captured = capsys.readouterr()
         assert "Unrecognized key in config" in captured.out
 
-    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.Config.CONFIG_GLOBAL", [".gitguardian.yaml"])
+    @patch("ggshield.config.LOCAL_CONFIG_PATHS", [".gitguardian.yml"])
+    @patch("ggshield.config.GLOBAL_CONFIG_FILENAMES", [".gitguardian.yaml"])
     def test_display_options_inheritance(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(
-                yaml.dump(
-                    {
-                        "verbose": True,
-                        "show_secrets": False,
-                        "api_url": "https://gitguardian.com",
-                    }
-                )
-            )
-        with open(".gitguardian.yaml", "w") as file:
-            file.write(
-                yaml.dump(
-                    {
-                        "verbose": False,
-                        "show_secrets": True,
-                        "api_url": "https://gitguardian.com/ex",
-                    }
-                )
-            )
+        write_local(
+            ".gitguardian.yml",
+            {
+                "verbose": True,
+                "show_secrets": False,
+                "api_url": "https://gitguardian.com",
+            },
+        )
+        write_global(
+            ".gitguardian.yaml",
+            {
+                "verbose": False,
+                "show_secrets": True,
+                "api_url": "https://gitguardian.com/ex",
+            },
+        )
 
         config = Config()
         assert config.verbose is True
         assert config.show_secrets is False
         assert config.api_url == "https://gitguardian.com"
 
-    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.Config.CONFIG_GLOBAL", [""])
+    @patch("ggshield.config.LOCAL_CONFIG_PATHS", [".gitguardian.yml"])
+    @patch("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
     def test_exclude_regex(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(yaml.dump({"paths-ignore": ["/tests/"]}))
+        write_local(".gitguardian.yml", {"paths-ignore": ["/tests/"]})
 
         config = Config()
         assert r"/tests/" in config.paths_ignore
 
-    @patch("ggshield.config.Config.CONFIG_LOCAL", [".gitguardian.yml"])
-    @patch("ggshield.config.Config.CONFIG_GLOBAL", [".gitguardian.yaml"])
+    @patch("ggshield.config.LOCAL_CONFIG_PATHS", [".gitguardian.yml"])
+    @patch("ggshield.config.GLOBAL_CONFIG_FILENAMES", [".gitguardian.yaml"])
     def test_accumulation_matches(self, cli_fs_runner):
-        with open(".gitguardian.yml", "w") as file:
-            file.write(
-                yaml.dump(
-                    {
-                        "matches_ignore": [
-                            {"name": "", "match": "one"},
-                            {"name": "", "match": "two"},
-                        ]
-                    }
-                )
-            )
-
-        with open(".gitguardian.yaml", "w") as file:
-            file.write(yaml.dump({"matches_ignore": [{"name": "", "match": "three"}]}))
+        write_local(
+            ".gitguardian.yml",
+            {
+                "matches_ignore": [
+                    {"name": "", "match": "one"},
+                    {"name": "", "match": "two"},
+                ]
+            },
+        )
+        write_global(
+            ".gitguardian.yaml", {"matches_ignore": [{"name": "", "match": "three"}]}
+        )
         config = Config()
         assert config.matches_ignore == [
             {"match": "three", "name": ""},
