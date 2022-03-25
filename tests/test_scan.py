@@ -4,7 +4,7 @@ from unittest.mock import ANY, Mock, patch
 from click import Command, Context, Group
 
 from ggshield import __version__
-from ggshield.config import Cache
+from ggshield.cache import Cache
 from ggshield.dev_scan import cd
 from ggshield.scan import Commit
 from tests.conftest import _SIMPLE_SECRET

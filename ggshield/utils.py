@@ -6,12 +6,14 @@ from typing import Iterable, List, NamedTuple, Optional
 
 import click
 import urllib3
+from dotenv import load_dotenv
 from pygitguardian import GGClient
 from pygitguardian.models import Match
 from requests import Session
 
 from .config import Config
-from .text_utils import Line, LineCategory
+from .git_shell import get_git_root, is_git_dir
+from .text_utils import Line, LineCategory, display_error
 
 
 REGEX_PATCH_HEADER = re.compile(
@@ -279,3 +281,24 @@ def handle_exception(e: Exception, verbose: bool) -> int:
         if verbose:
             traceback.print_exc()
         raise click.ClickException(str(e))
+
+
+def load_dot_env() -> None:
+    """Loads .env file into sys.environ."""
+    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
+    dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
+    cwd_env = os.path.join(".", ".env")
+    if not dont_load_env:
+        if dotenv_path and os.path.isfile(dotenv_path):
+            load_dotenv(dotenv_path, override=True)
+            return
+        elif dotenv_path:
+            display_error(
+                "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
+            )
+        if os.path.isfile(cwd_env):
+            load_dotenv(cwd_env, override=True)
+            return
+        if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
+            load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
+            return

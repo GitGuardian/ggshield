@@ -1,26 +1,13 @@
-import copy
-import json
 import os
 from typing import Any, Dict, List, NamedTuple, Set
 
 import click
 import yaml
-from dotenv import load_dotenv
-from pygitguardian.models import PolicyBreak
 
 from ggshield.config_types import IgnoredMatch
-from ggshield.filter import get_ignore_sha
-
-from .git_shell import get_git_root, is_git_dir
-from .text_utils import display_error
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-
-# max file size to accept
-MAX_FILE_SIZE = 1048576
-
-CPU_COUNT = os.cpu_count() or 1
 
 
 class Attribute(NamedTuple):
@@ -172,151 +159,3 @@ class Config:
                     and match["name"] == ""
                 ):
                     match.update({"name": secret["name"]})
-
-
-def load_dot_env() -> None:
-    """Loads .env file into sys.environ."""
-    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
-    dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
-    cwd_env = os.path.join(".", ".env")
-    if not dont_load_env:
-        if dotenv_path and os.path.isfile(dotenv_path):
-            load_dotenv(dotenv_path, override=True)
-            return
-        elif dotenv_path:
-            display_error(
-                "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
-            )
-        if os.path.isfile(cwd_env):
-            load_dotenv(cwd_env, override=True)
-            return
-        if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
-            load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
-            return
-
-
-class Cache:
-    last_found_secrets: List
-
-    CACHE_FILENAME = "./.cache_ggshield"
-    attributes: List[Attribute] = [
-        Attribute("last_found_secrets", list()),
-    ]
-
-    def __init__(self) -> None:
-        self.purge()
-        self.load_cache()
-
-    def __getattr__(self, name: str) -> Any:
-        # Required for dynamic types on mypy
-        return object.__getattribute__(self, name)
-
-    def get_attributes_keys(self) -> List:
-        return list(
-            list(zip(*self.attributes))[0]
-        )  # get list of first elements in tuple
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if isinstance(value, list):
-            attribute = getattr(self, name)
-
-            if isinstance(attribute, list):
-                for elem in value:
-                    if elem not in attribute:
-                        attribute.append(elem)
-            else:
-                getattr(self, name).update(value)
-        else:
-            super().__setattr__(name, value)
-
-    def load_cache(self) -> bool:
-        if not os.path.isfile(self.CACHE_FILENAME):
-            return True
-
-        _cache: dict = {}
-        if os.stat(self.CACHE_FILENAME).st_size != 0:
-            try:
-                f = open(self.CACHE_FILENAME, "r")
-            except PermissionError:
-                # Hotfix: for the time being we skip cache handling if permission denied
-                return True
-            else:
-                with f:
-                    try:
-                        _cache = json.load(f)
-                        # Convert back all sets that were serialized as lists
-                        for attr in self.attributes:
-                            if type(attr.default) is set and attr.name in _cache:
-                                _cache[attr.name] = set(_cache[attr.name]) or set()
-                    except Exception as e:
-                        raise click.ClickException(
-                            "Parsing error while"
-                            f"reading {self.CACHE_FILENAME}:\n{str(e)}"
-                        )
-        self.update_cache(**_cache)
-        return True
-
-    def update_cache(self, **kwargs: Any) -> None:
-        for key, item in kwargs.items():
-            if key in self.get_attributes_keys():
-                if isinstance(item, list):
-                    attr = getattr(self, key)
-                    for elem in item:
-                        if elem not in attr:
-                            attr.append(elem)
-                else:
-                    setattr(self, key, item)
-
-                setattr(self, key, item)
-            else:
-                click.echo("Unrecognized key in cache: {}".format(key))
-
-    def to_dict(self) -> Dict[str, Any]:
-        _cache = {key: getattr(self, key) for key in self.get_attributes_keys()}
-        # Convert all sets into list so they can be json serialized
-        for key in self.get_attributes_keys():
-            value = _cache[key]
-            if type(value) is set:
-                _cache[key] = list(value)
-        return _cache
-
-    def save(self) -> bool:
-        if not self.last_found_secrets:
-            # if there are no found secrets, don't modify the cache file
-            return True
-
-        try:
-            f = open(self.CACHE_FILENAME, "w")
-        except OSError:
-            # Hotfix: for the time being we skip cache handling if permission denied
-            return True
-        else:
-            with f:
-                try:
-                    json.dump(self.to_dict(), f)
-
-                except Exception as e:
-                    raise click.ClickException(
-                        f"Error while saving cache in {self.CACHE_FILENAME}:\n{str(e)}"
-                    )
-        return True
-
-    def purge(self) -> None:
-        for attr in self.attributes:
-            # Deep copy to avoid mutating the default value
-            default = copy.copy(attr.default)
-            super().__setattr__(attr.name, default)
-
-    def add_found_policy_break(self, policy_break: PolicyBreak, filename: str) -> None:
-        if policy_break.is_secret:
-            ignore_sha = get_ignore_sha(policy_break)
-            if not any(
-                last_found["match"] == ignore_sha
-                for last_found in self.last_found_secrets
-            ):
-                self.last_found_secrets.append(
-                    {
-                        "name": f"{policy_break.break_type} - {filename}",
-                        "match": get_ignore_sha(policy_break),
-                    }
-                )

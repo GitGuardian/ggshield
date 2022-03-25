@@ -5,8 +5,9 @@ from typing import Any, List, Optional, Type
 
 import click
 
+from .cache import Cache
 from .ci import ci_cmd
-from .config import CONTEXT_SETTINGS, Cache, Config, load_dot_env
+from .config import Config
 from .dev_scan import archive_cmd, path_cmd, range_cmd, repo_cmd
 from .docker import docker_archive_cmd, docker_name_cmd
 from .filter import init_exclusion_regexes
@@ -22,6 +23,7 @@ from .text_utils import display_error
 from .utils import (
     IGNORED_DEFAULT_PATTERNS,
     json_output_option_decorator,
+    load_dot_env,
     retrieve_client,
 )
 
@@ -180,7 +182,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 
 
 @click.group(
-    context_settings=CONTEXT_SETTINGS,
+    context_settings={"help_option_names": ["-h", "--help"]},
     commands={
         "scan": scan,
         "install": install,

@@ -4,7 +4,8 @@ import tempfile
 from mock import patch
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.config import Cache, Config
+from ggshield.cache import Cache
+from ggshield.config import Config
 from ggshield.ignore import ignore_last_found
 from ggshield.scan import Commit
 from tests.conftest import _MULTIPLE_SECRETS, my_vcr

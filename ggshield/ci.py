@@ -5,7 +5,7 @@ import click
 
 from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode, handle_exception
 
-from .config import Cache
+from .cache import Cache
 from .dev_scan import scan_commit_range
 from .git_shell import check_git_dir, get_list_commit_SHA
 
