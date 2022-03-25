@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 import click
 from pygitguardian.client import GGClient
 
-from ggshield.config import Cache
+from ggshield.cache import Cache
 from ggshield.output import OutputHandler
 from ggshield.scan import ScanCollection, get_files_from_docker_archive
 from ggshield.utils import handle_exception

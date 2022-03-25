@@ -6,7 +6,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple
 
-from ggshield.config import MAX_FILE_SIZE
+from ggshield.constants import MAX_FILE_SIZE
 
 from .scannable import File, Files
 
