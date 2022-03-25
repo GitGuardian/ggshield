@@ -205,15 +205,15 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 @click.version_option()
 @click.pass_context
 def cli(
-    ctx: click.Context, config_path: str, verbose: bool, allow_self_signed: bool
+    ctx: click.Context,
+    config_path: Optional[str],
+    verbose: bool,
+    allow_self_signed: bool,
 ) -> None:
     load_dot_env()
     ctx.ensure_object(dict)
-    if config_path:
-        Config.CONFIG_LOCAL = [config_path]
-        Config.CONFIG_GLOBAL = []
 
-    ctx.obj["config"] = Config()
+    ctx.obj["config"] = Config(config_path)
     ctx.obj["cache"] = Cache()
 
     if verbose is not None:

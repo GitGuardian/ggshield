@@ -288,7 +288,7 @@ class TestScanDirectory:
         THEN ignored patterns by default should NOT be used
         """
         path = create_normally_ignored_file()
-        Path(".gitguardian.yml").write_text("ignore-default-excludes: true")
+        Path("test_local_gitguardian.yaml").write_text("ignore-default-excludes: true")
 
         with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
             result = cli_fs_runner.invoke(
