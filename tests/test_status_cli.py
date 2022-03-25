@@ -44,7 +44,7 @@ def test_api_status(cassette, json_output, snapshot, cli_fs_runner):
 def test_ssl_verify(cli_fs_runner, verify):
     cmd = ["api-status"] if verify else ["--allow-self-signed", "api-status"]
 
-    with mock.patch("ggshield.utils.GGClient") as client_mock:
+    with mock.patch("ggshield.client.GGClient") as client_mock:
         cli_fs_runner.invoke(cli, cmd)
         _, kwargs = client_mock.call_args
         assert kwargs["session"].verify == verify
