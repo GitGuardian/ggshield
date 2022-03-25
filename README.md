@@ -388,7 +388,7 @@ exit-zero: false # default: false
 # By default only secrets are detected. Use all-policies to toggle this behaviour.
 all-policies: false # default: false
 
-api-url: https://api.gitguardian.com # GITGUARDIAN_API_URL environment variable will override this setting
+api-url: https://api.gitguardian.com # GITGUARDIAN_API_URL and GITGUARDIAN_URL environment variables will override this setting
 
 verbose: false # default: false
 ```
@@ -424,7 +424,9 @@ Reference of current Environment Variables that affect `ggshield`:
 ```yaml
 GITGUARDIAN_API_KEY: [Required] API Key for the GitGuardian API.
 
-GITGUARDIAN_API_URL: Custom URL for the scanning API.
+GITGUARDIAN_URL: Custom URL of the GitGuardian dashboard. The API URL will be inferred from it.
+
+GITGUARDIAN_API_URL: (Deprecated use GITGUARDIAN_URL instead) Custom URL for the scanning API.
 
 GITGUARDIAN_DONT_LOAD_ENV: If set to any value environment variables won't be loaded from a file.
 
@@ -448,10 +450,10 @@ You can modify your environment variables to include:
 
 ```shell
 GITGUARDIAN_API_KEY=<GitGuardian API Key>
-GITGUARDIAN_API_URL=<GitGuardian on-premises API URL>
+GITGUARDIAN_URL=<GitGuardian on-premise dashboard URL>
 ```
 
-Alternatively to setting the `GITGUARDIAN_API_URL` environment variable, set the `api-url` in your `.gitguardian.yaml`.
+Alternatively to setting the `GITGUARDIAN_URL` environment variable, set the `dashboard-url` in your `.gitguardian.yaml`.
 
 ## Ignoring files
 
@@ -731,6 +733,7 @@ $ git push --push-option=breakglass
 1. This pre-receive hook requires the host machine to have python>=3.8 and pip installed
 1. Install ggshield from pip: `pip install ggshield`
 1. Copy [`pre-receive.sample`](doc/pre-receive.sample) to `.git/hooks/pre-receive` or to your provider's git hook directory:
+
    - [GitHub Enterprise](https://docs.github.com/en/enterprise-server@3.4/admin/policies/enforcing-policy-with-pre-receive-hooks/managing-pre-receive-hooks-on-the-github-enterprise-server-appliance)
    - [GitLab](https://docs.gitlab.com/ee/administration/server_hooks.html)
 

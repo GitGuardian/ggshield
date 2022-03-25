@@ -14,7 +14,7 @@ def retrieve_client(config: Config) -> GGClient:
 
     try:
         return GGClient(
-            api_key=config.gitguardian_api_key,
+            api_key=config.api_key,
             base_uri=config.api_url,
             user_agent="ggshield",
             timeout=60,
