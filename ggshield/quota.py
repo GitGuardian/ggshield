@@ -7,7 +7,8 @@ from pygitguardian.models import Detail, Quota, QuotaResponse
 
 from ggshield.output.text.message import format_quota_color
 
-from .utils import json_output_option_decorator, retrieve_client
+from .client import retrieve_client
+from .utils import json_output_option_decorator
 
 
 @click.command()

@@ -7,7 +7,8 @@ from pygitguardian.models import HealthCheckResponse
 from ggshield.output.text.message import format_healthcheck_status
 from ggshield.text_utils import STYLE, format_text
 
-from .utils import json_output_option_decorator, retrieve_client
+from .client import retrieve_client
+from .utils import json_output_option_decorator
 
 
 @click.command()

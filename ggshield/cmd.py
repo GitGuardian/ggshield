@@ -7,6 +7,7 @@ import click
 
 from .cache import Cache
 from .ci import ci_cmd
+from .client import retrieve_client
 from .config import Config
 from .dev_scan import archive_cmd, path_cmd, range_cmd, repo_cmd
 from .docker import docker_archive_cmd, docker_name_cmd
@@ -20,12 +21,7 @@ from .pypi import pypi_cmd
 from .quota import quota
 from .status import status
 from .text_utils import display_error
-from .utils import (
-    IGNORED_DEFAULT_PATTERNS,
-    json_output_option_decorator,
-    load_dot_env,
-    retrieve_client,
-)
+from .utils import IGNORED_DEFAULT_PATTERNS, json_output_option_decorator, load_dot_env
 
 
 def get_max_commits_for_hook() -> Optional[int]:

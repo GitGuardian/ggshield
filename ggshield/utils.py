@@ -2,16 +2,12 @@ import os
 import re
 import traceback
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional
+from typing import Iterable, List, NamedTuple
 
 import click
-import urllib3
 from dotenv import load_dotenv
-from pygitguardian import GGClient
 from pygitguardian.models import Match
-from requests import Session
 
-from .config import Config
 from .git_shell import get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error
 
@@ -244,29 +240,6 @@ json_output_option_decorator = click.option(
     show_default=True,
     help="JSON output results",
 )
-
-
-def retrieve_client(config: Config) -> GGClient:
-    api_key: Optional[str] = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri: str = os.getenv("GITGUARDIAN_API_URL", config.api_url)
-    if not api_key:
-        raise click.ClickException("GitGuardian API Key is needed.")
-
-    session = Session()
-    if config.allow_self_signed:
-        urllib3.disable_warnings()
-        session.verify = False
-
-    try:
-        return GGClient(
-            api_key=api_key,
-            base_uri=base_uri,
-            user_agent="ggshield",
-            timeout=60,
-            session=session,
-        )
-    except ValueError as e:
-        raise click.ClickException(f"Failed to create API client. {e}")
 
 
 def handle_exception(e: Exception, verbose: bool) -> int:
