@@ -7,7 +7,7 @@ import click
 
 from ggshield.git_shell import git_ls, is_git_dir
 
-from .config import MAX_FILE_SIZE
+from .constants import MAX_FILE_SIZE
 from .filter import is_filepath_excluded
 from .scan import File, Files
 
