@@ -5,7 +5,7 @@ import click
 
 from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode, handle_exception
 
-from .config import Cache
+from .cache import Cache
 from .dev_scan import scan_commit_range
 from .git_shell import check_git_dir, get_list_commit_SHA
 
@@ -15,8 +15,8 @@ class ReadOnlyCache(Cache):
     A version of Cache which does not write anything to the disk.
     """
 
-    def save(self) -> bool:  # pragma: no cover
-        return True
+    def save(self) -> None:  # pragma: no cover
+        return None
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover

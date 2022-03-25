@@ -2,16 +2,17 @@ import os
 import re
 import traceback
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional
+from typing import Iterable, List, NamedTuple
+from urllib.parse import urlparse
 
 import click
-import urllib3
-from pygitguardian import GGClient
+from dotenv import load_dotenv
 from pygitguardian.models import Match
-from requests import Session
 
-from .config import Config
-from .text_utils import Line, LineCategory
+from ggshield.constants import ON_PREMISE_API_URL_PATH_PREFIX
+
+from .git_shell import get_git_root, is_git_dir
+from .text_utils import Line, LineCategory, display_error
 
 
 REGEX_PATCH_HEADER = re.compile(
@@ -244,29 +245,6 @@ json_output_option_decorator = click.option(
 )
 
 
-def retrieve_client(config: Config) -> GGClient:
-    api_key: Optional[str] = os.getenv("GITGUARDIAN_API_KEY")
-    base_uri: str = os.getenv("GITGUARDIAN_API_URL", config.api_url)
-    if not api_key:
-        raise click.ClickException("GitGuardian API Key is needed.")
-
-    session = Session()
-    if config.allow_self_signed:
-        urllib3.disable_warnings()
-        session.verify = False
-
-    try:
-        return GGClient(
-            api_key=api_key,
-            base_uri=base_uri,
-            user_agent="ggshield",
-            timeout=60,
-            session=session,
-        )
-    except ValueError as e:
-        raise click.ClickException(f"Failed to create API client. {e}")
-
-
 def handle_exception(e: Exception, verbose: bool) -> int:
     """
     Handle exception from a scan command.
@@ -279,3 +257,78 @@ def handle_exception(e: Exception, verbose: bool) -> int:
         if verbose:
             traceback.print_exc()
         raise click.ClickException(str(e))
+
+
+def load_dot_env() -> None:
+    """Loads .env file into sys.environ."""
+    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
+    dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
+    cwd_env = os.path.join(".", ".env")
+    if not dont_load_env:
+        if dotenv_path and os.path.isfile(dotenv_path):
+            load_dotenv(dotenv_path, override=True)
+            return
+        elif dotenv_path:
+            display_error(
+                "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
+            )
+        if os.path.isfile(cwd_env):
+            load_dotenv(cwd_env, override=True)
+            return
+        if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
+            load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
+            return
+
+
+def dashboard_to_api_url(dashboard_url: str) -> str:
+    """
+    Convert a dashboard URL to an API URL.
+    handles the SaaS edge case where the host changes instead of the path
+    """
+    if dashboard_url.endswith("/"):
+        dashboard_url = dashboard_url[:-1]
+    parsed_url = urlparse(dashboard_url)
+    if parsed_url.scheme != "https":
+        raise click.ClickException(
+            f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
+        )
+    if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
+        if parsed_url.path:
+            raise click.ClickException(
+                f"Invalid dashboard URL '{dashboard_url}', got an unexpected path"
+            )
+        parsed_url = parsed_url._replace(
+            netloc=parsed_url.netloc.replace("dashboard", "api")
+        )
+    else:
+        parsed_url = parsed_url._replace(
+            path=f"{parsed_url.path}{ON_PREMISE_API_URL_PATH_PREFIX}"
+        )
+    return parsed_url.geturl()
+
+
+def api_to_dashboard_url(api_url: str) -> str:
+    """
+    Convert an API URL to a dashboard URL.
+    handles the SaaS edge case where the host changes instead of the path
+    """
+    if api_url.endswith("/"):
+        api_url = api_url[:-1]
+    parsed_url = urlparse(api_url)
+    if parsed_url.scheme != "https":
+        raise click.ClickException(
+            f"Invalid scheme for API URL '{api_url}', expected HTTPS"
+        )
+    if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
+        if parsed_url.path:
+            raise click.ClickException(
+                f"Invalid API URL '{api_url}', got an unexpected path"
+            )
+        parsed_url = parsed_url._replace(
+            netloc=parsed_url.netloc.replace("api", "dashboard")
+        )
+    elif parsed_url.path.endswith(ON_PREMISE_API_URL_PATH_PREFIX):
+        parsed_url = parsed_url._replace(
+            path=parsed_url.path[: -len(ON_PREMISE_API_URL_PATH_PREFIX)]
+        )
+    return parsed_url.geturl()

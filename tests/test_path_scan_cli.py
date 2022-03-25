@@ -46,7 +46,6 @@ class TestPathScan:
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "file_secret"])
-            print(result.output)
             assert result.exit_code == 1
             assert result.exception
             assert (
@@ -281,14 +280,16 @@ class TestScanDirectory:
         assert result.exit_code == 0
         assert result.exception is None
 
-    def test_ignore_default_excludes_with_configuration(self, cli_fs_runner):
+    def test_ignore_default_excludes_with_configuration(
+        self, cli_fs_runner, local_config_path
+    ):
         """
         GIVEN a path scan
         WHEN ignore-default-excludes has been put to true in the configuration
         THEN ignored patterns by default should NOT be used
         """
         path = create_normally_ignored_file()
-        Path(".gitguardian.yml").write_text("ignore-default-excludes: true")
+        Path(local_config_path).write_text("ignore-default-excludes: true")
 
         with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
             result = cli_fs_runner.invoke(

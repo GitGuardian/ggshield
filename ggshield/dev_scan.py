@@ -10,13 +10,15 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Set
 import click
 from pygitguardian import GGClient
 
-from ggshield.config import CPU_COUNT, Cache, Config
-from ggshield.config_types import IgnoredMatch
+from ggshield.cache import Cache
+from ggshield.config import Config
+from ggshield.constants import CPU_COUNT
 from ggshield.git_shell import GIT_PATH, get_list_commit_SHA, is_git_dir, shell
 from ggshield.output import OutputHandler
 from ggshield.path import get_files_from_paths
 from ggshield.scan import Commit, Files, Result, ScanCollection
 from ggshield.text_utils import STYLE, format_text
+from ggshield.types import IgnoredMatch
 from ggshield.utils import REGEX_GIT_URL, SupportedScanMode, handle_exception
 
 
