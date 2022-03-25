@@ -38,6 +38,7 @@ setup(
         "pygitguardian>=1.3.4,<1.4.0",
         "pyyaml>=6.0,<6.1",
         "python-dotenv>=0.19.1,<0.20.0",
+        "appdirs>=1.4.4,<1.5.0",
     ],
     include_package_data=True,
     zip_safe=True,

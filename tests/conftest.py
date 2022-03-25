@@ -1,7 +1,6 @@
 import os
 import platform
 from os.path import dirname, join, realpath
-from unittest.mock import patch
 
 import pytest
 import vcr
@@ -460,20 +459,6 @@ my_vcr = vcr.VCR(
 )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def configure_test_constants():
-    with patch(
-        "ggshield.config.DEFAULT_LOCAL_CONFIG_PATH", "test_local_gitguardian.yaml"
-    ), patch(
-        "ggshield.config.LOCAL_CONFIG_PATHS", ["test_local_gitguardian.yaml"]
-    ), patch(
-        "ggshield.config.GLOBAL_CONFIG_FILENAMES", ["test_global_gitguardian.yaml"]
-    ), patch(
-        "ggshield.cache.CACHE_FILENAME", "test_cache_ggshield"
-    ):
-        yield
-
-
 @pytest.fixture(scope="session")
 def client() -> GGClient:
     api_key = os.getenv("TEST_GITGUARDIAN_API_KEY", "1234567890")
@@ -488,12 +473,11 @@ def cache() -> Cache:
     return c
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def cli_runner():
     os.environ["GITGUARDIAN_API_KEY"] = os.getenv(
         "TEST_GITGUARDIAN_API_KEY", "1234567890"
     )
-    os.environ["GITGUARDIAN_API_URL"] = "https://api.gitguardian.com"
     return CliRunner()
 
 
