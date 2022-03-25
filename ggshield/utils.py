@@ -3,10 +3,13 @@ import re
 import traceback
 from enum import Enum
 from typing import Iterable, List, NamedTuple
+from urllib.parse import urlparse
 
 import click
 from dotenv import load_dotenv
 from pygitguardian.models import Match
+
+from ggshield.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
 from .git_shell import get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error
@@ -275,3 +278,57 @@ def load_dot_env() -> None:
         if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
             load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
             return
+
+
+def dashboard_to_api_url(dashboard_url: str) -> str:
+    """
+    Convert a dashboard URL to an API URL.
+    handles the SaaS edge case where the host changes instead of the path
+    """
+    if dashboard_url.endswith("/"):
+        dashboard_url = dashboard_url[:-1]
+    parsed_url = urlparse(dashboard_url)
+    if parsed_url.scheme != "https":
+        raise click.ClickException(
+            f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
+        )
+    if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
+        if parsed_url.path:
+            raise click.ClickException(
+                f"Invalid dashboard URL '{dashboard_url}', got an unexpected path"
+            )
+        parsed_url = parsed_url._replace(
+            netloc=parsed_url.netloc.replace("dashboard", "api")
+        )
+    else:
+        parsed_url = parsed_url._replace(
+            path=f"{parsed_url.path}{ON_PREMISE_API_URL_PATH_PREFIX}"
+        )
+    return parsed_url.geturl()
+
+
+def api_to_dashboard_url(api_url: str) -> str:
+    """
+    Convert an API URL to a dashboard URL.
+    handles the SaaS edge case where the host changes instead of the path
+    """
+    if api_url.endswith("/"):
+        api_url = api_url[:-1]
+    parsed_url = urlparse(api_url)
+    if parsed_url.scheme != "https":
+        raise click.ClickException(
+            f"Invalid scheme for API URL '{api_url}', expected HTTPS"
+        )
+    if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
+        if parsed_url.path:
+            raise click.ClickException(
+                f"Invalid API URL '{api_url}', got an unexpected path"
+            )
+        parsed_url = parsed_url._replace(
+            netloc=parsed_url.netloc.replace("api", "dashboard")
+        )
+    elif parsed_url.path.endswith(ON_PREMISE_API_URL_PATH_PREFIX):
+        parsed_url = parsed_url._replace(
+            path=parsed_url.path[: -len(ON_PREMISE_API_URL_PATH_PREFIX)]
+        )
+    return parsed_url.geturl()
