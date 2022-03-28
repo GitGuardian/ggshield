@@ -82,6 +82,9 @@ def check_git_installed() -> None:
 
 def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
     """Execute a command in a subprocess."""
+    env = os.environ.copy()
+    env["LANG"] = "C"
+
     try:
         result = subprocess.run(
             command,
@@ -89,6 +92,7 @@ def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=timeout,
+            env=env,
         )
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
     except subprocess.CalledProcessError:
