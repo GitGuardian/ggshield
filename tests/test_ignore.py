@@ -47,7 +47,6 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
             matches_ignore=config.matches_ignore,
             all_policies=True,
             verbose=False,
-            mode_header="test",
         )
     assert config.matches_ignore == list()
 
@@ -85,7 +84,6 @@ def test_cache_catches_nothing(client, isolated_fs):
             matches_ignore=config.matches_ignore,
             all_policies=True,
             verbose=False,
-            mode_header="test",
         )
 
         assert results == []
@@ -116,7 +114,6 @@ def test_cache_old_config_no_new_secret(client, isolated_fs):
             matches_ignore=config.matches_ignore,
             all_policies=True,
             verbose=False,
-            mode_header="test",
         )
 
         assert results == []

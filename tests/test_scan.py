@@ -1,10 +1,12 @@
 import os
 from unittest.mock import ANY, Mock, patch
 
+from click import Command, Context, Group
+
+from ggshield import __version__
 from ggshield.config import Cache
 from ggshield.dev_scan import cd
 from ggshield.scan import Commit
-from ggshield.utils import SupportedScanMode
 from tests.conftest import _SIMPLE_SECRET
 
 
@@ -20,14 +22,20 @@ def test_cd_context_manager(tmpdir):
 def test_request_headers(scan_mock: Mock, client):
     c = Commit()
     c._patch = _SIMPLE_SECRET
-    mode = SupportedScanMode.PATH
 
-    c.scan(
-        client=client,
-        cache=Cache(),
-        matches_ignore={},
-        all_policies=True,
-        verbose=False,
-        mode_header=mode.value,
+    with Context(Command("bar"), info_name="bar") as ctx:
+        ctx.parent = Context(Group("foo"), info_name="foo")
+        c.scan(
+            client=client,
+            cache=Cache(),
+            matches_ignore={},
+            all_policies=True,
+            verbose=False,
+        )
+    scan_mock.assert_called_with(
+        ANY,
+        {
+            "GGShield-Version": __version__,
+            "GGShield-Command-Path": "foo bar",
+        },
     )
-    scan_mock.assert_called_with(ANY, {"mode": mode.value})

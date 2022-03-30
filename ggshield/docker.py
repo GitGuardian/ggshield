@@ -9,7 +9,7 @@ from pygitguardian.client import GGClient
 from ggshield.config import Cache
 from ggshield.output import OutputHandler
 from ggshield.scan import ScanCollection, get_files_from_docker_archive
-from ggshield.utils import SupportedScanMode, handle_exception
+from ggshield.utils import handle_exception
 
 
 # bailout if docker command takes longer than 6 minutes
@@ -93,7 +93,6 @@ def docker_scan_archive(
             matches_ignore=matches_ignore,
             all_policies=all_policies,
             verbose=verbose,
-            mode_header=SupportedScanMode.DOCKER.value,
             on_file_chunk_scanned=update_progress,
             banlisted_detectors=banlisted_detectors,
         )

@@ -33,7 +33,6 @@ def precommit_cmd(
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             verbose=config.verbose,
-            mode_header=SupportedScanMode.PRE_COMMIT.value,
             banlisted_detectors=config.banlisted_detectors,
         )
 
