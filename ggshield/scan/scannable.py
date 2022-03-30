@@ -7,6 +7,7 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
+from ggshield import __version__
 from ggshield.config import CPU_COUNT, MAX_FILE_SIZE, Cache
 from ggshield.config_types import IgnoredMatch
 from ggshield.filter import (
@@ -107,6 +108,19 @@ class Files:
     def scannable_list(self) -> List[Dict[str, Any]]:
         return [entry.scan_dict for entry in self.files.values()]
 
+    @property
+    def extra_headers(self) -> Dict[str, str]:
+        # get_current_context returns None if outside a click command.
+        # It happens in the tests and if gg-shield is used as a library.
+        context = click.get_current_context(silent=True)
+
+        command_path = context.command_path if context is not None else "external"
+
+        return {
+            "GGShield-Version": __version__,
+            "GGShield-Command-Path": command_path,
+        }
+
     def scan(
         self,
         client: GGClient,
@@ -114,7 +128,6 @@ class Files:
         matches_ignore: Iterable[IgnoredMatch],
         all_policies: bool,
         verbose: bool,
-        mode_header: str,
         banlisted_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
@@ -134,7 +147,7 @@ class Files:
                 executor.submit(
                     client.multi_content_scan,
                     chunk,
-                    {"mode": mode_header},
+                    self.extra_headers,
                 ): chunk
                 for chunk in chunks
             }

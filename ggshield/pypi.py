@@ -11,7 +11,6 @@ from ggshield.config import Config
 from ggshield.output import OutputHandler
 from ggshield.path import get_files_from_paths
 from ggshield.scan import Files, Result, ScanCollection
-from ggshield.utils import SupportedScanMode
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
@@ -109,7 +108,6 @@ def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
                 banlisted_detectors=config.banlisted_detectors,
                 all_policies=config.all_policies,
                 verbose=config.verbose,
-                mode_header=SupportedScanMode.PYPI.value,
                 on_file_chunk_scanned=update_progress,
             )
         scan = ScanCollection(id=package_name, type="path_scan", results=results)

@@ -174,7 +174,6 @@ def path_cmd(
             banlisted_detectors=config.banlisted_detectors,
             all_policies=config.all_policies,
             verbose=config.verbose,
-            mode_header=SupportedScanMode.PATH.value,
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 
@@ -200,7 +199,6 @@ def scan_commit(
         banlisted_detectors=banlisted_detectors,
         all_policies=all_policies,
         verbose=verbose,
-        mode_header=mode_header,
     )
 
     return ScanCollection(
@@ -305,7 +303,6 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 banlisted_detectors=config.banlisted_detectors,
                 all_policies=config.all_policies,
                 verbose=config.verbose,
-                mode_header=SupportedScanMode.ARCHIVE.value,
                 on_file_chunk_scanned=update_progress,
             )
 
