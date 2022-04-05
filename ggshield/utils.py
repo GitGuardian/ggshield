@@ -35,7 +35,7 @@ EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 # We try and anticipate that so we can control the return code
 PRERECEIVE_TIMEOUT = 4.5
 
-IGNORED_DEFAULT_PATTERNS = [
+IGNORED_DEFAULT_WILDCARDS = [
     "**/.git/**/*",
     "**/.pytest_cache/**/*",
     "**/.mypy_cache/**/*",
