@@ -21,7 +21,7 @@ from .pypi import pypi_cmd
 from .quota import quota
 from .status import status
 from .text_utils import display_error
-from .utils import IGNORED_DEFAULT_PATTERNS, json_output_option_decorator, load_dot_env
+from .utils import IGNORED_DEFAULT_WILDCARDS, json_output_option_decorator, load_dot_env
 
 
 def get_max_commits_for_hook() -> Optional[int]:
@@ -128,7 +128,7 @@ def scan(
         paths_ignore.update(exclude)
 
     if not ignore_default_excludes and not ctx.obj["config"].ignore_default_excludes:
-        paths_ignore.update(IGNORED_DEFAULT_PATTERNS)
+        paths_ignore.update(IGNORED_DEFAULT_WILDCARDS)
 
     ctx.obj["exclusion_regexes"] = init_exclusion_regexes(paths_ignore)
     config: Config = ctx.obj["config"]
