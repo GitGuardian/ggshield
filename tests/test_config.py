@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 import yaml
 from click import ClickException
-from click.testing import CliRunner
 from mock import patch
 
 from ggshield.config import (
@@ -20,16 +19,55 @@ from ggshield.config import (
 from ggshield.utils import dashboard_to_api_url
 
 
-@pytest.fixture(scope="session")
-def cli_runner():
-    os.environ["GITGUARDIAN_API_KEY"] = os.getenv("GITGUARDIAN_API_KEY", "1234567890")
-    return CliRunner()
+@pytest.fixture(autouse=True)
+def configure_test_constants(local_config_path, global_config_path):
+    with patch("ggshield.config.DEFAULT_LOCAL_CONFIG_PATH", local_config_path,), patch(
+        "ggshield.config.LOCAL_CONFIG_PATHS", [local_config_path]
+    ), patch(
+        "ggshield.config.GLOBAL_CONFIG_FILENAMES", [global_config_path.split("/")[-1]]
+    ), patch(
+        "ggshield.cache.CACHE_FILENAME", "test_cache_ggshield"
+    ), patch(
+        "ggshield.config.get_global_path",
+        lambda filename: f"/tmp/ggshield/global/{filename}",
+    ):
+        yield
 
 
-@pytest.fixture(scope="class")
-def cli_fs_runner(cli_runner):
-    with cli_runner.isolated_filesystem():
-        yield cli_runner
+@pytest.fixture(autouse=True)
+def env_vars():
+    os.environ["GITGUARDIAN_API_URL"] = "https://api.gitguardian.com"
+    os.environ["GITGUARDIAN_API_KEY"] = os.getenv(
+        "TEST_GITGUARDIAN_API_KEY", "1234567890"
+    )
+
+
+@pytest.fixture()
+def local_config_path():
+    dirpath = "/tmp/ggshield/local"
+    filepath = "/tmp/ggshield/local/test_local_gitguardian.yaml"
+    Path(dirpath).mkdir(parents=True, exist_ok=True)
+    if os.path.isfile(filepath):
+        os.remove(filepath)
+    try:
+        yield filepath
+    finally:
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+
+
+@pytest.fixture()
+def global_config_path():
+    dirpath = "/tmp/ggshield/global"
+    filepath = "/tmp/ggshield/global/test_global_gitguardian.yaml"
+    Path(dirpath).mkdir(parents=True, exist_ok=True)
+    if os.path.isfile(filepath):
+        os.remove(filepath)
+    try:
+        yield filepath
+    finally:
+        if os.path.isfile(filepath):
+            os.remove(filepath)
 
 
 def write_text(filename: str, text: str):
@@ -58,7 +96,7 @@ class TestUtils:
 class TestUserConfig:
     @patch("ggshield.config.LOCAL_CONFIG_PATHS", ["/tmp/test_local_gitguardian.yml"])
     @patch("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
-    def test_parsing_error(cli_fs_runner, capsys):
+    def test_parsing_error(self, cli_fs_runner, capsys):
         filepath = "/tmp/test_local_gitguardian.yml"
         write_text(filepath, "Not a:\nyaml file.\n")
 

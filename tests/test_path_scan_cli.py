@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+import ggshield.config
 from ggshield.cmd import cli
 
 from .conftest import (
@@ -280,16 +281,15 @@ class TestScanDirectory:
         assert result.exit_code == 0
         assert result.exception is None
 
-    def test_ignore_default_excludes_with_configuration(
-        self, cli_fs_runner, local_config_path
-    ):
+    def test_ignore_default_excludes_with_configuration(self, cli_fs_runner):
         """
         GIVEN a path scan
         WHEN ignore-default-excludes has been put to true in the configuration
         THEN ignored patterns by default should NOT be used
         """
         path = create_normally_ignored_file()
-        Path(local_config_path).write_text("ignore-default-excludes: true")
+        local_config = Path(ggshield.config.LOCAL_CONFIG_PATHS[0])
+        local_config.write_text("ignore-default-excludes: true")
 
         with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
             result = cli_fs_runner.invoke(
