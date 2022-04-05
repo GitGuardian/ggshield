@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from ggshield.cmd import cli
 from ggshield.filter import init_exclusion_regexes
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_PATTERNS
+from ggshield.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
 
 
 class TestPrepush:
@@ -75,9 +75,11 @@ class TestPrepush:
         input: Optional[str],
     ):
         """
-        GIVEN a prepush range with a 20 commits through the old env vars of the framework
+        GIVEN a prepush range with 20 commits provided by the pre-commit framework
         WHEN the command is run
         THEN it should pass onto scan and return 0
+        AND the `exclusion_regexes` argument of the scan_commit_range() call should
+        match IGNORED_DEFAULT_WILDCARDS
         """
         scan_commit_range_mock.return_value = 0
         commit_list = ["a"] * 20
@@ -106,7 +108,7 @@ class TestPrepush:
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
 
-        expected_exclusion_regexes = init_exclusion_regexes(IGNORED_DEFAULT_PATTERNS)
+        expected_exclusion_regexes = init_exclusion_regexes(IGNORED_DEFAULT_WILDCARDS)
         expected_exclusion_patterns = [r.pattern for r in expected_exclusion_regexes]
         result_exclusion_regexes = scan_commit_range_mock.call_args_list[0][1][
             "exclusion_regexes"
