@@ -285,9 +285,9 @@ def dashboard_to_api_url(dashboard_url: str) -> str:
     Convert a dashboard URL to an API URL.
     handles the SaaS edge case where the host changes instead of the path
     """
-    if dashboard_url.endswith("/"):
-        dashboard_url = dashboard_url[:-1]
     parsed_url = urlparse(dashboard_url)
+    if parsed_url.path.endswith("/"):
+        parsed_url = parsed_url._replace(path=parsed_url.path[:-1])
     if parsed_url.scheme != "https":
         raise click.ClickException(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
@@ -312,9 +312,9 @@ def api_to_dashboard_url(api_url: str) -> str:
     Convert an API URL to a dashboard URL.
     handles the SaaS edge case where the host changes instead of the path
     """
-    if api_url.endswith("/"):
-        api_url = api_url[:-1]
     parsed_url = urlparse(api_url)
+    if parsed_url.path.endswith("/"):
+        parsed_url = parsed_url._replace(path=parsed_url.path[:-1])
     if parsed_url.scheme != "https":
         raise click.ClickException(
             f"Invalid scheme for API URL '{api_url}', expected HTTPS"
