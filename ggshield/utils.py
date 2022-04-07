@@ -3,7 +3,7 @@ import re
 import traceback
 from enum import Enum
 from typing import Iterable, List, NamedTuple
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import click
 from dotenv import load_dotenv
@@ -280,14 +280,29 @@ def load_dot_env() -> None:
             return
 
 
-def dashboard_to_api_url(dashboard_url: str) -> str:
+def clean_url(url: str, warn: bool = False) -> ParseResult:
+    """
+    Take a dashboard or API URL and removes trailing slashes and useless /v1
+    (optionally with a warning).
+    """
+    parsed_url = urlparse(url)
+    if parsed_url.path.endswith("/"):
+        parsed_url = parsed_url._replace(path=parsed_url.path[:-1])
+    if parsed_url.path.endswith("/v1"):
+        parsed_url = parsed_url._replace(path=parsed_url.path[:-3])
+        if warn:
+            click.echo(
+                "[Warning] unexpected /v1 path in your URL configuration", err=True
+            )
+    return parsed_url
+
+
+def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     """
     Convert a dashboard URL to an API URL.
     handles the SaaS edge case where the host changes instead of the path
     """
-    parsed_url = urlparse(dashboard_url)
-    if parsed_url.path.endswith("/"):
-        parsed_url = parsed_url._replace(path=parsed_url.path[:-1])
+    parsed_url = clean_url(dashboard_url, warn=warn)
     if parsed_url.scheme != "https":
         raise click.ClickException(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
@@ -295,7 +310,7 @@ def dashboard_to_api_url(dashboard_url: str) -> str:
     if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
         if parsed_url.path:
             raise click.ClickException(
-                f"Invalid dashboard URL '{dashboard_url}', got an unexpected path"
+                f"Invalid dashboard URL '{dashboard_url}', got an unexpected path '{parsed_url.path}'"
             )
         parsed_url = parsed_url._replace(
             netloc=parsed_url.netloc.replace("dashboard", "api")
@@ -307,14 +322,12 @@ def dashboard_to_api_url(dashboard_url: str) -> str:
     return parsed_url.geturl()
 
 
-def api_to_dashboard_url(api_url: str) -> str:
+def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
     """
     Convert an API URL to a dashboard URL.
     handles the SaaS edge case where the host changes instead of the path
     """
-    parsed_url = urlparse(api_url)
-    if parsed_url.path.endswith("/"):
-        parsed_url = parsed_url._replace(path=parsed_url.path[:-1])
+    parsed_url = clean_url(api_url, warn=warn)
     if parsed_url.scheme != "https":
         raise click.ClickException(
             f"Invalid scheme for API URL '{api_url}', expected HTTPS"
@@ -322,7 +335,7 @@ def api_to_dashboard_url(api_url: str) -> str:
     if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
         if parsed_url.path:
             raise click.ClickException(
-                f"Invalid API URL '{api_url}', got an unexpected path"
+                f"Invalid API URL '{api_url}', got an unexpected path '{parsed_url.path}'"
             )
         parsed_url = parsed_url._replace(
             netloc=parsed_url.netloc.replace("api", "dashboard")
