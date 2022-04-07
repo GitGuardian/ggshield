@@ -16,7 +16,7 @@ from ggshield.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.types import IgnoredMatch
-from ggshield.utils import api_to_dashboard_url, dashboard_to_api_url
+from ggshield.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -148,11 +148,13 @@ class UserConfig(YAMLFileConfig):
         api_url = os.getenv("GITGUARDIAN_API_URL")
         dashboard_url = os.getenv("GITGUARDIAN_URL")
         if api_url is not None:
+            clean_url(api_url, warn=True)
             if dashboard_url is None:
                 dashboard_url = api_to_dashboard_url(api_url)
             self.api_url = api_url
             self.dashboard_url = dashboard_url
         elif dashboard_url is not None:
+            clean_url(dashboard_url, warn=True)
             api_url = dashboard_to_api_url(dashboard_url)
             self.api_url = api_url
             self.dashboard_url = dashboard_url
@@ -162,6 +164,10 @@ class UserConfig(YAMLFileConfig):
         URLs should always be both set together to make sure they belong
         to the same instance
         """
+        if "dashboard_url" in data:
+            clean_url(data["dashboard_url"], warn=True)
+        if "api_url" in data:
+            clean_url(data["api_url"], warn=True)
         if "dashboard_url" in data and "api_url" not in data:
             data["api_url"] = dashboard_to_api_url(data["dashboard_url"])
         elif "dashboard_url" not in data and "api_url" in data:

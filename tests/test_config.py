@@ -3,11 +3,11 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import yaml
 from click import ClickException
-from mock import patch
 
 from ggshield.config import (
     AccountConfig,
@@ -198,9 +198,9 @@ class TestAuthConfig:
                     }
                 ],
             },
-            "dashboard.onprem.gitguardian.ovh": {
+            "dashboard.onprem.example.com": {
                 "name": None,
-                "url": "https://dashboard.onprem.gitguardian.ovh",
+                "url": "https://dashboard.onprem.example.com",
                 "default-token-lifetime": 0,  # no expiry
                 "accounts": [
                     {
@@ -624,3 +624,63 @@ class TestConfig:
         # from the default test env vars:
         assert config.api_url == "https://api.gitguardian.com"
         assert config.dashboard_url == "https://dashboard.gitguardian.com"
+
+    def test_v1_in_api_url_env(self, capsys, monkeypatch):
+        """
+        GIVEN an API URL ending with /v1 configured via env var
+        WHEN loading the config
+        THEN writes a warning to stderr
+        """
+        monkeypatch.setitem(
+            os.environ, "GITGUARDIAN_API_URL", "https://api.gitguardian.com/v1"
+        )
+        Config()
+        out, err = capsys.readouterr()
+        sys.stdout.write(out)
+        sys.stderr.write(err)
+
+        assert "[Warning] unexpected /v1 path in your URL configuration" in err
+
+    def test_v1_in_api_url_local_config(self, capsys, local_config_path):
+        """
+        GIVEN an API URL ending with /v1 configured via in the local config file
+        WHEN loading the config
+        THEN writes a warning to stderr
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "verbose": False,
+                "show_secrets": True,
+                "api_url": "https://api.gitguardian.com/v1",
+            },
+        )
+
+        Config()
+        out, err = capsys.readouterr()
+        sys.stdout.write(out)
+        sys.stderr.write(err)
+
+        assert "[Warning] unexpected /v1 path in your URL configuration" in err
+
+    def test_v1_in_api_url_global_config(self, capsys, global_config_path):
+        """
+        GIVEN an API URL ending with /v1 configured in the global config file
+        WHEN loading the config
+        THEN writes a warning to stderr
+        """
+        write_yaml(
+            global_config_path,
+            {
+                "verbose": False,
+                "show_secrets": True,
+                "api_url": "https://api.gitguardian.com/v1",
+            },
+        )
+
+        Config()
+        out, err = capsys.readouterr()
+        sys.stdout.write(out)
+        sys.stderr.write(err)
+
+        assert "[Warning] unexpected /v1 path in your URL configuration" in err

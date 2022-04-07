@@ -133,19 +133,24 @@ class TestAPIDashboardURL:
         [
             ["https://api.gitguardian.com", "https://dashboard.gitguardian.com"],
             ["https://api.gitguardian.com/", "https://dashboard.gitguardian.com"],
+            ["https://api.gitguardian.com/v1", "https://dashboard.gitguardian.com"],
             [
                 "https://api.gitguardian.com/?foo=bar",
                 "https://dashboard.gitguardian.com?foo=bar",
             ],
-            ["https://gitguardian.ovh/exposed", "https://gitguardian.ovh"],
-            ["https://gitguardian.ovh/exposed/", "https://gitguardian.ovh"],
+            ["https://example.com/exposed", "https://example.com"],
+            ["https://example.com/exposed/", "https://example.com"],
             [
-                "https://gitguardian.ovh/exposed/?foo=bar",
-                "https://gitguardian.ovh?foo=bar",
+                "https://example.com/exposed/?foo=bar",
+                "https://example.com?foo=bar",
             ],
             [
-                "https://gitguardian.ovh/toto/exposed/?foo=bar",
-                "https://gitguardian.ovh/toto?foo=bar",
+                "https://example.com/toto/exposed/?foo=bar",
+                "https://example.com/toto?foo=bar",
+            ],
+            [
+                "https://example.com/exposed/v1/?foo=bar",
+                "https://example.com?foo=bar",
             ],
         ],
     )
@@ -161,15 +166,15 @@ class TestAPIDashboardURL:
                 "https://dashboard.gitguardian.com/?foo=bar",
                 "https://api.gitguardian.com?foo=bar",
             ],
-            ["https://gitguardian.ovh/", "https://gitguardian.ovh/exposed"],
-            ["https://gitguardian.ovh/", "https://gitguardian.ovh/exposed"],
+            ["https://example.com/", "https://example.com/exposed"],
+            ["https://example.com/", "https://example.com/exposed"],
             [
-                "https://gitguardian.ovh/?foo=bar",
-                "https://gitguardian.ovh/exposed?foo=bar",
+                "https://example.com/?foo=bar",
+                "https://example.com/exposed?foo=bar",
             ],
             [
-                "https://gitguardian.ovh/toto?foo=bar",
-                "https://gitguardian.ovh/toto/exposed?foo=bar",
+                "https://example.com/toto?foo=bar",
+                "https://example.com/toto/exposed?foo=bar",
             ],
         ],
     )
