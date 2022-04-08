@@ -1,5 +1,3 @@
-from urllib.parse import urlparse
-
 import click
 
 from .client import retrieve_client
