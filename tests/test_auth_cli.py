@@ -1,11 +1,10 @@
+from typing import Any, Dict
 from unittest.mock import Mock
 
 import pytest
 
 from ggshield.cmd import cli
 from ggshield.config import Config
-
-from .conftest import my_vcr
 
 
 @pytest.fixture(autouse=True)
@@ -14,15 +13,39 @@ def tmp_config(monkeypatch, tmp_path):
 
 
 class TestAuthLoginToken:
-    @pytest.mark.parametrize(
-        "cassette, expect_success",
-        [
-            ("test_auth_login_token_invalid", False),
-            ("test_auth_login_token_invalid_scope", False),
-            ("test_auth_login_token_valid", True),
-        ],
-    )
-    def test_auth_login_token(self, cli_fs_runner, cassette, expect_success):
+    VALID_TOKEN_PAYLOAD = {
+        "type": "personal_access_token",
+        "account_id": 17,
+        "name": "key",
+        "scope": ["scan"],
+        "expire_at": None,
+    }
+    INVALID_TOKEN_PAYLOAD = {"detail": "Invalid API key."}
+    VALID_TOKEN_INVALID_SCOPE_PAYLOAD = {
+        "type": "personal_access_token",
+        "account_id": 17,
+        "name": "key",
+        "scope": ["read:incident", "write:incident", "share:incident", "read:member"],
+        "expire_at": None,
+    }
+
+    @staticmethod
+    def mock_autho_login_request(
+        monkeypatch, status_code: int, json: Dict[str, Any]
+    ) -> None:
+        monkeypatch.setattr(
+            "ggshield.client.GGClient.get",
+            Mock(
+                return_value=Mock(
+                    status_code=status_code,
+                    ok=status_code < 400,
+                    json=lambda: json,
+                )
+            ),
+        )
+
+    @pytest.mark.parametrize("test_case", ["valid", "invalid_scope", "invalid"])
+    def test_auth_login_token(self, monkeypatch, cli_fs_runner, test_case):
         """
         GIVEN an API token, valid or not
         WHEN the auth login command is called with --method=token
@@ -32,26 +55,25 @@ class TestAuthLoginToken:
         instance = "https://dashboard.gitguardian.com"
         cmd = ["auth", "login", "--method=token", f"--instance={instance}"]
 
-        with my_vcr.use_cassette(
-            cassette,
-            # Disable VCR's header filtering, which removes the token from the request.
-            # We want to check that we're using the token given in the command line.
-            filter_headers=[],
-        ) as vcr:
-            result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
-            assert all(
-                request.headers.get("Authorization") == f"Token {token}"
-                for request in vcr.requests
+        if test_case == "valid":
+            self.mock_autho_login_request(monkeypatch, 200, self.VALID_TOKEN_PAYLOAD)
+        elif test_case == "invalid_scope":
+            self.mock_autho_login_request(
+                monkeypatch, 200, self.VALID_TOKEN_INVALID_SCOPE_PAYLOAD
             )
+        elif test_case == "invalid":
+            self.mock_autho_login_request(monkeypatch, 401, self.INVALID_TOKEN_PAYLOAD)
+
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
-        if expect_success:
+        if test_case == "valid":
             assert result.exit_code == 0, result.output
             assert instance in config.auth_config.instances
             assert config.auth_config.instances[instance].account.token == token
         else:
             assert result.exit_code != 0
-            if cassette == "test_auth_login_token_invalid_scope":
+            if test_case == "invalid_scope":
                 assert "This token does not have the scan scope." in result.output
             else:
                 assert "Authentication failed with token." in result.output
@@ -65,21 +87,8 @@ class TestAuthLoginToken:
         """
         config = Config()
         assert len(config.auth_config.instances) == 0
-        monkeypatch.setattr(
-            "ggshield.client.GGClient.get",
-            Mock(
-                return_value=Mock(
-                    ok=True,
-                    json=lambda: {
-                        "type": "personal_access_token",
-                        "account_id": 17,
-                        "name": "key",
-                        "scope": ["scan"],
-                        "expire_at": None,
-                    },
-                )
-            ),
-        )
+
+        self.mock_autho_login_request(monkeypatch, 200, self.VALID_TOKEN_PAYLOAD)
 
         cmd = ["auth", "login", "--method=token"]
 
