@@ -164,13 +164,13 @@ class UserConfig(YAMLFileConfig):
         URLs should always be both set together to make sure they belong
         to the same instance
         """
-        if "dashboard_url" in data:
+        if data.get("dashboard_url"):
             clean_url(data["dashboard_url"], warn=True)
-        if "api_url" in data:
+        if data.get("api_url"):
             clean_url(data["api_url"], warn=True)
-        if "dashboard_url" in data and "api_url" not in data:
+        if data.get("dashboard_url") and not data.get("api_url"):
             data["api_url"] = dashboard_to_api_url(data["dashboard_url"])
-        elif "dashboard_url" not in data and "api_url" in data:
+        elif not data.get("dashboard_url") and data.get("api_url"):
             data["dashboard_url"] = api_to_dashboard_url(data["api_url"])
         return super().update_config(data)
 
