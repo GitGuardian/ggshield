@@ -67,6 +67,15 @@ class File:
         self.filemode = Filemode.FILE
         self.filesize = filesize if filesize else len(self.document.encode("utf-8"))
 
+    @staticmethod
+    def from_bytes(raw_document: bytes, filename: str) -> "File":
+        document = (
+            raw_document.decode(errors="replace")
+            .replace("\0", " ")  # errors="replace" keeps `\0`, remove it
+            .replace("\uFFFD", " ")  # replacement character
+        )
+        return File(document, filename)
+
     @property
     def scan_dict(self) -> Dict[str, Any]:
         """Return a payload compatible with the scanning API."""
