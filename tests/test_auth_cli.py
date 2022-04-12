@@ -1,10 +1,23 @@
+import urllib.parse as urlparse
+from datetime import datetime
 from typing import Any, Dict
 from unittest.mock import Mock
 
 import pytest
+from click import ClickException
 
 from ggshield.cmd import cli
 from ggshield.config import Config
+from ggshield.oauth import OAuthClient, OAuthError
+
+
+_TOKEN_RESPONSE_PAYLOAD = {
+    "type": "personal_access_token",
+    "account_id": 17,
+    "name": "key",
+    "scope": ["scan"],
+    "expire_at": None,
+}
 
 
 @pytest.fixture(autouse=True)
@@ -13,20 +26,11 @@ def tmp_config(monkeypatch, tmp_path):
 
 
 class TestAuthLoginToken:
-    VALID_TOKEN_PAYLOAD = {
-        "type": "personal_access_token",
-        "account_id": 17,
-        "name": "key",
-        "scope": ["scan"],
-        "expire_at": None,
-    }
+    VALID_TOKEN_PAYLOAD = {**_TOKEN_RESPONSE_PAYLOAD}
     INVALID_TOKEN_PAYLOAD = {"detail": "Invalid API key."}
     VALID_TOKEN_INVALID_SCOPE_PAYLOAD = {
-        "type": "personal_access_token",
-        "account_id": 17,
-        "name": "key",
+        **_TOKEN_RESPONSE_PAYLOAD,
         "scope": ["read:incident", "write:incident", "share:incident", "read:member"],
-        "expire_at": None,
     }
 
     @staticmethod
@@ -82,7 +86,7 @@ class TestAuthLoginToken:
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
         """
         GIVEN a valid API token
-        WHEN the auth login command is called without --instance
+        WHEN the auth login command is called without --instance with method token
         THEN the authentication is made against the default instance
         """
         config = Config()
@@ -114,18 +118,7 @@ class TestAuthLoginToken:
         """
         monkeypatch.setattr(
             "ggshield.client.GGClient.get",
-            Mock(
-                return_value=Mock(
-                    ok=True,
-                    json=lambda: {
-                        "type": "personal_access_token",
-                        "account_id": 17,
-                        "name": "key",
-                        "scope": ["scan"],
-                        "expire_at": None,
-                    },
-                )
-            ),
+            Mock(return_value=Mock(ok=True, json=lambda: _TOKEN_RESPONSE_PAYLOAD)),
         )
 
         instance = "https://dashboard.gitguardian.com"
@@ -161,3 +154,211 @@ class TestAuthLoginToken:
             config.auth_config.instances[second_instance].account.token
             == second_instance_token
         )
+
+
+class TestAuthLoginWeb:
+    @pytest.mark.parametrize(
+        ["is_port_used", "authorization_code", "is_exchange_ok", "is_token_valid"],
+        [
+            (False, "some_valid_authorization_code", True, True),
+            (True, "some_valid_authorization_code", True, True),
+            (False, "some_valid_authorization_code", False, False),
+            (False, "some_valid_authorization_code", True, False),
+            (False, None, True, True),  # invalid authorization code from callback
+        ],
+    )
+    def test_auth_login_web_default_instance(
+        self,
+        is_port_used,
+        authorization_code,
+        is_exchange_ok,
+        is_token_valid,
+        monkeypatch,
+        cli_fs_runner,
+    ):
+        """
+        GIVEN a valid API token
+        WHEN the auth login command is called without --instance with method web
+        THEN the authentication is made against the default instance
+        """
+
+        callback_url = "http://localhost:1234/"
+        if authorization_code:
+            callback_url += f"?code={authorization_code}"
+
+        no_auth_code = authorization_code is None
+        exit_with_error = (
+            is_port_used or no_auth_code or (not is_exchange_ok) or not is_token_valid
+        )
+
+        token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
+        token = "mysupertoken"
+        config = Config()
+        assert len(config.auth_config.instances) == 0
+
+        # emulates incoming request
+        monkeypatch.setattr(
+            "ggshield.auth.OAuthClient", self._get_oauth_client_class(callback_url)
+        )
+
+        # Ensure that original wait_for_code method is not called
+        wait_for_callback_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.oauth.OAuthClient._wait_for_callback", wait_for_callback_mock
+        )
+
+        # open browser for the user to login
+        webbrowser_open_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.oauth.webbrowser.open_new_tab", webbrowser_open_mock
+        )
+
+        # avoid starting a server on port 1234
+        mock_server_class = Mock(
+            side_effect=(self._raise_oserror if is_port_used else None)
+        )
+        monkeypatch.setattr("ggshield.oauth.HTTPServer", mock_server_class)
+
+        # mock api call to exchange the code against a valid access token
+        client_post_mock = Mock(
+            return_value=Mock(
+                ok=is_exchange_ok,
+                json=lambda: (
+                    {"key": token, **_TOKEN_RESPONSE_PAYLOAD} if is_exchange_ok else {}
+                ),
+            )
+        )
+        monkeypatch.setattr("ggshield.oauth.requests.post", client_post_mock)
+
+        # mock api call to test the access token
+        client_get_mock = Mock(
+            return_value=Mock(
+                ok=is_token_valid,
+                json=lambda: (_TOKEN_RESPONSE_PAYLOAD if is_token_valid else {}),
+            )
+        )
+        monkeypatch.setattr("ggshield.client.GGClient.get", client_get_mock)
+
+        # run cli command
+        cmd = ["auth", "login", "--method=web"]
+        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
+
+        # original method should not be called
+        wait_for_callback_mock.assert_not_called()
+
+        expected_exit_code = 1 if exit_with_error else 0
+        assert result.exit_code == expected_exit_code, result.output
+
+        if is_port_used:
+            webbrowser_open_mock.assert_not_called()
+            client_post_mock.assert_not_called()
+            client_get_mock.assert_not_called()
+            self._assert_last_print(
+                result.output, "Error: Port 1234 is already in use."
+            )
+            self._assert_config_is_empty()
+
+        elif no_auth_code:
+            webbrowser_open_mock.assert_called_once()
+            client_post_mock.assert_not_called()
+            client_get_mock.assert_not_called()
+            self._assert_last_print(
+                result.output, "Error: Invalid code received from the callback."
+            )
+            self._assert_config_is_empty()
+        elif not is_exchange_ok:
+            webbrowser_open_mock.assert_called_once()
+            client_post_mock.assert_called_once()
+            self._assert_post_payload(client_post_mock, token_name)
+            self._assert_last_print(result.output, "Error: Cannot create a token.")
+            client_get_mock.assert_not_called()
+
+            self._assert_config_is_empty()
+        elif not is_token_valid:
+            webbrowser_open_mock.assert_called_once()
+            client_post_mock.assert_called_once()
+            self._assert_post_payload(client_post_mock, token_name)
+            client_get_mock.assert_called_once()
+            self._assert_last_print(
+                result.output, "Error: The created token is invalid."
+            )
+            self._assert_config_is_empty()
+        else:
+            webbrowser_open_mock.assert_called_once()
+            client_post_mock.assert_called_once()
+            self._assert_post_payload(client_post_mock, token_name)
+            client_get_mock.assert_called_once()
+
+            assert result.output.endswith(
+                f"\nCreated Personal Access Token {token_name}\n"
+            )
+            self._assert_config(token)
+
+    @staticmethod
+    def _assert_config_is_empty():
+        """
+        assert that the config is empty
+        """
+        config = Config()
+        assert len(config.auth_config.instances) == 0
+
+    @staticmethod
+    def _assert_config(token=None):
+        """
+        assert that the config exists.
+        If a token is passed, assert that the token saved in the config is the same
+        """
+        config = Config()
+        assert len(config.auth_config.instances) == 1
+        assert config.auth_config.default_instance in config.auth_config.instances
+        if token is not None:
+            assert (
+                config.auth_config.instances[
+                    config.auth_config.default_instance
+                ].account.token
+                == token
+            )
+
+    @staticmethod
+    def _raise_oserror(*args, **kwargs):
+        raise OSError("This port is already in use.")
+
+    @staticmethod
+    def _assert_last_print(output: str, expected_str: str):
+        """
+        assert that the last log output is the same as the one passed in param
+        """
+        assert output.rsplit("\n", 2)[-2] == expected_str
+
+    @staticmethod
+    def _assert_post_payload(post_mock, token_name=None):
+        """
+        assert that the post request is made to the right url
+        and include the expected token name
+        """
+
+        (url, payload), kwargs = post_mock.call_args_list[0]
+        assert url == "https://api.gitguardian.com/oauth/token"
+
+        request_body = urlparse.parse_qs(payload)
+        assert "name" in request_body
+
+        if token_name is None:
+            token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
+        assert request_body["name"][0] == token_name
+
+    @staticmethod
+    def _get_oauth_client_class(callback_url):
+        """
+        generate a fake OAuth class which overrides the wait for callback function
+        instead of waiting for a callback, emulate a callback with the given url
+        """
+
+        class FakeOAuthClient(OAuthClient):
+            def _wait_for_callback(self, *args, **kwargs):
+                try:
+                    self.process_callback(callback_url)
+                except OAuthError as e:
+                    raise ClickException(e.message)
+
+        return FakeOAuthClient
