@@ -82,11 +82,7 @@ def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, File]:
     return (
         manifest,
         json.loads(config_file_content),
-        File(
-            config_file_content,
-            filename="Dockerfile or build-args",  # noqa: E501
-            filesize=config_file_info.size,
-        ),
+        File(config_file_content, filename="Dockerfile or build-args"),
     )
 
 
