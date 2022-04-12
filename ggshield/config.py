@@ -11,6 +11,7 @@ from appdirs import user_config_dir
 
 from ggshield.constants import (
     AUTH_CONFIG_FILENAME,
+    DEFAULT_DASHBOARD_URL,
     DEFAULT_LOCAL_CONFIG_PATH,
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
@@ -296,11 +297,44 @@ def ensure_path_exists(dir_path: str) -> None:
     Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
+class AuthError(click.ClickException):
+    """
+    Base exception for Auth-related configuration error
+    """
+
+    def __init__(self, instance: str, message: str):
+        super(AuthError, self).__init__(message)
+        self.instance = instance
+
+
+class UnknownInstanceError(AuthError):
+    """
+    Raised when the requested instance does not exist
+    """
+
+    def __init__(self, instance: str):
+        super(UnknownInstanceError, self).__init__(
+            instance, f"Unknown instance: '{instance}'"
+        )
+
+
+class AuthExpiredError(AuthError):
+    """
+    Raised when authentication has expired for the given instance
+    """
+
+    def __init__(self, instance: str):
+        super(AuthExpiredError, self).__init__(
+            instance,
+            f"Instance '{instance}' authentication expired, please authenticate again.",
+        )
+
+
 @dataclass
 class AuthConfig(YAMLFileConfig):
     current_token: Optional[str] = None
     current_instance: Optional[str] = None
-    default_instance: str = "https://dashboard.gitguardian.com"
+    default_instance: str = DEFAULT_DASHBOARD_URL
     default_token_lifetime: Optional[int] = None
     instances: Mapping[str, InstanceConfig] = field(default_factory=dict)
 
@@ -334,20 +368,19 @@ class AuthConfig(YAMLFileConfig):
 
     def get_instance(self, instance_name: str) -> InstanceConfig:
         try:
-            instance = self.instances[instance_name]
+            return self.instances[instance_name]
         except KeyError:
-            raise click.ClickException(f"Unrecognized instance: '{instance_name}'")
-        return instance
+            raise UnknownInstanceError(instance=instance_name)
 
     def get_instance_token(self, instance_name: str) -> str:
         """
         Return the API token associated with the given instance if it is still valid.
+
+        Raise AuthExpiredError if it is not.
         """
         instance = self.get_instance(instance_name)
         if instance.expired:
-            raise click.ClickException(
-                f"Instance '{instance_name}' authentication expired, please authenticate again."
-            )
+            raise AuthExpiredError(instance=instance_name)
         return instance.account.token
 
 
@@ -449,7 +482,7 @@ class Config:
         return dashboard_url
 
     @property
-    def api_key(self) -> Optional[str]:
+    def api_key(self) -> str:
         """
         The API key to use
         priority order is
@@ -461,8 +494,6 @@ class Config:
         if api_key is None:
             instance_name = self.instance_name
             api_key = self.auth_config.get_instance_token(instance_name)
-            if api_key is None:
-                raise click.ClickException("GitGuardian API key is needed.")
         return api_key
 
     def add_ignored_match(self, *args: Any, **kwargs: Any) -> None:

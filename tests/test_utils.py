@@ -127,6 +127,37 @@ def test_retrieve_client_invalid_api_key():
             retrieve_client(Config())
 
 
+def test_retrieve_client_blank_state(isolated_fs):
+    """
+    GIVEN a blank state (no config, no environment variable)
+    WHEN retrieve_client() is called
+    THEN the exception message is user-friendly for new users
+    """
+    with pytest.raises(
+        click.ClickException,
+        match="GitGuardian API key is needed",
+    ):
+        with mock.patch.dict(os.environ, clear=True):
+            retrieve_client(Config())
+
+
+def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
+    """
+    GIVEN an auth config telling the client to use a custom instance
+    WHEN retrieve_client() is called
+    AND the custom instance does not exist
+    THEN the exception message mentions the instance name
+    """
+    with pytest.raises(
+        click.ClickException,
+        match="Unknown instance: 'https://example.com'",
+    ):
+        with mock.patch.dict(os.environ, clear=True):
+            config = Config()
+            config.auth_config.current_instance = "https://example.com"
+            retrieve_client(config)
+
+
 class TestAPIDashboardURL:
     @pytest.mark.parametrize(
         ["api_url", "dashboard_url"],
