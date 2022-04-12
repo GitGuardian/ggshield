@@ -158,17 +158,11 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if file is None:
             continue
 
-        file_content_raw = file.read()
-        if len(file_content_raw) > MAX_FILE_SIZE * 0.95:
+        file_content = file.read()
+        if len(file_content) > MAX_FILE_SIZE * 0.95:
             continue
 
-        file_content = (
-            file_content_raw.decode(errors="replace")
-            .replace("\0", " ")  # null character, not replaced by replace
-            .replace("\uFFFD", " ")  # replacement character
-        )
-        yield File(
-            document=file_content,
-            filename=os.path.join(archive.name, layer_filename, file_info.name),  # type: ignore # noqa
-            filesize=file_info.size,
+        yield File.from_bytes(
+            raw_document=file_content,
+            filename=os.path.join(archive.name, layer_filename, file_info.name),  # type: ignore
         )

@@ -1,7 +1,7 @@
 import os
 import re
 from pathlib import Path
-from typing import Iterable, List, Set, Union
+from typing import Iterable, Iterator, List, Set, Union
 
 import click
 
@@ -86,8 +86,8 @@ def get_filepaths(
     return targets
 
 
-def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[File]:
-    """Generate a list of scannable files from a list of filepaths."""
+def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[File]:
+    """Loop on filepaths and return an iterator on scannable files."""
     for path in paths:
         if os.path.isdir(path) or not os.path.exists(path):
             continue
@@ -101,10 +101,7 @@ def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterable[F
             if verbose:
                 click.echo(f"ignoring binary file extension: {path}")
             continue
-        with open(path, "r") as file:
-            try:
-                content = file.read()
-                if content:
-                    yield File(content, file.name, file_size)
-            except UnicodeDecodeError:
-                pass
+        with open(path, "rb") as file:
+            content = file.read()
+            if content:
+                yield File.from_bytes(content, file.name)
