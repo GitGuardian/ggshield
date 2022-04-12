@@ -2,6 +2,7 @@ import click
 
 from .client import retrieve_client
 from .config import AccountConfig, InstanceConfig
+from .oauth import OAuthClient
 from .utils import clean_url
 
 
@@ -9,7 +10,7 @@ from .utils import clean_url
 @click.option(
     "--method",
     required=True,
-    type=click.Choice(["token"]),
+    type=click.Choice(["token", "web"]),
     help="Authentication method.",
 )
 @click.option(
@@ -74,7 +75,8 @@ def login_cmd(ctx: click.Context, method: str, instance: str) -> int:
         instance_config.account = account_config
         config.save()
         click.echo("Authentication was successful.")
-
+    elif method == "web":
+        OAuthClient(config, instance).oauth_process()
     return 0
 
 
