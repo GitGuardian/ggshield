@@ -61,11 +61,10 @@ class ScanCollection(NamedTuple):
 class File:
     """Class representing a simple file."""
 
-    def __init__(self, document: str, filename: str, filesize: Optional[int] = None):
+    def __init__(self, document: str, filename: str):
         self.document = document
         self.filename = filename
         self.filemode = Filemode.FILE
-        self.filesize = filesize if filesize else len(self.document.encode("utf-8"))
 
     @staticmethod
     def from_bytes(raw_document: bytes, filename: str) -> "File":
@@ -91,14 +90,8 @@ class File:
 class CommitFile(File):
     """Class representing a commit file."""
 
-    def __init__(
-        self,
-        document: str,
-        filename: str,
-        filemode: Filemode,
-        filesize: Optional[int] = None,
-    ):
-        super().__init__(document, filename, filesize)
+    def __init__(self, document: str, filename: str, filemode: Filemode):
+        super().__init__(document, filename)
         self.filemode = filemode
 
 
@@ -309,4 +302,4 @@ class Commit(Files):
                 continue
 
             if document:
-                yield CommitFile(document, filename, filemode, file_size)
+                yield CommitFile(document, filename, filemode)
