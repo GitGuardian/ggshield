@@ -7,12 +7,12 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from click import ClickException
 
 from ggshield.config import (
     AccountConfig,
     Config,
     InstanceConfig,
+    UnknownInstanceError,
     get_auth_config_filepath,
     replace_in_keys,
 )
@@ -476,7 +476,7 @@ class TestConfig:
         config = Config()
         config.current_instance = "toto"
 
-        with pytest.raises(ClickException, match="Unrecognized instance: 'toto'"):
+        with pytest.raises(UnknownInstanceError, match="Unknown instance: 'toto'"):
             config.api_key
 
     @pytest.mark.parametrize(
