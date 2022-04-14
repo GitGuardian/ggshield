@@ -9,7 +9,6 @@ from ggshield.scan.docker import (
     _should_scan_layer,
     get_files_from_docker_archive,
 )
-from tests.conftest import skipwindows
 
 
 DOCKER_EXAMPLE_PATH = Path(__file__).parent.parent / "data" / "docker-example.tar.xz"
@@ -78,7 +77,6 @@ class TestDockerScan:
         with pytest.raises(InvalidDockerArchiveException, match=match):
             _get_config(tarfile)
 
-    @skipwindows
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
@@ -86,13 +84,10 @@ class TestDockerScan:
         files = get_files_from_docker_archive(image_path)
 
         expected_files = {
-            "Dockerfile or build-args": None,  # noqa: E501
-            image_path
-            / "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc/layer.tar/app/file_one": "Hello, I am the first file!\n",  # noqa: E501
-            image_path
-            / "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f/layer.tar/app/file_three.sh": "echo Life is beautiful.\n",  # noqa: E501
-            image_path
-            / "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f/layer.tar/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",  # noqa: E501
+            "Dockerfile or build-args": None,
+            "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc:/app/file_one": "Hello, I am the first file!\n",  # noqa: E501
+            "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f:/app/file_three.sh": "echo Life is beautiful.\n",  # noqa: E501
+            "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f:/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",  # noqa: E501
         }
 
         assert set(files.files) == {str(file_path) for file_path in expected_files}

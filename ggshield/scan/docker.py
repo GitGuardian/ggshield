@@ -158,7 +158,11 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if len(file_content) > MAX_FILE_SIZE * 0.95:
             continue
 
+        # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
+        layer_name = os.path.dirname(layer_filename)
+
+        # Do not use os.path.join() for the filename argument: we always want Unix path
+        # separators here
         yield File.from_bytes(
-            raw_document=file_content,
-            filename=os.path.join(archive.name, layer_filename, file_info.name),  # type: ignore
+            raw_document=file_content, filename=f"{layer_name}:/{file_info.name}"
         )
