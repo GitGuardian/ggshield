@@ -89,7 +89,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 
 # Installation
 
-## On MacOS
+## macOS
 
 ### Using Homebrew
 
@@ -99,7 +99,16 @@ You can install ggshield using Homebrew by running the following command:
 $ brew install gitguardian/tap/ggshield
 ```
 
-## On other Operating Systems
+## Linux packages
+
+Deb and RPM packages are available on [Cloudsmith](https://cloudsmith.io/~gitguardian/repos/ggshield/packages/).
+
+Setup instructions:
+
+- [Deb packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-deb)
+- [RPM packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-rpm)
+
+## Other Operating Systems
 
 ### Using pip
 
@@ -109,7 +118,7 @@ Install and update using `pip`:
 $ pip install ggshield
 ```
 
-ggshield supports **Python 3.6 and newer**.
+ggshield supports **Python 3.7 and newer**.
 
 The package should run on MacOS, Linux and Windows.
 

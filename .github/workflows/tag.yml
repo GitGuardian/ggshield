@@ -93,7 +93,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          file: "packages/ggshield-*.pyz;packages/ggshield_*.deb;packages/ggshield-*.rpm"
+          file: 'packages/ggshield-*.pyz;packages/ggshield_*.deb;packages/ggshield-*.rpm'
           release_id: ${{ steps.create_release.outputs.id }}
           overwrite: true
           verbose: true
@@ -202,3 +202,21 @@ jobs:
           git tag ${{ steps.tags.outputs.tag }}
           git push
           git push --tags
+
+  push_to_cloudsmith:
+    needs: build_packages
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v3
+        with:
+          name: packages
+
+      - name: Install Cloudsmith CLI
+        run: pip install cloudsmith-cli
+
+      - name: Push to Cloudsmith
+        run: |
+          scripts/push-to-cloudsmith
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
