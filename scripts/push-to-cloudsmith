@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OWNER_REPO_DISTRO_RELEASE=gitguardian/ggshield/any-distro/any-version
+
+die() {
+    echo $* >&2
+    exit 1
+}
+
+if [ -z "${CLOUDSMITH_API_KEY:-}" ] ; then
+    die '$CLOUDSMITH_API_KEY is not set'
+fi
+
+for package in packages/*.{rpm,deb} ; do
+    case "$package" in
+        *.deb)
+            cloudsmith push deb $OWNER_REPO_DISTRO_RELEASE "$package"
+            ;;
+        *.rpm)
+            cloudsmith push rpm $OWNER_REPO_DISTRO_RELEASE "$package"
+            ;;
+        *)
+            die "Should not happen"
+            ;;
+    esac
+done
