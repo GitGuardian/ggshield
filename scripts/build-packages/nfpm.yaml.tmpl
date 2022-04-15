@@ -16,8 +16,12 @@ depends:
   - git
   - python3
 contents:
-  - src: @GGSHIELD_PYZ@
+  - src: @GGSHIELD_WRAPPER@
     dst: /usr/bin/ggshield
+    file_info:
+      mode: 0755
+  - src: @GGSHIELD_PYZ@
+    dst: /usr/lib/ggshield/ggshield.pyz
     file_info:
       mode: 0755
   - src: README.md

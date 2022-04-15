@@ -12,6 +12,7 @@ set -euo pipefail
 
 cd $(dirname $0)
 NFPM_YAML_TMPL=$PWD/nfpm.yaml.tmpl
+GGSHIELD_WRAPPER=$PWD/ggshield-wrapper
 
 # Move to the work-tree root
 cd $(git rev-parse --show-toplevel)
@@ -54,6 +55,7 @@ run_nfpm() {
     local nfpm_yaml=$(mktemp --tmpdir nfpm-XXXXX.yaml)
     sed \
         -e "s,@VERSION@,$VERSION," \
+        -e "s,@GGSHIELD_WRAPPER@,$GGSHIELD_WRAPPER," \
         -e "s,@GGSHIELD_PYZ@,$GGSHIELD_PYZ," \
         "$NFPM_YAML_TMPL" > "$nfpm_yaml"
 
