@@ -45,7 +45,7 @@ class OAuthClient:
 
         self._generate_pkce_pair()
 
-    def oauth_process(self) -> None:
+    def oauth_process(self, token_name: Optional[str] = None) -> None:
         """
         Handle the whole oauth process which includes
         - opening the user's webbrowser to GitGuardian login page
@@ -54,7 +54,9 @@ class OAuthClient:
         # enable redirection to http://localhost
         os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = str(True)
 
-        self._token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
+        if token_name is None:
+            token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
+        self._token_name = token_name
 
         self._prepare_server()
         self._redirect_to_login()
