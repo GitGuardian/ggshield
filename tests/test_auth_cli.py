@@ -19,6 +19,17 @@ _TOKEN_RESPONSE_PAYLOAD = {
     "expire_at": None,
 }
 
+_EXPECTED_URL_PARAMS = {
+    "auth_mode": ["ggshield_login"],
+    "client_id": ["ggshield_oauth"],
+    "code_challenge_method": ["S256"],
+    "response_type": ["code"],
+    "scope": ["scan"],
+    "utm_campaign": ["ggshield"],
+    "utm_medium": ["login"],
+    "utm_source": ["cli"],
+}
+
 
 @pytest.fixture(autouse=True)
 def tmp_config(monkeypatch, tmp_path):
@@ -158,18 +169,19 @@ class TestAuthLoginToken:
 
 class TestAuthLoginWeb:
     @pytest.mark.parametrize(
-        ["is_port_used", "authorization_code", "is_exchange_ok", "is_token_valid"],
+        ["port_used_count", "authorization_code", "is_exchange_ok", "is_token_valid"],
         [
-            (False, "some_valid_authorization_code", True, True),
-            (True, "some_valid_authorization_code", True, True),
-            (False, "some_valid_authorization_code", False, False),
-            (False, "some_valid_authorization_code", True, False),
-            (False, None, True, True),  # invalid authorization code from callback
+            (0, "some_valid_authorization_code", True, True),
+            (1, "some_valid_authorization_code", True, True),
+            (1000, "some_valid_authorization_code", True, True),
+            (0, "some_valid_authorization_code", False, False),
+            (0, "some_valid_authorization_code", True, False),
+            (0, None, True, True),  # invalid authorization code from callback
         ],
     )
     def test_auth_login_web_default_instance(
         self,
-        is_port_used,
+        port_used_count,
         authorization_code,
         is_exchange_ok,
         is_token_valid,
@@ -186,9 +198,13 @@ class TestAuthLoginWeb:
         if authorization_code:
             callback_url += f"?code={authorization_code}"
 
+        no_port_available = port_used_count >= 1000
         no_auth_code = authorization_code is None
         exit_with_error = (
-            is_port_used or no_auth_code or (not is_exchange_ok) or not is_token_valid
+            no_port_available
+            or no_auth_code
+            or (not is_exchange_ok)
+            or not is_token_valid
         )
 
         token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
@@ -215,7 +231,7 @@ class TestAuthLoginWeb:
 
         # avoid starting a server on port 1234
         mock_server_class = Mock(
-            side_effect=(self._raise_oserror if is_port_used else None)
+            side_effect=self._get_oserror_side_effect(port_used_count)
         )
         monkeypatch.setattr("ggshield.oauth.HTTPServer", mock_server_class)
 
@@ -249,50 +265,50 @@ class TestAuthLoginWeb:
         expected_exit_code = 1 if exit_with_error else 0
         assert result.exit_code == expected_exit_code, result.output
 
-        if is_port_used:
+        if no_port_available:
             webbrowser_open_mock.assert_not_called()
             client_post_mock.assert_not_called()
             client_get_mock.assert_not_called()
             self._assert_last_print(
-                result.output, "Error: Port 1234 is already in use."
+                result.output, "Error: Could not find unoccupied port."
             )
             self._assert_config_is_empty()
 
-        elif no_auth_code:
-            webbrowser_open_mock.assert_called_once()
-            client_post_mock.assert_not_called()
-            client_get_mock.assert_not_called()
-            self._assert_last_print(
-                result.output, "Error: Invalid code received from the callback."
-            )
-            self._assert_config_is_empty()
-        elif not is_exchange_ok:
-            webbrowser_open_mock.assert_called_once()
-            client_post_mock.assert_called_once()
-            self._assert_post_payload(client_post_mock, token_name)
-            self._assert_last_print(result.output, "Error: Cannot create a token.")
-            client_get_mock.assert_not_called()
-
-            self._assert_config_is_empty()
-        elif not is_token_valid:
-            webbrowser_open_mock.assert_called_once()
-            client_post_mock.assert_called_once()
-            self._assert_post_payload(client_post_mock, token_name)
-            client_get_mock.assert_called_once()
-            self._assert_last_print(
-                result.output, "Error: The created token is invalid."
-            )
-            self._assert_config_is_empty()
         else:
             webbrowser_open_mock.assert_called_once()
-            client_post_mock.assert_called_once()
-            self._assert_post_payload(client_post_mock, token_name)
-            client_get_mock.assert_called_once()
+            self._assert_open_url(webbrowser_open_mock, 29170 + port_used_count)
 
-            assert result.output.endswith(
-                f"\nCreated Personal Access Token {token_name}\n"
-            )
-            self._assert_config(token)
+            if no_auth_code:
+                client_post_mock.assert_not_called()
+                client_get_mock.assert_not_called()
+                self._assert_last_print(
+                    result.output, "Error: Invalid code received from the callback."
+                )
+                self._assert_config_is_empty()
+            elif not is_exchange_ok:
+                client_post_mock.assert_called_once()
+                self._assert_post_payload(client_post_mock, token_name)
+                self._assert_last_print(result.output, "Error: Cannot create a token.")
+                client_get_mock.assert_not_called()
+
+                self._assert_config_is_empty()
+            elif not is_token_valid:
+                client_post_mock.assert_called_once()
+                self._assert_post_payload(client_post_mock, token_name)
+                client_get_mock.assert_called_once()
+                self._assert_last_print(
+                    result.output, "Error: The created token is invalid."
+                )
+                self._assert_config_is_empty()
+            else:
+                client_post_mock.assert_called_once()
+                self._assert_post_payload(client_post_mock, token_name)
+                client_get_mock.assert_called_once()
+
+                assert result.output.endswith(
+                    f"\nCreated Personal Access Token {token_name}\n"
+                )
+                self._assert_config(token)
 
     @staticmethod
     def _assert_config_is_empty():
@@ -320,8 +336,16 @@ class TestAuthLoginWeb:
             )
 
     @staticmethod
-    def _raise_oserror(*args, **kwargs):
-        raise OSError("This port is already in use.")
+    def _get_oserror_side_effect(failure_count=1):
+        """
+        return a side effect to pass to a mock object
+        the n first call will raise an exception
+        the call n + 1 will be silent
+        """
+        return (
+            OSError("This port is already in use.") if i < failure_count else None
+            for i in range(failure_count + 1)
+        )
 
     @staticmethod
     def _assert_last_print(output: str, expected_str: str):
@@ -329,6 +353,26 @@ class TestAuthLoginWeb:
         assert that the last log output is the same as the one passed in param
         """
         assert output.rsplit("\n", 2)[-2] == expected_str
+
+    @staticmethod
+    def _assert_open_url(open_browser_mock, expected_port: int):
+        """
+        assert that the url to be open in the browser has the right static parameters
+        also check if the port of the redirect url is the one expected depending on occupied ports
+        """
+        (url,), kwargs = open_browser_mock.call_args_list[0]
+        url_params = urlparse.parse_qs(url.split("?", 1)[1])
+
+        for key, value in _EXPECTED_URL_PARAMS.items():
+            assert key in url_params, f"missing url param: {key}"
+            assert url_params[key] == value, f"invalid value for param '{key}': {value}"
+
+        assert "redirect_uri" in url_params, "redirect_url not in server post request"
+        redirect_uri = url_params["redirect_uri"][0]
+
+        assert redirect_uri.startswith(
+            f"http://localhost:{expected_port}"
+        ), redirect_uri
 
     @staticmethod
     def _assert_post_payload(post_mock, token_name=None):
