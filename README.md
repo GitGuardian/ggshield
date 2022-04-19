@@ -963,7 +963,9 @@ jobs:
   - job: GitGuardianShield
     pool:
       vmImage: 'ubuntu-latest'
-    container: gitguardian/ggshield:latest
+    container:
+      image: gitguardian/ggshield:latest
+      options: -u 0
     steps:
       - script: ggshield scan ci
         env:
