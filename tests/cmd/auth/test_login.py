@@ -184,18 +184,33 @@ class TestAuthLoginToken:
 
 class TestAuthLoginWeb:
     @pytest.mark.parametrize(
-        ["port_used_count", "authorization_code", "is_exchange_ok", "is_token_valid"],
         [
-            (0, "some_valid_authorization_code", True, True),
-            (1, "some_valid_authorization_code", True, True),
-            (1000, "some_valid_authorization_code", True, True),
-            (0, "some_valid_authorization_code", False, False),
-            (0, "some_valid_authorization_code", True, False),
-            (0, None, True, True),  # invalid authorization code from callback
+            "token_name",
+            "port_used_count",
+            "authorization_code",
+            "is_exchange_ok",
+            "is_token_valid",
+        ],
+        [
+            # valid case
+            ("test token", 0, "some_valid_authorization_code", True, True),
+            # default token name
+            (None, 0, "some_valid_authorization_code", True, True),
+            # first port already used
+            ("test token", 1, "some_valid_authorization_code", True, True),
+            # all ports already used
+            ("test token", 1000, "some_valid_authorization_code", True, True),
+            # can't get token from server
+            ("test token", 0, "some_valid_authorization_code", False, False),
+            # invalid token from server
+            ("test token", 0, "some_valid_authorization_code", True, False),
+            # invalid authorization code from callback
+            ("test token", 0, None, True, True),
         ],
     )
     def test_auth_login_web_default_instance(
         self,
+        token_name,
         port_used_count,
         authorization_code,
         is_exchange_ok,
@@ -223,7 +238,6 @@ class TestAuthLoginWeb:
             or not is_token_valid
         )
 
-        token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
         token = "mysupertoken"
         config = Config()
         assert len(config.auth_config.instances) == 0
@@ -280,6 +294,12 @@ class TestAuthLoginWeb:
 
         # run cli command
         cmd = ["auth", "login", "--method=web"]
+        if token_name is not None:
+            cmd.append(f"--token-name={token_name}")
+        else:
+            token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
+
+        # run cli command
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
 
         check_instance_has_enabled_flow_mock.assert_called_once()
