@@ -17,7 +17,12 @@ from .config import AccountConfig, Config
 
 CLIENT_ID = "ggshield_oauth"
 SCOPE = "scan"
-REDIRECT_PORT = 1234
+
+# potential port range to be used to run local server
+# to handle authorization code callback
+# this is the largest band of not commonly occupied ports
+# https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
+USABLE_PORT_RANGE = (29170, 29998)
 
 
 class OAuthClient:
@@ -35,6 +40,7 @@ class OAuthClient:
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
+        self._port = USABLE_PORT_RANGE[0]
         self.server: Optional[HTTPServer] = None
 
         self._generate_pkce_pair()
@@ -107,15 +113,20 @@ class OAuthClient:
         webbrowser.open_new_tab(request_uri)
 
     def _prepare_server(self) -> None:
-        try:
-            self.server = HTTPServer(
-                # only consider requests from localhost on the predetermined port
-                ("127.0.0.1", REDIRECT_PORT),
-                # attache the wrapped request handler
-                self._handler_wrapper.request_handler,
-            )
-        except OSError:
-            raise click.ClickException(f"Port {REDIRECT_PORT} is already in use.")
+        for port in range(*USABLE_PORT_RANGE):
+            try:
+                self.server = HTTPServer(
+                    # only consider requests from localhost on the predetermined port
+                    ("127.0.0.1", port),
+                    # attach the wrapped request handler
+                    self._handler_wrapper.request_handler,
+                )
+                self._port = port
+                break
+            except OSError:
+                continue
+        else:
+            raise click.ClickException("Could not find unoccupied port.")
 
     def _wait_for_callback(self) -> None:
         """
@@ -206,7 +217,7 @@ class OAuthClient:
 
     @property
     def redirect_uri(self) -> str:
-        return f"http://localhost:{REDIRECT_PORT}"
+        return f"http://localhost:{self._port}"
 
     @property
     def dashboard_url(self) -> str:
