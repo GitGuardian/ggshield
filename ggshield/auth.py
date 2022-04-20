@@ -1,3 +1,5 @@
+import os
+
 import click
 
 from .client import retrieve_client
@@ -21,7 +23,14 @@ from .utils import clean_url
 )
 @click.pass_context
 def login_cmd(ctx: click.Context, method: str, instance: str) -> int:
-    """Authenticate to your GitGuardian account."""
+    """
+    Authenticate to your GitGuardian account.
+
+    Use `--method token` to authenticate using an existing token.
+
+    Use `--method web` to let ggshield authenticate through your web browser and
+    generate a token for you. Note: This is experimental for now.
+    """
     config = ctx.obj["config"]
 
     if instance:
@@ -76,7 +85,10 @@ def login_cmd(ctx: click.Context, method: str, instance: str) -> int:
         config.save()
         click.echo("Authentication was successful.")
     elif method == "web":
-        OAuthClient(config, instance).oauth_process()
+        if os.getenv("IS_WEB_AUTH_ENABLED", False):
+            OAuthClient(config, instance).oauth_process()
+        else:
+            raise click.ClickException("The web auth login method is not enabled.")
     return 0
 
 
