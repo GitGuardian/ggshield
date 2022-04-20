@@ -9,13 +9,12 @@ import pytest
 from ggshield.cmd.cmd import cli
 from ggshield.scan.docker import docker_pull_image, docker_save_to_tmp
 from ggshield.scan.scannable import File, Files, ScanCollection
+from tests.conftest import _SIMPLE_SECRET, DATA_PATH, my_vcr
 
-from .conftest import _SIMPLE_SECRET, my_vcr
 
-
-DOCKER_EXAMPLE_PATH = Path(__file__).parent / "data" / "docker-example.tar.xz"
+DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
 DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
-    Path(__file__).parent / "data" / "docker-incomplete-manifest-example.tar.xz"
+    DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
 )
 
 DOCKER_TIMEOUT = 12
@@ -207,6 +206,8 @@ class TestDockerCMD:
         cli_fs_runner: click.testing.CliRunner,
         image_path: Path,
     ):
+        assert image_path.exists()
+
         get_files_mock.return_value = Files(
             files=[File(document=_SIMPLE_SECRET, filename="file_secret")]
         )

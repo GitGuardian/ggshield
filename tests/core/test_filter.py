@@ -15,8 +15,7 @@ from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
 )
-
-from .conftest import (
+from tests.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT,

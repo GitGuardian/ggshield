@@ -7,8 +7,7 @@ from click.testing import CliRunner
 from ggshield.cmd.cmd import cli
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, Filemode
 from ggshield.scan import Result, ScanCollection
-
-from .conftest import (
+from tests.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_TOKEN,

@@ -9,11 +9,12 @@ from ggshield.scan.docker import (
     _should_scan_layer,
     get_files_from_docker_archive,
 )
+from tests.conftest import DATA_PATH
 
 
-DOCKER_EXAMPLE_PATH = Path(__file__).parent.parent / "data" / "docker-example.tar.xz"
+DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
 DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
-    Path(__file__).parent.parent / "data" / "docker-incomplete-manifest-example.tar.xz"
+    DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
 )
 
 

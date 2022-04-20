@@ -3,8 +3,7 @@ from unittest import mock
 import pytest
 
 from ggshield.cmd.cmd import cli
-
-from .conftest import my_vcr
+from tests.conftest import my_vcr
 
 
 @pytest.mark.parametrize(
