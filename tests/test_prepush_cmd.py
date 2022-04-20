@@ -27,18 +27,30 @@ class TestPrepush:
         assert "Unable to get commit range." in result.output
 
     @patch("ggshield.hook_cmd.get_list_commit_SHA")
-    def test_prepush_too_many(self, get_list_mock: Mock, cli_fs_runner: CliRunner):
+    @patch("ggshield.cmd.scan.prepush.scan_commit_range")
+    @patch("ggshield.cmd.scan.prepush.check_git_dir")
+    def test_prepush_too_many(
+        self,
+        check_dir_mock: Mock,
+        scan_commit_range_mock: Mock,
+        get_list_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
         """
         GIVEN a prepush range with 51 commits
         WHEN the command is run
         THEN it should return 0 warn too many commits for scanning, and scan last 50
         """
+        scan_commit_range_mock.return_value = 0
         get_list_mock.return_value = ["a"] * 51
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
+        scan_commit_range_mock.assert_called_once()
+        _, kwargs = scan_commit_range_mock.call_args_list[0]
+        assert len(kwargs["commit_list"]) == 50
         assert result.exit_code == 0
         assert "Too many commits. Scanning last 50" in result.output
 
