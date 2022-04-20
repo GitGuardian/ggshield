@@ -204,14 +204,28 @@ class TestAuthLoginWeb:
         self._assert_last_print(output, "Error: Could not find unoccupied port.")
         self._assert_config_is_empty()
 
-    def test_invalid_oauth_params_exits_error(self, cli_fs_runner, monkeypatch):
+    @pytest.mark.parametrize(
+        ["authorization_code", "is_state_valid"],
+        [
+            pytest.param(None, True, id="no-auth-code"),
+            pytest.param("some_authorization_code", False, id="invalid-state"),
+        ],
+    )
+    def test_invalid_oauth_params_exits_error(
+        self, authorization_code, is_state_valid, cli_fs_runner, monkeypatch
+    ):
         """
         GIVEN -
         WHEN receiving the oauth flow callback
         AND the callback doesn't include an authorization code
+        OR the state included in the url doesn't match the original state
         THEN the auth flow fails with an explanatory message
         """
-        self.prepare_mocks(monkeypatch, authorization_code=None)
+        self.prepare_mocks(
+            monkeypatch,
+            authorization_code=authorization_code,
+            is_state_valid=is_state_valid,
+        )
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == 1
 
@@ -221,7 +235,7 @@ class TestAuthLoginWeb:
         self._client_get_mock.assert_not_called()
         self._assert_last_print(
             output,
-            "Error: Invalid code received from the callback.",
+            "Error: Invalid code or state received from the callback.",
         )
         self._assert_config_is_empty()
 
@@ -302,6 +316,7 @@ class TestAuthLoginWeb:
         lifetime=None,
         authorization_code="some_authorization_code",
         used_port_count=0,
+        is_state_valid=True,
         is_exchange_ok=True,
         is_token_valid=True,
     ):
@@ -324,7 +339,9 @@ class TestAuthLoginWeb:
             else "ggshield token " + datetime.today().strftime("%Y-%m-%d")
         )
 
-        url_params = {}
+        # generate the expected oauth state
+        self._state = self._get_oauth_state() if is_state_valid else "invalid_state"
+        url_params = {"state": self._state}
         if authorization_code:
             url_params["code"] = authorization_code
 
@@ -504,6 +521,13 @@ class TestAuthLoginWeb:
                 days=self._lifetime
             )
         return None
+
+    def _get_oauth_state(self):
+        return urlparse.quote(
+            json.dumps(
+                {"token_name": self._generated_token_name, "lifetime": self._lifetime}
+            )
+        )
 
     @staticmethod
     def _get_oauth_client_class(callback_url):

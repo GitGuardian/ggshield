@@ -1,3 +1,4 @@
+import json
 import os
 import urllib.parse as urlparse
 import webbrowser
@@ -48,6 +49,7 @@ class OAuthClient:
         self.config = config
         self.instance = instance
         self._oauth_client = WebApplicationClient(CLIENT_ID)
+        self._state = ""  # use the `state` property instead
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
@@ -130,6 +132,7 @@ class OAuthClient:
             scope=SCOPE,
             code_challenge=self.code_challenge,
             code_challenge_method="S256",
+            state=self.state,
             **static_params,
         )
         click.echo(
@@ -176,17 +179,19 @@ class OAuthClient:
 
     def _get_code(self, uri: str) -> str:
         """
-        extract the authorization from the incoming request URI
-        if no code can be extracted, return None
+        Extract the authorization from the incoming request uri and verify that the state from
+        the uri match the one stored internally.
+        if no code can be extracted or the state is invalid, raise an OAuthError
+        else return the extracted code
         """
         try:
-            authorization_code = self._oauth_client.parse_request_uri_response(uri).get(
-                "code"
-            )
+            authorization_code = self._oauth_client.parse_request_uri_response(
+                uri, self.state
+            ).get("code")
         except OAuth2Error:
             authorization_code = None
         if authorization_code is None:
-            raise OAuthError("Invalid code received from the callback.")
+            raise OAuthError("Invalid code or state received from the callback.")
         return authorization_code  # type: ignore
 
     def _claim_token(self, authorization_code: str) -> None:
@@ -261,6 +266,21 @@ class OAuthClient:
     @property
     def redirect_uri(self) -> str:
         return f"http://localhost:{self._port}"
+
+    @property
+    def state(self) -> str:
+        """
+        Return the state used to verify the auth process.
+        The state is included in the redirect_uri and is expected in the callback url.
+        Then, if both states don't match, the process fails.
+        The state is an url-encoded string dict containing the token name and lifetime
+        It is cached to prevent from altering its value during the process
+        """
+        if not self._state:
+            self._state = urlparse.quote(
+                json.dumps({"token_name": self._token_name, "lifetime": self._lifetime})
+            )
+        return self._state
 
     @property
     def dashboard_url(self) -> str:
