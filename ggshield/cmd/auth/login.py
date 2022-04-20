@@ -1,3 +1,5 @@
+from typing import Optional
+
 import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
@@ -26,8 +28,21 @@ from ggshield.core.utils import clean_url
     type=str,
     help="Name of new token.",
 )
+@click.option(
+    "--lifetime",
+    required=False,
+    type=click.IntRange(0),
+    default=None,
+    help="Amount of days before the token expires. 0 means the token never expires.",
+)
 @click.pass_context
-def login_cmd(ctx: click.Context, method: str, instance: str, token_name: str) -> int:
+def login_cmd(
+    ctx: click.Context,
+    method: str,
+    instance: str,
+    token_name: Optional[str],
+    lifetime: Optional[int],
+) -> int:
     """
     Authenticate to your GitGuardian account.
 
@@ -94,5 +109,7 @@ def login_cmd(ctx: click.Context, method: str, instance: str, token_name: str) -
     check_instance_has_enabled_flow(config=config)
 
     if method == "web":
-        OAuthClient(config, instance).oauth_process(token_name=token_name)
+        OAuthClient(config, instance).oauth_process(
+            token_name=token_name, lifetime=lifetime
+        )
     return 0
