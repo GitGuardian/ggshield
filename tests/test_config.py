@@ -60,11 +60,10 @@ def configure_test_constants(local_config_path, global_config_path, tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def env_vars():
-    os.environ["GITGUARDIAN_API_URL"] = "https://api.gitguardian.com"
-    os.environ["GITGUARDIAN_API_KEY"] = os.getenv(
-        "TEST_GITGUARDIAN_API_KEY", "1234567890"
-    )
+def env_vars(monkeypatch):
+    api_key = os.getenv("TEST_GITGUARDIAN_API_KEY", "1234567890")
+    monkeypatch.setenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
+    monkeypatch.setenv("GITGUARDIAN_API_KEY", api_key)
 
 
 def write_text(filename: str, text: str):
