@@ -2,10 +2,10 @@ from collections import namedtuple
 
 import pytest
 
-from ggshield.constants import MAX_FILE_SIZE
-from ggshield.filter import init_exclusion_regexes
+from ggshield.core.constants import MAX_FILE_SIZE
+from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.utils import Filemode
 from ggshield.scan import Commit
-from ggshield.utils import Filemode
 from tests.conftest import (
     _MULTIPLE_SECRETS,
     _NO_SECRET,

@@ -9,15 +9,15 @@ import click
 import yaml
 from appdirs import user_config_dir
 
-from ggshield.constants import (
+from ggshield.core.constants import (
     AUTH_CONFIG_FILENAME,
     DEFAULT_DASHBOARD_URL,
     DEFAULT_LOCAL_CONFIG_PATH,
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
-from ggshield.types import IgnoredMatch
-from ggshield.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
+from ggshield.core.types import IgnoredMatch
+from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:

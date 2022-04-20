@@ -2,10 +2,10 @@ import os
 
 import click
 
-from .client import retrieve_client
-from .config import AccountConfig, InstanceConfig
-from .oauth import OAuthClient
-from .utils import clean_url
+from ggshield.core.client import retrieve_client
+from ggshield.core.config import AccountConfig, InstanceConfig
+from ggshield.core.oauth import OAuthClient
+from ggshield.core.utils import clean_url
 
 
 @click.command()
@@ -90,8 +90,3 @@ def login_cmd(ctx: click.Context, method: str, instance: str) -> int:
         else:
             raise click.ClickException("The web auth login method is not enabled.")
     return 0
-
-
-@click.group(commands={"login": login_cmd})
-def auth() -> None:
-    """Command to manage authentication."""

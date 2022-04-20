@@ -4,7 +4,7 @@ from unittest import mock
 import click.exceptions
 import pytest
 
-from ggshield.cmd import cli_wrapper
+from ggshield.cmd.cmd import cli_wrapper
 
 
 CRASH_LOG_ENV = {"GITGUARDIAN_CRASH_LOG": "true"}

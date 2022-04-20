@@ -9,7 +9,7 @@ import click
 from dotenv import load_dotenv
 from pygitguardian.models import Match
 
-from ggshield.constants import ON_PREMISE_API_URL_PATH_PREFIX
+from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
 from .git_shell import get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error
@@ -263,7 +263,7 @@ def load_dot_env() -> None:
     """Loads .env file into sys.environ."""
     dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
     dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
-    cwd_env = os.path.join(".", ".env")
+    cwd_env = os.path.join("..", ".env")
     if not dont_load_env:
         if dotenv_path and os.path.isfile(dotenv_path):
             load_dotenv(dotenv_path, override=True)

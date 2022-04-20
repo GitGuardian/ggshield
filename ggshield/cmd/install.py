@@ -5,7 +5,7 @@ from typing import Optional
 
 import click
 
-from .git_shell import GIT_PATH, check_git_dir, check_git_installed
+from ggshield.core.git_shell import GIT_PATH, check_git_dir, check_git_installed
 
 
 @click.command(context_settings={"ignore_unknown_options": True})

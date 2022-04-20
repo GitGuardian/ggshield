@@ -7,18 +7,17 @@ from typing import List, Optional, Type
 
 import click
 
-from ggshield.dev_scan import scan_commit_range
-from ggshield.output import GitLabWebUIOutputHandler
-from ggshield.text_utils import display_error
-from ggshield.utils import (
+from ggshield.core.git_shell import get_list_commit_SHA
+from ggshield.core.text_utils import display_error
+from ggshield.core.utils import (
     EMPTY_SHA,
     EMPTY_TREE,
     PRERECEIVE_TIMEOUT,
     SupportedScanMode,
     handle_exception,
 )
-
-from .git_shell import get_list_commit_SHA
+from ggshield.output import GitLabWebUIOutputHandler
+from ggshield.scan.repo import scan_commit_range
 
 
 def quit_function() -> None:

@@ -3,13 +3,13 @@ from typing import Any, Dict, List, cast
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.text_utils import Line
+from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
 from ggshield.output.json.schemas import ExtendedMatch, JSONScanCollectionSchema
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result
 from ggshield.scan.scannable import ScanCollection
-from ggshield.text_utils import Line
-from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 
 class JSONOutputHandler(OutputHandler):

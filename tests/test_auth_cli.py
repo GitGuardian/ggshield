@@ -6,9 +6,9 @@ from unittest.mock import Mock
 import pytest
 from click import ClickException
 
-from ggshield.cmd import cli
-from ggshield.config import Config
-from ggshield.oauth import OAuthClient, OAuthError
+from ggshield.cmd.cmd import cli
+from ggshield.core.config import Config
+from ggshield.core.oauth import OAuthClient, OAuthError
 
 
 _TOKEN_RESPONSE_PAYLOAD = {
@@ -33,7 +33,9 @@ _EXPECTED_URL_PARAMS = {
 
 @pytest.fixture(autouse=True)
 def tmp_config(monkeypatch, tmp_path):
-    monkeypatch.setattr("ggshield.config.get_auth_config_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        "ggshield.core.config.get_auth_config_dir", lambda: str(tmp_path)
+    )
 
 
 @pytest.fixture()
@@ -54,7 +56,7 @@ class TestAuthLoginToken:
         monkeypatch, status_code: int, json: Dict[str, Any]
     ) -> None:
         monkeypatch.setattr(
-            "ggshield.client.GGClient.get",
+            "ggshield.core.client.GGClient.get",
             Mock(
                 return_value=Mock(
                     status_code=status_code,
@@ -133,7 +135,7 @@ class TestAuthLoginToken:
         THEN the instance configuration is created if it doesn't exist, or updated otherwise
         """
         monkeypatch.setattr(
-            "ggshield.client.GGClient.get",
+            "ggshield.core.client.GGClient.get",
             Mock(return_value=Mock(ok=True, json=lambda: _TOKEN_RESPONSE_PAYLOAD)),
         )
 
@@ -231,26 +233,27 @@ class TestAuthLoginWeb:
 
         # emulates incoming request
         monkeypatch.setattr(
-            "ggshield.auth.OAuthClient", self._get_oauth_client_class(callback_url)
+            "ggshield.cmd.auth.login.OAuthClient",
+            self._get_oauth_client_class(callback_url),
         )
 
         # Ensure that original wait_for_code method is not called
         wait_for_callback_mock = Mock()
         monkeypatch.setattr(
-            "ggshield.oauth.OAuthClient._wait_for_callback", wait_for_callback_mock
+            "ggshield.core.oauth.OAuthClient._wait_for_callback", wait_for_callback_mock
         )
 
         # open browser for the user to login
         webbrowser_open_mock = Mock()
         monkeypatch.setattr(
-            "ggshield.oauth.webbrowser.open_new_tab", webbrowser_open_mock
+            "ggshield.core.oauth.webbrowser.open_new_tab", webbrowser_open_mock
         )
 
         # avoid starting a server on port 1234
         mock_server_class = Mock(
             side_effect=self._get_oserror_side_effect(port_used_count)
         )
-        monkeypatch.setattr("ggshield.oauth.HTTPServer", mock_server_class)
+        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", mock_server_class)
 
         # mock api call to exchange the code against a valid access token
         client_post_mock = Mock(
@@ -261,7 +264,7 @@ class TestAuthLoginWeb:
                 ),
             )
         )
-        monkeypatch.setattr("ggshield.oauth.requests.post", client_post_mock)
+        monkeypatch.setattr("ggshield.core.oauth.requests.post", client_post_mock)
 
         # mock api call to test the access token
         client_get_mock = Mock(
@@ -270,7 +273,7 @@ class TestAuthLoginWeb:
                 json=lambda: (_TOKEN_RESPONSE_PAYLOAD if is_token_valid else {}),
             )
         )
-        monkeypatch.setattr("ggshield.client.GGClient.get", client_get_mock)
+        monkeypatch.setattr("ggshield.core.client.GGClient.get", client_get_mock)
 
         # run cli command
         cmd = ["auth", "login", "--method=web"]

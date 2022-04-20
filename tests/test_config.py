@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from ggshield.config import (
+from ggshield.core.config import (
     AccountConfig,
     Config,
     InstanceConfig,
@@ -16,7 +16,7 @@ from ggshield.config import (
     get_auth_config_filepath,
     replace_in_keys,
 )
-from ggshield.utils import dashboard_to_api_url
+from ggshield.core.utils import dashboard_to_api_url
 
 
 @pytest.fixture
@@ -45,15 +45,16 @@ def global_config_path(tmp_path):
 
 @pytest.fixture(autouse=True)
 def configure_test_constants(local_config_path, global_config_path, tmp_path):
-    with patch("ggshield.config.DEFAULT_LOCAL_CONFIG_PATH", local_config_path,), patch(
-        "ggshield.config.LOCAL_CONFIG_PATHS", [local_config_path]
-    ), patch(
-        "ggshield.config.GLOBAL_CONFIG_FILENAMES",
+    with patch(
+        "ggshield.core.config.DEFAULT_LOCAL_CONFIG_PATH",
+        local_config_path,
+    ), patch("ggshield.core.config.LOCAL_CONFIG_PATHS", [local_config_path]), patch(
+        "ggshield.core.config.GLOBAL_CONFIG_FILENAMES",
         [os.path.split(global_config_path)[-1]],
     ), patch(
-        "ggshield.cache.CACHE_FILENAME", "test_cache_ggshield"
+        "ggshield.core.cache.CACHE_FILENAME", "test_cache_ggshield"
     ), patch(
-        "ggshield.config.get_global_path",
+        "ggshield.core.config.get_global_path",
         lambda filename: os.path.join(tmp_path, "ggshield", "global", filename),
     ):
         yield
@@ -92,8 +93,8 @@ class TestUtils:
 class TestUserConfig:
     def test_parsing_error(cli_fs_runner, capsys, monkeypatch, tmp_path):
         filepath = os.path.join(tmp_path, "test_local_gitguardian.yml")
-        monkeypatch.setattr("ggshield.config.LOCAL_CONFIG_PATHS", [filepath])
-        monkeypatch.setattr("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
+        monkeypatch.setattr("ggshield.core.config.LOCAL_CONFIG_PATHS", [filepath])
+        monkeypatch.setattr("ggshield.core.config.GLOBAL_CONFIG_FILENAMES", [])
         write_text(filepath, "Not a:\nyaml file.\n")
 
         Config()
@@ -105,7 +106,7 @@ class TestUserConfig:
 
     def test_display_options(self, cli_fs_runner, local_config_path, monkeypatch):
         write_yaml(local_config_path, {"verbose": True, "show_secrets": True})
-        monkeypatch.setattr("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
+        monkeypatch.setattr("ggshield.core.config.GLOBAL_CONFIG_FILENAMES", [])
 
         config = Config()
         assert config.verbose is True
@@ -115,7 +116,7 @@ class TestUserConfig:
         self, cli_fs_runner, capsys, local_config_path, monkeypatch
     ):
         write_yaml(local_config_path, {"verbosity": True})
-        monkeypatch.setattr("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
+        monkeypatch.setattr("ggshield.core.config.GLOBAL_CONFIG_FILENAMES", [])
 
         Config()
         captured = capsys.readouterr()
@@ -148,7 +149,7 @@ class TestUserConfig:
 
     def test_exclude_regex(self, cli_fs_runner, local_config_path, monkeypatch):
         write_yaml(local_config_path, {"paths-ignore": ["/tests/"]})
-        monkeypatch.setattr("ggshield.config.GLOBAL_CONFIG_FILENAMES", [])
+        monkeypatch.setattr("ggshield.core.config.GLOBAL_CONFIG_FILENAMES", [])
 
         config = Config()
         assert r"/tests/" in config.paths_ignore

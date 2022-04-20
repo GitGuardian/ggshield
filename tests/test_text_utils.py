@@ -1,6 +1,6 @@
 import pytest
 
-from ggshield.text_utils import Line, LineCategory
+from ggshield.core.text_utils import Line, LineCategory
 
 
 def test_line_validation():

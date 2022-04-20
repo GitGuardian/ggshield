@@ -4,17 +4,17 @@ from unittest import mock
 import click
 import pytest
 
-from ggshield.client import retrieve_client
-from ggshield.config import Config
-from ggshield.scan import Commit
-from ggshield.scan.scannable import File, Files
-from ggshield.utils import (
+from ggshield.core.client import retrieve_client
+from ggshield.core.config import Config
+from ggshield.core.utils import (
     MatchIndices,
     api_to_dashboard_url,
     dashboard_to_api_url,
     find_match_indices,
     get_lines_from_content,
 )
+from ggshield.scan import Commit
+from ggshield.scan.scannable import File, Files
 from tests.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,

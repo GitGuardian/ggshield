@@ -3,11 +3,15 @@ from typing import List
 
 import click
 
-from ggshield.utils import EMPTY_SHA, SupportedCI, SupportedScanMode, handle_exception
-
-from .cache import Cache
-from .dev_scan import scan_commit_range
-from .git_shell import check_git_dir, get_list_commit_SHA
+from ggshield.core.cache import Cache
+from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
+from ggshield.core.utils import (
+    EMPTY_SHA,
+    SupportedCI,
+    SupportedScanMode,
+    handle_exception,
+)
+from ggshield.scan.repo import scan_commit_range
 
 
 class ReadOnlyCache(Cache):

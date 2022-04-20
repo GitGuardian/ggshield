@@ -473,7 +473,7 @@ Alternatively to setting the `GITGUARDIAN_URL` environment variable, set the `da
 ## Ignoring files
 
 By default ggshield ignores certain files and directories.
-This list can be found in [ggshield/utils.py](ggshield/utils.py) under `IGNORED_DEFAULT_PATTERNS`.
+This list can be found in [ggshield/core/utils.py](ggshield/core/utils.py) under `IGNORED_DEFAULT_PATTERNS`.
 
 You can turn this feature with the flag `--ignore-default-excludes` or
 the key `ignore-default-excludes` in your `.gitguardian.yaml`

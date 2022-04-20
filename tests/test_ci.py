@@ -3,11 +3,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ggshield.ci import EMPTY_SHA, gitlab_ci_range
+from ggshield.cmd.scan.ci import EMPTY_SHA, gitlab_ci_range
 
 
-@patch("ggshield.ci.get_list_commit_SHA")
-@patch("ggshield.ci.check_git_dir")
+@patch("ggshield.cmd.scan.ci.get_list_commit_SHA")
+@patch("ggshield.cmd.scan.ci.check_git_dir")
 @pytest.mark.parametrize(
     "env,expected_parameter",
     [

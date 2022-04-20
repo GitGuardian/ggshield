@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from ggshield.cmd import cli
-from ggshield.docker import docker_pull_image, docker_save_to_tmp
+from ggshield.cmd.cmd import cli
+from ggshield.scan.docker import docker_pull_image, docker_save_to_tmp
 from ggshield.scan.scannable import File, Files, ScanCollection
 
 from .conftest import _SIMPLE_SECRET, my_vcr
@@ -149,8 +149,8 @@ class TestDockerSave:
 
 
 class TestDockerCMD:
-    @patch("ggshield.docker.docker_save_to_tmp")
-    @patch("ggshield.docker.docker_scan_archive")
+    @patch("ggshield.cmd.scan.docker.docker_save_to_tmp")
+    @patch("ggshield.cmd.scan.docker.docker_scan_archive")
     def test_docker_scan(
         self, scan_mock: Mock, save_mock, cli_fs_runner: click.testing.CliRunner
     ):
@@ -163,8 +163,8 @@ class TestDockerCMD:
         )
         assert result.exit_code == 0
 
-    @patch("ggshield.docker.docker_save_to_tmp")
-    @patch("ggshield.docker.docker_scan_archive")
+    @patch("ggshield.cmd.scan.docker.docker_save_to_tmp")
+    @patch("ggshield.cmd.scan.docker.docker_scan_archive")
     def test_docker_scan_abort(
         self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
     ):
@@ -179,8 +179,8 @@ class TestDockerCMD:
         assert result.output == ""
         assert result.exit_code == 0
 
-    @patch("ggshield.docker.docker_save_to_tmp")
-    @patch("ggshield.docker.docker_scan_archive")
+    @patch("ggshield.cmd.scan.docker.docker_save_to_tmp")
+    @patch("ggshield.cmd.scan.docker.docker_scan_archive")
     def test_docker_scan_failed_to_save(
         self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
     ):
@@ -197,7 +197,7 @@ class TestDockerCMD:
         assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
         assert result.exit_code == 1
 
-    @patch("ggshield.docker.get_files_from_docker_archive")
+    @patch("ggshield.scan.docker.get_files_from_docker_archive")
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )

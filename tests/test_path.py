@@ -3,7 +3,7 @@ from typing import Callable
 
 import pytest
 
-from ggshield.path import generate_files_from_paths
+from ggshield.core.file_utils import generate_files_from_paths
 
 
 @pytest.mark.parametrize(
