@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
-from ggshield.cmd import cli
+from ggshield.cmd.cmd import cli
+from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, Filemode
 from ggshield.scan import Result, ScanCollection
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE, Filemode
 
 from .conftest import (
     _SIMPLE_SECRET_PATCH,
@@ -21,8 +21,8 @@ def contains_secret(line: str, secret: str) -> bool:
 
 
 class TestPreReceive:
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input(
         self,
         scan_commit_range_mock: Mock,
@@ -45,8 +45,8 @@ class TestPreReceive:
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input_secret(
         self,
         scan_commit_range_mock: Mock,
@@ -72,8 +72,8 @@ class TestPreReceive:
         )
         assert result.exit_code == 1
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input_no_commits(
         self,
         scan_commit_range_mock: Mock,
@@ -99,8 +99,8 @@ class TestPreReceive:
         )
         assert result.exit_code == 0
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_breakglass_2ndoption(
         self,
         scan_commit_range_mock: Mock,
@@ -132,8 +132,8 @@ class TestPreReceive:
         )
         assert result.exit_code == 0
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.dev_scan.scan_commit")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.scan.repo.scan_commit")
     def test_stdin_supports_gitlab_web_ui(
         self,
         scan_commit_mock: Mock,
@@ -180,8 +180,8 @@ class TestPreReceive:
         assert any(contains_secret(x, _SIMPLE_SECRET_TOKEN) for x in web_ui_lines)
         assert result.exit_code == 1
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input_empty(
         self,
         scan_commit_range_mock: Mock,
@@ -198,8 +198,8 @@ class TestPreReceive:
         assert result.exit_code == 1
         assert "Error: Invalid input arguments: []\n" in result.output
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_changing_max_commit_hooks(
         self,
         scan_commit_range_mock: Mock,
@@ -229,8 +229,8 @@ class TestPreReceive:
         get_list_mock.assert_called_with(f"--max-count=21 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_new_branch_diff_with_head_success(
         self,
         scan_commit_range_mock: Mock,
@@ -255,8 +255,8 @@ class TestPreReceive:
         get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input_creation(
         self,
         scan_commit_range_mock: Mock,
@@ -283,8 +283,8 @@ class TestPreReceive:
         get_list_mock.assert_called_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input_deletion(
         self,
         scan_commit_range_mock: Mock,
@@ -303,8 +303,8 @@ class TestPreReceive:
         assert result.exit_code == 0
         assert "Deletion event or nothing to scan.\n" in result.output
 
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_stdin_input_no_newline(
         self,
         scan_commit_range_mock: Mock,
@@ -332,8 +332,8 @@ class TestPreReceive:
         assert result.exit_code == 0
 
     @patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": "0.1"})
-    @patch("ggshield.pre_receive_cmd.get_list_commit_SHA")
-    @patch("ggshield.pre_receive_cmd.scan_commit_range")
+    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
     def test_timeout(
         self,
         scan_commit_range_mock: Mock,

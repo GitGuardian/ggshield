@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Set
 
 import click
 
-from ggshield.config import Config
+from ggshield.core.config import Config
+from ggshield.core.file_utils import get_files_from_paths
 from ggshield.output import OutputHandler
-from ggshield.path import get_files_from_paths
 from ggshield.scan import Files, Result, ScanCollection
 
 

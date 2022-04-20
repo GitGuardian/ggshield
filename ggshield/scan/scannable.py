@@ -8,17 +8,17 @@ from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import ScanResult
 
 from ggshield import __version__
-from ggshield.cache import Cache
-from ggshield.constants import CPU_COUNT, MAX_FILE_SIZE
-from ggshield.filter import (
+from ggshield.core.cache import Cache
+from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
+from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
     remove_results_from_banlisted_detectors,
 )
-from ggshield.git_shell import GIT_PATH, shell
-from ggshield.text_utils import STYLE, format_text
-from ggshield.types import IgnoredMatch
-from ggshield.utils import REGEX_HEADER_INFO, Filemode
+from ggshield.core.git_shell import GIT_PATH, shell
+from ggshield.core.text_utils import STYLE, format_text
+from ggshield.core.types import IgnoredMatch
+from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 
 from .scannable_errors import handle_scan_error
 

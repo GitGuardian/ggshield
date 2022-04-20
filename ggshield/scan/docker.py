@@ -1,14 +1,19 @@
 import json
 import os.path
 import re
+import subprocess
 import tarfile
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
-from ggshield.constants import MAX_FILE_SIZE
+import click
+from pygitguardian import GGClient
 
-from .scannable import File, Files
+from ggshield.core.cache import Cache
+from ggshield.core.constants import MAX_FILE_SIZE
+from ggshield.scan import ScanCollection
+from ggshield.scan.scannable import File, Files
 
 
 DEFAULT_FS_BANLIST = {
@@ -166,3 +171,87 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         yield File.from_bytes(
             raw_document=file_content, filename=f"{layer_name}:/{file_info.name}"
         )
+
+
+class DockerArchiveCreationError(Exception):
+    pass
+
+
+def docker_pull_image(image_name: str, timeout: int) -> None:
+    """
+    Pull docker image and raise exception on timeout or failed to find image
+
+    Timeout after `timeout` seconds.
+    """
+    command = ["docker", "pull", image_name]
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            timeout=timeout,
+        )
+    except subprocess.CalledProcessError:
+        raise click.ClickException(f'Image "{image_name}" not found')
+    except subprocess.TimeoutExpired:
+        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
+
+
+def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) -> None:
+    """
+    Do a `docker save <image_name> -o <destination_path>`
+
+    Limit docker commands to run at most `timeout` seconds.
+    """
+    command = ["docker", "save", image_name, "-o", str(destination_path)]
+
+    try:
+        click.echo("Saving docker image... ", nl=False)
+        subprocess.run(
+            command,
+            check=True,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        )
+        click.echo("OK")
+    except subprocess.CalledProcessError as exc:
+        err_string = str(exc.stderr)
+        if "No such image" in err_string or "reference does not exist" in err_string:
+            click.echo("need to download image first")
+            docker_pull_image(image_name, timeout)
+
+            docker_save_to_tmp(image_name, destination_path, timeout)
+        else:
+            raise click.ClickException(
+                f"Unable to save docker archive:\nError: {err_string}"
+            )
+    except subprocess.TimeoutExpired:
+        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
+
+
+def docker_scan_archive(
+    archive: Path,
+    client: GGClient,
+    cache: Cache,
+    verbose: bool,
+    matches_ignore: Iterable[str],
+    all_policies: bool,
+    scan_id: str,
+    banlisted_detectors: Optional[Set[str]] = None,
+) -> ScanCollection:
+    files = get_files_from_docker_archive(archive)
+    with click.progressbar(length=len(files.files), label="Scanning") as progressbar:
+
+        def update_progress(chunk: List[Dict[str, Any]]) -> None:
+            progressbar.update(len(chunk))
+
+        results = files.scan(
+            client=client,
+            cache=cache,
+            matches_ignore=matches_ignore,
+            all_policies=all_policies,
+            verbose=verbose,
+            on_file_chunk_scanned=update_progress,
+            banlisted_detectors=banlisted_detectors,
+        )
+
+    return ScanCollection(id=scan_id, type="scan_docker_archive", results=results)

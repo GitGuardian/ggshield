@@ -1,5 +1,5 @@
+from ggshield.core.utils import Filemode
 from ggshield.scan import Commit
-from ggshield.utils import Filemode
 
 
 def test_get_filename():

@@ -8,7 +8,7 @@ import pytest
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 from snapshottest import Snapshot
 
-from ggshield.filter import (
+from ggshield.core.filter import (
     censor_content,
     censor_match,
     get_ignore_sha,

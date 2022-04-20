@@ -2,8 +2,8 @@ import sys
 
 import click
 
-from ggshield.cache import Cache
-from ggshield.config import Config
+from ggshield.core.cache import Cache
+from ggshield.core.config import Config
 
 
 @click.command()

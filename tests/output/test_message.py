@@ -2,13 +2,13 @@ from typing import List
 
 import pytest
 
+from ggshield.core.text_utils import Line
 from ggshield.output.text.message import (
     clip_long_line,
     format_line_count_break,
     no_leak_message,
 )
 from ggshield.output.text.text_output_handler import get_offset, get_padding
-from ggshield.text_utils import Line
 
 
 def test_message_no_secret(snapshot):

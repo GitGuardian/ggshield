@@ -5,11 +5,10 @@ from typing import Iterable, Iterator, List, Set, Union
 
 import click
 
-from ggshield.git_shell import git_ls, is_git_dir
-
-from .constants import MAX_FILE_SIZE
-from .filter import is_filepath_excluded
-from .scan import File, Files
+from ggshield.core.constants import MAX_FILE_SIZE
+from ggshield.core.filter import is_filepath_excluded
+from ggshield.core.git_shell import git_ls, is_git_dir
+from ggshield.scan import File, Files
 
 
 BINARY_FILE_EXTENSIONS = (".tar", ".xz", ".gz")

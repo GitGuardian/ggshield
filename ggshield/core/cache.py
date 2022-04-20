@@ -5,8 +5,8 @@ from typing import Any, Dict, List
 import click
 from pygitguardian.models import PolicyBreak
 
-from ggshield.constants import CACHE_FILENAME
-from ggshield.filter import get_ignore_sha
+from ggshield.core.constants import CACHE_FILENAME
+from ggshield.core.filter import get_ignore_sha
 
 
 SECRETS_CACHE_KEY = "last_found_secrets"

@@ -4,6 +4,7 @@ from unittest import mock
 import click
 import pytest
 
+from ggshield.core.utils import Filemode
 from ggshield.output import TextOutputHandler
 from ggshield.output.text.message import (
     _file_info_decoration,
@@ -11,7 +12,6 @@ from ggshield.output.text.message import (
 )
 from ggshield.scan import Result
 from ggshield.scan.scannable import ScanCollection
-from ggshield.utils import Filemode
 from tests.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,

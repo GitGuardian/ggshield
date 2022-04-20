@@ -4,13 +4,13 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd import cli
-from ggshield.filter import init_exclusion_regexes
-from ggshield.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
+from ggshield.cmd.cmd import cli
+from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
 
 
 class TestPrepush:
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
     def test_pre_push_no_commits(self, get_list_mock: Mock, cli_fs_runner: CliRunner):
         """
         GIVEN a prepush range with 0 commits
@@ -26,7 +26,7 @@ class TestPrepush:
         assert result.exit_code == 0
         assert "Unable to get commit range." in result.output
 
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.scan.prepush.scan_commit_range")
     @patch("ggshield.cmd.scan.prepush.check_git_dir")
     def test_prepush_too_many(
@@ -54,9 +54,9 @@ class TestPrepush:
         assert result.exit_code == 0
         assert "Too many commits. Scanning last 50" in result.output
 
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
-    @patch("ggshield.hook_cmd.scan_commit_range")
-    @patch("ggshield.hook_cmd.check_git_dir")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.scan_commit_range")
+    @patch("ggshield.cmd.scan.prepush.check_git_dir")
     @pytest.mark.parametrize(
         ["env", "input"],
         [
@@ -129,9 +129,9 @@ class TestPrepush:
 
         assert sorted(result_exclusion_patterns) == sorted(expected_exclusion_patterns)
 
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
-    @patch("ggshield.hook_cmd.scan_commit_range")
-    @patch("ggshield.hook_cmd.check_git_dir")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.scan_commit_range")
+    @patch("ggshield.cmd.scan.prepush.check_git_dir")
     def test_prepush_stdin_input_empty(
         self,
         check_dir_mock: Mock,
@@ -149,9 +149,9 @@ class TestPrepush:
         assert "Deletion event or nothing to scan.\n" in result.output
         assert result.exit_code == 0
 
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
-    @patch("ggshield.hook_cmd.scan_commit_range")
-    @patch("ggshield.hook_cmd.check_git_dir")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.scan_commit_range")
+    @patch("ggshield.cmd.scan.prepush.check_git_dir")
     def test_prepush_new_branch(
         self,
         check_dir_mock: Mock,
@@ -181,9 +181,9 @@ class TestPrepush:
         assert "Commits to scan: 50" in result.output
         assert result.exit_code == 0
 
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
-    @patch("ggshield.hook_cmd.scan_commit_range")
-    @patch("ggshield.hook_cmd.check_git_dir")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.scan_commit_range")
+    @patch("ggshield.cmd.scan.prepush.check_git_dir")
     def test_prepush_deletion(
         self,
         check_dir_mock: Mock,
@@ -207,9 +207,9 @@ class TestPrepush:
         assert "Deletion event or nothing to scan.\n" in result.output
         assert result.exit_code == 0
 
-    @patch("ggshield.hook_cmd.get_list_commit_SHA")
-    @patch("ggshield.hook_cmd.scan_commit_range")
-    @patch("ggshield.hook_cmd.check_git_dir")
+    @patch("ggshield.cmd.scan.prepush.get_list_commit_SHA")
+    @patch("ggshield.cmd.scan.prepush.scan_commit_range")
+    @patch("ggshield.cmd.scan.prepush.check_git_dir")
     def test_prepush_stdin_input_no_newline(
         self,
         check_dir_mock: Mock,

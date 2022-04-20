@@ -4,11 +4,11 @@ from typing import ClassVar, List
 import click
 from pygitguardian.models import Match
 
-from ggshield.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.text_utils import LINE_DISPLAY, Line
+from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result, ScanCollection
-from ggshield.text_utils import LINE_DISPLAY, Line
-from ggshield.utils import Filemode, find_match_indices, get_lines_from_content
 
 from .message import (
     file_info,

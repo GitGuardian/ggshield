@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, Optional, Set
 import click
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 
-from ggshield.types import IgnoredMatch
+from ggshield.core.types import IgnoredMatch
 
 
 REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")

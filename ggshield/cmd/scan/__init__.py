@@ -1,43 +1,25 @@
-#!/usr/bin/python3
 import os
-import sys
-from typing import Any, List, Optional, Type
+from typing import List, Optional, Type
 
 import click
 
-from .auth import auth
-from .cache import Cache
-from .ci import ci_cmd
-from .client import retrieve_client
-from .config import Config
-from .dev_scan import archive_cmd, path_cmd, range_cmd, repo_cmd
-from .docker import docker_archive_cmd, docker_name_cmd
-from .filter import init_exclusion_regexes
-from .hook_cmd import precommit_cmd, prepush_cmd
-from .ignore import ignore
-from .install import install
-from .output import JSONOutputHandler, OutputHandler, TextOutputHandler
-from .pre_receive_cmd import prereceive_cmd
-from .pypi import pypi_cmd
-from .quota import quota
-from .status import status
-from .text_utils import display_error
-from .utils import IGNORED_DEFAULT_WILDCARDS, json_output_option_decorator, load_dot_env
-
-
-def get_max_commits_for_hook() -> Optional[int]:
-    """
-    Get the maximum number of commits that should be processed for a hook.
-    """
-    try:
-        max_commits = os.getenv("GITGUARDIAN_MAX_COMMITS_FOR_HOOK", None)
-        if max_commits is not None:
-            return int(max_commits)
-    except BaseException as e:
-        display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
-        return None
-
-    return None
+from ggshield.cmd.scan.archive import archive_cmd
+from ggshield.cmd.scan.ci import ci_cmd
+from ggshield.cmd.scan.docker import docker_name_cmd
+from ggshield.cmd.scan.dockerarchive import docker_archive_cmd
+from ggshield.cmd.scan.path import path_cmd
+from ggshield.cmd.scan.precommit import precommit_cmd
+from ggshield.cmd.scan.prepush import prepush_cmd
+from ggshield.cmd.scan.prereceive import prereceive_cmd
+from ggshield.cmd.scan.pypi import pypi_cmd
+from ggshield.cmd.scan.range import range_cmd
+from ggshield.cmd.scan.repo import repo_cmd
+from ggshield.core.client import retrieve_client
+from ggshield.core.config import Config
+from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.text_utils import display_error
+from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS, json_output_option_decorator
+from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
 
 
 @click.group(
@@ -164,76 +146,16 @@ def scan(
     return return_code
 
 
-@scan.result_callback()
-@click.pass_context
-def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
+def get_max_commits_for_hook() -> Optional[int]:
     """
-    exit_code guarantees that the return value of a scan is 0
-    when exit_zero is enabled
+    Get the maximum number of commits that should be processed for a hook.
     """
+    try:
+        max_commits = os.getenv("GITGUARDIAN_MAX_COMMITS_FOR_HOOK", None)
+        if max_commits is not None:
+            return int(max_commits)
+    except BaseException as e:
+        display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
+        return None
 
-    if ctx.obj["config"].exit_zero:
-        sys.exit(0)
-
-    sys.exit(exit_code)
-
-
-@click.group(
-    context_settings={"help_option_names": ["-h", "--help"]},
-    commands={
-        "scan": scan,
-        "auth": auth,
-        "install": install,
-        "ignore": ignore,
-        "quota": quota,
-        "api-status": status,
-    },
-)
-@click.option(
-    "-c",
-    "--config-path",
-    type=click.Path(exists=True, resolve_path=True, file_okay=True, dir_okay=False),
-    help="Set a custom config file. Ignores local and global config files.",
-)
-@click.option(
-    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
-)
-@click.option(
-    "--allow-self-signed",
-    is_flag=True,
-    default=None,
-    help="Ignore ssl verification.",
-)
-@click.version_option()
-@click.pass_context
-def cli(
-    ctx: click.Context,
-    config_path: Optional[str],
-    verbose: bool,
-    allow_self_signed: bool,
-) -> None:
-    load_dot_env()
-    ctx.ensure_object(dict)
-
-    ctx.obj["config"] = Config(config_path)
-    ctx.obj["cache"] = Cache()
-
-    if verbose is not None:
-        ctx.obj["config"].verbose = verbose
-
-    if allow_self_signed is not None:
-        ctx.obj["config"].allow_self_signed = allow_self_signed
-
-
-def cli_wrapper(args: Optional[List[str]] = None) -> Any:
-    """
-    Wrapper around cli.main() to handle the GITGUARDIAN_CRASH_LOG variable.
-
-    `args` is only used by unit-tests.
-    """
-    show_crash_log = os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
-    return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
-
-
-if __name__ == "__main__":
-    exit(cli_wrapper())
+    return None

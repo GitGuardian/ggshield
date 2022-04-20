@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd import cli
+from ggshield.cmd.cmd import cli
 
 
 SAMPLE_PRE_COMMIT = """#!/bin/bash
@@ -25,7 +25,7 @@ ggshield scan pre-push
 @pytest.fixture(scope="class")
 def mockHookDirPath():
     with mock.patch(
-        "ggshield.install.get_global_hook_dir_path", return_value="global/hooks"
+        "ggshield.cmd.install.get_global_hook_dir_path", return_value="global/hooks"
     ):
         yield
 
@@ -61,7 +61,7 @@ class TestInstallLocal:
         assert result.exit_code == 0
         assert "pre-commit successfully added in .git/hooks/pre-commit" in result.output
 
-    @patch("ggshield.install.check_git_dir")
+    @patch("ggshield.cmd.install.check_git_dir")
     def test_precommit_install(
         self,
         check_dir_mock: Mock,
@@ -87,7 +87,7 @@ class TestInstallLocal:
         assert result.exit_code == 0
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
-    @patch("ggshield.install.check_git_dir")
+    @patch("ggshield.cmd.install.check_git_dir")
     def test_install_exists(
         self,
         check_dir_mock: Mock,
@@ -115,7 +115,7 @@ class TestInstallLocal:
         assert result.exit_code == 1
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
-    @patch("ggshield.install.check_git_dir")
+    @patch("ggshield.cmd.install.check_git_dir")
     def test_install_exists_force(
         self,
         check_dir_mock: Mock,
@@ -143,7 +143,7 @@ class TestInstallLocal:
         assert result.exit_code == 0
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
-    @patch("ggshield.install.check_git_dir")
+    @patch("ggshield.cmd.install.check_git_dir")
     def test_install_exists_append(
         self,
         check_dir_mock: Mock,
@@ -174,7 +174,7 @@ class TestInstallLocal:
         )
         assert result.exit_code == 0
 
-    @patch("ggshield.install.check_git_dir")
+    @patch("ggshield.cmd.install.check_git_dir")
     def test_prepush_install(
         self,
         check_dir_mock: Mock,
@@ -219,7 +219,7 @@ class TestInstallGlobal:
         )
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
-    @patch("ggshield.install.get_global_hook_dir_path")
+    @patch("ggshield.cmd.install.get_global_hook_dir_path")
     def test_install_global(
         self,
         get_global_hook_dir_path_mock: Mock,

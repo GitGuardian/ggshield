@@ -5,10 +5,9 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, Quota, QuotaResponse
 
+from ggshield.core.client import retrieve_client
+from ggshield.core.utils import json_output_option_decorator
 from ggshield.output.text.message import format_quota_color
-
-from .client import retrieve_client
-from .utils import json_output_option_decorator
 
 
 @click.command()

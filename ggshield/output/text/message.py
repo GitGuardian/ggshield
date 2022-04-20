@@ -6,7 +6,13 @@ from typing import Dict, List, Optional, Set, Tuple
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
-from ggshield.text_utils import STYLE, Line, format_text, pluralize, translate_validity
+from ggshield.core.text_utils import (
+    STYLE,
+    Line,
+    format_text,
+    pluralize,
+    translate_validity,
+)
 
 
 DECORATION_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}

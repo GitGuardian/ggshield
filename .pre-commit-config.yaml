@@ -13,11 +13,18 @@ repos:
       - id: flake8
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.910-1
+    # Keep version and dependencies synced with dev-packages section of Pipfile
+    rev: v0.942
     hooks:
       - id: mypy
         additional_dependencies:
-          [types-requests, types-pyyaml, types-click, types-appdirs]
+          [
+            types-requests,
+            types-pyyaml,
+            types-click,
+            types-appdirs,
+            types-oauthlib,
+          ]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1

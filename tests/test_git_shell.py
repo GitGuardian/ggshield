@@ -1,4 +1,4 @@
-from ggshield.git_shell import GIT_PATH, is_git_dir, shell
+from ggshield.core.git_shell import GIT_PATH, is_git_dir, shell
 
 
 def test_git_shell():

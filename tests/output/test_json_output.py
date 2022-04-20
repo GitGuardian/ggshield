@@ -2,10 +2,10 @@ from collections import namedtuple
 
 import pytest
 
+from ggshield.core.utils import Filemode
 from ggshield.output import JSONOutputHandler, OutputHandler
 from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import Commit, ScanCollection
-from ggshield.utils import Filemode
 from tests.conftest import (
     _MULTIPLE_SECRETS,
     _NO_SECRET,
