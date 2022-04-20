@@ -1,6 +1,7 @@
 import os
 import platform
 from os.path import dirname, join, realpath
+from pathlib import Path
 
 import pytest
 import vcr
@@ -19,6 +20,9 @@ skipwindows = pytest.mark.skipif(
     platform.system() == "Windows" and not os.environ.get("DISABLE_SKIPWINDOWS"),
     reason="Skipped on Windows for now, define DISABLE_SKIPWINDOWS environment variable to unskip",
 )
+
+
+DATA_PATH = Path(__file__).parent.absolute() / "data"
 
 
 _MULTIPLE_SECRETS_PATCH = """@@ -0,0 +1,2 @@
