@@ -5,14 +5,14 @@ from base64 import urlsafe_b64encode
 from datetime import datetime
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, no_type_check
 
 import click
 import requests
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
 from .client import retrieve_client
-from .config import AccountConfig, Config
+from .config import AccountConfig, Config, InstanceConfig
 
 
 CLIENT_ID = "ggshield_oauth"
@@ -23,6 +23,17 @@ SCOPE = "scan"
 # this is the largest band of not commonly occupied ports
 # https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 USABLE_PORT_RANGE = (29170, 29998)
+
+
+@no_type_check
+def get_pretty_date(dt: datetime) -> str:
+    """
+    convert the given datetime to the format September 1st 2022
+    """
+    month_suffix = {1: "st", 2: "nd", 3: "rd"}.get(
+        dt.day if dt.day < 20 else dt.day % 10, "th"
+    )
+    return dt.strftime(f"%B {dt.day}{month_suffix} %Y")
 
 
 class OAuthClient:
@@ -45,7 +56,9 @@ class OAuthClient:
 
         self._generate_pkce_pair()
 
-    def oauth_process(self, token_name: Optional[str] = None) -> None:
+    def oauth_process(
+        self, token_name: Optional[str] = None, lifetime: Optional[int] = None
+    ) -> None:
         """
         Handle the whole oauth process which includes
         - opening the user's webbrowser to GitGuardian login page
@@ -58,10 +71,21 @@ class OAuthClient:
             token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
         self._token_name = token_name
 
+        if lifetime is None:
+            lifetime = self.default_token_lifetime
+        self._lifetime = lifetime
+
         self._prepare_server()
         self._redirect_to_login()
         self._wait_for_callback()
-        click.echo(f"Created Personal Access Token {self._token_name}")
+
+        message = f"Created Personal Access Token {self._token_name} "
+        expire_at = self.instance_config.account.expire_at
+        if expire_at is not None:
+            message += "expiring on " + get_pretty_date(expire_at)
+        else:
+            message += "with no expiry"
+        click.echo(message)
 
     def process_callback(self, callback_url: str) -> None:
         """
@@ -172,6 +196,8 @@ class OAuthClient:
         """
 
         request_params = {"name": self._token_name}
+        if self._lifetime is not None:
+            request_params["lifetime"] = str(self._lifetime)
 
         request_body = self._oauth_client.prepare_request_body(
             code=authorization_code,
@@ -213,9 +239,24 @@ class OAuthClient:
             token_name=api_token_data.get("name", ""),
             type=api_token_data.get("type", ""),
         )
-        instance_config = self.config.auth_config.instances[self.instance]
-        instance_config.account = account_config
+        self.instance_config.account = account_config
         self.config.save()
+
+    @property
+    def instance_config(self) -> InstanceConfig:
+        return self.config.auth_config.instances[self.instance]
+
+    @property
+    def default_token_lifetime(self) -> Optional[int]:
+        """
+        return the default token lifetime saved in the instance config.
+        if None, this will be interpreted as no expiry.
+        """
+        default_lifetime = self.instance_config.default_token_lifetime
+        if default_lifetime is not None:
+            return default_lifetime.days
+
+        return None
 
     @property
     def redirect_uri(self) -> str:
