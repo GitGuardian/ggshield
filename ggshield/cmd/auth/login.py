@@ -1,5 +1,3 @@
-import os
-
 import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
@@ -90,8 +88,5 @@ def login_cmd(ctx: click.Context, method: str, instance: str) -> int:
     check_instance_has_enabled_flow(config=config)
 
     if method == "web":
-        if os.getenv("IS_WEB_AUTH_ENABLED", False):
-            OAuthClient(config, instance).oauth_process()
-        else:
-            raise click.ClickException("The web auth login method is not enabled.")
+        OAuthClient(config, instance).oauth_process()
     return 0
