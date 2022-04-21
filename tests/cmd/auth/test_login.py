@@ -43,11 +43,6 @@ def tmp_config(monkeypatch, tmp_path):
     )
 
 
-@pytest.fixture()
-def enable_web_auth(monkeypatch):
-    monkeypatch.setenv("IS_WEB_AUTH_ENABLED", True)
-
-
 class TestAuthLoginToken:
     VALID_TOKEN_PAYLOAD = {**_TOKEN_RESPONSE_PAYLOAD}
     INVALID_TOKEN_PAYLOAD = {"detail": "Invalid API key."}
@@ -188,23 +183,6 @@ class TestAuthLoginToken:
 
 
 class TestAuthLoginWeb:
-    def test_auth_login_web_not_enabled(self, cli_fs_runner, monkeypatch):
-        """
-        GIVEN -
-        WHEN the ggshield web login feature flag is off
-        THEN it is not possible to login using the web method
-        """
-        check_instance_has_enabled_flow_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
-            check_instance_has_enabled_flow_mock,
-        )
-
-        cmd = ["auth", "login", "--method=web"]
-        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
-        assert result.exit_code == 1
-        assert result.output == "Error: The web auth login method is not enabled.\n"
-
     @pytest.mark.parametrize(
         ["port_used_count", "authorization_code", "is_exchange_ok", "is_token_valid"],
         [
