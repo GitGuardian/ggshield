@@ -32,7 +32,7 @@ setup(
     author="GitGuardian",
     author_email="support@gitguardian.com",
     maintainer="GitGuardian",
-    entry_points={"console_scripts": ["ggshield=ggshield.cmd.cmd:cli_wrapper"]},
+    entry_points={"console_scripts": ["ggshield=ggshield.cmd.main:main"]},
     install_requires=[
         "click>=8.0,<8.1",
         "pygitguardian>=1.3.4,<1.4.0",

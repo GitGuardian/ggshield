@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, Filemode
 from ggshield.scan import Result, ScanCollection
 from tests.conftest import (

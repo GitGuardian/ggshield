@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 from click import ClickException
 
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 from ggshield.core.oauth import OAuthClient, OAuthError
 

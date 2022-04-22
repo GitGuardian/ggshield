@@ -4,7 +4,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
 
