@@ -14,7 +14,7 @@ from ggshield.output.text.message import format_quota_color
 @json_output_option_decorator
 @click.pass_context
 def quota_cmd(ctx: click.Context, json_output: bool) -> int:
-    """Command to show quotas overview."""
+    """Show quotas overview."""
     client: GGClient = retrieve_client(ctx.obj["config"])
     response: Union[Detail, QuotaResponse] = client.quota_overview()
 

@@ -15,7 +15,7 @@ from ggshield.core.config import Config
 @click.pass_context
 def ignore_cmd(ctx: click.Context, last_found: bool) -> int:
     """
-    Command to ignore some secrets.
+    Ignore some secrets.
     """
 
     if last_found:
