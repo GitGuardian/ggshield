@@ -2,6 +2,7 @@ import os
 
 import click
 
+from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.core.client import retrieve_client
 from ggshield.core.config import AccountConfig, InstanceConfig
 from ggshield.core.oauth import OAuthClient
@@ -84,7 +85,11 @@ def login_cmd(ctx: click.Context, method: str, instance: str) -> int:
         instance_config.account = account_config
         config.save()
         click.echo("Authentication was successful.")
-    elif method == "web":
+        return 0
+
+    check_instance_has_enabled_flow(config=config)
+
+    if method == "web":
         if os.getenv("IS_WEB_AUTH_ENABLED", False):
             OAuthClient(config, instance).oauth_process()
         else:

@@ -6,6 +6,11 @@ from unittest.mock import Mock
 import pytest
 from click import ClickException
 
+from ggshield.cmd.auth.utils import (
+    DISABLED_FLOW_MESSAGE,
+    VERSION_TOO_LOW_MESSAGE,
+    check_instance_has_enabled_flow,
+)
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 from ggshield.core.oauth import OAuthClient, OAuthError
@@ -86,6 +91,12 @@ class TestAuthLoginToken:
         elif test_case == "invalid":
             self.mock_autho_login_request(monkeypatch, 401, self.INVALID_TOKEN_PAYLOAD)
 
+        check_instance_has_enabled_flow_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
+            check_instance_has_enabled_flow_mock,
+        )
+
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
@@ -100,6 +111,8 @@ class TestAuthLoginToken:
             else:
                 assert "Authentication failed with token." in result.output
             assert instance not in config.auth_config.instances
+
+        check_instance_has_enabled_flow_mock.assert_not_called()
 
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
         """
@@ -175,12 +188,18 @@ class TestAuthLoginToken:
 
 
 class TestAuthLoginWeb:
-    def test_auth_login_web_not_enabled(self, cli_fs_runner):
+    def test_auth_login_web_not_enabled(self, cli_fs_runner, monkeypatch):
         """
         GIVEN -
         WHEN the ggshield web login feature flag is off
         THEN it is not possible to login using the web method
         """
+        check_instance_has_enabled_flow_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
+            check_instance_has_enabled_flow_mock,
+        )
+
         cmd = ["auth", "login", "--method=web"]
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
         assert result.exit_code == 1
@@ -275,10 +294,17 @@ class TestAuthLoginWeb:
         )
         monkeypatch.setattr("ggshield.core.client.GGClient.get", client_get_mock)
 
+        check_instance_has_enabled_flow_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
+            check_instance_has_enabled_flow_mock,
+        )
+
         # run cli command
         cmd = ["auth", "login", "--method=web"]
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
 
+        check_instance_has_enabled_flow_mock.assert_called_once()
         # original method should not be called
         wait_for_callback_mock.assert_not_called()
 
@@ -426,3 +452,57 @@ class TestAuthLoginWeb:
                     raise ClickException(e.message)
 
         return FakeOAuthClient
+
+    @pytest.mark.parametrize(
+        ["version", "preference_enabled", "status_code", "expected_error"],
+        [
+            ["2022.04.0", True, 200, VERSION_TOO_LOW_MESSAGE],
+            ["v1.0.0", None, 404, VERSION_TOO_LOW_MESSAGE],
+            ["v1.0.0", False, 200, DISABLED_FLOW_MESSAGE],
+            ["v1.0.0", True, 200, None],
+            [
+                "v1.0.0",
+                None,
+                200,
+                None,
+            ],  # Removing the preference is like making it on by default
+        ],
+    )
+    def test_assert_flow_enabled(
+        self,
+        monkeypatch,
+        version,
+        preference_enabled,
+        status_code,
+        expected_error,
+    ):
+        """
+        GIVEN -
+        WHEN checking the availability of the ggshield auth flow web method on a dashboard of various
+        various, with or without the flow enabled
+        THEN it succeeds if the version is high enough, and the preference is enabled
+        """
+
+        def client_get_mock(*args, endpoint, **kwargs):
+            if endpoint == "metadata":
+                return Mock(
+                    ok=status_code < 400,
+                    status_code=status_code,
+                    json=lambda: {
+                        "version": version,
+                        "preferences": {
+                            "public_api__ggshield_auth_flow_enabled": preference_enabled
+                        }
+                        if preference_enabled is not None
+                        else {},
+                    },
+                )
+            raise NotImplementedError
+
+        monkeypatch.setattr("ggshield.core.client.GGClient.get", client_get_mock)
+
+        if expected_error:
+            with pytest.raises(ClickException, match=expected_error):
+                check_instance_has_enabled_flow(Config())
+        else:
+            check_instance_has_enabled_flow(Config())
