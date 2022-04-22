@@ -1,4 +1,4 @@
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 
 
 class TestScanRepo:

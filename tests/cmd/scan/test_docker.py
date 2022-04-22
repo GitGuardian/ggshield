@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 from ggshield.scan.docker import docker_pull_image, docker_save_to_tmp
 from ggshield.scan.scannable import File, Files, ScanCollection
 from tests.conftest import _SIMPLE_SECRET, DATA_PATH, my_vcr

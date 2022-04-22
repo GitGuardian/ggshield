@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 
 
 SAMPLE_PRE_COMMIT = """#!/bin/bash

@@ -5,7 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 import ggshield.core.config
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 from tests.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
     UNCHECKED_SECRET,

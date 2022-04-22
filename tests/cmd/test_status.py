@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 
-from ggshield.cmd.cmd import cli
+from ggshield.cmd.main import cli
 from tests.conftest import my_vcr
 
 

@@ -77,7 +77,7 @@ def cli(
         ctx.obj["config"].allow_self_signed = allow_self_signed
 
 
-def cli_wrapper(args: Optional[List[str]] = None) -> Any:
+def main(args: Optional[List[str]] = None) -> Any:
     """
     Wrapper around cli.main() to handle the GITGUARDIAN_CRASH_LOG variable.
 
@@ -88,4 +88,4 @@ def cli_wrapper(args: Optional[List[str]] = None) -> Any:
 
 
 if __name__ == "__main__":
-    exit(cli_wrapper())
+    sys.exit(main())
