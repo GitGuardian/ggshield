@@ -25,7 +25,7 @@ from ggshield.core.git_shell import GIT_PATH, check_git_dir, check_git_installed
 )
 @click.option("--force", "-f", is_flag=True, help="Force override")
 @click.option("--append", "-a", is_flag=True, help="Append to existing script")
-def install(mode: str, hook_type: str, force: bool, append: bool) -> int:
+def install_cmd(mode: str, hook_type: str, force: bool, append: bool) -> int:
     """Command to install a pre-commit or pre-push hook (local or global)."""
     return_code = (
         install_global(hook_type=hook_type, force=force, append=append)

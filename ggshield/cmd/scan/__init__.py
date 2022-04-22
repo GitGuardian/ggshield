@@ -90,7 +90,7 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
     help="Ignore excluded patterns by default. [default: False]",
 )
 @click.pass_context
-def scan(
+def scan_group(
     ctx: click.Context,
     show_secrets: bool,
     exit_zero: bool,

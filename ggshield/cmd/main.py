@@ -5,18 +5,18 @@ from typing import Any, List, Optional
 
 import click
 
-from ggshield.cmd.auth import auth
-from ggshield.cmd.ignore import ignore
-from ggshield.cmd.install import install
-from ggshield.cmd.quota import quota
-from ggshield.cmd.scan import scan
-from ggshield.cmd.status import status
+from ggshield.cmd.auth import auth_group
+from ggshield.cmd.ignore import ignore_cmd
+from ggshield.cmd.install import install_cmd
+from ggshield.cmd.quota import quota_cmd
+from ggshield.cmd.scan import scan_group
+from ggshield.cmd.status import status_cmd
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.utils import load_dot_env
 
 
-@scan.result_callback()
+@scan_group.result_callback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     """
@@ -33,12 +33,12 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
-        "scan": scan,
-        "auth": auth,
-        "install": install,
-        "ignore": ignore,
-        "quota": quota,
-        "api-status": status,
+        "scan": scan_group,
+        "auth": auth_group,
+        "install": install_cmd,
+        "ignore": ignore_cmd,
+        "quota": quota_cmd,
+        "api-status": status_cmd,
     },
 )
 @click.option(
