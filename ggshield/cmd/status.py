@@ -12,7 +12,7 @@ from ggshield.output.text.message import format_healthcheck_status
 
 @click.command()
 @click.pass_context
-def status(ctx: click.Context, json_output: bool) -> int:
+def status_cmd(ctx: click.Context, json_output: bool) -> int:
     """Command to show api status."""
     client: GGClient = retrieve_client(ctx.obj["config"])
     response: HealthCheckResponse = client.health_check()
@@ -35,4 +35,4 @@ def status(ctx: click.Context, json_output: bool) -> int:
     return 0
 
 
-status = json_output_option_decorator(status)
+status = json_output_option_decorator(status_cmd)

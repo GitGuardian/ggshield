@@ -13,7 +13,7 @@ from ggshield.core.config import Config
     help="Ignore secrets found in the last ggshield scan run",
 )
 @click.pass_context
-def ignore(ctx: click.Context, last_found: bool) -> int:
+def ignore_cmd(ctx: click.Context, last_found: bool) -> int:
     """
     Command to ignore some secrets.
     """
