@@ -2,7 +2,7 @@
   hooks:
     - id: ggshield
       name: GitGuardian Shield
-      entry: ggshield scan pre-commit
+      entry: ggshield secret scan pre-commit
       language: python
       language_version: python3
       stages: [commit]

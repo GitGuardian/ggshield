@@ -15,4 +15,4 @@
 # export GITGUARDIAN_API_URL="https://dashboard.gitguardian.mycorp.local/exposed/"
 
 set -e
-ggshield scan pre-receive
+ggshield secret scan pre-receive

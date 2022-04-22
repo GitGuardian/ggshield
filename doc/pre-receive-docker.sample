@@ -9,4 +9,4 @@
 #export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
 
 set -x
-docker run -i --rm -v $(pwd):/data ggshield -e GIT_PUSH_OPTION_COUNT -e GIT_PUSH_OPTION_0 -e GIT_PUSH_OPTION_1 -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan pre-receive
+docker run -i --rm -v $(pwd):/data ggshield -e GIT_PUSH_OPTION_COUNT -e GIT_PUSH_OPTION_0 -e GIT_PUSH_OPTION_1 -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield secret scan pre-receive

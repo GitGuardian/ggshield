@@ -21,9 +21,9 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     REPOSITORY is the clone URI or the path of the repository to scan.
     Examples:
 
-    ggshield scan repo git@github.com:GitGuardian/ggshield.git
+    ggshield secret scan repo git@github.com:GitGuardian/ggshield.git
 
-    ggshield scan repo /repositories/ggshield
+    ggshield secret scan repo /repositories/ggshield
     """
     config: Config = ctx.obj["config"]
     cache: Cache = ctx.obj["cache"]

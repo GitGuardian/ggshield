@@ -21,6 +21,7 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "line_count": {"fg": "white", "dim": True},
     "line_count_secret": {"fg": "yellow"},
     "progress": {"fg": "bright_yellow", "bold": False},
+    "warning": {"fg": "yellow"},
 }
 
 
@@ -102,6 +103,10 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
 
 def display_error(msg: str) -> None:
     click.echo(format_text(msg, STYLE["error"]), err=True)
+
+
+def display_warning(msg: str) -> None:
+    click.echo(format_text(msg, STYLE["warning"]), err=True)
 
 
 _VALIDITY_TEXT_FOR_ID = {

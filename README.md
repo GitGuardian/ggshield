@@ -29,7 +29,7 @@ Add the API Key to your environment variables:
 GITGUARDIAN_API_KEY=<GitGuardian API Key>
 ```
 
-### Currently supported integrations
+# Currently supported integrations
 
 - [Azure Pipelines](#azure-pipelines)
 - [BitBucket Pipelines](#bitbucket)
@@ -44,7 +44,7 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
 - [Pre-receive hooks](#pre-receive)
 - [Travis CI](#travis-ci)
 
-## Table of Contents
+# Table of Contents
 
 1. [Installation](#installation)
 1. [Updating](#updating)
@@ -141,33 +141,37 @@ $ pip install -U ggshield
 
 # Commands
 
-```shell
+```
 Usage: ggshield [OPTIONS] COMMAND [ARGS]...
 
 Options:
   -c, --config-path FILE  Set a custom config file. Ignores local and global
                           config files.
-
   -v, --verbose           Verbose display mode.
+  --allow-self-signed     Ignore ssl verification.
+  --version               Show the version and exit.
   -h, --help              Show this message and exit.
 
 Commands:
-  install  Command to install a pre-commit hook (local or global).
-  scan     Command to scan various contents.
-  ignore   Command to permanently ignore some secrets.
+  api-status  Show API status.
+  auth        Commands to manage authentication.
+  ignore      Ignore some secrets.
+  install     Install a pre-commit or pre-push git hook (local or global).
+  quota       Show quotas overview.
+  secret      Commands to work with secrets.
 ```
 
-## Scan command
+## Secret scan commands
 
-`ggshield scan` is the main command for **ggshield**, it has a few config
-options that can be used to override output behaviour.
+The `ggshield secret scan` command group contains the main **ggshield** commands, it has a few configuration options that can be used to override output behavior.
 
-```shell
-Usage: ggshield scan [OPTIONS] COMMAND [ARGS]...
+```
+Usage: ggshield secret scan [OPTIONS] COMMAND [ARGS]...
 
-  Command to scan various contents.
+  Commands to scan various contents.
 
 Options:
+  --json                       JSON output results  [default: False]
   --show-secrets               Show secrets in plaintext instead of hiding
                                them.
   --exit-zero                  Always return a 0 (non-error) status code, even
@@ -183,10 +187,10 @@ Options:
   --exclude PATH               Do not scan the specified path.
   --ignore-default-excludes    Ignore excluded patterns by default. [default:
                                False]
-  --json                       JSON output results  [default: False]
   -h, --help                   Show this message and exit.
 
 Commands:
+  archive       scan archive <PATH>.
   ci            scan in a CI environment.
   commit-range  scan a defined COMMIT_RANGE in git.
   docker        scan a docker image <NAME>.
@@ -194,93 +198,121 @@ Commands:
   pre-commit    scan as a pre-commit git hook.
   pre-push      scan as a pre-push git hook.
   pre-receive   scan as a pre-receive git hook.
+  pypi          scan a pypi package <NAME>.
   repo          scan a REPOSITORY's commits at a given URL or path.
 ```
 
-`ggshield scan` has different subcommands for each type of scan:
+`ggshield secret scan` has different subcommands for each type of scan.
 
-- `CI`: scan each commit since the last build in your CI.
+### `secret scan ci`: scan each commit since the last build in your CI
 
-  `ggshield scan ci`
+```
+Usage: ggshield secret scan ci [OPTIONS]
 
-  No options or arguments
+  scan in a CI environment.
 
-- `Commit Range`: scan each commit in the given commit range
+Options:
+  -h, --help  Show this message and exit.
+```
 
-  ```
-  Usage: ggshield scan commit-range [OPTIONS] COMMIT_RANGE
+### `secret scan commit-range`: scan each commit in the given commit range
 
-    scan a defined COMMIT_RANGE in git.
+```
+Usage: ggshield secret scan commit-range [OPTIONS] COMMIT_RANGE
 
-    git rev-list COMMIT_RANGE to list several commits to scan. example:
-    ggshield scan commit-range HEAD~1...
-  ```
+  scan a defined COMMIT_RANGE in git.
 
-- `Path`: scan files or directories with the recursive option.
+  git rev-list COMMIT_RANGE to list several commits to scan. example: ggshield
+  secret scan commit-range HEAD~1...
 
-  ```
-  Usage: ggshield scan path [OPTIONS] PATHS...
+Options:
+  -h, --help  Show this message and exit.
+```
 
-    scan files and directories.
+### `secret scan path`: scan files or directories with the recursive option
 
-  Options:
-    -r, --recursive  Scan directory recursively
-    -y, --yes        Confirm recursive scan
-    -h, --help       Show this message and exit.
-  ```
+```
+Usage: ggshield secret scan path [OPTIONS] PATHS...
 
-- `Pre-commit`: scan every changes that have been staged in a git repository.
+  scan files and directories.
 
-  `ggshield scan pre-commit`
+Options:
+  -r, --recursive  Scan directory recursively
+  -y, --yes        Confirm recursive scan
+  -h, --help       Show this message and exit.
+```
 
-  No options or arguments
+### `secret scan pre-commit`: scan every changes that have been staged in a git repository
 
-- `Repo`: scan all commits in a git repository.
+```
+Usage: ggshield secret scan pre-commit [OPTIONS] [PRECOMMIT_ARGS]...
 
-  ```
-  Usage: ggshield scan repo [OPTIONS] REPOSITORY
+  scan as a pre-commit git hook.
 
-    scan a REPOSITORY at a given URL or path
+Options:
+  -h, --help  Show this message and exit.
+```
 
-    REPOSITORY is the clone URI or the path of the repository to scan.
-    Examples:
+### `secret scan repo`: scan all commits in a git repository
 
-    ggshield scan repo git@github.com:GitGuardian/ggshield.git
+```
+Usage: ggshield secret scan repo [OPTIONS] REPOSITORY
 
-    ggshield scan repo /repositories/ggshield
-  ```
+  scan a REPOSITORY's commits at a given URL or path.
 
-- `Docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command.
+  REPOSITORY is the clone URI or the path of the repository to scan. Examples:
 
-  ```
-  Usage: ggshield scan docker [OPTIONS] IMAGE_NAME
+  ggshield secret scan repo git@github.com:GitGuardian/ggshield.git
 
-    ggshield will try to pull the image if it's not available locally
-  Options:
-    -h, --help  Show this message and exit.
-  ```
+  ggshield secret scan repo /repositories/ggshield
 
-- `pypi`: scan a pypi package.
+Options:
+  -h, --help  Show this message and exit.
+```
 
-  ```
-  ggshield scan pypi PACKAGE_NAME
-  ```
+### `secret scan docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command
 
-  No options or arguments.
+```
+Usage: ggshield secret scan docker [OPTIONS] NAME
 
-  Under the hood this command uses the `pip download` command to download the python package.
-  You can use `pip` environment variables or configuration files to set `pip download` parameters as explained in [pip documentation](https://pip.pypa.io/en/stable/topics/configuration/#environment-variables)
-  For example, you can set `pip` `--index-url` parameter by setting `PIP_INDEX_URL` environment variable.
+  scan a docker image <NAME>.
 
-- `archive`: scan an archive files.
+  ggshield will try to pull the image if it's not available locally.
 
-  ```
-  scan archive <PATH>
-  ```
+Options:
+  --docker-timeout SECONDS  Timeout for Docker commands.  [default: 360]
+  -h, --help                Show this message and exit.
+```
 
-  No options or arguments.
+### `secret scan pypi`: scan a pypi package
 
-## Install command
+```
+Usage: ggshield secret scan pypi [OPTIONS] PACKAGE_NAME
+
+  scan a pypi package <NAME>.
+
+Options:
+  -h, --help  Show this message and exit.
+```
+
+Under the hood this command uses the `pip download` command to download the python package.
+
+You can use `pip` environment variables or configuration files to set `pip download` parameters as explained in [pip documentation](https://pip.pypa.io/en/stable/topics/configuration/#environment-variables).
+
+For example, you can set `pip` `--index-url` parameter by setting `PIP_INDEX_URL` environment variable.
+
+### `secret scan archive`: scan an archive files
+
+```
+Usage: ggshield secret scan archive [OPTIONS] PATH
+
+  scan archive <PATH>.
+
+Options:
+  -h, --help  Show this message and exit.
+```
+
+## `install` command
 
 The `install` command allows you to use ggshield as a pre-commit or pre-push hook
 on your machine, either locally or globally for all repositories.
@@ -301,7 +333,7 @@ Options:
   -h, --help                      Show this message and exit.
 ```
 
-## Ignore command
+## `ignore` command
 
 The `ignore` command allows you to ignore some secrets.
 For the time being, it only handles the `--last-found` option that ignore all secrets found by the last run `scan` command.
@@ -319,7 +351,7 @@ Options:
   --last-found               Ignore all secrets found by last run scan
 ```
 
-## Quota command
+## `quota` command
 
 Show remaining quota of the workspace.
 
@@ -342,7 +374,7 @@ Quota used in the last 30 days: 560
 Total Quota of the workspace: 10000
 ```
 
-## API Status command
+## `api-status` command
 
 Show API status and version.
 
@@ -447,10 +479,10 @@ GITGUARDIAN_DONT_LOAD_ENV: If set to any value environment variables won't be lo
 
 GITGUARDIAN_DOTENV_PATH: If set to a path, `ggshield` will attempt to load the environment from the specified file.
 
-GITGUARDIAN_TIMEOUT: If set to a float, `ggshield scan pre-receive` will timeout
+GITGUARDIAN_TIMEOUT: If set to a float, `ggshield secret scan pre-receive` will timeout
 after the specified value. Set to 0 to disable the timeout
 
-GITGUARDIAN_MAX_COMMITS_FOR_HOOK: if set to an int, `ggshield scan pre-receive` and `ggshield scan pre-push`
+GITGUARDIAN_MAX_COMMITS_FOR_HOOK: if set to an int, `ggshield secret scan pre-receive` and `ggshield secret scan pre-push`
 will not scan more than the specified value of commits in a single scan.
 
 GITGUARDIAN_CRASH_LOG: If set to True, ggshield will display a full traceback
@@ -485,7 +517,7 @@ ignore-default-excludes: false # default: false
 ```
 
 ```sh
-ggshield scan --ignore-default-excludes path example_file.md
+ggshield secret scan --ignore-default-excludes path example_file.md
 ```
 
 You can also add custom patterns to ignore by using the `--exclude` option or
@@ -501,7 +533,7 @@ paths-ignore:
 ```
 
 ```sh
-ggshield scan --exclude dir/subdir/** path -r dir
+ggshield secret scan --exclude dir/subdir/** path -r dir
 ```
 
 ## Ignoring a secret
@@ -552,7 +584,7 @@ banlisted-detectors: # default: []
 ```
 
 ```sh
-ggshield scan -b "Generic High Entropy Secret" path example_file.md
+ggshield secret scan -b "Generic High Entropy Secret" path example_file.md
 ```
 
 # Integration
@@ -636,13 +668,13 @@ If you already have a pre-commit executable file and you want to use ggshield,
 all you need to do is to add this line in the file:
 
 ```shell
-$ ggshield scan pre-commit
+$ ggshield secret scan pre-commit
 ```
 
 If you want to try pre-commit scanning through the docker image:
 
 ```shell
-$ docker run -e GITGUARDIAN_API_KEY -v $(pwd):/data --rm gitguardian/ggshield ggshield scan pre-commit
+$ docker run -e GITGUARDIAN_API_KEY -v $(pwd):/data --rm gitguardian/ggshield ggshield secret scan pre-commit
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable of your project or development environment.
@@ -760,7 +792,7 @@ $ git push --push-option=breakglass
 - Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
 - Replace in the pre-receive hook
   ```shell
-  ggshield scan pre-receive
+  ggshield secret scan pre-receive
   ```
   with:
   ```shell
@@ -779,7 +811,7 @@ $ git push --push-option=breakglass
 
 ## Docker
 
-The GitGuardian Shield docker scanning tool (`ggshield scan docker`) is used to
+The GitGuardian Shield docker scanning tool (`ggshield secret scan docker`) is used to
 scan local docker images for secrets present in the image's creation process
 (`dockerfile` and build arguments) and in the image's layers' filesystem.
 
@@ -800,7 +832,7 @@ stages:
 🦉 gitguardian scan:
   image: gitguardian/ggshield:latest
   stage: scanning
-  script: ggshield scan ci
+  script: ggshield secret scan ci
   variables:
     GIT_STRATEGY: clone
     GIT_DEPTH: 0
@@ -870,7 +902,7 @@ pipelines:
         services:
           - docker
         script:
-          - ggshield scan ci
+          - ggshield secret scan ci
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
@@ -898,7 +930,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 ## Travis CI
 
-To add ggshield to your pipelines configure your `.travis.yml` to add a ggshield scanning job:
+To add ggshield to your pipelines configure your `.travis.yml` to add a ggshield secret scanning job:
 
 ```yml
 jobs:
@@ -909,7 +941,7 @@ jobs:
       install:
         - pip install ggshield
       script:
-        - ggshield scan ci
+        - ggshield secret scan ci
 ```
 
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `GITGUARDIAN_API_KEY` environment variable in your project settings.
@@ -932,7 +964,7 @@ pipeline {
                 GITGUARDIAN_API_KEY = credentials('gitguardian-api-key')
             }
             steps {
-                sh 'ggshield scan ci'
+                sh 'ggshield secret scan ci'
             }
         }
     }
@@ -954,7 +986,7 @@ steps:
 - name: ggshield
   image: gitguardian/ggshield:latest
   commands:
-  - ggshield scan ci
+  - ggshield secret scan ci
 ```
 
 Drone CI integration handles only pull-request or merge-request events, push events are not handled.
@@ -965,7 +997,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 > ⚠ Azure Pipelines does not support commit ranges outside of GitHub Pull Requests, therefore on push events in a regular branch only your latest commit will be scanned.
 > This limitation doesn't apply to GitHub Pull Requests where all the commits in the pull request will be scanned.
 
-To add ggshield to your pipelines configure your `azure-pipelines.yml` to add a ggshield scanning job:
+To add ggshield to your pipelines configure your `azure-pipelines.yml` to add a ggshield secret scanning job:
 
 ```yml
 jobs:
@@ -976,7 +1008,7 @@ jobs:
       image: gitguardian/ggshield:latest
       options: -u 0
     steps:
-      - script: ggshield scan ci
+      - script: ggshield secret scan ci
         env:
           GITGUARDIAN_API_KEY: $(gitguardianApiKey)
 ```
@@ -990,7 +1022,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 If no secrets or policy breaks have been found, the exit code will be 0:
 
 ```bash
-$ ggshield scan pre-commit
+$ ggshield secret scan pre-commit
 ```
 
 If a secret or other issue is found in your staged code or in your CI,
@@ -999,7 +1031,7 @@ the filename where the policy break has been found and a patch
 giving you the position of the policy break in the file:
 
 ```shell
-$ ggshield scan pre-commit
+$ ggshield secret scan pre-commit
 
 🛡️  ⚔️  🛡️  2 policy breaks have been found in file production.rb
 

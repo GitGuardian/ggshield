@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from ggshield.cmd.scan.pypi import (
+from ggshield.cmd.secret.scan.pypi import (
     PYPI_DOWNLOAD_TIMEOUT,
     get_files_from_package,
     save_package_to_tmp,
@@ -82,7 +82,7 @@ class TestListPackageFiles:
             ("tar.gz", True),
         ],
     )
-    @patch("ggshield.cmd.scan.pypi.get_files_from_paths")
+    @patch("ggshield.cmd.secret.scan.pypi.get_files_from_paths")
     @patch("shutil.unpack_archive")
     def test_unpack_archive_format(
         self,
