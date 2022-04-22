@@ -13,7 +13,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
     scan a defined COMMIT_RANGE in git.
 
     git rev-list COMMIT_RANGE to list several commits to scan.
-    example: ggshield scan commit-range HEAD~1...
+    example: ggshield secret scan commit-range HEAD~1...
     """
     config = ctx.obj["config"]
     try:

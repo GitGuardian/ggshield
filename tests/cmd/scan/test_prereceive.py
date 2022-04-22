@@ -20,8 +20,8 @@ def contains_secret(line: str, secret: str) -> bool:
 
 
 class TestPreReceive:
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
         self,
         scan_commit_range_mock: Mock,
@@ -37,15 +37,17 @@ class TestPreReceive:
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input="bbbb\naaaa\norigin/main\n"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input="bbbb\naaaa\norigin/main\n",
         )
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_secret(
         self,
         scan_commit_range_mock: Mock,
@@ -61,7 +63,9 @@ class TestPreReceive:
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input="bbbb\naaaa\norigin/main\n"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input="bbbb\naaaa\norigin/main\n",
         )
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
@@ -71,8 +75,8 @@ class TestPreReceive:
         )
         assert result.exit_code == 1
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_no_commits(
         self,
         scan_commit_range_mock: Mock,
@@ -88,7 +92,9 @@ class TestPreReceive:
         get_list_mock.return_value = []
 
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input="bbbb\naaaa\norigin/main\n"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input="bbbb\naaaa\norigin/main\n",
         )
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_not_called()
@@ -98,8 +104,8 @@ class TestPreReceive:
         )
         assert result.exit_code == 0
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_breakglass_2ndoption(
         self,
         scan_commit_range_mock: Mock,
@@ -115,7 +121,7 @@ class TestPreReceive:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-receive"],
+            ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
             env={
                 "GIT_PUSH_OPTION_COUNT": "2",
@@ -131,7 +137,7 @@ class TestPreReceive:
         )
         assert result.exit_code == 0
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.scan.repo.scan_commit")
     def test_stdin_supports_gitlab_web_ui(
         self,
@@ -164,7 +170,7 @@ class TestPreReceive:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-receive"],
+            ["-v", "secret", "scan", "pre-receive"],
             input=f"{old_sha}\n{new_sha}\norigin/main\n",
             env={
                 "GL_PROTOCOL": "web",
@@ -179,8 +185,8 @@ class TestPreReceive:
         assert any(contains_secret(x, _SIMPLE_SECRET_TOKEN) for x in web_ui_lines)
         assert result.exit_code == 1
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_empty(
         self,
         scan_commit_range_mock: Mock,
@@ -193,12 +199,14 @@ class TestPreReceive:
         THEN it should raise an error and return 1
         """
 
-        result = cli_fs_runner.invoke(cli, ["-v", "scan", "pre-receive"], input="")
+        result = cli_fs_runner.invoke(
+            cli, ["-v", "secret", "scan", "pre-receive"], input=""
+        )
         assert result.exit_code == 1
         assert "Error: Invalid input arguments: []\n" in result.output
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_changing_max_commit_hooks(
         self,
         scan_commit_range_mock: Mock,
@@ -216,7 +224,7 @@ class TestPreReceive:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-receive"],
+            ["-v", "secret", "scan", "pre-receive"],
             input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
             env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "20"},
         )
@@ -228,8 +236,8 @@ class TestPreReceive:
         get_list_mock.assert_called_with(f"--max-count=21 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_new_branch_diff_with_head_success(
         self,
         scan_commit_range_mock: Mock,
@@ -246,7 +254,9 @@ class TestPreReceive:
         get_list_mock.side_effect = [["a" for _ in range(60)]]
 
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input=f"{EMPTY_SHA}\n{'a'*40}\nmain"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
         assert result.exit_code == 0
@@ -254,8 +264,8 @@ class TestPreReceive:
         get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_creation(
         self,
         scan_commit_range_mock: Mock,
@@ -272,7 +282,9 @@ class TestPreReceive:
         get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
 
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input=f"{EMPTY_SHA}\n{'a'*40}\nmain"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
         assert "New tree event. Scanning last 50 commits" in result.output
@@ -282,8 +294,8 @@ class TestPreReceive:
         get_list_mock.assert_called_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_deletion(
         self,
         scan_commit_range_mock: Mock,
@@ -297,13 +309,15 @@ class TestPreReceive:
         """
 
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input=f"{'a'*40} {EMPTY_SHA}  main"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input=f"{'a'*40} {EMPTY_SHA}  main",
         )
         assert result.exit_code == 0
         assert "Deletion event or nothing to scan.\n" in result.output
 
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_no_newline(
         self,
         scan_commit_range_mock: Mock,
@@ -320,7 +334,7 @@ class TestPreReceive:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-receive"],
+            ["-v", "secret", "scan", "pre-receive"],
             input="649061dcda8bff94e02adbaac70ca64cfb84bc78 bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main",  # noqa: E501
         )
         get_list_mock.assert_called_once_with(
@@ -331,8 +345,8 @@ class TestPreReceive:
         assert result.exit_code == 0
 
     @patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": "0.1"})
-    @patch("ggshield.cmd.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.scan.prereceive.scan_commit_range")
+    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_timeout(
         self,
         scan_commit_range_mock: Mock,
@@ -357,7 +371,9 @@ class TestPreReceive:
 
         start = time.time()
         result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-receive"], input="bbbb\naaaa\norigin/main\n"
+            cli,
+            ["-v", "secret", "scan", "pre-receive"],
+            input="bbbb\naaaa\norigin/main\n",
         )
         duration = time.time() - start
         assert duration < 0.3

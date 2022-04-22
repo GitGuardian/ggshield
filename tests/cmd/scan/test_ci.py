@@ -6,11 +6,11 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
-from ggshield.cmd.scan.ci import EMPTY_SHA
+from ggshield.cmd.secret.scan.ci import EMPTY_SHA
 
 
-@patch("ggshield.cmd.scan.ci.get_list_commit_SHA")
-@patch("ggshield.cmd.scan.ci.check_git_dir")
+@patch("ggshield.cmd.secret.scan.ci.get_list_commit_SHA")
+@patch("ggshield.cmd.secret.scan.ci.check_git_dir")
 @pytest.mark.parametrize(
     "env,expected_parameter",
     [

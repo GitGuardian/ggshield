@@ -8,7 +8,7 @@
 - id: docker-ggshield
   name: GitGuardian Shield (pre-commit,docker)
   language: docker_image
-  entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan pre-commit
+  entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield secret scan pre-commit
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks in docker images.
 - id: ggshield-push
   name: GitGuardian Shield (pre-push)
@@ -21,5 +21,5 @@
 - id: docker-ggshield-push
   name: GitGuardian Shield (pre-push,docker)
   language: docker_image
-  entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield scan pre-push
+  entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield secret scan pre-push
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks in docker images.

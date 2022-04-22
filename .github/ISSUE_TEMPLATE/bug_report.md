@@ -12,7 +12,7 @@ assignees: ''
 
 **Command executed**
 
-`ggshield scan ...`
+`ggshield secret scan ...`
 
 **Describe the bug**
 

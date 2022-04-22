@@ -1,28 +1,27 @@
-import os
-from typing import List, Optional, Type
+from typing import List, Optional
 
 import click
 
-from ggshield.cmd.scan.archive import archive_cmd
-from ggshield.cmd.scan.ci import ci_cmd
-from ggshield.cmd.scan.docker import docker_name_cmd
-from ggshield.cmd.scan.dockerarchive import docker_archive_cmd
-from ggshield.cmd.scan.path import path_cmd
-from ggshield.cmd.scan.precommit import precommit_cmd
-from ggshield.cmd.scan.prepush import prepush_cmd
-from ggshield.cmd.scan.prereceive import prereceive_cmd
-from ggshield.cmd.scan.pypi import pypi_cmd
-from ggshield.cmd.scan.range import range_cmd
-from ggshield.cmd.scan.repo import repo_cmd
-from ggshield.core.client import create_client_from_config
-from ggshield.core.config import Config
-from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.text_utils import display_error
-from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS, json_output_option_decorator
-from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
+from ggshield.cmd.secret.scan import (
+    archive_cmd,
+    ci_cmd,
+    docker_archive_cmd,
+    docker_name_cmd,
+    path_cmd,
+    precommit_cmd,
+    prepush_cmd,
+    prereceive_cmd,
+    pypi_cmd,
+    range_cmd,
+    repo_cmd,
+    scan_group_impl,
+)
+from ggshield.core.text_utils import display_warning
+from ggshield.core.utils import json_output_option_decorator
 
 
 @click.group(
+    hidden=True,
     commands={
         "commit-range": range_cmd,
         "pre-commit": precommit_cmd,
@@ -90,7 +89,7 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
     help="Ignore excluded patterns by default. [default: False]",
 )
 @click.pass_context
-def scan_group(
+def deprecated_scan_group(
     ctx: click.Context,
     show_secrets: bool,
     exit_zero: bool,
@@ -102,60 +101,21 @@ def scan_group(
     exclude: Optional[List[str]] = None,
     ignore_default_excludes: bool = False,
 ) -> int:
-    """Commands to scan various contents."""
-    ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
-    return_code = 0
-
-    paths_ignore = ctx.obj["config"].paths_ignore
-    if exclude is not None:
-        paths_ignore.update(exclude)
-
-    if not ignore_default_excludes and not ctx.obj["config"].ignore_default_excludes:
-        paths_ignore.update(IGNORED_DEFAULT_WILDCARDS)
-
-    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(paths_ignore)
-    config: Config = ctx.obj["config"]
-
-    if show_secrets is not None:
-        config.show_secrets = show_secrets
-
-    if all_policies is not None:
-        config.all_policies = all_policies
-
-    if verbose is not None:
-        config.verbose = verbose
-
-    if exit_zero is not None:
-        config.exit_zero = exit_zero
-
-    if banlist_detector:
-        config.banlisted_detectors.update(banlist_detector)
-
-    max_commits = get_max_commits_for_hook()
-    if max_commits:
-        config.max_commits_for_hook = max_commits
-
-    output_handler_cls: Type[OutputHandler] = TextOutputHandler
-    if json_output:
-        output_handler_cls = JSONOutputHandler
-
-    ctx.obj["output_handler"] = output_handler_cls(
-        show_secrets=config.show_secrets, verbose=config.verbose, output=output
+    """
+    Deprecated: use `ggshield secret scan (...)` instead.
+    """
+    display_warning(
+        "Warning: Using `ggshield scan (...)` is deprecated. Use `ggshield secret scan (...)` instead.",
     )
-
-    return return_code
-
-
-def get_max_commits_for_hook() -> Optional[int]:
-    """
-    Get the maximum number of commits that should be processed for a hook.
-    """
-    try:
-        max_commits = os.getenv("GITGUARDIAN_MAX_COMMITS_FOR_HOOK", None)
-        if max_commits is not None:
-            return int(max_commits)
-    except BaseException as e:
-        display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
-        return None
-
-    return None
+    return scan_group_impl(
+        ctx,
+        show_secrets,
+        exit_zero,
+        all_policies,
+        verbose,
+        json_output,
+        output,
+        banlist_detector,
+        exclude,
+        ignore_default_excludes,
+    )

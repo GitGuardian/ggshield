@@ -12,13 +12,13 @@ from ggshield.cmd.main import cli
 SAMPLE_PRE_COMMIT = """#!/bin/bash
 
 
-ggshield scan pre-commit
+ggshield secret scan pre-commit
 """
 
 SAMPLE_PRE_PUSH = """#!/bin/bash
 
 
-ggshield scan pre-push
+ggshield secret scan pre-push
 """
 
 
@@ -166,7 +166,7 @@ class TestInstallLocal:
         hook = open(f".git/hooks/{hook_type}", "r")
         hook_str = hook.read()
         assert "sample-command" in hook_str
-        assert "ggshield scan" in hook_str
+        assert "ggshield secret scan" in hook_str
 
         assert (
             f"{hook_type} successfully added in .git/hooks/{hook_type}\n"
@@ -241,7 +241,7 @@ class TestInstallGlobal:
         hook = open(f"{path}/{hook_type}", "r")
         hook_str = hook.read()
         assert f"if [[ -f .git/hooks/{hook_type} ]]; then" in hook_str
-        assert f"ggshield scan {hook_type}" in hook_str
+        assert f"ggshield secret scan {hook_type}" in hook_str
 
         assert (
             f"{hook_type} successfully added in global_hooks/{hook_type}\n"

@@ -19,7 +19,7 @@ def docker_archive_cmd(
     """
     scan a docker archive <ARCHIVE> without attempting to save or pull the image.
 
-    Hidden command `ggshield scan docker-archive`
+    Hidden command `ggshield secret scan docker-archive`
     """
     config = ctx.obj["config"]
     output_handler: OutputHandler = ctx.obj["output_handler"]

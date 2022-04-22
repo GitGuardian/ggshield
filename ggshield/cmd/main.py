@@ -10,7 +10,9 @@ from ggshield.cmd.config import config_group
 from ggshield.cmd.ignore import ignore_cmd
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
-from ggshield.cmd.scan import scan_group
+from ggshield.cmd.scan import deprecated_scan_group
+from ggshield.cmd.secret import secret_group
+from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
@@ -34,9 +36,10 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
-        "scan": scan_group,
         "auth": auth_group,
         "config": config_group,
+        "scan": deprecated_scan_group,
+        "secret": secret_group,
         "install": install_cmd,
         "ignore": ignore_cmd,
         "quota": quota_cmd,
