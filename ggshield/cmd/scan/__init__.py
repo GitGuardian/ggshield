@@ -102,7 +102,7 @@ def scan_group(
     exclude: Optional[List[str]] = None,
     ignore_default_excludes: bool = False,
 ) -> int:
-    """Command to scan various contents."""
+    """Commands to scan various contents."""
     ctx.obj["client"] = retrieve_client(ctx.obj["config"])
     return_code = 0
 
