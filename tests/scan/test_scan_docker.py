@@ -1,12 +1,18 @@
+import re
+import subprocess
 from pathlib import Path
 from typing import Dict
+from unittest.mock import patch
 
+import click
 import pytest
 
 from ggshield.scan.docker import (
     InvalidDockerArchiveException,
     _get_config,
     _should_scan_layer,
+    docker_pull_image,
+    docker_save_to_tmp,
     get_files_from_docker_archive,
 )
 from tests.conftest import DATA_PATH
@@ -96,3 +102,133 @@ class TestDockerScan:
         for file_path, expected_content in expected_files.items():
             file = files.files[str(file_path)]
             assert expected_content is None or file.document == expected_content
+
+
+DOCKER_TIMEOUT = 12
+
+
+class TestDockerPull:
+    def test_docker_pull_image_success(self):
+        with patch("subprocess.run") as call:
+            docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
+            call.assert_called_once_with(
+                ["docker", "pull", "ggshield-non-existant"],
+                check=True,
+                timeout=DOCKER_TIMEOUT,
+            )
+
+    def test_docker_pull_image_non_exist(self):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=[])
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='Image "ggshield-non-existant" not found',
+            ):
+                docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
+
+    def test_docker_pull_image_timeout(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=[], timeout=DOCKER_TIMEOUT),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='docker pull ggshield-non-existant" timed out',
+            ):
+                docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
+
+
+class TestDockerSave:
+    TMP_ARCHIVE = Path("/tmp/as/archive.tar")
+
+    def test_docker_save_image_success(self):
+        with patch("subprocess.run") as call:
+            docker_save_to_tmp(
+                "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+            )
+            call.assert_called_once_with(
+                [
+                    "docker",
+                    "save",
+                    "ggshield-non-existant",
+                    "-o",
+                    str(self.TMP_ARCHIVE),
+                ],
+                check=True,
+                stderr=-1,
+                timeout=DOCKER_TIMEOUT,
+            )
+
+    def test_docker_save_image_does_not_exist(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(
+                1, cmd=[], stderr="reference does not exist".encode("utf-8")
+            ),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match='Image "ggshield-non-existant" not found',
+            ):
+                docker_save_to_tmp(
+                    "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+                )
+
+    def test_docker_save_image_need_pull(self):
+        """
+        GIVEN a Docker image we do not have locally
+        WHEN we try to save it
+        THEN we first pull it and then save it
+
+        This test expects the following calls to `docker` commands:
+
+        - docker save <image_name> -o <something>
+          -> Fake failure
+        - docker pull <image_name>
+          -> Fake success
+        - docker save <image_name> -o <something>
+          -> Fake success
+        """
+        with patch(
+            "subprocess.run",
+            side_effect=[
+                subprocess.CalledProcessError(
+                    1, cmd=[], stderr="reference does not exist".encode("utf-8")
+                ),
+                None,
+                None,
+            ],
+        ):
+            docker_save_to_tmp(
+                "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+            )
+
+    def test_docker_save_image_fails(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(
+                1, cmd=[], stderr="docker failed weirdly".encode("utf-8")
+            ),
+        ):
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match="Unable to save docker archive:",
+            ):
+                docker_save_to_tmp(
+                    "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+                )
+
+    def test_docker_save_image_timeout(self):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=[], timeout=DOCKER_TIMEOUT),
+        ):
+            expected_msg = f'Command "docker save ggshield-non-existant -o {str(self.TMP_ARCHIVE)}" timed out'  # noqa: E501
+            with pytest.raises(
+                click.exceptions.ClickException,
+                match=re.escape(expected_msg),
+            ):
+                docker_save_to_tmp(
+                    "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
+                )
