@@ -183,64 +183,138 @@ class TestAuthLoginToken:
 
 
 class TestAuthLoginWeb:
-    @pytest.mark.parametrize(
-        [
-            "token_name",
-            "port_used_count",
-            "authorization_code",
-            "is_exchange_ok",
-            "is_token_valid",
-        ],
-        [
-            # valid case
-            ("test token", 0, "some_valid_authorization_code", True, True),
-            # default token name
-            (None, 0, "some_valid_authorization_code", True, True),
-            # first port already used
-            ("test token", 1, "some_valid_authorization_code", True, True),
-            # all ports already used
-            ("test token", 1000, "some_valid_authorization_code", True, True),
-            # can't get token from server
-            ("test token", 0, "some_valid_authorization_code", False, False),
-            # invalid token from server
-            ("test token", 0, "some_valid_authorization_code", True, False),
-            # invalid authorization code from callback
-            ("test token", 0, None, True, True),
-        ],
-    )
-    def test_auth_login_web_default_instance(
+    def test_no_port_available_exits_error(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN -
+        WHEN initiating the oauth flow
+        AND all potential ports to run the local server are occupied
+        THEN the auth flow fails with an explanatory message
+        """
+
+        self.prepare_mocks(monkeypatch, used_port_count=1000)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 1
+
+        self._webbrowser_open_mock.assert_not_called()
+        self._client_post_mock.assert_not_called()
+        self._client_get_mock.assert_not_called()
+        self._assert_last_print(output, "Error: Could not find unoccupied port.")
+        self._assert_config_is_empty()
+
+    def test_invalid_oauth_params_exits_error(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN -
+        WHEN receiving the oauth flow callback
+        AND the callback doesn't include an authorization code
+        THEN the auth flow fails with an explanatory message
+        """
+        self.prepare_mocks(monkeypatch, authorization_code=None)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 1
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url()
+        self._client_post_mock.assert_not_called()
+        self._client_get_mock.assert_not_called()
+        self._assert_last_print(
+            output,
+            "Error: Invalid code received from the callback.",
+        )
+        self._assert_config_is_empty()
+
+    def test_invalid_code_exchange_exits_error(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN -
+        WHEN receiving the oauth flow callback
+        AND the call to the server to exchange the authorization code
+        against an access token fails
+        THEN the auth flow fails with an explanatory message
+        """
+        self.prepare_mocks(monkeypatch, is_exchange_ok=False)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 1
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url()
+
+        self._client_post_mock.assert_called_once()
+        self._assert_post_payload()
+        self._assert_last_print(output, "Error: Cannot create a token.")
+        self._client_get_mock.assert_not_called()
+
+    def test_invalid_token_exits_error(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN a token created via the oauth process
+        WHEN the token is invalid
+        THEN the auth flow fails with an explanatory message
+        """
+        self.prepare_mocks(monkeypatch, is_token_valid=False)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 1
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url()
+
+        self._client_post_mock.assert_called_once()
+        self._assert_post_payload()
+        self._assert_last_print(output, "Error: The created token is invalid.")
+        self._client_get_mock.assert_called_once()
+
+    @pytest.mark.parametrize("token_name", [None, "some token name"])
+    @pytest.mark.parametrize("used_port_count", [0, 1, 10])
+    def test_valid_process(
+        self, used_port_count, token_name, cli_fs_runner, monkeypatch
+    ):
+        self.prepare_mocks(
+            monkeypatch, token_name=token_name, used_port_count=used_port_count
+        )
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 0, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(29170 + used_port_count)
+
+        self._client_post_mock.assert_called_once()
+        self._assert_post_payload()
+        self._client_get_mock.assert_called_once()
+
+        assert output.endswith(
+            f"\nCreated Personal Access Token {self._generated_token_name}\n"
+        )
+        self._assert_config("mysupertoken")
+
+    def prepare_mocks(
         self,
-        token_name,
-        port_used_count,
-        authorization_code,
-        is_exchange_ok,
-        is_token_valid,
         monkeypatch,
-        cli_fs_runner,
-        enable_web_auth,
+        token_name=None,
+        authorization_code="some_authorization_code",
+        used_port_count=0,
+        is_exchange_ok=True,
+        is_token_valid=True,
     ):
         """
-        GIVEN a valid API token
-        WHEN the auth login command is called without --instance with method web
-        THEN the authentication is made against the default instance
+        Prepare object and function mocks to emulate HTTP requests
+        and server interactions
         """
-
-        callback_url = "http://localhost:1234/"
-        if authorization_code:
-            callback_url += f"?code={authorization_code}"
-
-        no_port_available = port_used_count >= 1000
-        no_auth_code = authorization_code is None
-        exit_with_error = (
-            no_port_available
-            or no_auth_code
-            or (not is_exchange_ok)
-            or not is_token_valid
-        )
-
         token = "mysupertoken"
         config = Config()
         assert len(config.auth_config.instances) == 0
+
+        # original token_name param
+        self._token_name = token_name
+
+        # token name generated if passed as None
+        self._generated_token_name = (
+            token_name
+            if token_name
+            else "ggshield token " + datetime.today().strftime("%Y-%m-%d")
+        )
+
+        url_params = {}
+        if authorization_code:
+            url_params["code"] = authorization_code
+
+        callback_url = "http://localhost:1234/?" + urlparse.urlencode(url_params)
 
         # emulates incoming request
         monkeypatch.setattr(
@@ -249,25 +323,26 @@ class TestAuthLoginWeb:
         )
 
         # Ensure that original wait_for_code method is not called
-        wait_for_callback_mock = Mock()
+        self._wait_for_callback_mock = Mock()
         monkeypatch.setattr(
-            "ggshield.core.oauth.OAuthClient._wait_for_callback", wait_for_callback_mock
+            "ggshield.core.oauth.OAuthClient._wait_for_callback",
+            self._wait_for_callback_mock,
         )
 
         # open browser for the user to login
-        webbrowser_open_mock = Mock()
+        self._webbrowser_open_mock = Mock()
         monkeypatch.setattr(
-            "ggshield.core.oauth.webbrowser.open_new_tab", webbrowser_open_mock
+            "ggshield.core.oauth.webbrowser.open_new_tab", self._webbrowser_open_mock
         )
 
         # avoid starting a server on port 1234
-        mock_server_class = Mock(
-            side_effect=self._get_oserror_side_effect(port_used_count)
+        self._mock_server_class = Mock(
+            side_effect=self._get_oserror_side_effect(used_port_count)
         )
-        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", mock_server_class)
+        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", self._mock_server_class)
 
         # mock api call to exchange the code against a valid access token
-        client_post_mock = Mock(
+        self._client_post_mock = Mock(
             return_value=Mock(
                 ok=is_exchange_ok,
                 json=lambda: (
@@ -275,84 +350,42 @@ class TestAuthLoginWeb:
                 ),
             )
         )
-        monkeypatch.setattr("ggshield.core.oauth.requests.post", client_post_mock)
+        monkeypatch.setattr("ggshield.core.oauth.requests.post", self._client_post_mock)
 
         # mock api call to test the access token
-        client_get_mock = Mock(
+        self._client_get_mock = Mock(
             return_value=Mock(
                 ok=is_token_valid,
                 json=lambda: (_TOKEN_RESPONSE_PAYLOAD if is_token_valid else {}),
             )
         )
-        monkeypatch.setattr("ggshield.core.client.GGClient.get", client_get_mock)
+        monkeypatch.setattr("ggshield.core.client.GGClient.get", self._client_get_mock)
 
-        check_instance_has_enabled_flow_mock = Mock()
+        self._check_instance_has_enabled_flow_mock = Mock()
         monkeypatch.setattr(
             "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
-            check_instance_has_enabled_flow_mock,
+            self._check_instance_has_enabled_flow_mock,
         )
 
         # run cli command
-        cmd = ["auth", "login", "--method=web"]
-        if token_name is not None:
-            cmd.append(f"--token-name={token_name}")
-        else:
-            token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
 
+    def run_cmd(self, cli_fs_runner):
+        """
+        Run the auth login method within a virtual cli.
+        Make sure the original server method is not called.
+        """
+        cmd = ["auth", "login", "--method=web"]
+        if self._token_name is not None:
+            cmd.append(f"--token-name={self._token_name}")
         # run cli command
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
 
-        check_instance_has_enabled_flow_mock.assert_called_once()
+        # make sure the first call to api is mocked
+        self._check_instance_has_enabled_flow_mock.assert_called_once()
+
         # original method should not be called
-        wait_for_callback_mock.assert_not_called()
-
-        expected_exit_code = 1 if exit_with_error else 0
-        assert result.exit_code == expected_exit_code, result.output
-
-        if no_port_available:
-            webbrowser_open_mock.assert_not_called()
-            client_post_mock.assert_not_called()
-            client_get_mock.assert_not_called()
-            self._assert_last_print(
-                result.output, "Error: Could not find unoccupied port."
-            )
-            self._assert_config_is_empty()
-
-        else:
-            webbrowser_open_mock.assert_called_once()
-            self._assert_open_url(webbrowser_open_mock, 29170 + port_used_count)
-
-            if no_auth_code:
-                client_post_mock.assert_not_called()
-                client_get_mock.assert_not_called()
-                self._assert_last_print(
-                    result.output, "Error: Invalid code received from the callback."
-                )
-                self._assert_config_is_empty()
-            elif not is_exchange_ok:
-                client_post_mock.assert_called_once()
-                self._assert_post_payload(client_post_mock, token_name)
-                self._assert_last_print(result.output, "Error: Cannot create a token.")
-                client_get_mock.assert_not_called()
-
-                self._assert_config_is_empty()
-            elif not is_token_valid:
-                client_post_mock.assert_called_once()
-                self._assert_post_payload(client_post_mock, token_name)
-                client_get_mock.assert_called_once()
-                self._assert_last_print(
-                    result.output, "Error: The created token is invalid."
-                )
-                self._assert_config_is_empty()
-            else:
-                client_post_mock.assert_called_once()
-                self._assert_post_payload(client_post_mock, token_name)
-                client_get_mock.assert_called_once()
-
-                assert result.output.endswith(
-                    f"\nCreated Personal Access Token {token_name}\n"
-                )
-                self._assert_config(token)
+        self._wait_for_callback_mock.assert_not_called()
+        return result.exit_code, result.output
 
     @staticmethod
     def _assert_config_is_empty():
@@ -398,13 +431,12 @@ class TestAuthLoginWeb:
         """
         assert output.rsplit("\n", 2)[-2] == expected_str
 
-    @staticmethod
-    def _assert_open_url(open_browser_mock, expected_port: int):
+    def _assert_open_url(self, expected_port: int = 29170):
         """
         assert that the url to be open in the browser has the right static parameters
         also check if the port of the redirect url is the one expected depending on occupied ports
         """
-        (url,), kwargs = open_browser_mock.call_args_list[0]
+        (url,), kwargs = self._webbrowser_open_mock.call_args_list[0]
         url_params = urlparse.parse_qs(url.split("?", 1)[1])
 
         for key, value in _EXPECTED_URL_PARAMS.items():
@@ -418,22 +450,19 @@ class TestAuthLoginWeb:
             f"http://localhost:{expected_port}"
         ), redirect_uri
 
-    @staticmethod
-    def _assert_post_payload(post_mock, token_name=None):
+    def _assert_post_payload(self):
         """
         assert that the post request is made to the right url
         and include the expected token name
         """
 
-        (url, payload), kwargs = post_mock.call_args_list[0]
+        (url, payload), kwargs = self._client_post_mock.call_args_list[0]
         assert url == "https://api.gitguardian.com/oauth/token"
 
         request_body = urlparse.parse_qs(payload)
         assert "name" in request_body
 
-        if token_name is None:
-            token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
-        assert request_body["name"][0] == token_name
+        assert request_body["name"][0] == self._generated_token_name
 
     @staticmethod
     def _get_oauth_client_class(callback_url):
