@@ -351,6 +351,10 @@ class RequestHandlerWrapper:
                     self_.send_header("Location", redirect_url)
                 self_.end_headers()
 
+            def log_message(self, format: str, *args: Any) -> None:
+                """Silence log message"""
+                return
+
         return RequestHandler
 
 
