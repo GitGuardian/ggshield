@@ -1,6 +1,6 @@
 import click
 
-from ggshield.core.client import retrieve_client
+from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 
 
@@ -17,7 +17,7 @@ def check_instance_has_enabled_flow(config: Config) -> None:
     There may be a case where an onpremise instance of version 2022.04 has the feature flag but cannot
     enable it.
     """
-    client = retrieve_client(config)
+    client = create_client_from_config(config)
     response = client.get(endpoint="metadata")
     if response.status_code == 404:
         raise click.ClickException(VERSION_TOO_LOW_MESSAGE)

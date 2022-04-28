@@ -5,7 +5,7 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, Quota, QuotaResponse
 
-from ggshield.core.client import retrieve_client
+from ggshield.core.client import create_client_from_config
 from ggshield.core.utils import json_output_option_decorator
 from ggshield.output.text.message import format_quota_color
 
@@ -15,7 +15,7 @@ from ggshield.output.text.message import format_quota_color
 @click.pass_context
 def quota_cmd(ctx: click.Context, json_output: bool) -> int:
     """Show quotas overview."""
-    client: GGClient = retrieve_client(ctx.obj["config"])
+    client: GGClient = create_client_from_config(ctx.obj["config"])
     response: Union[Detail, QuotaResponse] = client.quota_overview()
 
     if not isinstance(response, (Detail, QuotaResponse)):

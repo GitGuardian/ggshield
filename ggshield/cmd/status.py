@@ -4,7 +4,7 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import HealthCheckResponse
 
-from ggshield.core.client import retrieve_client
+from ggshield.core.client import create_client_from_config
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.utils import json_output_option_decorator
 from ggshield.output.text.message import format_healthcheck_status
@@ -14,7 +14,7 @@ from ggshield.output.text.message import format_healthcheck_status
 @click.pass_context
 def status_cmd(ctx: click.Context, json_output: bool) -> int:
     """Show API status."""
-    client: GGClient = retrieve_client(ctx.obj["config"])
+    client: GGClient = create_client_from_config(ctx.obj["config"])
     response: HealthCheckResponse = client.health_check()
 
     if not isinstance(response, HealthCheckResponse):
