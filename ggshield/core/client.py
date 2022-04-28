@@ -7,12 +7,10 @@ from .config import Config, UnknownInstanceError
 from .constants import DEFAULT_DASHBOARD_URL
 
 
-def retrieve_client(config: Config) -> GGClient:
-    session = Session()
-    if config.allow_self_signed:
-        urllib3.disable_warnings()
-        session.verify = False
-
+def create_client_from_config(config: Config) -> GGClient:
+    """
+    Create a GGClient using parameters from Config.
+    """
     try:
         api_key = config.api_key
         api_url = config.api_url
@@ -24,6 +22,21 @@ def retrieve_client(config: Config) -> GGClient:
             raise click.ClickException("GitGuardian API key is needed.")
         else:
             raise
+
+    return create_client(api_key, api_url, allow_self_signed=config.allow_self_signed)
+
+
+def create_client(
+    api_key: str, api_url: str, *, allow_self_signed: bool = False
+) -> GGClient:
+    """
+    Implementation of create_client_from_config(). Exposed as a function for specific
+    cases such as needing a GGClient instance while defining the config account.
+    """
+    session = Session()
+    if allow_self_signed:
+        urllib3.disable_warnings()
+        session.verify = False
 
     try:
         return GGClient(

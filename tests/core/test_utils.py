@@ -4,7 +4,7 @@ from unittest import mock
 import click
 import pytest
 
-from ggshield.core.client import retrieve_client
+from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.utils import (
     MatchIndices,
@@ -113,7 +113,7 @@ def test_retrieve_client_invalid_api_url():
         match=f"Invalid scheme for API URL '{url}', expected HTTPS",
     ):
         with mock.patch.dict(os.environ, {"GITGUARDIAN_API_URL": url}):
-            retrieve_client(Config())
+            create_client_from_config(Config())
 
 
 def test_retrieve_client_invalid_api_key():
@@ -124,7 +124,7 @@ def test_retrieve_client_invalid_api_key():
     """
     with pytest.raises(click.ClickException, match="Invalid value for API Key"):
         with mock.patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "\u2023"}):
-            retrieve_client(Config())
+            create_client_from_config(Config())
 
 
 def test_retrieve_client_blank_state(isolated_fs):
@@ -138,7 +138,7 @@ def test_retrieve_client_blank_state(isolated_fs):
         match="GitGuardian API key is needed",
     ):
         with mock.patch.dict(os.environ, clear=True):
-            retrieve_client(Config())
+            create_client_from_config(Config())
 
 
 def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
@@ -155,7 +155,7 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
         with mock.patch.dict(os.environ, clear=True):
             config = Config()
             config.auth_config.current_instance = "https://example.com"
-            retrieve_client(config)
+            create_client_from_config(config)
 
 
 class TestAPIDashboardURL:

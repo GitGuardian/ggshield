@@ -3,7 +3,7 @@ from typing import Optional
 import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
-from ggshield.core.client import retrieve_client
+from ggshield.core.client import create_client_from_config
 from ggshield.core.config import AccountConfig, InstanceConfig
 from ggshield.core.oauth import OAuthClient
 from ggshield.core.utils import clean_url
@@ -83,7 +83,7 @@ def login_cmd(
 
         config.auth_config.current_token = token
 
-        client = retrieve_client(config)
+        client = create_client_from_config(config)
         response = client.get(endpoint="token")
         if not response.ok:
             raise click.ClickException("Authentication failed with token.")

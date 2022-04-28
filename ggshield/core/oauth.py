@@ -12,7 +12,7 @@ import click
 import requests
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
-from .client import retrieve_client
+from .client import create_client
 from .config import AccountConfig, Config, InstanceConfig
 
 
@@ -228,7 +228,12 @@ class OAuthClient:
         Validate the token using GitGuardian public api.
         If the token is not valid, exit the authentication process with an error message.
         """
-        response = retrieve_client(self.config).get(endpoint="token")
+        assert self._access_token is not None
+        response = create_client(
+            self._access_token,
+            self.api_url,
+            allow_self_signed=self.config.allow_self_signed,
+        ).get(endpoint="token")
         if not response.ok:
             raise OAuthError("The created token is invalid.")
         return response.json()  # type: ignore

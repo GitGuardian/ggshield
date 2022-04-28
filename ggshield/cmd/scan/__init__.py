@@ -14,7 +14,7 @@ from ggshield.cmd.scan.prereceive import prereceive_cmd
 from ggshield.cmd.scan.pypi import pypi_cmd
 from ggshield.cmd.scan.range import range_cmd
 from ggshield.cmd.scan.repo import repo_cmd
-from ggshield.core.client import retrieve_client
+from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
@@ -103,7 +103,7 @@ def scan_group(
     ignore_default_excludes: bool = False,
 ) -> int:
     """Commands to scan various contents."""
-    ctx.obj["client"] = retrieve_client(ctx.obj["config"])
+    ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
     return_code = 0
 
     paths_ignore = ctx.obj["config"].paths_ignore
