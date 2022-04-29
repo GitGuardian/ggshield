@@ -73,6 +73,10 @@ def custom_asdict(obj: Any, root: bool = False) -> Union[List, Dict]:
         return type(obj)(custom_asdict(v) for v in obj)  # type: ignore
     elif isinstance(obj, dict):
         return type(obj)((k, custom_asdict(v)) for k, v in obj.items())
+    elif isinstance(obj, set):
+        # Turn sets into lists so that YAML serialization does not turn them into YAML
+        # unordered sets
+        return [custom_asdict(v) for v in obj]
     else:
         return copy.deepcopy(obj)  # type: ignore
 
