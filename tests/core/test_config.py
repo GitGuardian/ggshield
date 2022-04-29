@@ -1,8 +1,9 @@
 import os
 import sys
 from copy import deepcopy
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Set
 
 import pytest
 import yaml
@@ -12,6 +13,7 @@ from ggshield.core.config import (
     Config,
     InstanceConfig,
     UnknownInstanceError,
+    custom_asdict,
     get_auth_config_filepath,
     get_global_path,
     load_yaml,
@@ -58,6 +60,24 @@ class TestUtils:
         assert data == {"last_found_secrets": {"XXX"}}
         replace_in_keys(data, "_", "-")
         assert data == {"last-found-secrets": {"XXX"}}
+
+    def test_custom_asdict_turns_set_into_list(self):
+        """
+        GIVEN an object containing a set
+        WHEN calling test_custom_asdict() on it
+        THEN the set is turned into a list
+        """
+
+        @dataclass
+        class TestObject:
+            data: Set[str] = field(default_factory=set)
+
+        obj = TestObject(data={"a", "c", "b"})
+
+        dct = custom_asdict(obj, root=True)
+
+        assert isinstance(dct["data"], list)
+        assert sorted(dct["data"]) == ["a", "b", "c"]
 
 
 @pytest.mark.usefixtures("isolated_fs")
