@@ -117,13 +117,6 @@ class YAMLFileConfig:
                     f"Error while saving config in {path}:\n{str(e)}"
                 ) from e
 
-    def save(self) -> None:
-        raise NotImplementedError
-
-    @classmethod
-    def load(cls) -> "YAMLFileConfig":
-        raise NotImplementedError
-
 
 @dataclass
 class UserConfig(YAMLFileConfig):
@@ -132,7 +125,6 @@ class UserConfig(YAMLFileConfig):
     (local and global).
     """
 
-    config_path: Optional[str] = None
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
@@ -157,12 +149,10 @@ class UserConfig(YAMLFileConfig):
                 data["instance"] = api_to_dashboard_url(api_url, warn=True)
         return super(UserConfig, self).update_config(data)
 
-    def save(self) -> None:
+    def save(self, config_path: str) -> None:
         """
-        Save config in the first CONFIG_LOCAL or the path it was loaded from
-        If no local config file, creates a local .gitguardian.yaml
+        Save config to config_path
         """
-        config_path = self.config_path or DEFAULT_LOCAL_CONFIG_PATH
         self.save_yaml(config_path)
 
     @classmethod
@@ -171,15 +161,12 @@ class UserConfig(YAMLFileConfig):
         Load the various user configs files to create a UserConfig object:
         - global user configuration file (in the home)
         - local user configuration file (in the repository)
-
-        The user configuration path can be overriden
         """
 
         user_config = UserConfig()
         # Load the user config
         if config_path:
             data = load_yaml(config_path) or {}
-            data["local_config_path"] = config_path
             user_config.update_config(data)
         else:
             for global_config_filename in GLOBAL_CONFIG_FILENAMES:
@@ -400,6 +387,7 @@ class Config:
     def __init__(self, config_path: Optional[str] = None):
         self.user_config = UserConfig.load(config_path=config_path)
         self.auth_config = AuthConfig.load()
+        self._config_path = config_path
         self._cmdline_instance_name = None
 
     def __getattr__(self, name: str) -> Any:
@@ -413,14 +401,15 @@ class Config:
         return getattr(subconfig, name)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        if key in {"_cmdline_instance_name", "user_config", "auth_config"}:
+        if key[0] == "_" or key in {"user_config", "auth_config"}:
             self.__dict__[key] = value
             return
         subconfig = getattr(self, self._attr_mapping[key])
         setattr(subconfig, key, value)
 
     def save(self) -> None:
-        self.user_config.save()
+        config_path = self._config_path or DEFAULT_LOCAL_CONFIG_PATH
+        self.user_config.save(config_path)
         self.auth_config.save()
 
     @property
