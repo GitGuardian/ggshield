@@ -127,6 +127,11 @@ class YAMLFileConfig:
 
 @dataclass
 class UserConfig(YAMLFileConfig):
+    """
+    Holds all ggshield settings defined by the user in the .gitguardian.yaml files
+    (local and global).
+    """
+
     config_path: Optional[str] = None
     instance: Optional[str] = None
     all_policies: bool = False
@@ -307,6 +312,12 @@ class AuthExpiredError(AuthError):
 
 @dataclass
 class AuthConfig(YAMLFileConfig):
+    """
+    Holds all declared GitGuardian instances and their tokens.
+
+    Knows how to load and save them from the YAML file at get_auth_config_filepath().
+    """
+
     instances: Mapping[str, InstanceConfig] = field(default_factory=dict)
 
     @classmethod
@@ -361,11 +372,29 @@ def get_attr_mapping(
 
 
 class Config:
+    """
+    Top-level config class. Contains an instance of UserConfig and an instance of
+    AuthConfig with some magic to make it possible to access their fields directly. For
+    example one can do:
+
+    ```
+    config = Config()
+
+    # Access config.user_config.exit_zero
+    print(config.exit_zero)
+
+    # Access config.auth_config.instances
+    print(config.instances)
+    ```
+    """
+
     user_config: UserConfig
     auth_config: AuthConfig
     _attr_mapping: Mapping[str, str] = get_attr_mapping(
         [(UserConfig, "user_config"), (AuthConfig, "auth_config")]
     )
+
+    # The instance name, if ggshield is invoked with `--instance`
     _cmdline_instance_name: Optional[str]
 
     def __init__(self, config_path: Optional[str] = None):
