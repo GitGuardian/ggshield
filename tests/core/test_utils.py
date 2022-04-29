@@ -154,7 +154,7 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
     ):
         with mock.patch.dict(os.environ, clear=True):
             config = Config()
-            config.auth_config.current_instance = "https://example.com"
+            config.set_cmdline_instance_name("https://example.com")
             create_client_from_config(config)
 
 

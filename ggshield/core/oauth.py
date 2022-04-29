@@ -221,7 +221,6 @@ class OAuthClient:
             raise OAuthError("Cannot create a token.")
 
         self._access_token = response.json()["key"]
-        self.config.auth_config.current_token = self._access_token
 
     def _validate_access_token(self) -> Dict[str, Any]:
         """

@@ -91,7 +91,6 @@ class YAMLFileConfig:
         Update the current config, ignoring the unrecognized keys
         """
         field_names = {field_.name for field_ in fields(self)}
-        replace_in_keys(data, old_char="-", new_char="_")
         for key, item in data.items():
             if key not in field_names:
                 click.echo("Unrecognized key in config: {}".format(key))
@@ -128,9 +127,8 @@ class YAMLFileConfig:
 
 @dataclass
 class UserConfig(YAMLFileConfig):
-    api_url: Optional[str] = None
-    dashboard_url: Optional[str] = None
     config_path: Optional[str] = None
+    instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
     matches_ignore: List[IgnoredMatch] = field(default_factory=list)
@@ -142,38 +140,17 @@ class UserConfig(YAMLFileConfig):
     banlisted_detectors: Set[str] = field(default_factory=set)
     ignore_default_excludes: bool = False
 
-    def update_from_env(self) -> None:
-        """
-        If one of the URL env vars is defined, set them both
-        """
-        api_url = os.getenv("GITGUARDIAN_API_URL")
-        dashboard_url = os.getenv("GITGUARDIAN_URL")
-        if api_url is not None:
-            clean_url(api_url, warn=True)
-            if dashboard_url is None:
-                dashboard_url = api_to_dashboard_url(api_url)
-            self.api_url = api_url
-            self.dashboard_url = dashboard_url
-        elif dashboard_url is not None:
-            clean_url(dashboard_url, warn=True)
-            api_url = dashboard_to_api_url(dashboard_url)
-            self.api_url = api_url
-            self.dashboard_url = dashboard_url
-
     def update_config(self, data: Dict[str, Any]) -> bool:
-        """
-        URLs should always be both set together to make sure they belong
-        to the same instance
-        """
-        if data.get("dashboard_url"):
-            clean_url(data["dashboard_url"], warn=True)
-        if data.get("api_url"):
-            clean_url(data["api_url"], warn=True)
-        if data.get("dashboard_url") and not data.get("api_url"):
-            data["api_url"] = dashboard_to_api_url(data["dashboard_url"])
-        elif not data.get("dashboard_url") and data.get("api_url"):
-            data["dashboard_url"] = api_to_dashboard_url(data["api_url"])
-        return super().update_config(data)
+        # If data contains the old "api-url" key, turn it into an "instance" key,
+        # but only if there is no "instance" key
+        try:
+            api_url = data.pop("api_url")
+        except KeyError:
+            pass
+        else:
+            if "instance" not in data:
+                data["instance"] = api_to_dashboard_url(api_url, warn=True)
+        return super(UserConfig, self).update_config(data)
 
     def save(self) -> None:
         """
@@ -209,8 +186,6 @@ class UserConfig(YAMLFileConfig):
                 local_data = load_yaml(local_config_path)
                 if local_data and user_config.update_config(local_data):
                     break
-        # Env variables have priority over the local/global configs
-        user_config.update_from_env()
         return user_config
 
     def add_ignored_match(self, secret: Dict) -> None:
@@ -332,21 +307,7 @@ class AuthExpiredError(AuthError):
 
 @dataclass
 class AuthConfig(YAMLFileConfig):
-    current_token: Optional[str] = None
-    current_instance: Optional[str] = None
-    default_instance: str = DEFAULT_DASHBOARD_URL
-    default_token_lifetime: Optional[int] = None
     instances: Mapping[str, InstanceConfig] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        self.current_token = os.getenv("GITGUARDIAN_API_KEY", self.current_token)
-
-    def to_dict(self) -> Dict:
-        """Remove temporary values when serializing before saving"""
-        data: Dict = super().to_dict()  # type: ignore
-        data.pop("current_instance")
-        data.pop("current_token")
-        return data
 
     @classmethod
     def load(cls) -> "AuthConfig":
@@ -405,11 +366,12 @@ class Config:
     _attr_mapping: Mapping[str, str] = get_attr_mapping(
         [(UserConfig, "user_config"), (AuthConfig, "auth_config")]
     )
+    _cmdline_instance_name: Optional[str]
 
     def __init__(self, config_path: Optional[str] = None):
-        # bypass __setattr__ to avoid infinite recursion
-        self.__dict__["user_config"] = UserConfig.load(config_path=config_path)
-        self.__dict__["auth_config"] = AuthConfig.load()
+        self.user_config = UserConfig.load(config_path=config_path)
+        self.auth_config = AuthConfig.load()
+        self._cmdline_instance_name = None
 
     def __getattr__(self, name: str) -> Any:
         try:
@@ -422,6 +384,9 @@ class Config:
         return getattr(subconfig, name)
 
     def __setattr__(self, key: str, value: Any) -> None:
+        if key in {"_cmdline_instance_name", "user_config", "auth_config"}:
+            self.__dict__[key] = value
+            return
         subconfig = getattr(self, self._attr_mapping[key])
         setattr(subconfig, key, value)
 
@@ -432,20 +397,46 @@ class Config:
     @property
     def instance_name(self) -> str:
         """
-        The instance name (defaulting to URL) in the auth config of the selected instance
+        The instance name (defaulting to URL) of the selected instance
         priority order is:
-        - manually set (in auth_config.current_instance)
+        - set from the command line (with set_cmdline_instance_name)
         - env var (in auth_config.current_instance)
         - in local user config (in user_config.dashboard_url)
         - in global user config (in user_config.dashboard_url)
-        - the default instance (in auth_config.default_instance)
+        - the default instance
         """
-        instance_name = self.auth_config.current_instance
-        if instance_name is None:
-            instance_name = self.user_config.dashboard_url
-            if instance_name is None:
-                instance_name = self.auth_config.default_instance
-        return instance_name
+        if self._cmdline_instance_name:
+            return self._cmdline_instance_name
+
+        try:
+            return os.environ["GITGUARDIAN_INSTANCE"]
+        except KeyError:
+            pass
+
+        try:
+            name = os.environ["GITGUARDIAN_API_URL"]
+        except KeyError:
+            pass
+        else:
+            return api_to_dashboard_url(name, warn=True)
+
+        if self.user_config.instance:
+            return self.user_config.instance
+
+        return DEFAULT_DASHBOARD_URL
+
+    def set_cmdline_instance_name(self, name: str) -> None:
+        """
+        Override the current instance name. To be called by commands supporting the
+        `--instance` option.
+        """
+        parsed_url = clean_url(name)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            raise click.BadParameter(
+                "Please provide a valid URL.",
+                param_hint="instance",
+            )
+        self._cmdline_instance_name = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     @property
     def api_url(self) -> str:
@@ -453,17 +444,8 @@ class Config:
         The API URL to use to use the API
         It's the API URL from the configured instance
         """
-        instance_name = self.auth_config.current_instance
-        if instance_name is None:
-            api_url = self.user_config.api_url
-            if api_url is None:
-                # TODO change when the default_instance can be a name instead of just a URL
-                api_url = dashboard_to_api_url(self.auth_config.default_instance)
-        else:
-            api_url = dashboard_to_api_url(
-                self.auth_config.get_instance(instance_name).url
-            )
-        return api_url
+        # TODO change when instance_name can be a name instead of just a URL
+        return dashboard_to_api_url(self.instance_name)
 
     @property
     def dashboard_url(self) -> str:
@@ -471,30 +453,21 @@ class Config:
         The dashboard URL to use to use the dashboard
         It's the dashboard URL from the configured instance
         """
-        instance_name = self.auth_config.current_instance
-        if instance_name is None:
-            dashboard_url = self.user_config.dashboard_url
-            if dashboard_url is None:
-                # TODO change when the default_instance can be a name instead of just a URL
-                dashboard_url = self.auth_config.default_instance
-        else:
-            dashboard_url = self.auth_config.get_instance(instance_name).url
-        return dashboard_url
+        # TODO change when instance_name can be a name instead of just a URL
+        return self.instance_name
 
     @property
     def api_key(self) -> str:
         """
         The API key to use
         priority order is
-        - manually set (in auth_config.current_token)
-        - env var (in auth_config.current_token)
+        - env var
         - the api key from the selected instance
         """
-        api_key = self.auth_config.current_token
-        if api_key is None:
-            instance_name = self.instance_name
-            api_key = self.auth_config.get_instance_token(instance_name)
-        return api_key
+        try:
+            return os.environ["GITGUARDIAN_API_KEY"]
+        except KeyError:
+            return self.auth_config.get_instance_token(self.instance_name)
 
     def add_ignored_match(self, *args: Any, **kwargs: Any) -> None:
         return self.user_config.add_ignored_match(*args, **kwargs)
