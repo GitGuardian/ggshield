@@ -14,8 +14,10 @@ from ggshield.core.config import (
     UnknownInstanceError,
     get_auth_config_filepath,
     get_global_path,
+    load_yaml,
     replace_in_keys,
 )
+from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.utils import dashboard_to_api_url
 
 
@@ -595,3 +597,29 @@ class TestConfig:
         sys.stderr.write(err)
 
         assert "[Warning] unexpected /v1 path in your URL configuration" in err
+
+    def test_updating_config_not_from_default_local_config_path(
+        self, local_config_path
+    ):
+        """
+        GIVEN a ggshield config stored in .gitguardian (not .gitguardian.yaml, the
+        default filename)
+        WHEN saving the config
+        THEN .gitguardian is updated
+        AND .gitguardian.yaml is not created
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "instance": "https://before.com",
+            },
+        )
+
+        config = Config()
+        config.user_config.instance = "https://after.com"
+        config.save()
+
+        assert not Path(DEFAULT_LOCAL_CONFIG_PATH).exists()
+
+        dct = load_yaml(local_config_path, raise_exc=True)
+        assert dct["instance"] == "https://after.com"

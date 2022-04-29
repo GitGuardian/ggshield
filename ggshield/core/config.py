@@ -156,29 +156,36 @@ class UserConfig(YAMLFileConfig):
         self.save_yaml(config_path)
 
     @classmethod
-    def load(cls, config_path: Optional[str] = None) -> "UserConfig":
+    def load(cls, config_path: Optional[str] = None) -> Tuple["UserConfig", str]:
         """
         Load the various user configs files to create a UserConfig object:
         - global user configuration file (in the home)
         - local user configuration file (in the repository)
+
+        Returns a UserConfig instance, and the path where updates should be saved
         """
 
         user_config = UserConfig()
-        # Load the user config
         if config_path:
             data = load_yaml(config_path) or {}
             user_config.update_config(data)
-        else:
-            for global_config_filename in GLOBAL_CONFIG_FILENAMES:
-                global_config_path = get_global_path(global_config_filename)
-                global_data = load_yaml(global_config_path)
-                if global_data and user_config.update_config(global_data):
-                    break
-            for local_config_path in LOCAL_CONFIG_PATHS:
-                local_data = load_yaml(local_config_path)
-                if local_data and user_config.update_config(local_data):
-                    break
-        return user_config
+            return user_config, config_path
+
+        for global_config_filename in GLOBAL_CONFIG_FILENAMES:
+            global_config_path = get_global_path(global_config_filename)
+            global_data = load_yaml(global_config_path)
+            if global_data and user_config.update_config(global_data):
+                break
+
+        for local_config_path in LOCAL_CONFIG_PATHS:
+            local_data = load_yaml(local_config_path)
+            if local_data and user_config.update_config(local_data):
+                config_path = local_config_path
+                break
+
+        if config_path is None:
+            config_path = DEFAULT_LOCAL_CONFIG_PATH
+        return user_config, config_path
 
     def add_ignored_match(self, secret: Dict) -> None:
         """
@@ -385,9 +392,8 @@ class Config:
     _cmdline_instance_name: Optional[str]
 
     def __init__(self, config_path: Optional[str] = None):
-        self.user_config = UserConfig.load(config_path=config_path)
+        self.user_config, self._config_path = UserConfig.load(config_path=config_path)
         self.auth_config = AuthConfig.load()
-        self._config_path = config_path
         self._cmdline_instance_name = None
 
     def __getattr__(self, name: str) -> Any:
@@ -408,8 +414,7 @@ class Config:
         setattr(subconfig, key, value)
 
     def save(self) -> None:
-        config_path = self._config_path or DEFAULT_LOCAL_CONFIG_PATH
-        self.user_config.save(config_path)
+        self.user_config.save(self._config_path)
         self.auth_config.save()
 
     @property
