@@ -131,13 +131,8 @@ class TestAuthLoginToken:
         config = Config()
         assert result.exit_code == 0, result.output
         assert len(config.auth_config.instances) == 1
-        assert config.auth_config.default_instance in config.auth_config.instances
-        assert (
-            config.auth_config.instances[
-                config.auth_config.default_instance
-            ].account.token
-            == token
-        )
+        assert config.instance_name in config.auth_config.instances
+        assert config.auth_config.instances[config.instance_name].account.token == token
 
     def test_auth_login_token_update_existing_config(self, monkeypatch, cli_fs_runner):
         """
@@ -444,12 +439,10 @@ class TestAuthLoginWeb:
         """
         config = Config()
         assert len(config.auth_config.instances) == 1
-        assert config.auth_config.default_instance in config.auth_config.instances
+        assert config.instance_name in config.auth_config.instances
         if token is not None:
             assert (
-                config.auth_config.instances[
-                    config.auth_config.default_instance
-                ].account.token
+                config.auth_config.instances[config.instance_name].account.token
                 == token
             )
 

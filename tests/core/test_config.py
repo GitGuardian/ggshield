@@ -145,7 +145,7 @@ class TestUserConfig:
         config = Config()
         assert config.verbose is True
         assert config.show_secrets is False
-        assert config.user_config.api_url == "https://api.gitguardian.com"
+        assert config.api_url == "https://api.gitguardian.com"
 
     def test_exclude_regex(self, cli_fs_runner, local_config_path, monkeypatch):
         write_yaml(local_config_path, {"paths-ignore": ["/tests/"]})
@@ -181,8 +181,6 @@ class TestUserConfig:
 @pytest.mark.usefixtures("isolated_fs")
 class TestAuthConfig:
     default_config = {
-        "default-instance": "default",
-        "default-token-lifetime": 7,  # days
         "instances": {
             "default": {
                 "name": "default",
@@ -282,17 +280,17 @@ class TestAuthConfig:
     def test_update(self):
         """
         GIVEN -
-        WHEN modifiying the default config
+        WHEN modifying the default config
         THEN it's not persisted until .save() is called
         """
         config = Config()
-        config.default_instance = "custom"
+        config.instance = "custom"
 
-        assert Config().default_instance != "custom"
+        assert Config().instance != "custom"
 
         config.save()
 
-        assert Config().default_instance == "custom"
+        assert Config().instance == "custom"
 
     def test_load_file_not_existing(self):
         """
@@ -302,8 +300,7 @@ class TestAuthConfig:
         """
         config = Config()
 
-        assert config.default_instance == "https://dashboard.gitguardian.com"
-        assert config.default_token_lifetime is None
+        assert config.instance_name == "https://dashboard.gitguardian.com"
         assert config.instances == {}
 
     def test_save_file_not_existing(self):
@@ -318,11 +315,11 @@ class TestAuthConfig:
         except FileNotFoundError:
             pass
 
-        config.default_instance = "custom"
+        config.instance = "custom"
         config.save()
         updated_config = Config()
 
-        assert updated_config.default_instance == "custom"
+        assert updated_config.instance == "custom"
 
     def test_timezone_aware_expired(self):
         """
@@ -343,7 +340,6 @@ class TestConfig:
         global_filepath,
         local_instance=None,
         global_instance=None,
-        default_instance=None,
     ):
         auth_config_data = deepcopy(TestAuthConfig.default_config)
         for i in range(1, 6):
@@ -353,26 +349,23 @@ class TestConfig:
             )
             auth_config_data["instances"][url]["url"] = url
         if local_instance:
-            write_yaml(local_filepath, {"dashboard-url": local_instance})
+            write_yaml(local_filepath, {"instance": local_instance})
         else:
             if os.path.isfile(local_filepath):
                 os.remove(local_filepath)
         if global_instance:
-            write_yaml(global_filepath, {"dashboard-url": global_instance})
+            write_yaml(global_filepath, {"instance": global_instance})
         else:
             if os.path.isfile(global_filepath):
                 os.remove(global_filepath)
-        if default_instance:
-            auth_config_data["default-instance"] = default_instance
         write_yaml(get_auth_config_filepath(), auth_config_data)
 
     @pytest.mark.parametrize(
         [
-            "current_instance",
+            "cmdline_instance",
             "env_instance",
             "local_instance",
             "global_instance",
-            "default_instance",
             "expected_instance",
         ],
         [
@@ -381,7 +374,6 @@ class TestConfig:
                 "https://instance2.com",
                 "https://instance3.com",
                 "https://instance4.com",
-                "https://instance5.com",
                 "https://instance1.com",
                 id="current_instance",
             ),
@@ -390,7 +382,6 @@ class TestConfig:
                 "https://instance2.com",
                 "https://instance3.com",
                 "https://instance4.com",
-                "https://instance5.com",
                 "https://instance2.com",
                 id="env_instance",
             ),
@@ -399,7 +390,6 @@ class TestConfig:
                 None,
                 "https://instance3.com",
                 "https://instance4.com",
-                "https://instance5.com",
                 "https://instance3.com",
                 id="local_instance",
             ),
@@ -408,28 +398,17 @@ class TestConfig:
                 None,
                 None,
                 "https://instance4.com",
-                "https://instance5.com",
                 "https://instance4.com",
                 id="global_instance",
-            ),
-            pytest.param(
-                None,
-                None,
-                None,
-                None,
-                "https://instance5.com",
-                "https://instance5.com",
-                id="default_instance",
             ),
         ],
     )
     def test_instance_name_priority(
         self,
-        current_instance,
+        cmdline_instance,
         env_instance,
         local_instance,
         global_instance,
-        default_instance,
         expected_instance,
         local_config_path,
         global_config_path,
@@ -440,26 +419,25 @@ class TestConfig:
           - env variable
           - local user config
           - global user config
-          - default instance in the auth config
         WHEN reading the config instance
         THEN it respects the expected priority
         """
         if env_instance:
-            os.environ["GITGUARDIAN_URL"] = env_instance
-        elif "GITGUARDIAN_URL" in os.environ:
-            del os.environ["GITGUARDIAN_URL"]
+            os.environ["GITGUARDIAN_INSTANCE"] = env_instance
+        elif "GITGUARDIAN_INSTANCE" in os.environ:
+            del os.environ["GITGUARDIAN_INSTANCE"]
         if "GITGUARDIAN_API_URL" in os.environ:
             del os.environ["GITGUARDIAN_API_URL"]
 
         self.set_instances(
             local_instance=local_instance,
             global_instance=global_instance,
-            default_instance=default_instance,
             local_filepath=local_config_path,
             global_filepath=global_config_path,
         )
         config = Config()
-        config.current_instance = current_instance
+        if cmdline_instance is not None:
+            config.set_cmdline_instance_name(cmdline_instance)
 
         assert config.instance_name == expected_instance
         assert config.dashboard_url == expected_instance
@@ -473,87 +451,59 @@ class TestConfig:
         """
         if "GITGUARDIAN_API_KEY" in os.environ:
             del os.environ["GITGUARDIAN_API_KEY"]
+        if "GITGUARDIAN_API_URL" in os.environ:
+            del os.environ["GITGUARDIAN_API_URL"]
         config = Config()
-        config.current_instance = "toto"
+        config.instance = "toto"
 
         with pytest.raises(UnknownInstanceError, match="Unknown instance: 'toto'"):
             config.api_key
 
     @pytest.mark.parametrize(
         [
-            "manual_key",
             "env_var_key",
-            "manual_instance",
+            "cmdline_instance",
             "env_var_instance",
             "user_config_instance",
-            "default_instance",
             "expected_api_key",
         ],
         [
             [
-                "api_key_manual",
                 "api_key_env",
                 "https://instance1.com",
                 "https://instance2.com",
                 "https://instance3.com",
-                "https://instance4.com",
-                "api_key_manual",
-            ],
-            [
-                None,
-                "api_key_env",
-                "https://instance1.com",
-                "https://instance2.com",
-                "https://instance3.com",
-                "https://instance4.com",
                 "api_key_env",
             ],
             [
                 None,
-                None,
                 "https://instance1.com",
                 "https://instance2.com",
                 "https://instance3.com",
-                "https://instance4.com",
                 "api_key_instance1.com",
             ],
             [
                 None,
                 None,
-                None,
                 "https://instance2.com",
                 "https://instance3.com",
-                "https://instance4.com",
                 "api_key_instance2.com",
             ],
             [
                 None,
                 None,
                 None,
-                None,
                 "https://instance3.com",
-                "https://instance4.com",
                 "api_key_instance3.com",
-            ],
-            [
-                None,
-                None,
-                None,
-                None,
-                None,
-                "https://instance4.com",
-                "api_key_instance4.com",
             ],
         ],
     )
     def test_api_key_priority(
         self,
-        manual_key,
         env_var_key,
-        manual_instance,
+        cmdline_instance,
         env_var_instance,
         user_config_instance,
-        default_instance,
         expected_api_key,
     ):
         """
@@ -561,32 +511,29 @@ class TestConfig:
         or not to the config, and the env var being manually set or not
         WHEN reading the API key to use
         THEN it respects the priority:
-        - manual API key
         - env var API key
-        - from manual instance
+        - from cmdline instance
         - from env var instance
         - from user config instance (local then global)
-        - from default instance
         """
         if env_var_key:
             os.environ["GITGUARDIAN_API_KEY"] = env_var_key
         elif "GITGUARDIAN_API_KEY" in os.environ:
             del os.environ["GITGUARDIAN_API_KEY"]
+
         if env_var_instance:
-            os.environ["GITGUARDIAN_URL"] = env_var_instance
-        elif "GITGUARDIAN_URL" in os.environ:
-            del os.environ["GITGUARDIAN_URL"]
+            os.environ["GITGUARDIAN_INSTANCE"] = env_var_instance
+        elif "GITGUARDIAN_INSTANCE" in os.environ:
+            del os.environ["GITGUARDIAN_INSTANCE"]
+
         if "GITGUARDIAN_API_URL" in os.environ:
             del os.environ["GITGUARDIAN_API_URL"]
 
         config = Config()
-        if manual_key:
-            config.current_token = manual_key
-        if manual_instance:
-            config.current_instance = manual_instance
+        if cmdline_instance:
+            config.set_cmdline_instance_name(cmdline_instance)
         if not env_var_instance:
-            config.user_config.dashboard_url = user_config_instance
-        config.auth_config.default_instance = default_instance
+            config.user_config.instance = user_config_instance
 
         def set_instance(url):
             if url is None:
@@ -603,10 +550,9 @@ class TestConfig:
                 ),
             )
 
-        set_instance(manual_instance)
+        set_instance(cmdline_instance)
         set_instance(env_var_instance)
         set_instance(user_config_instance)
-        set_instance(default_instance)
 
         assert config.api_key == expected_api_key
 
@@ -634,11 +580,13 @@ class TestConfig:
         monkeypatch.setitem(
             os.environ, "GITGUARDIAN_API_URL", "https://api.gitguardian.com/v1"
         )
-        Config()
+        config = Config()
+        api_url = config.api_url
         out, err = capsys.readouterr()
         sys.stdout.write(out)
         sys.stderr.write(err)
 
+        assert api_url == "https://api.gitguardian.com"
         assert "[Warning] unexpected /v1 path in your URL configuration" in err
 
     def test_v1_in_api_url_local_config(self, capsys, local_config_path):
@@ -656,11 +604,13 @@ class TestConfig:
             },
         )
 
-        Config()
+        config = Config()
+        api_url = config.api_url
         out, err = capsys.readouterr()
         sys.stdout.write(out)
         sys.stderr.write(err)
 
+        assert api_url == "https://api.gitguardian.com"
         assert "[Warning] unexpected /v1 path in your URL configuration" in err
 
     def test_v1_in_api_url_global_config(self, capsys, global_config_path):

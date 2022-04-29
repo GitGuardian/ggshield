@@ -6,7 +6,6 @@ from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import AccountConfig, InstanceConfig
 from ggshield.core.oauth import OAuthClient
-from ggshield.core.utils import clean_url
 
 
 @click.command()
@@ -54,18 +53,11 @@ def login_cmd(
     config = ctx.obj["config"]
 
     if instance:
-        parsed_url = clean_url(instance)
-        if not parsed_url.scheme or not parsed_url.netloc:
-            raise click.BadParameter(
-                "Please provide a valid URL.",
-                param_hint="instance",
-            )
-        instance = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        config.set_cmdline_instance_name(instance)
 
-    if not instance:
-        instance = config.auth_config.default_instance
+    # Override instance to make sure we get a normalized instance name
+    instance = config.instance_name
 
-    config.auth_config.current_instance = instance
     instance_config = config.auth_config.instances.setdefault(
         instance,
         InstanceConfig(
