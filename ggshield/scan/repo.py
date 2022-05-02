@@ -13,7 +13,7 @@ from ggshield.core.constants import CPU_COUNT
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import SupportedScanMode, handle_exception
+from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, ScanCollection
 
@@ -51,7 +51,6 @@ def scan_repo_path(
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
                 scan_id=scan_id,
-                mode_header=SupportedScanMode.REPO.value,
                 banlisted_detectors=config.banlisted_detectors,
             )
     except Exception as error:
@@ -65,7 +64,6 @@ def scan_commit(
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
     all_policies: bool,
-    mode_header: str,
     banlisted_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
@@ -96,7 +94,6 @@ def scan_commit_range(
     matches_ignore: Iterable[IgnoredMatch],
     all_policies: bool,
     scan_id: str,
-    mode_header: str,
     banlisted_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
@@ -119,7 +116,6 @@ def scan_commit_range(
                 verbose,
                 matches_ignore,
                 all_policies,
-                mode_header,
                 banlisted_detectors,
             )
             for sha in commit_list

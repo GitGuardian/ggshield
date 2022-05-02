@@ -4,13 +4,9 @@ from typing import List
 import click
 
 from ggshield.core.cache import Cache
+from ggshield.core.extra_headers import add_extra_header
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import (
-    EMPTY_SHA,
-    SupportedCI,
-    SupportedScanMode,
-    handle_exception,
-)
+from ggshield.core.utils import EMPTY_SHA, SupportedCI, handle_exception
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -265,39 +261,38 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
 
         if os.getenv("GITLAB_CI"):
             commit_list = gitlab_ci_range(config.verbose)
-            ci_env = SupportedCI.GITLAB
+            ci_mode = SupportedCI.GITLAB
         elif os.getenv("GITHUB_ACTIONS"):
             commit_list = github_actions_range(config.verbose)
-            ci_env = SupportedCI.GITHUB
+            ci_mode = SupportedCI.GITHUB
         elif os.getenv("TRAVIS"):
             commit_list = travis_range(config.verbose)
-            ci_env = SupportedCI.TRAVIS
+            ci_mode = SupportedCI.TRAVIS
         elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
             commit_list = jenkins_range(config.verbose)
-            ci_env = SupportedCI.JENKINS
+            ci_mode = SupportedCI.JENKINS
         elif os.getenv("CIRCLECI"):
             commit_list = circle_ci_range(config.verbose)
-            ci_env = SupportedCI.CIRCLECI
+            ci_mode = SupportedCI.CIRCLECI
         elif os.getenv("BITBUCKET_COMMIT"):
             commit_list = bitbucket_pipelines_range(config.verbose)
-            ci_env = SupportedCI.BITBUCKET
+            ci_mode = SupportedCI.BITBUCKET
         elif os.getenv("DRONE"):
             commit_list = drone_range(config.verbose)
-            ci_env = SupportedCI.DRONE
+            ci_mode = SupportedCI.DRONE
         elif os.getenv("BUILD_BUILDID"):
             commit_list = azure_range(config.verbose)
-            ci_env = SupportedCI.AZURE
-
+            ci_mode = SupportedCI.AZURE
         else:
             raise click.ClickException(
                 f"Current CI is not detected or supported."
                 f"Must be one of [{' | '.join([ci.value for ci in SupportedCI])}]"
             )
 
+        add_extra_header(ctx, "Ci-Mode", ci_mode.name)
+
         if config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}")
-
-        mode_header = "/".join([SupportedScanMode.CI.value, ci_env.value])
 
         return scan_commit_range(
             client=ctx.obj["client"],
@@ -309,7 +304,6 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),
-            mode_header=mode_header,
             banlisted_detectors=config.banlisted_detectors,
         )
     except Exception as error:

@@ -20,6 +20,7 @@ from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 
+from ..core.extra_headers import get_extra_headers
 from .scannable_errors import handle_scan_error
 
 
@@ -116,12 +117,14 @@ class Files:
         # get_current_context returns None if outside a click command.
         # It happens in the tests and if gg-shield is used as a library.
         context = click.get_current_context(silent=True)
+        extra_headers = get_extra_headers(context)
 
         command_path = context.command_path if context is not None else "external"
 
         return {
             "GGShield-Version": __version__,
             "GGShield-Command-Path": command_path,
+            **extra_headers,
         }
 
     def scan(
