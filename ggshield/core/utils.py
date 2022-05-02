@@ -332,3 +332,23 @@ def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
             path=parsed_url.path[: -len(ON_PREMISE_API_URL_PATH_PREFIX)]
         )
     return parsed_url.geturl()
+
+
+def urljoin(url: str, *args: str) -> str:
+    """
+    concatenate each argument with a slash if not already existing.
+    unlike urllib.parse.urljoin, this will make sure each element
+    is separated by a slash e.g.
+    ('http://somesite.com/path1', 'path2') -> http://somesite.com/path1/path2
+    ('http://somesite.com/path1/', 'path2') -> http://somesite.com/path1/path2
+    ('http://somesite.com/path1', '/path2') -> http://somesite.com/path1/path2
+    """
+    if url[-1] == "/":
+        url = url[:-1]
+
+    for url_part in args:
+        if url_part[0] != "/":
+            url_part = "/" + url_part
+        url += url_part
+
+    return url

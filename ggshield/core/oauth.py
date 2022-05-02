@@ -12,6 +12,8 @@ import click
 import requests
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
+from ggshield.core.utils import urljoin
+
 from .client import create_client
 from .config import AccountConfig, Config, InstanceConfig
 
@@ -128,7 +130,7 @@ class OAuthClient:
             "utm_campaign": "ggshield",
         }
         request_uri = self._oauth_client.prepare_request_uri(
-            uri=urlparse.urljoin(self.dashboard_url, "auth/login"),
+            uri=urljoin(self.dashboard_url, "auth/login"),
             redirect_uri=self.redirect_uri,
             scope=SCOPE,
             code_challenge=self.code_challenge,
@@ -213,12 +215,22 @@ class OAuthClient:
         )
 
         response = requests.post(
-            urlparse.urljoin(self.api_url, "oauth/token"),
+            urljoin(self.api_url, "/v1/oauth/token"),
             request_body,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
-        if not response.ok:
+        raise_error = False
+        if response.ok:
+            try:
+                response_json = response.json()
+                self._access_token = response_json["key"]
+            except (json.decoder.JSONDecodeError, ValueError):
+                raise_error = True
+        else:
+            raise_error = True
+
+        if raise_error:
             raise OAuthError("Cannot create a token.")
 
         self._access_token = response.json()["key"]
@@ -334,9 +346,7 @@ class RequestHandlerWrapper:
                         self.error_message = error.message
                     else:
                         self_._end_request(
-                            urlparse.urljoin(
-                                self.oauth_client.dashboard_url, "authenticated"
-                            ),
+                            urljoin(self.oauth_client.dashboard_url, "authenticated"),
                         )
 
                     # indicate to the serve to stop
