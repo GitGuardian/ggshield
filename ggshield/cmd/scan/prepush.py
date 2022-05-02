@@ -5,12 +5,7 @@ from typing import List, Optional, Tuple
 import click
 
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import (
-    EMPTY_SHA,
-    EMPTY_TREE,
-    SupportedScanMode,
-    handle_exception,
-)
+from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, handle_exception
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -77,7 +72,6 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=" ".join(commit_list),
-            mode_header=SupportedScanMode.PRE_PUSH.value,
             banlisted_detectors=config.banlisted_detectors,
         )
     except Exception as error:
