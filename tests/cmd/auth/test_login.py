@@ -14,7 +14,12 @@ from ggshield.cmd.auth.utils import (
 )
 from ggshield.cmd.main import cli
 from ggshield.core.config import AccountConfig, Config, InstanceConfig
-from ggshield.core.oauth import OAuthClient, OAuthError, get_pretty_date
+from ggshield.core.oauth import (
+    OAuthClient,
+    OAuthError,
+    get_error_param,
+    get_pretty_date,
+)
 
 
 _TOKEN_RESPONSE_PAYLOAD = {
@@ -693,3 +698,25 @@ class TestAuthLoginWeb:
                 check_instance_has_enabled_flow(Config())
         else:
             check_instance_has_enabled_flow(Config())
+
+
+class TestLoginUtils:
+    @pytest.mark.parametrize(
+        ["url", "expected_error"],
+        [
+            ("http://localhost:3455", None),
+            ("http://localhost:3455?", None),
+            ("http://localhost:3455?auth=ggshield", None),
+            ("http://localhost:3455?error=some+error", "some error"),
+            ("http://localhost/?error=some+error", "some error"),
+            ("http://localhost:3455/?auth=ggshield&error=some+error", "some error"),
+        ],
+    )
+    def test_get_error_url_param(self, url, expected_error):
+        """
+        GIVEN a url
+        WHEN calling get_error_param
+        THEN it returns the value of the 'error' parameter if it exists else None
+        """
+        error = get_error_param(urlparse.urlparse(url))
+        assert error == expected_error
