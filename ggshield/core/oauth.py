@@ -50,6 +50,7 @@ class OAuthClient:
         self.instance = instance
         self._oauth_client = WebApplicationClient(CLIENT_ID)
         self._state = ""  # use the `state` property instead
+        self._lifetime: Optional[int] = None
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
@@ -261,11 +262,10 @@ class OAuthClient:
         return the default token lifetime saved in the instance config.
         if None, this will be interpreted as no expiry.
         """
-        default_lifetime = self.instance_config.default_token_lifetime
-        if default_lifetime is not None:
-            return default_lifetime.days
-
-        return None
+        instance_lifetime = self.instance_config.default_token_lifetime
+        if instance_lifetime is not None:
+            return instance_lifetime
+        return self.config.auth_config.default_token_lifetime
 
     @property
     def redirect_uri(self) -> str:
