@@ -9,12 +9,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Dict, Optional, Type, no_type_check
 
 import click
-import requests
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
 from ggshield.core.utils import urljoin
 
-from .client import create_client
+from .client import create_client, create_session
 from .config import AccountConfig, Config, InstanceConfig
 
 
@@ -214,7 +213,8 @@ class OAuthClient:
             body=urlparse.urlencode(request_params),
         )
 
-        response = requests.post(
+        session = create_session(self.config.allow_self_signed)
+        response = session.post(
             urljoin(self.api_url, "/v1/oauth/token"),
             request_body,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
