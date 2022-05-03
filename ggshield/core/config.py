@@ -1,7 +1,7 @@
 import copy
 import os
 from dataclasses import dataclass, field, fields, is_dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, Type, Union
 
@@ -239,7 +239,8 @@ class InstanceConfig:
     account: AccountConfig  # Only handle 1 account per instance for the time being
     url: str
     name: Optional[str] = None
-    default_token_lifetime: Optional[timedelta] = None
+    # The token lifetime. If it's set it overrides AuthConfig.default_token_lifetime
+    default_token_lifetime: Optional[int] = None
 
     @classmethod
     def load(cls, data: Dict) -> "InstanceConfig":
@@ -316,6 +317,7 @@ class AuthConfig(YAMLFileConfig):
     Knows how to load and save them from the YAML file at get_auth_config_filepath().
     """
 
+    default_token_lifetime: Optional[int] = None
     instances: Mapping[str, InstanceConfig] = field(default_factory=dict)
 
     @classmethod

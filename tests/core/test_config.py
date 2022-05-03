@@ -164,6 +164,7 @@ class TestUserConfig:
 @pytest.mark.usefixtures("isolated_fs")
 class TestAuthConfig:
     default_config = {
+        "default-token-lifetime": 2,
         "instances": {
             "default": {
                 "name": "default",
@@ -207,6 +208,8 @@ class TestAuthConfig:
         config = Config()
 
         assert config.instances["default"].account.token_name == "my_token"
+        assert config.instances["default"].default_token_lifetime == 1
+        assert config.auth_config.default_token_lifetime == 2
 
         config_data = config.auth_config.to_dict()
         replace_in_keys(config_data, old_char="_", new_char="-")
