@@ -165,8 +165,8 @@ class TestUserConfig:
 class TestAuthConfig:
     default_config = {
         "default-token-lifetime": 2,
-        "instances": {
-            "default": {
+        "instances": [
+            {
                 "name": "default",
                 "url": "https://dashboard.gitguardian.com",
                 "default-token-lifetime": 1,
@@ -180,7 +180,7 @@ class TestAuthConfig:
                     }
                 ],
             },
-            "dashboard.onprem.example.com": {
+            {
                 "name": None,
                 "url": "https://dashboard.onprem.example.com",
                 "default-token-lifetime": 0,  # no expiry
@@ -194,7 +194,7 @@ class TestAuthConfig:
                     }
                 ],
             },
-        },
+        ],
     }
 
     def test_load(self):
@@ -207,8 +207,8 @@ class TestAuthConfig:
 
         config = Config()
 
-        assert config.instances["default"].account.token_name == "my_token"
-        assert config.instances["default"].default_token_lifetime == 1
+        assert config.instances[0].account.token_name == "my_token"
+        assert config.instances[0].default_token_lifetime == 1
         assert config.auth_config.default_token_lifetime == 2
 
         config_data = config.auth_config.to_dict()
@@ -223,8 +223,8 @@ class TestAuthConfig:
         THEN it raises
         """
         raw_config = deepcopy(self.default_config)
-        raw_config["instances"]["default"]["accounts"] = (
-            raw_config["instances"]["default"]["accounts"] * n
+        raw_config["instances"][0]["accounts"] = (
+            raw_config["instances"][0]["accounts"] * n
         )
         write_yaml(get_auth_config_filepath(), raw_config)
 
@@ -256,12 +256,12 @@ class TestAuthConfig:
         THEN it works
         """
         raw_config = deepcopy(self.default_config)
-        raw_config["instances"]["default"]["accounts"][0]["expire-at"] = None
+        raw_config["instances"][0]["accounts"][0]["expire-at"] = None
         write_yaml(get_auth_config_filepath(), raw_config)
 
         config = Config()
 
-        assert config.instances["default"].account.expire_at is None
+        assert config.instances[0].account.expire_at is None
 
     def test_update(self):
         """
@@ -287,7 +287,7 @@ class TestAuthConfig:
         config = Config()
 
         assert config.instance_name == "https://dashboard.gitguardian.com"
-        assert config.instances == {}
+        assert config.instances == []
 
     def test_save_file_not_existing(self):
         """
@@ -315,7 +315,7 @@ class TestAuthConfig:
         """
         write_yaml(get_auth_config_filepath(), self.default_config)
         config = Config()
-        assert config.instances["default"].account.expire_at.tzinfo is not None
+        assert config.instances[0].account.expire_at.tzinfo is not None
 
 
 @pytest.mark.usefixtures("isolated_fs")
@@ -329,11 +329,9 @@ class TestConfig:
     ):
         auth_config_data = deepcopy(TestAuthConfig.default_config)
         for i in range(1, 6):
-            url = f"https://instance{i}.com"
-            auth_config_data["instances"][url] = deepcopy(
-                auth_config_data["instances"]["default"]
-            )
-            auth_config_data["instances"][url]["url"] = url
+            config_dict = deepcopy(auth_config_data["instances"][0])
+            config_dict["url"] = f"https://instance{i}.com"
+            auth_config_data["instances"].append(config_dict)
         if local_instance:
             write_yaml(local_filepath, {"instance": local_instance})
         else:
@@ -525,15 +523,17 @@ class TestConfig:
             if url is None:
                 return
             api_key = url.replace("https://", "api_key_")
-            config.auth_config.instances[url] = InstanceConfig(
-                url=url,
-                account=AccountConfig(
-                    account_id=1,
-                    token=api_key,
-                    type="PAT",
-                    token_name="name",
-                    expire_at=None,
-                ),
+            config.auth_config.instances.append(
+                InstanceConfig(
+                    url=url,
+                    account=AccountConfig(
+                        account_id=1,
+                        token=api_key,
+                        type="PAT",
+                        token_name="name",
+                        expire_at=None,
+                    ),
+                )
             )
 
         set_instance(cmdline_instance)
@@ -542,7 +542,7 @@ class TestConfig:
 
         assert config.api_key == expected_api_key
 
-    def test_user_confi_url_no_configured_instance(self):
+    def test_user_config_url_no_configured_instance(self):
         """
         GIVEN a bare auth config, but urls configured in the user config
         WHEN reading api_url/dashboard_url
@@ -551,7 +551,7 @@ class TestConfig:
 
         config = Config()
 
-        assert config.auth_config.instances == {}
+        assert config.auth_config.instances == []
 
         # from the default test env vars:
         assert config.api_url == "https://api.gitguardian.com"

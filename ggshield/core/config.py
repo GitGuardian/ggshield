@@ -313,12 +313,11 @@ class AuthExpiredError(AuthError):
 class AuthConfig(YAMLFileConfig):
     """
     Holds all declared GitGuardian instances and their tokens.
-
     Knows how to load and save them from the YAML file at get_auth_config_filepath().
     """
 
     default_token_lifetime: Optional[int] = None
-    instances: Mapping[str, InstanceConfig] = field(default_factory=dict)
+    instances: List[InstanceConfig] = field(default_factory=list)
 
     @classmethod
     def load(cls) -> "AuthConfig":
@@ -326,10 +325,10 @@ class AuthConfig(YAMLFileConfig):
         config_path = get_auth_config_filepath()
         data = load_yaml(config_path)
         if data:
-            data["instances"] = {
-                key: InstanceConfig.load(value)
-                for key, value in data["instances"].items()
-            }
+            data["instances"] = [
+                InstanceConfig.load(instance_config)
+                for instance_config in data["instances"]
+            ]
             return cls(**data)
         return cls()
 
@@ -339,9 +338,10 @@ class AuthConfig(YAMLFileConfig):
         self.save_yaml(config_path)
 
     def get_instance(self, instance_name: str) -> InstanceConfig:
-        try:
-            return self.instances[instance_name]
-        except KeyError:
+        for instance in self.instances:
+            if instance.name == instance_name or instance.url == instance_name:
+                return instance
+        else:
             raise UnknownInstanceError(instance=instance_name)
 
     def get_instance_token(self, instance_name: str) -> str:

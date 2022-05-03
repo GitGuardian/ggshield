@@ -4,7 +4,7 @@ import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.core.client import create_client_from_config
-from ggshield.core.config import AccountConfig, InstanceConfig
+from ggshield.core.config import AccountConfig, InstanceConfig, UnknownInstanceError
 from ggshield.core.oauth import OAuthClient
 
 
@@ -58,15 +58,13 @@ def login_cmd(
     # Override instance to make sure we get a normalized instance name
     instance = config.instance_name
 
-    instance_config = config.auth_config.instances.setdefault(
-        instance,
-        InstanceConfig(
-            # account is initialized as None because the instance must exist in
-            # the config before using the client
-            account=None,  # type: ignore
-            url=instance,
-        ),
-    )
+    try:
+        instance_config = config.auth_config.get_instance(instance_name=instance)
+    except UnknownInstanceError:
+        # account is initialized as None because the instance must exist in
+        # the config before using the client
+        instance_config = InstanceConfig(account=None, url=instance)  # type: ignore
+        config.auth_config.instances.append(instance_config)
 
     if method == "token":
         token = click.prompt("Enter your GitGuardian API token", hide_input=True)

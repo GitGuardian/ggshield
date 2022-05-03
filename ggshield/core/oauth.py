@@ -266,7 +266,7 @@ class OAuthClient:
 
     @property
     def instance_config(self) -> InstanceConfig:
-        return self.config.auth_config.instances[self.instance]
+        return self.config.auth_config.get_instance(self.instance)
 
     @property
     def default_token_lifetime(self) -> Optional[int]:
