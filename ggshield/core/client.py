@@ -33,11 +33,7 @@ def create_client(
     Implementation of create_client_from_config(). Exposed as a function for specific
     cases such as needing a GGClient instance while defining the config account.
     """
-    session = Session()
-    if allow_self_signed:
-        urllib3.disable_warnings()
-        session.verify = False
-
+    session = create_session(allow_self_signed=allow_self_signed)
     try:
         return GGClient(
             api_key=api_key,
@@ -49,3 +45,11 @@ def create_client(
     except ValueError as e:
         # Can be raised by pygitguardian
         raise click.ClickException(f"Failed to create API client. {e}")
+
+
+def create_session(allow_self_signed: bool = False) -> Session:
+    session = Session()
+    if allow_self_signed:
+        urllib3.disable_warnings()
+        session.verify = False
+    return session
