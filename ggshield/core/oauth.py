@@ -68,6 +68,10 @@ class OAuthClient:
         - opening the user's webbrowser to GitGuardian login page
         - open a server and wait for the callback processing
         """
+        if self._check_existing_token():
+            # skip the process if a valid token is already saved
+            return
+
         # enable redirection to http://localhost
         os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = str(True)
 
@@ -84,7 +88,9 @@ class OAuthClient:
         self._wait_for_callback()
 
         message = f"Created Personal Access Token {self._token_name} "
-        expire_at = self.instance_config.account.expire_at  # type: ignore
+
+        assert self.instance_config.account is not None
+        expire_at = self.instance_config.account.expire_at
         if expire_at is not None:
             message += "expiring on " + get_pretty_date(expire_at)
         else:
@@ -297,6 +303,25 @@ class OAuthClient:
                 json.dumps({"token_name": self._token_name, "lifetime": self._lifetime})
             )
         return self._state
+
+    def _check_existing_token(self) -> bool:
+        """
+        Check if the config already has a non expired token.
+        If one could be found, outputs a message including the expiry date
+        and return True.
+        Else return False
+        """
+        account = self.instance_config.account
+        if account is None or not account.token or self.instance_config.expired:
+            return False
+
+        message = "ggshield is already athenticated "
+        if account.expire_at:
+            message += "until " + get_pretty_date(account.expire_at)
+        else:
+            message += "without an expiry date"
+        click.echo(message)
+        return True
 
     @property
     def dashboard_url(self) -> str:

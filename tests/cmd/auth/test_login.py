@@ -1,6 +1,6 @@
 import json
 import urllib.parse as urlparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 from unittest.mock import Mock
 
@@ -13,7 +13,7 @@ from ggshield.cmd.auth.utils import (
     check_instance_has_enabled_flow,
 )
 from ggshield.cmd.main import cli
-from ggshield.core.config import Config
+from ggshield.core.config import AccountConfig, Config, InstanceConfig
 from ggshield.core.oauth import OAuthClient, OAuthError, get_pretty_date
 
 
@@ -189,6 +189,47 @@ class TestAuthLoginToken:
 
 
 class TestAuthLoginWeb:
+    @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
+    def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
+
+        self.prepare_mocks(monkeypatch, instance_url=instance_url)
+        self._prepare_config(instance_url=instance_url)
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 0, output
+        self._webbrowser_open_mock.assert_not_called()
+
+        self._assert_last_print(
+            output, "ggshield is already athenticated without an expiry date"
+        )
+
+    @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
+    @pytest.mark.parametrize(
+        ["month", "day", "str_date"],
+        [
+            ("01", "31", "January 31st"),
+            ("02", "22", "February 22nd"),
+            ("03", "13", "March 13th"),
+            ("04", "03", "April 3rd"),
+            ("05", "04", "May 4th"),
+        ],
+    )
+    def test_existing_non_expired_token(
+        self, month, day, str_date, instance_url, cli_fs_runner, monkeypatch
+    ):
+        dt = datetime.strptime(f"2100-{month}-{day}T00:00:00+0000", DT_FORMAT)
+
+        self.prepare_mocks(monkeypatch, instance_url=instance_url)
+        self._prepare_config(instance_url=instance_url, expiry_date=dt)
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 0, output
+        self._webbrowser_open_mock.assert_not_called()
+
+        self._assert_last_print(
+            output, f"ggshield is already athenticated until {str_date} 2100"
+        )
+
     def test_no_port_available_exits_error(self, cli_fs_runner, monkeypatch):
         """
         GIVEN -
@@ -283,8 +324,17 @@ class TestAuthLoginWeb:
     @pytest.mark.parametrize("token_name", [None, "some token name"])
     @pytest.mark.parametrize("lifetime", [None, 0, 1, 365])
     @pytest.mark.parametrize("used_port_count", [0, 1, 10])
+    @pytest.mark.parametrize("existing_expired_token", [False, True])
+    @pytest.mark.parametrize("existing_unrelated_token", [False, True])
     def test_valid_process(
-        self, used_port_count, lifetime, token_name, cli_fs_runner, monkeypatch
+        self,
+        existing_unrelated_token,
+        existing_expired_token,
+        used_port_count,
+        lifetime,
+        token_name,
+        cli_fs_runner,
+        monkeypatch,
     ):
         self.prepare_mocks(
             monkeypatch,
@@ -292,6 +342,17 @@ class TestAuthLoginWeb:
             lifetime=lifetime,
             used_port_count=used_port_count,
         )
+
+        if existing_expired_token:
+            # save expired in config
+            self._prepare_config(
+                expiry_date=datetime.now(tz=timezone.utc).replace(microsecond=0)
+                - timedelta(days=2)
+            )
+        if existing_unrelated_token:
+            # add a dummy unrelated confif
+            self._prepare_config(instance_url="http://some-gg-instance.com")
+
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == 0, output
 
@@ -317,6 +378,7 @@ class TestAuthLoginWeb:
         monkeypatch,
         token_name=None,
         lifetime=None,
+        instance_url=None,
         authorization_code="some_authorization_code",
         used_port_count=0,
         is_state_valid=True,
@@ -334,6 +396,7 @@ class TestAuthLoginWeb:
         # original token params
         self._token_name = token_name
         self._lifetime = lifetime
+        self._instance_url = instance_url
 
         # token name generated if passed as None
         self._generated_token_name = (
@@ -421,8 +484,11 @@ class TestAuthLoginWeb:
         if self._lifetime is not None:
             cmd.append(f"--lifetime={self._lifetime}")
 
+        if self._instance_url is not None:
+            cmd.append(f"--instance={self._instance_url}")
+
         # run cli command
-        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=True)
+        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
 
         # make sure the first call to api is mocked
         self._check_instance_has_enabled_flow_mock.assert_called_once()
@@ -446,7 +512,7 @@ class TestAuthLoginWeb:
         If a token is passed, assert that the token saved in the config is the same
         """
         config = Config()
-        assert len(config.auth_config.instances) == 1
+        assert len(config.auth_config.instances) >= 1
         config_instance_urls = [
             instance_config.url for instance_config in config.auth_config.instances
         ]
@@ -456,6 +522,31 @@ class TestAuthLoginWeb:
                 config.auth_config.get_instance(config.instance_name).account.token
                 == token
             )
+
+    @staticmethod
+    def _prepare_config(
+        instance_url: Optional[str] = None, expiry_date: Optional[datetime] = None
+    ):
+        """
+        Helper to save a token in the configuration
+        """
+        instance_url = (
+            instance_url if instance_url else "https://dashboard.gitguardian.com"
+        )
+        account_config = AccountConfig(
+            account_id=1,
+            token="some token",
+            expire_at=expiry_date,
+            token_name="some token name",
+            type="",
+        )
+        instance_config = InstanceConfig(
+            account=account_config,
+            url=instance_url,
+        )
+        config = Config()
+        config.auth_config.instances.append(instance_config)
+        config.save()
 
     @staticmethod
     def _get_oserror_side_effect(failure_count=1):
