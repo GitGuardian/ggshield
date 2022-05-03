@@ -382,7 +382,7 @@ class TestAuthLoginWeb:
                 ),
             )
         )
-        monkeypatch.setattr("ggshield.core.oauth.requests.post", self._client_post_mock)
+        monkeypatch.setattr("ggshield.core.client.Session.post", self._client_post_mock)
 
         # mock api call to test the access token
         self._client_get_mock = Mock(
