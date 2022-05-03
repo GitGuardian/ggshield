@@ -98,17 +98,20 @@ class TestAuthLoginToken:
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
+        config_instance_urls = [
+            instance_config.url for instance_config in config.auth_config.instances
+        ]
         if test_case == "valid":
             assert result.exit_code == 0, result.output
-            assert instance in config.auth_config.instances
-            assert config.auth_config.instances[instance].account.token == token
+            assert instance in config_instance_urls
+            assert config.auth_config.get_instance(instance).account.token == token
         else:
             assert result.exit_code != 0
             if test_case == "invalid_scope":
                 assert "This token does not have the scan scope." in result.output
             else:
                 assert "Authentication failed with token." in result.output
-            assert instance not in config.auth_config.instances
+            assert instance not in config_instance_urls
 
         check_instance_has_enabled_flow_mock.assert_not_called()
 
@@ -131,8 +134,13 @@ class TestAuthLoginToken:
         config = Config()
         assert result.exit_code == 0, result.output
         assert len(config.auth_config.instances) == 1
-        assert config.instance_name in config.auth_config.instances
-        assert config.auth_config.instances[config.instance_name].account.token == token
+        config_instance_urls = [
+            instance_config.url for instance_config in config.auth_config.instances
+        ]
+        assert config.instance_name in config_instance_urls
+        assert (
+            config.auth_config.get_instance(config.instance_name).account.token == token
+        )
 
     def test_auth_login_token_update_existing_config(self, monkeypatch, cli_fs_runner):
         """
@@ -153,7 +161,7 @@ class TestAuthLoginToken:
 
         config = Config()
         assert result.exit_code == 0, result.output
-        assert config.auth_config.instances[instance].account.token == token
+        assert config.auth_config.get_instance(instance).account.token == token
 
         token = "mysecondsupertoken"
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
@@ -161,7 +169,7 @@ class TestAuthLoginToken:
         config = Config()
         assert result.exit_code == 0, result.output
         assert len(config.auth_config.instances) == 1
-        assert config.auth_config.instances[instance].account.token == token
+        assert config.auth_config.get_instance(instance).account.token == token
 
         second_instance_token = "mythirdsupertoken"
         second_instance = "https://dashboard.other.gitguardian.com"
@@ -173,9 +181,9 @@ class TestAuthLoginToken:
         config = Config()
         assert result.exit_code == 0, result.output
         assert len(config.auth_config.instances) == 2
-        assert config.auth_config.instances[instance].account.token == token
+        assert config.auth_config.get_instance(instance).account.token == token
         assert (
-            config.auth_config.instances[second_instance].account.token
+            config.auth_config.get_instance(second_instance).account.token
             == second_instance_token
         )
 
@@ -439,10 +447,13 @@ class TestAuthLoginWeb:
         """
         config = Config()
         assert len(config.auth_config.instances) == 1
-        assert config.instance_name in config.auth_config.instances
+        config_instance_urls = [
+            instance_config.url for instance_config in config.auth_config.instances
+        ]
+        assert config.instance_name in config_instance_urls
         if token is not None:
             assert (
-                config.auth_config.instances[config.instance_name].account.token
+                config.auth_config.get_instance(config.instance_name).account.token
                 == token
             )
 
