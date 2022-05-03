@@ -1,7 +1,8 @@
 import click
 
-from ggshield.core.client import create_client_from_config
+from ggshield.core.client import create_session
 from ggshield.core.config import Config
+from ggshield.core.utils import urljoin
 
 
 VERSION_TOO_LOW_MESSAGE = "Your GitGuardian dashboard version is too low, upgrade to be able to use this command."
@@ -17,10 +18,15 @@ def check_instance_has_enabled_flow(config: Config) -> None:
     There may be a case where an onpremise instance of version 2022.04 has the feature flag but cannot
     enable it.
     """
-    client = create_client_from_config(config)
-    response = client.get(endpoint="metadata")
+
+    # don't use gitguardian client because the request should not include the token
+    session = create_session(config.allow_self_signed)
+    response = session.get(urljoin(config.api_url, "/v1/metadata"), timeout=30)
+
     if response.status_code == 404:
         raise click.ClickException(VERSION_TOO_LOW_MESSAGE)
+    if not response.ok:
+        raise click.ClickException("Cannot check GitGuardian version.")
     data = response.json()
     if data["version"].startswith("2022.04"):
         raise click.ClickException(VERSION_TOO_LOW_MESSAGE)

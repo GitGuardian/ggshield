@@ -491,7 +491,7 @@ class TestAuthLoginWeb:
         """
 
         (url, payload), kwargs = self._client_post_mock.call_args_list[0]
-        assert url == "https://api.gitguardian.com/oauth/token"
+        assert url == "https://api.gitguardian.com/v1/oauth/token"
 
         request_body = urlparse.parse_qs(payload)
 
@@ -568,8 +568,8 @@ class TestAuthLoginWeb:
         THEN it succeeds if the version is high enough, and the preference is enabled
         """
 
-        def client_get_mock(*args, endpoint, **kwargs):
-            if endpoint == "metadata":
+        def client_get_mock(self_, url, **kwargs):
+            if url.endswith("/v1/metadata"):
                 return Mock(
                     ok=status_code < 400,
                     status_code=status_code,
@@ -584,7 +584,7 @@ class TestAuthLoginWeb:
                 )
             raise NotImplementedError
 
-        monkeypatch.setattr("ggshield.core.client.GGClient.get", client_get_mock)
+        monkeypatch.setattr("ggshield.core.client.Session.get", client_get_mock)
 
         if expected_error:
             with pytest.raises(ClickException, match=expected_error):
