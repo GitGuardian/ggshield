@@ -84,7 +84,7 @@ class OAuthClient:
         self._wait_for_callback()
 
         message = f"Created Personal Access Token {self._token_name} "
-        expire_at = self.instance_config.account.expire_at
+        expire_at = self.instance_config.account.expire_at  # type: ignore
         if expire_at is not None:
             message += "expiring on " + get_pretty_date(expire_at)
         else:

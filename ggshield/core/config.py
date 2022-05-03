@@ -236,7 +236,8 @@ class AccountConfig:
 
 @dataclass
 class InstanceConfig:
-    account: AccountConfig  # Only handle 1 account per instance for the time being
+    # Only handle 1 account per instance for the time being
+    account: Optional[AccountConfig]
     url: str
     name: Optional[str] = None
     # The token lifetime. If it's set it overrides AuthConfig.default_token_lifetime
@@ -259,7 +260,8 @@ class InstanceConfig:
     @property
     def expired(self) -> bool:
         return (
-            self.account.expire_at is not None
+            self.account is not None
+            and self.account.expire_at is not None
             and self.account.expire_at <= datetime.now(timezone.utc)
         )
 
@@ -309,6 +311,13 @@ class AuthExpiredError(AuthError):
         )
 
 
+class MissingTokenError(AuthError):
+    def __init__(self, instance: str):
+        super(MissingTokenError, self).__init__(
+            instance, f"No token is saved for this instance: '{instance}'"
+        )
+
+
 @dataclass
 class AuthConfig(YAMLFileConfig):
     """
@@ -353,6 +362,8 @@ class AuthConfig(YAMLFileConfig):
         instance = self.get_instance(instance_name)
         if instance.expired:
             raise AuthExpiredError(instance=instance_name)
+        if instance.account is None:
+            raise MissingTokenError(instance=instance_name)
         return instance.account.token
 
 

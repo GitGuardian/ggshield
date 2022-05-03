@@ -63,7 +63,7 @@ def login_cmd(
     except UnknownInstanceError:
         # account is initialized as None because the instance must exist in
         # the config before using the client
-        instance_config = InstanceConfig(account=None, url=instance)  # type: ignore
+        instance_config = InstanceConfig(account=None, url=instance)
         config.auth_config.instances.append(instance_config)
 
     if method == "token":
