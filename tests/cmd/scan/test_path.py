@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -78,6 +79,7 @@ class TestPathScan:
 
         cassette_name = f"test_scan_file_secret-{validity}"
         with my_vcr.use_cassette(cassette_name):
+            cli_fs_runner.mix_stderr = False
             result = cli_fs_runner.invoke(
                 cli, ["-v", "scan", "--json", "path", "file_secret"]
             )
@@ -88,17 +90,23 @@ class TestPathScan:
             assert '"validity": "valid"' in result.output
         else:
             assert '"validity": "valid"' not in result.output
+        json.loads(result.output)
 
-    def test_scan_file_secret_exit_zero(self, cli_fs_runner):
+    @pytest.mark.parametrize("json_output", [False, True])
+    def test_scan_file_secret_exit_zero(self, cli_fs_runner, json_output):
         Path("file_secret").write_text(UNCHECKED_SECRET)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):
+            cli_fs_runner.mix_stderr = False
+            json_arg = ["--json"] if json_output else []
             result = cli_fs_runner.invoke(
-                cli, ["scan", "--exit-zero", "-v", "path", "file_secret"]
+                cli, ["scan", "--exit-zero", "-v", *json_arg, "path", "file_secret"]
             )
             assert result.exit_code == 0
             assert not result.exception
+            if json_output:
+                json.loads(result.output)
 
     def test_files_abort(self, cli_fs_runner):
         self.create_files()

@@ -23,12 +23,13 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         local_commit, remote_commit = collect_from_stdin()
 
     if local_commit == EMPTY_SHA:
-        click.echo("Deletion event or nothing to scan.")
+        click.echo("Deletion event or nothing to scan.", err=True)
         return 0
 
     if remote_commit == EMPTY_SHA:
         click.echo(
-            f"New tree event. Scanning last {config.max_commits_for_hook} commits."
+            f"New tree event. Scanning last {config.max_commits_for_hook} commits.",
+            err=True,
         )
         before = EMPTY_TREE
         after = local_commit
@@ -47,18 +48,20 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             "Unable to get commit range.\n"
             f"  before: {before}\n"
             f"  after: {after}\n"
-            "Skipping pre-push hook\n"
+            "Skipping pre-push hook\n",
+            err=True,
         )
         return 0
 
     if len(commit_list) > config.max_commits_for_hook:
         click.echo(
-            f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n"
+            f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n",
+            err=True,
         )
         commit_list = commit_list[-config.max_commits_for_hook :]
 
     if config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}")
+        click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
     try:
         check_git_dir()

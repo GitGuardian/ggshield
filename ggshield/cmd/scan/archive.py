@@ -1,4 +1,5 @@
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
@@ -37,7 +38,7 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
         )
 
         with click.progressbar(
-            length=len(files.files), label="Scanning"
+            length=len(files.files), label="Scanning", file=sys.stderr
         ) as progressbar:
 
             def update_progress(chunk: List[Dict[str, Any]]) -> None:

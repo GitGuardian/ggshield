@@ -21,7 +21,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
         if not commit_list:
             raise click.ClickException("invalid commit range")
         if config.verbose:
-            click.echo(f"Commits to scan: {len(commit_list)}")
+            click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
         return scan_commit_range(
             client=ctx.obj["client"],

@@ -1,9 +1,12 @@
+import json
 from typing import Dict
 from unittest.mock import Mock, patch
 
+import click
 import pytest
 
-from ggshield.cmd.scan.ci import EMPTY_SHA, gitlab_ci_range
+from ggshield.cmd.main import cli
+from ggshield.cmd.scan.ci import EMPTY_SHA
 
 
 @patch("ggshield.cmd.scan.ci.get_list_commit_SHA")
@@ -45,12 +48,15 @@ from ggshield.cmd.scan.ci import EMPTY_SHA, gitlab_ci_range
         ({"HEAD": "head_sha"}, "HEAD~1..."),
     ],
 )
+@pytest.mark.parametrize("json_output", (False, True))
 def test_gitab_ci_range(
     _: Mock,
     get_list_mock: Mock,
+    cli_fs_runner: click.testing.CliRunner,
     monkeypatch,
     env: Dict[str, str],
     expected_parameter: str,
+    json_output: bool,
 ):
     monkeypatch.setenv("CI", "1")
     monkeypatch.setenv("GITLAB_CI", "1")
@@ -58,6 +64,17 @@ def test_gitab_ci_range(
         monkeypatch.setenv(k, v)
 
     get_list_mock.return_value = ["a"] * 51
-
-    gitlab_ci_range(verbose=False)
+    cli_fs_runner.mix_stderr = False
+    json_arg = ["--json"] if json_output else []
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "-v",
+            "scan",
+            *json_arg,
+            "ci",
+        ],
+    )
+    if json_output:
+        json.loads(result.output)
     get_list_mock.assert_called_once_with(expected_parameter)

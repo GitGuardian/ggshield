@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -68,11 +69,13 @@ class TestDockerCMD:
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
+    @pytest.mark.parametrize("json_output", (False, True))
     def test_docker_scan_archive(
         self,
         get_files_mock: Mock,
         cli_fs_runner: click.testing.CliRunner,
         image_path: Path,
+        json_output: bool,
     ):
         assert image_path.exists()
 
@@ -80,15 +83,23 @@ class TestDockerCMD:
             files=[File(document=_SIMPLE_SECRET, filename="file_secret")]
         )
         with my_vcr.use_cassette("test_scan_file_secret"):
+            json_arg = ["--json"] if json_output else []
+            cli_fs_runner.mix_stderr = False
             result = cli_fs_runner.invoke(
                 cli,
                 [
                     "-v",
                     "scan",
+                    *json_arg,
                     "docker-archive",
                     str(image_path),
                 ],
             )
             get_files_mock.assert_called_once()
-            assert "1 incident has been found in file file_secret" in result.output
             assert result.exit_code == 1
+
+            if json_output:
+                output = json.loads(result.output)
+                assert len(output["entities_with_incidents"]) == 1
+            else:
+                assert "1 incident has been found in file file_secret" in result.output

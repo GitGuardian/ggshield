@@ -2,6 +2,7 @@ import json
 import os.path
 import re
 import subprocess
+import sys
 import tarfile
 from itertools import chain
 from pathlib import Path
@@ -239,7 +240,9 @@ def docker_scan_archive(
     banlisted_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
-    with click.progressbar(length=len(files.files), label="Scanning") as progressbar:
+    with click.progressbar(
+        length=len(files.files), label="Scanning", file=sys.stderr
+    ) as progressbar:
 
         def update_progress(chunk: List[Dict[str, Any]]) -> None:
             progressbar.update(len(chunk))
