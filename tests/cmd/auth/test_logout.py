@@ -35,11 +35,13 @@ class TestAuthLogout:
         assert output == f"Error: No token found for instance {instance_url}.\n"
 
     @pytest.mark.parametrize("instance_url", (None, "https://some-gg-instance.com"))
-    def test_valid_logout_with_revoke(self, instance_url, monkeypatch, cli_fs_runner):
+    @pytest.mark.parametrize("revoke", (True, False))
+    def test_valid_logout(self, revoke, instance_url, monkeypatch, cli_fs_runner):
         """
         GIVEN a saved instance configuration
-        WHEN running the logout command (with implied token revokation)
-        THEN the specified instance data is erased and the request for revocation is made
+        WHEN running the logout command
+        THEN the specified instance data is erased
+        AND the request for revocation is made if no flag was included
         """
         unrelated_url = "https://some-unrelated-gg-instance.com"
 
@@ -52,9 +54,12 @@ class TestAuthLogout:
         # unrelated config that should remain unchanged
         prepare_config(instance_url=unrelated_url)
 
-        exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
+        exit_code, output = self.run_cmd(cli_fs_runner, instance_url, revoke=revoke)
 
-        post_mock.assert_called_once()
+        if revoke:
+            post_mock.assert_called_once()
+        else:
+            post_mock.assert_not_called()
 
         config = Config()
         assert config.auth_config.get_instance(instance_url).account is None
@@ -65,10 +70,13 @@ class TestAuthLogout:
         assert exit_code == 0, output
         instance_url = instance_url or "https://dashboard.gitguardian.com"
 
-        expected_output = (
-            f"Personal Access Token {token_name} has been revoked\n"
-            f"Logged out from instance {instance_url}\n"
-        )
+        expected_output = f"Logged out from instance {instance_url}\n"
+
+        if revoke:
+            expected_output = (
+                f"Personal Access Token {token_name} has been revoked\n"
+                + expected_output
+            )
 
         assert output == expected_output
 
@@ -122,9 +130,13 @@ class TestAuthLogout:
         )
 
     @staticmethod
-    def run_cmd(cli_fs_runner, instance: Optional[str] = None) -> None:
+    def run_cmd(
+        cli_fs_runner, instance: Optional[str] = None, revoke: bool = True
+    ) -> None:
         cmd = ["auth", "logout"]
         if instance is not None:
             cmd.append("--instance=" + instance)
+        if not revoke:
+            cmd.append("--no-revoke")
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         return result.exit_code, result.output
