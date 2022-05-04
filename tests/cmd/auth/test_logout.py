@@ -129,14 +129,44 @@ class TestAuthLogout:
             "you can skip revocation with --no-revoke to bypass\n"
         )
 
+    def test_logout_all(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN several saved instances
+        WHEN running the logout command with --all parameter
+        THEN all tokens are revoked
+        AND all account configs are deleted
+        """
+        post_mock = Mock(return_value=Mock(status_code=204, ok=True))
+        monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
+
+        for instance_url in [
+            None,
+            "https://some-gg-instance.com",
+            "https://some-other-gg-instance.com",
+        ]:
+            prepare_config(instance_url)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, all_tokens=True)
+        assert len(post_mock.call_args_list) == 3
+
+        for instance in Config().auth_config.instances:
+            assert instance.account is None, output
+
+        assert exit_code == 0, output
+
     @staticmethod
     def run_cmd(
-        cli_fs_runner, instance: Optional[str] = None, revoke: bool = True
+        cli_fs_runner,
+        instance: Optional[str] = None,
+        revoke: bool = True,
+        all_tokens: bool = False,
     ) -> None:
         cmd = ["auth", "logout"]
         if instance is not None:
             cmd.append("--instance=" + instance)
         if not revoke:
             cmd.append("--no-revoke")
+        if all_tokens:
+            cmd.append("--all")
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         return result.exit_code, result.output

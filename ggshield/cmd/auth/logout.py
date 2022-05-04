@@ -25,30 +25,37 @@ REVOKE_FAIL_MESSAGE = (
     default=True,
     help="Whether the token should be revoked before being removed from the config.",
 )
+@click.option("--all", "all_", is_flag=True, help="Iterate over every saved tokens.")
 @click.pass_context
-def logout_cmd(ctx: click.Context, instance: str, revoke: bool) -> int:
+def logout_cmd(ctx: click.Context, instance: str, revoke: bool, all_: bool) -> int:
     """
     Delete saved authentication details for the specified instance (or default instance if not specified)
     By default, this will also try to revoke found tokens unless --no-revoke is specified.\n
     If --all is specified, it will iterate over all instances.
     """
-
     config = ctx.obj["config"]
 
-    if not instance:
-        instance = config.instance_name
-
-    check_account_config_exists(config, instance)
-    if revoke:
-        revoke_token(config, instance)
-    logout(config, instance)
+    if all_:
+        for _instance in config.auth_config.instances:
+            logout(config, _instance.url, revoke=revoke)
+    else:
+        if not instance:
+            instance = config.instance_name
+        logout(config, instance, revoke=revoke)
     return 0
+
+
+def logout(config: Config, instance_url: str, revoke: bool) -> None:
+    check_account_config_exists(config, instance_url)
+    if revoke:
+        revoke_token(config, instance_url)
+    delete_account_config(config, instance_url)
 
 
 def check_account_config_exists(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
     if instance.account is None:
-        raise click.ClickException(f"No token found for instance {instance_url}.")
+        raise LogoutError(f"No token found for instance {instance_url}.")
 
 
 def revoke_token(config: Config, instance_url: str) -> None:
@@ -67,15 +74,15 @@ def revoke_token(config: Config, instance_url: str) -> None:
     try:
         response = client.post(endpoint="token/revoke")
     except ConnectionError:
-        raise click.ClickException(REVOKE_FAIL_MESSAGE)
+        raise LogoutError(REVOKE_FAIL_MESSAGE)
 
     if response.status_code != 204:
-        raise click.ClickException(REVOKE_FAIL_MESSAGE)
+        raise LogoutError(REVOKE_FAIL_MESSAGE)
 
     click.echo(f"Personal Access Token {token_name} has been revoked")
 
 
-def logout(config: Config, instance: str) -> None:
+def delete_account_config(config: Config, instance: str) -> None:
     instance_config = config.auth_config.get_instance(instance)
     account_config = instance_config.account
 
@@ -86,3 +93,9 @@ def logout(config: Config, instance: str) -> None:
     config.save()
 
     click.echo(f"Logged out from instance {instance}")
+
+
+class LogoutError(click.ClickException):
+    """
+    Wrapper exception raised during the logout process
+    """
