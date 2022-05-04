@@ -249,7 +249,9 @@ class InstanceConfig:
         assert (
             len(accounts) == 1
         ), "Each GitGuardian instance should have exactly one account"
-        data["account"] = AccountConfig(**data.pop("accounts")[0])
+
+        account = data.pop("accounts")[0]
+        data["account"] = AccountConfig(**account) if account is not None else None
         return cls(**data)
 
     def to_dict(self) -> Union[List, Dict]:
@@ -352,6 +354,15 @@ class AuthConfig(YAMLFileConfig):
                 return instance
         else:
             raise UnknownInstanceError(instance=instance_name)
+
+    def set_instance(self, instance_config: InstanceConfig) -> None:
+        instance_name = instance_config.url
+        for i, instance in enumerate(self.instances):
+            if instance.url == instance_name or instance.name == instance_name:
+                self.instances[i] = instance_config
+                break
+        else:
+            self.instances.append(instance_config)
 
     def get_instance_token(self, instance_name: str) -> str:
         """
