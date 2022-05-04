@@ -19,8 +19,14 @@ REVOKE_FAIL_MESSAGE = (
     type=str,
     help="URL of the instance to logout from.",
 )
+@click.option(
+    "--revoke/--no-revoke",
+    is_flag=True,
+    default=True,
+    help="Whether the token should be revoked before being removed from the config.",
+)
 @click.pass_context
-def logout_cmd(ctx: click.Context, instance: str) -> int:
+def logout_cmd(ctx: click.Context, instance: str, revoke: bool) -> int:
     """
     Delete saved authentication details for the specified instance (or default instance if not specified)
     By default, this will also try to revoke found tokens unless --no-revoke is specified.\n
@@ -33,7 +39,8 @@ def logout_cmd(ctx: click.Context, instance: str) -> int:
         instance = config.instance_name
 
     check_account_config_exists(config, instance)
-    revoke_token(config, instance)
+    if revoke:
+        revoke_token(config, instance)
     logout(config, instance)
     return 0
 
