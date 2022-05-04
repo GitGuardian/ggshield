@@ -13,13 +13,15 @@ from ggshield.cmd.auth.utils import (
     check_instance_has_enabled_flow,
 )
 from ggshield.cmd.main import cli
-from ggshield.core.config import AccountConfig, Config, InstanceConfig
+from ggshield.core.config import Config
 from ggshield.core.oauth import (
     OAuthClient,
     OAuthError,
     get_error_param,
     get_pretty_date,
 )
+
+from .utils import prepare_config
 
 
 _TOKEN_RESPONSE_PAYLOAD = {
@@ -198,7 +200,7 @@ class TestAuthLoginWeb:
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
 
         self.prepare_mocks(monkeypatch, instance_url=instance_url)
-        self._prepare_config(instance_url=instance_url)
+        prepare_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == 0, output
@@ -225,7 +227,7 @@ class TestAuthLoginWeb:
         dt = datetime.strptime(f"2100-{month}-{day}T00:00:00+0000", DT_FORMAT)
 
         self.prepare_mocks(monkeypatch, instance_url=instance_url)
-        self._prepare_config(instance_url=instance_url, expiry_date=dt)
+        prepare_config(instance_url=instance_url, expiry_date=dt)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == 0, output
@@ -350,13 +352,13 @@ class TestAuthLoginWeb:
 
         if existing_expired_token:
             # save expired in config
-            self._prepare_config(
+            prepare_config(
                 expiry_date=datetime.now(tz=timezone.utc).replace(microsecond=0)
                 - timedelta(days=2)
             )
         if existing_unrelated_token:
             # add a dummy unrelated confif
-            self._prepare_config(instance_url="http://some-gg-instance.com")
+            prepare_config(instance_url="http://some-gg-instance.com")
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == 0, output
@@ -527,31 +529,6 @@ class TestAuthLoginWeb:
                 config.auth_config.get_instance(config.instance_name).account.token
                 == token
             )
-
-    @staticmethod
-    def _prepare_config(
-        instance_url: Optional[str] = None, expiry_date: Optional[datetime] = None
-    ):
-        """
-        Helper to save a token in the configuration
-        """
-        instance_url = (
-            instance_url if instance_url else "https://dashboard.gitguardian.com"
-        )
-        account_config = AccountConfig(
-            account_id=1,
-            token="some token",
-            expire_at=expiry_date,
-            token_name="some token name",
-            type="",
-        )
-        instance_config = InstanceConfig(
-            account=account_config,
-            url=instance_url,
-        )
-        config = Config()
-        config.auth_config.instances.append(instance_config)
-        config.save()
 
     @staticmethod
     def _get_oserror_side_effect(failure_count=1):
