@@ -49,13 +49,12 @@ class TextOutputHandler(OutputHandler):
             for result in scan.results:
                 scan_buf.write(self.process_result(result))
         else:
-            if self.verbose:
-                has_results = False
-                if scan.scans:
-                    has_results = any(x.results for x in scan.scans)
+            has_results = False
+            if scan.scans:
+                has_results = any(x.results for x in scan.scans)
 
-                if not has_results:
-                    scan_buf.write(no_leak_message())
+            if not has_results:
+                scan_buf.write(no_leak_message())
 
         if scan.scans:
             for sub_scan in scan.scans:
