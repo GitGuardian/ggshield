@@ -32,11 +32,15 @@ class TestPathScan:
         Path("file2").write_text("This is a file with no secrets.")
 
     @my_vcr.use_cassette("test_scan_file")
-    def test_scan_file(self, cli_fs_runner):
+    @pytest.mark.parametrize("verbose", [True, False])
+    def test_scan_file(self, cli_fs_runner, verbose):
         Path("file").write_text("This is a file with no secrets.")
         assert os.path.isfile("file")
 
-        result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "file"])
+        if verbose:
+            result = cli_fs_runner.invoke(cli, ["-v", "scan", "path", "file"])
+        else:
+            result = cli_fs_runner.invoke(cli, ["scan", "path", "file"])
         assert not result.exception
         assert "No secrets have been found" in result.output
 
