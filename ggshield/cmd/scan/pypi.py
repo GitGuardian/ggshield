@@ -1,6 +1,7 @@
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Set
@@ -27,14 +28,15 @@ def save_package_to_tmp(temp_dir: str, package_name: str) -> None:
     ]
 
     try:
-        click.echo("Downloading pip package... ", nl=False)
+        click.echo("Downloading pip package... ", nl=False, err=True)
         subprocess.run(
             command,
             check=True,
-            stderr=subprocess.PIPE,
+            stdout=sys.stderr,
+            stderr=sys.stderr,
             timeout=PYPI_DOWNLOAD_TIMEOUT,
         )
-        click.echo("OK")
+        click.echo("OK", err=True)
 
     except subprocess.CalledProcessError:
         raise click.ClickException(f'Failed to download "{package_name}"')
@@ -95,7 +97,7 @@ def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
         )
 
         with click.progressbar(
-            length=len(files.files), label="Scanning"
+            length=len(files.files), label="Scanning", file=sys.stderr
         ) as progressbar:
 
             def update_progress(chunk: List[Dict[str, Any]]) -> None:

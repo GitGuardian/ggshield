@@ -92,7 +92,10 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         output_handler = GitLabWebUIOutputHandler(show_secrets=config.show_secrets)
 
     if get_breakglass_option():
-        click.echo("SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.")
+        click.echo(
+            "SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.",
+            err=True,
+        )
         return 0
 
     args = sys.stdin.read().strip().split()
@@ -103,7 +106,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     commit_list = []
 
     if after == EMPTY_SHA:
-        click.echo("Deletion event or nothing to scan.")
+        click.echo("Deletion event or nothing to scan.", err=True)
         return 0
 
     if before == EMPTY_SHA:
@@ -115,10 +118,11 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         if not commit_list:
             before = EMPTY_TREE
             click.echo(
-                f"New tree event. Scanning last {config.max_commits_for_hook} commits."
+                f"New tree event. Scanning last {config.max_commits_for_hook} commits.",
+                err=True,
             )
             commit_list = get_list_commit_SHA(
-                f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {after}"
+                f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {after}",
             )
     else:
         commit_list = get_list_commit_SHA(
@@ -130,18 +134,20 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
             "Unable to get commit range.\n"
             f"  before: {before}\n"
             f"  after: {after}\n"
-            "Skipping pre-receive hook\n"
+            "Skipping pre-receive hook\n",
+            err=True,
         )
         return 0
 
     if len(commit_list) > config.max_commits_for_hook:
         click.echo(
-            f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n"
+            f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n",
+            err=True,
         )
         commit_list = commit_list[-config.max_commits_for_hook :]
 
     if config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}")
+        click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
     try:
         with ExitAfter(get_prereceive_timeout()):
@@ -167,7 +173,8 @@ you can set up ggshield in your pre commit:
 https://docs.gitguardian.com/internal-repositories-monitoring/integrations/git_hooks/pre_commit
 
 Use it carefully: if those secrets are false positives and you still want your push to pass, run:
-'git push -o breakglass'"""
+'git push -o breakglass'""",
+                    err=True,
                 )
             return return_code
     except TimeoutError:

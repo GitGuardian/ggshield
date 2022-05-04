@@ -38,7 +38,7 @@ def get_files_from_paths(
 
     if verbose:
         for f in files:
-            click.echo(f"- {click.format_filename(f.filename)}")
+            click.echo(f"- {click.format_filename(f.filename)}", err=True)
 
     size = len(files)
     if size > 1 and not yes:
@@ -94,11 +94,11 @@ def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[F
         file_size = os.path.getsize(path)
         if file_size > MAX_FILE_SIZE:
             if verbose:
-                click.echo(f"ignoring file over 1MB: {path}")
+                click.echo(f"ignoring file over 1MB: {path}", err=True)
             continue
         if path.endswith(BINARY_FILE_EXTENSIONS):
             if verbose:
-                click.echo(f"ignoring binary file extension: {path}")
+                click.echo(f"ignoring binary file extension: {path}", err=True)
             continue
         with open(path, "rb") as file:
             content = file.read()

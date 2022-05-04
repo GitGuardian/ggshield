@@ -1,5 +1,6 @@
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Set
 from unittest.mock import Mock, patch
@@ -32,7 +33,8 @@ class TestPipDownload:
                     "--no-deps",
                 ],
                 check=True,
-                stderr=subprocess.PIPE,
+                stdout=sys.stderr,
+                stderr=sys.stderr,
                 timeout=PYPI_DOWNLOAD_TIMEOUT,
             )
 

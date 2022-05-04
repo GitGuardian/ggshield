@@ -1,6 +1,7 @@
 import concurrent.futures
 import os
 import re
+import sys
 from contextlib import contextmanager
 from typing import Iterable, Iterator, List, Optional, Set
 
@@ -126,6 +127,7 @@ def scan_commit_range(
             iterable=concurrent.futures.as_completed(future_to_process),
             length=len(future_to_process),
             label=format_text("Scanning Commits", STYLE["progress"]),
+            file=sys.stderr,
         ) as completed_futures:
             for future in completed_futures:
                 scans.append(future.result())
