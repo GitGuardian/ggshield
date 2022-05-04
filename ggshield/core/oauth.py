@@ -38,6 +38,16 @@ def get_pretty_date(dt: datetime) -> str:
     return dt.strftime(f"%B {dt.day}{month_suffix} %Y")
 
 
+def get_error_param(parsed_url: urlparse.ParseResult) -> Optional[str]:
+    """
+    extract the value of the 'error' url param. If not present, return None.
+    """
+    params = urlparse.parse_qs(parsed_url.query)
+    if "error" in params:
+        return params["error"][0]
+    return None
+
+
 class OAuthClient:
     """
     Helper class to handle the OAuth authentication flow
@@ -363,27 +373,38 @@ class RequestHandlerWrapper:
                 callback_url: str = self_.path
                 parsed_url = urlparse.urlparse(callback_url)
                 if parsed_url.path == "/":
-                    try:
-                        self.oauth_client.process_callback(callback_url)
-                    except OAuthError as error:
-                        self_._end_request()
-                        # attach error message to the handler wrapper instance
-                        self.error_message = error.message
+                    server_error = get_error_param(parsed_url)
+                    if server_error is not None:
+                        self_._end_request(200)
+                        self.error_message = server_error
                     else:
-                        self_._end_request(
-                            urljoin(self.oauth_client.dashboard_url, "authenticated"),
-                        )
+                        try:
+                            self.oauth_client.process_callback(callback_url)
+                        except OAuthError as error:
+                            self_._end_request(400)
+                            # attach error message to the handler wrapper instance
+                            self.error_message = error.message
+                        else:
+                            self_._end_request(
+                                301,
+                                urljoin(
+                                    self.oauth_client.dashboard_url, "authenticated"
+                                ),
+                            )
 
-                    # indicate to the serve to stop
+                    # indicate to the server to stop
                     self.complete = True
+                else:
+                    self_._end_request(404)
 
-            def _end_request(self_, redirect_url: Optional[str] = None) -> None:
+            def _end_request(
+                self_, status_code: int, redirect_url: Optional[str] = None
+            ) -> None:
                 """
                 End the current request. If a redirect url is provided,
                 the response will be a redirection to this url.
                 If not the response will be a user error 400
                 """
-                status_code = 301 if redirect_url is not None else 400
                 self_.send_response(status_code)
 
                 if redirect_url is not None:
