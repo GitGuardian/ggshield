@@ -1,0 +1,130 @@
+from typing import Optional
+from unittest.mock import Mock
+
+import pytest
+from requests.exceptions import ConnectionError
+
+from ggshield.cmd.main import cli
+from ggshield.core.config import Config
+
+from .utils import prepare_config
+
+
+DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
+
+
+@pytest.fixture(autouse=True)
+def tmp_config(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ggshield.core.config.get_auth_config_dir", lambda: str(tmp_path)
+    )
+
+
+class TestAuthLogout:
+    def test_logout_no_account_config(self, cli_fs_runner):
+        """
+        GIVEN -
+        WHEN using the logout command and no token is saved in the configuration
+        THEN the command exits with an explanatory message
+        """
+        instance_url = "https://dashboard.gitguardian.com"
+        prepare_config(with_account=False)
+        exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
+
+        assert exit_code == 1, output
+        assert output == f"Error: No token found for instance {instance_url}.\n"
+
+    @pytest.mark.parametrize("instance_url", (None, "https://some-gg-instance.com"))
+    def test_valid_logout_with_revoke(self, instance_url, monkeypatch, cli_fs_runner):
+        """
+        GIVEN a saved instance configuration
+        WHEN running the logout command (with implied token revokation)
+        THEN the specified instance data is erased and the request for revocation is made
+        """
+        unrelated_url = "https://some-unrelated-gg-instance.com"
+
+        post_mock = Mock(return_value=Mock(status_code=204, ok=True))
+        monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
+
+        token_name = "My great token"
+        prepare_config(instance_url=instance_url, token_name=token_name)
+
+        # unrelated config that should remain unchanged
+        prepare_config(instance_url=unrelated_url)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
+
+        post_mock.assert_called_once()
+
+        config = Config()
+        assert config.auth_config.get_instance(instance_url).account is None
+        assert (
+            config.auth_config.get_instance(unrelated_url).account is not None
+        ), "the unrelated instance should not be affected."
+
+        assert exit_code == 0, output
+        instance_url = instance_url or "https://dashboard.gitguardian.com"
+
+        expected_output = (
+            f"Personal Access Token {token_name} has been revoked\n"
+            f"Logged out from instance {instance_url}\n"
+        )
+
+        assert output == expected_output
+
+    def test_logout_revoke_timeout(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN a saved instance configuration
+        WHEN running the logout command (with implied token revokation)
+        AND the revoke request gets a timeout
+        THEN the config remains unchanged
+        AND the command exits with an explanatory message
+        """
+
+        post_mock = Mock(side_effect=ConnectionError("Http max retry"))
+        monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
+
+        prepare_config()
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        post_mock.assert_called_once()
+        config = Config()
+        assert config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account is not None
+
+        assert exit_code == 1, output
+        assert output == (
+            "Error: Logout failed due to an error when revoking the token, "
+            "you can skip revocation with --no-revoke to bypass\n"
+        )
+
+    def test_logout_server_error(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN a saved instance configuration
+        WHEN running the logout command (with implied token revokation)
+        AND the revoke request gets a server error response
+        THEN the config remains unchanged
+        AND the command exits with an explanatory message
+        """
+        post_mock = Mock(return_value=Mock(status_code=500, ok=False))
+        monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
+
+        prepare_config()
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        post_mock.assert_called_once()
+        config = Config()
+        assert config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account is not None
+
+        assert exit_code == 1, output
+        assert output == (
+            "Error: Logout failed due to an error when revoking the token, "
+            "you can skip revocation with --no-revoke to bypass\n"
+        )
+
+    @staticmethod
+    def run_cmd(cli_fs_runner, instance: Optional[str] = None) -> None:
+        cmd = ["auth", "logout"]
+        if instance is not None:
+            cmd.append("--instance=" + instance)
+        result = cli_fs_runner.invoke(cli, cmd, color=False)
+        return result.exit_code, result.output
