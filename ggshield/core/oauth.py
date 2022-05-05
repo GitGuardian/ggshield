@@ -333,6 +333,18 @@ class OAuthClient:
         click.echo(message)
         return True
 
+    def get_server_error_message(self, error_code: str) -> str:
+        """
+        Return the human readable message associated to the given error code
+        """
+        if error_code == "too_many_tokens":
+            url = urljoin(self.dashboard_url, "/api/personal-access-tokens")
+            return (
+                "Maximum number of personal access tokens reached. Could not provision a new personal access token.\n"
+                f"Go to your workspace to manage your tokens: {url}"
+            )
+        return f"An unknown server error has occurred (error code: {error_code})."
+
     @property
     def dashboard_url(self) -> str:
         return self.config.dashboard_url
@@ -373,10 +385,12 @@ class RequestHandlerWrapper:
                 callback_url: str = self_.path
                 parsed_url = urlparse.urlparse(callback_url)
                 if parsed_url.path == "/":
-                    server_error = get_error_param(parsed_url)
-                    if server_error is not None:
+                    error_string = get_error_param(parsed_url)
+                    if error_string is not None:
                         self_._end_request(200)
-                        self.error_message = server_error
+                        self.error_message = self.oauth_client.get_server_error_message(
+                            error_string
+                        )
                     else:
                         try:
                             self.oauth_client.process_callback(callback_url)
