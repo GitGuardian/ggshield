@@ -697,3 +697,31 @@ class TestLoginUtils:
         """
         error = get_error_param(urlparse.urlparse(url))
         assert error == expected_error
+
+    @pytest.mark.parametrize(
+        ["error_code", "expected_message"],
+        [
+            (
+                "too_many_tokens",
+                (
+                    "Maximum number of personal access tokens reached. "
+                    "Could not provision a new personal access token.\n"
+                    "Go to your workspace to manage your tokens: "
+                    "https://dashboard.gitguardian.com/api/personal-access-tokens"
+                ),
+            ),
+            (
+                "invalid_error_code",
+                "An unknown server error has occurred (error code: invalid_error_code).",
+            ),
+        ],
+    )
+    def test_get_error_message(self, error_code, expected_message):
+        """
+        GIVEN an OAuthClient instance and an error code
+        WHEN calling OAuthClient.get_server_error with the error code
+        THEN it should return the corresponding human readable message with formated urls
+        """
+        oauth_client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
+        error_message = oauth_client.get_server_error_message(error_code)
+        assert error_message == expected_message
