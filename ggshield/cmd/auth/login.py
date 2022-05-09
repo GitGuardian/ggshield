@@ -1,11 +1,51 @@
-from typing import Optional
+import re
+from typing import Optional, Tuple
 
 import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.core.client import create_client_from_config
-from ggshield.core.config import AccountConfig, InstanceConfig, UnknownInstanceError
+from ggshield.core.config import AccountConfig, Config
 from ggshield.core.oauth import OAuthClient
+from ggshield.core.utils import clean_url
+
+
+def validate_login_path(
+    config: Config, instance: Optional[str], sso_url: Optional[str]
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Validate that the SSO URL and the instance refer to the same instance if they are both defined,
+    that the SSO URL has a correct format
+    and return the couple (instance, login_path) that will be used to redirect to the login page
+    """
+    if sso_url is None:
+        return instance, None
+    sso_parsed_url = clean_url(sso_url)
+    if (
+        not sso_parsed_url.scheme
+        or not sso_parsed_url.netloc
+        or not re.match(
+            r"/auth/sso/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            sso_parsed_url.path,
+        )
+    ):
+        raise click.BadParameter(
+            "Please provide a valid SSO URL.",
+            param_hint="sso-url",
+        )
+    sso_instance = f"{sso_parsed_url.scheme}://{sso_parsed_url.netloc}"
+    sso_login_path = sso_parsed_url.path
+
+    if instance is None:
+        return sso_instance, sso_login_path
+
+    config_parsed_url = clean_url(config.dashboard_url)
+    if (
+        config_parsed_url.scheme != sso_parsed_url.scheme
+        or config_parsed_url.netloc != sso_parsed_url.netloc
+    ):
+        raise click.ClickException("instance and SSO URL params do not match")
+    return instance, sso_login_path
 
 
 @click.command()
@@ -20,6 +60,12 @@ from ggshield.core.oauth import OAuthClient
     required=False,
     type=str,
     help="URL of the instance to authenticate to.",
+)
+@click.option(
+    "--sso-url",
+    required=False,
+    type=str,
+    help="URL of the instance to authenticate to on a pre-selected SAML SSO page.",
 )
 @click.option(
     "--token-name",
@@ -38,9 +84,10 @@ from ggshield.core.oauth import OAuthClient
 def login_cmd(
     ctx: click.Context,
     method: str,
-    instance: str,
+    instance: Optional[str],
     token_name: Optional[str],
     lifetime: Optional[int],
+    sso_url: Optional[str],
 ) -> int:
     """
     Authenticate to your GitGuardian account.
@@ -52,21 +99,20 @@ def login_cmd(
     """
     config = ctx.obj["config"]
 
-    if instance:
-        config.set_cmdline_instance_name(instance)
-
-    # Override instance to make sure we get a normalized instance name
-    instance = config.instance_name
-
-    try:
-        instance_config = config.auth_config.get_instance(instance_name=instance)
-    except UnknownInstanceError:
-        # account is initialized as None because the instance must exist in
-        # the config before using the client
-        instance_config = InstanceConfig(account=None, url=instance)
-        config.auth_config.instances.append(instance_config)
+    if sso_url is not None and method != "web":
+        raise click.BadParameter(
+            "--sso-url is reserved for the web login method.", param_hint="sso-url"
+        )
 
     if method == "token":
+
+        if instance:
+            config.set_cmdline_instance_name(instance)
+        instance = config.instance_name
+        # Override instance to make sure we get a normalized instance name
+        instance_config = config.auth_config.get_or_create_instance(
+            instance_name=instance
+        )
         token = click.prompt("Enter your GitGuardian API token", hide_input=True)
         if not token:
             raise click.ClickException("No API token was provided.")
@@ -96,10 +142,21 @@ def login_cmd(
         click.echo("Authentication was successful.")
         return 0
 
-    check_instance_has_enabled_flow(config=config)
-
     if method == "web":
-        OAuthClient(config, instance).oauth_process(
-            token_name=token_name, lifetime=lifetime
+        instance, login_path = validate_login_path(
+            config, instance=instance, sso_url=sso_url
+        )
+        if instance:
+            config.set_cmdline_instance_name(instance)
+        defined_instance = config.instance_name
+        # Override instance to make sure we get a normalized instance name
+
+        check_instance_has_enabled_flow(config=config)
+
+        instance_config = config.auth_config.get_or_create_instance(
+            instance_name=defined_instance
+        )
+        OAuthClient(config, defined_instance).oauth_process(
+            token_name=token_name, lifetime=lifetime, login_path=login_path
         )
     return 0
