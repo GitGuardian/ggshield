@@ -62,6 +62,7 @@ class OAuthClient:
         self._oauth_client = WebApplicationClient(CLIENT_ID)
         self._state = ""  # use the `state` property instead
         self._lifetime: Optional[int] = None
+        self._login_path = "auth/login"
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
@@ -71,7 +72,10 @@ class OAuthClient:
         self._generate_pkce_pair()
 
     def oauth_process(
-        self, token_name: Optional[str] = None, lifetime: Optional[int] = None
+        self,
+        token_name: Optional[str] = None,
+        lifetime: Optional[int] = None,
+        login_path: Optional[str] = None,
     ) -> None:
         """
         Handle the whole oauth process which includes
@@ -88,6 +92,8 @@ class OAuthClient:
         if token_name is None:
             token_name = "ggshield token " + datetime.today().strftime("%Y-%m-%d")
         self._token_name = token_name
+        if login_path is not None:
+            self._login_path = login_path
 
         if lifetime is None:
             lifetime = self.default_token_lifetime
@@ -145,7 +151,7 @@ class OAuthClient:
             "utm_campaign": "ggshield",
         }
         request_uri = self._oauth_client.prepare_request_uri(
-            uri=urljoin(self.dashboard_url, "auth/login"),
+            uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,
             scope=SCOPE,
             code_challenge=self.code_challenge,

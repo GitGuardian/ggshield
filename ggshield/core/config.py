@@ -355,6 +355,16 @@ class AuthConfig(YAMLFileConfig):
         else:
             raise UnknownInstanceError(instance=instance_name)
 
+    def get_or_create_instance(self, instance_name: str) -> InstanceConfig:
+        try:
+            instance_config = self.get_instance(instance_name=instance_name)
+        except UnknownInstanceError:
+            # account is initialized as None because the instance must exist in
+            # the config before using the client
+            instance_config = InstanceConfig(account=None, url=instance_name)
+            self.instances.append(instance_config)
+        return instance_config
+
     def set_instance(self, instance_config: InstanceConfig) -> None:
         instance_name = instance_config.url
         for i, instance in enumerate(self.instances):

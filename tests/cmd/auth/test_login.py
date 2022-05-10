@@ -364,7 +364,7 @@ class TestAuthLoginWeb:
         assert exit_code == 0, output
 
         self._webbrowser_open_mock.assert_called_once()
-        self._assert_open_url(29170 + used_port_count)
+        self._assert_open_url(expected_port=29170 + used_port_count)
 
         self._client_post_mock.assert_called_once()
         self._assert_post_payload()
@@ -391,6 +391,7 @@ class TestAuthLoginWeb:
         is_state_valid=True,
         is_exchange_ok=True,
         is_token_valid=True,
+        sso_url=None,
     ):
         """
         Prepare object and function mocks to emulate HTTP requests
@@ -404,6 +405,7 @@ class TestAuthLoginWeb:
         self._token_name = token_name
         self._lifetime = lifetime
         self._instance_url = instance_url
+        self._sso_url = sso_url
 
         # token name generated if passed as None
         self._generated_token_name = (
@@ -479,12 +481,12 @@ class TestAuthLoginWeb:
 
         # run cli command
 
-    def run_cmd(self, cli_fs_runner):
+    def run_cmd(self, cli_fs_runner, method="web", expect_check_feature_flag=True):
         """
         Run the auth login method within a virtual cli.
         Make sure the original server method is not called.
         """
-        cmd = ["auth", "login", "--method=web"]
+        cmd = ["auth", "login", f"--method={method}"]
         if self._token_name is not None:
             cmd.append(f"--token-name={self._token_name}")
 
@@ -494,11 +496,15 @@ class TestAuthLoginWeb:
         if self._instance_url is not None:
             cmd.append(f"--instance={self._instance_url}")
 
+        if self._sso_url is not None:
+            cmd.append(f"--sso-url={self._sso_url}")
+
         # run cli command
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
 
         # make sure the first call to api is mocked
-        self._check_instance_has_enabled_flow_mock.assert_called_once()
+        if expect_check_feature_flag:
+            self._check_instance_has_enabled_flow_mock.assert_called_once()
 
         # original method should not be called
         self._wait_for_callback_mock.assert_not_called()
@@ -549,13 +555,21 @@ class TestAuthLoginWeb:
         """
         assert output.rsplit("\n", 2)[-2] == expected_str
 
-    def _assert_open_url(self, expected_port: int = 29170):
+    def _assert_open_url(
+        self, *, host: Optional[str] = None, expected_port: int = 29170
+    ):
         """
         assert that the url to be open in the browser has the right static parameters
         also check if the port of the redirect url is the one expected depending on occupied ports
         """
         (url,), kwargs = self._webbrowser_open_mock.call_args_list[0]
-        url_params = urlparse.parse_qs(url.split("?", 1)[1])
+        parsed_url = urlparse.urlparse(url)
+        url_params = urlparse.parse_qs(parsed_url.query)
+
+        if host is not None:
+            assert (
+                host == parsed_url.netloc
+            ), f"invalid host opened: '{parsed_url.netloc}', expected '{host}'"
 
         for key, value in _EXPECTED_URL_PARAMS.items():
             assert key in url_params, f"missing url param: {key}"
@@ -675,6 +689,98 @@ class TestAuthLoginWeb:
                 check_instance_has_enabled_flow(Config())
         else:
             check_instance_has_enabled_flow(Config())
+
+    @pytest.mark.parametrize(
+        ["method", "instance_url", "sso_url", "expected_error"],
+        [
+            [
+                "web",
+                "https://dashboard.gitguardian.com",
+                "https://onprem.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
+                "Error: instance and SSO URL params do not match",
+            ],
+            [
+                "web",
+                "https://dashboard.gitguardian.com",
+                "https://dashboard.gitguardian.com",
+                "Error: Invalid value for sso-url: Please provide a valid SSO URL.",
+            ],
+            [
+                "token",
+                "https://dashboard.gitguardian.com",
+                "https://dashboard.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
+                "Error: Invalid value for sso-url: --sso-url is reserved for the web login method.",
+            ],
+        ],
+    )
+    def test_bad_sso_url(
+        self, method, instance_url, sso_url, expected_error, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN an invalid SSO URL, or that do not match the declared instance
+        WHEN running the login command
+        THEN it fails
+        """
+        self.prepare_mocks(monkeypatch, instance_url=instance_url, sso_url=sso_url)
+        prepare_config(instance_url=instance_url)
+
+        exit_code, output = self.run_cmd(
+            cli_fs_runner, method=method, expect_check_feature_flag=False
+        )
+        assert exit_code > 0, output
+        self._webbrowser_open_mock.assert_not_called()
+        self._assert_last_print(output, expected_error)
+
+    @pytest.mark.parametrize(
+        ["instance_url", "sso_url", "expected_web_host"],
+        [
+            [
+                "https://dashboard.gitguardian.com",
+                "https://dashboard.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
+                "dashboard.gitguardian.com",
+            ],
+            [
+                None,
+                "https://custom.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
+                "custom.gitguardian.com",
+            ],
+            [
+                None,
+                None,
+                "dashboard.gitguardian.com",
+            ],
+        ],
+    )
+    def test_sso_url(
+        self, instance_url, sso_url, expected_web_host, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN -
+        WHEN calling the login command on the web method with a valid SSO URL, or no SSO URL
+        THEN if no SSO URL is passed, the default instance is used
+        THEN if the SSO URL is compatible with the instance, the instance is used
+        THEN if no instance is declared, the instance of the SSO URL is used
+        THEN the correct instance URL is checked to see if the auth flow  is enabled
+        """
+        self.prepare_mocks(monkeypatch, instance_url=instance_url, sso_url=sso_url)
+        config_dashboard_url_checked = None
+
+        def setter(config):
+            nonlocal config_dashboard_url_checked
+            config_dashboard_url_checked = config.dashboard_url
+
+        # store the config dashboard URL at the time the check is done because the config
+        # object is mutable
+        self._check_instance_has_enabled_flow_mock.side_effect = setter
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == 0, output
+        self._webbrowser_open_mock.assert_called()
+        self._assert_open_url(host=expected_web_host)
+        self._check_instance_has_enabled_flow_mock.assert_called_once()
+        assert (
+            urlparse.urlparse(config_dashboard_url_checked).netloc == expected_web_host
+        )
 
 
 class TestLoginUtils:
