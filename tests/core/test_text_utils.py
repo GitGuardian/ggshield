@@ -1,6 +1,8 @@
+from typing import Optional
+
 import pytest
 
-from ggshield.core.text_utils import Line, LineCategory
+from ggshield.core.text_utils import Line, LineCategory, translate_validity
 
 
 def test_line_validation():
@@ -48,3 +50,17 @@ def test_line_validation():
 def test_build_line_count(input: Line, padding: int, want: str) -> None:
     result = input.build_line_count(padding)
     assert result == want
+
+
+@pytest.mark.parametrize(
+    "validity_id, expected",
+    [
+        ("unknown", "Unknown"),
+        (None, "Unknown"),
+        ("valid", "Valid"),
+        ("unexpected_status", "unexpected_status"),
+    ],
+)
+def test_translate_validity(validity_id: Optional[str], expected: str):
+    result = translate_validity(validity_id)
+    assert result == expected
