@@ -4,7 +4,7 @@ line-length = 88
 exclude = '/(\.eggs|\.git|\.hg|\.mypy_cache|\.nox|\.tox|\.venv|\.svn|_build|buck-out|build|dist|venv|snapshots|_snap)/'
 
 [tool.pytest.ini_options]
-addopts = "--pdbcls=IPython.terminal.debugger:Pdb --durations=10 --durations-min=3.0 --tb=short"
+addopts = "--pdbcls=IPython.terminal.debugger:Pdb --durations=10 --durations-min=3.0 --tb=short -k 'not tests/functional'"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 testpaths = ["tests/"]
 
@@ -19,7 +19,7 @@ exclude_lines = [
   "pragma: no cover",
   "raise NotImplementedError",
   "assert False"]
-omit = ["tests/*"]
+omit = ["tests/*", "functests/*"]
 fail_under = 80
 show_missing = true
 
@@ -47,5 +47,5 @@ plugins = ["marshmallow_dataclass.mypy"]
 files = "ggshield"
 
 [[tool.mypy.overrides]]
-module = ["tests.*"]
+module = ["tests.*", "functests.*"]
 ignore_errors = true

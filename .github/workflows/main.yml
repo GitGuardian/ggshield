@@ -63,7 +63,7 @@ jobs:
         run: |
           # Those are win32-only dependencies from pytest
           python -m pip install atomicwrites colorama
-      - name: Test with pytest
+      - name: Run unit tests
         run: |
           coverage run --source ggshield -m pytest --disable-pytest-warnings --disable-socket
       - name: Gather coverage report
@@ -76,6 +76,8 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
+      - name: Run functional tests
+        run: GITGUARDIAN_API_KEY=${{ secrets.GITGUARDIAN_API_KEY }} make functest
 
   build_packages:
     # This job ensures the build-packages script is tested on each build, not only at release time

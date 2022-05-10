@@ -39,3 +39,4 @@ secret:
     - .gitignore
     - .env
     - 'tests/cassettes/*'
+    - 'tests/functional/data/**/*'

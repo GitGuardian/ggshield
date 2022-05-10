@@ -13,6 +13,9 @@ all:
 test:
 	pipenv run pytest --disable-pytest-warnings -vvv $(test)
 
+functest:
+	pipenv run pytest --disable-pytest-warnings -vvv $(test) -k 'tests/functional'
+
 coverage:
 	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings
 	pipenv run coverage report --fail-under=80
