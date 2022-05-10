@@ -333,3 +333,113 @@ class TestAuthConfigUnset:
             cmd.append("--all")
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
         return result.exit_code, result.output
+
+
+class TestAuthConfigGet:
+    @pytest.mark.parametrize(
+        ["default_value", "instance_value", "expected_value"],
+        [
+            (None, None, "not set"),
+            (None, 42, "42"),
+            (0, 42, "0"),
+            (0, None, "0"),
+            (365, 42, "365"),
+        ],
+    )
+    def test_get_lifetime_default(
+        self, default_value, instance_value, expected_value, cli_fs_runner
+    ):
+        """
+        GIVEN saved protected configs
+        WHEN running the get command without specifying an instance
+        THEN it should display the value of the config in this order (if existing)
+        AuthConfig > default config
+        OR display "not set" if no value is found
+        """
+        # update default config
+        config = Config()
+        config.auth_config.default_token_lifetime = default_value
+        config.save()
+
+        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=instance_value)
+
+        # add some noise
+        unrelated_instance_url = "https://some-unrelated-gg-instance.com"
+        prepare_config(unrelated_instance_url, default_token_lifetime=43)
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert output == f"default_token_lifetime: {expected_value}\n"
+        assert exit_code == 0
+
+    @pytest.mark.parametrize(
+        ["default_value", "instance_value", "expected_value"],
+        [
+            (None, None, "not set"),
+            (None, 1, "1"),
+            (42, None, "not set"),
+            (42, 0, "0"),
+            (42, 365, "365"),
+        ],
+    )
+    def test_get_lifetime_instance(
+        self, default_value, instance_value, expected_value, cli_fs_runner
+    ):
+        """
+        GIVEN saved protected configs
+        WHEN running the get command with an instance specified
+        THEN it should display the value for this specific config
+        OR display "not set" if no value is found
+        """
+        instance_url = "https://some-gg-instance.com"
+        unrelated_instance_url = "https://some-unrelated-gg-instance.com"
+
+        # update default config
+        config = Config()
+        config.auth_config.default_token_lifetime = default_value
+        config.save()
+
+        prepare_config(instance_url, default_token_lifetime=instance_value)
+        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=43)
+        prepare_config(unrelated_instance_url, default_token_lifetime=44)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
+
+        assert output == f"default_token_lifetime: {expected_value}\n"
+        assert exit_code == 0
+
+    def test_unset_lifetime_invalid_instance(self, cli_fs_runner):
+        """
+        GIVEN -
+        WHEN running the get command with an unknown instance
+        THEN the command shoud exit with and error
+        """
+        instance_url = "https://some-invalid-gg-instance.com"
+        exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
+
+        assert exit_code == 1, output
+        assert output == f"Error: Unknown instance: '{instance_url}'\n"
+
+    def test_set_invalid_field_name(self, cli_fs_runner):
+        """
+        GIVEN _
+        WHEN running the set command with an invalid field name
+        THEN the command should exit with an error
+        """
+        exit_code, output = self.run_cmd(cli_fs_runner, param="invalid_field_name")
+        assert exit_code == 2, output
+        expected_output = (
+            "Usage: cli config get [OPTIONS] {default_token_lifetime}\n"
+            "Try 'cli config get -h' for help.\n\n"
+            "Error: Invalid value for '{default_token_lifetime}': 'invalid_field_name' "
+            "is not 'default_token_lifetime'.\n"
+        )
+        assert output == expected_output
+
+    @staticmethod
+    def run_cmd(cli_fs_runner, param="default_token_lifetime", instance_url=None):
+        cmd = ["config", "get", param]
+        if instance_url is not None:
+            cmd.append("--instance=" + instance_url)
+        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
+        return result.exit_code, result.output
