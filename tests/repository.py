@@ -28,8 +28,11 @@ class Repository:
             raise exc
 
     @classmethod
-    def create(cls, path: Path) -> "Repository":
-        git(["init", str(path)])
+    def create(cls, path: Path, bare=False) -> "Repository":
+        cmd = ["init", str(path)]
+        if bare:
+            cmd.append("--bare")
+        git(cmd)
         return cls(path)
 
     @classmethod

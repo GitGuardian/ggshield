@@ -1,20 +1,33 @@
 SHELL :=/bin/bash
-.PHONY: all test coverage black flake8 lint
+.PHONY: all test unittest functest coverage black flake8 lint update-pipfile-lock
 .SILENT:
 
 all:
-	echo "Usage :"
-	echo "      make test"           # Run tests
-	echo "      make coverage"           # Run tests and coverage
-	echo "      make black"          # Run black formatter on python code
-	echo "      make flake8"          # Run flake8 linter on python code
-	echo "      make isort"          # Run isort linter on python code
+	echo "Test targets:"
+	echo "  test                 Run all tests"
+	echo "  unittest             Run unit tests"
+	echo "  coverage             Run unit tests with coverage"
+	echo "  functest             Run functional tests"
+	echo ""
+	echo "Lint targets:"
+	echo "  lint                 Run all lint targets"
+	echo "  black                Run black formatter"
+	echo "  flake8               Run flake8 linter"
+	echo "  isort                Run isort linter"
+	echo ""
+	echo "Other targets:"
+	echo "  update-pipfile-lock  Update the Pipfile.lock"
 
-test:
-	pipenv run pytest --disable-pytest-warnings -vvv $(test)
+test: unittest functest
+
+unittest:
+	pipenv run pytest --disable-pytest-warnings -vvv tests/unit
+
+functest:
+	pipenv run pytest --disable-pytest-warnings -vvv tests/functional
 
 coverage:
-	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings
+	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings tests/unit
 	pipenv run coverage report --fail-under=80
 	pipenv run coverage xml
 	pipenv run coverage html
