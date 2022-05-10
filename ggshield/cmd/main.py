@@ -6,6 +6,7 @@ from typing import Any, List, Optional
 import click
 
 from ggshield.cmd.auth import auth_group
+from ggshield.cmd.config import config_group
 from ggshield.cmd.ignore import ignore_cmd
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
@@ -35,6 +36,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     commands={
         "scan": scan_group,
         "auth": auth_group,
+        "config": config_group,
         "install": install_cmd,
         "ignore": ignore_cmd,
         "quota": quota_cmd,
