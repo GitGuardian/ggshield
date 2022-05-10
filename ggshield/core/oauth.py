@@ -277,7 +277,7 @@ class OAuthClient:
         Save the new token in the configuration.
         """
         account_config = AccountConfig(
-            account_id=api_token_data["account_id"],
+            workspace_id=api_token_data["account_id"],
             token=self._access_token,  # type: ignore
             expire_at=api_token_data.get("expire_at"),
             token_name=api_token_data.get("name", ""),

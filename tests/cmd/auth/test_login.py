@@ -21,7 +21,7 @@ from ggshield.core.oauth import (
     get_pretty_date,
 )
 
-from .utils import prepare_config
+from ..utils import prepare_config
 
 
 _TOKEN_RESPONSE_PAYLOAD = {

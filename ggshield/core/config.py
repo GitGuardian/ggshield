@@ -216,7 +216,7 @@ class UserConfig(YAMLFileConfig):
 
 @dataclass
 class AccountConfig:
-    account_id: int
+    workspace_id: int
     token: str
     type: str
     token_name: str
