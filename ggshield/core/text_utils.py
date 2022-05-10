@@ -105,12 +105,20 @@ def display_error(msg: str) -> None:
 
 
 _VALIDITY_TEXT_FOR_ID = {
-    "cannot_check": "Cannot Check",
-    "invalid": "Invalid",
     "unknown": "Unknown",
+    # cannot_check is the old ID for secrets for which there are no checkers
+    "cannot_check": "Cannot Check",
+    "no_checker": "No Checker",
+    "failed_to_check": "Failed to Check",
+    "not_checked": "Not Checked",
+    "invalid": "Invalid",
     "valid": "Valid",
 }
 
 
 def translate_validity(validity_id: Optional[str]) -> str:
-    return _VALIDITY_TEXT_FOR_ID[validity_id or "unknown"]
+    if validity_id is None:
+        validity_id = "unknown"
+    # If we don't have a text for the validity_id, return it as is. We assume the text
+    # of the ID is more valuable than a generic "Unknown" string
+    return _VALIDITY_TEXT_FOR_ID.get(validity_id, validity_id)
