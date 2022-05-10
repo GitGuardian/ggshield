@@ -7,7 +7,7 @@ from requests.exceptions import ConnectionError
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 
-from .utils import prepare_config
+from ..utils import prepare_config
 
 
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"

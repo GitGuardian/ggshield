@@ -172,7 +172,7 @@ class TestAuthConfig:
                 "default-token-lifetime": 1,
                 "accounts": [
                     {
-                        "account-id": 23,
+                        "workspace-id": 23,
                         "token": "62890f237c703c92fbda8236ec2a055ac21332a46115005c976d68b900535fb5",
                         "type": "pat",
                         "token-name": "my_token",
@@ -186,7 +186,7 @@ class TestAuthConfig:
                 "default-token-lifetime": 0,  # no expiry
                 "accounts": [
                     {
-                        "account-id": 1,
+                        "workspace-id": 1,
                         "token": "8ecffbaeedcd2f090546efeed3bc48a5f4a04a1196637aef6b3f6bbcfd58a96b",
                         "type": "sat",
                         "token-name": "my_other_token",
@@ -527,7 +527,7 @@ class TestConfig:
                 InstanceConfig(
                     url=url,
                     account=AccountConfig(
-                        account_id=1,
+                        workspace_id=1,
                         token=api_key,
                         type="PAT",
                         token_name="name",

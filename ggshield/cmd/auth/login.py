@@ -130,7 +130,7 @@ def login_cmd(
             raise click.ClickException("This token does not have the scan scope.")
 
         account_config = AccountConfig(
-            account_id=api_token_data.get("account_id"),
+            workspace_id=api_token_data.get("account_id"),
             token=token,
             expire_at=api_token_data.get("expire_at"),
             token_name=api_token_data.get("name", ""),
