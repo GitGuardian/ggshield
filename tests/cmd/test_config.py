@@ -214,3 +214,122 @@ class TestAuthConfigSet:
             cmd.append("--instance=" + instance_url)
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
         return result.exit_code, result.output
+
+
+class TestAuthConfigUnset:
+    def test_unset_lifetime_instance_config_value(self, cli_fs_runner):
+        """
+        GIVEN a saved protected config
+        WHEN running the unset command with the instance specified
+        THEN the speficied field value must be erased from this config
+        AND other configs must not be affected
+        """
+        unchanged_value = 42
+        unset_value = 43
+        default_value = Config().auth_config.default_token_lifetime
+
+        unrelated_instance = "https://some-unreleted-gg-instance.com"
+
+        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=unset_value)
+        prepare_config(unrelated_instance, default_token_lifetime=unchanged_value)
+
+        exit_code, output = self.run_cmd(
+            cli_fs_runner, instance_url=DEFAULT_INSTANCE_URL
+        )
+
+        config = Config()
+        assert (
+            config.auth_config.get_instance(DEFAULT_INSTANCE_URL).default_token_lifetime
+            is None
+        ), output
+        assert (
+            config.auth_config.get_instance(unrelated_instance).default_token_lifetime
+            == unchanged_value
+        ), "Unrelated instance config should remain unchanged"
+        assert (
+            config.auth_config.default_token_lifetime == default_value
+        ), "The default auth config should remain unchanged"
+
+        assert exit_code == 0, output
+        assert output == ""
+
+    def test_unset_lifetime_default_config_value(self, cli_fs_runner):
+        """
+        GIVEN a saved protected config
+        WHEN running the unset command with no instance specified
+        THEN the speficied field value must be erased from the default config
+        AND other configs must not be affected
+        """
+        unchanged_value = 42
+        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=unchanged_value)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        config = Config()
+        assert config.auth_config.default_token_lifetime is None, output
+        assert (
+            config.auth_config.get_instance(DEFAULT_INSTANCE_URL).default_token_lifetime
+            == unchanged_value
+        ), "Unrelated instance config should remain unchanged"
+
+        assert exit_code == 0, output
+        assert output == ""
+
+    def test_unset_lifetime_all(self, cli_fs_runner):
+        """
+        GIVEN saved protected configs
+        WHEN running the unset command with --all option
+        THEN the speficied field value must be erased from all configs
+        (per instance and default)
+        """
+        second_instance = "https://some-gg-instance.com"
+        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=30)
+        prepare_config(second_instance, default_token_lifetime=20)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, all_=True)
+
+        config = Config()
+        assert (
+            config.auth_config.get_instance(DEFAULT_INSTANCE_URL).default_token_lifetime
+            is None
+        ), output
+        assert (
+            config.auth_config.get_instance(second_instance).default_token_lifetime
+            is None
+        ), output
+        assert config.auth_config.default_token_lifetime is None, output
+
+        assert exit_code == 0, output
+        assert output == ""
+
+    def test_unset_lifetime_invalid_instance(self, cli_fs_runner):
+        """
+        GIVEN -
+        WHEN running the unset command with an unknown instance
+        THEN the command shoud exit with and error
+        AND no config must ne affected
+        """
+        instance_url = "https://some-invalid-gg-instance.com"
+
+        default_value = Config().auth_config.default_token_lifetime
+
+        exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
+
+        assert exit_code == 1, output
+        assert output == f"Error: Unknown instance: '{instance_url}'\n"
+
+        config = Config()
+        assert (
+            config.auth_config.default_token_lifetime == default_value
+        ), "The instance config should remain unchanged"
+
+    @staticmethod
+    def run_cmd(
+        cli_fs_runner, param="default_token_lifetime", instance_url=None, all_=False
+    ):
+        cmd = ["config", "unset", param]
+        if instance_url is not None:
+            cmd.append("--instance=" + instance_url)
+        elif all_:
+            cmd.append("--all")
+        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
+        return result.exit_code, result.output
