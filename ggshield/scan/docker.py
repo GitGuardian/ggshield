@@ -13,6 +13,7 @@ from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.constants import MAX_FILE_SIZE
+from ggshield.core.utils import SupportedScanMode
 from ggshield.scan import ScanCollection
 from ggshield.scan.scannable import File, Files
 
@@ -252,6 +253,7 @@ def docker_scan_archive(
             cache=cache,
             matches_ignore=matches_ignore,
             all_policies=all_policies,
+            mode_header=SupportedScanMode.DOCKER.value,
             banlisted_detectors=banlisted_detectors,
             on_file_chunk_scanned=update_progress,
         )

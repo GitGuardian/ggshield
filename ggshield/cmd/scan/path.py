@@ -3,7 +3,7 @@ from typing import List
 import click
 
 from ggshield.core.file_utils import get_files_from_paths
-from ggshield.core.utils import handle_exception
+from ggshield.core.utils import SupportedScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import ScanCollection
 
@@ -38,6 +38,7 @@ def path_cmd(
             cache=ctx.obj["cache"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
+            mode_header=SupportedScanMode.PATH.value,
             banlisted_detectors=config.banlisted_detectors,
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)

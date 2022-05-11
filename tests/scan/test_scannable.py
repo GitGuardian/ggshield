@@ -4,7 +4,7 @@ import pytest
 
 from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.utils import Filemode
+from ggshield.core.utils import Filemode, SupportedScanMode
 from ggshield.scan import Commit
 from tests.conftest import (
     _MULTIPLE_SECRETS,
@@ -68,7 +68,11 @@ def test_scan_patch(client, cache, name, input_patch, expected):
 
     with my_vcr.use_cassette(name):
         results = c.scan(
-            client=client, cache=cache, matches_ignore={}, all_policies=True
+            client=client,
+            cache=cache,
+            matches_ignore={},
+            all_policies=True,
+            mode_header=SupportedScanMode.PATH.value,
         )
         for result in results:
             if result.scan.policy_breaks:

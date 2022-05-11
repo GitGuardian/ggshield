@@ -133,6 +133,7 @@ class Files:
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
         all_policies: bool,
+        mode_header: str,
         banlisted_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
@@ -152,7 +153,7 @@ class Files:
                 executor.submit(
                     client.multi_content_scan,
                     chunk,
-                    self.extra_headers,
+                    {"mode": mode_header, **self.extra_headers},
                 ): chunk
                 for chunk in chunks
             }

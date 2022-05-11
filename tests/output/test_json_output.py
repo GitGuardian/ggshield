@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import pytest
 
-from ggshield.core.utils import Filemode
+from ggshield.core.utils import Filemode, SupportedScanMode
 from ggshield.output import JSONOutputHandler, OutputHandler
 from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import Commit, ScanCollection
@@ -61,6 +61,7 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             cache=cache,
             matches_ignore={},
             all_policies=True,
+            mode_header=SupportedScanMode.PATH.value,
             banlisted_detectors=None,
         )
 
