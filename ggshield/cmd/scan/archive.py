@@ -8,6 +8,7 @@ import click
 
 from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
+from ggshield.core.utils import SupportedScanMode
 from ggshield.output import OutputHandler
 from ggshield.scan import Files, Result, ScanCollection
 
@@ -49,6 +50,7 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 cache=ctx.obj["cache"],
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
+                mode_header=SupportedScanMode.ARCHIVE.value,
                 banlisted_detectors=config.banlisted_detectors,
                 on_file_chunk_scanned=update_progress,
             )

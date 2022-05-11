@@ -14,7 +14,7 @@ from ggshield.core.constants import CPU_COUNT
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import handle_exception
+from ggshield.core.utils import SupportedScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, ScanCollection
 
@@ -72,6 +72,7 @@ def scan_commit(
         cache=cache,
         matches_ignore=matches_ignore,
         all_policies=all_policies,
+        mode_header=SupportedScanMode.REPO.value,
         banlisted_detectors=banlisted_detectors,
     )
 
