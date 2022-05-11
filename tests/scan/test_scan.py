@@ -25,13 +25,7 @@ def test_request_headers(scan_mock: Mock, client):
 
     with Context(Command("bar"), info_name="bar") as ctx:
         ctx.parent = Context(Group("foo"), info_name="foo")
-        c.scan(
-            client=client,
-            cache=Cache(),
-            matches_ignore={},
-            all_policies=True,
-            verbose=False,
-        )
+        c.scan(client=client, cache=Cache(), matches_ignore={}, all_policies=True)
     scan_mock.assert_called_with(
         ANY,
         {

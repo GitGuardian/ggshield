@@ -133,7 +133,6 @@ class Files:
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
         all_policies: bool,
-        verbose: bool,
         banlisted_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None

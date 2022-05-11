@@ -28,7 +28,6 @@ def precommit_cmd(
             cache=ctx.obj["cache"],
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
-            verbose=config.verbose,
             banlisted_detectors=config.banlisted_detectors,
         )
 

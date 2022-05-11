@@ -71,9 +71,8 @@ def scan_commit(
         client=client,
         cache=cache,
         matches_ignore=matches_ignore,
-        banlisted_detectors=banlisted_detectors,
         all_policies=all_policies,
-        verbose=verbose,
+        banlisted_detectors=banlisted_detectors,
     )
 
     return ScanCollection(

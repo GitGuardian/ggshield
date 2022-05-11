@@ -252,9 +252,8 @@ def docker_scan_archive(
             cache=cache,
             matches_ignore=matches_ignore,
             all_policies=all_policies,
-            verbose=verbose,
-            on_file_chunk_scanned=update_progress,
             banlisted_detectors=banlisted_detectors,
+            on_file_chunk_scanned=update_progress,
         )
 
     return ScanCollection(id=scan_id, type="scan_docker_archive", results=results)
