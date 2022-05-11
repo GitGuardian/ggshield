@@ -1,8 +1,11 @@
+import cProfile
+import functools
 import os
 import re
+import threading
 import traceback
 from enum import Enum
-from typing import Iterable, List, NamedTuple
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -352,3 +355,19 @@ def urljoin(url: str, *args: str) -> str:
         url += url_part
 
     return url
+
+
+def profile_wrapper(fcn: Callable) -> Callable:
+    """Wraps a function call to profile it. Useful to profile a function called from
+    another thread"""
+
+    def inner(fcn: Callable, *args: Any, **kwargs: Dict[str, Any]) -> Any:
+        pr = cProfile.Profile()
+        try:
+            pr.enable()
+            return fcn(*args, **kwargs)
+        finally:
+            pr.disable()
+            pr.dump_stats(f"out-{threading.current_thread().ident}.profile")
+
+    return functools.partial(inner, fcn)

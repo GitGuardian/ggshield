@@ -18,7 +18,7 @@ from ggshield.core.filter import (
 from ggshield.core.git_shell import GIT_PATH, shell
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
+from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, profile_wrapper
 
 from ..core.extra_headers import get_extra_headers
 from .scannable_errors import handle_scan_error
@@ -151,7 +151,7 @@ class Files:
         ) as executor:
             future_to_scan = {
                 executor.submit(
-                    client.multi_content_scan,
+                    profile_wrapper(client.multi_content_scan),
                     chunk,
                     self.extra_headers,
                 ): chunk
