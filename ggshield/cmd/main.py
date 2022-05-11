@@ -7,11 +7,11 @@ import click
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
-from ggshield.cmd.ignore import ignore_cmd
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.scan import deprecated_scan_group
 from ggshield.cmd.secret import secret_group
+from ggshield.cmd.secret.ignore import deprecated_ignore_cmd
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
 from ggshield.core.cache import Cache
@@ -41,7 +41,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
         "scan": deprecated_scan_group,
         "secret": secret_group,
         "install": install_cmd,
-        "ignore": ignore_cmd,
+        "ignore": deprecated_ignore_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
     },

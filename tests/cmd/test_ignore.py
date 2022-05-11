@@ -4,7 +4,7 @@ import tempfile
 from mock import patch
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.cmd.ignore import ignore_last_found
+from ggshield.cmd.secret.ignore import ignore_last_found
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.scan import Commit
