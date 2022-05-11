@@ -48,9 +48,8 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 matches_ignore=config.matches_ignore,
-                banlisted_detectors=config.banlisted_detectors,
                 all_policies=config.all_policies,
-                verbose=config.verbose,
+                banlisted_detectors=config.banlisted_detectors,
                 on_file_chunk_scanned=update_progress,
             )
 

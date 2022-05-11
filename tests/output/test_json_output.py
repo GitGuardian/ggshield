@@ -61,7 +61,6 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             cache=cache,
             matches_ignore={},
             all_policies=True,
-            verbose=False,
             banlisted_detectors=None,
         )
 
