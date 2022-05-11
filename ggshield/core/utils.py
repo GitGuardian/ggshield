@@ -1,8 +1,13 @@
+import cProfile
+import functools
+import logging
 import os
 import re
+import time
 import traceback
+import uuid
 from enum import Enum
-from typing import Iterable, List, NamedTuple
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -14,6 +19,8 @@ from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 from .git_shell import get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error, display_warning
 
+
+logger = logging.getLogger(__name__)
 
 REGEX_PATCH_HEADER = re.compile(
     r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
@@ -242,6 +249,7 @@ def handle_exception(e: Exception, verbose: bool) -> int:
     """
     Handle exception from a scan command.
     """
+    logging.error("exception=%s", str(e))
     if isinstance(e, click.exceptions.Abort):
         return 0
     elif isinstance(e, click.ClickException):
@@ -250,6 +258,44 @@ def handle_exception(e: Exception, verbose: bool) -> int:
         if verbose:
             traceback.print_exc()
         raise click.ClickException(str(e))
+
+
+PROFILE_DIR = os.getenv("GG_PROFILE_DIR")
+
+
+def profile_wrapper(fcn: Callable, prefix: str) -> Callable:
+    """Wraps a function call to profile it. Useful to profile a function called from
+    another thread"""
+
+    if not PROFILE_DIR:
+        return fcn
+
+    def inner(fcn: Callable, *args: Any, **kwargs: Dict[str, Any]) -> Any:
+        # A unique ID to distinguish two calls. Can't use thread ID here since threads
+        # are often reused during scan.
+        unique_id = uuid.uuid4().hex
+        logger.debug("Starting thread prefix=%s unique_id=%s", prefix, unique_id)
+
+        profile_filename = f"ggshield-{os.getpid()}-{prefix}-{unique_id}.profile"
+
+        start = time.time()
+        pr = cProfile.Profile()
+        try:
+            pr.enable()
+            return fcn(*args, **kwargs)
+        finally:
+            pr.disable()
+            duration = int((time.time() - start) * 1000)
+            logger.debug(
+                "Ending thread prefix=%s unique_id=%s duration=%dms",
+                prefix,
+                unique_id,
+                duration,
+            )
+            assert PROFILE_DIR
+            pr.dump_stats(os.path.join(PROFILE_DIR, profile_filename))
+
+    return functools.partial(inner, fcn)
 
 
 def load_dot_env() -> None:
