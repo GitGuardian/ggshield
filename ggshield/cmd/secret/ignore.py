@@ -1,5 +1,3 @@
-import sys
-
 import click
 
 from ggshield.core.cache import Cache
@@ -13,11 +11,30 @@ from ggshield.core.config import Config
     help="Ignore secrets found in the last ggshield secret scan run",
 )
 @click.pass_context
-def ignore_cmd(ctx: click.Context, last_found: bool) -> int:
+def ignore_cmd(ctx: click.Context, last_found: bool) -> None:
     """
     Ignore some secrets.
     """
 
+    ignore_cmd_impl(ctx, last_found)
+
+
+@click.command(hidden=True)
+@click.option(
+    "--last-found",
+    is_flag=True,
+    help="Ignore secrets found in the last ggshield secret scan run",
+)
+@click.pass_context
+def deprecated_ignore_cmd(ctx: click.Context, last_found: bool) -> None:
+    """
+    Deprecated: use `ggshield secret ignore (...)` instead.
+    """
+
+    ignore_cmd_impl(ctx, last_found)
+
+
+def ignore_cmd_impl(ctx: click.Context, last_found: bool) -> None:
     if last_found:
         config = ctx.obj["config"]
         cache = ctx.obj["cache"]
@@ -26,8 +43,6 @@ def ignore_cmd(ctx: click.Context, last_found: bool) -> int:
             f"{nb} secrets have been added to your ignore list in"
             " .gitguardian.yaml under matches-ignore section."
         )
-
-    sys.exit(0)
 
 
 def ignore_last_found(config: Config, cache: Cache) -> int:

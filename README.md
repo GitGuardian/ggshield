@@ -155,7 +155,6 @@ Options:
 Commands:
   api-status  Show API status.
   auth        Commands to manage authentication.
-  ignore      Ignore some secrets.
   install     Install a pre-commit or pre-push git hook (local or global).
   quota       Show quotas overview.
   secret      Commands to work with secrets.
@@ -312,6 +311,24 @@ Options:
   -h, --help  Show this message and exit.
 ```
 
+## `secret ignore` command
+
+The `secret ignore` command allows you to ignore some secrets.
+For the time being, it only handles the `--last-found` option that ignore all secrets found by the last run `scan` command.
+Under the hood, these secrets are added to the matches-ignore section of your local config file (if no local config file is found, a `.gitguardian.yaml` file is created).
+
+Warning: Using this command will discard any comment present in the config file.
+
+```shell
+Usage: ggshield secret ignore [OPTIONS]
+
+  Ignore some secrets.
+
+Options:
+  --last-found  Ignore secrets found in the last ggshield secret scan run
+  -h, --help    Show this message and exit.
+```
+
 ## `install` command
 
 The `install` command allows you to use ggshield as a pre-commit or pre-push hook
@@ -331,24 +348,6 @@ Options:
   -f, --force                     Force override
   -a, --append                    Append to existing script
   -h, --help                      Show this message and exit.
-```
-
-## `ignore` command
-
-The `ignore` command allows you to ignore some secrets.
-For the time being, it only handles the `--last-found` option that ignore all secrets found by the last run `scan` command.
-Under the hood, these secrets are added to the matches-ignore section of your local config file (if no local config file is found, a `.gitguardian.yaml` file is created).
-
-Warning: Using this command will discard any comment present in the config file.
-
-```shell
-Usage: ggshield ignore
-
-  Command to ignore all secrets found by the previous scan.
-
-Options:
-  -h, --help                 Show this message and exit.
-  --last-found               Ignore all secrets found by last run scan
 ```
 
 ## `quota` command
