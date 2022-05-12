@@ -29,63 +29,64 @@ Add the API Key to your environment variables:
 GITGUARDIAN_API_KEY=<GitGuardian API Key>
 ```
 
-# Currently supported integrations
-
-- [Azure Pipelines](#azure-pipelines)
-- [BitBucket Pipelines](#bitbucket)
-- [Circle CI Orbs](#circle-ci)
-- [Docker](#Docker)
-- [Drone](#Drone)
-- [GitHub Actions](#github)
-- [GitLab](#gitlab)
-- [Jenkins](#jenkins)
-- [Pre-commit hooks](#pre-commit)
-- [Pre-push hooks](#pre-push)
-- [Pre-receive hooks](#pre-receive)
-- [Travis CI](#travis-ci)
-
 # Table of Contents
 
-1. [Installation](#installation)
-1. [Updating](#updating)
-1. [Commands](#commands)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-   - [Scan](#scan-command)
-   - [Install](#install-command)
-   - [Ignore](#ignore-command)
-   - [Quota](#quota-command)
-   - [API Status](#api-status-command)
+- [Installation](#installation)
+  - [macOS](#macos)
+    - [Using Homebrew](#using-homebrew)
+  - [Linux packages](#linux-packages)
+  - [Other Operating Systems](#other-operating-systems)
+    - [Using pip](#using-pip)
+- [Updating](#updating)
+- [Commands](#commands)
+  - [Secret scan commands](#secret-scan-commands)
+    - [`secret scan ci`: scan each commit since the last build in your CI](#secret-scan-ci-scan-each-commit-since-the-last-build-in-your-ci)
+    - [`secret scan commit-range`: scan each commit in the given commit range](#secret-scan-commit-range-scan-each-commit-in-the-given-commit-range)
+    - [`secret scan path`: scan files or directories with the recursive option](#secret-scan-path-scan-files-or-directories-with-the-recursive-option)
+    - [`secret scan pre-commit`: scan every changes that have been staged in a git repository](#secret-scan-pre-commit-scan-every-changes-that-have-been-staged-in-a-git-repository)
+    - [`secret scan repo`: scan all commits in a git repository](#secret-scan-repo-scan-all-commits-in-a-git-repository)
+    - [`secret scan docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command](#secret-scan-docker-scan-a-docker-image-after-exporting-its-filesystem-and-manifest-with-the-docker-save-command)
+    - [`secret scan pypi`: scan a pypi package](#secret-scan-pypi-scan-a-pypi-package)
+    - [`secret scan archive`: scan an archive files](#secret-scan-archive-scan-an-archive-files)
+  - [`secret ignore` command](#secret-ignore-command)
+  - [`install` command](#install-command)
+  - [`quota` command](#quota-command)
+  - [`api-status` command](#api-status-command)
+- [Configuration](#configuration)
+  - [Environment Variables](#environment-variables)
+  - [On-premises configuration](#on-premises-configuration)
+  - [Ignoring files](#ignoring-files)
+  - [Ignoring a secret](#ignoring-a-secret)
+    - [In code](#in-code)
+    - [Through configuration](#through-configuration)
+  - [Ignoring a detector](#ignoring-a-detector)
+- [Integrations](#integrations)
+  - [Pre-commit](#pre-commit)
+    - [The pre-commit framework](#the-pre-commit-framework)
+    - [The global and local pre-commit hook](#the-global-and-local-pre-commit-hook)
+  - [Pre-push](#pre-push)
+    - [With the pre-commit framework](#with-the-pre-commit-framework)
+    - [With the install command](#with-the-install-command)
+  - [Pre-receive](#pre-receive)
+    - [Install ggshield git pre-receive hook](#install-ggshield-git-pre-receive-hook)
+    - [Install ggshield git pre-receive hook with docker](#install-ggshield-git-pre-receive-hook-with-docker)
+  - [Docker](#docker)
+  - [GitLab](#gitlab)
+  - [GitHub](#github)
+  - [BitBucket](#bitbucket)
+  - [Circle CI](#circle-ci)
+  - [Travis CI](#travis-ci)
+  - [Jenkins](#jenkins)
+  - [Drone](#drone)
+  - [Azure Pipelines](#azure-pipelines)
+- [Output](#output)
+- [Related open source projects](#related-open-source-projects)
+- [License](#license)
 
-1. [Configuration](#configuration)
-
-   1. [Environment Variables](#environment-variables)
-   2. [On-premises](#on-premises-configuration)
-   3. [Ignoring files](#ignoring-files)
-   4. [Ignoring a secret](#ignoring-a-secret)
-   5. [Ignoring a detector](#ignoring-a-detector)
-
-1. [Integration](#integration)
-
-   - [Pre-commit](#pre-commit)
-
-     - The pre-commit framework
-     - The global and local pre-commit hook
-
-   - [Pre-push](#pre-push)
-   - [Pre-receive](#pre-receive)
-   - [Docker](#docker)
-   - [GitLab](#gitlab)
-   - [GitHub Actions](#github)
-   - [BitBucket](#bitbucket)
-   - [Circle CI](#circle-ci)
-   - [Travis CI](#travis-ci)
-   - [Jenkins](#jenkins)
-   - [Drone](#Drone)
-   - [Azure Pipelines](#azure-pipelines)
-
-1. [Output](#output)
-1. [Related open source projects](#related-open-source-projects)
-1. [License](#license)
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Installation
 
@@ -586,7 +587,7 @@ banlisted-detectors: # default: []
 ggshield secret scan -b "Generic High Entropy Secret" path example_file.md
 ```
 
-# Integration
+# Integrations
 
 ## Pre-commit
 
