@@ -7,6 +7,7 @@ import click
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
+from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.scan import deprecated_scan_group
@@ -44,6 +45,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
         "ignore": deprecated_ignore_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
+        "iac": iac_group,
     },
 )
 @click.option(
