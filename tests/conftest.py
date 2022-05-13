@@ -2,9 +2,11 @@ import os
 import platform
 from os.path import dirname, join, realpath
 from pathlib import Path
+from typing import Any
 
 import pytest
 import vcr
+import yaml
 from click.testing import CliRunner
 from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
@@ -498,3 +500,16 @@ def isolated_fs(fs):
     # add cassettes dir
     cassettes_dir = join(dirname(realpath(__file__)), "cassettes")
     fs.add_real_directory(cassettes_dir)
+
+
+def write_text(filename: str, content: str):
+    """Create a text file named `filename` with content `content.
+    Create any missing dirs if necessary."""
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
+def write_yaml(filename: str, data: Any):
+    """Save data as a YAML file in `filename`, using `write_text()`"""
+    write_text(filename, yaml.dump(data))
