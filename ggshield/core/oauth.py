@@ -331,7 +331,7 @@ class OAuthClient:
         if account is None or not account.token or self.instance_config.expired:
             return False
 
-        message = "ggshield is already athenticated "
+        message = "ggshield is already authenticated "
         if account.expire_at:
             message += "until " + get_pretty_date(account.expire_at)
         else:

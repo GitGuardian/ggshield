@@ -43,12 +43,3 @@ def config_list_cmd(ctx: click.Context) -> int:
 
     click.echo(message[:-2])
     return 0
-
-
-@click.group(
-    commands={
-        "list": config_list_cmd,
-    }
-)
-def auth_config_group() -> None:
-    """Commands to manage auth config."""

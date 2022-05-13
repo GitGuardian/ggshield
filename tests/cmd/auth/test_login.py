@@ -207,7 +207,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
-            output, "ggshield is already athenticated without an expiry date"
+            output, "ggshield is already authenticated without an expiry date"
         )
 
     @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
@@ -234,7 +234,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
-            output, f"ggshield is already athenticated until {str_date} 2100"
+            output, f"ggshield is already authenticated until {str_date} 2100"
         )
 
     def test_no_port_available_exits_error(self, cli_fs_runner, monkeypatch):
