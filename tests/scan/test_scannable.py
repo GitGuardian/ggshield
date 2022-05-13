@@ -5,7 +5,7 @@ import pytest
 from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode, SupportedScanMode
-from ggshield.scan import Commit
+from ggshield.scan import Commit, File, Files
 from tests.conftest import (
     _MULTIPLE_SECRETS,
     _NO_SECRET,
@@ -179,3 +179,13 @@ CHECK_ENVIRONMENT=true
     files = list(c.get_files())
 
     assert len(files) == 0
+
+
+def test_apply_filter():
+    file1 = File("", "file1")
+    file2 = File("", "file2")
+    files = Files([file1, file2])
+
+    filtered_files = files.apply_filter(lambda file: file.filename == "file1")
+    assert len(filtered_files.files) == 1
+    assert file1 in filtered_files.files.values()

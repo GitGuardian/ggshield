@@ -1,5 +1,6 @@
 import concurrent.futures
 import re
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
 import click
@@ -87,6 +88,11 @@ class File:
             "filemode": self.filemode,
         }
 
+    def has_extensions(self, extensions: Set[str]) -> bool:
+        """Returns True iff the file has one of the given extensions."""
+        file_extensions = Path(self.filename).suffixes
+        return any(ext in extensions for ext in file_extensions)
+
 
 class CommitFile(File):
     """Class representing a commit file."""
@@ -126,6 +132,9 @@ class Files:
             "GGShield-Command-Path": command_path,
             **extra_headers,
         }
+
+    def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
+        return Files([file for file in self.files.values() if filter_func(file)])
 
     def scan(
         self,
