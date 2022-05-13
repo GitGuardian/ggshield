@@ -1,4 +1,5 @@
-from .config import AccountConfig, Config, InstanceConfig
+from .auth_config import AccountConfig, InstanceConfig
+from .config import Config
 
 
-__all__ = ["AccountConfig", "Config", "InstanceConfig"]
+__all__ = ["Config", "AccountConfig", "InstanceConfig"]
