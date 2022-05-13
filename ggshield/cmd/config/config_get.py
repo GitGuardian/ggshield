@@ -2,9 +2,9 @@ from typing import Optional
 
 import click
 
-from ggshield.core.config import Config, UnknownInstanceError
-
-from .constants import FIELD_OPTIONS
+from ggshield.cmd.config.constants import FIELD_OPTIONS
+from ggshield.core.config import Config
+from ggshield.core.config.errors import UnknownInstanceError
 
 
 @click.command()

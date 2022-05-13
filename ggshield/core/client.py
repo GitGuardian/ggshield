@@ -3,7 +3,8 @@ import urllib3
 from pygitguardian import GGClient
 from requests import Session
 
-from .config import Config, UnknownInstanceError
+from .config import Config
+from .config.errors import UnknownInstanceError
 from .constants import DEFAULT_DASHBOARD_URL
 
 
