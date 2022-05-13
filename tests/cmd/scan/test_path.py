@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-import ggshield.core.config
 from ggshield.cmd.main import cli
+from ggshield.core.constants import LOCAL_CONFIG_PATHS
 from tests.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
     UNCHECKED_SECRET,
@@ -319,7 +319,7 @@ class TestScanDirectory:
         THEN ignored patterns by default should NOT be used
         """
         path = create_normally_ignored_file()
-        local_config = Path(ggshield.core.config.LOCAL_CONFIG_PATHS[0])
+        local_config = Path(LOCAL_CONFIG_PATHS[0])
         local_config.write_text("ignore-default-excludes: true")
 
         with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):

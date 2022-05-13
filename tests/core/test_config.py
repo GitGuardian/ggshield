@@ -13,6 +13,8 @@ from ggshield.core.config import (
     Config,
     InstanceConfig,
     UnknownInstanceError,
+)
+from ggshield.core.config.utils import (
     custom_asdict,
     get_auth_config_filepath,
     get_global_path,

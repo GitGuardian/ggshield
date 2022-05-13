@@ -16,7 +16,7 @@ DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 @pytest.fixture(autouse=True)
 def tmp_config(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "ggshield.core.config.get_auth_config_dir", lambda: str(tmp_path)
+        "ggshield.core.config.utils.get_auth_config_dir", lambda: str(tmp_path)
     )
 
 
