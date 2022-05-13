@@ -8,12 +8,8 @@ from typing import Any, Set
 import pytest
 import yaml
 
-from ggshield.core.config import (
-    AccountConfig,
-    Config,
-    InstanceConfig,
-    UnknownInstanceError,
-)
+from ggshield.core.config import AccountConfig, Config, InstanceConfig
+from ggshield.core.config.errors import UnknownInstanceError
 from ggshield.core.config.utils import (
     custom_asdict,
     get_auth_config_filepath,
