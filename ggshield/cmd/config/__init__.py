@@ -15,4 +15,4 @@ from .config_unset import config_unset_command
     }
 )
 def config_group() -> None:
-    """Commands to manage auth config."""
+    """Commands to manage configuration."""
