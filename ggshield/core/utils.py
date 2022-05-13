@@ -52,6 +52,8 @@ IGNORED_DEFAULT_WILDCARDS = [
     "**/*.sops",
 ]
 
+GITGUARDIAN_DOMAINS = ["gitguardian.com", "gitguardian.tech"]
+
 
 class Filemode(Enum):
     """
@@ -307,7 +309,7 @@ def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
         raise click.ClickException(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
         )
-    if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
+    if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
         if parsed_url.path:
             raise click.ClickException(
                 f"Invalid dashboard URL '{dashboard_url}', got an unexpected path '{parsed_url.path}'"
