@@ -1,4 +1,5 @@
 import click
+from requests import ConnectionError
 
 from ggshield.core.client import create_session
 from ggshield.core.config import Config
@@ -21,7 +22,11 @@ def check_instance_has_enabled_flow(config: Config) -> None:
 
     # don't use gitguardian client because the request should not include the token
     session = create_session(config.allow_self_signed)
-    response = session.get(urljoin(config.api_url, "/v1/metadata"), timeout=30)
+
+    try:
+        response = session.get(urljoin(config.api_url, "/v1/metadata"), timeout=30)
+    except ConnectionError:
+        raise click.ClickException("Invalid GitGuardian instance url.")
 
     if response.status_code == 404:
         raise click.ClickException(VERSION_TOO_LOW_MESSAGE)
