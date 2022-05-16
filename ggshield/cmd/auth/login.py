@@ -117,8 +117,6 @@ def login_cmd(
         if not token:
             raise click.ClickException("No API token was provided.")
 
-        config.auth_config.current_token = token
-
         # enforce using the token (and not use config default)
         client = create_client(api_key=token, api_url=config.api_url)
         response = client.get(endpoint="token")
