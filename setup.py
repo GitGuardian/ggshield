@@ -37,6 +37,8 @@ setup(
         "appdirs>=1.4.4,<1.5.0",
         "click>=8.0,<8.1",
         "oauthlib>=3.2,<3.3",
+        "marshmallow>=3.15.0,<3.16.0",
+        "marshmallow-dataclass>=8.5.8,<8.6.0",
         "pygitguardian>=1.3.4,<1.4.0",
         "python-dotenv>=0.19.1,<0.20.0",
         "pyyaml>=6.0,<6.1",

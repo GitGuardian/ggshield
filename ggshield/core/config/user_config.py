@@ -1,9 +1,18 @@
+import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import click
+import marshmallow_dataclass
+from marshmallow import ValidationError
 
-from ggshield.core.config.utils import YAMLFileConfig, get_global_path, load_yaml
+from ggshield.core.config.errors import ParseError
+from ggshield.core.config.utils import (
+    get_global_path,
+    load_yaml,
+    save_yaml,
+    update_from_other_instance,
+)
 from ggshield.core.constants import (
     DEFAULT_LOCAL_CONFIG_PATH,
     GLOBAL_CONFIG_FILENAMES,
@@ -14,7 +23,7 @@ from ggshield.core.utils import api_to_dashboard_url
 
 
 @dataclass
-class UserConfig(YAMLFileConfig):
+class UserConfig:
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
     (local and global).
@@ -32,23 +41,12 @@ class UserConfig(YAMLFileConfig):
     banlisted_detectors: Set[str] = field(default_factory=set)
     ignore_default_excludes: bool = False
 
-    def update_config(self, data: Dict[str, Any]) -> bool:
-        # If data contains the old "api-url" key, turn it into an "instance" key,
-        # but only if there is no "instance" key
-        try:
-            api_url = data.pop("api_url")
-        except KeyError:
-            pass
-        else:
-            if "instance" not in data:
-                data["instance"] = api_to_dashboard_url(api_url, warn=True)
-        return super(UserConfig, self).update_config(data)
-
     def save(self, config_path: str) -> None:
         """
         Save config to config_path
         """
-        self.save_yaml(config_path)
+        schema = UserConfigSchema()
+        save_yaml(schema.dump(self), config_path)
 
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> Tuple["UserConfig", str]:
@@ -62,25 +60,44 @@ class UserConfig(YAMLFileConfig):
 
         user_config = UserConfig()
         if config_path:
-            data = load_yaml(config_path) or {}
-            user_config.update_config(data)
+            user_config._update_from_file(config_path)
             return user_config, config_path
 
         for global_config_filename in GLOBAL_CONFIG_FILENAMES:
             global_config_path = get_global_path(global_config_filename)
-            global_data = load_yaml(global_config_path)
-            if global_data and user_config.update_config(global_data):
+            if os.path.exists(global_config_path):
+                user_config._update_from_file(global_config_path)
                 break
 
         for local_config_path in LOCAL_CONFIG_PATHS:
-            local_data = load_yaml(local_config_path)
-            if local_data and user_config.update_config(local_data):
+            if os.path.exists(local_config_path):
+                user_config._update_from_file(local_config_path)
                 config_path = local_config_path
                 break
 
         if config_path is None:
             config_path = DEFAULT_LOCAL_CONFIG_PATH
         return user_config, config_path
+
+    def _update_from_file(self, config_path: str) -> None:
+        data = load_yaml(config_path) or {}
+
+        # If data contains the old "api-url" key, turn it into an "instance" key,
+        # but only if there is no "instance" key
+        try:
+            api_url = data.pop("api_url")
+        except KeyError:
+            pass
+        else:
+            if "instance" not in data:
+                data["instance"] = api_to_dashboard_url(api_url, warn=True)
+        schema = UserConfigSchema()
+        try:
+            obj = schema.load(data)
+        except ValidationError as exc:
+            raise ParseError(f"Error in {config_path}:\n{str(exc)}")
+
+        update_from_other_instance(self, obj)
 
     def add_ignored_match(self, secret: Dict) -> None:
         """
@@ -103,3 +120,6 @@ class UserConfig(YAMLFileConfig):
                 raise click.ClickException("Wrong format found in ignored matches")
         if not found:
             self.matches_ignore.append(secret)
+
+
+UserConfigSchema = marshmallow_dataclass.class_schema(UserConfig)
