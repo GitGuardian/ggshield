@@ -18,13 +18,7 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
-          [
-            types-requests,
-            types-pyyaml,
-            types-click,
-            types-appdirs,
-            types-oauthlib,
-          ]
+          [types-requests, types-pyyaml, types-appdirs, types-oauthlib, click]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
