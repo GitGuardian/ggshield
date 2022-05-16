@@ -114,7 +114,7 @@ class TestPrepush:
             matches_ignore=ANY,
             all_policies=False,
             scan_id=ANY,
-            banlisted_detectors=set(),
+            ignored_detectors=set(),
         )
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0

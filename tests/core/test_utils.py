@@ -79,7 +79,7 @@ def test_make_indices_patch(client, cache, name, content, is_patch, expected_ind
             matches_ignore={},
             all_policies=True,
             mode_header=SupportedScanMode.PATH.value,
-            banlisted_detectors=None,
+            ignored_detectors=None,
         )
         result = results[0]
 

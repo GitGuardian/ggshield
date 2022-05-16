@@ -62,7 +62,7 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             matches_ignore={},
             all_policies=True,
             mode_header=SupportedScanMode.PATH.value,
-            banlisted_detectors=None,
+            ignored_detectors=None,
         )
 
         scan = ScanCollection(id="path", type="test", results=results)

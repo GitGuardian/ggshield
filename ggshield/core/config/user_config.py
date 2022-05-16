@@ -22,7 +22,17 @@ from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
 
 
-CURRENT_CONFIG_VERSION = 1
+CURRENT_CONFIG_VERSION = 2
+
+
+@dataclass
+class SecretConfig:
+    """
+    Holds all user-defined secret-specific settings
+    """
+
+    show_secrets: bool = False
+    ignored_detectors: Set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -37,19 +47,20 @@ class UserConfig:
     exit_zero: bool = False
     matches_ignore: List[IgnoredMatch] = field(default_factory=list)
     paths_ignore: Set[str] = field(default_factory=set)
-    show_secrets: bool = False
     verbose: bool = False
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
-    banlisted_detectors: Set[str] = field(default_factory=set)
     ignore_default_excludes: bool = False
+    secret: SecretConfig = field(default_factory=SecretConfig)
 
     def save(self, config_path: str) -> None:
         """
         Save config to config_path
         """
         schema = UserConfigSchema()
-        save_yaml(schema.dump(self), config_path)
+        dct = schema.dump(self)
+        dct["version"] = CURRENT_CONFIG_VERSION
+        save_yaml(dct, config_path)
 
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> Tuple["UserConfig", str]:
@@ -87,25 +98,18 @@ class UserConfig:
         config_version = data.pop("version", 1)
 
         try:
-            if config_version == 1:
-                obj = self._load_v1(data)
+            if config_version == 2:
+                obj = UserConfigSchema().load(data)
+            elif config_version == 1:
+                obj = UserV1Config.load_v1(data)
             else:
                 raise click.ClickException(
                     f"Don't know how to load config version {config_version}"
                 )
         except ValidationError as exc:
-            raise ParseError(f"Error in {config_path}:\n{str(exc)}")
+            raise ParseError(f"Error in {config_path}:\n{str(exc)}") from exc
 
         update_from_other_instance(self, obj)
-
-    def _load_v1(self, data: Dict[str, Any]) -> "UserConfig":
-        # If data contains the old "api-url" key, turn it into an "instance" key,
-        # but only if there is no "instance" key
-        api_url = data.pop("api_url", data.pop("api-url", None))
-        if api_url is not None and "instance" not in data:
-            data["instance"] = api_to_dashboard_url(api_url, warn=True)
-
-        return UserConfigSchema().load(data)  # type: ignore
 
     def add_ignored_match(self, secret: Dict) -> None:
         """
@@ -131,3 +135,60 @@ class UserConfig:
 
 
 UserConfigSchema = marshmallow_dataclass.class_schema(UserConfig)
+
+
+@dataclass
+class UserV1Config:
+    """
+    Can load a v1 .gitguardian.yaml file
+    """
+
+    instance: Optional[str] = None
+    all_policies: bool = False
+    exit_zero: bool = False
+    matches_ignore: List[IgnoredMatch] = field(default_factory=list)
+    paths_ignore: Set[str] = field(default_factory=set)
+    verbose: bool = False
+    allow_self_signed: bool = False
+    max_commits_for_hook: int = 50
+    ignore_default_excludes: bool = False
+    show_secrets: bool = False
+    banlisted_detectors: Set[str] = field(default_factory=set)
+
+    @staticmethod
+    def load_v1(data: Dict[str, Any]) -> UserConfig:
+        """
+        Takes a dict representing a v1 .gitguardian.yaml and returns a v2 config object
+        """
+        # If data contains the old "api-url" key, turn it into an "instance" key,
+        # but only if there is no "instance" key
+        try:
+            api_url = data.pop("api_url")
+        except KeyError:
+            pass
+        else:
+            if "instance" not in data:
+                data["instance"] = api_to_dashboard_url(api_url, warn=True)
+
+        v1config = UserV1ConfigSchema().load(data)
+
+        secret = SecretConfig(
+            show_secrets=v1config.show_secrets,
+            ignored_detectors=v1config.banlisted_detectors,
+        )
+
+        return UserConfig(
+            instance=v1config.instance,
+            all_policies=v1config.all_policies,
+            exit_zero=v1config.exit_zero,
+            verbose=v1config.verbose,
+            allow_self_signed=v1config.allow_self_signed,
+            max_commits_for_hook=v1config.max_commits_for_hook,
+            ignore_default_excludes=v1config.ignore_default_excludes,
+            matches_ignore=v1config.matches_ignore,
+            paths_ignore=v1config.paths_ignore,
+            secret=secret,
+        )
+
+
+UserV1ConfigSchema = marshmallow_dataclass.class_schema(UserV1Config)

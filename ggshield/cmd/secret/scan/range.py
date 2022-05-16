@@ -33,7 +33,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             scan_id=commit_range,
-            banlisted_detectors=config.banlisted_detectors,
+            ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:
         return handle_exception(error, config.verbose)

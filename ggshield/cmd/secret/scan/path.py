@@ -39,7 +39,7 @@ def path_cmd(
             matches_ignore=config.matches_ignore,
             all_policies=config.all_policies,
             mode_header=SupportedScanMode.PATH.value,
-            banlisted_detectors=config.banlisted_detectors,
+            ignored_detectors=config.secret.ignored_detectors,
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 

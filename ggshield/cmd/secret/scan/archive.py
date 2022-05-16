@@ -51,7 +51,7 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 matches_ignore=config.matches_ignore,
                 all_policies=config.all_policies,
                 mode_header=SupportedScanMode.ARCHIVE.value,
-                banlisted_detectors=config.banlisted_detectors,
+                ignored_detectors=config.secret.ignored_detectors,
                 on_file_chunk_scanned=update_progress,
             )
 

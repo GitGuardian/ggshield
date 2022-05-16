@@ -145,7 +145,7 @@ def scan_group_impl(
     config: Config = ctx.obj["config"]
 
     if show_secrets is not None:
-        config.show_secrets = show_secrets
+        config.secret.show_secrets = show_secrets
 
     if all_policies is not None:
         config.all_policies = all_policies
@@ -157,7 +157,7 @@ def scan_group_impl(
         config.exit_zero = exit_zero
 
     if banlist_detector:
-        config.banlisted_detectors.update(banlist_detector)
+        config.secret.ignored_detectors.update(banlist_detector)
 
     max_commits = get_max_commits_for_hook()
     if max_commits:
@@ -168,7 +168,7 @@ def scan_group_impl(
         output_handler_cls = JSONOutputHandler
 
     ctx.obj["output_handler"] = output_handler_cls(
-        show_secrets=config.show_secrets, verbose=config.verbose, output=output
+        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=output
     )
 
     return return_code

@@ -71,17 +71,17 @@ def remove_ignored_from_result(
     scan_result.policy_break_count = len(scan_result.policy_breaks)
 
 
-def remove_results_from_banlisted_detectors(
+def remove_results_from_ignore_detectors(
     scan_result: ScanResult,
-    banlisted_detectors: Optional[Set[str]] = None,
+    ignored_detectors: Optional[Set[str]] = None,
 ) -> None:
-    if not banlisted_detectors:
+    if not ignored_detectors:
         return
 
     scan_result.policy_breaks = [
         policy_break
         for policy_break in scan_result.policy_breaks
-        if policy_break.break_type not in banlisted_detectors
+        if policy_break.break_type not in ignored_detectors
     ]
 
     scan_result.policy_break_count = len(scan_result.policy_breaks)

@@ -238,7 +238,7 @@ def docker_scan_archive(
     matches_ignore: Iterable[str],
     all_policies: bool,
     scan_id: str,
-    banlisted_detectors: Optional[Set[str]] = None,
+    ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
     with click.progressbar(
@@ -254,7 +254,7 @@ def docker_scan_archive(
             matches_ignore=matches_ignore,
             all_policies=all_policies,
             mode_header=SupportedScanMode.DOCKER.value,
-            banlisted_detectors=banlisted_detectors,
+            ignored_detectors=ignored_detectors,
             on_file_chunk_scanned=update_progress,
         )
 

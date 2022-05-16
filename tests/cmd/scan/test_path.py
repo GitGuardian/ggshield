@@ -356,7 +356,7 @@ class TestScanDirectory:
         assert result.exception is None
 
     @pytest.mark.parametrize(
-        "banlisted_detectors, nb_secret",
+        "ignored_detectors, nb_secret",
         [
             ([], 2),
             (["-b", "RSA Private Key"], 1),
@@ -366,10 +366,10 @@ class TestScanDirectory:
             (["-b", "SendGrid Key", "-b", "RSA Private Key"], 0),
         ],
     )
-    def test_banlisted_detectors(
+    def test_ignore_detectors(
         self,
         cli_fs_runner,
-        banlisted_detectors,
+        ignored_detectors,
         nb_secret,
     ):
         Path("file_secret").write_text(_ONE_LINE_AND_MULTILINE_PATCH)
@@ -382,7 +382,7 @@ class TestScanDirectory:
                     "scan",
                     "--exit-zero",
                     "-v",
-                    *banlisted_detectors,
+                    *ignored_detectors,
                     "path",
                     "file_secret",
                 ],

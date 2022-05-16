@@ -26,7 +26,7 @@ class TestUserConfig:
 
         config = Config()
         assert config.verbose is True
-        assert config.show_secrets is True
+        assert config.secret.show_secrets is True
 
     def test_unknown_option(self, cli_fs_runner, capsys, local_config_path):
         write_yaml(local_config_path, {"verbosity": True})
@@ -56,7 +56,7 @@ class TestUserConfig:
 
         config = Config()
         assert config.verbose is True
-        assert config.show_secrets is False
+        assert config.secret.show_secrets is False
         assert config.api_url == "https://api.gitguardian.com"
 
     def test_exclude_regex(self, cli_fs_runner, local_config_path):
@@ -98,3 +98,33 @@ class TestUserConfig:
 
         with pytest.raises(ClickException):
             UserConfig.load(local_config_path)
+
+    def test_save_load_roundtrip(self):
+        config_path = "config.yaml"
+        config = UserConfig()
+        config.exit_zero = True
+        config.secret.show_secrets = True
+
+        config.save(config_path)
+
+        config2, _ = UserConfig.load(config_path)
+
+        assert config.exit_zero == config2.exit_zero
+        assert config.secret.show_secrets == config2.secret.show_secrets
+
+    def test_load_v1(self):
+        config_path = "config.yaml"
+        write_yaml(
+            config_path,
+            {
+                "exit-zero": True,
+                "show-secrets": True,
+                "banlisted-detectors": ["d1", "d2"],
+            },
+        )
+
+        config, _ = UserConfig.load(config_path)
+
+        assert config.exit_zero
+        assert config.secret.show_secrets
+        assert config.secret.ignored_detectors == {"d1", "d2"}
