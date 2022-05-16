@@ -276,9 +276,10 @@ class OAuthClient:
         """
         Save the new token in the configuration.
         """
+        assert self._access_token is not None
         account_config = AccountConfig(
             workspace_id=api_token_data["account_id"],
-            token=self._access_token,  # type: ignore
+            token=self._access_token,
             expire_at=api_token_data.get("expire_at"),
             token_name=api_token_data.get("name", ""),
             type=api_token_data.get("type", ""),

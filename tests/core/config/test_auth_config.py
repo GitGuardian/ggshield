@@ -5,6 +5,10 @@ from copy import deepcopy
 import pytest
 
 from ggshield.core.config import Config
+from ggshield.core.config.auth_config import (
+    AuthConfigSchema,
+    prepare_auth_config_dict_for_save,
+)
 from ggshield.core.config.utils import get_auth_config_filepath, replace_in_keys
 from tests.conftest import write_text, write_yaml
 from tests.core.config.conftest import TEST_AUTH_CONFIG
@@ -31,7 +35,8 @@ class TestAuthConfig:
         assert config.instances[0].default_token_lifetime == 1
         assert config.auth_config.default_token_lifetime == 2
 
-        config_data = config.auth_config.to_dict()
+        config_data = AuthConfigSchema().dump(config.auth_config)
+        config_data = prepare_auth_config_dict_for_save(config_data)
         replace_in_keys(config_data, old_char="_", new_char="-")
         assert config_data == TEST_AUTH_CONFIG
 

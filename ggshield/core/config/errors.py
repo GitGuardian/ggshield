@@ -1,6 +1,14 @@
 import click
 
 
+class ParseError(click.ClickException):
+    """
+    Failed to load file
+    """
+
+    pass
+
+
 class AuthError(click.ClickException):
     """
     Base exception for Auth-related configuration error
