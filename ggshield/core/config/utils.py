@@ -24,7 +24,7 @@ def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> No
             replace_in_keys(element, old_char=old_char, new_char=new_char)
 
 
-def load_yaml(path: str, raise_exc: bool = False) -> Optional[Dict[str, Any]]:
+def load_yaml(path: str) -> Optional[Dict[str, Any]]:
     if not os.path.isfile(path):
         return None
 
@@ -33,11 +33,8 @@ def load_yaml(path: str, raise_exc: bool = False) -> Optional[Dict[str, Any]]:
             data = yaml.safe_load(f) or {}
         except Exception as e:
             message = f"Parsing error while reading {path}:\n{str(e)}"
-            if raise_exc:
-                raise click.ClickException(message) from e
-            else:
-                click.echo(message)
-                return None
+            click.echo(message)
+            return None
         else:
             replace_in_keys(data, old_char="-", new_char="_")
             return data
