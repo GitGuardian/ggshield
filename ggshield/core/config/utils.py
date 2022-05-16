@@ -1,12 +1,11 @@
-import copy
 import os
-from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import click
 import yaml
 from appdirs import user_config_dir
+from pydantic import BaseModel, Extra
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
 
@@ -40,29 +39,18 @@ def load_yaml(path: str) -> Optional[Dict[str, Any]]:
             return data
 
 
-def custom_asdict(obj: Any, root: bool = False) -> Union[List, Dict]:
-    """
-    customization of dataclasses.asdict to allow implementing a "to_dict"
-    method for customization.
-    root=True skips the first to_dict, to allow calling this function from "to_dict"
-    """
-    if is_dataclass(obj):
-        if not root and hasattr(obj, "to_dict"):
-            return obj.to_dict()  # type: ignore
-        result = {}
-        for f in fields(obj):
-            result[f.name] = custom_asdict(getattr(obj, f.name))
-        return result
-    elif isinstance(obj, (list, tuple)):
-        return type(obj)(custom_asdict(v) for v in obj)  # type: ignore
-    elif isinstance(obj, dict):
-        return type(obj)((k, custom_asdict(v)) for k, v in obj.items())
-    elif isinstance(obj, set):
-        # Turn sets into lists so that YAML serialization does not turn them into YAML
-        # unordered sets
-        return [custom_asdict(v) for v in obj]
-    else:
-        return copy.deepcopy(obj)  # type: ignore
+def save_yaml(data: Dict[str, Any], path: str) -> None:
+    replace_in_keys(data, "_", "-")
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("w") as f:
+        try:
+            stream = yaml.dump(data, indent=2, default_flow_style=False)
+            f.write(stream)
+        except Exception as e:
+            raise click.ClickException(
+                f"Error while saving config in {path}:\n{str(e)}"
+            ) from e
 
 
 def get_auth_config_dir() -> str:
@@ -77,45 +65,26 @@ def get_global_path(filename: str) -> str:
     return os.path.join(os.path.expanduser("~"), filename)
 
 
-class YAMLFileConfig:
-    """Helper class to define configuration object loaded from a YAML file"""
+class ConfigBaseModel(BaseModel):
+    class Config:
+        extra = Extra.forbid
 
-    def __init__(self, **kwargs: Any) -> None:
-        raise NotImplementedError
-
-    def to_dict(self) -> Union[List, Dict]:
-        return custom_asdict(self, root=True)
-
-    def update_config(self, data: Dict[str, Any]) -> bool:
+    def update_from_model(self, other: BaseModel) -> None:
         """
-        Update the current config, ignoring the unrecognized keys
+        Update `self` with fields from `other` if they are set.
+        `self` and `other` are expected to be the same type.
         """
-        field_names = {field_.name for field_ in fields(self)}
-        for key, item in data.items():
-            if key not in field_names:
-                click.echo("Unrecognized key in config: {}".format(key))
-                continue
-            if isinstance(getattr(self, key), list):
-                getattr(self, key).extend(item)
-            elif isinstance(getattr(self, key), set):
-                getattr(self, key).update(item)
+        assert self.__class__ is other.__class__
+        for name in other.__fields_set__:
+            value = other.__dict__[name]
+            if isinstance(value, list):
+                self.__dict__[name].extend(value)
+            elif isinstance(value, set):
+                self.__dict__[name].update(value)
+            elif isinstance(value, BaseModel):
+                self.__dict__[name].update_from_model(value)
             else:
-                setattr(self, key, item)
-        return True
-
-    def save_yaml(self, path: str) -> None:
-        data = self.to_dict()
-        replace_in_keys(data, old_char="_", new_char="-")
-        p = Path(path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        with p.open("w") as f:
-            try:
-                stream = yaml.dump(data, indent=2, default_flow_style=False)
-                f.write(stream)
-            except Exception as e:
-                raise click.ClickException(
-                    f"Error while saving config in {path}:\n{str(e)}"
-                ) from e
+                self.__dict__[name] = value
 
 
 def ensure_path_exists(dir_path: str) -> None:
@@ -123,7 +92,7 @@ def ensure_path_exists(dir_path: str) -> None:
 
 
 def get_attr_mapping(
-    classes: Iterable[Tuple[Type[YAMLFileConfig], str]]
+    classes: Iterable[Tuple[Type[ConfigBaseModel], str]]
 ) -> Dict[str, str]:
     """
     Return a mapping from a field name to the correct class
@@ -131,7 +100,7 @@ def get_attr_mapping(
     """
     mapping = {}
     for klass, attr_name in classes:
-        for field_ in fields(klass):
-            assert field_.name not in mapping, f"Conflict with field '{field_.name}'"
-            mapping[field_.name] = attr_name
+        for field_name in klass.__fields__.keys():
+            assert field_name not in mapping, f"Conflict with field '{field_name}'"
+            mapping[field_name] = attr_name
     return mapping

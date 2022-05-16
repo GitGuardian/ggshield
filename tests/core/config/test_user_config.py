@@ -3,6 +3,7 @@ import sys
 import pytest
 
 from ggshield.core.config import Config
+from ggshield.core.config.errors import ParseError
 from tests.conftest import write_text, write_yaml
 
 
@@ -28,9 +29,8 @@ class TestUserConfig:
     def test_unknown_option(self, cli_fs_runner, capsys, local_config_path):
         write_yaml(local_config_path, {"verbosity": True})
 
-        Config()
-        captured = capsys.readouterr()
-        assert "Unrecognized key in config" in captured.out
+        with pytest.raises(ParseError, match="extra fields not permitted"):
+            Config()
 
     def test_display_options_inheritance(
         self, cli_fs_runner, local_config_path, global_config_path

@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
+from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from ggshield.core.config.errors import (
     AuthExpiredError,
@@ -8,59 +8,30 @@ from ggshield.core.config.errors import (
     UnknownInstanceError,
 )
 from ggshield.core.config.utils import (
-    YAMLFileConfig,
-    custom_asdict,
+    ConfigBaseModel,
     ensure_path_exists,
     get_auth_config_dir,
     get_auth_config_filepath,
     load_yaml,
+    save_yaml,
 )
 
 
-@dataclass
-class AccountConfig:
+class AccountConfig(ConfigBaseModel):
     workspace_id: int
     token: str
     type: str
     token_name: str
     expire_at: Optional[datetime]
 
-    def __post_init__(self) -> None:
-        if self.expire_at is not None and not isinstance(self.expire_at, datetime):
-            # Allow passing expire_at as an isoformat string
-            self.expire_at = datetime.strptime(self.expire_at, "%Y-%m-%dT%H:%M:%S%z")  # type: ignore
 
-    def to_dict(self) -> Dict:
-        data: Dict = custom_asdict(self, root=True)  # type: ignore
-        expire_at = data["expire_at"]
-        data["expire_at"] = expire_at.isoformat() if expire_at is not None else None
-        return data
-
-
-@dataclass
-class InstanceConfig:
+class InstanceConfig(ConfigBaseModel):
     # Only handle 1 account per instance for the time being
     account: Optional[AccountConfig]
     url: str
     name: Optional[str] = None
     # The token lifetime. If it's set it overrides AuthConfig.default_token_lifetime
     default_token_lifetime: Optional[int] = None
-
-    @classmethod
-    def load(cls, data: Dict) -> "InstanceConfig":
-        accounts = data["accounts"]
-        assert (
-            len(accounts) == 1
-        ), "Each GitGuardian instance should have exactly one account"
-
-        account = data.pop("accounts")[0]
-        data["account"] = AccountConfig(**account) if account is not None else None
-        return cls(**data)
-
-    def to_dict(self) -> Union[List, Dict]:
-        data: Dict = custom_asdict(self, root=True)  # type: ignore
-        data["accounts"] = [data.pop("account")]
-        return data
 
     @property
     def expired(self) -> bool:
@@ -71,15 +42,55 @@ class InstanceConfig:
         )
 
 
-@dataclass
-class AuthConfig(YAMLFileConfig):
+def prepare_auth_config_dict_for_parse(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Since we support only one account for now, turn instances[].accounts keys into a
+    single instances[].account key.
+
+    Stop if there is not exactly one account.
+    """
+    data = deepcopy(data)
+    try:
+        instances = data["instances"]
+    except KeyError:
+        return data
+
+    for instance in instances:
+        accounts = instance.pop("accounts")
+        assert (
+            len(accounts) == 1
+        ), "Each GitGuardian instance should have exactly one account"
+        instance["account"] = accounts[0]
+
+    return data
+
+
+def prepare_auth_config_dict_for_save(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Does the opposite of `prepare_auth_config_dict_for_parse`: turn the
+    instances[].account key into instances[].accounts keys.
+    """
+    data = deepcopy(data)
+    try:
+        instances = data["instances"]
+    except KeyError:
+        return data
+
+    for instance in instances:
+        account = instance.pop("account")
+        instance["accounts"] = [account]
+
+    return data
+
+
+class AuthConfig(ConfigBaseModel):
     """
     Holds all declared GitGuardian instances and their tokens.
     Knows how to load and save them from the YAML file at get_auth_config_filepath().
     """
 
     default_token_lifetime: Optional[int] = None
-    instances: List[InstanceConfig] = field(default_factory=list)
+    instances: List[InstanceConfig] = []
 
     @classmethod
     def load(cls) -> "AuthConfig":
@@ -87,17 +98,15 @@ class AuthConfig(YAMLFileConfig):
         config_path = get_auth_config_filepath()
         data = load_yaml(config_path)
         if data:
-            data["instances"] = [
-                InstanceConfig.load(instance_config)
-                for instance_config in data["instances"]
-            ]
-            return cls(**data)
+            data = prepare_auth_config_dict_for_parse(data)
+            return AuthConfig.parse_obj(data)
         return cls()
 
     def save(self) -> None:
         config_path = get_auth_config_filepath()
         ensure_path_exists(get_auth_config_dir())
-        self.save_yaml(config_path)
+        data = prepare_auth_config_dict_for_save(self.dict())
+        save_yaml(data, config_path)
 
     def get_instance(self, instance_name: str) -> InstanceConfig:
         for instance in self.instances:
