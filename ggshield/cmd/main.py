@@ -20,6 +20,7 @@ from ggshield.core.utils import load_dot_env
 
 
 @scan_group.result_callback()
+@deprecated_scan_group.result_callback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     """
