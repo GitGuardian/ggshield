@@ -7,8 +7,9 @@ from ggshield.core.utils import dashboard_to_api_url
 
 
 REVOKE_FAIL_MESSAGE = (
-    "Logout failed due to an error when revoking the token, "
-    "you can skip revocation with --no-revoke to bypass"
+    "Could not perform the logout command because your token is already revoked or invalid.\n"
+    "Please try with the following command:\n"
+    "  ggshield auth logout --no-revoke"
 )
 
 
@@ -54,11 +55,21 @@ def logout(config: Config, instance_url: str, revoke: bool) -> None:
         revoke_token(config, instance_url)
     delete_account_config(config, instance_url)
 
+    click.echo(
+        f"Successfully logged out for instance {instance_url}\n\n"
+        f"Your personal access token has been{' revoked and' if revoke else ''} "
+        "removed from your configuration."
+    )
+
 
 def check_account_config_exists(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
     if instance.account is None:
-        raise LogoutError(f"No token found for instance {instance_url}.")
+        raise LogoutError(
+            f"No token found for instance {instance_url}\n"
+            "First try to login by running:\n"
+            "  ggshield auth login"
+        )
 
 
 def revoke_token(config: Config, instance_url: str) -> None:
@@ -67,7 +78,6 @@ def revoke_token(config: Config, instance_url: str) -> None:
 
     assert instance.account is not None
     token = instance.account.token
-    token_name = instance.account.token_name
 
     client = create_client(
         token,
@@ -82,8 +92,6 @@ def revoke_token(config: Config, instance_url: str) -> None:
     if response.status_code != 204:
         raise LogoutError(REVOKE_FAIL_MESSAGE)
 
-    click.echo(f"Personal Access Token {token_name} has been revoked")
-
 
 def delete_account_config(config: Config, instance: str) -> None:
     instance_config = config.auth_config.get_instance(instance)
@@ -94,8 +102,6 @@ def delete_account_config(config: Config, instance: str) -> None:
     instance_config.account = None
     config.auth_config.set_instance(instance_config)
     config.save()
-
-    click.echo(f"Logged out from instance {instance}")
 
 
 class LogoutError(click.ClickException):

@@ -102,16 +102,7 @@ class OAuthClient:
         self._prepare_server()
         self._redirect_to_login()
         self._wait_for_callback()
-
-        message = f"Created Personal Access Token {self._token_name} "
-
-        assert self.instance_config.account is not None
-        expire_at = self.instance_config.account.expire_at
-        if expire_at is not None:
-            message += "expiring on " + get_pretty_date(expire_at)
-        else:
-            message += "with no expiry"
-        click.echo(message)
+        self._print_login_success()
 
     def process_callback(self, callback_url: str) -> None:
         """
@@ -160,7 +151,8 @@ class OAuthClient:
             **static_params,
         )
         click.echo(
-            f"To complete the login process, follow the instructions from {request_uri}.\n"
+            f"Complete the login process at:\n"
+            f"  {request_uri}.\n"
             "Opening your web browser now..."
         )
         webbrowser.open_new_tab(request_uri)
@@ -338,6 +330,28 @@ class OAuthClient:
             message += "without an expiry date"
         click.echo(message)
         return True
+
+    def _print_login_success(self) -> None:
+        """
+        Output the login success message
+        """
+        assert self.instance_config.account is not None
+        expire_at = self.instance_config.account.expire_at
+
+        if expire_at is not None:
+            str_date = get_pretty_date(expire_at)
+        else:
+            str_date = "never"
+
+        message = (
+            "Success! You are now authenticated.\n"
+            "The personal access token has been created and stored in your ggshield config.\n\n"
+            f"token name: {self._token_name}\n"
+            f"token expiration date: {str_date}\n\n"
+            'You do not need to run "ggshield auth login" again. Future requests will automatically use the token.'
+        )
+
+        click.echo(message)
 
     def get_server_error_message(self, error_code: str) -> str:
         """

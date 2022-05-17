@@ -370,12 +370,19 @@ class TestAuthLoginWeb:
         self._assert_post_payload()
         self._client_get_mock.assert_called_once()
 
-        message = f"\nCreated Personal Access Token {self._generated_token_name} "
-
         if self._lifetime is None:
-            message += "with no expiry\n"
+            str_date = "never"
         else:
-            message += "expiring on " + get_pretty_date(self._get_expiry_date()) + "\n"
+            str_date = get_pretty_date(self._get_expiry_date())
+
+        message = (
+            "Success! You are now authenticated.\n"
+            "The personal access token has been created and stored in your ggshield config.\n\n"
+            f"token name: {self._generated_token_name}\n"
+            f"token expiration date: {str_date}\n\n"
+            'You do not need to run "ggshield auth login" again. Future requests will automatically use the token.\n'
+        )
+
         assert output.endswith(message)
 
         self._assert_config("mysupertoken")
