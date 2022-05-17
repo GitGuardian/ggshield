@@ -15,14 +15,14 @@ from .constants import FIELD_OPTIONS
     required=False,
     type=str,
     metavar="URL",
-    help="URL of the instance to set the config.",
+    help="URL of the instance to set the configuration.",
 )
 @click.pass_context
 def config_set_command(
     ctx: click.Context, field_name: str, value: str, instance: Optional[str]
 ) -> int:
     """
-    Set the value of a specific field in the auth config.
+    Update the value of the given configuration key.
     """
     config: Config = ctx.obj["config"]
 

@@ -15,7 +15,7 @@ from .constants import FIELD_OPTIONS
     required=False,
     type=str,
     metavar="URL",
-    help="URL of the instance to unset the config.",
+    help="URL of the instance to unset the configuration.",
 )
 @click.option("--all", "all_", is_flag=True, help="Iterate over every saved tokens.")
 @click.pass_context
@@ -23,8 +23,8 @@ def config_unset_command(
     ctx: click.Context, field_name: str, instance_url: Optional[str], all_: bool
 ) -> int:
     """
-    This command removes a parameter value from the auth config.
-    if --all is passed, it iterates over all auth configs.
+    Remove the value of the given configuration key.
+    If --all is passed, it iterates over all auth configs.
     """
     config: Config = ctx.obj["config"]
 

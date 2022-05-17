@@ -32,7 +32,11 @@ class TestAuthLogout:
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
 
         assert exit_code == 1, output
-        assert output == f"Error: No token found for instance {instance_url}.\n"
+        assert output == (
+            f"Error: No token found for instance {instance_url}\n"
+            "First try to login by running:\n"
+            "  ggshield auth login\n"
+        )
 
     @pytest.mark.parametrize("instance_url", (None, "https://some-gg-instance.com"))
     @pytest.mark.parametrize("revoke", (True, False))
@@ -70,12 +74,17 @@ class TestAuthLogout:
         assert exit_code == 0, output
         instance_url = instance_url or "https://dashboard.gitguardian.com"
 
-        expected_output = f"Logged out from instance {instance_url}\n"
+        expected_output = f"Successfully logged out for instance {instance_url}\n\n"
 
         if revoke:
-            expected_output = (
-                f"Personal Access Token {token_name} has been revoked\n"
-                + expected_output
+            expected_output += (
+                "Your personal access token has been revoked and removed "
+                "from your configuration.\n"
+            )
+        else:
+            expected_output += (
+                "Your personal access token has been removed "
+                "from your configuration.\n"
             )
 
         assert output == expected_output
@@ -101,8 +110,10 @@ class TestAuthLogout:
 
         assert exit_code == 1, output
         assert output == (
-            "Error: Logout failed due to an error when revoking the token, "
-            "you can skip revocation with --no-revoke to bypass\n"
+            "Error: Could not perform the logout command "
+            "because your token is already revoked or invalid.\n"
+            "Please try with the following command:\n"
+            "  ggshield auth logout --no-revoke\n"
         )
 
     def test_logout_server_error(self, monkeypatch, cli_fs_runner):
@@ -125,8 +136,10 @@ class TestAuthLogout:
 
         assert exit_code == 1, output
         assert output == (
-            "Error: Logout failed due to an error when revoking the token, "
-            "you can skip revocation with --no-revoke to bypass\n"
+            "Error: Could not perform the logout command "
+            "because your token is already revoked or invalid.\n"
+            "Please try with the following command:\n"
+            "  ggshield auth logout --no-revoke\n"
         )
 
     def test_logout_all(self, monkeypatch, cli_fs_runner):
