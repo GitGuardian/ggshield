@@ -23,15 +23,18 @@ REVOKE_FAIL_MESSAGE = (
     "--revoke/--no-revoke",
     is_flag=True,
     default=True,
-    help="Whether the token should be revoked before being removed from the config.",
+    help="Whether the token should be revoked on logout before being removed from the configuration.",
 )
 @click.option("--all", "all_", is_flag=True, help="Iterate over every saved tokens.")
 @click.pass_context
 def logout_cmd(ctx: click.Context, instance: str, revoke: bool, all_: bool) -> int:
     """
-    Delete saved authentication details for the specified instance (or default instance if not specified)
-    By default, this will also try to revoke found tokens unless --no-revoke is specified.\n
-    If --all is specified, it will iterate over all instances.
+    Remove authentication for a GitGuardian instance.
+    A successful logout results in the deletion of personal access token stored in the configuration.
+    By default, the token will be revoked unless `--no-revoke` option is specified.
+
+    If not specified, ggshield will logout from the default instance.
+    The `--all` option can be used if you want to logout from all your GitGuardian instances.
     """
     config = ctx.obj["config"]
 

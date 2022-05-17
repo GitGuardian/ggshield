@@ -9,7 +9,7 @@ from .constants import DATETIME_FORMAT
 @click.pass_context
 def config_list_cmd(ctx: click.Context) -> int:
     """
-    List all auth configurations.
+    Print the list of configuration keys and values.
     """
     config: Config = ctx.obj["config"]
 
