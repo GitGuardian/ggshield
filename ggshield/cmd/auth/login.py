@@ -51,7 +51,8 @@ def validate_login_path(
 @click.command()
 @click.option(
     "--method",
-    required=True,
+    required=False,
+    default="web",
     type=click.Choice(["token", "web"]),
     help="Authentication method.",
 )
