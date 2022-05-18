@@ -747,6 +747,11 @@ class TestAuthLoginWeb:
                 "dashboard.gitguardian.com",
             ],
             [
+                "https://some-gg-instance.com",
+                "https://some-gg-instance.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
+                "some-gg-instance.com",
+            ],
+            [
                 None,
                 "https://custom.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
                 "custom.gitguardian.com",

@@ -12,6 +12,7 @@ def config_list_cmd(ctx: click.Context) -> int:
     Print the list of configuration keys and values.
     """
     config: Config = ctx.obj["config"]
+    default_token_lifetime = config.auth_config.default_token_lifetime
 
     message = ""
     for instance in config.auth_config.instances:
@@ -30,9 +31,15 @@ def config_list_cmd(ctx: click.Context) -> int:
         else:
             workspace_id = token = token_name = expiry = "not set"  # type: ignore
 
+        _default_token_lifetime = (
+            instance.default_token_lifetime
+            if instance.default_token_lifetime is not None
+            else default_token_lifetime
+        )
+
         message_lines = [
             f"[{instance_name}]",
-            f"default_token_lifetime: {instance.default_token_lifetime}",
+            f"default_token_lifetime: {_default_token_lifetime}",
             f"workspace_id: {workspace_id}",
             f"url: {instance.url}",
             f"token: {token}",
