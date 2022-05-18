@@ -1,9 +1,11 @@
 import sys
 
 import pytest
+from click import ClickException
 
 from ggshield.core.config import Config
 from ggshield.core.config.errors import ParseError
+from ggshield.core.config.user_config import CURRENT_CONFIG_VERSION, UserConfig
 from tests.conftest import write_text, write_yaml
 
 
@@ -85,3 +87,14 @@ class TestUserConfig:
             {"match": "one", "name": ""},
             {"match": "two", "name": ""},
         ]
+
+    def test_load_too_new_version(self, local_config_path):
+        """
+        GIVEN a config file whose format is too recent
+        WHEN we try to load it
+        THEN an exception is raised
+        """
+        write_yaml(local_config_path, {"version": CURRENT_CONFIG_VERSION + 1})
+
+        with pytest.raises(ClickException):
+            UserConfig.load(local_config_path)

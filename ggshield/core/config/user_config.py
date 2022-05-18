@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import click
 import marshmallow_dataclass
@@ -20,6 +20,9 @@ from ggshield.core.constants import (
 )
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
+
+
+CURRENT_CONFIG_VERSION = 1
 
 
 @dataclass
@@ -80,24 +83,29 @@ class UserConfig:
         return user_config, config_path
 
     def _update_from_file(self, config_path: str) -> None:
-        data = load_yaml(config_path) or {}
+        data = load_yaml(config_path) or {"version": CURRENT_CONFIG_VERSION}
+        config_version = data.pop("version", 1)
 
-        # If data contains the old "api-url" key, turn it into an "instance" key,
-        # but only if there is no "instance" key
         try:
-            api_url = data.pop("api_url")
-        except KeyError:
-            pass
-        else:
-            if "instance" not in data:
-                data["instance"] = api_to_dashboard_url(api_url, warn=True)
-        schema = UserConfigSchema()
-        try:
-            obj = schema.load(data)
+            if config_version == 1:
+                obj = self._load_v1(data)
+            else:
+                raise click.ClickException(
+                    f"Don't know how to load config version {config_version}"
+                )
         except ValidationError as exc:
             raise ParseError(f"Error in {config_path}:\n{str(exc)}")
 
         update_from_other_instance(self, obj)
+
+    def _load_v1(self, data: Dict[str, Any]) -> "UserConfig":
+        # If data contains the old "api-url" key, turn it into an "instance" key,
+        # but only if there is no "instance" key
+        api_url = data.pop("api_url", data.pop("api-url", None))
+        if api_url is not None and "instance" not in data:
+            data["instance"] = api_to_dashboard_url(api_url, warn=True)
+
+        return UserConfigSchema().load(data)  # type: ignore
 
     def add_ignored_match(self, secret: Dict) -> None:
         """
