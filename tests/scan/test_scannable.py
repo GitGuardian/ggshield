@@ -1,4 +1,8 @@
+import contextlib
+import os
+import tarfile
 from collections import namedtuple
+from pathlib import Path
 
 import pytest
 
@@ -179,6 +183,52 @@ CHECK_ENVIRONMENT=true
     files = list(c.get_files())
 
     assert len(files) == 0
+
+
+@pytest.mark.parametrize("absolute_path", (True, False))
+def test_get_tar_stream(tmp_path, absolute_path):
+    """
+    GIVEN a Files object, representing paths, either absolute or relative
+    WHEN the get_tar_stream method is called
+    THEN a BytesIO stream is outputted, representing a tar of the files represented by the Files object
+    """
+    file1_path = tmp_path / "file1.txt" if absolute_path else Path("file1.txt")
+    dir_path = tmp_path / "my_test_dir" if absolute_path else Path("my_test_dir")
+    file2_path = dir_path / "file2.txt"
+    file1_content = "My first document"
+    file2_content = "My second document"
+    tar_path = (
+        tmp_path / "test_get_tar_stream.tar.gz"
+        if absolute_path
+        else "test_get_tar_stream.tar.gz"
+    )
+
+    # Create files
+    try:
+        file1_path.write_text(file1_content)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        file2_path.write_text(file2_content)
+
+        file1 = File(file1_content, str(file1_path))
+        file2 = File(file2_content, str(file2_path))
+        files = Files([file1, file2])
+        tar_stream = files.get_tar_stream()
+
+        # Create tar archive from BytesIO stream
+        with open(tar_path, "wb") as tmp_file:
+            tmp_file.write(tar_stream.getvalue())
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall()
+
+        assert file1_content == file1_path.read_text()
+        assert file2_content == file2_path.read_text()
+    finally:
+        # Clean up files if they exists
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(file1_path)
+            os.remove(file2_path)
+            os.remove(tar_path)
+            os.rmdir(dir_path)
 
 
 def test_apply_filter():
