@@ -3,7 +3,9 @@ import os
 import tarfile
 from collections import namedtuple
 from pathlib import Path
+from unittest import mock
 
+import click
 import pytest
 
 from ggshield.core.constants import MAX_FILE_SIZE
@@ -212,11 +214,11 @@ def test_get_tar_stream(tmp_path, absolute_path):
         file1 = File(file1_content, str(file1_path))
         file2 = File(file2_content, str(file2_path))
         files = Files([file1, file2])
-        tar_stream = files.get_tar_stream()
+        tar_stream = files.create_tar()
 
         # Create tar archive from BytesIO stream
         with open(tar_path, "wb") as tmp_file:
-            tmp_file.write(tar_stream.getvalue())
+            tmp_file.write(tar_stream)
         with tarfile.open(tar_path, "r:gz") as tar:
             tar.extractall()
 
@@ -229,6 +231,24 @@ def test_get_tar_stream(tmp_path, absolute_path):
             os.remove(file2_path)
             os.remove(tar_path)
             os.rmdir(dir_path)
+
+
+def test_get_tar_stream_cannot_exceed_max_tar_content_size(tmp_path):
+    with mock.patch("os.path.getsize", return_value=16 * 1024 * 1024):
+        file1_path = tmp_path / "file1.txt"
+        file2_path = tmp_path / "file2.txt"
+
+        file1_path.write_text("")
+        file2_path.write_text("")
+
+        file1 = File("", str(file1_path))
+        file2 = File("", str(file2_path))
+        files = Files([file1, file2])
+        with pytest.raises(
+            click.ClickException,
+            match=r"The total size of the files processed exceeds \d+MB, please try again with less files",
+        ):
+            files.create_tar()
 
 
 def test_apply_filter():
