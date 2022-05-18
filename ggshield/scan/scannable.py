@@ -1,5 +1,7 @@
 import concurrent.futures
 import re
+import tarfile
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
@@ -135,6 +137,13 @@ class Files:
 
     def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
         return Files([file for file in self.files.values() if filter_func(file)])
+
+    def get_tar_stream(self) -> BytesIO:
+        tar_stream = BytesIO()
+        with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
+            for filename in self.files:
+                tar.add(filename)
+        return tar_stream
 
     def scan(
         self,
