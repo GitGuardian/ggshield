@@ -5,12 +5,7 @@ from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.utils import dashboard_to_api_url
 
-
-REVOKE_FAIL_MESSAGE = (
-    "Could not perform the logout command because your token is already revoked or invalid.\n"
-    "Please try with the following command:\n"
-    "  ggshield auth logout --no-revoke"
-)
+from .utils import CONNECTION_ERROR_MESSAGE
 
 
 @click.command()
@@ -65,7 +60,7 @@ def logout(config: Config, instance_url: str, revoke: bool) -> None:
 def check_account_config_exists(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
     if instance.account is None:
-        raise LogoutError(
+        raise click.ClickException(
             f"No token found for instance {instance_url}\n"
             "First try to login by running:\n"
             "  ggshield auth login"
@@ -87,10 +82,14 @@ def revoke_token(config: Config, instance_url: str) -> None:
     try:
         response = client.post(endpoint="token/revoke")
     except ConnectionError:
-        raise LogoutError(REVOKE_FAIL_MESSAGE)
+        raise click.ClickException(CONNECTION_ERROR_MESSAGE)
 
     if response.status_code != 204:
-        raise LogoutError(REVOKE_FAIL_MESSAGE)
+        raise click.ClickException(
+            "Could not perform the logout command because your token is already revoked or invalid.\n"
+            "Please try with the following command:\n"
+            "  ggshield auth logout --no-revoke"
+        )
 
 
 def delete_account_config(config: Config, instance: str) -> None:
@@ -102,9 +101,3 @@ def delete_account_config(config: Config, instance: str) -> None:
     instance_config.account = None
     config.auth_config.set_instance(instance_config)
     config.auth_config.save()
-
-
-class LogoutError(click.ClickException):
-    """
-    Wrapper exception raised during the logout process
-    """
