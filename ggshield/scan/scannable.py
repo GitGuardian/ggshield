@@ -1,4 +1,5 @@
 import concurrent.futures
+import os
 import re
 import tarfile
 from io import BytesIO
@@ -12,7 +13,7 @@ from pygitguardian.models import ScanResult
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
-from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
+from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE, MAX_TAR_CONTENT_SIZE
 from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
@@ -138,12 +139,19 @@ class Files:
     def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
         return Files([file for file in self.files.values() if filter_func(file)])
 
-    def get_tar_stream(self) -> BytesIO:
+    def create_tar(self) -> bytes:
         tar_stream = BytesIO()
+        current_dir_size = 0
         with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
             for filename in self.files:
+                current_dir_size += os.path.getsize(filename)
+                if current_dir_size > MAX_TAR_CONTENT_SIZE:
+                    raise click.ClickException(
+                        f"The total size of the files processed exceeds {MAX_TAR_CONTENT_SIZE/(1024*1024):.0f}MB, "
+                        f"please try again with less files"
+                    )
                 tar.add(filename)
-        return tar_stream
+        return tar_stream.getvalue()
 
     def scan(
         self,
