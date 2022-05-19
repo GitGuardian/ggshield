@@ -276,7 +276,7 @@ class OAuthClient:
             type=api_token_data.get("type", ""),
         )
         self.instance_config.account = account_config
-        self.config.save()
+        self.config.auth_config.save()
 
     @property
     def instance_config(self) -> InstanceConfig:

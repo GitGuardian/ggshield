@@ -101,7 +101,7 @@ def delete_account_config(config: Config, instance: str) -> None:
 
     instance_config.account = None
     config.auth_config.set_instance(instance_config)
-    config.save()
+    config.auth_config.save()
 
 
 class LogoutError(click.ClickException):

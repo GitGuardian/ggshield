@@ -40,5 +40,5 @@ def config_unset_command(
         instance = config.auth_config.get_instance(instance_url)
         setattr(instance, field_name, None)
 
-    config.save()
+    config.auth_config.save()
     return 0
