@@ -40,5 +40,5 @@ def config_set_command(
         instance_config = config.auth_config.get_instance(instance)
         setattr(instance_config, field_name, value)
 
-    config.save()
+    config.auth_config.save()
     return 0

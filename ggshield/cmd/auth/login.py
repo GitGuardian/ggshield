@@ -102,7 +102,7 @@ def login_cmd(
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
 
     if sso_url is not None and method != "web":
         raise click.BadParameter(
@@ -121,8 +121,6 @@ def login_cmd(
         token = click.prompt("Enter your GitGuardian API token", hide_input=True)
         if not token:
             raise click.ClickException("No API token was provided.")
-
-        config.auth_config.current_token = token
 
         # enforce using the token (and not use config default)
         client = create_client(api_key=token, api_url=config.api_url)
@@ -144,7 +142,7 @@ def login_cmd(
         )
 
         instance_config.account = account_config
-        config.save()
+        config.auth_config.save()
         click.echo("Authentication was successful.")
         return 0
 
