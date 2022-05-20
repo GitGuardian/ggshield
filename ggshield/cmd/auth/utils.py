@@ -10,7 +10,7 @@ VERSION_TOO_LOW_MESSAGE = "Your GitGuardian dashboard version is too low, upgrad
 DISABLED_FLOW_MESSAGE = "Your GitGuardian dashboard does not authorize this command, contact your administrator."
 CONNECTION_ERROR_MESSAGE = (
     "Could not connect to GitGuardian.\n"
-    "Please check your internet connection or if the specified URL is correct."
+    "Please check your internet connection and if the specified URL is correct."
 )
 
 
