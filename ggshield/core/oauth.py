@@ -363,6 +363,8 @@ class OAuthClient:
                 "Maximum number of personal access tokens reached. Could not provision a new personal access token.\n"
                 f"Go to your workspace to manage your tokens: {url}"
             )
+        elif error_code == "invalid_saml":
+            return "The given SSO URL is invalid."
         return f"An unknown server error has occurred (error code: {error_code})."
 
     @property

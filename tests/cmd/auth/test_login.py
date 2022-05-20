@@ -824,6 +824,10 @@ class TestLoginUtils:
                 ),
             ),
             (
+                "invalid_saml",
+                "The given SSO URL is invalid.",
+            ),
+            (
                 "invalid_error_code",
                 "An unknown server error has occurred (error code: invalid_error_code).",
             ),
