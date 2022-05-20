@@ -1,8 +1,14 @@
+from typing import Dict, Optional, Union
+
 import click
 import urllib3
 from pygitguardian import GGClient
+from pygitguardian.client import is_ok, load_detail
+from pygitguardian.models import Detail
 from requests import Session
 
+from ..iac.models.iac_multi_scan_result import IaCMultiScanResult
+from ..iac.models.iac_scan_parameters import IaCScanParameters, IaCScanParametersSchema
 from .config import Config
 from .config.errors import UnknownInstanceError
 from .constants import DEFAULT_DASHBOARD_URL
@@ -36,7 +42,7 @@ def create_client(
     """
     session = create_session(allow_self_signed=allow_self_signed)
     try:
-        return GGClient(
+        return IaCGGClient(
             api_key=api_key,
             base_uri=api_url,
             user_agent="ggshield",
@@ -54,3 +60,32 @@ def create_session(allow_self_signed: bool = False) -> Session:
         urllib3.disable_warnings()
         session.verify = False
     return session
+
+
+class IaCGGClient(GGClient):
+    def directory_scan(
+        self,
+        directory: bytes,
+        scan_parameters: IaCScanParameters,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Detail, IaCMultiScanResult]:
+
+        resp = self.request(
+            "post",
+            endpoint="iac/scan",
+            extra_headers=extra_headers,
+            data={
+                "directory": directory,
+                "scan_parameters": IaCScanParametersSchema().dumps(scan_parameters),
+            },
+        )
+
+        result: Union[Detail, IaCMultiScanResult]
+        if is_ok(resp):
+            result = IaCMultiScanResult.SCHEMA.load(resp.json())
+        else:
+            result = load_detail(resp)
+
+        result.status_code = resp.status_code
+
+        return result
