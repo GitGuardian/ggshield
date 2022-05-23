@@ -63,7 +63,7 @@ class TestUserConfig:
         write_yaml(local_config_path, {"paths-ignore": ["/tests/"]})
 
         config = Config()
-        assert r"/tests/" in config.paths_ignore
+        assert r"/tests/" in config.secret.ignored_paths
 
     def test_accumulation_matches(
         self, cli_fs_runner, local_config_path, global_config_path
@@ -128,6 +128,7 @@ class TestUserConfig:
                     # A match using the old format: just a sha256
                     "1234abcd",
                 ],
+                "paths-ignore": ["/foo", "/bar"],
             },
         )
 
@@ -146,3 +147,4 @@ class TestUserConfig:
                 "match": "1234abcd",
             },
         ]
+        assert config.secret.ignored_paths == {"/foo", "/bar"}

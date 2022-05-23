@@ -175,7 +175,7 @@ def test_ignore_last_found_preserve_previous_config(client, isolated_fs):
 
     previous_paths = {"some_path", "some_other_path"}
     config.secret.ignored_matches = previous_secrets.copy()
-    config.paths_ignore = previous_paths
+    config.secret.ignored_paths = previous_paths
     config.exit_zero = True
 
     cache = Cache()
@@ -186,5 +186,5 @@ def test_ignore_last_found_preserve_previous_config(client, isolated_fs):
     found_secrets = sorted(FOUND_SECRETS + previous_secrets, key=compare_matches_ignore)
 
     assert matches_ignore == found_secrets
-    assert config.paths_ignore == previous_paths
+    assert config.secret.ignored_paths == previous_paths
     assert config.exit_zero is True

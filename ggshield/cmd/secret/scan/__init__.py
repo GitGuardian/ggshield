@@ -134,14 +134,14 @@ def scan_group_impl(
     ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
     return_code = 0
 
-    paths_ignore = ctx.obj["config"].paths_ignore
+    ignored_paths = ctx.obj["config"].secret.ignored_paths
     if exclude is not None:
-        paths_ignore.update(exclude)
+        ignored_paths.update(exclude)
 
     if not ignore_default_excludes and not ctx.obj["config"].ignore_default_excludes:
-        paths_ignore.update(IGNORED_DEFAULT_WILDCARDS)
+        ignored_paths.update(IGNORED_DEFAULT_WILDCARDS)
 
-    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(paths_ignore)
+    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(ignored_paths)
     config: Config = ctx.obj["config"]
 
     if show_secrets is not None:

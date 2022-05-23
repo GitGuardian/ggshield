@@ -34,6 +34,7 @@ class SecretConfig:
     show_secrets: bool = False
     ignored_detectors: Set[str] = field(default_factory=set)
     ignored_matches: List[IgnoredMatch] = field(default_factory=list)
+    ignored_paths: Set[str] = field(default_factory=set)
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
         """
@@ -58,7 +59,6 @@ class UserConfig:
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
-    paths_ignore: Set[str] = field(default_factory=set)
     verbose: bool = False
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
@@ -168,6 +168,7 @@ class UserV1Config:
             show_secrets=v1config.show_secrets,
             ignored_detectors=v1config.banlisted_detectors,
             ignored_matches=v1config.matches_ignore,
+            ignored_paths=v1config.paths_ignore,
         )
 
         return UserConfig(
@@ -178,7 +179,6 @@ class UserV1Config:
             allow_self_signed=v1config.allow_self_signed,
             max_commits_for_hook=v1config.max_commits_for_hook,
             ignore_default_excludes=v1config.ignore_default_excludes,
-            paths_ignore=v1config.paths_ignore,
             secret=secret,
         )
 
