@@ -11,7 +11,7 @@ from ggshield.core.utils import clean_url
 
 
 def validate_login_path(
-    config: Config, instance: Optional[str], sso_url: Optional[str]
+    instance: Optional[str], sso_url: Optional[str]
 ) -> Tuple[Optional[str], Optional[str]]:
     """
     Validate that the SSO URL and the instance refer to the same instance if they are both defined,
@@ -39,7 +39,7 @@ def validate_login_path(
     if instance is None:
         return sso_instance, sso_login_path
 
-    config_parsed_url = clean_url(config.dashboard_url)
+    config_parsed_url = clean_url(instance)
     if (
         config_parsed_url.scheme != sso_parsed_url.scheme
         or config_parsed_url.netloc != sso_parsed_url.netloc
@@ -66,7 +66,7 @@ def validate_login_path(
     "--sso-url",
     required=False,
     type=str,
-    help="Instance URL to authenticate with on a pre-selected SAML SSO page.",
+    help="URL of your SSO login page to force the authentication flow through your workspace SSO.",
 )
 @click.option(
     "--token-name",
@@ -147,9 +147,7 @@ def login_cmd(
         return 0
 
     if method == "web":
-        instance, login_path = validate_login_path(
-            config, instance=instance, sso_url=sso_url
-        )
+        instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
         if instance:
             config.set_cmdline_instance_name(instance)
         defined_instance = config.instance_name

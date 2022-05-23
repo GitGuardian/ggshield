@@ -110,10 +110,8 @@ class TestAuthLogout:
 
         assert exit_code == 1, output
         assert output == (
-            "Error: Could not perform the logout command "
-            "because your token is already revoked or invalid.\n"
-            "Please try with the following command:\n"
-            "  ggshield auth logout --no-revoke\n"
+            "Error: Could not connect to GitGuardian.\n"
+            "Please check your internet connection and if the specified URL is correct.\n"
         )
 
     def test_logout_server_error(self, monkeypatch, cli_fs_runner):
