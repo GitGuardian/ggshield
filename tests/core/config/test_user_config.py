@@ -82,7 +82,7 @@ class TestUserConfig:
             {"matches_ignore": [{"name": "", "match": "three"}]},
         )
         config = Config()
-        assert config.matches_ignore == [
+        assert config.secret.ignored_matches == [
             {"match": "three", "name": ""},
             {"match": "one", "name": ""},
             {"match": "two", "name": ""},
@@ -120,6 +120,14 @@ class TestUserConfig:
                 "exit-zero": True,
                 "show-secrets": True,
                 "banlisted-detectors": ["d1", "d2"],
+                "matches-ignore": [
+                    {
+                        "name": "foo",
+                        "match": "abcdef",
+                    },
+                    # A match using the old format: just a sha256
+                    "1234abcd",
+                ],
             },
         )
 
@@ -128,3 +136,13 @@ class TestUserConfig:
         assert config.exit_zero
         assert config.secret.show_secrets
         assert config.secret.ignored_detectors == {"d1", "d2"}
+        assert config.secret.ignored_matches == [
+            {
+                "name": "foo",
+                "match": "abcdef",
+            },
+            {
+                "name": "",
+                "match": "1234abcd",
+            },
+        ]

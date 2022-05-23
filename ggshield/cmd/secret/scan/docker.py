@@ -43,7 +43,7 @@ def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 verbose=config.verbose,
-                matches_ignore=config.matches_ignore,
+                matches_ignore=config.secret.ignored_matches,
                 all_policies=config.all_policies,
                 scan_id=name,
                 ignored_detectors=config.secret.ignored_detectors,

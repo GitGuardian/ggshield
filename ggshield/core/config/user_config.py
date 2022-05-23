@@ -33,6 +33,19 @@ class SecretConfig:
 
     show_secrets: bool = False
     ignored_detectors: Set[str] = field(default_factory=set)
+    ignored_matches: List[IgnoredMatch] = field(default_factory=list)
+
+    def add_ignored_match(self, secret: IgnoredMatch) -> None:
+        """
+        Add secret to ignored_matches.
+        """
+        for match in self.ignored_matches:
+            if match["match"] == secret["match"]:
+                # take the opportunity to name the ignored match
+                if not match["name"]:
+                    match["name"] = secret["name"]
+                return
+        self.ignored_matches.append(secret)
 
 
 @dataclass
@@ -45,7 +58,6 @@ class UserConfig:
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
-    matches_ignore: List[IgnoredMatch] = field(default_factory=list)
     paths_ignore: Set[str] = field(default_factory=set)
     verbose: bool = False
     allow_self_signed: bool = False
@@ -111,28 +123,6 @@ class UserConfig:
 
         update_from_other_instance(self, obj)
 
-    def add_ignored_match(self, secret: Dict) -> None:
-        """
-        Add secret to matches_ignore.
-        if it matches an ignore not in dict form, it converts it.
-        """
-        found = False
-        for i, match in enumerate(self.matches_ignore):
-            if isinstance(match, dict):
-                if match["match"] == secret["match"]:
-                    found = True
-                    # take the opportunity to name the ignored match
-                    if not match["name"]:
-                        match["name"] = secret["name"]
-            elif isinstance(match, str):
-                if match == secret["match"]:
-                    found = True
-                    self.matches_ignore[i] = secret
-            else:
-                raise click.ClickException("Wrong format found in ignored matches")
-        if not found:
-            self.matches_ignore.append(secret)
-
 
 UserConfigSchema = marshmallow_dataclass.class_schema(UserConfig)
 
@@ -170,11 +160,14 @@ class UserV1Config:
             if "instance" not in data:
                 data["instance"] = api_to_dashboard_url(api_url, warn=True)
 
+        UserV1Config.update_matches_ignore(data)
+
         v1config = UserV1ConfigSchema().load(data)
 
         secret = SecretConfig(
             show_secrets=v1config.show_secrets,
             ignored_detectors=v1config.banlisted_detectors,
+            ignored_matches=v1config.matches_ignore,
         )
 
         return UserConfig(
@@ -185,10 +178,23 @@ class UserV1Config:
             allow_self_signed=v1config.allow_self_signed,
             max_commits_for_hook=v1config.max_commits_for_hook,
             ignore_default_excludes=v1config.ignore_default_excludes,
-            matches_ignore=v1config.matches_ignore,
             paths_ignore=v1config.paths_ignore,
             secret=secret,
         )
+
+    @staticmethod
+    def update_matches_ignore(data: Dict[str, Any]) -> None:
+        """
+        v1 config format allowed to use just a hash of the secret for matches_ignore
+        field v2 does not. This function converts the hash-only matches.
+        """
+        matches_ignore = data.get("matches_ignore")
+        if not matches_ignore:
+            return
+
+        for idx, match in enumerate(matches_ignore):
+            if isinstance(match, str):
+                matches_ignore[idx] = {"name": "", "match": match}
 
 
 UserV1ConfigSchema = marshmallow_dataclass.class_schema(UserV1Config)

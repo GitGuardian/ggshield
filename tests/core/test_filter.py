@@ -165,7 +165,8 @@ def test_remove_ignores(
     scan_result: ScanResult, all_policies: bool, ignores: Iterable, final_len: int
 ) -> None:
     copy_result = copy.deepcopy(scan_result)
-    remove_ignored_from_result(copy_result, all_policies, ignores)
+    ignored_matches = [{"name": "", "match": x} for x in ignores]
+    remove_ignored_from_result(copy_result, all_policies, ignored_matches)
 
     assert len(copy_result.policy_breaks) == final_len
     assert copy_result.policy_break_count == final_len

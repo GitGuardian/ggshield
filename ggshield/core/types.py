@@ -1,8 +1,7 @@
 # This file exists to avoid circular dependencies when import config
-from typing import Dict, Union
+from typing import Dict
 
 
-"""An ignored match can be either a string holding the SHA of the match, or a dict of the
-form {"name": some_name, "match": SHA}
+"""An ignored match is a dict of the form {"name": some_name, "match": SHA}
 """
-IgnoredMatch = Union[str, Dict[str, str]]
+IgnoredMatch = Dict[str, str]

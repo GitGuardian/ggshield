@@ -49,7 +49,7 @@ def scan_repo_path(
                 output_handler=output_handler,
                 verbose=config.verbose,
                 exclusion_regexes=set(),
-                matches_ignore=config.matches_ignore,
+                matches_ignore=config.secret.ignored_matches,
                 all_policies=config.all_policies,
                 scan_id=scan_id,
                 ignored_detectors=config.secret.ignored_detectors,
