@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # This script updates our Pipfile.lock using the oldest supported version of
-# Python. The version is defined in the Dockerfile.update-pipfile-lock file.
+# Python. The version is defined in the Dockerfile.
 set -euo pipefail
 
 IMAGE_NAME=ggshield-update-pipfile-lock
