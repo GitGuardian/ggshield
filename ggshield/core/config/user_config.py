@@ -23,12 +23,28 @@ from ggshield.core.utils import api_to_dashboard_url
 
 
 @dataclass
+class IaCConfig:
+    """
+    Holds the iac config as defined .gitguardian.yaml files
+    (local and global).
+    """
+
+    ignored_paths: Set[str] = field(default_factory=set)
+    ignored_policies: Set[str] = field(default_factory=set)
+    minimum_severity: str = "LOW"
+
+
+IaCConfigSchema = marshmallow_dataclass.class_schema(IaCConfig)
+
+
+@dataclass
 class UserConfig:
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
     (local and global).
     """
 
+    iac: IaCConfig = field(default_factory=IaCConfig)
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
