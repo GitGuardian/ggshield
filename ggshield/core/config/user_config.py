@@ -7,6 +7,7 @@ import marshmallow_dataclass
 from marshmallow import ValidationError
 
 from ggshield.core.config.errors import ParseError
+from ggshield.core.config.iac_config import IaCConfig
 from ggshield.core.config.utils import (
     get_global_path,
     load_yaml,
@@ -29,6 +30,7 @@ class UserConfig:
     (local and global).
     """
 
+    iac: IaCConfig = field(default_factory=IaCConfig)
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
