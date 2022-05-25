@@ -31,7 +31,6 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
-            all_policies=config.all_policies,
             scan_id=commit_range,
             ignored_detectors=config.secret.ignored_detectors,
         )

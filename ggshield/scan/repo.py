@@ -50,7 +50,6 @@ def scan_repo_path(
                 verbose=config.verbose,
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
-                all_policies=config.all_policies,
                 scan_id=scan_id,
                 ignored_detectors=config.secret.ignored_detectors,
             )
@@ -64,14 +63,12 @@ def scan_commit(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    all_policies: bool,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
         client=client,
         cache=cache,
         matches_ignore=matches_ignore,
-        all_policies=all_policies,
         mode_header=SupportedScanMode.REPO.value,
         ignored_detectors=ignored_detectors,
     )
@@ -93,7 +90,6 @@ def scan_commit_range(
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    all_policies: bool,
     scan_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
@@ -116,7 +112,6 @@ def scan_commit_range(
                 cache,
                 verbose,
                 matches_ignore,
-                all_policies,
                 ignored_detectors,
             )
             for sha in commit_list

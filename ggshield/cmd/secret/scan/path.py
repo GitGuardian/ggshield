@@ -37,7 +37,6 @@ def path_cmd(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.secret.ignored_matches,
-            all_policies=config.all_policies,
             mode_header=SupportedScanMode.PATH.value,
             ignored_detectors=config.secret.ignored_detectors,
         )

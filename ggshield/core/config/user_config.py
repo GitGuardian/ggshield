@@ -18,6 +18,7 @@ from ggshield.core.constants import (
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
+from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
 
@@ -57,12 +58,10 @@ class UserConfig:
     """
 
     instance: Optional[str] = None
-    all_policies: bool = False
     exit_zero: bool = False
     verbose: bool = False
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
-    ignore_default_excludes: bool = False
     secret: SecretConfig = field(default_factory=SecretConfig)
 
     def save(self, config_path: str) -> None:
@@ -164,6 +163,16 @@ class UserV1Config:
 
         v1config = UserV1ConfigSchema().load(data)
 
+        if v1config.all_policies:
+            display_warning(
+                "The `all_policies` option has been deprecated and is now ignored."
+            )
+
+        if v1config.ignore_default_excludes:
+            display_warning(
+                "The `ignore_default_exclude` option has been deprecated and is now ignored."
+            )
+
         secret = SecretConfig(
             show_secrets=v1config.show_secrets,
             ignored_detectors=v1config.banlisted_detectors,
@@ -173,12 +182,10 @@ class UserV1Config:
 
         return UserConfig(
             instance=v1config.instance,
-            all_policies=v1config.all_policies,
             exit_zero=v1config.exit_zero,
             verbose=v1config.verbose,
             allow_self_signed=v1config.allow_self_signed,
             max_commits_for_hook=v1config.max_commits_for_hook,
-            ignore_default_excludes=v1config.ignore_default_excludes,
             secret=secret,
         )
 

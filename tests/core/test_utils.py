@@ -77,7 +77,6 @@ def test_make_indices_patch(client, cache, name, content, is_patch, expected_ind
             client=client,
             cache=cache,
             matches_ignore={},
-            all_policies=True,
             mode_header=SupportedScanMode.PATH.value,
             ignored_detectors=None,
         )

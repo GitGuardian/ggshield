@@ -25,7 +25,6 @@ MAXIMUM_CENSOR_LENGTH = 60
 
 def is_ignored(
     policy_break: PolicyBreak,
-    all_policies: bool,
     matches_ignore: Iterable[IgnoredMatch],
 ) -> bool:
     """
@@ -40,7 +39,7 @@ def is_ignored(
     """
 
     matches = [match["match"] for match in matches_ignore]
-    if not all_policies and policy_break.policy.lower() != "secrets detection":
+    if policy_break.policy.lower() != "secrets detection":
         return True
     if get_ignore_sha(policy_break) in matches or any(
         match.match in matches for match in policy_break.matches
@@ -50,7 +49,7 @@ def is_ignored(
 
 
 def remove_ignored_from_result(
-    scan_result: ScanResult, all_policies: bool, matches_ignore: Iterable[IgnoredMatch]
+    scan_result: ScanResult, matches_ignore: Iterable[IgnoredMatch]
 ) -> None:
     """
     remove_ignored removes occurrences from a Scan Result based on a sha
@@ -63,7 +62,7 @@ def remove_ignored_from_result(
     scan_result.policy_breaks = [
         policy_break
         for policy_break in scan_result.policy_breaks
-        if not is_ignored(policy_break, all_policies, matches_ignore)
+        if not is_ignored(policy_break, matches_ignore)
     ]
 
     scan_result.policy_break_count = len(scan_result.policy_breaks)

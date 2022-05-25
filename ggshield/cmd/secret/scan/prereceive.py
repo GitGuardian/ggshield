@@ -161,7 +161,6 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 verbose=config.verbose,
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
                 matches_ignore=config.secret.ignored_matches,
-                all_policies=config.all_policies,
                 scan_id=" ".join(commit_list),
                 ignored_detectors=config.secret.ignored_detectors,
             )

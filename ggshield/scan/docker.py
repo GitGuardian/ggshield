@@ -237,7 +237,6 @@ def docker_scan_archive(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    all_policies: bool,
     scan_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
@@ -253,7 +252,6 @@ def docker_scan_archive(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            all_policies=all_policies,
             mode_header=SupportedScanMode.DOCKER.value,
             ignored_detectors=ignored_detectors,
             on_file_chunk_scanned=update_progress,

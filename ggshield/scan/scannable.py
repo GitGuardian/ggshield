@@ -141,7 +141,6 @@ class Files:
         client: GGClient,
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
-        all_policies: bool,
         mode_header: str,
         ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
@@ -176,7 +175,7 @@ class Files:
                     handle_scan_error(scan, chunk)
                     continue
                 for index, scanned in enumerate(scan.scan_results):
-                    remove_ignored_from_result(scanned, all_policies, matches_ignore)
+                    remove_ignored_from_result(scanned, matches_ignore)
                     remove_results_from_ignore_detectors(scanned, ignored_detectors)
                     if scanned.has_policy_breaks:
                         for policy_break in scanned.policy_breaks:

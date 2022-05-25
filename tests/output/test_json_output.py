@@ -60,7 +60,6 @@ def test_json_output(client, cache, name, input_patch, expected, snapshot):
             client=client,
             cache=cache,
             matches_ignore={},
-            all_policies=True,
             mode_header=SupportedScanMode.PATH.value,
             ignored_detectors=None,
         )

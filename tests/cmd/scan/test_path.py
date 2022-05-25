@@ -6,7 +6,6 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
-from ggshield.core.constants import LOCAL_CONFIG_PATHS
 from tests.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
     UNCHECKED_SECRET,
@@ -294,65 +293,6 @@ class TestScanDirectory:
             string in result.output
             for string in ["Do you want to continue", "not_committed"]
         ), "not_committed files not should have been ignored"
-        assert result.exception is None
-
-    @skipwindows
-    def test_ignore_default_excludes(self, cli_fs_runner):
-        """
-        GIVEN a path scan
-        WHEN no options are passed
-        THEN ignored patterns by default should be used
-        """
-        path = create_normally_ignored_file()
-
-        result = cli_fs_runner.invoke(
-            cli, ["secret", "scan", "-v", "path", "--recursive", "."]
-        )
-        assert str(path) not in result.output
-        assert result.exit_code == 0
-        assert result.exception is None
-
-    def test_ignore_default_excludes_with_configuration(self, cli_fs_runner):
-        """
-        GIVEN a path scan
-        WHEN ignore-default-excludes has been put to true in the configuration
-        THEN ignored patterns by default should NOT be used
-        """
-        path = create_normally_ignored_file()
-        local_config = Path(LOCAL_CONFIG_PATHS[0])
-        local_config.write_text("ignore-default-excludes: true")
-
-        with my_vcr.use_cassette("ignore_default_excludes_from_configuration"):
-            result = cli_fs_runner.invoke(
-                cli, ["secret", "scan", "-v", "path", "--recursive", "-y", "."]
-            )
-        assert str(path) in result.output
-        assert result.exit_code == 0
-        assert result.exception is None
-
-    def test_ignore_default_excludes_with_flag(self, cli_fs_runner):
-        """
-        GIVEN a path scan
-        WHEN --ignore-default-excludes has been used
-        THEN ignored patterns by default should NOT be used
-        """
-        path = create_normally_ignored_file()
-
-        with my_vcr.use_cassette("ignore_default_excludes_from_flag"):
-            result = cli_fs_runner.invoke(
-                cli,
-                [
-                    "secret",
-                    "scan",
-                    "-v",
-                    "--ignore-default-excludes",
-                    "path",
-                    "--recursive",
-                    ".",
-                ],
-            )
-        assert str(path) in result.output
-        assert result.exit_code == 0
         assert result.exception is None
 
     @pytest.mark.parametrize(

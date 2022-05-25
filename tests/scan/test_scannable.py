@@ -71,7 +71,6 @@ def test_scan_patch(client, cache, name, input_patch, expected):
             client=client,
             cache=cache,
             matches_ignore={},
-            all_policies=True,
             mode_header=SupportedScanMode.PATH.value,
         )
         for result in results:
