@@ -1,6 +1,13 @@
 import pytest
 
-from ggshield.iac.models import IaCScanResult, IaCScanResultSchema
+from ggshield.iac.models import (
+    IaCFileResult,
+    IaCFileResultSchema,
+    IaCScanResult,
+    IaCScanResultSchema,
+    IaCVulnerability,
+    IaCVulnerabilitySchema,
+)
 from ggshield.iac.models.iac_scan_parameters import (
     IaCScanParameters,
     IaCScanParametersSchema,
@@ -20,7 +27,53 @@ class TestModel:
                     "iac_engine_version": "version",
                     "entities_with_incidents": [
                         {
-                            "filename": "myfilename",
+                            "filename": "filename",
+                            "incidents": [
+                                {
+                                    "policy": "mypolicy,",
+                                    "policy_id": "mypolicyid",
+                                    "line_end": 0,
+                                    "line_start": 0,
+                                    "description": "mydescription",
+                                    "documentation_url": "mydoc",
+                                    "component": "mycomponent",
+                                    "severity": "myseverity",
+                                    "ignore_sha": "mysha",
+                                    "some_extra_field": "extra",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            ),
+            (
+                IaCScanParametersSchema,
+                IaCScanParameters,
+                {"ignored_policies": ["pol1", "pol2"], "minimum_severity": "LOW"},
+            ),
+            (
+                IaCVulnerabilitySchema,
+                IaCVulnerability,
+                {
+                    "policy": "mypolicy,",
+                    "policy_id": "mypolicyid",
+                    "line_end": 0,
+                    "line_start": 0,
+                    "description": "mydescription",
+                    "documentation_url": "mydoc",
+                    "component": "mycomponent",
+                    "severity": "myseverity",
+                    "ignore_sha": "mysha",
+                    "some_extra_field": "extra",
+                },
+            ),
+            (
+                IaCFileResultSchema,
+                IaCFileResult,
+                {
+                    "filename": "filename",
+                    "incidents": [
+                        {
                             "policy": "mypolicy,",
                             "policy_id": "mypolicyid",
                             "line_end": 0,
@@ -34,11 +87,6 @@ class TestModel:
                         }
                     ],
                 },
-            ),
-            (
-                IaCScanParametersSchema,
-                IaCScanParameters,
-                {"ignored_policies": ["pol1", "pol2"], "minimum_severity": "LOW"},
             ),
         ],
     )
