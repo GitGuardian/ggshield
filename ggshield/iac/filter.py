@@ -22,8 +22,6 @@ IAC_FILENAME_KEYWORDS = {"tfvars", "dockerfile"}
 def get_iac_files_from_paths(
     paths: List[str],
     exclusion_regexes: Set[re.Pattern],
-    recursive: bool,
-    yes: bool,
     verbose: bool,
     ignore_git: bool = False,
 ) -> Files:
@@ -37,9 +35,17 @@ def get_iac_files_from_paths(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """
-    return get_files_from_paths(
-        paths, exclusion_regexes, recursive, yes, verbose, ignore_git
-    ).apply_filter(is_file_iac_file)
+    return (
+        get_files_from_paths(
+            paths=[str(path)],
+            exclusion_regexes=exclusion_regexes,
+            recursive=True,
+            yes=True,
+            verbose=verbose,
+            ignore_git=ignore_git,
+        )
+        .apply_filter(is_file_iac_file)
+    )
 
 
 def is_file_iac_file(file: File) -> bool:
