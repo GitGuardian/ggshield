@@ -205,6 +205,7 @@ jobs:
 
   push_to_cloudsmith:
     needs: build_packages
+    runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Download packages
