@@ -43,7 +43,9 @@ def get_files_from_paths(
     size = len(files)
     if size > 1 and not yes:
         click.confirm(
-            f"{size} files will be scanned. Do you want to continue?", abort=True
+            f"{size} files will be scanned. Do you want to continue?",
+            abort=True,
+            err=True,
         )
 
     return Files(files)

@@ -30,10 +30,10 @@ def test_get_iac_files_from_paths(tmp_path):
     for path in tmp_paths:
         Path(path).write_text("something")
 
-    files = get_iac_files_from_paths([str(tmp_path)], set(), True, True, True)
+    files = get_iac_files_from_paths(tmp_path, set(), True)
     assert len(files.files) == 10
-    assert str(tmp_path / "file1.json") not in files.files
-    assert str(tmp_path / "file2.json") in files.files
+    assert str("file1.json") not in files.files
+    assert str("file2.json") in files.files
 
 
 def test_get_iac_files_from_paths_excluded(tmp_path):
@@ -46,12 +46,10 @@ def test_get_iac_files_from_paths_excluded(tmp_path):
     for path in tmp_paths:
         Path(path).write_text("something")
 
-    files = get_iac_files_from_paths(
-        [str(tmp_path)], {re.compile(r"file2")}, True, True, True
-    )
+    files = get_iac_files_from_paths(tmp_path, {re.compile(r"file2")}, True)
     assert len(files.files) == 9
-    assert str(tmp_path / "file2.json") not in files.files
-    assert str(tmp_path / "file3.yaml") in files.files
+    assert str("file2.json") not in files.files
+    assert str("file3.yaml") in files.files
 
 
 def test_get_iac_files_from_paths_ignore_git(tmp_path):
@@ -68,7 +66,7 @@ def test_get_iac_files_from_paths_ignore_git(tmp_path):
     subprocess.run(["git", "init"], cwd=tmp_path_str)
     subprocess.run(["git", "add", "."], cwd=tmp_path_str)
 
-    files = get_iac_files_from_paths([tmp_path_str], set(), True, True, True)
+    files = get_iac_files_from_paths(tmp_path, set(), True)
     assert len(files.files) == 9
-    assert str(tmp_path / "file2.json") not in files.files
-    assert str(tmp_path / "file3.yaml") in files.files
+    assert str("file2.json") not in files.files
+    assert str("file3.yaml") in files.files

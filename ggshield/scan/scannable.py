@@ -22,6 +22,7 @@ from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 
 from ..core.extra_headers import get_extra_headers
+from ..iac.models import IaCScanResult
 from .scannable_errors import handle_scan_error
 
 
@@ -42,6 +43,7 @@ class ScanCollection(NamedTuple):
     type: str
     results: Optional[List[Result]] = None
     scans: Optional[List["ScanCollection"]] = None  # type: ignore[misc]
+    iac_result: Optional[IaCScanResult] = None
     optional_header: Optional[str] = None  # To be printed in Text Output
     extra_info: Optional[Dict[str, str]] = None  # To be included in JSON Output
 
@@ -67,6 +69,9 @@ class File:
         self.document = document
         self.filename = filename
         self.filemode = Filemode.FILE
+
+    def relative_to(self, root_path: Path) -> "File":
+        return File(self.document, str(Path(self.filename).relative_to(root_path)))
 
     @staticmethod
     def from_bytes(raw_document: bytes, filename: str) -> "File":
@@ -135,6 +140,9 @@ class Files:
 
     def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
         return Files([file for file in self.files.values() if filter_func(file)])
+
+    def relative_to(self, root_path: Path) -> "Files":
+        return Files([file.relative_to(root_path) for file in self.files.values()])
 
     def scan(
         self,
