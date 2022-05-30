@@ -7,7 +7,7 @@ from pygitguardian.client import is_ok, load_detail
 from pygitguardian.models import Detail
 from requests import Session
 
-from ..iac.models import IaCScanResult
+from ..iac.models import IaCScanResult, IaCScanResultSchema
 from ..iac.models.iac_scan_parameters import IaCScanParameters, IaCScanParametersSchema
 from .config import Config
 from .config.errors import UnknownInstanceError
@@ -82,7 +82,7 @@ class IaCGGClient(GGClient):
 
         result: Union[Detail, IaCScanResult]
         if is_ok(resp):
-            result = IaCScanResult.SCHEMA.load(resp.json())
+            result = IaCScanResultSchema().load(resp.json())
         else:
             result = load_detail(resp)
 
