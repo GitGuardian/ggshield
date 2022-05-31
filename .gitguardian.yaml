@@ -1,29 +1,36 @@
-all-policies: false
-api-url: https://api.gitguardian.com
-exit-zero: false
-matches-ignore:
-  - 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
-  - 139ed5c2b5ae84b0fbb1bfbce6015ac96e5af5050a16d0ffdba612440fb0ee4d
-  - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
-  - c928bac4121c8d652d58adaf878d32d6ab961da9660665a9c9307be66a48941d
-  - 0edc6552a13187748a221a008eb119fad8b94b1978aa63ccd2da67e3223df461
-  - ba0855f684d0a568d17dff7e26c5e9d47d60a7e903e997e59c0ff2ff3cd5daa0
-  - m42ploz2wd
-  - 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
-  - match: 1a56aa9f3d76450ec4731ba7ae247176dfb460dca2989c40ed634eb9a2c1c262
-    name: Generic High Entropy Secret - tests/output/snapshots/snap_test_text_output.py
-  - match: 793865a3729a2c5d38ef874a270accf407cd993af32acefb4e13fc1ea242e9cb
-    name: Generic High Entropy Secret - tests/cassettes/test_scan_file_secret-False.yaml
-  - match: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd
-    name: GitGuardian Test Token Checked - tests/cassettes/test_scan_file_secret-True.yaml
-  - match: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4
-    name: GitGuardian Development Secret - tests/cassettes/test_scan_file_secret.yaml
-paths-ignore:
-  - '**/README.md'
-  - doc/*
-  - LICENSE
-  - .dockerignore
-  - .gitignore
-  - .env
-show-secrets: false
-verbose: false
+version: 2
+
+secret:
+  ignored-matches:
+    - match: 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
+      name:
+    - match: 139ed5c2b5ae84b0fbb1bfbce6015ac96e5af5050a16d0ffdba612440fb0ee4d
+      name:
+    - match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+      name:
+    - match: c928bac4121c8d652d58adaf878d32d6ab961da9660665a9c9307be66a48941d
+      name:
+    - match: 0edc6552a13187748a221a008eb119fad8b94b1978aa63ccd2da67e3223df461
+      name:
+    - match: ba0855f684d0a568d17dff7e26c5e9d47d60a7e903e997e59c0ff2ff3cd5daa0
+      name:
+    - match: m42ploz2wd
+      name:
+    - match: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+      name:
+    - match: 1a56aa9f3d76450ec4731ba7ae247176dfb460dca2989c40ed634eb9a2c1c262
+      name: Generic High Entropy Secret - tests/output/snapshots/snap_test_text_output.py
+    - match: 793865a3729a2c5d38ef874a270accf407cd993af32acefb4e13fc1ea242e9cb
+      name: Generic High Entropy Secret - tests/cassettes/test_scan_file_secret-False.yaml
+    - match: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd
+      name: GitGuardian Test Token Checked - tests/cassettes/test_scan_file_secret-True.yaml
+    - match: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4
+      name: GitGuardian Development Secret - tests/cassettes/test_scan_file_secret.yaml
+
+  ignored-paths:
+    - '**/README.md'
+    - doc/*
+    - LICENSE
+    - .dockerignore
+    - .gitignore
+    - .env
