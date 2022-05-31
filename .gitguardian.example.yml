@@ -23,7 +23,7 @@ exit-zero: false # default: false
 
 verbose: false # default: false
 
-api-url: https://api.gitguardian.com
+instance: https://api.gitguardian.com
 
 # Maximum commits to scan in a hook.
 max-commits-for-hook: 50 # default: 50
