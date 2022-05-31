@@ -1,39 +1,37 @@
-# Exclude files and paths by globbing
-paths-ignore:
-  - '**/README.md'
-  - 'doc/*'
-  - 'LICENSE'
+# Required, otherwise ggshield considers the file to use the deprecated v1 format
+version: 2
 
-# Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
-matches-ignore:
-  - name:
-    match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
-  - name: credentials
-    match: MY_TEST_CREDENTIAL
-
-show-secrets: false # default: false
-
-# By default only secrets are detected. Use all-policies to toggle this behaviour.
-all-policies: false # default: false
-
-# Set to true if the desired exit code for the CLI is always 0,
-# otherwise the exit code will be 1 if incidents are found
-# the environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behaviour.
+# Set to true if the desired exit code for the CLI is always 0, otherwise the
+# exit code will be 1 if incidents are found.
+# The environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behavior.
 exit-zero: false # default: false
 
 verbose: false # default: false
 
-api-url: https://api.gitguardian.com
+instance: https://api.gitguardian.com # default: https://api.gitguardian.com
 
 # Maximum commits to scan in a hook.
 max-commits-for-hook: 50 # default: 50
 
 # Accept self-signed certificates for the API.
-allow-self-signed: false # default: False
+allow-self-signed: false # default: false
 
-# Detectors to ignore.
-banlisted-detectors: # default: []
-  - Generic Password
+secret:
+  # Exclude files and paths by globbing
+  ignored-paths:
+    - '**/README.md'
+    - 'doc/*'
+    - 'LICENSE'
 
-# Use default excluded vendors folders
-ignore-default-excludes: false # default: false
+  # Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
+  ignored-matches:
+    - name:
+      match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+    - name: credentials
+      match: MY_TEST_CREDENTIAL
+
+  show-secrets: false # default: false
+
+  # Detectors to ignore.
+  ignored-detectors: # default: []
+    - Generic Password
