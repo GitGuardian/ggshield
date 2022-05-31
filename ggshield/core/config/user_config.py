@@ -6,7 +6,7 @@ import click
 import marshmallow_dataclass
 from marshmallow import ValidationError
 
-from ggshield.core.config.errors import ParseError
+from ggshield.core.config.errors import ParseError, format_validation_error
 from ggshield.core.config.utils import (
     get_global_path,
     load_yaml,
@@ -19,7 +19,7 @@ from ggshield.core.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.types import IgnoredMatch
+from ggshield.core.types import IgnoredMatch, post_init_ignored_match
 from ggshield.core.utils import api_to_dashboard_url
 
 
@@ -48,6 +48,10 @@ class SecretConfig:
                     match["name"] = secret["name"]
                 return
         self.ignored_matches.append(secret)
+
+    def __post_init__(self) -> None:
+        for match in self.ignored_matches:
+            post_init_ignored_match(match)
 
 
 @dataclass
@@ -118,7 +122,8 @@ class UserConfig:
                     f"Don't know how to load config version {config_version}"
                 )
         except ValidationError as exc:
-            raise ParseError(f"Error in {config_path}:\n{str(exc)}") from exc
+            message = format_validation_error(exc)
+            raise ParseError(f"Error in {config_path}:\n{message}") from exc
 
         update_from_other_instance(self, obj)
 

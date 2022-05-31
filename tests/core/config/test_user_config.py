@@ -138,13 +138,30 @@ class TestUserConfig:
         assert config.secret.show_secrets
         assert config.secret.ignored_detectors == {"d1", "d2"}
         assert config.secret.ignored_matches == [
-            {
-                "name": "foo",
-                "match": "abcdef",
-            },
-            {
-                "name": "",
-                "match": "1234abcd",
-            },
+            {"name": "foo", "match": "abcdef"},
+            {"name": "", "match": "1234abcd"},
         ]
         assert config.secret.ignored_paths == {"/foo", "/bar"}
+
+    def test_load_ignored_matches_with_empty_names(self):
+        config_path = "config.yaml"
+        # Use write_text() here because write_yaml() cannot generate a key with a really
+        # empty value, like we need for secret.ignored-matches[0].name
+        write_text(
+            config_path,
+            """
+            version: 2
+            secret:
+              ignored-matches:
+                - name:
+                  match: abcd
+                - name: ""
+                  match: dbca
+            """,
+        )
+        config, _ = UserConfig.load(config_path)
+
+        assert config.secret.ignored_matches == [
+            {"name": "", "match": "abcd"},
+            {"name": "", "match": "dbca"},
+        ]
