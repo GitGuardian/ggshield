@@ -116,6 +116,10 @@ class UserConfig:
             if config_version == 2:
                 obj = UserConfigSchema().load(data)
             elif config_version == 1:
+                display_warning(
+                    f"{config_path} uses a deprecated configuration file format."
+                    " Follow the instructions from ggshield README.md to update it."
+                )
                 obj = UserV1Config.load_v1(data)
             else:
                 raise click.ClickException(
