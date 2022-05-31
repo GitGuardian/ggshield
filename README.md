@@ -2,32 +2,21 @@
 
 ---
 
-# [GitGuardian Shield](https://github.com/GitGuardian/ggshield): protect your secrets with GitGuardian
+# [ggshield](https://github.com/GitGuardian/ggshield): protect your secrets with GitGuardian
 
 [![PyPI](https://img.shields.io/pypi/v/ggshield?color=%231B2D55&style=for-the-badge)](https://pypi.org/project/ggshield/)
 [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/gitguardian/ggshield?color=1B2D55&sort=semver&style=for-the-badge&label=Docker)](https://hub.docker.com/r/gitguardian/ggshield)
 [![License](https://img.shields.io/github/license/GitGuardian/ggshield?color=%231B2D55&style=for-the-badge)](LICENSE)
 ![GitHub stars](https://img.shields.io/github/stars/gitguardian/ggshield?color=%231B2D55&style=for-the-badge)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/GitGuardian/ggshield/Application%20Main%20Branch?style=for-the-badge)
-[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/ggshield?style=for-the-badge)](https://www.codefactor.io/repository/github/gitguardian/ggshield)
+[![CodeFactor Grade](https://img.shields.io/codefactor/grade/github/gitguardian/ggshield/main?style=for-the-badge)](https://www.codefactor.io/repository/github/gitguardian/ggshield)
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
-**GitGuardian shield** (ggshield) is a CLI application that runs in your local environment or in a CI environment to help you detect more than 300 types of secrets, as well as other potential security vulnerabilities or policy breaks.
+ggshield is a CLI application that runs in your local environment or in a CI environment to help you detect more than 300 types of secrets, as well as other potential security vulnerabilities or policy breaks.
 
-**GitGuardian shield** uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian)
-to scan and detect potential secrets on files and other text content.
+ggshield uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan and detect potential secrets on files and other text content.
 
-Only metadata such as call time, request size and scan mode is stored from scans using GitGuardian shield,
-therefore secrets and policy breaks incidents will not be displayed on your dashboard and **your files and secrets won't be stored**.
-
-You'll need an **API Key** from
-[GitGuardian](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
-
-Add the API Key to your environment variables:
-
-```shell
-GITGUARDIAN_API_KEY=<GitGuardian API Key>
-```
+Only metadata such as call time, request size and scan mode is stored from scans using ggshield, therefore secrets and policy breaks incidents will not be displayed on your dashboard and **your files and secrets won't be stored**.
 
 # Table of Contents
 
@@ -40,8 +29,9 @@ GITGUARDIAN_API_KEY=<GitGuardian API Key>
   - [Linux packages](#linux-packages)
   - [Other Operating Systems](#other-operating-systems)
     - [Using pip](#using-pip)
-- [Updating](#updating)
-- [Commands](#commands)
+      - [Updating](#updating)
+- [Initial setup](#initial-setup)
+- [Command reference](#command-reference)
   - [Secret scan commands](#secret-scan-commands)
     - [`secret scan ci`: scan each commit since the last build in your CI](#secret-scan-ci-scan-each-commit-since-the-last-build-in-your-ci)
     - [`secret scan commit-range`: scan each commit in the given commit range](#secret-scan-commit-range-scan-each-commit-in-the-given-commit-range)
@@ -123,24 +113,25 @@ ggshield supports **Python 3.7 and newer**.
 
 The package should run on MacOS, Linux and Windows.
 
-You'll need an **API Key** from the [GitGuardian dashboard](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to use ggshield.
+#### Updating
 
-Add the API Key to your environment variables:
-
-```shell
-GITGUARDIAN_API_KEY=<GitGuardian API Key>
-```
-
-# Updating
-
-To update ggshield you can add the option `-U/--upgrade` to the pip install
-command.
+To update ggshield you can add the option `-U/--upgrade` to the pip install command.
 
 ```shell
 $ pip install -U ggshield
 ```
 
-# Commands
+# Initial setup
+
+To use ggshield you need to authenticate against GitGuardian servers. To do so, use the `ggshield auth login` command. This command automates the provisioning of a personal access token and its configuration on the local workstation.
+
+You can learn more about it from [`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
+
+Alternatively, you can create your personal access token manually and you can store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
+
+Once this is done, you can start scanning a repository with with `ggshield secret scan repo /path/to/your/repo`.
+
+# Command reference
 
 ```
 Usage: ggshield [OPTIONS] COMMAND [ARGS]...
@@ -163,7 +154,7 @@ Commands:
 
 ## Secret scan commands
 
-The `ggshield secret scan` command group contains the main **ggshield** commands, it has a few configuration options that can be used to override output behavior.
+The `ggshield secret scan` command group contains the main ggshield commands, it has a few configuration options that can be used to override output behavior.
 
 ```
 Usage: ggshield secret scan [OPTIONS] COMMAND [ARGS]...
@@ -315,10 +306,12 @@ Options:
 ## `secret ignore` command
 
 The `secret ignore` command allows you to ignore some secrets.
-For the time being, it only handles the `--last-found` option that ignore all secrets found by the last run `scan` command.
-Under the hood, these secrets are added to the matches-ignore section of your local config file (if no local config file is found, a `.gitguardian.yaml` file is created).
 
-Warning: Using this command will discard any comment present in the config file.
+For the time being, it only handles the `--last-found` option that ignore all secrets found by the last run `scan` command.
+
+Under the hood, these secrets are added to the matches-ignore section of your local configuration file (if no local configuration file is found, a `.gitguardian.yaml` file is created).
+
+Warning: Using this command will discard any comment present in the configuration file.
 
 ```shell
 Usage: ggshield secret ignore [OPTIONS]
@@ -399,17 +392,17 @@ secrets-engine-version-version: 2.44.0
 
 # Configuration
 
-Configuration in `ggshield` follows a `global>local>CLI` configuration scheme.
+Configuration in ggshield follows a `global>local>CLI` configuration scheme.
 
 Meaning options on `local` overwrite or extend `global` and options on CLI overwrite or extend local.
 
-`ggshield` will search for a `global` config file in the user's home directory (example: `~/.gitguardian.yml` on Linux and `%USERPROFILE%\.gitguardian` on Windows).
+ggshield will search for a `global` configuration file in the user's home directory (example: `~/.gitguardian.yml` on Linux and `%USERPROFILE%\.gitguardian` on Windows).
 
-`ggshield` will recognize as well a `local` config file in the user's working directory (example: `./.gitguardian.yml`).
+ggshield will recognize as well a `local` configuration file in the user's working directory (example: `./.gitguardian.yml`).
 
-You can also use the option `--config-path` on the main command to set another config file. In this case, neither `local` nor `global` config files will be evaluated (example: `ggshield --config-path=~/Desktop/only_config.yaml scan path -r .`)
+You can also use the option `--config-path` on the main command to set another configuration file. In this case, neither `local` nor `global` configuration files will be evaluated (example: `ggshield --config-path=~/Desktop/only_config.yaml scan path -r .`)
 
-A sample config file can be found at [.gitguardian.example](./.gitguardian.example.yml)
+A sample configuration file can be found at [.gitguardian.example](./.gitguardian.example.yml)
 
 ```yml
 # Exclude files and paths by globbing
@@ -435,7 +428,7 @@ exit-zero: false # default: false
 # By default only secrets are detected. Use all-policies to toggle this behaviour.
 all-policies: false # default: false
 
-api-url: https://api.gitguardian.com # GITGUARDIAN_API_URL and GITGUARDIAN_URL environment variables will override this setting
+instance: https://api.gitguardian.com
 
 verbose: false # default: false
 ```
@@ -454,11 +447,11 @@ matches-ignore:
 
 ## Environment Variables
 
-Some configurations on `ggshield` can be done through environment variables.
+ggshield can also be configured using environment variables.
 
-Environment variables will override settings set on your config file but will be overridden by command line options.
+Environment variables overrides settings set on your configuration file but are overridden by command line options.
 
-At startup, `ggshield` will attempt to load environment variables from different environment files in the following order:
+At startup, ggshield attempts to load environment variables from different environment files in the following order:
 
 - path pointed to by the environment variable `GITGUARDIAN_DOTENV_PATH`
 - `.env` at your current work directory.
@@ -466,51 +459,41 @@ At startup, `ggshield` will attempt to load environment variables from different
 
 Only one file will be loaded of the three.
 
-Reference of current Environment Variables that affect `ggshield`:
+Reference of current environment variables supported by ggshield:
 
-```yaml
-GITGUARDIAN_API_KEY: [Required] API Key for the GitGuardian API.
+- `GITGUARDIAN_API_KEY`: API Key for the GitGuardian API. Use this if you don't want to use the `ggshield auth` commands.
 
-GITGUARDIAN_URL: Custom URL of the GitGuardian dashboard. The API URL will be inferred from it.
+- `GITGUARDIAN_INSTANCE`: Custom URL of the GitGuardian dashboard. The API URL will be inferred from it.
 
-GITGUARDIAN_API_URL: (Deprecated use GITGUARDIAN_URL instead) Custom URL for the scanning API.
+- `GITGUARDIAN_API_URL`: Custom URL for the scanning API. Deprecated, use `GITGUARDIAN_INSTANCE` instead.
 
-GITGUARDIAN_DONT_LOAD_ENV: If set to any value environment variables won't be loaded from a file.
+- `GITGUARDIAN_DONT_LOAD_ENV`: If set to any value, environment variables won't be loaded from a file.
 
-GITGUARDIAN_DOTENV_PATH: If set to a path, `ggshield` will attempt to load the environment from the specified file.
+- `GITGUARDIAN_DOTENV_PATH`: If set to a path, ggshield will attempt to load the environment from the specified file.
 
-GITGUARDIAN_TIMEOUT: If set to a float, `ggshield secret scan pre-receive` will timeout
-after the specified value. Set to 0 to disable the timeout
+- `GITGUARDIAN_TIMEOUT`: If set to a float, `ggshield secret scan pre-receive` will timeout after the specified value. Set to 0 to disable the timeout.
 
-GITGUARDIAN_MAX_COMMITS_FOR_HOOK: if set to an int, `ggshield secret scan pre-receive` and `ggshield secret scan pre-push`
-will not scan more than the specified value of commits in a single scan.
+- `GITGUARDIAN_MAX_COMMITS_FOR_HOOK`: If set to an int, `ggshield secret scan pre-receive` and `ggshield secret scan pre-push` will not scan more than the specified value of commits in a single scan.
 
-GITGUARDIAN_CRASH_LOG: If set to True, ggshield will display a full traceback
-when crashing
-```
+- `GITGUARDIAN_CRASH_LOG`: If set to True, ggshield will display a full traceback when crashing.
 
 ## On-premises configuration
 
-GitGuardian shield can be configured to run on your on-premises dashboard, request an API key from your dashboard administrator.
+ggshield can be configured to run on your on-premise GitGuardian instance.
 
-You can modify your environment variables to include:
+First, you need to point ggshield to your instance, by either defining the `instance` key in your `.gitguardian.yaml` configuration file or by defining the `GITGUARDIAN_INSTANCE` environment variable.
 
-```shell
-GITGUARDIAN_API_KEY=<GitGuardian API Key>
-GITGUARDIAN_URL=<GitGuardian on-premise dashboard URL>
-```
-
-Alternatively to setting the `GITGUARDIAN_URL` environment variable, set the `dashboard-url` in your `.gitguardian.yaml`.
+Then, you need to authenticate against your instance, by either using the `ggshield auth login --instance https://mygitguardianinstance.mycorp.local` command using the `--instance` option or by obtaining an API key from your dashboard administrator and storing it in the `GITGUARDIAN_API_KEY` environment variable.
 
 ## Ignoring files
 
 By default ggshield ignores certain files and directories.
+
 This list can be found in [ggshield/core/utils.py](ggshield/core/utils.py) under `IGNORED_DEFAULT_PATTERNS`.
 
-You can turn this feature with the flag `--ignore-default-excludes` or
-the key `ignore-default-excludes` in your `.gitguardian.yaml`
+You can turn this feature with the flag `--ignore-default-excludes` or the `ignore-default-excludes` key in your `.gitguardian.yaml` configuration file.
 
-```yml
+```yaml
 #.gitguardian.yml
 # Use default excluded vendors folders
 ignore-default-excludes: false # default: false
@@ -520,10 +503,9 @@ ignore-default-excludes: false # default: false
 ggshield secret scan --ignore-default-excludes path example_file.md
 ```
 
-You can also add custom patterns to ignore by using the `--exclude` option or
-the key `paths-ignore` in your `.gitguardian.yaml`
+You can also add custom patterns to ignore by using the `--exclude` option or the `paths-ignore` key in your `.gitguardian.yaml` configuration file.
 
-```yml
+```yaml
 # .gitguardian.yml
 # Exclude files and paths by globbing
 paths-ignore:
@@ -593,7 +575,7 @@ ggshield secret scan -b "Generic High Entropy Secret" path example_file.md
 
 ### The pre-commit framework
 
-In order to use **ggshield** with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
+In order to use ggshield with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
 
 Make sure you have pre-commit installed:
 
@@ -628,7 +610,7 @@ If you want to skip the pre-commit check, you can add `-n` parameter:
 $ git commit -m "commit message" -n
 ```
 
-Another way is to add SKIP=hook_id before the command:
+Another way is to add `SKIP=hook_id` before the command:
 
 ```shell
 $ SKIP=ggshield git commit -m "commit message"
@@ -636,7 +618,7 @@ $ SKIP=ggshield git commit -m "commit message"
 
 ### The global and local pre-commit hook
 
-To install pre-commit globally (for all current and future repos), you just need to execute the following command:
+To install pre-commit globally (for all current and future repos), run the following command:
 
 ```shell
 $ ggshield install --mode global
@@ -649,8 +631,7 @@ It will do the following:
 - create a `pre-commit` file which will be executed before every commit
 - give executable access to this file
 
-You can also install the hook locally on desired repositories.
-You just need to go in the repository and execute:
+You can also install the hook locally on desired repositories. To do so, run:
 
 ```shell
 $ ggshield install --mode local
@@ -664,8 +645,7 @@ You can force override with the `--force` option:
 $ ggshield install --mode local --force
 ```
 
-If you already have a pre-commit executable file and you want to use ggshield,
-all you need to do is to add this line in the file:
+If you already have a pre-commit executable file and you want to use ggshield, all you need to do is to add this line in the file:
 
 ```shell
 $ ggshield secret scan pre-commit
@@ -682,17 +662,17 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 ## Pre-push
 
 In case there are more than a 50 commits in a push the hook will be skipped.
-The amount of commits to scan before skipping the hook can be configured by the key `max-commits-for-hook` in
-a GitGuardian configuration file (for example: `.gitguardian.yaml`).
 
-Pre-push hooks are executed just before `git push` sends data to the remote host.
-It will pickup and scan the range of commits between the local ref and the origin ref.
+The amount of commits to scan before skipping the hook can be configured by the key `max-commits-for-hook` in
+ggshield configuration file.
+
+Pre-push hooks are executed just before `git push` sends data to the remote host. It will pickup and scan the range of commits between the local ref and the origin ref.
 
 If incidents are detected in this range the push will be cancelled.
 
 ### With the pre-commit framework
 
-In order to use **ggshield** with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
+In order to use ggshield with the [pre-commit](https://pre-commit.com/) framework, you need to do the following steps.
 
 Make sure you have pre-commit installed:
 
@@ -762,9 +742,9 @@ Now you're good to go!
 A pre-receive hook allows you to reject commits from being pushed to a git repository if they do not validate every check.
 Refer to [our learning center](https://www.gitguardian.com/secrets-detection/secrets-detection-application-security#4) for more information.
 
-You can find **ggshield**'s pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-docker.sample](doc/pre-receive-docker.sample).
+You can find ggshield's pre-receive hook samples in the [doc/pre-receive.sample](doc/pre-receive.sample) and [doc/pre-receive-docker.sample](doc/pre-receive-docker.sample).
 
-**ggshield**'s pre-receive hook can be skipped if the developer passes the option `breakglass` to the git push.
+ggshield's pre-receive hook can be skipped if the developer passes the option `breakglass` to the git push.
 
 For this setting to work the remote must have push options enabled. (`git config receive.advertisePushOptions true`).
 
@@ -787,9 +767,9 @@ $ git push --push-option=breakglass
 1. Do not forget to `chmod +x .git/hooks/pre-receive`
 1. Either set an environment variable machine wide `GITGUARDIAN_API_KEY` or set it in the `.git/hooks/pre-receive` as instructed in the sample file.
 
-**How do I add ignored matches and use a custom config in this pre-receive hook?**
+**How do I add ignored matches and use a custom configuration in this pre-receive hook?**
 
-- Create a `gitguardian.yaml` somewhere in the system. An example config file is available [here](.gitguardian.example.yml)
+- Create a `gitguardian.yaml` somewhere in the system. An example configuration file is available [here](.gitguardian.example.yml)
 - Replace in the pre-receive hook
   ```shell
   ggshield secret scan pre-receive
@@ -811,19 +791,15 @@ $ git push --push-option=breakglass
 
 ## Docker
 
-The GitGuardian Shield docker scanning tool (`ggshield secret scan docker`) is used to
-scan local docker images for secrets present in the image's creation process
-(`dockerfile` and build arguments) and in the image's layers' filesystem.
+The ggshield docker scanning tool (`ggshield secret scan docker`) is used to scan local docker images for secrets present in the image's creation process (`dockerfile` and build arguments) and in the image's layers' filesystem.
 
-If the image is not available locally on the user's machine, GitGuardian shield
-will attempt to pull the image using `docker pull <IMAGE_NAME>`.
+If the image is not available locally on the user's machine, ggshield will attempt to pull the image using `docker pull <IMAGE_NAME>`.
 
 ## GitLab
 
 > You may be interested in using GitGuardian's [GitLab integration](https://dashboard.gitguardian.com/settings/workspace/integrations/gitlab) to ensure full coverage of your GitLab projects as well as full git history scans and reporting.
 
-Configuring GitLab pipelines to use **ggshield** is as simple as
-adding a step to your project's pipeline:
+Configuring GitLab pipelines to use ggshield can be done by adding a step to your project's pipeline:
 
 ```yaml
 stages:
@@ -854,12 +830,11 @@ GIT_DEPTH: 0
 
 > You may be interested in using GitGuardian's [GitHub integration](https://dashboard.gitguardian.com/settings/workspace/integrations/github) to ensure full coverage of your GitHub projects as well as full git history scans and reporting.
 
-**ggshield's** support of GitHub comes in the form of GitHub actions.
+ggshield support for GitHub comes in the form of GitHub actions.
 
 The action for this repository is hosted at [ggshield-action](https://github.com/GitGuardian/ggshield-action).
 
-Configuring a GitHub workflow to use **ggshield** is as simple as
-adding a step to your project's workflow:
+Configuring a GitHub workflow to use ggshield can be done by adding a step to your project's workflow:
 
 ```yaml
 name: GitGuardian scan
@@ -891,8 +866,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 > ⚠ BitBucket pipelines do not support commit ranges therefore only your latest commit in a pushed group or in a new branch will be scanned.
 
-Configuring a BitBucket pipeline to use **ggshield** is as simple as
-adding a step to your project's workflow:
+Configuring a BitBucket pipeline to use ggshield can be done by adding a step to your project's workflow:
 
 ```yml
 pipelines:
@@ -909,9 +883,9 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 ## Circle CI
 
-Circle CI is supported in **ggshield** through [ggshield-orb](https://github.com/GitGuardian/ggshield-orb).
+Circle CI is supported in ggshield through [ggshield-orb](https://github.com/GitGuardian/ggshield-orb).
 
-To add ggshield to your pipelines configure your `.circleci/config.yml` to add the ggshield orb:
+To add ggshield to your pipelines, configure your `.circleci/config.yml` to add the ggshield orb:
 
 ```yaml
 orbs:
@@ -930,7 +904,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 ## Travis CI
 
-To add ggshield to your pipelines configure your `.travis.yml` to add a ggshield secret scanning job:
+To add ggshield to your pipelines, configure your `.travis.yml` to add a ggshield secret scanning job:
 
 ```yml
 jobs:
@@ -950,7 +924,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 ## Jenkins
 
-To add ggshield to your pipelines configure your `Jenkinsfile` to add a ggshield stage:
+To add ggshield to your pipelines, configure your `Jenkinsfile` to add a ggshield stage:
 
 ```groovy
 pipeline {
@@ -975,7 +949,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 
 ## Drone
 
-To add ggshield to your pipelines configure your `.drone.yml` to add a ggshield stage:
+To add ggshield to your pipelines, configure your `.drone.yml` to add a ggshield stage:
 
 ```groovy
 kind: pipeline
@@ -997,7 +971,7 @@ Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.co
 > ⚠ Azure Pipelines does not support commit ranges outside of GitHub Pull Requests, therefore on push events in a regular branch only your latest commit will be scanned.
 > This limitation doesn't apply to GitHub Pull Requests where all the commits in the pull request will be scanned.
 
-To add ggshield to your pipelines configure your `azure-pipelines.yml` to add a ggshield secret scanning job:
+To add ggshield to your pipelines, configure your `azure-pipelines.yml` to add a ggshield secret scanning job:
 
 ```yml
 jobs:
@@ -1025,10 +999,7 @@ If no secrets or policy breaks have been found, the exit code will be 0:
 $ ggshield secret scan pre-commit
 ```
 
-If a secret or other issue is found in your staged code or in your CI,
-you will have an alert giving you the type of policy break,
-the filename where the policy break has been found and a patch
-giving you the position of the policy break in the file:
+If a secret or other issue is found in your staged code or in your CI, you will have an alert giving you the type of policy break, the filename where the policy break has been found and a patch giving you the position of the policy break in the file:
 
 ```shell
 $ ggshield secret scan pre-commit
@@ -1048,8 +1019,7 @@ $ ggshield secret scan pre-commit
 17 | }
 ```
 
-Lines that are too long are truncated to match the size of the terminal,
-unless the verbose mode is used (`-v` or `--verbose`).
+Lines that are too long are truncated to match the size of the terminal, unless the verbose mode is used (`-v` or `--verbose`).
 
 # Related open source projects
 
@@ -1062,4 +1032,4 @@ unless the verbose mode is used (`-v` or `--verbose`).
 
 # License
 
-**GitGuardian shield** is MIT licensed.
+ggshield is MIT licensed.
