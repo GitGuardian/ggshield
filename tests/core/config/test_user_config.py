@@ -5,7 +5,11 @@ from click import ClickException
 
 from ggshield.core.config import Config
 from ggshield.core.config.errors import ParseError
-from ggshield.core.config.user_config import CURRENT_CONFIG_VERSION, UserConfig
+from ggshield.core.config.user_config import (
+    CURRENT_CONFIG_VERSION,
+    IaCConfig,
+    UserConfig,
+)
 from tests.conftest import write_text, write_yaml
 
 
@@ -165,3 +169,52 @@ class TestUserConfig:
             {"name": "", "match": "abcd"},
             {"name": "", "match": "dbca"},
         ]
+
+    def test_iac_config(self, cli_fs_runner, local_config_path):
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored_paths": ["mypath"],
+                    "ignored_policies": ["mypolicy"],
+                    "minimum_severity": "myseverity",
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.iac, IaCConfig)
+        assert config.iac.ignored_paths == {"mypath"}
+        assert config.iac.ignored_policies == {"mypolicy"}
+        assert config.iac.minimum_severity == "myseverity"
+
+    def test_iac_config_options_inheritance(
+        self, cli_fs_runner, local_config_path, global_config_path
+    ):
+        write_yaml(
+            global_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored_paths": ["myglobalpath"],
+                    "ignored_policies": ["myglobalpolicy"],
+                    "minimum_severity": "myglobalseverity",
+                },
+            },
+        )
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored_paths": ["mypath"],
+                    "ignored_policies": ["mypolicy"],
+                    "minimum_severity": "myseverity",
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.iac, IaCConfig)
+        assert config.iac.ignored_paths == {"myglobalpath", "mypath"}
+        assert config.iac.ignored_policies == {"myglobalpolicy", "mypolicy"}
+        assert config.iac.minimum_severity == "myseverity"
