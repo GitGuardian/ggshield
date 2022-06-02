@@ -15,16 +15,16 @@ from .constants import FIELD_OPTIONS
     required=False,
     type=str,
     metavar="URL",
-    help="URL of the instance to unset the configuration.",
+    help="Set per instance configuration.",
 )
-@click.option("--all", "all_", is_flag=True, help="Iterate over every saved tokens.")
+@click.option("--all", "all_", is_flag=True, help="Iterate over every instances.")
 @click.pass_context
 def config_unset_command(
     ctx: click.Context, field_name: str, instance_url: Optional[str], all_: bool
 ) -> int:
     """
     Remove the value of the given configuration key.
-    If --all is passed, it iterates over all auth configs.
+    If --all is passed, it iterates over all instances.
     """
     config: Config = ctx.obj["config"]
 

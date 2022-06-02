@@ -15,7 +15,7 @@ from ggshield.core.config.errors import UnknownInstanceError
     required=False,
     type=str,
     metavar="URL",
-    help="URL of the instance to get the config.",
+    help="Get per instance configuration.",
 )
 @click.pass_context
 def config_get_command(
