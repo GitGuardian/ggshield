@@ -15,7 +15,7 @@ from .constants import FIELD_OPTIONS
     required=False,
     type=str,
     metavar="URL",
-    help="URL of the instance to set the configuration.",
+    help="Set per instance configuration.",
 )
 @click.pass_context
 def config_set_command(
