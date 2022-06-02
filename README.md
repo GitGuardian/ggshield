@@ -32,6 +32,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
       - [Updating](#updating)
 - [Initial setup](#initial-setup)
 - [Command reference](#command-reference)
+  - [auth commands](#auth-commands)
   - [config commands](#config-commands)
   - [secret scan commands](#secret-scan-commands)
     - [`secret scan ci`: scan each commit since the last build in your CI](#secret-scan-ci-scan-each-commit-since-the-last-build-in-your-ci)
@@ -152,6 +153,9 @@ Commands:
   quota       Show quotas overview.
   secret      Commands to work with secrets.
 ```
+## Auth commands
+
+See [the manual](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/overview) for information about the auth commands.
 
 ## Config commands
 
