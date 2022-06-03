@@ -14,7 +14,7 @@ from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
 from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
-    remove_results_from_banlisted_detectors,
+    remove_results_from_ignore_detectors,
 )
 from ggshield.core.git_shell import GIT_PATH, shell
 from ggshield.core.text_utils import STYLE, format_text
@@ -141,9 +141,8 @@ class Files:
         client: GGClient,
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
-        all_policies: bool,
         mode_header: str,
-        banlisted_detectors: Optional[Set[str]] = None,
+        ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
@@ -176,10 +175,8 @@ class Files:
                     handle_scan_error(scan, chunk)
                     continue
                 for index, scanned in enumerate(scan.scan_results):
-                    remove_ignored_from_result(scanned, all_policies, matches_ignore)
-                    remove_results_from_banlisted_detectors(
-                        scanned, banlisted_detectors
-                    )
+                    remove_ignored_from_result(scanned, matches_ignore)
+                    remove_results_from_ignore_detectors(scanned, ignored_detectors)
                     if scanned.has_policy_breaks:
                         for policy_break in scanned.policy_breaks:
                             cache.add_found_policy_break(

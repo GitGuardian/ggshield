@@ -48,10 +48,9 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
             results: List[Result] = files.scan(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                matches_ignore=config.matches_ignore,
-                all_policies=config.all_policies,
+                matches_ignore=config.secret.ignored_matches,
                 mode_header=SupportedScanMode.ARCHIVE.value,
-                banlisted_detectors=config.banlisted_detectors,
+                ignored_detectors=config.secret.ignored_detectors,
                 on_file_chunk_scanned=update_progress,
             )
 

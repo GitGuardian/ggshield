@@ -49,10 +49,9 @@ def scan_repo_path(
                 output_handler=output_handler,
                 verbose=config.verbose,
                 exclusion_regexes=set(),
-                matches_ignore=config.matches_ignore,
-                all_policies=config.all_policies,
+                matches_ignore=config.secret.ignored_matches,
                 scan_id=scan_id,
-                banlisted_detectors=config.banlisted_detectors,
+                ignored_detectors=config.secret.ignored_detectors,
             )
     except Exception as error:
         return handle_exception(error, config.verbose)
@@ -64,16 +63,14 @@ def scan_commit(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    all_policies: bool,
-    banlisted_detectors: Optional[Set[str]] = None,
+    ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     results = commit.scan(
         client=client,
         cache=cache,
         matches_ignore=matches_ignore,
-        all_policies=all_policies,
         mode_header=SupportedScanMode.REPO.value,
-        banlisted_detectors=banlisted_detectors,
+        ignored_detectors=ignored_detectors,
     )
 
     return ScanCollection(
@@ -93,9 +90,8 @@ def scan_commit_range(
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    all_policies: bool,
     scan_id: str,
-    banlisted_detectors: Optional[Set[str]] = None,
+    ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
     Scan every commit in a range.
@@ -116,8 +112,7 @@ def scan_commit_range(
                 cache,
                 verbose,
                 matches_ignore,
-                all_policies,
-                banlisted_detectors,
+                ignored_detectors,
             )
             for sha in commit_list
         ]

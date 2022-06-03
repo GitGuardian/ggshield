@@ -23,7 +23,7 @@ class TestPrepush:
             ["-v", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
         assert "Unable to get commit range." in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
@@ -48,10 +48,10 @@ class TestPrepush:
             ["-v", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
+        assert result.exit_code == 0, result.output
         scan_commit_range_mock.assert_called_once()
         _, kwargs = scan_commit_range_mock.call_args_list[0]
         assert len(kwargs["commit_list"]) == 50
-        assert result.exit_code == 0
         assert "Too many commits. Scanning last 50" in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
@@ -112,12 +112,11 @@ class TestPrepush:
             verbose=True,
             exclusion_regexes=ANY,
             matches_ignore=ANY,
-            all_policies=False,
             scan_id=ANY,
-            banlisted_detectors=set(),
+            ignored_detectors=set(),
         )
+        assert result.exit_code == 0, result.output
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
 
         expected_exclusion_regexes = init_exclusion_regexes(IGNORED_DEFAULT_WILDCARDS)
         expected_exclusion_patterns = [r.pattern for r in expected_exclusion_regexes]
@@ -145,8 +144,8 @@ class TestPrepush:
         """
 
         result = cli_fs_runner.invoke(cli, ["-v", "scan", "pre-push"], input="")
+        assert result.exit_code == 0, result.output
         assert "Deletion event or nothing to scan.\n" in result.output
-        assert result.exit_code == 0
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -171,6 +170,7 @@ class TestPrepush:
             ["-v", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
         )
+        assert result.exit_code == 0, result.output
         get_list_mock.assert_called_once_with(
             f"--max-count=51 {EMPTY_TREE} { 'a' * 40}"
         )
@@ -178,7 +178,6 @@ class TestPrepush:
 
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
-        assert result.exit_code == 0
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -203,8 +202,8 @@ class TestPrepush:
             ["-v", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": EMPTY_SHA, "PRE_COMMIT_TO_REF": "a" * 40},
         )
+        assert result.exit_code == 0, result.output
         assert "Deletion event or nothing to scan.\n" in result.output
-        assert result.exit_code == 0
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -229,9 +228,9 @@ class TestPrepush:
             ["-v", "scan", "pre-push"],
             input="refs/heads/main bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main 649061dcda8bff94e02adbaac70ca64cfb84bc78",  # noqa: E501
         )
+        assert result.exit_code == 0, result.output
         get_list_mock.assert_called_once_with(
             "--max-count=51 649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
         )  # noqa: E501
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0

@@ -1,10 +1,15 @@
 import sys
 
 import pytest
+from click import ClickException
 
 from ggshield.core.config import Config
 from ggshield.core.config.errors import ParseError
-from ggshield.core.config.user_config import IaCConfig
+from ggshield.core.config.user_config import (
+    CURRENT_CONFIG_VERSION,
+    IaCConfig,
+    UserConfig,
+)
 from tests.conftest import write_text, write_yaml
 
 
@@ -25,7 +30,7 @@ class TestUserConfig:
 
         config = Config()
         assert config.verbose is True
-        assert config.show_secrets is True
+        assert config.secret.show_secrets is True
 
     def test_unknown_option(self, cli_fs_runner, capsys, local_config_path):
         write_yaml(local_config_path, {"verbosity": True})
@@ -55,14 +60,14 @@ class TestUserConfig:
 
         config = Config()
         assert config.verbose is True
-        assert config.show_secrets is False
+        assert config.secret.show_secrets is False
         assert config.api_url == "https://api.gitguardian.com"
 
     def test_exclude_regex(self, cli_fs_runner, local_config_path):
         write_yaml(local_config_path, {"paths-ignore": ["/tests/"]})
 
         config = Config()
-        assert r"/tests/" in config.paths_ignore
+        assert r"/tests/" in config.secret.ignored_paths
 
     def test_accumulation_matches(
         self, cli_fs_runner, local_config_path, global_config_path
@@ -81,21 +86,100 @@ class TestUserConfig:
             {"matches_ignore": [{"name": "", "match": "three"}]},
         )
         config = Config()
-        assert config.matches_ignore == [
+        assert config.secret.ignored_matches == [
             {"match": "three", "name": ""},
             {"match": "one", "name": ""},
             {"match": "two", "name": ""},
+        ]
+
+    def test_load_too_new_version(self, local_config_path):
+        """
+        GIVEN a config file whose format is too recent
+        WHEN we try to load it
+        THEN an exception is raised
+        """
+        write_yaml(local_config_path, {"version": CURRENT_CONFIG_VERSION + 1})
+
+        with pytest.raises(ClickException):
+            UserConfig.load(local_config_path)
+
+    def test_save_load_roundtrip(self):
+        config_path = "config.yaml"
+        config = UserConfig()
+        config.exit_zero = True
+        config.secret.show_secrets = True
+
+        config.save(config_path)
+
+        config2, _ = UserConfig.load(config_path)
+
+        assert config.exit_zero == config2.exit_zero
+        assert config.secret.show_secrets == config2.secret.show_secrets
+
+    def test_load_v1(self):
+        config_path = "config.yaml"
+        write_yaml(
+            config_path,
+            {
+                "exit-zero": True,
+                "show-secrets": True,
+                "banlisted-detectors": ["d1", "d2"],
+                "matches-ignore": [
+                    {
+                        "name": "foo",
+                        "match": "abcdef",
+                    },
+                    # A match using the old format: just a sha256
+                    "1234abcd",
+                ],
+                "paths-ignore": ["/foo", "/bar"],
+            },
+        )
+
+        config, _ = UserConfig.load(config_path)
+
+        assert config.exit_zero
+        assert config.secret.show_secrets
+        assert config.secret.ignored_detectors == {"d1", "d2"}
+        assert config.secret.ignored_matches == [
+            {"name": "foo", "match": "abcdef"},
+            {"name": "", "match": "1234abcd"},
+        ]
+        assert config.secret.ignored_paths == {"/foo", "/bar"}
+
+    def test_load_ignored_matches_with_empty_names(self):
+        config_path = "config.yaml"
+        # Use write_text() here because write_yaml() cannot generate a key with a really
+        # empty value, like we need for secret.ignored-matches[0].name
+        write_text(
+            config_path,
+            """
+            version: 2
+            secret:
+              ignored-matches:
+                - name:
+                  match: abcd
+                - name: ""
+                  match: dbca
+            """,
+        )
+        config, _ = UserConfig.load(config_path)
+
+        assert config.secret.ignored_matches == [
+            {"name": "", "match": "abcd"},
+            {"name": "", "match": "dbca"},
         ]
 
     def test_iac_config(self, cli_fs_runner, local_config_path):
         write_yaml(
             local_config_path,
             {
+                "version": 2,
                 "iac": {
                     "ignored_paths": ["mypath"],
                     "ignored_policies": ["mypolicy"],
                     "minimum_severity": "myseverity",
-                }
+                },
             },
         )
         config = Config()
@@ -110,21 +194,23 @@ class TestUserConfig:
         write_yaml(
             global_config_path,
             {
+                "version": 2,
                 "iac": {
                     "ignored_paths": ["myglobalpath"],
                     "ignored_policies": ["myglobalpolicy"],
                     "minimum_severity": "myglobalseverity",
-                }
+                },
             },
         )
         write_yaml(
             local_config_path,
             {
+                "version": 2,
                 "iac": {
                     "ignored_paths": ["mypath"],
                     "ignored_policies": ["mypolicy"],
                     "minimum_severity": "myseverity",
-                }
+                },
             },
         )
         config = Config()

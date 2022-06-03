@@ -13,6 +13,7 @@ from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.constants import MAX_FILE_SIZE
+from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import SupportedScanMode
 from ggshield.scan import ScanCollection
 from ggshield.scan.scannable import File, Files
@@ -235,10 +236,9 @@ def docker_scan_archive(
     client: GGClient,
     cache: Cache,
     verbose: bool,
-    matches_ignore: Iterable[str],
-    all_policies: bool,
+    matches_ignore: Iterable[IgnoredMatch],
     scan_id: str,
-    banlisted_detectors: Optional[Set[str]] = None,
+    ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
     with click.progressbar(
@@ -252,9 +252,8 @@ def docker_scan_archive(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            all_policies=all_policies,
             mode_header=SupportedScanMode.DOCKER.value,
-            banlisted_detectors=banlisted_detectors,
+            ignored_detectors=ignored_detectors,
             on_file_chunk_scanned=update_progress,
         )
 

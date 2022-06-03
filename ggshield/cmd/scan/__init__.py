@@ -111,11 +111,9 @@ def deprecated_scan_group(
         ctx,
         show_secrets,
         exit_zero,
-        all_policies,
         verbose,
         json_output,
         output,
         banlist_detector,
         exclude,
-        ignore_default_excludes,
     )

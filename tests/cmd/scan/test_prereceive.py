@@ -41,10 +41,10 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
         )
+        assert result.exit_code == 0, result.output
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -67,13 +67,13 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
         )
+        assert result.exit_code == 1, result.output
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
         assert (
             "if those secrets are false positives and you still want your push to pass, run:\n'git push -o breakglass'"
             in result.output
         )
-        assert result.exit_code == 1
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -96,13 +96,13 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
         )
+        assert result.exit_code == 0, result.output
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_not_called()
         assert (
             "Unable to get commit range.\n  before: bbbb\n  after: aaaa\nSkipping pre-receive hook\n\n"
             in result.output
         )
-        assert result.exit_code == 0
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -129,13 +129,13 @@ class TestPreReceive:
                 "GIT_PUSH_OPTION_1": "breakglass",
             },
         )
+        assert result.exit_code == 0, result.output
         get_list_mock.assert_not_called()
         scan_commit_range_mock.assert_not_called()
         assert (
             "SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.\n"
             in result.output
         )
-        assert result.exit_code == 0
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.scan.repo.scan_commit")
@@ -176,6 +176,7 @@ class TestPreReceive:
                 "GL_PROTOCOL": "web",
             },
         )
+        assert result.exit_code == 1, result.output
         get_list_mock.assert_called_once_with(f"--max-count=51 {old_sha}...{new_sha}")
         scan_commit_mock.assert_called_once()
         web_ui_lines = [
@@ -183,7 +184,6 @@ class TestPreReceive:
         ]
         assert web_ui_lines
         assert any(contains_secret(x, _SIMPLE_SECRET_TOKEN) for x in web_ui_lines)
-        assert result.exit_code == 1
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -202,7 +202,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli, ["-v", "secret", "scan", "pre-receive"], input=""
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 1, result.output
         assert "Error: Invalid input arguments: []\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -229,9 +229,9 @@ class TestPreReceive:
             env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "20"},
         )
 
+        assert result.exit_code == 0, result.output
         assert "New tree event. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
         assert get_list_mock.call_count == 2
         get_list_mock.assert_called_with(f"--max-count=21 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -259,7 +259,7 @@ class TestPreReceive:
             input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
         assert get_list_mock.call_count == 1
         get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -287,9 +287,9 @@ class TestPreReceive:
             input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
+        assert result.exit_code == 0, result.output
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
-        assert result.exit_code == 0
         assert get_list_mock.call_count == 2
         get_list_mock.assert_called_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -313,7 +313,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input=f"{'a'*40} {EMPTY_SHA}  main",
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
         assert "Deletion event or nothing to scan.\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -337,12 +337,12 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="649061dcda8bff94e02adbaac70ca64cfb84bc78 bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main",  # noqa: E501
         )
+        assert result.exit_code == 0, result.output
         get_list_mock.assert_called_once_with(
             "--max-count=51 649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
         )  # noqa: E501
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
 
     @patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": "0.1"})
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -376,6 +376,6 @@ class TestPreReceive:
             input="bbbb\naaaa\norigin/main\n",
         )
         duration = time.time() - start
+        assert result.exit_code == 0, result.output
         assert duration < 0.3
-        assert result.exit_code == 0
         scan_commit_range_mock.assert_called_once()
