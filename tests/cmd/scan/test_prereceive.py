@@ -11,6 +11,7 @@ from tests.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_TOKEN,
+    is_macos,
 )
 
 
@@ -344,7 +345,6 @@ class TestPreReceive:
         assert "Commits to scan: 20" in result.output
         assert result.exit_code == 0
 
-    @patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": "0.1"})
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_timeout(
@@ -359,6 +359,8 @@ class TestPreReceive:
         THEN it stops and return 0
         """
 
+        scan_timeout = 0.1
+
         def sleepy_scan(*args, **kwargs):
             # Sleep for 5 seconds. Do not use a time.sleep(5) because our time limit is
             # not able to interrupt it before it ends.
@@ -370,12 +372,17 @@ class TestPreReceive:
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         start = time.time()
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
-        )
+        with patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": str(scan_timeout)}):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input="bbbb\naaaa\norigin/main\n",
+            )
         duration = time.time() - start
-        assert duration < 0.3
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.output
+
+        # This test often fails on GitHub macOS runner: duration can reach between
+        # 0.3 and 0.4. Workaround this by using a longer timeout on macOS.
+        max_duration = (6 if is_macos() else 3) * scan_timeout
+        assert duration < max_duration
         scan_commit_range_mock.assert_called_once()
