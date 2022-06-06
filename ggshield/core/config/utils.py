@@ -102,3 +102,26 @@ def get_attr_mapping(classes: Iterable[Tuple[Type[Any], str]]) -> Dict[str, str]
             assert field_.name not in mapping, f"Conflict with field '{field_.name}'"
             mapping[field_.name] = attr_name
     return mapping
+
+
+def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:
+    """
+    Returns a copy of `dct` with all items already in `reference_dct` removed.
+    """
+
+    result_dct = dict()
+    for key, value in dct.items():
+        reference_value = reference_dct[key]
+
+        if isinstance(value, dict):
+            value = remove_common_dict_items(value, reference_value)
+            # Remove empty dicts
+            if not value:
+                continue
+        else:
+            if value == reference_value:
+                continue
+
+        result_dct[key] = value
+
+    return result_dct

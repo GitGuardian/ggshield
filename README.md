@@ -48,7 +48,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
   - [`quota` command](#quota-command)
   - [`api-status` command](#api-status-command)
 - [Configuration](#configuration)
-  - [Updating a v1 configuration file](#updating-a-v1-configuration-file)
+  - [Migrating a v1 configuration file](#migrating-a-v1-configuration-file)
   - [Environment Variables](#environment-variables)
   - [On-premises configuration](#on-premises-configuration)
   - [Ignoring files](#ignoring-files)
@@ -454,9 +454,11 @@ secret:
     - Generic Password
 ```
 
-## Updating a v1 configuration file
+## Migrating a v1 configuration file
 
-To update a v1 configuration file to a v2 configuration file, follow these steps:
+If you have a v1 configuration file, you can run `ggshield config migrate` to let ggshield migrate it for you. The command modifies the configuration file in place, but it keeps the previous version as a `.gitguardian.yaml.old` file.
+
+Alternatively, you can follow these steps to migrate your configuration file manually:
 
 1. Add a `version: 2` entry.
 2. If the configuration file contains an `all-policies` key, remove it: it's no longer supported.

@@ -1,7 +1,13 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
-from ggshield.core.config.utils import replace_in_keys, update_from_other_instance
+import pytest
+
+from ggshield.core.config.utils import (
+    remove_common_dict_items,
+    replace_in_keys,
+    update_from_other_instance,
+)
 
 
 def test_replace_in_keys():
@@ -52,3 +58,51 @@ def test_update_from_other_instance():
     assert dst_conf.subconf.an_str == "src_subconf_str"
     assert dst_conf.a_list == ["i1", "i2", "i2", "i3"]
     assert dst_conf.a_set == {"i1", "i2", "i3"}
+
+
+@pytest.mark.parametrize(
+    ["src", "reference", "expected"],
+    [
+        pytest.param(
+            {"modified": 2, "same": 3},
+            {"modified": 1, "same": 3, "absent": 4},
+            {"modified": 2},
+            id="simple",
+        ),
+        pytest.param(
+            {"lst": [3, 4]},
+            {"lst": [1, 2]},
+            {"lst": [3, 4]},
+            id="replace-list",
+        ),
+        pytest.param(
+            {"lst1": [], "lst2": ["a"]},
+            {"lst1": [], "lst2": ["a"]},
+            {},
+            id="identical-lists-are-removed",
+        ),
+        pytest.param(
+            {"lst": []},
+            {"lst": ["a"]},
+            {"lst": []},
+            id="empty-list-not-removed-if-ref-not-empty",
+        ),
+        pytest.param(
+            {"outer": {"inner1": "modified", "inner3": "same"}},
+            {"outer": {"inner1": "original", "inner2": "absent", "inner3": "same"}},
+            {"outer": {"inner1": "modified"}},
+            id="nested-merge",
+        ),
+        pytest.param(
+            {"outer": {"inner1": "same"}},
+            {"outer": {"inner1": "same", "inner2": "absent"}},
+            {},
+            id="nested-dict-is-removed",
+        ),
+    ],
+)
+def test_remove_common_dict_items(
+    src: Dict[str, Any], reference: Dict[str, Any], expected: Dict[str, Any]
+):
+    result = remove_common_dict_items(src, reference)
+    assert result == expected
