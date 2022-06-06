@@ -380,6 +380,13 @@ def no_leak_message() -> str:
     return format_text("\nNo secrets have been found\n", STYLE["no_secret"])
 
 
+def no_iac_vulnerabilities() -> str:
+    """
+    Build a message if no IaC vulnerabilities were found.
+    """
+    return format_text("\nNo incidents have been found\n", STYLE["no_secret"])
+
+
 def get_lines_to_display(
     flat_matches_dict: Dict[int, List[Match]], lines: List, nb_lines: int
 ) -> Set[int]:

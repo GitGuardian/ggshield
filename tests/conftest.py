@@ -452,6 +452,36 @@ index 2ace9c7..4c7699d 100644
 \\ No newline at end of file
 """
 
+_IAC_SINGLE_VULNERABILITY = """
+resource "aws_alb_listener" "bad_example" {
+  protocol = "HTTP"
+}
+"""
+
+_IAC_MULTIPLE_VULNERABILITIES = """
+resource "aws_security_group" "bad_example" {
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+ resource "aws_security_group_rule" "bad_example" {
+  type = "ingress"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+"""
+
+_IAC_NO_VULNERABILITIES = """
+resource "aws_network_acl_rule" "bad_example" {
+  egress         = false
+  protocol       = "tcp"
+  from_port      = 22
+  to_port        = 22
+  rule_action    = "allow"
+  cidr_block     = "12.13.14.15"
+}
+"""
 
 my_vcr = vcr.VCR(
     cassette_library_dir=join(dirname(realpath(__file__)), "cassettes"),

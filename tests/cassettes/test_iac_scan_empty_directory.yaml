@@ -1,12 +1,13 @@
 interactions:
 - request:
     body: !!binary |
-      LS0zODdkYWIyMzBkODIyZTk3ZDdiOTE1OGNjOGYwZjllNw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+      LS1lOWJlNDk2MDFmYjdiN2FjZThmNmU1YmYwODJlZTQyOQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
       Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
-      IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS0zODdkYWIyMzBkODIyZTk3ZDdiOTE1
-      OGNjOGYwZjllNw0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
-      cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAChuaYgL/7cEBDQAAAMKg909tDjegAAAA
-      AAAAAAAAgDcDmt4dJwAoAAANCi0tMzg3ZGFiMjMwZDgyMmU5N2Q3YjkxNThjYzhmMGY5ZTctLQ0K
+      IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJNRURJVU0ifQ0KLS1lOWJlNDk2MDFmYjdiN2FjZThm
+      NmU1YmYwODJlZTQyOQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJl
+      Y3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAeAKfYgL/7cEBDQAAAMKg909tDjeg
+      AAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZTliZTQ5NjAxZmI3YjdhY2U4ZjZlNWJmMDgyZWU0Mjkt
+      LQ0K
     headers:
       Accept:
       - '*/*'
@@ -15,9 +16,9 @@ interactions:
       Connection:
       - keep-alive
       Content-Length:
-      - '342'
+      - '345'
       Content-Type:
-      - multipart/form-data; boundary=387dab230d822e97d7b9158cc8f0f9e7
+      - multipart/form-data; boundary=e9be49601fb7b7ace8f6e5bf082ee429
       GGShield-Command-Path:
       - cli iac scan
       GGShield-Version:
@@ -28,22 +29,26 @@ interactions:
     uri: https://api.gitguardian.com/v1/iacscan
   response:
     body:
-      string: '{"detail": "Not found (404)"}'
+      string: '{"id":"","type":"path_scan","iac_engine_version":"1.1.0","entities_with_incidents":[]}'
     headers:
       Access-Control-Expose-Headers:
       - X-App-Version
+      Allow:
+      - POST, OPTIONS
       Connection:
       - keep-alive
       Content-Length:
-      - '29'
+      - '86'
       Content-Type:
       - application/json
       Date:
-      - Fri, 03 Jun 2022 14:30:34 GMT
+      - Tue, 07 Jun 2022 07:47:06 GMT
       Referrer-Policy:
       - strict-origin-when-cross-origin
       Strict-Transport-Security:
       - max-age=15724800; includeSubDomains
+      Vary:
+      - Cookie
       X-App-Version:
       - 3751cc90
       X-Content-Type-Options:
@@ -51,11 +56,12 @@ interactions:
       - nosniff
       X-Frame-Options:
       - DENY
+      - SAMEORIGIN
       X-Secrets-Engine-Version:
       - 2.68.0
       X-XSS-Protection:
       - 1; mode=block
     status:
-      code: 404
-      message: Not Found
+      code: 200
+      message: OK
 version: 1
