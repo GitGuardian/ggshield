@@ -7,6 +7,7 @@ from mock import patch
 
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.types import IgnoredMatch
 
 
 @pytest.mark.usefixtures("isolated_fs")
@@ -19,7 +20,7 @@ class TestCache:
         with open(".cache_ggshield", "w") as file:
             json.dump({"last_found_secrets": [{"name": "", "match": "XXX"}]}, file)
         cache = Cache()
-        assert cache.last_found_secrets == [{"name": "", "match": "XXX"}]
+        assert cache.last_found_secrets == [IgnoredMatch(name="", match="XXX")]
 
         cache.purge()
         assert cache.last_found_secrets == []

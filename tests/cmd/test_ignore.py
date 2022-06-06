@@ -6,6 +6,7 @@ from pygitguardian.models import Match, PolicyBreak
 from ggshield.cmd.secret.ignore import ignore_last_found
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.types import IgnoredMatch
 from ggshield.scan import Commit
 from tests.conftest import _MULTIPLE_SECRETS, my_vcr
 
@@ -13,15 +14,15 @@ from tests.conftest import _MULTIPLE_SECRETS, my_vcr
 DOT_GITGUARDIAN_YAML = os.path.join(tempfile.gettempdir(), ".gitguardian.yml")
 
 FOUND_SECRETS = [
-    {
-        "name": "MySQL Assignment - test.txt",
-        "match": "41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8",
-    },
+    IgnoredMatch(
+        name="MySQL Assignment - test.txt",
+        match="41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8",
+    )
 ]
 
 
 def compare_matches_ignore(match):
-    return (match["name"], match["match"]) if isinstance(match, dict) else (match,)
+    return (match.name, match.match) if isinstance(match, IgnoredMatch) else (match,)
 
 
 def test_cache_catches_last_found_secrets(client, isolated_fs):
@@ -49,12 +50,12 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
     cache_found_secrets = sorted(cache.last_found_secrets, key=compare_matches_ignore)
     found_secrets = sorted(FOUND_SECRETS, key=compare_matches_ignore)
 
-    assert [found_secret["match"] for found_secret in cache_found_secrets] == [
-        found_secret["match"] for found_secret in found_secrets
+    assert [found_secret.match for found_secret in cache_found_secrets] == [
+        found_secret.match for found_secret in found_secrets
     ]
     ignore_last_found(config, cache)
     for ignore in config.secret.ignored_matches:
-        assert "test.txt" in ignore["name"]
+        assert "test.txt" in ignore.name
     cache.load_cache()
 
 
@@ -114,7 +115,7 @@ def test_ignore_last_found_with_manually_added_secrets(client, isolated_fs):
         "41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8"
     )
     config = Config()
-    config.secret.ignored_matches = [{"name": "", "match": manually_added_secret}]
+    config.secret.ignored_matches = [IgnoredMatch(name="", match=manually_added_secret)]
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
 
@@ -167,8 +168,8 @@ def test_ignore_last_found_preserve_previous_config(client, isolated_fs):
     """
     config = Config()
     previous_secrets = [
-        {"name": "", "match": "previous_secret"},
-        {"name": "", "match": "other_previous_secret"},
+        IgnoredMatch(name="", match="previous_secret"),
+        IgnoredMatch(name="", match="other_previous_secret"),
     ]
 
     previous_paths = {"some_path", "some_other_path"}

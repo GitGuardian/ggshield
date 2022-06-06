@@ -19,7 +19,7 @@ from ggshield.core.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.types import IgnoredMatch, post_init_ignored_match
+from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
 
 
@@ -42,16 +42,12 @@ class SecretConfig:
         Add secret to ignored_matches.
         """
         for match in self.ignored_matches:
-            if match["match"] == secret["match"]:
+            if match.match == secret.match:
                 # take the opportunity to name the ignored match
-                if not match["name"]:
-                    match["name"] = secret["name"]
+                if not match.name:
+                    match.name = secret.name
                 return
         self.ignored_matches.append(secret)
-
-    def __post_init__(self) -> None:
-        for match in self.ignored_matches:
-            post_init_ignored_match(match)
 
 
 @dataclass
@@ -226,7 +222,7 @@ class UserV1Config:
 
         for idx, match in enumerate(matches_ignore):
             if isinstance(match, str):
-                matches_ignore[idx] = {"name": "", "match": match}
+                matches_ignore[idx] = IgnoredMatch(name="", match=match)
 
 
 UserV1ConfigSchema = marshmallow_dataclass.class_schema(UserV1Config)

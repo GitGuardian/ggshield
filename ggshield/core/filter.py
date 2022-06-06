@@ -38,7 +38,7 @@ def is_ignored(
     :return: True if ignored
     """
 
-    matches = [match["match"] for match in matches_ignore]
+    matches = [match.match for match in matches_ignore]
     if policy_break.policy.lower() != "secrets detection":
         return True
     if get_ignore_sha(policy_break) in matches or any(
