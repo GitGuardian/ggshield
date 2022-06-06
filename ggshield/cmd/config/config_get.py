@@ -15,15 +15,15 @@ from ggshield.core.config.errors import UnknownInstanceError
     required=False,
     type=str,
     metavar="URL",
-    help="URL of the instance to get the config.",
+    help="Get per instance configuration.",
 )
 @click.pass_context
 def config_get_command(
     ctx: click.Context, field_name: str, instance_url: Optional[str]
 ) -> int:
     """
-    Get the value of the specified parameter.
-    If --instance is passed, retrieve the value for this specific instance
+    Print the value of the given configuration key.
+    If --instance is passed, retrieve the value for this specific instance.
     """
     config: Config = ctx.obj["config"]
 
