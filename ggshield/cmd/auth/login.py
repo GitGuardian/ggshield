@@ -11,7 +11,7 @@ from ggshield.core.utils import clean_url
 
 
 def validate_login_path(
-    config: Config, instance: Optional[str], sso_url: Optional[str]
+    instance: Optional[str], sso_url: Optional[str]
 ) -> Tuple[Optional[str], Optional[str]]:
     """
     Validate that the SSO URL and the instance refer to the same instance if they are both defined,
@@ -39,7 +39,7 @@ def validate_login_path(
     if instance is None:
         return sso_instance, sso_login_path
 
-    config_parsed_url = clean_url(config.dashboard_url)
+    config_parsed_url = clean_url(instance)
     if (
         config_parsed_url.scheme != sso_parsed_url.scheme
         or config_parsed_url.netloc != sso_parsed_url.netloc
@@ -51,7 +51,8 @@ def validate_login_path(
 @click.command()
 @click.option(
     "--method",
-    required=True,
+    required=False,
+    default="web",
     type=click.Choice(["token", "web"]),
     help="Authentication method.",
 )
@@ -59,13 +60,13 @@ def validate_login_path(
     "--instance",
     required=False,
     type=str,
-    help="URL of the instance to authenticate to.",
+    help="URL of the instance to authenticate against.",
 )
 @click.option(
     "--sso-url",
     required=False,
     type=str,
-    help="URL of the instance to authenticate to on a pre-selected SAML SSO page.",
+    help="URL of your SSO login page to force the authentication flow through your workspace SSO.",
 )
 @click.option(
     "--token-name",
@@ -78,7 +79,7 @@ def validate_login_path(
     required=False,
     type=click.IntRange(0),
     default=None,
-    help="Amount of days before the token expires. 0 means the token never expires.",
+    help="Number of days before the token expires. 0 means the token never expires.",
 )
 @click.pass_context
 def login_cmd(
@@ -90,14 +91,18 @@ def login_cmd(
     sso_url: Optional[str],
 ) -> int:
     """
-    Authenticate to your GitGuardian account.
+    Authenticate with a GitGuardian workspace.
+    A successful authentication results in a personal access token.
+    This token is stored in your configuration and used to authenticate your future requests.
 
-    Use `--method token` to authenticate using an existing token.
+    The default authentication method is "web".
+    ggshield launches a web browser to authenticate you to your GitGuardian workspace,
+    then automatically generates a token on your behalf.
 
-    Use `--method web` to let ggshield authenticate through your web browser and
-    generate a token for you. Note: This is experimental for now.
+    Alternatively, you can use `--method token` to authenticate using an already existing token.
+    The minimum required scope for the token is `scan`.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
 
     if sso_url is not None and method != "web":
         raise click.BadParameter(
@@ -137,14 +142,12 @@ def login_cmd(
         )
 
         instance_config.account = account_config
-        config.save()
+        config.auth_config.save()
         click.echo("Authentication was successful.")
         return 0
 
     if method == "web":
-        instance, login_path = validate_login_path(
-            config, instance=instance, sso_url=sso_url
-        )
+        instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
         if instance:
             config.set_cmdline_instance_name(instance)
         defined_instance = config.instance_name

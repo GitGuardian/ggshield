@@ -45,20 +45,33 @@ class TestPathScan:
         assert not result.exception
         assert "No secrets have been found" in result.output
 
-    def test_scan_file_secret(self, cli_fs_runner):
+    @pytest.mark.parametrize("use_deprecated_syntax", [False, True])
+    def test_scan_file_secret(self, cli_fs_runner, use_deprecated_syntax):
+        """
+        GIVEN a file with a secret
+        WHEN it is scanned
+        THEN the secret is reported
+        AND the exit code is not 0
+        AND there is a deprecated message in the output if the scan used the deprecated syntax
+        """
         Path("file_secret").write_text(UNCHECKED_SECRET)
         assert os.path.isfile("file_secret")
 
+        cmd = ["scan", "path", "file_secret"]
+        if not use_deprecated_syntax:
+            cmd.insert(0, "secret")
+
         with my_vcr.use_cassette("test_scan_file_secret"):
-            result = cli_fs_runner.invoke(
-                cli, ["-v", "secret", "scan", "path", "file_secret"]
-            )
+            result = cli_fs_runner.invoke(cli, cmd)
             assert result.exit_code == 1, result.output
             assert result.exception
             assert (
                 "GitGuardian Development Secret (Validity: Cannot Check)  (Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4)"  # noqa
                 in result.output
             )
+
+            if use_deprecated_syntax:
+                assert "deprecated" in result.output
 
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
         Path("file_secret").write_text(VALID_SECRET)
