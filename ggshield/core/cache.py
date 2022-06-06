@@ -45,18 +45,19 @@ class Cache:
 
     def update_cache(self, **kwargs: Any) -> None:
         if SECRETS_CACHE_KEY in kwargs:
+            schema = IgnoredMatchSchema()
             self.last_found_secrets = [
-                IgnoredMatchSchema().load(data=secret)
-                for secret in kwargs.pop(SECRETS_CACHE_KEY)
+                schema.load(data=secret) for secret in kwargs.pop(SECRETS_CACHE_KEY)
             ]
         if kwargs:
             for key in kwargs.keys():
                 click.echo(f'Unrecognized key in cache "{key}"')
 
     def to_dict(self) -> Dict[str, Any]:
+        schema = IgnoredMatchSchema()
         return {
             SECRETS_CACHE_KEY: [
-                IgnoredMatchSchema().dump(secret) for secret in self.last_found_secrets
+                schema.dump(secret) for secret in self.last_found_secrets
             ]
         }
 
