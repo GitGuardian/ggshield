@@ -1,0 +1,71 @@
+interactions:
+- request:
+    body: !!binary |
+      LS04YWM3NDM2MGIwYzQ3OWJlODhmZTY1M2NkYWFlMDdiNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+      Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
+      IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS04YWM3NDM2MGIwYzQ3OWJlODhmZTY1
+      M2NkYWFlMDdiNA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
+      cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAoc6dYgL/7dSxbsMgEAZgz34K5AcggLGt
+      DpE6duwbIEJwYgUHC2MlatV3L26atEM7JkPyfwv4Dt8N6KALunh+1ccXq9c2ZFfBTv5bGSvLn/0c
+      50xwnpFjdgPTGHVI7bPHJBrSx663S15XsmJPgje0rmUlRJ7B/eu0UW3nLI3t1XrMQ11L+bU2dX2a
+      dSEvM1/yKuNSyKaUjZAizX/ZVCwj7Jbz3+sYt52d3rZ6v/njXDrWtvd3/3mwo5+CsaTQh1HtbTz4
+      sFPaOBUmZwtSrPRa2aPuh/nrPSfEbtI/Izlbkla70abEEHz0xrtLoohmKFKiDb5Xgw/xnEivCyHR
+      /4pdonPX1D52fv9dRDvnD3MZ062DWjlvduf6XFBeUi4pr4r8Ay8WAAAAAAAAAAAAAAAAAAAAPKJP
+      Zv8szAAoAAANCi0tOGFjNzQzNjBiMGM0NzliZTg4ZmU2NTNjZGFhZTA3YjQtLQ0K
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '618'
+      Content-Type:
+      - multipart/form-data; boundary=8ac74360b0c479be88fe653cdaae07b4
+      GGShield-Command-Path:
+      - cli iac scan
+      GGShield-Version:
+      - 1.11.0
+      User-Agent:
+      - pygitguardian/1.3.4 (Darwin;py3.10.4) ggshield
+    method: POST
+    uri: https://api.gitguardian.com/v1/iacscan
+  response:
+    body:
+      string: '{"id":"","type":"path_scan","iac_engine_version":"1.1.0","entities_with_incidents":[]}'
+    headers:
+      Access-Control-Expose-Headers:
+      - X-App-Version
+      Allow:
+      - POST, OPTIONS
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '86'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 06 Jun 2022 09:53:39 GMT
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=15724800; includeSubDomains
+      Vary:
+      - Cookie
+      X-App-Version:
+      - 3751cc90
+      X-Content-Type-Options:
+      - nosniff
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      - SAMEORIGIN
+      X-Secrets-Engine-Version:
+      - 2.68.0
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1

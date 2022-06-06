@@ -13,6 +13,7 @@ from .message import (
     iac_engine_version,
     iac_vulnerability_header,
     iac_vulnerability_location,
+    no_iac_vulnerabilities,
 )
 
 
@@ -32,7 +33,8 @@ class IaCTextOutputHandler(OutputHandler):
                         Path(scan.id) / file_result.filename, file_result
                     )
                 )
-
+            if len(scan.iac_result.entities_with_incidents) == 0:
+                scan_buf.write(no_iac_vulnerabilities())
         return scan_buf.getvalue()
 
     def process_iac_file_result(

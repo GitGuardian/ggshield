@@ -74,8 +74,10 @@ class IaCGGClient(GGClient):
             "post",
             endpoint="iacscan",
             extra_headers=extra_headers,
-            data={
+            files={
                 "directory": directory,
+            },
+            data={
                 "scan_parameters": IaCScanParametersSchema().dumps(scan_parameters),
             },
         )

@@ -1,6 +1,5 @@
 import json
 
-import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
@@ -8,7 +7,7 @@ from tests.conftest import my_vcr
 
 
 class TestScanIac:
-    @pytest.mark.skip("To reenable when we have valid cassettes")
+    @my_vcr.use_cassette("test_iac_scan_empty_directory")
     def test_scan_valid_args(self, cli_fs_runner: CliRunner) -> None:
         """
         GIVEN valid arguments to the iac scan command
@@ -27,7 +26,7 @@ class TestScanIac:
                 "--ignore-policy",
                 "GG_IAC_0002",
                 "--ignore-path",
-                ".",
+                "**",
                 ".",
             ],
         )
@@ -84,10 +83,10 @@ class TestScanIac:
         )
         assert "Error scanning. Results may be incomplete." in result.stderr
         assert "404:Not found (404)" in result.stderr
-        assert json.loads(result.stdout) == json.loads(
-            '{"entities_with_incidents": [], '
-            '"iac_engine_version": "", '
-            '"id": ".", '
-            '"total_incidents": 0, '
-            '"type": "path_scan"}'
-        )
+        assert json.loads(result.stdout) == {
+            "entities_with_incidents": [],
+            "iac_engine_version": "",
+            "id": ".",
+            "total_incidents": 0,
+            "type": "path_scan",
+        }
