@@ -22,6 +22,10 @@ skipwindows = pytest.mark.skipif(
 )
 
 
+def is_macos():
+    return platform.system() == "Darwin"
+
+
 DATA_PATH = Path(__file__).parent.absolute() / "data"
 
 
