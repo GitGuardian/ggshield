@@ -2,6 +2,7 @@ import os
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
+from enum import IntEnum
 from pathlib import Path
 from typing import Any, Set
 
@@ -33,9 +34,9 @@ def global_config_path():
 
 @pytest.fixture(autouse=True)
 def env_vars(monkeypatch):
-    api_key = os.getenv("TEST_GITGUARDIAN_API_KEY", "1234567890")
-    monkeypatch.setenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
-    monkeypatch.setenv("GITGUARDIAN_API_KEY", api_key)
+    monkeypatch.delenv("GITGUARDIAN_INSTANCE", raising=False)
+    monkeypatch.delenv("GITGUARDIAN_API_URL", raising=False)
+    monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
 
 
 def write_text(filename: str, text: str):
@@ -316,111 +317,76 @@ class TestAuthConfig:
         assert config.instances[0].account.expire_at.tzinfo is not None
 
 
+class InstanceNamePriority(IntEnum):
+    GLOBAL = 0
+    LOCAL = 1
+    ENV = 2
+    CMDLINE = 3
+
+
+INSTANCES = [f"https://{x.lower()}.com" for x in InstanceNamePriority.__members__]
+
+
 @pytest.mark.usefixtures("isolated_fs")
 class TestConfig:
     def set_instances(
-        self,
-        local_filepath,
-        global_filepath,
-        local_instance=None,
-        global_instance=None,
+        self, local_filepath: str, global_filepath: str, priority: InstanceNamePriority
     ):
         auth_config_data = deepcopy(TestAuthConfig.default_config)
-        for i in range(1, 6):
+        for url in INSTANCES:
             config_dict = deepcopy(auth_config_data["instances"][0])
-            config_dict["url"] = f"https://instance{i}.com"
+            config_dict["url"] = url
             auth_config_data["instances"].append(config_dict)
-        if local_instance:
-            write_yaml(local_filepath, {"instance": local_instance})
+        if priority >= InstanceNamePriority.LOCAL:
+            write_yaml(
+                local_filepath, {"instance": INSTANCES[InstanceNamePriority.LOCAL]}
+            )
         else:
             if os.path.isfile(local_filepath):
                 os.remove(local_filepath)
-        if global_instance:
-            write_yaml(global_filepath, {"instance": global_instance})
+        if priority >= InstanceNamePriority.GLOBAL:
+            write_yaml(
+                global_filepath, {"instance": INSTANCES[InstanceNamePriority.GLOBAL]}
+            )
         else:
             if os.path.isfile(global_filepath):
                 os.remove(global_filepath)
         write_yaml(get_auth_config_filepath(), auth_config_data)
 
     @pytest.mark.parametrize(
-        [
-            "cmdline_instance",
-            "env_instance",
-            "local_instance",
-            "global_instance",
-            "expected_instance",
-        ],
-        [
-            pytest.param(
-                "https://instance1.com",
-                "https://instance2.com",
-                "https://instance3.com",
-                "https://instance4.com",
-                "https://instance1.com",
-                id="current_instance",
-            ),
-            pytest.param(
-                None,
-                "https://instance2.com",
-                "https://instance3.com",
-                "https://instance4.com",
-                "https://instance2.com",
-                id="env_instance",
-            ),
-            pytest.param(
-                None,
-                None,
-                "https://instance3.com",
-                "https://instance4.com",
-                "https://instance3.com",
-                id="local_instance",
-            ),
-            pytest.param(
-                None,
-                None,
-                None,
-                "https://instance4.com",
-                "https://instance4.com",
-                id="global_instance",
-            ),
-        ],
+        "priority",
+        (
+            InstanceNamePriority.GLOBAL,
+            InstanceNamePriority.LOCAL,
+            InstanceNamePriority.ENV,
+            InstanceNamePriority.CMDLINE,
+        ),
     )
     def test_instance_name_priority(
-        self,
-        cmdline_instance,
-        env_instance,
-        local_instance,
-        global_instance,
-        expected_instance,
-        local_config_path,
-        global_config_path,
+        self, local_config_path, global_config_path, priority: InstanceNamePriority
     ):
         """
         GIVEN different instances defined in the different possible sources:
-          - manually set on the config
+          - manually set on the command-line
           - env variable
           - local user config
           - global user config
         WHEN reading the config instance
         THEN it respects the expected priority
         """
-        if env_instance:
-            os.environ["GITGUARDIAN_INSTANCE"] = env_instance
-        elif "GITGUARDIAN_INSTANCE" in os.environ:
-            del os.environ["GITGUARDIAN_INSTANCE"]
-        if "GITGUARDIAN_API_URL" in os.environ:
-            del os.environ["GITGUARDIAN_API_URL"]
+        if priority >= InstanceNamePriority.ENV:
+            os.environ["GITGUARDIAN_INSTANCE"] = INSTANCES[InstanceNamePriority.ENV]
 
         self.set_instances(
-            local_instance=local_instance,
-            global_instance=global_instance,
             local_filepath=local_config_path,
             global_filepath=global_config_path,
+            priority=priority,
         )
         config = Config()
-        if cmdline_instance is not None:
-            config.set_cmdline_instance_name(cmdline_instance)
+        if priority >= InstanceNamePriority.CMDLINE:
+            config.set_cmdline_instance_name(INSTANCES[InstanceNamePriority.CMDLINE])
 
+        expected_instance = INSTANCES[priority]
         assert config.instance_name == expected_instance
         assert config.dashboard_url == expected_instance
         assert config.api_url == dashboard_to_api_url(expected_instance)
