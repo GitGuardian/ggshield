@@ -561,9 +561,8 @@ class TestConfig:
         WHEN loading the config
         THEN writes a warning to stderr
         """
-        monkeypatch.setitem(
-            os.environ, "GITGUARDIAN_API_URL", "https://api.gitguardian.com/v1"
-        )
+        original_api_url = "https://api.gitguardian.com/v1"
+        monkeypatch.setitem(os.environ, "GITGUARDIAN_API_URL", original_api_url)
         config = Config()
         api_url = config.api_url
         out, err = capsys.readouterr()
@@ -571,7 +570,7 @@ class TestConfig:
         sys.stderr.write(err)
 
         assert api_url == "https://api.gitguardian.com"
-        assert "Unexpected /v1 path in your URL configuration" in err
+        assert f"Ignoring unnecessary /v1 path in '{original_api_url}'" in err
 
     def test_v1_in_api_url_local_config(self, capsys, local_config_path):
         """
@@ -579,12 +578,13 @@ class TestConfig:
         WHEN loading the config
         THEN writes a warning to stderr
         """
+        original_api_url = "https://api.gitguardian.com/v1"
         write_yaml(
             local_config_path,
             {
                 "verbose": False,
                 "show_secrets": True,
-                "api_url": "https://api.gitguardian.com/v1",
+                "api_url": original_api_url,
             },
         )
 
@@ -595,7 +595,7 @@ class TestConfig:
         sys.stderr.write(err)
 
         assert api_url == "https://api.gitguardian.com"
-        assert "Unexpected /v1 path in your URL configuration" in err
+        assert f"Ignoring unnecessary /v1 path in '{original_api_url}'" in err
 
     def test_v1_in_api_url_global_config(self, capsys, global_config_path):
         """
@@ -603,12 +603,13 @@ class TestConfig:
         WHEN loading the config
         THEN writes a warning to stderr
         """
+        original_api_url = "https://api.gitguardian.com/v1"
         write_yaml(
             global_config_path,
             {
                 "verbose": False,
                 "show_secrets": True,
-                "api_url": "https://api.gitguardian.com/v1",
+                "api_url": original_api_url,
             },
         )
 
@@ -617,7 +618,7 @@ class TestConfig:
         sys.stdout.write(out)
         sys.stderr.write(err)
 
-        assert "Unexpected /v1 path in your URL configuration" in err
+        assert f"Ignoring unnecessary /v1 path in '{original_api_url}'" in err
 
     def test_updating_config_not_from_default_local_config_path(
         self, local_config_path

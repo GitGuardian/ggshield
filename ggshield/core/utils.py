@@ -293,7 +293,7 @@ def clean_url(url: str, warn: bool = False) -> ParseResult:
     if parsed_url.path.endswith("/v1"):
         parsed_url = parsed_url._replace(path=parsed_url.path[:-3])
         if warn:
-            display_warning("Unexpected /v1 path in your URL configuration")
+            display_warning(f"Ignoring unnecessary /v1 path in '{url}'")
     return parsed_url
 
 
