@@ -37,11 +37,13 @@ class TestCache:
         with open(".cache_ggshield", "w") as file:
             json.dump({}, file)
         cache = Cache()
-        cache.update_cache(last_found_secrets=["XXX"])
+        cache.update_cache(last_found_secrets=[{"match": "XXX"}])
         cache.save()
         with open(".cache_ggshield", "r") as file:
             file_content = json.load(file)
-            assert file_content == {"last_found_secrets": ["XXX"]}
+            assert file_content == {
+                "last_found_secrets": [{"match": "XXX", "name": ""}]
+            }
 
     def test_read_only_fs(self):
         """
@@ -50,7 +52,7 @@ class TestCache:
         THEN it shouldn't raise an exception
         """
         cache = Cache()
-        cache.update_cache(last_found_secrets=["XXX"])
+        cache.update_cache(last_found_secrets=[{"match": "XXX"}])
         # don't use mock.patch decorator on the test, since Cache.__init__ also calls open
         with patch("builtins.open") as open_mock:
             # The read-only FS is simulated with patched builtin open raising an error
@@ -68,7 +70,7 @@ class TestCache:
         """
         cache = Cache()
         if with_entry:
-            cache.update_cache(last_found_secrets=["XXX"])
+            cache.update_cache(last_found_secrets=[{"match": "XXX"}])
         cache.save()
 
         assert os.path.isfile(".cache_ggshield") is with_entry

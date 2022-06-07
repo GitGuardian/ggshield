@@ -144,6 +144,7 @@ class TestUserConfig:
         assert config.secret.ignored_detectors == {"d1", "d2"}
         assert config.secret.ignored_matches == [
             IgnoredMatch(name="foo", match="abcdef"),
+            IgnoredMatch(name="", match="1234abcd"),
         ]
         assert config.secret.ignored_paths == {"/foo", "/bar"}
 
