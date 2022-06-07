@@ -268,14 +268,15 @@ class TestAuthConfig:
         WHEN modifying the default config
         THEN it's not persisted until .save() is called
         """
+        instance = "https://custom-instance.com"
         config = Config()
-        config.instance = "custom"
+        config.instance = instance
 
-        assert Config().instance != "custom"
+        assert Config().instance != instance
 
         config.save()
 
-        assert Config().instance == "custom"
+        assert Config().instance == instance
 
     def test_load_file_not_existing(self):
         """
@@ -300,11 +301,12 @@ class TestAuthConfig:
         except FileNotFoundError:
             pass
 
-        config.instance = "custom"
+        instance = "https://custom-instance.com"
+        config.instance = instance
         config.save()
         updated_config = Config()
 
-        assert updated_config.instance == "custom"
+        assert updated_config.instance == instance
 
     def test_timezone_aware_expired(self):
         """
@@ -585,6 +587,29 @@ class TestConfig:
         sys.stderr.write(err)
 
         assert f"Ignoring unnecessary /v1 path in '{original_api_url}'" in err
+
+    def test_explicit_urls_in_env_are_not_altered(self, monkeypatch):
+        api_url = "https://custom-api-url.example.com"
+        instance = "https://custom-instance.example.com"
+        monkeypatch.setitem(os.environ, "GITGUARDIAN_API_URL", api_url)
+        monkeypatch.setitem(os.environ, "GITGUARDIAN_INSTANCE", instance)
+        config = Config()
+        assert config.api_url == api_url
+        assert config.instance_name == instance
+
+    def test_explicit_urls_in_config_is_not_altered(self, local_config_path):
+        api_url = "https://custom-api-url.example.com"
+        instance = "https://custom-instance.example.com"
+        write_yaml(
+            local_config_path,
+            {
+                "api_url": api_url,
+                "instance": instance,
+            },
+        )
+        config = Config()
+        assert config.api_url == api_url
+        assert config.instance_name == instance
 
     def test_updating_config_not_from_default_local_config_path(
         self, local_config_path

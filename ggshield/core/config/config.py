@@ -6,8 +6,7 @@ import click
 from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import get_attr_mapping
-from ggshield.core.constants import DEFAULT_DASHBOARD_URL
-from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
+from ggshield.core.utils import clean_url, dashboard_to_api_url
 
 
 class Config:
@@ -76,22 +75,8 @@ class Config:
         if self._cmdline_instance_name:
             return self._cmdline_instance_name
 
-        try:
-            return os.environ["GITGUARDIAN_INSTANCE"]
-        except KeyError:
-            pass
-
-        try:
-            name = os.environ["GITGUARDIAN_API_URL"]
-        except KeyError:
-            pass
-        else:
-            return api_to_dashboard_url(name, warn=True)
-
-        if self.user_config.instance:
-            return self.user_config.instance
-
-        return DEFAULT_DASHBOARD_URL
+        assert self.user_config.instance
+        return self.user_config.instance
 
     def set_cmdline_instance_name(self, name: str) -> None:
         """
@@ -112,8 +97,10 @@ class Config:
         The API URL to use to use the API
         It's the API URL from the configured instance
         """
-        # TODO change when instance_name can be a name instead of just a URL
-        return dashboard_to_api_url(self.instance_name)
+        if self._cmdline_instance_name:
+            return dashboard_to_api_url(self._cmdline_instance_name)
+        assert self.user_config.api_url
+        return self.user_config.api_url
 
     @property
     def dashboard_url(self) -> str:

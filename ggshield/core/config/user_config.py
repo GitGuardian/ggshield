@@ -1,16 +1,18 @@
+import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import click
 
 from ggshield.core.config.utils import YAMLFileConfig, get_global_path, load_yaml
 from ggshield.core.constants import (
+    DEFAULT_DASHBOARD_URL,
     DEFAULT_LOCAL_CONFIG_PATH,
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import api_to_dashboard_url
+from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
 
 @dataclass
@@ -20,6 +22,7 @@ class UserConfig(YAMLFileConfig):
     (local and global).
     """
 
+    api_url: Optional[str] = None
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
@@ -32,17 +35,28 @@ class UserConfig(YAMLFileConfig):
     banlisted_detectors: Set[str] = field(default_factory=set)
     ignore_default_excludes: bool = False
 
-    def update_config(self, data: Dict[str, Any]) -> bool:
-        # If data contains the old "api-url" key, turn it into an "instance" key,
-        # but only if there is no "instance" key
+    def update_from_env(self) -> None:
         try:
-            api_url = data.pop("api_url")
+            self.api_url = os.environ["GITGUARDIAN_API_URL"]
         except KeyError:
             pass
-        else:
-            if "instance" not in data:
-                data["instance"] = api_to_dashboard_url(api_url, warn=True)
-        return super(UserConfig, self).update_config(data)
+        try:
+            self.instance = os.environ["GITGUARDIAN_INSTANCE"]
+        except KeyError:
+            pass
+
+        if self.api_url:
+            self.api_url = clean_url(self.api_url, warn=True).geturl()
+        if self.instance:
+            self.instance = clean_url(self.instance, warn=True).geturl()
+
+        if self.api_url and not self.instance:
+            self.instance = api_to_dashboard_url(self.api_url, warn=True)
+        elif self.instance and not self.api_url:
+            self.api_url = dashboard_to_api_url(self.instance, warn=True)
+        elif not self.api_url and not self.instance:
+            self.instance = DEFAULT_DASHBOARD_URL
+            self.api_url = dashboard_to_api_url(self.instance, warn=True)
 
     def save(self, config_path: str) -> None:
         """
@@ -64,6 +78,7 @@ class UserConfig(YAMLFileConfig):
         if config_path:
             data = load_yaml(config_path) or {}
             user_config.update_config(data)
+            user_config.update_from_env()
             return user_config, config_path
 
         for global_config_filename in GLOBAL_CONFIG_FILENAMES:
@@ -80,6 +95,7 @@ class UserConfig(YAMLFileConfig):
 
         if config_path is None:
             config_path = DEFAULT_LOCAL_CONFIG_PATH
+        user_config.update_from_env()
         return user_config, config_path
 
     def add_ignored_match(self, secret: Dict) -> None:

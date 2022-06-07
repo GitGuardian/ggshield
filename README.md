@@ -438,7 +438,12 @@ exit-zero: false # default: false
 # By default only secrets are detected. Use all-policies to toggle this behaviour.
 all-policies: false # default: false
 
-instance: https://api.gitguardian.com
+# GitGuardian instance URL.
+# Only useful when using an on-premise GitGuardian instance.
+instance: https://dashboard.gitguardian.com
+
+# GitGuardian API URL. Deduced from `instance` if not set.
+api-url: https://api.gitguardian.com
 
 verbose: false # default: false
 ```
@@ -473,9 +478,9 @@ Reference of current environment variables supported by ggshield:
 
 - `GITGUARDIAN_API_KEY`: API Key for the GitGuardian API. Use this if you don't want to use the `ggshield auth` commands.
 
-- `GITGUARDIAN_INSTANCE`: Custom URL of the GitGuardian dashboard. The API URL will be inferred from it.
+- `GITGUARDIAN_INSTANCE`: Custom URL of the GitGuardian dashboard.
 
-- `GITGUARDIAN_API_URL`: Custom URL for the scanning API. Deprecated, use `GITGUARDIAN_INSTANCE` instead.
+- `GITGUARDIAN_API_URL`: Custom URL for the scanning API.
 
 - `GITGUARDIAN_DONT_LOAD_ENV`: If set to any value, environment variables won't be loaded from a file.
 
