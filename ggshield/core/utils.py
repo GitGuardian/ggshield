@@ -288,6 +288,8 @@ def clean_url(url: str, warn: bool = False) -> ParseResult:
     (optionally with a warning).
     """
     parsed_url = urlparse(url)
+    if parsed_url.scheme != "https":
+        raise click.ClickException(f"Invalid scheme for URL '{url}', expected HTTPS")
     if parsed_url.path.endswith("/"):
         parsed_url = parsed_url._replace(path=parsed_url.path[:-1])
     if parsed_url.path.endswith("/v1"):
@@ -303,10 +305,6 @@ def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     handles the SaaS edge case where the host changes instead of the path
     """
     parsed_url = clean_url(dashboard_url, warn=warn)
-    if parsed_url.scheme != "https":
-        raise click.ClickException(
-            f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
-        )
     if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
         if parsed_url.path:
             raise click.ClickException(
@@ -328,10 +326,6 @@ def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
     handles the SaaS edge case where the host changes instead of the path
     """
     parsed_url = clean_url(api_url, warn=warn)
-    if parsed_url.scheme != "https":
-        raise click.ClickException(
-            f"Invalid scheme for API URL '{api_url}', expected HTTPS"
-        )
     if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
         if parsed_url.path:
             raise click.ClickException(

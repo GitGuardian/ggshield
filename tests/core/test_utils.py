@@ -111,7 +111,7 @@ def test_retrieve_client_invalid_api_url():
     url = "no-scheme.com"
     with pytest.raises(
         click.ClickException,
-        match=f"Invalid scheme for API URL '{url}', expected HTTPS",
+        match=f"Invalid scheme for URL '{url}', expected HTTPS",
     ):
         with mock.patch.dict(os.environ, {"GITGUARDIAN_API_URL": url}):
             create_client_from_config(Config())
