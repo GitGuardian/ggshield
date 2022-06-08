@@ -15,6 +15,7 @@ from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
 )
+from ggshield.core.types import IgnoredMatch
 from tests.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -145,7 +146,7 @@ def test_remove_ignores(
     scan_result: ScanResult, ignores: Iterable, final_len: int
 ) -> None:
     copy_result = copy.deepcopy(scan_result)
-    ignored_matches = [{"name": "", "match": x} for x in ignores]
+    ignored_matches = [IgnoredMatch(name="", match=x) for x in ignores]
     remove_ignored_from_result(copy_result, ignored_matches)
 
     assert len(copy_result.policy_breaks) == final_len

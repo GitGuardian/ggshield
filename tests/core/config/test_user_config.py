@@ -10,6 +10,7 @@ from ggshield.core.config.user_config import (
     IaCConfig,
     UserConfig,
 )
+from ggshield.core.types import IgnoredMatch
 from tests.conftest import write_text, write_yaml
 
 
@@ -87,9 +88,9 @@ class TestUserConfig:
         )
         config = Config()
         assert config.secret.ignored_matches == [
-            {"match": "three", "name": ""},
-            {"match": "one", "name": ""},
-            {"match": "two", "name": ""},
+            IgnoredMatch(match="three", name=""),
+            IgnoredMatch(match="one", name=""),
+            IgnoredMatch(match="two", name=""),
         ]
 
     def test_load_too_new_version(self, local_config_path):
@@ -142,8 +143,8 @@ class TestUserConfig:
         assert config.secret.show_secrets
         assert config.secret.ignored_detectors == {"d1", "d2"}
         assert config.secret.ignored_matches == [
-            {"name": "foo", "match": "abcdef"},
-            {"name": "", "match": "1234abcd"},
+            IgnoredMatch(name="foo", match="abcdef"),
+            IgnoredMatch(name="", match="1234abcd"),
         ]
         assert config.secret.ignored_paths == {"/foo", "/bar"}
 
@@ -166,8 +167,8 @@ class TestUserConfig:
         config, _ = UserConfig.load(config_path)
 
         assert config.secret.ignored_matches == [
-            {"name": "", "match": "abcd"},
-            {"name": "", "match": "dbca"},
+            IgnoredMatch(name="", match="abcd"),
+            IgnoredMatch(name="", match="dbca"),
         ]
 
     def test_iac_config(self, cli_fs_runner, local_config_path):

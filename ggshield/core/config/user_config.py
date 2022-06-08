@@ -19,7 +19,7 @@ from ggshield.core.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.types import IgnoredMatch, post_init_ignored_match
+from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
 
 
@@ -42,16 +42,12 @@ class SecretConfig:
         Add secret to ignored_matches.
         """
         for match in self.ignored_matches:
-            if match["match"] == secret["match"]:
+            if match.match == secret.match:
                 # take the opportunity to name the ignored match
-                if not match["name"]:
-                    match["name"] = secret["name"]
+                if not match.name:
+                    match.name = secret.name
                 return
         self.ignored_matches.append(secret)
-
-    def __post_init__(self) -> None:
-        for match in self.ignored_matches:
-            post_init_ignored_match(match)
 
 
 @dataclass
@@ -160,7 +156,7 @@ class UserV1Config:
     instance: Optional[str] = None
     all_policies: bool = False
     exit_zero: bool = False
-    matches_ignore: List[IgnoredMatch] = field(default_factory=list)
+    matches_ignore: List[Dict[str, Optional[str]]] = field(default_factory=list)
     paths_ignore: Set[str] = field(default_factory=set)
     verbose: bool = False
     allow_self_signed: bool = False
@@ -184,7 +180,7 @@ class UserV1Config:
             if "instance" not in data:
                 data["instance"] = api_to_dashboard_url(api_url, warn=True)
 
-        UserV1Config.update_matches_ignore(data)
+        UserV1Config.matches_ignore_to_dict(data)
 
         v1config = UserV1ConfigSchema().load(data)
 
@@ -198,10 +194,15 @@ class UserV1Config:
                 "The `ignore_default_exclude` option has been deprecated and is now ignored."
             )
 
+        ignored_match_schema = IgnoredMatchSchema()
+        ignored_matches = [
+            ignored_match_schema.load(secret) for secret in v1config.matches_ignore
+        ]
+
         secret = SecretConfig(
             show_secrets=v1config.show_secrets,
             ignored_detectors=v1config.banlisted_detectors,
-            ignored_matches=v1config.matches_ignore,
+            ignored_matches=ignored_matches,
             ignored_paths=v1config.paths_ignore,
         )
 
@@ -215,7 +216,7 @@ class UserV1Config:
         )
 
     @staticmethod
-    def update_matches_ignore(data: Dict[str, Any]) -> None:
+    def matches_ignore_to_dict(data: Dict[str, Any]) -> None:
         """
         v1 config format allowed to use just a hash of the secret for matches_ignore
         field v2 does not. This function converts the hash-only matches.
