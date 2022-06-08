@@ -19,7 +19,7 @@ from ggshield.scan import ScanCollection
 from ggshield.scan.scannable_errors import handle_scan_error
 
 
-def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> None:
+def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
     invalid_excluded_policies = [
         policy_id for policy_id in value if not validate_policy_id(policy_id)
     ]
@@ -27,6 +27,7 @@ def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> None:
         raise ValueError(
             f"The policies {invalid_excluded_policies} do not match the pattern '{POLICY_ID_PATTERN.pattern}'"
         )
+    return value
 
 
 @click.command()
