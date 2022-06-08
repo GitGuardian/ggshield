@@ -182,6 +182,13 @@ def iac_vulnerability_location(
     return msg.getvalue()
 
 
+def iac_vulnerability_location_failed(
+    line_start: int,
+    line_end: int,
+) -> str:
+    return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
+
+
 def policy_break_header(
     issue_n: int, policy_breaks: List[PolicyBreak], ignore_sha: str
 ) -> str:

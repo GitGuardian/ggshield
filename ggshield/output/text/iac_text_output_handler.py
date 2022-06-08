@@ -13,6 +13,7 @@ from .message import (
     iac_engine_version,
     iac_vulnerability_header,
     iac_vulnerability_location,
+    iac_vulnerability_location_failed,
     no_iac_vulnerabilities,
 )
 
@@ -51,19 +52,31 @@ class IaCTextOutputHandler(OutputHandler):
 
         result_buf.write(file_info(file_result.filename, len(file_result.incidents)))
 
-        file = File.from_bytes(file_path.read_bytes(), str(file_path))
-        lines: List[Line] = get_lines_from_content(file.document, Filemode.FILE, False)
+        try:
+            file = File.from_bytes(file_path.read_bytes(), str(file_path))
+            lines: List[Line] = get_lines_from_content(
+                file.document, Filemode.FILE, False
+            )
+        except Exception:
+            lines = []
 
         for issue_n, vulnerability in enumerate(file_result.incidents, 1):
             result_buf.write(iac_vulnerability_header(issue_n, vulnerability))
-            result_buf.write(
-                iac_vulnerability_location(
-                    lines,
-                    vulnerability.line_start,
-                    vulnerability.line_end,
-                    self.nb_lines,
-                    clip_long_lines=not self.verbose,
+            if len(lines) == 0:
+                result_buf.write(
+                    iac_vulnerability_location_failed(
+                        vulnerability.line_start, vulnerability.line_end
+                    )
                 )
-            )
+            else:
+                result_buf.write(
+                    iac_vulnerability_location(
+                        lines,
+                        vulnerability.line_start,
+                        vulnerability.line_end,
+                        self.nb_lines,
+                        clip_long_lines=not self.verbose,
+                    )
+                )
 
         return result_buf.getvalue()
