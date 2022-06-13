@@ -72,7 +72,7 @@ class IaCGGClient(GGClient):
 
         resp = self.request(
             "post",
-            endpoint="iacscan",
+            endpoint="iac_scan",
             extra_headers=extra_headers,
             files={
                 "directory": directory,
