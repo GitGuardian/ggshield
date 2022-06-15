@@ -11,6 +11,8 @@ from tests.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_TOKEN,
+    assert_invoke_exited_with,
+    assert_invoke_ok,
     is_macos,
 )
 
@@ -45,7 +47,7 @@ class TestPreReceive:
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -74,7 +76,7 @@ class TestPreReceive:
             "if those secrets are false positives and you still want your push to pass, run:\n'git push -o breakglass'"
             in result.output
         )
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -103,7 +105,7 @@ class TestPreReceive:
             "Unable to get commit range.\n  before: bbbb\n  after: aaaa\nSkipping pre-receive hook\n\n"
             in result.output
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -136,7 +138,7 @@ class TestPreReceive:
             "SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.\n"
             in result.output
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.scan.repo.scan_commit")
@@ -184,7 +186,7 @@ class TestPreReceive:
         ]
         assert web_ui_lines
         assert any(contains_secret(x, _SIMPLE_SECRET_TOKEN) for x in web_ui_lines)
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -203,7 +205,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli, ["-v", "secret", "scan", "pre-receive"], input=""
         )
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
         assert "Error: Invalid input arguments: []\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -232,7 +234,7 @@ class TestPreReceive:
 
         assert "New tree event. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert get_list_mock.call_count == 2
         get_list_mock.assert_called_with(f"--max-count=21 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -260,7 +262,7 @@ class TestPreReceive:
             input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert get_list_mock.call_count == 1
         get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -290,7 +292,7 @@ class TestPreReceive:
 
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert get_list_mock.call_count == 2
         get_list_mock.assert_called_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -314,7 +316,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input=f"{'a'*40} {EMPTY_SHA}  main",
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -343,7 +345,7 @@ class TestPreReceive:
         )  # noqa: E501
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -379,7 +381,7 @@ class TestPreReceive:
                 input="bbbb\naaaa\norigin/main\n",
             )
         duration = time.time() - start
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
 
         # This test often fails on GitHub macOS runner: duration can reach between
         # 0.3 and 0.4. Workaround this by using a longer timeout on macOS.

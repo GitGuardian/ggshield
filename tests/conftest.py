@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 import vcr
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
@@ -502,3 +502,20 @@ def isolated_fs(fs):
     # add cassettes dir
     cassettes_dir = join(dirname(realpath(__file__)), "cassettes")
     fs.add_real_directory(cassettes_dir)
+
+
+def assert_invoke_exited_with(result: Result, exit_code: int):
+    msg = f"""
+    Expected code {exit_code}, got {result.exit_code}.
+
+    stdout:
+    {result.stdout}
+
+    stderr:
+    {result.stderr if result.stderr_bytes is not None else ""}
+    """
+    assert result.exit_code == exit_code, msg
+
+
+def assert_invoke_ok(result: Result):
+    assert_invoke_exited_with(result, 0)

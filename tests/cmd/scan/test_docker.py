@@ -7,7 +7,13 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.scan.scannable import File, Files, ScanCollection
-from tests.conftest import _SIMPLE_SECRET, DATA_PATH, my_vcr
+from tests.conftest import (
+    _SIMPLE_SECRET,
+    DATA_PATH,
+    assert_invoke_exited_with,
+    assert_invoke_ok,
+    my_vcr,
+)
 
 
 DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
@@ -29,7 +35,7 @@ class TestDockerCMD:
             cli,
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.docker.docker_save_to_tmp")
     @patch("ggshield.cmd.secret.scan.docker.docker_scan_archive")
@@ -45,7 +51,7 @@ class TestDockerCMD:
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
         assert result.output == ""
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.docker.docker_save_to_tmp")
     @patch("ggshield.cmd.secret.scan.docker.docker_scan_archive")
@@ -63,7 +69,7 @@ class TestDockerCMD:
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
         assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
 
     @patch("ggshield.scan.docker.get_files_from_docker_archive")
     @pytest.mark.parametrize(
@@ -97,7 +103,7 @@ class TestDockerCMD:
                 ],
             )
             get_files_mock.assert_called_once()
-            assert result.exit_code == 1
+            assert_invoke_exited_with(result, 1)
 
             if json_output:
                 output = json.loads(result.output)

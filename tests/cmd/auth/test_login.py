@@ -20,6 +20,7 @@ from ggshield.core.oauth import (
     get_error_param,
     get_pretty_date,
 )
+from tests.conftest import assert_invoke_ok
 
 from ..utils import prepare_config
 
@@ -109,7 +110,7 @@ class TestAuthLoginToken:
             instance_config.url for instance_config in config.auth_config.instances
         ]
         if test_case == "valid":
-            assert result.exit_code == 0, result.output
+            assert_invoke_ok(result)
             assert instance in config_instance_urls
             assert config.auth_config.get_instance(instance).account.token == token
         else:
@@ -139,7 +140,7 @@ class TestAuthLoginToken:
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert len(config.auth_config.instances) == 1
         config_instance_urls = [
             instance_config.url for instance_config in config.auth_config.instances
@@ -167,14 +168,14 @@ class TestAuthLoginToken:
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert config.auth_config.get_instance(instance).account.token == token
 
         token = "mysecondsupertoken"
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert len(config.auth_config.instances) == 1
         assert config.auth_config.get_instance(instance).account.token == token
 
@@ -186,7 +187,7 @@ class TestAuthLoginToken:
         )
 
         config = Config()
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert len(config.auth_config.instances) == 2
         assert config.auth_config.get_instance(instance).account.token == token
         assert (
