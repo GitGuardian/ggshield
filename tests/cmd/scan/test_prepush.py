@@ -7,6 +7,7 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
+from tests.conftest import assert_invoke_ok
 
 
 class TestPrepush:
@@ -23,7 +24,7 @@ class TestPrepush:
             ["-v", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert "Unable to get commit range." in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
@@ -51,7 +52,7 @@ class TestPrepush:
         scan_commit_range_mock.assert_called_once()
         _, kwargs = scan_commit_range_mock.call_args_list[0]
         assert len(kwargs["commit_list"]) == 50
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert "Too many commits. Scanning last 50" in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
@@ -117,7 +118,7 @@ class TestPrepush:
             banlisted_detectors=set(),
         )
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
         expected_exclusion_regexes = init_exclusion_regexes(IGNORED_DEFAULT_WILDCARDS)
         expected_exclusion_patterns = [r.pattern for r in expected_exclusion_regexes]
@@ -146,7 +147,7 @@ class TestPrepush:
 
         result = cli_fs_runner.invoke(cli, ["-v", "scan", "pre-push"], input="")
         assert "Deletion event or nothing to scan.\n" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -178,7 +179,7 @@ class TestPrepush:
 
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -204,7 +205,7 @@ class TestPrepush:
             env={"PRE_COMMIT_FROM_REF": EMPTY_SHA, "PRE_COMMIT_TO_REF": "a" * 40},
         )
         assert "Deletion event or nothing to scan.\n" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -234,4 +235,4 @@ class TestPrepush:
         )  # noqa: E501
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
