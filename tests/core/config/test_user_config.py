@@ -178,7 +178,7 @@ class TestUserConfig:
                 "version": 2,
                 "iac": {
                     "ignored_paths": ["mypath"],
-                    "ignored_policies": ["mypolicy"],
+                    "ignored_policies": ["GG_IAC_0001"],
                     "minimum_severity": "myseverity",
                 },
             },
@@ -186,8 +186,23 @@ class TestUserConfig:
         config = Config()
         assert isinstance(config.iac, IaCConfig)
         assert config.iac.ignored_paths == {"mypath"}
-        assert config.iac.ignored_policies == {"mypolicy"}
+        assert config.iac.ignored_policies == {"GG_IAC_0001"}
         assert config.iac.minimum_severity == "myseverity"
+
+    def test_iac_config_bad_policy_id(self, cli_fs_runner, local_config_path):
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored_paths": ["mypath"],
+                    "ignored_policies": ["GG_ACI_0001"],
+                    "minimum_severity": "myseverity",
+                },
+            },
+        )
+        with pytest.raises(ParseError):
+            Config()
 
     def test_iac_config_options_inheritance(
         self, cli_fs_runner, local_config_path, global_config_path
@@ -198,7 +213,7 @@ class TestUserConfig:
                 "version": 2,
                 "iac": {
                     "ignored_paths": ["myglobalpath"],
-                    "ignored_policies": ["myglobalpolicy"],
+                    "ignored_policies": ["GG_IAC_0001"],
                     "minimum_severity": "myglobalseverity",
                 },
             },
@@ -209,7 +224,7 @@ class TestUserConfig:
                 "version": 2,
                 "iac": {
                     "ignored_paths": ["mypath"],
-                    "ignored_policies": ["mypolicy"],
+                    "ignored_policies": ["GG_IAC_0002"],
                     "minimum_severity": "myseverity",
                 },
             },
@@ -217,5 +232,5 @@ class TestUserConfig:
         config = Config()
         assert isinstance(config.iac, IaCConfig)
         assert config.iac.ignored_paths == {"myglobalpath", "mypath"}
-        assert config.iac.ignored_policies == {"myglobalpolicy", "mypolicy"}
+        assert config.iac.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
         assert config.iac.minimum_severity == "myseverity"
