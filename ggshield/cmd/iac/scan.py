@@ -62,7 +62,8 @@ def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[s
 )
 @click.option("--json", is_flag=True, help="JSON output.")
 @click.argument(
-    "directory", type=click.Path(exists=True, readable=True, path_type=Path)
+    "directory",
+    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
 )
 @click.pass_context
 def scan_cmd(

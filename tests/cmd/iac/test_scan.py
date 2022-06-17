@@ -1,9 +1,10 @@
 import json
+from pathlib import Path
 
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
-from tests.conftest import my_vcr
+from tests.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
 
 
 class TestScanIac:
@@ -55,6 +56,23 @@ class TestScanIac:
             "The policies ['GG_IAC_002'] do not match the pattern 'GG_IAC_[0-9]{4}'"
             in str(result.exception)
         )
+
+    def test_iac_scan_file_error_response(self, cli_fs_runner: CliRunner) -> None:
+        Path("tmp/").mkdir(exist_ok=True)
+        Path("tmp/iac_file_single_vulnerability.tf").write_text(
+            _IAC_SINGLE_VULNERABILITY
+        )
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "iac",
+                "scan",
+                "tmp/iac_file_single_vulnerability.tf",
+            ],
+        )
+        assert result.exit_code == 2
+        assert "Error: Invalid value for 'DIRECTORY'" in result.stdout
 
     @my_vcr.use_cassette("test_iac_scan_error_response")
     def test_iac_scan_error_response(self, cli_fs_runner: CliRunner) -> None:
