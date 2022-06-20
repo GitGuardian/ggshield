@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import click
 import marshmallow_dataclass
@@ -21,6 +21,7 @@ from ggshield.core.constants import (
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
+from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
 
 
 CURRENT_CONFIG_VERSION = 2
@@ -50,6 +51,16 @@ class SecretConfig:
         self.ignored_matches.append(secret)
 
 
+def validate_policy_ids(values: Iterable[str]) -> None:
+    invalid_excluded_policies = [
+        policy_id for policy_id in values if not validate_policy_id(policy_id)
+    ]
+    if len(invalid_excluded_policies) > 0:
+        raise ValidationError(
+            f"The policies {invalid_excluded_policies} do not match the pattern '{POLICY_ID_PATTERN.pattern}'"
+        )
+
+
 @dataclass
 class IaCConfig:
     """
@@ -58,7 +69,9 @@ class IaCConfig:
     """
 
     ignored_paths: Set[str] = field(default_factory=set)
-    ignored_policies: Set[str] = field(default_factory=set)
+    ignored_policies: Set[str] = field(
+        default_factory=set, metadata={"validate": validate_policy_ids}
+    )
     minimum_severity: str = "LOW"
 
 
