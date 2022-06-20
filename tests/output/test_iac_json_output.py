@@ -130,7 +130,6 @@ def assert_file_single_vulnerability_displayed(json_result: Dict[str, Any]):
                 "documentation_url": "https://gitguardian.com",
                 "component": "aws_alb_listener.bad_example",
                 "severity": "HIGH",
-                "ignore_sha": "shasha",
             }
         ],
         "total_incidents": 1,
@@ -156,7 +155,6 @@ def assert_file_multiple_vulnerabilities_displayed(json_result: Dict[str, Any]):
                 "documentation_url": "https://gitguardian.com",
                 "component": "aws_security_group.bad_example",
                 "severity": "HIGH",
-                "ignore_sha": "shasha",
             },
             {
                 "policy": "Unrestricted ingress traffic leaves assets exposed to remote attacks.",
@@ -167,7 +165,6 @@ def assert_file_multiple_vulnerabilities_displayed(json_result: Dict[str, Any]):
                 "documentation_url": "https://gitguardian.com",
                 "component": "aws_security_group_rule.bad_example",
                 "severity": "HIGH",
-                "ignore_sha": "shasha",
             },
         ],
         "total_incidents": 2,
