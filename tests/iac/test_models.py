@@ -38,7 +38,6 @@ class TestModel:
                                     "documentation_url": "mydoc",
                                     "component": "mycomponent",
                                     "severity": "myseverity",
-                                    "ignore_sha": "mysha",
                                     "some_extra_field": "extra",
                                 }
                             ],
@@ -63,7 +62,6 @@ class TestModel:
                     "documentation_url": "mydoc",
                     "component": "mycomponent",
                     "severity": "myseverity",
-                    "ignore_sha": "mysha",
                     "some_extra_field": "extra",
                 },
             ),
@@ -82,7 +80,6 @@ class TestModel:
                             "documentation_url": "mydoc",
                             "component": "mycomponent",
                             "severity": "myseverity",
-                            "ignore_sha": "mysha",
                             "some_extra_field": "extra",
                         }
                     ],

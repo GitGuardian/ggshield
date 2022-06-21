@@ -217,14 +217,13 @@ def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> s
     """
     Build a header for the iac policy break.
     """
-    return "\n{} Incident {} ({}): {}: {} ({}) (Ignore with SHA: {})\n".format(
+    return "\n{} Incident {} ({}): {}: {} ({})\n".format(
         format_text(">>>", STYLE["detector_line_start"]),
         issue_n,
         format_text("IaC", STYLE["detector"]),
         format_text(vulnerability.component, STYLE["detector"]),
         format_text(vulnerability.policy, STYLE["policy"]),
         format_text(vulnerability.policy_id, STYLE["policy"]),
-        format_text(vulnerability.ignore_sha, STYLE["ignore_sha"]),
     )
 
 

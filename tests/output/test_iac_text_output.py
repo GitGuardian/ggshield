@@ -107,7 +107,7 @@ def assert_file_single_vulnerability_displayed(result: Result):
         in result.stdout
     )
     assert (
-        ">>> Incident 1 (IaC): aws_alb_listener.bad_example: Plain HTTP is used (GG_IAC_0001) (Ignore with SHA: shasha)"  # noqa: E501
+        ">>> Incident 1 (IaC): aws_alb_listener.bad_example: Plain HTTP is used (GG_IAC_0001)"  # noqa: E501
         in result.stdout
     )
     assert '2 | resource "aws_alb_listener" "bad_example" {' in result.stdout
@@ -119,12 +119,12 @@ def assert_file_multiple_vulnerabilities_displayed(result: Result):
         in result.stdout
     )
     assert (
-        ">>> Incident 1 (IaC): aws_security_group.bad_example: Unrestricted egress traffic might lead to remote code execution. (GG_IAC_0002) (Ignore with SHA: shasha)"  # noqa: E501
+        ">>> Incident 1 (IaC): aws_security_group.bad_example: Unrestricted egress traffic might lead to remote code execution. (GG_IAC_0002)"  # noqa: E501
         in result.stdout
     )
     assert '2 | resource "aws_security_group" "bad_example" {' in result.stdout
     assert (
-        ">>> Incident 2 (IaC): aws_security_group_rule.bad_example: Unrestricted ingress traffic leaves assets exposed to remote attacks. (GG_IAC_0003) (Ignore with SHA: shasha)"  # noqa: E501
+        ">>> Incident 2 (IaC): aws_security_group_rule.bad_example: Unrestricted ingress traffic leaves assets exposed to remote attacks. (GG_IAC_0003)"  # noqa: E501
         in result.stdout
     )
     assert '8 |  resource "aws_security_group_rule" "bad_example" {' in result.stdout
