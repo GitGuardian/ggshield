@@ -131,7 +131,8 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
         path=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
         verbose=ctx.obj["config"].verbose,
-        ignore_git=True,
+        # If the repository is a git repository, ignore untracked files
+        ignore_git=False,
     )
     tar = create_tar(directory, files)
 

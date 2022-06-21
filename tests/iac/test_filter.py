@@ -2,6 +2,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from ggshield.iac.filter import get_iac_files_from_paths
 
 
@@ -32,8 +34,8 @@ def test_get_iac_files_from_paths(tmp_path):
 
     files = get_iac_files_from_paths(tmp_path, set(), True)
     assert len(files.files) == 10
-    assert str("file1.json") not in files.files
-    assert str("file2.json") in files.files
+    assert "file1.json" not in files.files
+    assert "file2.json" in files.files
 
 
 def test_get_iac_files_from_paths_excluded(tmp_path):
@@ -48,15 +50,17 @@ def test_get_iac_files_from_paths_excluded(tmp_path):
 
     files = get_iac_files_from_paths(tmp_path, {re.compile(r"file2")}, True)
     assert len(files.files) == 9
-    assert str("file2.json") not in files.files
-    assert str("file3.yaml") in files.files
+    assert "file2.json" not in files.files
+    assert "file3.yaml" in files.files
 
 
-def test_get_iac_files_from_paths_ignore_git(tmp_path):
+@pytest.mark.parametrize("ignore_git", (False, True))
+def test_get_iac_files_from_paths_ignore_git(tmp_path, ignore_git):
     """
     GIVEN files added to the temp path, as a git directory
-    WHEN calling get_iac_files_from_paths with ignore_git as True
-    THEN it returns all iac files expect the ones mentionned in the .gitignore
+    WHEN calling get_iac_files_from_paths with ignore_git
+    THEN it returns all iac files added to git and not the ones mentioned in the
+    .gitignore if ignore_git is True. Otherwise, it ignores the .gitignore
     """
     tmp_paths = [str(tmp_path / filename) for filename in FILE_NAMES]
     for path in tmp_paths:
@@ -66,7 +70,15 @@ def test_get_iac_files_from_paths_ignore_git(tmp_path):
     subprocess.run(["git", "init"], cwd=tmp_path_str)
     subprocess.run(["git", "add", "."], cwd=tmp_path_str)
 
-    files = get_iac_files_from_paths(tmp_path, set(), True)
-    assert len(files.files) == 9
-    assert str("file2.json") not in files.files
-    assert str("file3.yaml") in files.files
+    # Assert the .git folder exists. files.files length assertion ensures it's not
+    # included in the get_iac_files_from_paths response
+    assert Path(str(tmp_path / ".git")).exists()
+
+    files = get_iac_files_from_paths(tmp_path, set(), True, ignore_git)
+    if ignore_git:
+        assert len(files.files) == 10
+        assert "file2.json" in files.files
+    else:
+        assert len(files.files) == 9
+        assert "file2.json" not in files.files
+        assert "file3.yaml" in files.files
