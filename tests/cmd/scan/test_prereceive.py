@@ -11,6 +11,9 @@ from tests.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_TOKEN,
+    assert_invoke_exited_with,
+    assert_invoke_ok,
+    is_macos,
 )
 
 
@@ -41,7 +44,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
         )
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
@@ -67,7 +70,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
         )
-        assert result.exit_code == 1, result.output
+        assert_invoke_exited_with(result, 1)
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_called_once()
         assert (
@@ -96,7 +99,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb\naaaa\norigin/main\n",
         )
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
         scan_commit_range_mock.assert_not_called()
         assert (
@@ -129,7 +132,7 @@ class TestPreReceive:
                 "GIT_PUSH_OPTION_1": "breakglass",
             },
         )
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         get_list_mock.assert_not_called()
         scan_commit_range_mock.assert_not_called()
         assert (
@@ -176,7 +179,7 @@ class TestPreReceive:
                 "GL_PROTOCOL": "web",
             },
         )
-        assert result.exit_code == 1, result.output
+        assert_invoke_exited_with(result, 1)
         get_list_mock.assert_called_once_with(f"--max-count=51 {old_sha}...{new_sha}")
         scan_commit_mock.assert_called_once()
         web_ui_lines = [
@@ -202,7 +205,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli, ["-v", "secret", "scan", "pre-receive"], input=""
         )
-        assert result.exit_code == 1, result.output
+        assert_invoke_exited_with(result, 1)
         assert "Error: Invalid input arguments: []\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -229,7 +232,7 @@ class TestPreReceive:
             env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "20"},
         )
 
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert "New tree event. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
         assert get_list_mock.call_count == 2
@@ -259,7 +262,7 @@ class TestPreReceive:
             input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert get_list_mock.call_count == 1
         get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
         scan_commit_range_mock.assert_called_once()
@@ -287,7 +290,7 @@ class TestPreReceive:
             input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
         )
 
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
         assert get_list_mock.call_count == 2
@@ -313,7 +316,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input=f"{'a'*40} {EMPTY_SHA}  main",
         )
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -337,14 +340,13 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="649061dcda8bff94e02adbaac70ca64cfb84bc78 bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main",  # noqa: E501
         )
-        assert result.exit_code == 0, result.output
+        assert_invoke_ok(result)
         get_list_mock.assert_called_once_with(
             "--max-count=51 649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
         )  # noqa: E501
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
 
-    @patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": "0.1"})
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_timeout(
@@ -359,6 +361,8 @@ class TestPreReceive:
         THEN it stops and return 0
         """
 
+        scan_timeout = 0.1
+
         def sleepy_scan(*args, **kwargs):
             # Sleep for 5 seconds. Do not use a time.sleep(5) because our time limit is
             # not able to interrupt it before it ends.
@@ -370,12 +374,17 @@ class TestPreReceive:
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         start = time.time()
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
-        )
+        with patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": str(scan_timeout)}):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input="bbbb\naaaa\norigin/main\n",
+            )
         duration = time.time() - start
-        assert result.exit_code == 0, result.output
-        assert duration < 0.3
+        assert_invoke_ok(result)
+
+        # This test often fails on GitHub macOS runner: duration can reach between
+        # 0.3 and 0.4. Workaround this by using a longer timeout on macOS.
+        max_duration = (6 if is_macos() else 3) * scan_timeout
+        assert duration < max_duration
         scan_commit_range_mock.assert_called_once()

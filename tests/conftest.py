@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 import vcr
 import yaml
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
@@ -22,6 +22,10 @@ skipwindows = pytest.mark.skipif(
     platform.system() == "Windows" and not os.environ.get("DISABLE_SKIPWINDOWS"),
     reason="Skipped on Windows for now, define DISABLE_SKIPWINDOWS environment variable to unskip",
 )
+
+
+def is_macos():
+    return platform.system() == "Darwin"
 
 
 DATA_PATH = Path(__file__).parent.absolute() / "data"
@@ -543,3 +547,20 @@ def write_text(filename: str, content: str):
 def write_yaml(filename: str, data: Any):
     """Save data as a YAML file in `filename`, using `write_text()`"""
     write_text(filename, yaml.dump(data))
+
+
+def assert_invoke_exited_with(result: Result, exit_code: int):
+    msg = f"""
+    Expected code {exit_code}, got {result.exit_code}.
+
+    stdout:
+    {result.stdout}
+
+    stderr:
+    {result.stderr if result.stderr_bytes is not None else ""}
+    """
+    assert result.exit_code == exit_code, msg
+
+
+def assert_invoke_ok(result: Result):
+    assert_invoke_exited_with(result, 0)

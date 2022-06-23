@@ -7,6 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
+from tests.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
 SAMPLE_PRE_COMMIT = """#!/bin/bash
@@ -38,7 +39,7 @@ class TestInstallLocal:
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
         os.system("rm -R .git/hooks/pre-commit")
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
         assert result.exception
         assert "Error: .git/hooks/pre-commit is a directory" in result.output
 
@@ -48,7 +49,7 @@ class TestInstallLocal:
         assert os.path.isfile(".git/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
         assert result.exception
         assert "Error: .git/hooks/pre-commit already exists." in result.output
 
@@ -58,7 +59,7 @@ class TestInstallLocal:
         assert os.path.isfile(".git/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-f", "-m", "local"])
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert "pre-commit successfully added in .git/hooks/pre-commit" in result.output
 
     @patch("ggshield.cmd.install.check_git_dir")
@@ -84,7 +85,7 @@ class TestInstallLocal:
         assert (
             "pre-commit successfully added in .git/hooks/pre-commit\n" in result.output
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
     @patch("ggshield.cmd.install.check_git_dir")
@@ -112,7 +113,7 @@ class TestInstallLocal:
             "already exists. Use --force to override or --append to add to current script\n"
             in result.output
         )
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
     @patch("ggshield.cmd.install.check_git_dir")
@@ -140,7 +141,7 @@ class TestInstallLocal:
             f"{hook_type} successfully added in .git/hooks/{hook_type}\n"
             in result.output
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
     @patch("ggshield.cmd.install.check_git_dir")
@@ -172,7 +173,7 @@ class TestInstallLocal:
             f"{hook_type} successfully added in .git/hooks/{hook_type}\n"
             in result.output
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     @patch("ggshield.cmd.install.check_git_dir")
     def test_prepush_install(
@@ -195,7 +196,7 @@ class TestInstallLocal:
         assert SAMPLE_PRE_PUSH == hook_str
 
         assert "pre-push successfully added in .git/hooks/pre-push\n" in result.output
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
 
 class TestInstallGlobal:
@@ -205,7 +206,7 @@ class TestInstallGlobal:
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         os.system("rm -R global/hooks/pre-commit")
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
         assert result.exception
 
     def test_global_not_exist(self, cli_fs_runner, mockHookDirPath):
@@ -213,7 +214,7 @@ class TestInstallGlobal:
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         assert os.path.isfile("global/hooks/pre-commit")
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert (
             "pre-commit successfully added in global/hooks/pre-commit" in result.output
         )
@@ -247,7 +248,7 @@ class TestInstallGlobal:
             f"{hook_type} successfully added in global_hooks/{hook_type}\n"
             in result.output
         )
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
 
     def test_global_exist_not_force(self, cli_fs_runner, mockHookDirPath):
         os.makedirs("global/hooks", exist_ok=True)
@@ -255,7 +256,7 @@ class TestInstallGlobal:
         assert os.path.isfile("global/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
-        assert result.exit_code == 1
+        assert_invoke_exited_with(result, 1)
         assert result.exception
         assert "Error: global/hooks/pre-commit already exists." in result.output
 
@@ -265,7 +266,7 @@ class TestInstallGlobal:
         assert os.path.isfile("global/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global", "-f"])
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         assert (
             "pre-commit successfully added in global/hooks/pre-commit" in result.output
         )

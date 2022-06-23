@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 
 from ggshield.cmd.main import cli
-from tests.conftest import my_vcr
+from tests.conftest import assert_invoke_ok, my_vcr
 
 
 @pytest.mark.parametrize(
@@ -19,7 +19,7 @@ def test_quota(cassette, json_output, snapshot, cli_fs_runner):
     with my_vcr.use_cassette(cassette):
         cmd = ["quota", "--json"] if json_output else ["quota"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         snapshot.assert_match(result.output)
 
 
@@ -35,7 +35,7 @@ def test_api_status(cassette, json_output, snapshot, cli_fs_runner):
     with my_vcr.use_cassette(cassette):
         cmd = ["api-status", "--json"] if json_output else ["api-status"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
-        assert result.exit_code == 0
+        assert_invoke_ok(result)
         snapshot.assert_match(result.output)
 
 
