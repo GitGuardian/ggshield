@@ -134,6 +134,19 @@ def _get_layers_files(
         yield from _get_layer_files(archive, layer_info)
 
 
+def _validate_filepath(
+    filepath: str,
+    extension_banlist: Iterable[str],
+    filepath_banlist: Iterable[str],
+) -> bool:
+    if any(banned_filepath in "/" + filepath for banned_filepath in filepath_banlist):
+        return False
+
+    if any(filepath.endswith(extension) for extension in extension_banlist):
+        return False
+    return True
+
+
 def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[File]:
     """
     Extracts File objects to be scanned for given layer.
@@ -148,13 +161,11 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if not file_info.isfile():
             continue
 
-        if file_info.size > MAX_FILE_SIZE * 0.95:
-            continue
-
-        if any(dir in "/" + file_info.path for dir in DEFAULT_FS_BANLIST):
-            continue
-
-        if any(file_info.path.endswith(ext) for ext in DEFAULT_EXTENSION_BANLIST):
+        if not _validate_filepath(
+            file_info.path,
+            extension_banlist=DEFAULT_EXTENSION_BANLIST,
+            filepath_banlist=DEFAULT_FS_BANLIST,
+        ):
             continue
 
         file = layer_archive.extractfile(file_info)
