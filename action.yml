@@ -1,5 +1,5 @@
-name: 'ggshield Local Action'
-description: 'Scan commits for security incidents (using repository image)'
+name: 'ggshield-action'
+description: 'Scan commits for hardcoded secrets and security policy breaks'
 branding:
   icon: 'shield'
   color: 'blue'
@@ -9,5 +9,6 @@ runs:
   args:
     - ggshield
     - -v
+    - secret
     - scan
     - ci
