@@ -9,12 +9,12 @@ from ggshield.core.file_utils import generate_files_from_paths
 @pytest.mark.parametrize(
     ["filename", "input_content", "expected_content"],
     [
-        ("normal.txt", "Normal", "Normal"),
-        ("0-inside.txt", "Ins\0de", "Ins de"),
+        ("normal.txt", b"Normal", "Normal"),
+        ("invalid-utf8-start-byte.txt", b"Hello\x81World", "Hello\uFFFDWorld"),
     ],
 )
 def test_generate_files_from_paths(
-    tmp_path, filename: str, input_content: str, expected_content: str
+    tmp_path, filename: str, input_content: bytes, expected_content: str
 ):
     """
     GIVEN a file
@@ -23,7 +23,7 @@ def test_generate_files_from_paths(
     AND the content of the File instance is what is expected
     """
     path = tmp_path / filename
-    Path(path).write_text(input_content)
+    Path(path).write_bytes(input_content)
 
     files = list(generate_files_from_paths([str(path)], verbose=False))
 
