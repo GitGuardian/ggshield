@@ -10,6 +10,7 @@ from ggshield.core.config.errors import ParseError, format_validation_error
 from ggshield.core.config.utils import (
     get_global_path,
     load_yaml,
+    remove_common_dict_items,
     save_yaml,
     update_from_other_instance,
 )
@@ -18,7 +19,6 @@ from ggshield.core.constants import (
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
-from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
@@ -93,13 +93,26 @@ class UserConfig:
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
 
+    # If we hit any deprecated syntax when loading a configuration file, we do not
+    # display them directly, otherwise the messages would also be shown when running
+    # `ggshield config migrate`, which would be odd.
+    # Instead, we store them in this list and a result_callback() function displays
+    # them when we quit. When `config migrate` runs, it clears this list, so nothing
+    # gets displayed.
+    deprecation_messages: List[str] = field(default_factory=list)
+
     def save(self, config_path: str) -> None:
         """
         Save config to config_path
         """
-        schema = UserConfigSchema()
+        schema = UserConfigSchema(exclude=("deprecation_messages",))
         dct = schema.dump(self)
+        default_dct = schema.dump(schema.load({}))
+
+        dct = remove_common_dict_items(dct, default_dct)
+
         dct["version"] = CURRENT_CONFIG_VERSION
+
         save_yaml(dct, config_path)
 
     @classmethod
@@ -141,9 +154,9 @@ class UserConfig:
             if config_version == 2:
                 obj = UserConfigSchema().load(data)
             elif config_version == 1:
-                display_warning(
+                self.deprecation_messages.append(
                     f"{config_path} uses a deprecated configuration file format."
-                    " Follow the instructions from ggshield README.md to update it."
+                    " Run `ggshield config migrate` to migrate it to the latest version."
                 )
                 obj = UserV1Config.load_v1(data)
             else:
@@ -197,13 +210,15 @@ class UserV1Config:
 
         v1config = UserV1ConfigSchema().load(data)
 
+        deprecation_messages = []
+
         if v1config.all_policies:
-            display_warning(
+            deprecation_messages.append(
                 "The `all_policies` option has been deprecated and is now ignored."
             )
 
         if v1config.ignore_default_excludes:
-            display_warning(
+            deprecation_messages.append(
                 "The `ignore_default_exclude` option has been deprecated and is now ignored."
             )
 
@@ -226,6 +241,7 @@ class UserV1Config:
             allow_self_signed=v1config.allow_self_signed,
             max_commits_for_hook=v1config.max_commits_for_hook,
             secret=secret,
+            deprecation_messages=deprecation_messages,
         )
 
     @staticmethod
