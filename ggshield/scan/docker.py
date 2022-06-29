@@ -18,24 +18,26 @@ from ggshield.scan import ScanCollection
 from ggshield.scan.scannable import File, Files
 
 
-DEFAULT_FS_BANLIST = {
-    "/usr/",
-    "/lib/",
-    "/share/",
-    "/bin/",
-    "/sbin/",
-    "/node_modules/",
-    "/include/",
-    "/vendor/",
-    "/texlive/",
-    "/var/",
-    "/fonts/",
-    "/npm/",
-    "/site-packages/",
-    "/gems/",
+FILEPATH_BANLIST = [
+    r"^/?usr/(?!share/nginx)",
+    r"^/?lib/",
+    r"^/?share/",
+    r"^/?bin/",
+    r"^/?sbin/",
+    r"^/?node_modules/",
+    r"^/?include/",
+    r"^/?vendor/",
+    r"^/?texlive/",
+    r"^/?var/",
+    r"^/?fonts/",
+    r"^/?npm/",
+    r"^/?site-packages/",
+]
+FILEPATH_BANLIST_PATTERNS = {
+    re.compile(banned_filepath) for banned_filepath in FILEPATH_BANLIST
 }
 
-DEFAULT_EXTENSION_BANLIST = {".md", ".html", ".css", ".lock", ".storyboard", ".xib"}
+EXTENSIONS_BANLIST = {".md", ".html", ".css", ".lock", ".storyboard", ".xib"}
 
 LAYER_TO_SCAN_PATTERN = re.compile(r"\b(copy|add)\b", re.IGNORECASE)
 
@@ -134,6 +136,19 @@ def _get_layers_files(
         yield from _get_layer_files(archive, layer_info)
 
 
+def _validate_filepath(
+    filepath: str,
+) -> bool:
+    if any(
+        banned_pattern.search(filepath) for banned_pattern in FILEPATH_BANLIST_PATTERNS
+    ):
+        return False
+
+    if any(filepath.endswith(extension) for extension in EXTENSIONS_BANLIST):
+        return False
+    return True
+
+
 def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[File]:
     """
     Extracts File objects to be scanned for given layer.
@@ -151,10 +166,9 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if file_info.size > MAX_FILE_SIZE * 0.95:
             continue
 
-        if any(dir in "/" + file_info.path for dir in DEFAULT_FS_BANLIST):
-            continue
-
-        if any(file_info.path.endswith(ext) for ext in DEFAULT_EXTENSION_BANLIST):
+        if not _validate_filepath(
+            filepath=file_info.path,
+        ):
             continue
 
         file = layer_archive.extractfile(file_info)
@@ -162,8 +176,6 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
             continue
 
         file_content = file.read()
-        if len(file_content) > MAX_FILE_SIZE * 0.95:
-            continue
 
         # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
         layer_name = os.path.dirname(layer_filename)

@@ -6,6 +6,7 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
+from ggshield.scan.docker import _validate_filepath
 from ggshield.scan.scannable import File, Files, ScanCollection
 from tests.conftest import (
     _SIMPLE_SECRET,
@@ -20,6 +21,32 @@ DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
 DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
     DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
 )
+
+
+class TestDockerUtils:
+    @pytest.mark.parametrize(
+        "filepath, valid",
+        (
+            ["/usr/bin/secret.py", False],
+            ["usr/bin/secret.py", False],
+            ["/my/file/secret.py", True],
+            ["/my/file/usr/bin/secret.py", True],
+            ["/usr/share/nginx/secret.py", True],
+            ["/gems/secret.py", True],
+            ["/npm-bis/secret.py", True],
+            ["/banned/extension/secret.md", False],
+            ["/banned/extension/secret.html", False],
+            ["/banned/extension/secret.css", False],
+            ["/banned/extension/secret.other", True],
+        ),
+    )
+    def test_docker_filepath_validation(self, filepath, valid):
+        assert (
+            _validate_filepath(
+                filepath=filepath,
+            )
+            is valid
+        )
 
 
 class TestDockerCMD:
