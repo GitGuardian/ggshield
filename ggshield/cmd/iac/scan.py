@@ -155,6 +155,6 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
     )
 
     if not scan.success or not isinstance(scan, IaCScanResult):
-        handle_scan_error(scan, files.scannable_list)
+        handle_scan_error(scan)
         return None
     return scan

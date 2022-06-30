@@ -7,7 +7,7 @@ from pygitguardian.models import Detail
 from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 
 
-def handle_scan_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
+def handle_scan_chunk_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
 
@@ -43,3 +43,10 @@ def handle_scan_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
         )
 
         display_error(str(detail))
+
+
+def handle_scan_error(detail: Detail) -> None:
+    if detail.status_code == 401:
+        raise click.UsageError(detail.detail)
+    display_error("\nError scanning.")
+    display_error(str(detail))
