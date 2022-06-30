@@ -2,14 +2,14 @@ import click
 import pytest
 from pygitguardian.models import Detail
 
-from ggshield.scan.scannable_errors import handle_scan_error
+from ggshield.scan.scannable_errors import handle_scan_chunk_error
 
 
 def test_handle_scan_error_api_key():
     detail = Detail("Invalid API key.")
     detail.status_code = 401
     with pytest.raises(click.UsageError):
-        handle_scan_error(detail, [])
+        handle_scan_chunk_error(detail, [])
 
 
 @pytest.mark.parametrize(
@@ -41,6 +41,6 @@ def test_handle_scan_error_api_key():
 )
 def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
     detail.status_code = 400
-    handle_scan_error(detail, chunk)
+    handle_scan_chunk_error(detail, chunk)
     captured = capsys.readouterr()
     snapshot.assert_match(captured.err)

@@ -1,9 +1,9 @@
 import json
 import os
+from unittest.mock import patch
 
 import pytest
 import yaml
-from mock import patch
 
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config

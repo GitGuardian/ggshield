@@ -23,7 +23,7 @@ from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 
 from ..core.extra_headers import get_extra_headers
 from ..iac.models import IaCScanResult
-from .scannable_errors import handle_scan_error
+from .scannable_errors import handle_scan_chunk_error
 
 
 class Result(NamedTuple):
@@ -180,7 +180,7 @@ class Files:
 
                 scan = future.result()
                 if not scan.success:
-                    handle_scan_error(scan, chunk)
+                    handle_scan_chunk_error(scan, chunk)
                     continue
                 for index, scanned in enumerate(scan.scan_results):
                     remove_ignored_from_result(scanned, matches_ignore)
