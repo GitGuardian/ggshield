@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
@@ -24,6 +25,7 @@ from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
 
 
+logger = logging.getLogger(__name__)
 CURRENT_CONFIG_VERSION = 2
 
 
@@ -89,6 +91,7 @@ class UserConfig(FilteredConfig):
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
+    debug: bool = False
 
     # If we hit any deprecated syntax when loading a configuration file, we do not
     # display them directly, otherwise the messages would also be shown when running
@@ -121,9 +124,9 @@ class UserConfig(FilteredConfig):
 
         Returns a UserConfig instance, and the path where updates should be saved
         """
-
         user_config = UserConfig()
         if config_path:
+            logger.debug("Loading custom config from %s", config_path)
             user_config._update_from_file(config_path)
             return user_config, config_path
 
@@ -131,13 +134,19 @@ class UserConfig(FilteredConfig):
             global_config_path = get_global_path(global_config_filename)
             if os.path.exists(global_config_path):
                 user_config._update_from_file(global_config_path)
+                logger.debug("Loaded global config from %s", global_config_path)
                 break
+        else:
+            logger.debug("No global config")
 
         for local_config_path in LOCAL_CONFIG_PATHS:
             if os.path.exists(local_config_path):
                 user_config._update_from_file(local_config_path)
                 config_path = local_config_path
+                logger.debug("Loaded local config from %s", local_config_path)
                 break
+        else:
+            logger.debug("No local config")
 
         if config_path is None:
             config_path = DEFAULT_LOCAL_CONFIG_PATH

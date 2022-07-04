@@ -1,4 +1,5 @@
 import concurrent.futures
+import logging
 import re
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
@@ -24,6 +25,9 @@ from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 from ..core.extra_headers import get_extra_headers
 from ..iac.models import IaCScanResult
 from .scannable_errors import handle_scan_chunk_error
+
+
+logger = logging.getLogger(__name__)
 
 
 class Result(NamedTuple):
@@ -89,6 +93,9 @@ class File:
             "filemode": self.filemode,
         }
 
+    def __repr__(self) -> str:
+        return f"<File filename={self.filename} filemode={self.filemode}>"
+
     def has_extensions(self, extensions: Set[str]) -> bool:
         """Returns True iff the file has one of the given extensions."""
         file_extensions = Path(self.filename).suffixes
@@ -134,6 +141,10 @@ class Files:
             **extra_headers,
         }
 
+    def __repr__(self) -> str:
+        files = list(self.files.values())
+        return f"<Files files={files}>"
+
     def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
         return Files([file for file in self.files.values() if filter_func(file)])
 
@@ -151,6 +162,7 @@ class Files:
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
     ) -> List[Result]:
+        logger.debug("self=%s", self)
         cache.purge()
         scannable_list = self.scannable_list
         results = []
@@ -316,3 +328,7 @@ class Commit(Files):
 
             if document:
                 yield CommitFile(document, filename, filemode)
+
+    def __repr__(self) -> str:
+        files = list(self.files.values())
+        return f"<Commit sha={self.sha} files={files}>"
