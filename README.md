@@ -145,6 +145,7 @@ Options:
                           config files.
   -v, --verbose           Verbose display mode.
   --allow-self-signed     Ignore ssl verification.
+  --debug                 Show debug information.
   --version               Show the version and exit.
   -h, --help              Show this message and exit.
 
@@ -482,6 +483,8 @@ secret:
 If you have a v1 configuration file, you can run `ggshield config migrate` to let ggshield migrate it for you. The command modifies the configuration file in place, but it keeps the previous version as a `.gitguardian.yaml.old` file.
 
 Alternatively, you can follow these steps to migrate your configuration file manually:
+
+debug: false # default: false
 
 1. Add a `version: 2` entry.
 2. If the configuration file contains an `all-policies` key, remove it: it's no longer supported.

@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import logging
 import os
 import sys
 from typing import Any, List, Optional
@@ -21,6 +22,11 @@ from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 
 
+LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s:%(funcName)s:%(lineno)d %(message)s"
+
+logger = logging.getLogger(__name__)
+
+
 @scan_group.result_callback()
 @deprecated_scan_group.result_callback()
 @click.pass_context
@@ -32,9 +38,15 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
 
     show_config_deprecation_message(ctx)
     if ctx.obj["config"].exit_zero:
+        logger.debug("scan exit_code forced to 0")
         sys.exit(0)
 
+    logger.debug("scan exit_code=%d", exit_code)
     sys.exit(exit_code)
+
+
+def setup_debug_logs() -> None:
+    logging.basicConfig(filename=None, level=logging.DEBUG, format=LOG_FORMAT)
 
 
 @click.group(
@@ -66,6 +78,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     default=None,
     help="Ignore ssl verification.",
 )
+@click.option("--debug", is_flag=True, default=None, help="Show debug information.")
 @click.version_option()
 @click.pass_context
 def cli(
@@ -73,18 +86,35 @@ def cli(
     config_path: Optional[str],
     verbose: bool,
     allow_self_signed: bool,
+    debug: Optional[bool],
 ) -> None:
     load_dot_env()
     ctx.ensure_object(dict)
 
-    ctx.obj["config"] = Config(config_path)
+    if debug:
+        # If --debug is set, setup logs *now*, otherwise log commands for the
+        # creation of the Config instance will be ignored
+        setup_debug_logs()
+
+    config = Config(config_path)
+
+    if debug is not None:
+        config.debug = debug
+    elif config.debug:
+        # if --debug is not set, but `debug` is set in the configuration file,
+        # we still have to setup logs
+        setup_debug_logs()
+
+    ctx.obj["config"] = config
     ctx.obj["cache"] = Cache()
 
     if verbose is not None:
-        ctx.obj["config"].verbose = verbose
+        config.verbose = verbose
 
     if allow_self_signed is not None:
-        ctx.obj["config"].allow_self_signed = allow_self_signed
+        config.allow_self_signed = allow_self_signed
+
+    logger.debug("args=%s", sys.argv)
 
 
 @cli.result_callback()
