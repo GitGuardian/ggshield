@@ -44,6 +44,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [`secret scan pypi`: scan a pypi package](#secret-scan-pypi-scan-a-pypi-package)
     - [`secret scan archive`: scan an archive files](#secret-scan-archive-scan-an-archive-files)
   - [`secret ignore` command](#secret-ignore-command)
+  - [`iac scan` command](#iac-scan-command)
   - [`install` command](#install-command)
   - [`quota` command](#quota-command)
   - [`api-status` command](#api-status-command)
@@ -332,6 +333,26 @@ Usage: ggshield secret ignore [OPTIONS]
 Options:
   --last-found  Ignore secrets found in the last ggshield secret scan run
   -h, --help    Show this message and exit.
+```
+
+## `iac scan` command
+
+The iac scan command allows you to scan your Infrastructure as Code configuration files.
+
+Reference for this command can be found in [GitGuardian documentation](https://docs.gitguardian.com/iac-scanning/cli_reference)
+
+```shell
+Usage: ggshield iac scan [OPTIONS] DIRECTORY
+
+Options:
+  --exit-zero                     Always return 0 (non-error) status code.
+  --minimum-severity [LOW|MEDIUM|HIGH|CRITICAL]
+                                  Minimum severity of the policies
+  -v, --verbose                   Verbose display mode.
+  --ignore-policy, --ipo TEXT     Policies to exclude from the results.
+  --ignore-path, --ipa PATH       Do not scan the specified paths.
+  --json                          JSON output.
+  -h, --help                      Show this message and exit.
 ```
 
 ## `install` command
