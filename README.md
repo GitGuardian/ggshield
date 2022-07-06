@@ -337,9 +337,11 @@ Options:
 
 ## `iac scan` command
 
+This feature is experimental and results format may change in the future.
+
 The iac scan command allows you to scan your Infrastructure as Code configuration files.
 
-Reference for this command can be found in [GitGuardian documentation](https://docs.gitguardian.com/iac-scanning/cli_reference)
+Reference for this command can be found in [GitGuardian documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/iac/scan).
 
 ```shell
 Usage: ggshield iac scan [OPTIONS] DIRECTORY
