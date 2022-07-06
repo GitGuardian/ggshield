@@ -1,10 +1,11 @@
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import click
 import marshmallow_dataclass
 from marshmallow import ValidationError
+from marshmallow.decorators import pre_load
 
 from ggshield.core.config.errors import ParseError, format_validation_error
 from ggshield.core.config.utils import (
@@ -27,8 +28,27 @@ from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
 CURRENT_CONFIG_VERSION = 2
 
 
-@dataclass
-class SecretConfig:
+@marshmallow_dataclass.dataclass
+class BaseConfig:
+    @classmethod
+    @pre_load(pass_many=False)
+    def filter_fields(cls, data: Dict, **kwargs: Any) -> Dict:
+        """
+        Remove and alert on unknown field.
+        """
+        field_names = {field_.name for field_ in fields(cls)}
+        filtered_fields = {}
+        for key, item in data.items():
+            if key in field_names:
+                filtered_fields[key] = item
+            else:
+                click.echo("Unrecognized key in config: {}".format(key))
+
+        return filtered_fields
+
+
+@marshmallow_dataclass.dataclass
+class SecretConfig(BaseConfig):
     """
     Holds all user-defined secret-specific settings
     """
@@ -61,8 +81,8 @@ def validate_policy_ids(values: Iterable[str]) -> None:
         )
 
 
-@dataclass
-class IaCConfig:
+@marshmallow_dataclass.dataclass
+class IaCConfig(BaseConfig):
     """
     Holds the iac config as defined .gitguardian.yaml files
     (local and global).
@@ -75,11 +95,8 @@ class IaCConfig:
     minimum_severity: str = "LOW"
 
 
-IaCConfigSchema = marshmallow_dataclass.class_schema(IaCConfig)
-
-
-@dataclass
-class UserConfig:
+@marshmallow_dataclass.dataclass
+class UserConfig(BaseConfig):
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
     (local and global).

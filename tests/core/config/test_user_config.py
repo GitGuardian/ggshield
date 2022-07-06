@@ -234,3 +234,24 @@ class TestUserConfig:
         assert config.iac.ignored_paths == {"myglobalpath", "mypath"}
         assert config.iac.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
         assert config.iac.minimum_severity == "myseverity"
+
+    def test_user_config_unknown_keys(self, local_config_path, capsys):
+        """
+        GIVEN a config containing unknown keys
+        WHEN deserializing it
+        THEN the keys are ignored and a warning is raised
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "root_unknown": "false key",
+                "iac": {"ignored_paths": ["myglobalpath"], "iac_unknown": [""]},
+                "secret": {"secret_invalid_key": "invalid key"},
+            },
+        )
+        UserConfig.load(local_config_path)
+        captured = capsys.readouterr()
+        assert "Unrecognized key in config: root_unknown" in captured.out
+        assert "Unrecognized key in config: iac_unknown" in captured.out
+        assert "Unrecognized key in config: secret_invalid_key" in captured.out
