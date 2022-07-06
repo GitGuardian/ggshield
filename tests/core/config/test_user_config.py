@@ -239,7 +239,7 @@ class TestUserConfig:
         """
         GIVEN a config containing unknown keys
         WHEN deserializing it
-        THEN the keys are ignored and a warning is raised
+        THEN the keys are ignored and a warning is raised for config keys
         """
         write_yaml(
             local_config_path,
@@ -247,7 +247,12 @@ class TestUserConfig:
                 "version": 2,
                 "root_unknown": "false key",
                 "iac": {"ignored_paths": ["myglobalpath"], "iac_unknown": [""]},
-                "secret": {"secret_invalid_key": "invalid key"},
+                "secret": {
+                    "secret_invalid_key": "invalid key",
+                    "matches_ignore": [
+                        {"name": "", "match": "one", "match_invalid_key": "two"},
+                    ],
+                },
             },
         )
         UserConfig.load(local_config_path)

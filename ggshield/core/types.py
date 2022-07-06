@@ -1,11 +1,14 @@
-from dataclasses import dataclass
 from typing import Optional
 
 import marshmallow_dataclass
+from marshmallow import EXCLUDE
 
 
-@dataclass
+@marshmallow_dataclass.dataclass
 class IgnoredMatch:
+    class Meta:
+        unknown = EXCLUDE
+
     match: str
     name: Optional[str] = None
 
