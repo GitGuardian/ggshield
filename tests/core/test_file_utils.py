@@ -11,6 +11,7 @@ from ggshield.core.file_utils import generate_files_from_paths
     [
         ("normal.txt", b"Normal", "Normal"),
         ("invalid-utf8-start-byte.txt", b"Hello\x81World", "Hello\uFFFDWorld"),
+        ("zero-bytes-are-kept.txt", b"Zero\0byte", "Zero\0byte"),
     ],
 )
 def test_generate_files_from_paths(
