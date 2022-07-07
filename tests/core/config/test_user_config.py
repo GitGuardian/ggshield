@@ -249,7 +249,7 @@ class TestUserConfig:
                 "iac": {"ignored_paths": ["myglobalpath"], "iac_unknown": [""]},
                 "secret": {
                     "secret_invalid_key": "invalid key",
-                    "matches_ignore": [
+                    "ignored-matches": [
                         {"name": "", "match": "one", "match_invalid_key": "two"},
                     ],
                 },
@@ -260,3 +260,4 @@ class TestUserConfig:
         assert "Unrecognized key in config: root_unknown" in captured.err
         assert "Unrecognized key in config: iac_unknown" in captured.err
         assert "Unrecognized key in config: secret_invalid_key" in captured.err
+        assert "Unrecognized key in config: match_invalid_key" in captured.err
