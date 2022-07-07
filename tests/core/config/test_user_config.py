@@ -257,6 +257,6 @@ class TestUserConfig:
         )
         UserConfig.load(local_config_path)
         captured = capsys.readouterr()
-        assert "Unrecognized key in config: root_unknown" in captured.out
-        assert "Unrecognized key in config: iac_unknown" in captured.out
-        assert "Unrecognized key in config: secret_invalid_key" in captured.out
+        assert "Unrecognized key in config: root_unknown" in captured.err
+        assert "Unrecognized key in config: iac_unknown" in captured.err
+        assert "Unrecognized key in config: secret_invalid_key" in captured.err

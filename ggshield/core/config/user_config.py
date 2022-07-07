@@ -20,6 +20,7 @@ from ggshield.core.constants import (
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
+from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
@@ -34,7 +35,7 @@ class BaseConfig:
     @pre_load(pass_many=False)
     def filter_fields(cls, data: Dict, **kwargs: Any) -> Dict:
         """
-        Remove and alert on unknown field.
+        Remove and alert on unknown fields.
         """
         field_names = {field_.name for field_ in fields(cls)}
         filtered_fields = {}
@@ -42,7 +43,7 @@ class BaseConfig:
             if key in field_names:
                 filtered_fields[key] = item
             else:
-                click.echo("Unrecognized key in config: {}".format(key))
+                display_warning("Unrecognized key in config: {}".format(key))
 
         return filtered_fields
 
