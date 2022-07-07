@@ -30,7 +30,7 @@ CURRENT_CONFIG_VERSION = 2
 
 
 @marshmallow_dataclass.dataclass
-class BaseConfig:
+class FilteredConfig:
     @classmethod
     @pre_load(pass_many=False)
     def filter_fields(cls, data: Dict, **kwargs: Any) -> Dict:
@@ -49,7 +49,7 @@ class BaseConfig:
 
 
 @marshmallow_dataclass.dataclass
-class SecretConfig(BaseConfig):
+class SecretConfig(FilteredConfig):
     """
     Holds all user-defined secret-specific settings
     """
@@ -83,7 +83,7 @@ def validate_policy_ids(values: Iterable[str]) -> None:
 
 
 @marshmallow_dataclass.dataclass
-class IaCConfig(BaseConfig):
+class IaCConfig(FilteredConfig):
     """
     Holds the iac config as defined .gitguardian.yaml files
     (local and global).
@@ -97,7 +97,7 @@ class IaCConfig(BaseConfig):
 
 
 @marshmallow_dataclass.dataclass
-class UserConfig(BaseConfig):
+class UserConfig(FilteredConfig):
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
     (local and global).
