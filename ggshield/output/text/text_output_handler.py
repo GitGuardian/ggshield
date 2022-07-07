@@ -53,7 +53,7 @@ class TextOutputHandler(OutputHandler):
             if scan.scans:
                 has_results = any(x.results for x in scan.scans)
 
-            if not has_results:
+            if top and not has_results:
                 scan_buf.write(no_leak_message())
 
         if scan.scans:
