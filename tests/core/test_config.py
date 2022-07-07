@@ -88,7 +88,7 @@ class TestUserConfig:
         sys.stdout.write(out)
         sys.stderr.write(err)
 
-        assert f"Parsing error while reading {local_config_path}:" in out
+        assert f"Parsing error while reading {local_config_path}:" in err
 
     def test_display_options(self, cli_fs_runner, local_config_path):
         write_yaml(local_config_path, {"verbose": True, "show_secrets": True})
@@ -245,7 +245,7 @@ class TestAuthConfig:
         sys.stdout.write(out)
         sys.stderr.write(err)
 
-        assert f"Parsing error while reading {get_auth_config_filepath()}:" in out
+        assert f"Parsing error while reading {get_auth_config_filepath()}:" in err
 
     def test_token_not_expiring(self):
         """
@@ -571,7 +571,7 @@ class TestConfig:
         sys.stderr.write(err)
 
         assert api_url == "https://api.gitguardian.com"
-        assert "[Warning] unexpected /v1 path in your URL configuration" in err
+        assert "Unexpected /v1 path in your URL configuration" in err
 
     def test_v1_in_api_url_local_config(self, capsys, local_config_path):
         """
@@ -595,7 +595,7 @@ class TestConfig:
         sys.stderr.write(err)
 
         assert api_url == "https://api.gitguardian.com"
-        assert "[Warning] unexpected /v1 path in your URL configuration" in err
+        assert "Unexpected /v1 path in your URL configuration" in err
 
     def test_v1_in_api_url_global_config(self, capsys, global_config_path):
         """
@@ -617,7 +617,7 @@ class TestConfig:
         sys.stdout.write(out)
         sys.stderr.write(err)
 
-        assert "[Warning] unexpected /v1 path in your URL configuration" in err
+        assert "Unexpected /v1 path in your URL configuration" in err
 
     def test_updating_config_not_from_default_local_config_path(
         self, local_config_path

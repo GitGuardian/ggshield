@@ -7,6 +7,7 @@ from pygitguardian.models import PolicyBreak
 
 from ggshield.core.constants import CACHE_FILENAME
 from ggshield.core.filter import get_ignore_sha
+from ggshield.core.text_utils import display_warning
 
 
 SECRETS_CACHE_KEY = "last_found_secrets"
@@ -47,7 +48,7 @@ class Cache:
             self.last_found_secrets = kwargs.pop(SECRETS_CACHE_KEY)
         if kwargs:
             for key in kwargs.keys():
-                click.echo(f'Unrecognized key in cache "{key}"')
+                display_warning(f'Unrecognized key in cache "{key}"')
 
     def to_dict(self) -> Dict[str, Any]:
         return {SECRETS_CACHE_KEY: self.last_found_secrets}
