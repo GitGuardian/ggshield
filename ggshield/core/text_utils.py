@@ -109,6 +109,10 @@ def display_warning(msg: str) -> None:
     click.echo(format_text(msg, STYLE["warning"]), err=True)
 
 
+def display_info(msg: str, nl: bool = True) -> None:
+    click.echo(msg, nl=nl, err=True)
+
+
 _VALIDITY_TEXT_FOR_ID = {
     "unknown": "Unknown",
     # cannot_check is the old ID for secrets for which there are no checkers

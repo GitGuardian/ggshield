@@ -13,6 +13,7 @@ from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.constants import MAX_FILE_SIZE
+from ggshield.core.text_utils import display_info
 from ggshield.core.utils import SupportedScanMode
 from ggshield.scan import ScanCollection
 from ggshield.scan.scannable import File, Files
@@ -219,18 +220,18 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
     command = ["docker", "save", image_name, "-o", str(destination_path)]
 
     try:
-        click.echo("Saving docker image... ", nl=False)
+        display_info("Saving docker image... ", nl=False)
         subprocess.run(
             command,
             check=True,
             stderr=subprocess.PIPE,
             timeout=timeout,
         )
-        click.echo("OK")
+        display_info("OK")
     except subprocess.CalledProcessError as exc:
         err_string = str(exc.stderr)
         if "No such image" in err_string or "reference does not exist" in err_string:
-            click.echo("need to download image first")
+            display_info("need to download image first")
             docker_pull_image(image_name, timeout)
 
             docker_save_to_tmp(image_name, destination_path, timeout)
