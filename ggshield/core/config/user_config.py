@@ -19,7 +19,7 @@ from ggshield.core.constants import (
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
-from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
+from ggshield.core.types import FilteredConfig, IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
 
@@ -27,8 +27,8 @@ from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
 CURRENT_CONFIG_VERSION = 2
 
 
-@dataclass
-class SecretConfig:
+@marshmallow_dataclass.dataclass
+class SecretConfig(FilteredConfig):
     """
     Holds all user-defined secret-specific settings
     """
@@ -61,8 +61,8 @@ def validate_policy_ids(values: Iterable[str]) -> None:
         )
 
 
-@dataclass
-class IaCConfig:
+@marshmallow_dataclass.dataclass
+class IaCConfig(FilteredConfig):
     """
     Holds the iac config as defined .gitguardian.yaml files
     (local and global).
@@ -75,11 +75,8 @@ class IaCConfig:
     minimum_severity: str = "LOW"
 
 
-IaCConfigSchema = marshmallow_dataclass.class_schema(IaCConfig)
-
-
-@dataclass
-class UserConfig:
+@marshmallow_dataclass.dataclass
+class UserConfig(FilteredConfig):
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
     (local and global).
@@ -226,7 +223,6 @@ class UserV1Config:
         ignored_matches = [
             ignored_match_schema.load(secret) for secret in v1config.matches_ignore
         ]
-
         secret = SecretConfig(
             show_secrets=v1config.show_secrets,
             ignored_detectors=v1config.banlisted_detectors,
