@@ -9,6 +9,7 @@ import yaml
 from appdirs import user_config_dir
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
+from ggshield.core.text_utils import display_error
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -36,7 +37,7 @@ def load_yaml(path: str, raise_exc: bool = False) -> Optional[Dict[str, Any]]:
             if raise_exc:
                 raise click.ClickException(message) from e
             else:
-                click.echo(message)
+                display_error(message)
                 return None
         else:
             replace_in_keys(data, old_char="-", new_char="_")
