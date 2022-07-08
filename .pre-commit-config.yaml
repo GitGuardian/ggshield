@@ -81,4 +81,7 @@ repos:
     rev: v2.2.0
     hooks:
       - id: doctoc
-        args: ['README.md']
+        types: [markdown]
+        # Can't use "args: [README.md]" because it *adds* the
+        # argument to the list
+        files: '^README\.md$'

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import requests
 from click.testing import CliRunner
+from pytest_mock import MockerFixture
 
 from ggshield.cmd.main import cli
 from tests.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
@@ -114,7 +115,7 @@ def test_iac_scan_json_error_response(cli_fs_runner: CliRunner) -> None:
 
 
 @my_vcr.use_cassette("test_iac_scan_unknown_error_response.yaml")
-def test_iac_scan_unknown_error_response(cli_fs_runner: CliRunner):
+def test_iac_scan_unknown_error_response(cli_fs_runner: CliRunner) -> None:
     result = cli_fs_runner.invoke(
         cli,
         ["iac", "scan", "."],
@@ -123,7 +124,9 @@ def test_iac_scan_unknown_error_response(cli_fs_runner: CliRunner):
     assert "404:{'unknown_detail': 'no detail'}" in result.stdout
 
 
-def test_iac_scan_error_response_read_timeout(cli_fs_runner, mocker):
+def test_iac_scan_error_response_read_timeout(
+    cli_fs_runner: CliRunner, mocker: MockerFixture
+) -> None:
     mocker.patch(
         "ggshield.core.client.IaCGGClient.request",
         side_effect=requests.exceptions.ReadTimeout("Timeout error"),
