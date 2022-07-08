@@ -7,6 +7,7 @@ from pygitguardian.models import PolicyBreak
 
 from ggshield.core.constants import CACHE_FILENAME
 from ggshield.core.filter import get_ignore_sha
+from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
 
 
@@ -51,7 +52,7 @@ class Cache:
             ]
         if kwargs:
             for key in kwargs.keys():
-                click.echo(f'Unrecognized key in cache "{key}"')
+                display_warning(f'Unrecognized key in cache "{key}"')
 
     def to_dict(self) -> Dict[str, Any]:
         schema = IgnoredMatchSchema()

@@ -12,7 +12,7 @@ from pygitguardian.models import Match
 from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
 from .git_shell import get_git_root, is_git_dir
-from .text_utils import Line, LineCategory, display_error
+from .text_utils import Line, LineCategory, display_error, display_warning
 
 
 REGEX_PATCH_HEADER = re.compile(
@@ -293,9 +293,7 @@ def clean_url(url: str, warn: bool = False) -> ParseResult:
     if parsed_url.path.endswith("/v1"):
         parsed_url = parsed_url._replace(path=parsed_url.path[:-3])
         if warn:
-            click.echo(
-                "[Warning] unexpected /v1 path in your URL configuration", err=True
-            )
+            display_warning("Unexpected /v1 path in your URL configuration")
     return parsed_url
 
 

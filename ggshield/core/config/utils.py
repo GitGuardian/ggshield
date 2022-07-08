@@ -8,6 +8,7 @@ import yaml
 from appdirs import user_config_dir
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
+from ggshield.core.text_utils import display_error
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -32,7 +33,7 @@ def load_yaml(path: str) -> Optional[Dict[str, Any]]:
             data = yaml.safe_load(f) or {}
         except Exception as e:
             message = f"Parsing error while reading {path}:\n{str(e)}"
-            click.echo(message)
+            display_error(message)
             return None
         else:
             replace_in_keys(data, old_char="-", new_char="_")

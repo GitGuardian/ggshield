@@ -75,11 +75,7 @@ class File:
 
     @staticmethod
     def from_bytes(raw_document: bytes, filename: str) -> "File":
-        document = (
-            raw_document.decode(errors="replace")
-            .replace("\0", " ")  # errors="replace" keeps `\0`, remove it
-            .replace("\uFFFD", " ")  # replacement character
-        )
+        document = raw_document.decode(errors="replace")
         return File(document, filename)
 
     @property
