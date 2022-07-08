@@ -1,5 +1,6 @@
 import concurrent.futures
 import re
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
 import click
@@ -13,7 +14,7 @@ from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
 from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
-    remove_results_from_banlisted_detectors,
+    remove_results_from_ignore_detectors,
 )
 from ggshield.core.git_shell import GIT_PATH, shell
 from ggshield.core.text_utils import STYLE, format_text
@@ -21,7 +22,8 @@ from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 
 from ..core.extra_headers import get_extra_headers
-from .scannable_errors import handle_scan_error
+from ..iac.models import IaCScanResult
+from .scannable_errors import handle_scan_chunk_error
 
 
 class Result(NamedTuple):
@@ -41,6 +43,7 @@ class ScanCollection(NamedTuple):
     type: str
     results: Optional[List[Result]] = None
     scans: Optional[List["ScanCollection"]] = None  # type: ignore[misc]
+    iac_result: Optional[IaCScanResult] = None
     optional_header: Optional[str] = None  # To be printed in Text Output
     extra_info: Optional[Dict[str, str]] = None  # To be included in JSON Output
 
@@ -67,6 +70,9 @@ class File:
         self.filename = filename
         self.filemode = Filemode.FILE
 
+    def relative_to(self, root_path: Path) -> "File":
+        return File(self.document, str(Path(self.filename).relative_to(root_path)))
+
     @staticmethod
     def from_bytes(raw_document: bytes, filename: str) -> "File":
         document = raw_document.decode(errors="replace")
@@ -82,6 +88,11 @@ class File:
             "document": self.document,
             "filemode": self.filemode,
         }
+
+    def has_extensions(self, extensions: Set[str]) -> bool:
+        """Returns True iff the file has one of the given extensions."""
+        file_extensions = Path(self.filename).suffixes
+        return any(ext in extensions for ext in file_extensions)
 
 
 class CommitFile(File):
@@ -123,14 +134,19 @@ class Files:
             **extra_headers,
         }
 
+    def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
+        return Files([file for file in self.files.values() if filter_func(file)])
+
+    def relative_to(self, root_path: Path) -> "Files":
+        return Files([file.relative_to(root_path) for file in self.files.values()])
+
     def scan(
         self,
         client: GGClient,
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
-        all_policies: bool,
         mode_header: str,
-        banlisted_detectors: Optional[Set[str]] = None,
+        ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
@@ -160,13 +176,11 @@ class Files:
 
                 scan = future.result()
                 if not scan.success:
-                    handle_scan_error(scan, chunk)
+                    handle_scan_chunk_error(scan, chunk)
                     continue
                 for index, scanned in enumerate(scan.scan_results):
-                    remove_ignored_from_result(scanned, all_policies, matches_ignore)
-                    remove_results_from_banlisted_detectors(
-                        scanned, banlisted_detectors
-                    )
+                    remove_ignored_from_result(scanned, matches_ignore)
+                    remove_results_from_ignore_detectors(scanned, ignored_detectors)
                     if scanned.has_policy_breaks:
                         for policy_break in scanned.policy_breaks:
                             cache.add_found_policy_break(

@@ -2,9 +2,11 @@ import os
 import platform
 from os.path import dirname, join, realpath
 from pathlib import Path
+from typing import Any
 
 import pytest
 import vcr
+import yaml
 from click.testing import CliRunner, Result
 from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
@@ -454,6 +456,36 @@ index 2ace9c7..4c7699d 100644
 \\ No newline at end of file
 """
 
+_IAC_SINGLE_VULNERABILITY = """
+resource "aws_alb_listener" "bad_example" {
+  protocol = "HTTP"
+}
+"""
+
+_IAC_MULTIPLE_VULNERABILITIES = """
+resource "aws_security_group" "bad_example" {
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+ resource "aws_security_group_rule" "bad_example" {
+  type = "ingress"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+"""
+
+_IAC_NO_VULNERABILITIES = """
+resource "aws_network_acl_rule" "bad_example" {
+  egress         = false
+  protocol       = "tcp"
+  from_port      = 22
+  to_port        = 22
+  rule_action    = "allow"
+  cidr_block     = "12.13.14.15"
+}
+"""
 
 my_vcr = vcr.VCR(
     cassette_library_dir=join(dirname(realpath(__file__)), "cassettes"),
@@ -502,6 +534,19 @@ def isolated_fs(fs):
     # add cassettes dir
     cassettes_dir = join(dirname(realpath(__file__)), "cassettes")
     fs.add_real_directory(cassettes_dir)
+
+
+def write_text(filename: str, content: str):
+    """Create a text file named `filename` with content `content.
+    Create any missing dirs if necessary."""
+    path = Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
+def write_yaml(filename: str, data: Any):
+    """Save data as a YAML file in `filename`, using `write_text()`"""
+    write_text(filename, yaml.dump(data))
 
 
 def assert_invoke_exited_with(result: Result, exit_code: int):

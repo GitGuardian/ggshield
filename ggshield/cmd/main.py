@@ -7,6 +7,7 @@ import click
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
+from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.scan import deprecated_scan_group
@@ -16,6 +17,7 @@ from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 
 
@@ -28,6 +30,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     when exit_zero is enabled
     """
 
+    show_config_deprecation_message(ctx)
     if ctx.obj["config"].exit_zero:
         sys.exit(0)
 
@@ -45,6 +48,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
         "ignore": deprecated_ignore_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
+        "iac": iac_group,
     },
 )
 @click.option(
@@ -81,6 +85,16 @@ def cli(
 
     if allow_self_signed is not None:
         ctx.obj["config"].allow_self_signed = allow_self_signed
+
+
+@cli.result_callback()
+@click.pass_context
+def show_config_deprecation_message(
+    ctx: click.Context, *args: Any, **kwargs: Any
+) -> None:
+    cfg: Config = ctx.obj["config"]
+    for message in cfg.user_config.deprecation_messages:
+        display_warning(message)
 
 
 def main(args: Optional[List[str]] = None) -> Any:

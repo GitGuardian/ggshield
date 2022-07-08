@@ -124,7 +124,7 @@ class OAuthClient:
         Generate a code verifier (random string) and its sha encoded version to be used
         for the pkce checking process
         """
-        self.code_verifier = self._oauth_client.create_code_verifier(128)  # type: ignore
+        self.code_verifier = self._oauth_client.create_code_verifier(128)
         self.code_challenge = (
             urlsafe_b64encode(sha256(self.code_verifier.encode()).digest())
             .decode()
@@ -268,9 +268,10 @@ class OAuthClient:
         """
         Save the new token in the configuration.
         """
+        assert self._access_token is not None
         account_config = AccountConfig(
             workspace_id=api_token_data["account_id"],
-            token=self._access_token,  # type: ignore
+            token=self._access_token,
             expire_at=api_token_data.get("expire_at"),
             token_name=api_token_data.get("name", ""),
             type=api_token_data.get("type", ""),

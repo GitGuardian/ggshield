@@ -1,4 +1,15 @@
+from typing import Any, Dict
+
 import click
+from marshmallow import ValidationError
+
+
+class ParseError(click.ClickException):
+    """
+    Failed to load file
+    """
+
+    pass
 
 
 class AuthError(click.ClickException):
@@ -39,3 +50,25 @@ class MissingTokenError(AuthError):
         super(MissingTokenError, self).__init__(
             instance, f"No token is saved for this instance: '{instance}'"
         )
+
+
+def format_validation_error(exc: ValidationError) -> str:
+    """
+    Take a Marshmallow ValidationError and turn it into a more user-friendly message
+    """
+    message_dct = exc.normalized_messages()
+    lines = []
+
+    def format_items(dct: Dict[str, Any], indent: int) -> None:
+        for key, value in dct.items():
+            message = " " * indent + f"{key}: "
+            if isinstance(value, dict):
+                lines.append(message)
+                format_items(value, indent + 2)
+            else:
+                message += str(value)
+                lines.append(message)
+
+    format_items(message_dct, 0)
+
+    return "\n".join(lines)

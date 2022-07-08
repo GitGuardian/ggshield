@@ -89,7 +89,9 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
 
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
-        output_handler = GitLabWebUIOutputHandler(show_secrets=config.show_secrets)
+        output_handler = GitLabWebUIOutputHandler(
+            show_secrets=config.secret.show_secrets
+        )
 
     if get_breakglass_option():
         click.echo(
@@ -158,10 +160,9 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 output_handler=output_handler,
                 verbose=config.verbose,
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
-                matches_ignore=config.matches_ignore,
-                all_policies=config.all_policies,
+                matches_ignore=config.secret.ignored_matches,
                 scan_id=" ".join(commit_list),
-                banlisted_detectors=config.banlisted_detectors,
+                ignored_detectors=config.secret.ignored_detectors,
             )
             if return_code:
                 click.echo(

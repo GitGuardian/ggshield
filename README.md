@@ -44,10 +44,12 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [`secret scan pypi`: scan a pypi package](#secret-scan-pypi-scan-a-pypi-package)
     - [`secret scan archive`: scan an archive files](#secret-scan-archive-scan-an-archive-files)
   - [`secret ignore` command](#secret-ignore-command)
+  - [`iac scan` command](#iac-scan-command)
   - [`install` command](#install-command)
   - [`quota` command](#quota-command)
   - [`api-status` command](#api-status-command)
 - [Configuration](#configuration)
+  - [Migrating a v1 configuration file](#migrating-a-v1-configuration-file)
   - [Environment Variables](#environment-variables)
   - [On-premises configuration](#on-premises-configuration)
   - [Ignoring files](#ignoring-files)
@@ -333,6 +335,28 @@ Options:
   -h, --help    Show this message and exit.
 ```
 
+## `iac scan` command
+
+This feature is experimental and results format may change in the future.
+
+The iac scan command allows you to scan your Infrastructure as Code configuration files.
+
+Reference for this command can be found in [GitGuardian documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/iac/scan).
+
+```shell
+Usage: ggshield iac scan [OPTIONS] DIRECTORY
+
+Options:
+  --exit-zero                     Always return 0 (non-error) status code.
+  --minimum-severity [LOW|MEDIUM|HIGH|CRITICAL]
+                                  Minimum severity of the policies
+  -v, --verbose                   Verbose display mode.
+  --ignore-policy, --ipo TEXT     Policies to exclude from the results.
+  --ignore-path, --ipa PATH       Do not scan the specified paths.
+  --json                          JSON output.
+  -h, --help                      Show this message and exit.
+```
+
 ## `install` command
 
 The `install` command allows you to use ggshield as a pre-commit or pre-push hook
@@ -414,45 +438,104 @@ You can also use the option `--config-path` on the main command to set another c
 
 A sample configuration file can be found at [.gitguardian.example](./.gitguardian.example.yml)
 
-```yml
-# Exclude files and paths by globbing
-paths-ignore:
-  - '**/README.md'
-  - 'doc/*'
-  - 'LICENSE'
+```yaml
+# Required, otherwise ggshield considers the file to use the deprecated v1 format
+version: 2
 
-# Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
-matches-ignore:
-  - name:
-    match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
-  - name: credentials
-    match: MY_TEST_CREDENTIAL
-
-show-secrets: false # default: false
-
-# Set to true if the desired exit code for the CLI is always 0,
-# otherwise the exit code will be 1 if incidents are found.
-# the environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behaviour.
+# Set to true if the desired exit code for the CLI is always 0, otherwise the
+# exit code will be 1 if incidents are found.
 exit-zero: false # default: false
 
-# By default only secrets are detected. Use all-policies to toggle this behaviour.
-all-policies: false # default: false
-
-instance: https://api.gitguardian.com
-
 verbose: false # default: false
+
+instance: https://api.gitguardian.com # default: https://api.gitguardian.com
+
+# Maximum commits to scan in a hook.
+max-commits-for-hook: 50 # default: 50
+
+# Accept self-signed certificates for the API.
+allow-self-signed: false # default: false
+
+secret:
+  # Exclude files and paths by globbing
+  ignored-paths:
+    - '**/README.md'
+    - 'doc/*'
+    - 'LICENSE'
+
+  # Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
+  ignored-matches:
+    - name:
+      match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+    - name: credentials
+      match: MY_TEST_CREDENTIAL
+
+  show-secrets: false # default: false
+
+  # Detectors to ignore.
+  ignored-detectors: # default: []
+    - Generic Password
 ```
 
-_Notes_
+## Migrating a v1 configuration file
 
-Old configuration of `matches-ignore` with list of secrets is
-deprecated but still supported :
+If you have a v1 configuration file, you can run `ggshield config migrate` to let ggshield migrate it for you. The command modifies the configuration file in place, but it keeps the previous version as a `.gitguardian.yaml.old` file.
 
-```yml
-# Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
+Alternatively, you can follow these steps to migrate your configuration file manually:
+
+1. Add a `version: 2` entry.
+2. If the configuration file contains an `all-policies` key, remove it: it's no longer supported.
+3. If the configuration file contains an `ignore-default-excludes` key, remove it: it's no longer supported.
+4. If the configuration file contains an `api-url` key, replace it with an `instance` key, pointing to the _dashboard_ URL.
+5. If the configuration file contains one of the following keys: `paths-ignore`, `matches-ignore`, `show-secrets`, `banlisted-detectors`:
+   1. Create a `secret` key.
+   2. Move `paths-ignore` to `secret.ignored-paths`.
+   3. Move `matches-ignore` to `secret.ignored-matches`. If some match entries are strings instead of (`name`, `match`) objects, turn them into (`name`, `match`) objects.
+   4. Move `banlisted-detectors` to `secret.ignored-detectors`.
+   5. Move `show-secrets` to `secret.show-secrets`.
+
+Here is an example of a v1 configuration file:
+
+```yaml
+all-policies: false
+
+api-url: https://example.com/exposed
+
+show-secrets: true
+
+paths-ignore:
+  - '**/README.md'
+
 matches-ignore:
-  - 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
-  - MY_TEST_CREDENTIAL
+  - SOME_SECRET
+  - name: foo
+    match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+
+banlisted-detectors:
+  - Generic Password
+```
+
+And here is the equivalent v2 file:
+
+```yaml
+version: 2
+
+instance: https://example.com
+
+secret:
+  show-secrets: true
+
+  ignored-paths:
+    - '**/README.md'
+
+  ignored-matches:
+    - name: a name for this secret
+      match: SOME_SECRET
+	  - name: foo
+      match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+
+  ignored-detectors:
+    - Generic Password
 ```
 
 ## Environment Variables
@@ -501,24 +584,12 @@ By default ggshield ignores certain files and directories.
 
 This list can be found in [ggshield/core/utils.py](ggshield/core/utils.py) under `IGNORED_DEFAULT_PATTERNS`.
 
-You can turn this feature with the flag `--ignore-default-excludes` or the `ignore-default-excludes` key in your `.gitguardian.yaml` configuration file.
-
-```yaml
-#.gitguardian.yml
-# Use default excluded vendors folders
-ignore-default-excludes: false # default: false
-```
-
-```sh
-ggshield secret scan --ignore-default-excludes path example_file.md
-```
-
-You can also add custom patterns to ignore by using the `--exclude` option or the `paths-ignore` key in your `.gitguardian.yaml` configuration file.
+You can also add custom patterns to ignore by using the `--exclude` option or the key `ignored-paths` in your `.gitguardian.yaml`
 
 ```yaml
 # .gitguardian.yml
 # Exclude files and paths by globbing
-paths-ignore:
+ignored-paths:
   - '**/README.md'
   - 'doc/*'
   - 'LICENSE'
@@ -570,7 +641,7 @@ Examples:
 
 ```yaml
 # .gitguardian.yaml
-banlisted-detectors: # default: []
+ignored-detectors: # default: []
   - Generic Password
   - Generic High Entropy Secret
 ```

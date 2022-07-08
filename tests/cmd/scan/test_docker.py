@@ -77,8 +77,8 @@ class TestDockerCMD:
             cli,
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
-        assert result.output == ""
         assert_invoke_ok(result)
+        assert result.output == ""
 
     @patch("ggshield.cmd.secret.scan.docker.docker_save_to_tmp")
     @patch("ggshield.cmd.secret.scan.docker.docker_scan_archive")
@@ -95,8 +95,8 @@ class TestDockerCMD:
             cli,
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
-        assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
         assert_invoke_exited_with(result, 1)
+        assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
 
     @patch("ggshield.scan.docker.get_files_from_docker_archive")
     @pytest.mark.parametrize(
@@ -129,8 +129,8 @@ class TestDockerCMD:
                     str(image_path),
                 ],
             )
-            get_files_mock.assert_called_once()
             assert_invoke_exited_with(result, 1)
+            get_files_mock.assert_called_once()
 
             if json_output:
                 output = json.loads(result.output)

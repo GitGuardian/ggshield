@@ -75,6 +75,7 @@ def test_gitab_ci_range(
             "ci",
         ],
     )
+    assert result.exit_code == 0, result.stderr
     if json_output:
         json.loads(result.output)
     get_list_mock.assert_called_once_with(expected_parameter)

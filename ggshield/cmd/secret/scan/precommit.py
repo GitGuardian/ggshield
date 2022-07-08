@@ -19,17 +19,16 @@ def precommit_cmd(
     """
     config = ctx.obj["config"]
     output_handler = TextOutputHandler(
-        show_secrets=config.show_secrets, verbose=config.verbose, output=None
+        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=None
     )
     try:
         check_git_dir()
         results = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"]).scan(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
-            matches_ignore=config.matches_ignore,
-            all_policies=config.all_policies,
+            matches_ignore=config.secret.ignored_matches,
             mode_header=SupportedScanMode.PRE_COMMIT.value,
-            banlisted_detectors=config.banlisted_detectors,
+            ignored_detectors=config.secret.ignored_detectors,
         )
 
         return output_handler.process_scan(

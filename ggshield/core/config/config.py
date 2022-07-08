@@ -138,4 +138,4 @@ class Config:
             return self.auth_config.get_instance_token(self.instance_name)
 
     def add_ignored_match(self, *args: Any, **kwargs: Any) -> None:
-        return self.user_config.add_ignored_match(*args, **kwargs)
+        return self.user_config.secret.add_ignored_match(*args, **kwargs)

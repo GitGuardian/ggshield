@@ -13,6 +13,8 @@ from ggshield.core.text_utils import (
     pluralize,
     translate_validity,
 )
+from ggshield.iac.models import IaCVulnerability
+from ggshield.output.text.utils import get_offset, get_padding
 
 
 DECORATION_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
@@ -153,6 +155,40 @@ def flatten_policy_breaks_by_line(
     return flat_match_dict
 
 
+def iac_vulnerability_location(
+    lines: List[Line],
+    line_start: int,
+    line_end: int,
+    nb_lines: int,
+    clip_long_lines: bool = False,
+) -> str:
+    msg = StringIO()
+    padding = get_padding(lines)
+    offset = get_offset(padding)
+    max_width = shutil.get_terminal_size()[0] - offset if clip_long_lines else 0
+    for line_nb in range(
+        max(0, line_start - nb_lines), min(len(lines) - 1, line_end + nb_lines)
+    ):
+        msg.write(
+            lines[line_nb].build_line_count(
+                padding, line_start - 1 <= line_nb <= line_end - 1
+            )
+        )
+        line_content = lines[line_nb].content
+
+        if max_width:
+            line_content = clip_long_line(line_content, max_width, after=True)
+        msg.write(f"{line_content}\n")
+    return msg.getvalue()
+
+
+def iac_vulnerability_location_failed(
+    line_start: int,
+    line_end: int,
+) -> str:
+    return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
+
+
 def policy_break_header(
     issue_n: int, policy_breaks: List[PolicyBreak], ignore_sha: str
 ) -> str:
@@ -174,6 +210,20 @@ def policy_break_header(
         format_text(ignore_sha, STYLE["ignore_sha"]),
         len(policy_breaks),
         pluralize("occurrence", len(policy_breaks), "occurrences"),
+    )
+
+
+def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> str:
+    """
+    Build a header for the iac policy break.
+    """
+    return "\n{} Incident {} ({}): {}: {} ({})\n".format(
+        format_text(">>>", STYLE["detector_line_start"]),
+        issue_n,
+        format_text("IaC", STYLE["detector"]),
+        format_text(vulnerability.component, STYLE["detector"]),
+        format_text(vulnerability.policy, STYLE["policy"]),
+        format_text(vulnerability.policy_id, STYLE["policy"]),
     )
 
 
@@ -303,6 +353,10 @@ def secrets_engine_version() -> str:
     return f"\nsecrets-engine-version: {VERSIONS.secrets_engine_version}\n"
 
 
+def iac_engine_version(iac_engine_version: str) -> str:
+    return f"\niac-engine-version: {iac_engine_version}\n"
+
+
 def _file_info_decoration() -> str:
     """Returns the decoration to show at the beginning of the file_info line.
 
@@ -331,6 +385,13 @@ def no_leak_message() -> str:
     Build a message if no secret is found.
     """
     return format_text("\nNo secrets have been found\n", STYLE["no_secret"])
+
+
+def no_iac_vulnerabilities() -> str:
+    """
+    Build a message if no IaC vulnerabilities were found.
+    """
+    return format_text("\nNo incidents have been found\n", STYLE["no_secret"])
 
 
 def get_lines_to_display(

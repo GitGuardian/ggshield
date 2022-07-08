@@ -1,11 +1,38 @@
+from typing import Dict, Optional, Union, cast
+
 import click
+import requests
 import urllib3
 from pygitguardian import GGClient
-from requests import Session
+from pygitguardian.client import is_ok
+from pygitguardian.models import Detail
+from requests import Response, Session
 
+from ..iac.models import IaCScanResult, IaCScanResultSchema
+from ..iac.models.iac_scan_parameters import IaCScanParameters, IaCScanParametersSchema
 from .config import Config
 from .config.errors import UnknownInstanceError
 from .constants import DEFAULT_DASHBOARD_URL
+
+
+def load_detail(resp: Response) -> Detail:
+    """
+    load_detail loads a Detail from a response
+    be it JSON or html.
+
+    :param resp: API response
+    :type resp: Response
+    :return: detail object of response
+    :rtype: Detail
+    """
+    if resp.headers["content-type"] == "application/json":
+        data = resp.json()
+        if "detail" not in data:
+            data = {"detail": str(data)}
+    else:
+        data = {"detail": resp.text}
+
+    return cast(Detail, Detail.SCHEMA.load(data))
 
 
 def create_client_from_config(config: Config) -> GGClient:
@@ -36,7 +63,7 @@ def create_client(
     """
     session = create_session(allow_self_signed=allow_self_signed)
     try:
-        return GGClient(
+        return IaCGGClient(
             api_key=api_key,
             base_uri=api_url,
             user_agent="ggshield",
@@ -54,3 +81,38 @@ def create_session(allow_self_signed: bool = False) -> Session:
         urllib3.disable_warnings()
         session.verify = False
     return session
+
+
+class IaCGGClient(GGClient):
+    def directory_scan(
+        self,
+        directory: bytes,
+        scan_parameters: IaCScanParameters,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Detail, IaCScanResult]:
+
+        result: Union[Detail, IaCScanResult]
+        try:
+            resp = self.request(
+                "post",
+                endpoint="iac_scan",
+                extra_headers=extra_headers,
+                files={
+                    "directory": directory,
+                },
+                data={
+                    "scan_parameters": IaCScanParametersSchema().dumps(scan_parameters),
+                },
+            )
+        except requests.exceptions.ReadTimeout:
+            result = Detail("The request timed out.")
+            result.status_code = 504
+        else:
+            if is_ok(resp):
+                result = IaCScanResultSchema().load(resp.json())
+            else:
+                result = load_detail(resp)
+
+            result.status_code = resp.status_code
+
+        return result

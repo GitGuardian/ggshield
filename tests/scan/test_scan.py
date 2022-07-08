@@ -29,7 +29,6 @@ def test_request_headers(scan_mock: Mock, client):
             client=client,
             cache=Cache(),
             matches_ignore={},
-            all_policies=True,
             mode_header="test",
         )
     scan_mock.assert_called_with(

@@ -16,6 +16,7 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "error": {"fg": "red"},
     "no_secret": {"fg": "white"},
     "detector": {"fg": "bright_yellow", "bold": True},
+    "policy": {"fg": "cyan", "bold": True},
     "ignore_sha": {"fg": "cyan"},
     "detector_line_start": {"fg": "cyan"},
     "line_count": {"fg": "white", "dim": True},
