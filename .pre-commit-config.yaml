@@ -84,3 +84,8 @@ repos:
         # Can't use "args: [README.md]" because it *adds* the
         # argument to the list
         files: '^README\.md$'
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.17.0
+    hooks:
+      - id: check-github-workflows
