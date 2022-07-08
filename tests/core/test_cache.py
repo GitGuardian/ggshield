@@ -31,7 +31,7 @@ class TestCache:
 
         Cache()
         captured = capsys.readouterr()
-        assert "Unrecognized key in cache" in captured.out
+        assert "Unrecognized key in cache" in captured.err
 
     def test_save_cache(self, cli_fs_runner):
         with open(".cache_ggshield", "w") as file:

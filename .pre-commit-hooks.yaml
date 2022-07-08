@@ -3,7 +3,7 @@
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
   stages: [commit]
-  args: ['scan', 'pre-commit']
+  args: ['secret', 'scan', 'pre-commit']
   language: python
 - id: docker-ggshield
   name: GitGuardian Shield (pre-commit,docker)
@@ -14,7 +14,7 @@
   name: GitGuardian Shield (pre-push)
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
-  args: ['scan', 'pre-push']
+  args: ['secret', 'scan', 'pre-push']
   stages: [push]
   pass_filenames: false
   language: python

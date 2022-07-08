@@ -72,7 +72,7 @@ class TestAuthConfig:
         sys.stdout.write(out)
         sys.stderr.write(err)
 
-        assert f"Parsing error while reading {get_auth_config_filepath()}:" in out
+        assert f"Parsing error while reading {get_auth_config_filepath()}:" in err
 
     def test_token_not_expiring(self):
         """

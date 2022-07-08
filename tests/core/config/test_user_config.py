@@ -24,7 +24,7 @@ class TestUserConfig:
         sys.stdout.write(out)
         sys.stderr.write(err)
 
-        assert f"Parsing error while reading {local_config_path}:" in out
+        assert f"Parsing error while reading {local_config_path}:" in err
 
     def test_display_options(self, cli_fs_runner, local_config_path):
         write_yaml(local_config_path, {"verbose": True, "show_secrets": True})
