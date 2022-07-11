@@ -9,5 +9,6 @@ runs:
   args:
     - ggshield
     - -v
+    - secret
     - scan
     - ci
