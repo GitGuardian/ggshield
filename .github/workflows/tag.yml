@@ -208,6 +208,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
       - name: Download packages
         uses: actions/download-artifact@v3
         with:
