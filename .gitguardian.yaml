@@ -26,6 +26,10 @@ secret:
       name: GitGuardian Test Token Checked - tests/cassettes/test_scan_file_secret-True.yaml
     - match: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4
       name: GitGuardian Development Secret - tests/cassettes/test_scan_file_secret.yaml
+    - match: b790563435d0cc34512cc29fcc32f5fc8bf403fe0cef7b550a0a89e65ceb6991
+      name: Test secret mentioned in commit 6282ceb9035c1bfcceec5f6372f69063cdd588f7
+    - match: e90eaa00d17c03309b660e1879c70b815509422c2d4cf0980b2e1221dffa0381
+      name: Test secret mentioned in commit 6282ceb9035c1bfcceec5f6372f69063cdd588f7
 
   ignored-paths:
     - '**/README.md'
