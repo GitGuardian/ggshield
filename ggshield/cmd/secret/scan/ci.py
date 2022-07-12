@@ -263,7 +263,9 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
         if not (
             os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")
         ):
-            raise click.ClickException("--ci should only be used in a CI environment.")
+            raise click.ClickException(
+                "`secret scan ci` should only be used in a CI environment."
+            )
 
         if os.getenv("GITLAB_CI"):
             commit_list = gitlab_ci_range(config.verbose)
@@ -292,7 +294,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
         else:
             raise click.ClickException(
                 f"Current CI is not detected or supported."
-                f"Must be one of [{' | '.join([ci.value for ci in SupportedCI])}]"
+                f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
             )
 
         add_extra_header(ctx, "Ci-Mode", ci_mode.name)
