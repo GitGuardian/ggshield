@@ -44,6 +44,7 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 plugins = ["marshmallow_dataclass.mypy"]
+files = "ggshield"
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]

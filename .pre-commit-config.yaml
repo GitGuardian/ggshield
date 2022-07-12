@@ -12,20 +12,19 @@ repos:
     hooks:
       - id: flake8
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    # Keep version and dependencies synced with dev-packages section of Pipfile
-    rev: v0.942
+  # use a "local" repo and not the mypy repo to avoid having to duplicate the
+  # list of types-* packages
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies:
-          [
-            types-requests,
-            types-pyyaml,
-            types-appdirs,
-            types-oauthlib,
-            click,
-            marshmallow-dataclass,
-          ]
+        name: mypy
+        entry: 'pipenv run mypy'
+        language: system
+        types: [python]
+        # use require_serial so that script is only called once per commit
+        require_serial: true
+        # print the number of files as a sanity-check
+        verbose: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
@@ -81,4 +80,12 @@ repos:
     rev: v2.2.0
     hooks:
       - id: doctoc
-        args: ['README.md']
+        types: [markdown]
+        # Can't use "args: [README.md]" because it *adds* the
+        # argument to the list
+        files: '^README\.md$'
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.17.0
+    hooks:
+      - id: check-github-workflows
