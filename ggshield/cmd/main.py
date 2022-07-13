@@ -22,7 +22,9 @@ from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 
 
-LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s:%(funcName)s:%(lineno)d %(message)s"
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)s %(thread)d %(name)s:%(funcName)s:%(lineno)d %(message)s"
+)
 
 logger = logging.getLogger(__name__)
 
