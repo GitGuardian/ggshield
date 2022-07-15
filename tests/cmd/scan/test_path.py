@@ -68,7 +68,7 @@ class TestPathScan:
             assert_invoke_exited_with(result, 1)
             assert result.exception
             assert (
-                "GitGuardian Development Secret (Validity: Cannot Check)  (Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4)"  # noqa
+                "GitGuardian Development Secret (Validity: No Checker)  (Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4)"  # noqa
                 in result.output
             )
 
@@ -79,7 +79,7 @@ class TestPathScan:
         Path("file_secret").write_text(VALID_SECRET)
         assert os.path.isfile("file_secret")
 
-        with my_vcr.use_cassette("test_scan_file_secret_with_validity"):
+        with my_vcr.use_cassette("test_scan_path_file_secret_with_validity"):
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "path", "file_secret"]
             )
@@ -332,7 +332,7 @@ class TestScanDirectory:
     ):
         Path("file_secret").write_text(_ONE_LINE_AND_MULTILINE_PATCH)
 
-        with my_vcr.use_cassette("_ONE_LINE_AND_MULTILINE_PATCH"):
+        with my_vcr.use_cassette("test_scan_path_file_one_line_and_multiline_patch"):
             result = cli_fs_runner.invoke(
                 cli,
                 [

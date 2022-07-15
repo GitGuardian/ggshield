@@ -1,0 +1,74 @@
+interactions:
+  - request:
+      body:
+        '[{"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmprfadc53m/file1",
+        "document": "This is a file with no secrets."}, {"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmprfadc53m/file2",
+        "document": "This is a file with no secrets."}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '278'
+        Content-Type:
+          - application/json
+        GGShield-Command-Path:
+          - cli secret scan path
+        GGShield-Version:
+          - 1.12.0
+        User-Agent:
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+        mode:
+          - path
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan
+    response:
+      body:
+        string:
+          '[{"policy_break_count":0,"policies":["Secrets detection","File extensions","Filenames"],"policy_breaks":[]},{"policy_break_count":0,"policies":["Secrets
+          detection","File extensions","Filenames"],"policy_breaks":[]}]'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '215'
+        Content-Type:
+          - application/json
+        Date:
+          - Fri, 15 Jul 2022 16:33:16 GMT
+        Referrer-Policy:
+          - strict-origin-when-cross-origin
+        Server:
+          - nginx
+        Set-Cookie:
+          - AWSALB=bHksCef8GJX5jf+DDzRUDKuCvzS79AgK+Vl99NkdGGYWdHSjmvOoAa88nEJogjmAtQ8ebivrHyacrA8m+sd4eiqulN9I+PYzwtGIC+kJma4sK8xolBk2Y0PV2WCu;
+            Expires=Fri, 22 Jul 2022 16:33:16 GMT; Path=/
+          - AWSALBCORS=bHksCef8GJX5jf+DDzRUDKuCvzS79AgK+Vl99NkdGGYWdHSjmvOoAa88nEJogjmAtQ8ebivrHyacrA8m+sd4eiqulN9I+PYzwtGIC+kJma4sK8xolBk2Y0PV2WCu;
+            Expires=Fri, 22 Jul 2022 16:33:16 GMT; Path=/; SameSite=None; Secure
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
+        Vary:
+          - Cookie
+        X-App-Version:
+          - v2.9.0
+        X-Content-Type-Options:
+          - nosniff
+          - nosniff
+        X-Frame-Options:
+          - DENY
+          - SAMEORIGIN
+        X-Secrets-Engine-Version:
+          - 2.71.0
+        X-XSS-Protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
