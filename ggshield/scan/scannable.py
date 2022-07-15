@@ -2,7 +2,7 @@ import concurrent.futures
 import logging
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 import click
 from pygitguardian import GGClient
@@ -28,6 +28,9 @@ from .scannable_errors import handle_scan_chunk_error
 
 
 logger = logging.getLogger(__name__)
+
+
+_MATCH_FILENAME_RX = re.compile(r"^a/(.*) b/\1$")
 
 
 class Result(NamedTuple):
@@ -270,16 +273,7 @@ class Commit(Files):
         return self._files
 
     @staticmethod
-    def get_filename(line: str) -> str:
-        """
-        Get the file path from the line patch
-
-        Example: line = "a/filename.txt b/filename.txt"
-        """
-        return line.split(" ")[1][2:]
-
-    @staticmethod
-    def get_filemode(line: str) -> Filemode:
+    def _get_filemode(line: str) -> Filemode:
         """
         Get the file mode from the line patch (new, modified or deleted)
 
@@ -297,6 +291,52 @@ class Commit(Files):
             return Filemode.PERMISSION_CHANGE
 
         raise click.ClickException(f"Filemode is not detected:{line}")
+
+    @staticmethod
+    def _parse_diff_header_lines(lines: List[str]) -> Tuple[str, Filemode]:
+        """
+        Parses the part of the patch after a "diff --git " string to extract the
+        filename and filemode.
+        """
+
+        # This code is tricky because the first line of a diff looks like this:
+        #
+        #     diff --git a/path/to/filename b/path/to/filename
+        #
+        # But spaces are not escaped, so if a filename contains a space the line looks
+        # like this:
+        #
+        #     diff --git a/path/to/file name b/path/to/file name
+        #
+        # For all cases but RENAMEs, the old and the new file are the same. We take
+        # advantage of this in the _MATCH_FILENAME_RX regular expression.
+        #
+        # For RENAMEs we look at the next lines. A rename header looks like this:
+        #
+        #     diff --git a/old_name b/new_name
+        #     similarity index 90%
+        #     rename from old_name
+        #     rename to new_name
+        #
+        # We look for the "rename to " and get the new file name from it.
+        #
+        # Note: we can't use the "--- old", "+++ new" header lines because
+        # PERMISSION_CHANGE and RENAME without changes do not have these lines.
+        filemode = Commit._get_filemode(lines[1])
+        if filemode == Filemode.RENAME:
+            prefix = "rename to "
+            for line in lines[2:]:
+                if line.startswith(prefix):
+                    filename = line[len(prefix) :]
+                    break
+            else:
+                raise click.ClickException(f"Could not extract filename from {lines}")
+        else:
+            match = _MATCH_FILENAME_RX.match(lines[0])
+            if not match:
+                raise click.ClickException(f"Could not extract filename from {lines}")
+            filename = match.group(1)
+        return filename, filemode
 
     def get_files(self) -> Iterable[CommitFile]:
         """
@@ -316,11 +356,9 @@ class Commit(Files):
         for diff in list_diff:
             lines = diff.split("\n")
 
-            filename = self.get_filename(lines[0])
+            filename, filemode = Commit._parse_diff_header_lines(lines)
             if is_filepath_excluded(filename, self.exclusion_regexes):
                 continue
-
-            filemode = self.get_filemode(lines[1])
             document = "\n".join(lines[filemode.start :])
             file_size = len(document.encode("utf-8"))
             if file_size > MAX_FILE_SIZE * 0.90:

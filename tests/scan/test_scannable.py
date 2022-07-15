@@ -114,7 +114,7 @@ diff --git a/bin/shutdown.sh b/bin/shutdown.sh
 old mode 100644
 new mode 100755
 
-diff --git a/tests/test_scannable.py b/.env
+diff --git a/.env b/.env
 new file mode 100644
 index 0000000..0000000
 --- /dev/null
@@ -166,7 +166,7 @@ def test_patch_separation_ignore():
 def test_patch_max_size():
     c = Commit()
     c._patch = """
-diff --git a/tests/test_scannable.py b/.env
+diff --git a/.env b/.env
 new file mode 100644
 index 0000000..0000000
 --- /dev/null
