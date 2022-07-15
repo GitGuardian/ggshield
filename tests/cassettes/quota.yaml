@@ -1,0 +1,59 @@
+interactions:
+  - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+      method: GET
+      uri: https://api.gitguardian.com/v1/quotas
+    response:
+      body:
+        string: '{"content":{"count":152,"limit":1000,"remaining":848,"since":"2022-06-15"}}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - GET, HEAD, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '75'
+        Content-Type:
+          - application/json
+        Date:
+          - Fri, 15 Jul 2022 15:45:19 GMT
+        Referrer-Policy:
+          - strict-origin-when-cross-origin
+        Server:
+          - nginx
+        Set-Cookie:
+          - AWSALB=qnY7JoqgyZdZ1Hk5LFVO0kaQSh1iT81NG4q/NDgv3nPrNEZYtf4qNlKyMAsVWApab8rVtPSKsB79obMv8lsX1uMFdmVcPcxEf6hmSgHGUOr43kPCIwIeGB8OHsF+;
+            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/
+          - AWSALBCORS=qnY7JoqgyZdZ1Hk5LFVO0kaQSh1iT81NG4q/NDgv3nPrNEZYtf4qNlKyMAsVWApab8rVtPSKsB79obMv8lsX1uMFdmVcPcxEf6hmSgHGUOr43kPCIwIeGB8OHsF+;
+            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/; SameSite=None; Secure
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
+        Vary:
+          - Cookie
+        X-App-Version:
+          - v2.9.0
+        X-Content-Type-Options:
+          - nosniff
+          - nosniff
+        X-Frame-Options:
+          - DENY
+          - SAMEORIGIN
+        X-Secrets-Engine-Version:
+          - 2.71.0
+        X-XSS-Protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
