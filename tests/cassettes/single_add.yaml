@@ -1,10 +1,6 @@
 interactions:
   - request:
-      body:
-        '[{"filename": "test.txt", "document": "@@ -0,0 +1,2 @@\n+FacebookAppKeys
-        :\n+String docker run --name geonetwork -d             -p 8080:8080 -e MYSQL_HOST=google.com             -e
-        MYSQL_PORT=5434 -e MYSQL_USERNAME=root             -e MYSQL_PASSWORD=m42ploz2wd
-        geonetwork\n"}]'
+      body: '[{"filename": "test", "document": "@@ -0,0 +1 @@\n+sg_key = \"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\";\n"}]'
       headers:
         Accept:
           - '*/*'
@@ -13,9 +9,12 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '276'
+          - '139'
         Content-Type:
           - application/json
+        Cookie:
+          - AWSALB=tPncdmpGTiDOImREBRVlgN5EQYNr7DouwSnkK8Idcx00NuVOPNzgpFBTDOgg+UQrL0JOlDsWFzaNn3viwzmGn0W7bSMVntsqIHO7iBKz2+X4g93WclTEIjaa3RN9;
+            AWSALBCORS=tPncdmpGTiDOImREBRVlgN5EQYNr7DouwSnkK8Idcx00NuVOPNzgpFBTDOgg+UQrL0JOlDsWFzaNn3viwzmGn0W7bSMVntsqIHO7iBKz2+X4g93WclTEIjaa3RN9
         GGShield-Command-Path:
           - external
         GGShield-Version:
@@ -30,8 +29,7 @@ interactions:
       body:
         string:
           '[{"policy_break_count":1,"policies":["File extensions","Filenames","Secrets
-          detection"],"policy_breaks":[{"type":"MySQL Credentials","policy":"Secrets
-          detection","matches":[{"type":"host","match":"google.com","index_start":114,"index_end":123,"line_start":3,"line_end":3},{"type":"port","match":"5434","index_start":151,"index_end":154,"line_start":3,"line_end":3},{"type":"username","match":"root","index_start":174,"index_end":177,"line_start":3,"line_end":3},{"type":"password","match":"m42ploz2wd","index_start":209,"index_end":218,"line_start":3,"line_end":3}],"validity":"failed_to_check"}]}]'
+          detection"],"policy_breaks":[{"type":"SendGrid Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":25,"index_end":93,"line_start":2,"line_end":2}],"validity":"no_checker"}]}]'
       headers:
         Access-Control-Expose-Headers:
           - X-App-Version
@@ -40,20 +38,20 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '598'
+          - '354'
         Content-Type:
           - application/json
         Date:
-          - Mon, 18 Jul 2022 17:11:37 GMT
+          - Mon, 18 Jul 2022 17:11:41 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=MhfGb3sicM+VsVX1yS7SD0JdyhUOh3XRInG0rv9eqCzLX78XlGM/050VugazmclwVWw7haMJ7kTGzZ2nfOdil4dDScrVTeCYNwVhtr8/H69d+AtLgm6e9Ydb9MVx;
-            Expires=Mon, 25 Jul 2022 17:11:34 GMT; Path=/
-          - AWSALBCORS=MhfGb3sicM+VsVX1yS7SD0JdyhUOh3XRInG0rv9eqCzLX78XlGM/050VugazmclwVWw7haMJ7kTGzZ2nfOdil4dDScrVTeCYNwVhtr8/H69d+AtLgm6e9Ydb9MVx;
-            Expires=Mon, 25 Jul 2022 17:11:34 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=FVF4oSk9rBgqBsBubFOo8ZxLnjVgcS26LcnxW47lMDafbmJzmbnVK+qjZPhWqlX6D9zOmP3fq/NSj7YQMyD3dGxf6x+i/mQ/bRVU8OXkKfG9y1h2l0G1qPoa6OBU;
+            Expires=Mon, 25 Jul 2022 17:11:41 GMT; Path=/
+          - AWSALBCORS=FVF4oSk9rBgqBsBubFOo8ZxLnjVgcS26LcnxW47lMDafbmJzmbnVK+qjZPhWqlX6D9zOmP3fq/NSj7YQMyD3dGxf6x+i/mQ/bRVU8OXkKfG9y1h2l0G1qPoa6OBU;
+            Expires=Mon, 25 Jul 2022 17:11:41 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
