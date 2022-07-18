@@ -9,7 +9,7 @@ from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_con
 from ggshield.output.json.schemas import ExtendedMatch, JSONScanCollectionSchema
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result
-from ggshield.scan.scannable import ScanCollection
+from ggshield.scan.scannable import Error, ScanCollection
 
 
 class JSONOutputHandler(OutputHandler):
@@ -31,15 +31,19 @@ class JSONOutputHandler(OutputHandler):
         if scan.extra_info:
             scan_dict["extra_info"] = scan.extra_info
 
-        if top and scan.results:
+        if top and scan.has_results:
             scan_dict["secrets_engine_version"] = VERSIONS.secrets_engine_version
 
         if scan.results:
-            for result in scan.results:
+            for result in scan.results.results:
                 result_dict = self.process_result(result)
                 scan_dict.setdefault("results", []).append(result_dict)
                 scan_dict["total_incidents"] += result_dict["total_incidents"]
                 scan_dict["total_occurrences"] += result_dict["total_occurrences"]
+
+            for error in scan.results.errors:
+                error_dict = self.process_error(error)
+                scan_dict.setdefault("errors", []).append(error_dict)
 
         if scan.scans:
             for inner_scan in scan.scans_with_results:
@@ -80,6 +84,20 @@ class JSONOutputHandler(OutputHandler):
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
 
         return result_dict
+
+    @staticmethod
+    def process_error(error: Error) -> Dict[str, Any]:
+        error_dict: Dict[str, Any] = {
+            "files": [
+                {
+                    "filename": filename,
+                    "mode": filemode.name,
+                }
+                for filename, filemode in error.files
+            ],
+            "description": error.description,
+        }
+        return error_dict
 
     def flattened_policy_break(
         self,

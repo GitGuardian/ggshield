@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, Filemode
-from ggshield.scan import Result, ScanCollection
+from ggshield.scan import Result, Results, ScanCollection
 from tests.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
@@ -161,14 +161,17 @@ class TestPreReceive:
         scan_commit_mock.return_value = ScanCollection(
             new_sha,
             type="commit",
-            results=[
-                Result(
-                    _SIMPLE_SECRET_PATCH,
-                    Filemode.MODIFY,
-                    "server.conf",
-                    _SIMPLE_SECRET_PATCH_SCAN_RESULT,
-                )
-            ],
+            results=Results(
+                results=[
+                    Result(
+                        _SIMPLE_SECRET_PATCH,
+                        Filemode.MODIFY,
+                        "server.conf",
+                        _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                    )
+                ],
+                errors=[],
+            ),
         )
 
         result = cli_fs_runner.invoke(

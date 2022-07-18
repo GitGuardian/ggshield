@@ -73,7 +73,7 @@ def test_scan_patch(client, cache, name, input_patch, expected):
             matches_ignore={},
             mode_header=SupportedScanMode.PATH.value,
         )
-        for result in results:
+        for result in results.results:
             if result.scan.policy_breaks:
                 assert len(result.scan.policy_breaks[0].matches) == expected.matches
                 if expected.first_match:

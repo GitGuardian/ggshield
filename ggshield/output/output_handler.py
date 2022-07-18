@@ -49,8 +49,8 @@ class OutputHandler(ABC):
 
     @staticmethod
     def _get_exit_code(scan: ScanCollection) -> int:
-        if scan.results:
+        if scan.has_results:
             return 1
-        if scan.scans and any(x.results for x in scan.scans):
+        if scan.scans and any(x.has_results for x in scan.scans):
             return 1
         return 0
