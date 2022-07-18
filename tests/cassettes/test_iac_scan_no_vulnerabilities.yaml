@@ -1,0 +1,78 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS00YTVlNzc4NWJlNWYwNDJkMTdkYjJkMjZiZjZjYmQ2Mw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS00YTVlNzc4NWJlNWYwNDJkMTdkYjJk
+        MjZiZjZjYmQ2Mw0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
+        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAbzDVYgL/7dS9boMwFAVgZp7C4gEcbP6S
+        IVLGjn0Dy3FMZcVgZEwTqeq71yhNUlXK1mZIzrcA99rXAxzogi42r/L4ouVO++Rf5Ce3rnlelNf7
+        uc5yznhCjskdTGOQPh6fPCe+JF0wnV6zulqyYtkUJV2t6rpqWJrAwzNSidZYLXon3ifbay+3xppg
+        9EhD+3f5r8tTxpu6PmWdXzNfsOpX/uPn1yQkv2f+Byut7Ht9a11c1raP9/5Tr0c3eaVJJg+j6HU4
+        OL8XUlnhJ6szkm3lTuij7Ib56SMlRL/FPSM5W5NW2lHHxuBdcMrZSyMLashio/WuE4Pz4dzgPFaD
+        +1G7VOdT4/HBuP57iLTWHeYxyuy82Fqn9uf5jFNWUFZSVmXpJ35YAAAAAAAAAAAAAAAAAAAA8Iy+
+        AKC5BnYAKAAADQotLTRhNWU3Nzg1YmU1ZjA0MmQxN2RiMmQyNmJmNmNiZDYzLS0NCg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '619'
+        Content-Type:
+          - multipart/form-data; boundary=4a5e7785be5f042d17db2d26bf6cbd63
+        GGShield-Command-Path:
+          - cli iac scan
+        GGShield-Version:
+          - 1.12.0
+        User-Agent:
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/iac_scan
+    response:
+      body:
+        string: '{"id":"0","type":"path_scan","iac_engine_version":"1.5.0","entities_with_incidents":[]}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '87'
+        Content-Type:
+          - application/json
+        Date:
+          - Mon, 18 Jul 2022 10:05:36 GMT
+        Referrer-Policy:
+          - strict-origin-when-cross-origin
+        Server:
+          - nginx
+        Set-Cookie:
+          - AWSALB=ZdEbpFauzQpxc2FaFk074Jq4tUK22lNcyyS0en3pStkUs464ya/mdIqkzq6smtQ4ET6PvX7ZMsG0fnNhJ8XPkz8NBIb6sBZ0gWyAakes8q7kPoB7q2zg3ojXQBJm;
+            Expires=Mon, 25 Jul 2022 10:05:35 GMT; Path=/
+          - AWSALBCORS=ZdEbpFauzQpxc2FaFk074Jq4tUK22lNcyyS0en3pStkUs464ya/mdIqkzq6smtQ4ET6PvX7ZMsG0fnNhJ8XPkz8NBIb6sBZ0gWyAakes8q7kPoB7q2zg3ojXQBJm;
+            Expires=Mon, 25 Jul 2022 10:05:35 GMT; Path=/; SameSite=None; Secure
+        Strict-Transport-Security:
+          - max-age=31536000; includeSubDomains
+        Vary:
+          - Cookie
+        X-App-Version:
+          - v2.9.0
+        X-Content-Type-Options:
+          - nosniff
+          - nosniff
+        X-Frame-Options:
+          - DENY
+          - SAMEORIGIN
+        X-Secrets-Engine-Version:
+          - 2.71.0
+        X-XSS-Protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
