@@ -33,6 +33,14 @@ logger = logging.getLogger(__name__)
 _MATCH_FILENAME_RX = re.compile(r"^a/(.*) b/\1$")
 
 
+class PatchParseError(Exception):
+    """
+    Raised by Commit.get_files() if it fails to parse its patch.
+    """
+
+    pass
+
+
 class Result(NamedTuple):
     """
     Return model for a scan which zips the information
@@ -290,7 +298,7 @@ class Commit(Files):
         if line.startswith("old"):
             return Filemode.PERMISSION_CHANGE
 
-        raise click.ClickException(f"Filemode is not detected:{line}")
+        raise PatchParseError("Filemode is not detected")
 
     @staticmethod
     def _parse_diff_header_lines(lines: List[str]) -> Tuple[str, Filemode]:
@@ -330,11 +338,11 @@ class Commit(Files):
                     filename = line[len(prefix) :]
                     break
             else:
-                raise click.ClickException(f"Could not extract filename from {lines}")
+                raise PatchParseError("Could not extract filename, no rename prefix")
         else:
             match = _MATCH_FILENAME_RX.match(lines[0])
             if not match:
-                raise click.ClickException(f"Could not extract filename from {lines}")
+                raise PatchParseError("Could not extract filename")
             filename = match.group(1)
         return filename, filemode
 
@@ -356,7 +364,14 @@ class Commit(Files):
         for diff in list_diff:
             lines = diff.split("\n")
 
-            filename, filemode = Commit._parse_diff_header_lines(lines)
+            try:
+                filename, filemode = self._parse_diff_header_lines(lines)
+            except PatchParseError as e:
+                if self.sha:
+                    raise click.ClickException(f"Error parsing commit {self.sha}: {e}")
+                else:
+                    raise click.ClickException(f"Error parsing diff: {e}")
+
             if is_filepath_excluded(filename, self.exclusion_regexes):
                 continue
             document = "\n".join(lines[filemode.start :])
