@@ -11,6 +11,7 @@ from tests.conftest import (
     _NO_SECRET,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _SIMPLE_SECRET,
+    GG_TEST_TOKEN,
     my_vcr,
 )
 
@@ -38,14 +39,14 @@ _EXPECT_NO_SECRET = {
             ExpectedScan(
                 exit_code=1,
                 matches=1,
-                first_match="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",  # noqa
+                first_match=GG_TEST_TOKEN,
                 want=None,
             ),
         ),
         (
-            "_ONE_LINE_AND_MULTILINE_PATCH",
+            "one_line_and_multiline_patch",
             _ONE_LINE_AND_MULTILINE_PATCH,
-            ExpectedScan(exit_code=1, matches=1, first_match=None, want=None),  # noqa
+            ExpectedScan(exit_code=1, matches=1, first_match=None, want=None),
         ),
         (
             "no_secret",
