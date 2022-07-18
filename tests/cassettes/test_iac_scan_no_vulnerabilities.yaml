@@ -1,17 +1,17 @@
 interactions:
   - request:
       body: !!binary |
-        LS00YTVlNzc4NWJlNWYwNDJkMTdkYjJkMjZiZjZjYmQ2Mw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS04ZTE3MGUwNmVmYjZiMGRlNzYwZDQyMzUzNDAyZjJmYg0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
-        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS00YTVlNzc4NWJlNWYwNDJkMTdkYjJk
-        MjZiZjZjYmQ2Mw0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
-        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAbzDVYgL/7dS9boMwFAVgZp7C4gEcbP6S
-        IVLGjn0Dy3FMZcVgZEwTqeq71yhNUlXK1mZIzrcA99rXAxzogi42r/L4ouVO++Rf5Ce3rnlelNf7
-        uc5yznhCjskdTGOQPh6fPCe+JF0wnV6zulqyYtkUJV2t6rpqWJrAwzNSidZYLXon3ifbay+3xppg
-        9EhD+3f5r8tTxpu6PmWdXzNfsOpX/uPn1yQkv2f+Byut7Ht9a11c1raP9/5Tr0c3eaVJJg+j6HU4
-        OL8XUlnhJ6szkm3lTuij7Ib56SMlRL/FPSM5W5NW2lHHxuBdcMrZSyMLashio/WuE4Pz4dzgPFaD
-        +1G7VOdT4/HBuP57iLTWHeYxyuy82Fqn9uf5jFNWUFZSVmXpJ35YAAAAAAAAAAAAAAAAAAAA8Iy+
-        AKC5BnYAKAAADQotLTRhNWU3Nzg1YmU1ZjA0MmQxN2RiMmQyNmJmNmNiZDYzLS0NCg==
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS04ZTE3MGUwNmVmYjZiMGRlNzYwZDQy
+        MzUzNDAyZjJmYg0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
+        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAX03VYgL/7dS9bsMgFAVgz34K5AcgBv+l
+        Q6SOHfsGiBBcoWBjYVxHqvruxUqTVJWytRmS8y2274XLgI7piq6eX+XhRcud9sm/yI+uPfO8KC/v
+        S53lnPGEHJIbmMYgfTw+eUx8TbpgOr1hdbVmZc3KgjZP8UaqMk3g7hmpRGusFr0T75PttZdbY00w
+        eqSh/bv81+Ux401dH7POL5kvWPUr/3XVNAnJb5n/wUor+15fWxeXte393X/q9egmrzTJ5DyKXofZ
+        +b2Qygo/WZ2RbCt3Qh9kNyxfHykh+i3uGcnJhrTSjjo2Bu+CU86eG1lQQxYbrXedGJwPpwbnsRrc
+        j9q5upwajw/G9d9DpLVuXsYos/Nia53an+YzTllBWUlZlaWf+GEBAAAAAAAAAAAAAAAAAADAI/oC
+        3amPhgAoAAANCi0tOGUxNzBlMDZlZmI2YjBkZTc2MGQ0MjM1MzQwMmYyZmItLQ0K
       headers:
         Accept:
           - '*/*'
@@ -20,9 +20,9 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '619'
+          - '618'
         Content-Type:
-          - multipart/form-data; boundary=4a5e7785be5f042d17db2d26bf6cbd63
+          - multipart/form-data; boundary=8e170e06efb6b0de760d42353402f2fb
         GGShield-Command-Path:
           - cli iac scan
         GGShield-Version:
@@ -46,16 +46,16 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Mon, 18 Jul 2022 10:05:36 GMT
+          - Mon, 18 Jul 2022 12:09:04 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=ZdEbpFauzQpxc2FaFk074Jq4tUK22lNcyyS0en3pStkUs464ya/mdIqkzq6smtQ4ET6PvX7ZMsG0fnNhJ8XPkz8NBIb6sBZ0gWyAakes8q7kPoB7q2zg3ojXQBJm;
-            Expires=Mon, 25 Jul 2022 10:05:35 GMT; Path=/
-          - AWSALBCORS=ZdEbpFauzQpxc2FaFk074Jq4tUK22lNcyyS0en3pStkUs464ya/mdIqkzq6smtQ4ET6PvX7ZMsG0fnNhJ8XPkz8NBIb6sBZ0gWyAakes8q7kPoB7q2zg3ojXQBJm;
-            Expires=Mon, 25 Jul 2022 10:05:35 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=E0P1LcKF9ZkOMI5ZQAFrAevdpgY5ZhXhN495IhsAUOEEqfOv9WYp5WoiqvV7zyHmHrBUyUzFrJkACeH1Ifg9okPjhL4ABEHXgdKHvv9q86AURXUfFE6qDb40LS1l;
+            Expires=Mon, 25 Jul 2022 12:09:04 GMT; Path=/
+          - AWSALBCORS=E0P1LcKF9ZkOMI5ZQAFrAevdpgY5ZhXhN495IhsAUOEEqfOv9WYp5WoiqvV7zyHmHrBUyUzFrJkACeH1Ifg9okPjhL4ABEHXgdKHvv9q86AURXUfFE6qDb40LS1l;
+            Expires=Mon, 25 Jul 2022 12:09:04 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
