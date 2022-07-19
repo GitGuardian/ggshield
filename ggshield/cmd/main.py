@@ -5,6 +5,7 @@ import sys
 from typing import Any, List, Optional
 
 import click
+import pygitguardian
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
@@ -132,6 +133,7 @@ def cli(
         config.allow_self_signed = allow_self_signed
 
     logger.debug("args=%s", sys.argv)
+    logger.debug("py-gitguardian=%s", pygitguardian.__version__)
 
 
 @cli.result_callback()
