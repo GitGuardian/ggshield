@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from typing import List, Optional, Tuple
@@ -7,6 +8,9 @@ import click
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, handle_exception
 from ggshield.scan.repo import scan_commit_range
+
+
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -85,6 +89,7 @@ def collect_from_stdin() -> Tuple[str, str]:
     Collect pre-commit variables from stdin.
     """
     prepush_input = sys.stdin.read().split()
+    logger.debug("input=%s", prepush_input)
     if len(prepush_input) < 4:
         # Then it's either a tag or a deletion event
         local_commit = EMPTY_SHA
@@ -93,6 +98,7 @@ def collect_from_stdin() -> Tuple[str, str]:
         local_commit = prepush_input[1].strip()
         remote_commit = prepush_input[3].strip()
 
+    logger.debug("refs=(%s, %s)", local_commit, remote_commit)
     return (local_commit, remote_commit)
 
 
@@ -109,4 +115,5 @@ def collect_from_precommit_env() -> Tuple[Optional[str], Optional[str]]:
         local_commit = os.getenv("PRE_COMMIT_FROM_REF", None)
         remote_commit = os.getenv("PRE_COMMIT_TO_REF", None)
 
+    logger.debug("refs=(%s, %s)", local_commit, remote_commit)
     return (local_commit, remote_commit)

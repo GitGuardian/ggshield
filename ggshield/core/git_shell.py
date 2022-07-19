@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 from functools import lru_cache
@@ -8,6 +9,8 @@ import click
 
 
 COMMAND_TIMEOUT = 45
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(None)
@@ -86,6 +89,7 @@ def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
     env["LANG"] = "C"
 
     try:
+        logger.debug("command=%s", command)
         result = subprocess.run(
             command,
             check=True,

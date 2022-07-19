@@ -5,6 +5,7 @@ import sys
 from typing import Any, List, Optional
 
 import click
+import pygitguardian
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
@@ -22,7 +23,9 @@ from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 
 
-LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s:%(funcName)s:%(lineno)d %(message)s"
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)s %(thread)d %(name)s:%(funcName)s:%(lineno)d %(message)s"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +48,24 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     sys.exit(exit_code)
 
 
-def setup_debug_logs() -> None:
-    logging.basicConfig(filename=None, level=logging.DEBUG, format=LOG_FORMAT)
+def setup_debug_logs(debug: bool) -> None:
+    """Configure Python logger. Disable messages up to logging.ERROR level by default.
+
+    The reason we disable error messages is that we call logging.error() in addition to
+    showing user-friendly error messages, but we don't want the error logs to show up
+    with the user-friendly error messages, unless --debug has been set.
+    """
+    level = logging.DEBUG if debug else logging.CRITICAL
+
+    if sys.version_info[:2] < (3, 8):
+        # Simulate logging.basicConfig() `force` argument, introduced in Python 3.8
+        root = logging.getLogger()
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+            handler.close()
+        logging.basicConfig(filename=None, level=level, format=LOG_FORMAT)
+    else:
+        logging.basicConfig(filename=None, level=level, format=LOG_FORMAT, force=True)
 
 
 @click.group(
@@ -91,10 +110,9 @@ def cli(
     load_dot_env()
     ctx.ensure_object(dict)
 
-    if debug:
-        # If --debug is set, setup logs *now*, otherwise log commands for the
-        # creation of the Config instance will be ignored
-        setup_debug_logs()
+    # If --debug is set, setup logs *now*, otherwise log commands for the
+    # creation of the Config instance will be ignored
+    setup_debug_logs(debug is True)
 
     config = Config(config_path)
 
@@ -103,7 +121,7 @@ def cli(
     elif config.debug:
         # if --debug is not set, but `debug` is set in the configuration file,
         # we still have to setup logs
-        setup_debug_logs()
+        setup_debug_logs(True)
 
     ctx.obj["config"] = config
     ctx.obj["cache"] = Cache()
@@ -115,6 +133,7 @@ def cli(
         config.allow_self_signed = allow_self_signed
 
     logger.debug("args=%s", sys.argv)
+    logger.debug("py-gitguardian=%s", pygitguardian.__version__)
 
 
 @cli.result_callback()

@@ -1,3 +1,4 @@
+import logging
 from ast import literal_eval
 from typing import Dict, List
 
@@ -7,7 +8,11 @@ from pygitguardian.models import Detail
 from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 
 
+logger = logging.getLogger(__name__)
+
+
 def handle_scan_chunk_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
+    logger.error("status_code=%d detail=%s", detail.status_code, detail.detail)
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
 
@@ -46,6 +51,7 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Dict[str, str]]) -> None
 
 
 def handle_scan_error(detail: Detail) -> None:
+    logger.error("status_code=%d detail=%s", detail.status_code, detail.detail)
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
     display_error("\nError scanning.")
