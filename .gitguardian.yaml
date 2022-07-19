@@ -38,3 +38,4 @@ secret:
     - .dockerignore
     - .gitignore
     - .env
+    - 'tests/cassettes/*'
