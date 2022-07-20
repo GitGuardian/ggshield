@@ -9,7 +9,7 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.3.3 (Linux;py3.8.10) ggshield
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/health
     response:
@@ -27,22 +27,22 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Thu, 02 Dec 2021 13:06:58 GMT
+          - Fri, 15 Jul 2022 15:45:19 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=9Y7jLYQn3Wn1kGSchTJt8XTXxTAPTgi2NIzROAiDVfZnl0MJahQ2XW2mFos8ZLmCXC+GmBM4kAK8631LO5PnGsMZZ/kBzAAfVoEB7eSMWLwo0IC4+9i7lp8/6G0y;
-            Expires=Thu, 09 Dec 2021 13:06:58 GMT; Path=/
-          - AWSALBCORS=9Y7jLYQn3Wn1kGSchTJt8XTXxTAPTgi2NIzROAiDVfZnl0MJahQ2XW2mFos8ZLmCXC+GmBM4kAK8631LO5PnGsMZZ/kBzAAfVoEB7eSMWLwo0IC4+9i7lp8/6G0y;
-            Expires=Thu, 09 Dec 2021 13:06:58 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=x6mok2aHb/dr+09EDz0c2HC/Yg0HUKWq8JrU5j9jonFChlk++BIqGt0yWFGVJaVzjQiiA3KBI5Ct76uhEWBQ0zOb9ZuLufxKqo2y7/SjD0/MAjlVjomshdBJwmn5;
+            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/
+          - AWSALBCORS=x6mok2aHb/dr+09EDz0c2HC/Yg0HUKWq8JrU5j9jonFChlk++BIqGt0yWFGVJaVzjQiiA3KBI5Ct76uhEWBQ0zOb9ZuLufxKqo2y7/SjD0/MAjlVjomshdBJwmn5;
+            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
         X-App-Version:
-          - 1.32.0-rc.2
+          - v2.9.0
         X-Content-Type-Options:
           - nosniff
           - nosniff
@@ -50,7 +50,7 @@ interactions:
           - DENY
           - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.56.0
+          - 2.71.0
         X-XSS-Protection:
           - 1; mode=block
       status:

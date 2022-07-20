@@ -1,20 +1,20 @@
 interactions:
   - request:
       body: !!binary |
-        LS05NmU4YzFjNzFiOTE2YTkwZjQ3NzM4MThkNjY5MmUyNQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS0yMmNhZjM3MTdiOWY4MmU0NTM1ZDg1MGRhZjBiYjEyZA0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
-        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS05NmU4YzFjNzFiOTE2YTkwZjQ3NzM4
-        MThkNjY5MmUyNQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
-        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA8dCdYgL/7ZfNbqMwFEZZ8xSWH8DxH5As
-        Is2yyy66G1WWQ0yKajAyRkmn6ruPaSZtKtqu2kTT3MMCdG18F/BxDJmR2a9rvbsyem188i3QPR+d
-        KRXy9XqsM8oZT9AuOQFDH7SP7ZPLhM9RE+rGLFmeyYwu5nRBpCjyPONpAvx4al2qqrZGMRKq5Pvy
-        n8t9xuObtc86f808oyJhkstCZFTkLOZfsqxIED1l/hsdwl1thj93ut28My9Oq6qf9/xTb3o3+NIg
-        rLe90nalbN0H0xqPEV7ptTI73XTWYPSYItR5F1zpLFoifHVzc43TJ/hM/M8Q8D/4f+r/OVsUEOxL
-        8r84n/8Fyyb+j9PA/6f3f2vC1vl7pUur/DBaf7oHMJt4T48OLFGlbW+ONweHARzKDseByrtGdc6H
-        wwDnsRrcUe2lOnaN7UPt2n+LaGvddlymrNderawr7w/rM06YIEwSlsFOBPwP/v8q/xdyLiFOl+R/
-        fk7/T///cwH+P4P/e1MOvg4PauPd0H1i//Hy2Mh91PFvTMnzMaP4No4/RSWjFH3W4cNNRnjozGj4
-        un3u91b/02ZjIwgzAAAAAAAAAAAAAADAO/wFwGvkIAAoAAANCi0tOTZlOGMxYzcxYjkxNmE5MGY0
-        NzczODE4ZDY2OTJlMjUtLQ0K
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS0yMmNhZjM3MTdiOWY4MmU0NTM1ZDg1
+        MGRhZjBiYjEyZA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
+        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAYE3VYgL/7ZfBbuIwEIZzzlNYfoBgGyeh
+        B6Q99thDb9XKMsGprDpxZDsFtOq7rwOFbmlpV6uWsmU+Dlh28BzIr28mG2WjH1dyeankXLnkUyAb
+        Dn0TMuZP62GfEkZZgpbJEeh9kC6WT84TNkFN0I2a0iKfUF5QzrMyJ5RPJmkCfHu0rEStjRJNb4Lu
+        4uK+N61ycqaNDlr5LNQfkf+CbzJeFsUm6+wp82NKn+efETLknxwz/52RRratOvRcfKyuv9//nzrl
+        be8qhbBceOFV1TsdVuLW2b7DCM/kXKilbOKbgdGvFCF1G3/h10uEKj13YmZsdefRFN1gkq0/I4J/
+        xvOH9CFN0VsFhOuHe19WCatOxRuxbtflcPp2rVgHovxPZCfh//FL/1Pw/1H8X77qf15cQKLOyv+t
+        /QTz/63/8738F3lZgv+/wP+tCgvr7oSszEE3P3YAW6aolsareNA5G2xlze4Ah6ob1F0724jOurA9
+        YGxwvP1jb7c7VI3lg7bt4yXSGLt43gFs76cso+OM8ozmODYBEOf/1P8w/5/U/M8vSk5h/j8r//s4
+        au1N/6sP6gDe8z8l+/1/SRn4/yv8L81MGO2Dii/Ba+7fKT7K9/L6+gqsCwAAAAAAAAAAAAAAcOL8
+        BiIV1CcAKAAADQotLTIyY2FmMzcxN2I5ZjgyZTQ1MzVkODUwZGFmMGJiMTJkLS0NCg==
       headers:
         Accept:
           - '*/*'
@@ -23,31 +23,31 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '759'
+          - '790'
         Content-Type:
-          - multipart/form-data; boundary=96e8c1c71b916a90f4773818d6692e25
+          - multipart/form-data; boundary=22caf3717b9f82e4535d850daf0bb12d
         GGShield-Command-Path:
           - cli iac scan
         GGShield-Version:
-          - 1.11.0
+          - 1.12.0
         User-Agent:
-          - pygitguardian/1.3.4 (Darwin;py3.10.4) ggshield
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/iac_scan
     response:
       body:
         string:
-          '{"id":"","type":"path_scan","iac_engine_version":"1.1.0","entities_with_incidents":[{"filename":"iac_file_single_vulnerability.tf","incidents":[{"policy":"Plain
+          '{"id":"0","type":"path_scan","iac_engine_version":"1.5.0","entities_with_incidents":[{"filename":"iac_file_single_vulnerability.tf","incidents":[{"policy":"Plain
           HTTP is used","policy_id":"GG_IAC_0001","severity":"HIGH","component":"aws_alb_listener.bad_example","line_end":3,"line_start":3,"description":"Plain
-          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://gitguardian.com","ignore_sha":"shasha"}]},{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
-          egress traffic might lead to remote code execution.","policy_id":"GG_IAC_0002","severity":"HIGH","component":"aws_security_group.bad_example","line_end":4,"line_start":4,"description":"Open
-          egress means that the asset can download data from the whole web.","documentation_url":"https://gitguardian.com","ignore_sha":"shasha"},{"policy":"Unrestricted
-          ingress traffic leaves assets exposed to remote attacks.","policy_id":"GG_IAC_0003","severity":"HIGH","component":"aws_security_group_rule.bad_example","line_end":10,"line_start":10,"description":"A
+          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://gitguardian.com"}]},{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
+          egress traffic might lead to remote code execution","policy_id":"GG_IAC_0002","severity":"HIGH","component":"aws_security_group.bad_example","line_end":4,"line_start":4,"description":"Open
+          egress means that the asset can download data from the whole web.","documentation_url":"https://gitguardian.com"},{"policy":"Unrestricted
+          ingress traffic leaves assets exposed to remote attacks","policy_id":"GG_IAC_0003","severity":"HIGH","component":"aws_security_group_rule.bad_example","line_end":10,"line_start":10,"description":"A
           security group has open ingress from all IPs, and on all ports. This means
           that the\nassets in this security group are exposed to the whole web.\n\nFurthermore,
           no port range is specified. This\nmeans that some applications running on
           assets of this security group may be reached by\nexternal traffic, while they
-          are not expected to do so.","documentation_url":"https://gitguardian.com","ignore_sha":"shasha"}]}]}'
+          are not expected to do so.","documentation_url":"https://gitguardian.com"}]}]}'
       headers:
         Access-Control-Expose-Headers:
           - X-App-Version
@@ -58,18 +58,25 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Mon, 06 Jun 2022 10:03:31 GMT
+          - Mon, 18 Jul 2022 12:09:05 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
+        Server:
+          - nginx
+        Set-Cookie:
+          - AWSALB=2T61Y/S/wxe1YCBF1V8qIkPkTRe37YPerUbTLNmFsZqUvWtoQFGJYz+BnDOfB95F2VVNxIJy1QuY2/3KQxVJrOn0cBkGRNCg0n+jfOhxASQEEyqTml/rd5PucqdD;
+            Expires=Mon, 25 Jul 2022 12:09:05 GMT; Path=/
+          - AWSALBCORS=2T61Y/S/wxe1YCBF1V8qIkPkTRe37YPerUbTLNmFsZqUvWtoQFGJYz+BnDOfB95F2VVNxIJy1QuY2/3KQxVJrOn0cBkGRNCg0n+jfOhxASQEEyqTml/rd5PucqdD;
+            Expires=Mon, 25 Jul 2022 12:09:05 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
-          - max-age=15724800; includeSubDomains
+          - max-age=31536000; includeSubDomains
         Transfer-Encoding:
           - chunked
         Vary:
           - Accept-Encoding
           - Cookie
         X-App-Version:
-          - 3751cc90
+          - v2.9.0
         X-Content-Type-Options:
           - nosniff
           - nosniff
@@ -77,11 +84,11 @@ interactions:
           - DENY
           - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.68.0
+          - 2.71.0
         X-XSS-Protection:
           - 1; mode=block
         content-length:
-          - '1499'
+          - '1440'
       status:
         code: 200
         message: OK

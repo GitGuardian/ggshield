@@ -49,7 +49,7 @@ from ggshield.cmd.secret.scan.ci import EMPTY_SHA
     ],
 )
 @pytest.mark.parametrize("json_output", (False, True))
-def test_gitab_ci_range(
+def test_gitlab_ci_range(
     _: Mock,
     get_list_mock: Mock,
     cli_fs_runner: click.testing.CliRunner,

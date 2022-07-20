@@ -1,8 +1,8 @@
 interactions:
   - request:
       body:
-        '[{"filename": "/tmp/tmpqozgtj9l/file", "document": "This is a file with
-        no secrets.\n"}]'
+        '[{"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmp8mk5zl_2/file",
+        "document": "This is a file with no secrets."}]'
       headers:
         Accept:
           - '*/*'
@@ -11,11 +11,15 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '88'
+          - '138'
         Content-Type:
           - application/json
+        GGShield-Command-Path:
+          - cli secret scan path
+        GGShield-Version:
+          - 1.12.0
         User-Agent:
-          - pygitguardian/1.3.3 (Linux;py3.8.10) ggshield
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
         mode:
           - path
       method: POST
@@ -35,22 +39,22 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Thu, 02 Dec 2021 13:06:49 GMT
+          - Fri, 15 Jul 2022 16:33:11 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=KuDLkfK2K1vE0tuA74XjJ7lJmYAQ+GsfUJMVpKGx0KPjTd9bHw46a50uXvNVJgAoQQ5p36GBFu6ptBmjeSA+sde2ZMOp2Lu+v064cZCyHN8G6WKCxsX/ugxQYO4R;
-            Expires=Thu, 09 Dec 2021 13:06:49 GMT; Path=/
-          - AWSALBCORS=KuDLkfK2K1vE0tuA74XjJ7lJmYAQ+GsfUJMVpKGx0KPjTd9bHw46a50uXvNVJgAoQQ5p36GBFu6ptBmjeSA+sde2ZMOp2Lu+v064cZCyHN8G6WKCxsX/ugxQYO4R;
-            Expires=Thu, 09 Dec 2021 13:06:49 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=Zrz1YBr7nYDv1JX+6GLX63gr2Slp5l4bvf3zSKpV6kcueVWjo7KlndVJT4iappGy0BaNP7D4lveLRGsCbvv1RguRo9BF+L+/o5EsV5KPk6eMM9WZ9VowzSU9hTaq;
+            Expires=Fri, 22 Jul 2022 16:33:11 GMT; Path=/
+          - AWSALBCORS=Zrz1YBr7nYDv1JX+6GLX63gr2Slp5l4bvf3zSKpV6kcueVWjo7KlndVJT4iappGy0BaNP7D4lveLRGsCbvv1RguRo9BF+L+/o5EsV5KPk6eMM9WZ9VowzSU9hTaq;
+            Expires=Fri, 22 Jul 2022 16:33:11 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
         X-App-Version:
-          - 1.32.0-rc.2
+          - v2.9.0
         X-Content-Type-Options:
           - nosniff
           - nosniff
@@ -58,7 +62,7 @@ interactions:
           - DENY
           - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.56.0
+          - 2.71.0
         X-XSS-Protection:
           - 1; mode=block
       status:

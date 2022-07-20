@@ -9,12 +9,12 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.3.3 (Linux;py3.8.10) ggshield
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/quotas
     response:
       body:
-        string: '{"content":{"count":194,"limit":1000,"remaining":806,"since":"2021-11-02"}}'
+        string: '{"content":{"count":152,"limit":1000,"remaining":848,"since":"2022-06-15"}}'
       headers:
         Access-Control-Expose-Headers:
           - X-App-Version
@@ -27,22 +27,22 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Thu, 02 Dec 2021 13:06:55 GMT
+          - Fri, 15 Jul 2022 15:45:19 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=lo03kH9SKUUSDXF59BWYUpf0SrH6KfXKviFpm/drgykIswkfoZLIlV5e04Xarr8BLDSAsyDeLTcKBrabVL62UEq/JhFtwoWQ+Exh5io8a8k2owOgWlnTzJ4bd99r;
-            Expires=Thu, 09 Dec 2021 13:06:55 GMT; Path=/
-          - AWSALBCORS=lo03kH9SKUUSDXF59BWYUpf0SrH6KfXKviFpm/drgykIswkfoZLIlV5e04Xarr8BLDSAsyDeLTcKBrabVL62UEq/JhFtwoWQ+Exh5io8a8k2owOgWlnTzJ4bd99r;
-            Expires=Thu, 09 Dec 2021 13:06:55 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=qnY7JoqgyZdZ1Hk5LFVO0kaQSh1iT81NG4q/NDgv3nPrNEZYtf4qNlKyMAsVWApab8rVtPSKsB79obMv8lsX1uMFdmVcPcxEf6hmSgHGUOr43kPCIwIeGB8OHsF+;
+            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/
+          - AWSALBCORS=qnY7JoqgyZdZ1Hk5LFVO0kaQSh1iT81NG4q/NDgv3nPrNEZYtf4qNlKyMAsVWApab8rVtPSKsB79obMv8lsX1uMFdmVcPcxEf6hmSgHGUOr43kPCIwIeGB8OHsF+;
+            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
         X-App-Version:
-          - 1.32.0-rc.2
+          - v2.9.0
         X-Content-Type-Options:
           - nosniff
           - nosniff
@@ -50,7 +50,7 @@ interactions:
           - DENY
           - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.56.0
+          - 2.71.0
         X-XSS-Protection:
           - 1; mode=block
       status:

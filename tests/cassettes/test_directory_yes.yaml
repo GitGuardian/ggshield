@@ -1,11 +1,11 @@
 interactions:
   - request:
       body:
-        '[{"filename": "/tmp/tmplkap5pvh/dir/subdir/file4", "document": "This is
-        a file with no secrets.\n"}, {"filename": "/tmp/tmplkap5pvh/dir/file2", "document":
-        "This is a file with no secrets.\n"}, {"filename": "/tmp/tmplkap5pvh/file1",
-        "document": "This is a file with no secrets.\n"}, {"filename": "/tmp/tmplkap5pvh/dir/subdir/file3",
-        "document": "This is a file with no secrets.\n"}]'
+        '[{"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmpxd2g5n0t/dir/subdir/file3",
+        "document": "This is a file with no secrets."}, {"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmpxd2g5n0t/file1",
+        "document": "This is a file with no secrets."}, {"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmpxd2g5n0t/dir/file2",
+        "document": "This is a file with no secrets."}, {"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmpxd2g5n0t/dir/subdir/file4",
+        "document": "This is a file with no secrets."}]'
       headers:
         Accept:
           - '*/*'
@@ -14,11 +14,15 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '382'
+          - '582'
         Content-Type:
           - application/json
+        GGShield-Command-Path:
+          - cli scan path
+        GGShield-Version:
+          - 1.12.0
         User-Agent:
-          - pygitguardian/1.3.3 (Linux;py3.8.10) ggshield
+          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
         mode:
           - path
       method: POST
@@ -42,22 +46,22 @@ interactions:
         Content-Type:
           - application/json
         Date:
-          - Thu, 02 Dec 2021 11:59:14 GMT
+          - Fri, 15 Jul 2022 16:33:18 GMT
         Referrer-Policy:
           - strict-origin-when-cross-origin
         Server:
           - nginx
         Set-Cookie:
-          - AWSALB=kda0RXH1YVr9O/8n/2xC8rRHjHH+U3Ti0LcBzdrFo3VAKjpWRG7hSLjqy07SQszEBxuDW0SDIklkXqPyIi2zL6C2kViiBHw2gcGJ4tZsx4ReqpaXa00EeIBfvL6r;
-            Expires=Thu, 09 Dec 2021 11:59:14 GMT; Path=/
-          - AWSALBCORS=kda0RXH1YVr9O/8n/2xC8rRHjHH+U3Ti0LcBzdrFo3VAKjpWRG7hSLjqy07SQszEBxuDW0SDIklkXqPyIi2zL6C2kViiBHw2gcGJ4tZsx4ReqpaXa00EeIBfvL6r;
-            Expires=Thu, 09 Dec 2021 11:59:14 GMT; Path=/; SameSite=None; Secure
+          - AWSALB=8NkiFygKzGK+uNBDkzTRPzv6ayMVsQ4Dp+z/N438VEWZO+1RcJ/4W/QnrgsnQKaeU6El9J6TXJleDFlb9J1pW8m6VfDgjY+xS98bZ3ovODmAjrSFCeMdObEX+6CF;
+            Expires=Fri, 22 Jul 2022 16:33:18 GMT; Path=/
+          - AWSALBCORS=8NkiFygKzGK+uNBDkzTRPzv6ayMVsQ4Dp+z/N438VEWZO+1RcJ/4W/QnrgsnQKaeU6El9J6TXJleDFlb9J1pW8m6VfDgjY+xS98bZ3ovODmAjrSFCeMdObEX+6CF;
+            Expires=Fri, 22 Jul 2022 16:33:18 GMT; Path=/; SameSite=None; Secure
         Strict-Transport-Security:
           - max-age=31536000; includeSubDomains
         Vary:
           - Cookie
         X-App-Version:
-          - 1.32.0-rc.2
+          - v2.9.0
         X-Content-Type-Options:
           - nosniff
           - nosniff
@@ -65,7 +69,7 @@ interactions:
           - DENY
           - SAMEORIGIN
         X-Secrets-Engine-Version:
-          - 2.56.0
+          - 2.71.0
         X-XSS-Protection:
           - 1; mode=block
       status:

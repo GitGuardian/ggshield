@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from click.testing import CliRunner, Result
@@ -94,7 +95,7 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
 
 
 def assert_iac_version_displayed(result: Result):
-    assert "iac-engine-version: 1.1.0" in result.stdout
+    assert re.search(r"iac-engine-version: \d\.\d{1,3}\.\d", result.stdout)
 
 
 def assert_no_failures_displayed(result: Result):
@@ -106,10 +107,9 @@ def assert_file_single_vulnerability_displayed(result: Result):
         "1 incident has been found in file iac_file_single_vulnerability.tf"
         in result.stdout
     )
-    assert (
-        ">>> Incident 1 (IaC): aws_alb_listener.bad_example: Plain HTTP is used (GG_IAC_0001)"  # noqa: E501
-        in result.stdout
-    )
+    assert set(re.findall(r"GG_IAC_\d{4}", result.stdout)) >= {
+        "GG_IAC_0001",
+    }
     assert '2 | resource "aws_alb_listener" "bad_example" {' in result.stdout
 
 
@@ -118,13 +118,9 @@ def assert_file_multiple_vulnerabilities_displayed(result: Result):
         "2 incidents have been found in file iac_file_multiple_vulnerabilities.tf"
         in result.stdout
     )
-    assert (
-        ">>> Incident 1 (IaC): aws_security_group.bad_example: Unrestricted egress traffic might lead to remote code execution. (GG_IAC_0002)"  # noqa: E501
-        in result.stdout
-    )
+    assert set(re.findall(r"GG_IAC_\d{4}", result.stdout)) >= {
+        "GG_IAC_0002",
+        "GG_IAC_0003",
+    }
     assert '2 | resource "aws_security_group" "bad_example" {' in result.stdout
-    assert (
-        ">>> Incident 2 (IaC): aws_security_group_rule.bad_example: Unrestricted ingress traffic leaves assets exposed to remote attacks. (GG_IAC_0003)"  # noqa: E501
-        in result.stdout
-    )
     assert '8 |  resource "aws_security_group_rule" "bad_example" {' in result.stdout

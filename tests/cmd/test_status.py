@@ -1,42 +1,56 @@
+import json
 from unittest import mock
 
 import pytest
+from pytest_voluptuous import Partial, S
+from voluptuous.validators import All, Invalid, Match, Range
 
 from ggshield.cmd.main import cli
 from tests.conftest import assert_invoke_ok, my_vcr
 
 
-@pytest.mark.parametrize(
-    "cassette, json_output",
-    [
-        ("quota", True),
-        ("quota", False),
-        ("quota_half_remaining", False),
-        ("quota_low_remaining", False),
-    ],
-)
-def test_quota(cassette, json_output, snapshot, cli_fs_runner):
-    with my_vcr.use_cassette(cassette):
-        cmd = ["quota", "--json"] if json_output else ["quota"]
+def test_quota(cli_fs_runner):
+    with my_vcr.use_cassette("quota"):
+        cmd = ["quota", "--json"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
-        snapshot.assert_match(result.output)
+
+        def quota_values_must_match(output):
+            if output["count"] + output["remaining"] != output["limit"]:
+                raise Invalid("API calls count and remaining must sum to limit.")
+
+        assert S(
+            All(
+                Partial(  # Partial validation because of the "since" key
+                    {
+                        "count": All(int, Range(min=0)),
+                        "limit": All(int, Range(min=0)),
+                        "remaining": All(int, Range(min=0)),
+                    }
+                ),
+                quota_values_must_match,
+            )
+        ) == json.loads(result.output)
 
 
-@pytest.mark.parametrize(
-    "cassette, json_output",
-    [
-        ("test_health_check", True),
-        ("test_health_check", False),
-        ("test_health_check_error", False),
-    ],
-)
-def test_api_status(cassette, json_output, snapshot, cli_fs_runner):
-    with my_vcr.use_cassette(cassette):
-        cmd = ["api-status", "--json"] if json_output else ["api-status"]
+def test_api_status(cli_fs_runner):
+    with my_vcr.use_cassette("test_health_check"):
+        cmd = ["api-status", "--json"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
-        snapshot.assert_match(result.output)
+
+        assert S(
+            All(
+                Partial(  # Partial validation because of the "since" key
+                    {
+                        "detail": "Valid API key.",
+                        "status_code": 200,
+                        "app_version": Match(r"v\d\.\d{1,3}\.\d{1,2}(-rc\.\d)?"),
+                        "secrets_engine_version": Match(r"\d\.\d{1,3}\.\d"),
+                    }
+                ),
+            )
+        ) == json.loads(result.output)
 
 
 @pytest.mark.parametrize("verify", [True, False])
