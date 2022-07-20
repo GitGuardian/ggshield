@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import ClassVar, List
+from typing import ClassVar, List, cast
 
 import click
 from pygitguardian.models import Match
@@ -8,7 +8,7 @@ from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.text_utils import Line
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
 from ggshield.output.output_handler import OutputHandler
-from ggshield.scan import Result, ScanCollection
+from ggshield.scan import Result, Results, ScanCollection
 
 from .message import (
     file_info,
@@ -26,19 +26,19 @@ class TextOutputHandler(OutputHandler):
 
     def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
         scan_buf = StringIO()
-        if scan.optional_header and (scan.results or self.verbose):
+        if scan.optional_header and (scan.has_results or self.verbose):
             scan_buf.write(scan.optional_header)
 
-        if top and (scan.results or self.verbose):
+        if top and (scan.has_results or self.verbose):
             scan_buf.write(secrets_engine_version())
 
-        if scan.results:
-            for result in scan.results:
+        if scan.has_results:
+            for result in cast(Results, scan.results).results:
                 scan_buf.write(self.process_result(result))
         else:
             has_results = False
             if scan.scans:
-                has_results = any(x.results for x in scan.scans)
+                has_results = any(x.has_results for x in scan.scans)
 
             if top and not has_results:
                 scan_buf.write(no_leak_message())

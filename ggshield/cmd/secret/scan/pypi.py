@@ -12,7 +12,7 @@ from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.utils import SupportedScanMode
 from ggshield.output import OutputHandler
-from ggshield.scan import Files, Result, ScanCollection
+from ggshield.scan import Files, ScanCollection
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
@@ -104,7 +104,7 @@ def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
             def update_progress(chunk: List[Dict[str, Any]]) -> None:
                 progressbar.update(len(chunk))
 
-            results: List[Result] = files.scan(
+            results = files.scan(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 matches_ignore=config.secret.ignored_matches,

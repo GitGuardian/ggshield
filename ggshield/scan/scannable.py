@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Se
 import click
 from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
-from pygitguardian.models import ScanResult
+from pygitguardian.models import Detail, ScanResult
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
@@ -53,10 +53,24 @@ class Result(NamedTuple):
     scan: ScanResult  # Result of content scan
 
 
+class Error(NamedTuple):
+    files: List[Tuple[str, Filemode]]
+    description: str  # Description of the error
+
+
+class Results(NamedTuple):
+    """
+    Return model for a scan with the results and errors of the scan
+    """
+
+    results: List[Result]
+    errors: List[Error]
+
+
 class ScanCollection(NamedTuple):
     id: str
     type: str
-    results: Optional[List[Result]] = None
+    results: Optional[Results] = None
     scans: Optional[List["ScanCollection"]] = None  # type: ignore[misc]
     iac_result: Optional[IaCScanResult] = None
     optional_header: Optional[str] = None  # To be printed in Text Output
@@ -68,13 +82,17 @@ class ScanCollection(NamedTuple):
             return [scan for scan in self.scans if scan.results]
         return []
 
+    @property
+    def has_results(self) -> bool:
+        return bool(self.results and self.results.results)
+
     def get_all_results(self) -> Iterable[Result]:
         """Returns an iterable on all results and sub-scan results"""
         if self.results:
-            yield from self.results
+            yield from self.results.results
         if self.scans:
             for scan in self.scans:
-                yield from scan.results
+                yield from scan.results.results
 
 
 class File:
@@ -172,11 +190,12 @@ class Files:
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
-    ) -> List[Result]:
+    ) -> Results:
         logger.debug("self=%s", self)
         cache.purge()
         scannable_list = self.scannable_list
         results = []
+        errors = []
         chunks = []
         for i in range(0, len(scannable_list), MULTI_DOCUMENT_LIMIT):
             chunks.append(scannable_list[i : i + MULTI_DOCUMENT_LIMIT])
@@ -197,10 +216,24 @@ class Files:
                 chunk = future_to_scan[future]
                 on_file_chunk_scanned(chunk)
 
-                scan = future.result()
+                exception = future.exception()
+                if exception is None:
+                    scan = future.result()
+                else:
+                    scan = Detail(detail=str(exception))
+                    errors.append(
+                        Error(
+                            files=[
+                                (file["filename"], file["filemode"]) for file in chunk
+                            ],
+                            description=scan.detail,
+                        )
+                    )
+
                 if not scan.success:
                     handle_scan_chunk_error(scan, chunk)
                     continue
+
                 for index, scanned in enumerate(scan.scan_results):
                     remove_ignored_from_result(scanned, matches_ignore)
                     remove_results_from_ignore_detectors(scanned, ignored_detectors)
@@ -218,7 +251,7 @@ class Files:
                             )
                         )
         cache.save()
-        return results
+        return Results(results=results, errors=errors)
 
 
 class CommitInformation(NamedTuple):

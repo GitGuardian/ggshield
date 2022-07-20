@@ -11,7 +11,7 @@ from ggshield.output.text.message import (
     _file_info_default_decoration,
 )
 from ggshield.scan import Result
-from ggshield.scan.scannable import ScanCollection
+from ggshield.scan.scannable import Results, ScanCollection
 from tests.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -111,7 +111,7 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
             ScanCollection(
                 id="scan",
                 type="test",
-                results=[new_result],
+                results=Results(results=[new_result], errors=[]),
                 optional_header="> This is an example header",
             )
         )

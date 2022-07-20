@@ -87,12 +87,22 @@ class JSONResultSchema(BaseSchema):
     total_occurrences = fields.Integer(required=True)
 
 
+class JSONErrorSchema(BaseSchema):
+    class JSONErrorFileSchema(BaseSchema):
+        mode = fields.String(required=True)
+        filename = fields.String(required=True)
+
+    files = fields.List(fields.Nested(JSONErrorFileSchema))
+    description = fields.String(required=True)
+
+
 class JSONScanCollectionSchema(BaseSchema):
     id = fields.String()
     type = fields.String()
     results = fields.List(
         fields.Nested(JSONResultSchema), data_key="entities_with_incidents"
     )
+    errors = fields.List(fields.Nested(JSONErrorSchema))
     scans = fields.List(fields.Nested(lambda: JSONScanCollectionSchema()))
     extra_info = fields.Dict(keys=fields.Str(), values=fields.Str())
     total_incidents = fields.Integer(required=True)

@@ -80,7 +80,7 @@ def test_make_indices_patch(client, cache, name, content, is_patch, expected_ind
             mode_header=SupportedScanMode.PATH.value,
             ignored_detectors=None,
         )
-        result = results[0]
+        result = results.results[0]
 
     lines = get_lines_from_content(
         content=result.content,

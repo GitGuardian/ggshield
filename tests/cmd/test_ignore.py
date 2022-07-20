@@ -80,7 +80,7 @@ def test_cache_catches_nothing(client, isolated_fs):
             mode_header="test",
         )
 
-        assert results == []
+        assert results.results == []
         assert config.secret.ignored_matches == FOUND_SECRETS
         assert cache.last_found_secrets == []
 
