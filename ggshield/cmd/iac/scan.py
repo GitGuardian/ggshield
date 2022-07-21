@@ -76,6 +76,9 @@ def scan_cmd(
     json: bool,
     directory: Path,
 ) -> int:
+    """
+    Scan a directory for IaC vulnerabilities.
+    """
     update_context(
         ctx, exit_zero, minimum_severity, verbose, ignore_policies, ignore_paths, json
     )
