@@ -1,5 +1,4 @@
 import cProfile
-import functools
 import logging
 import os
 import re
@@ -7,7 +6,7 @@ import time
 import traceback
 import uuid
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Type
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -263,39 +262,59 @@ def handle_exception(e: Exception, verbose: bool) -> int:
 PROFILE_DIR = os.getenv("GG_PROFILE_DIR")
 
 
-def profile_wrapper(fcn: Callable, prefix: str) -> Callable:
-    """Wraps a function call to profile it. Useful to profile a function called from
-    another thread"""
+class ProfileWrapper:
+    enabled = PROFILE_DIR is not None
 
-    if not PROFILE_DIR:
-        return fcn
-
-    def inner(fcn: Callable, *args: Any, **kwargs: Dict[str, Any]) -> Any:
+    def __init__(self, prefix: str, callable: Callable):
+        self.prefix = prefix
         # A unique ID to distinguish two calls. Can't use thread ID here since threads
         # are often reused during scan.
-        unique_id = uuid.uuid4().hex
-        logger.debug("Starting thread prefix=%s unique_id=%s", prefix, unique_id)
+        self.unique_id = uuid.uuid4().hex
+        self.callable = callable
+        self.duration: Optional[int] = None
 
-        profile_filename = f"ggshield-{os.getpid()}-{prefix}-{unique_id}.profile"
+    @staticmethod
+    def get_base_path() -> str:
+        assert PROFILE_DIR
+        return os.path.join(PROFILE_DIR, f"ggshield-{os.getpid()}")
+
+    def get_profile_path(self, suffix: str) -> str:
+        filename = f"-{self.prefix}-{self.unique_id}{suffix}"
+        return ProfileWrapper.get_base_path() + filename
+
+    def __call__(self, *args: Any, **kwargs: Dict[str, Any]) -> Any:
+        logger.debug(
+            "Starting thread prefix=%s unique_id=%s", self.prefix, self.unique_id
+        )
 
         start = time.time()
         pr = cProfile.Profile()
         try:
             pr.enable()
-            return fcn(*args, **kwargs)
+            return self.callable(*args, **kwargs)
         finally:
             pr.disable()
-            duration = int((time.time() - start) * 1000)
+            self.duration = int((time.time() - start) * 1000)
             logger.debug(
                 "Ending thread prefix=%s unique_id=%s duration=%dms",
-                prefix,
-                unique_id,
-                duration,
+                self.prefix,
+                self.unique_id,
+                self.duration,
             )
             assert PROFILE_DIR
-            pr.dump_stats(os.path.join(PROFILE_DIR, profile_filename))
+            pr.dump_stats(os.path.join(PROFILE_DIR, self.get_profile_path(".profile")))
 
-    return functools.partial(inner, fcn)
+
+def profile_wrapper(
+    fcn: Callable, prefix: str, wrapper_class: Type[ProfileWrapper] = ProfileWrapper
+) -> Callable:
+    """Wraps a function call to profile it. Useful to profile a function called from
+    another thread"""
+
+    if not ProfileWrapper.enabled:
+        return fcn
+
+    return wrapper_class(prefix, fcn)
 
 
 def load_dot_env() -> None:

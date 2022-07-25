@@ -21,6 +21,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env, profile_wrapper
+from ggshield.scan.scannable import ScanProfileWrapper
 
 
 LOG_FORMAT = (
@@ -40,6 +41,10 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     when exit_zero is enabled
     """
     show_config_deprecation_message(ctx)
+
+    if ScanProfileWrapper.enabled:
+        ScanProfileWrapper.dump_queue()
+
     if ctx.obj["config"].exit_zero:
         logger.debug("scan exit_code forced to 0")
         sys.exit(0)
@@ -153,7 +158,9 @@ def main(args: Optional[List[str]] = None) -> Any:
     `args` is only used by unit-tests.
     """
     show_crash_log = os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
-    return profile_wrapper(cli.main, "main")(args, prog_name="ggshield", standalone_mode=not show_crash_log)
+    return profile_wrapper(cli.main, "main")(
+        args, prog_name="ggshield", standalone_mode=not show_crash_log
+    )
 
 
 if __name__ == "__main__":
