@@ -1,17 +1,24 @@
 import concurrent.futures
+import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from queue import Queue
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 import click
 from pygitguardian import GGClient
-from pygitguardian.config import MULTI_DOCUMENT_LIMIT
-from pygitguardian.models import Detail, ScanResult
+from pygitguardian.models import Detail, MultiScanResult, ScanResult
 
 from ggshield.core.cache import Cache
-from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
+from ggshield.core.constants import (
+    MAX_COMMIT_WORKERS,
+    MAX_DOC_LIMIT,
+    MAX_FILE_SIZE,
+    MAX_SCAN_WORKERS,
+)
 from ggshield.core.extra_headers import generate_command_id, get_extra_headers
 from ggshield.core.filter import (
     is_filepath_excluded,
@@ -19,9 +26,14 @@ from ggshield.core.filter import (
     remove_results_from_ignore_detectors,
 )
 from ggshield.core.git_shell import GIT_PATH, shell
-from ggshield.core.text_utils import STYLE, format_text
+from ggshield.core.text_utils import STYLE, display_info, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
+from ggshield.core.utils import (
+    REGEX_HEADER_INFO,
+    Filemode,
+    ProfileWrapper,
+    profile_wrapper,
+)
 
 from ..iac.models import IaCScanResult
 from .scannable_errors import handle_scan_chunk_error
@@ -95,6 +107,8 @@ def _parse_patch_header(header: str) -> Iterable[Tuple[str, Filemode]]:
     # First item returned by split() contains commit info and message, skip it
     for line in _RX_HEADER_LINE_SEPARATOR.split(header)[1:]:
         yield _parse_patch_header_line(f":{line}")
+
+_GG_RUN_ID = os.getenv("GG_RUN_ID", "")
 
 
 class PatchParseError(Exception):
@@ -219,6 +233,69 @@ class CommitFile(File):
         self.filemode = filemode
 
 
+class ScanProfileWrapper(ProfileWrapper):
+    result_queue: Queue = Queue()
+
+    def __call__(self, *args: Any, **kwargs: Dict[str, Any]) -> Any:
+        result = super(ScanProfileWrapper, self).__call__(*args, **kwargs)
+
+        documents, _ = args
+
+        def create_document(doc: Dict[str, Any]) -> Dict[str, Any]:
+            return {
+                "filename": doc["filename"],
+                "size": len(doc["document"]),
+            }
+
+        scan = {
+            "scan_id": self.unique_id,
+            "document_count": len(documents),
+            "duration": self.duration,
+            "documents": [create_document(x) for x in documents],
+        }
+
+        if isinstance(result, MultiScanResult):
+            documents_with_secrets = []
+            scan_secret_count = 0
+            for document, scan_result in zip(documents, result.scan_results):
+                secret_count = sum(1 for x in scan_result.policy_breaks if x.is_secret)
+                if secret_count > 0:
+                    documents_with_secrets.append(document["filename"])
+                    scan_secret_count += secret_count
+
+            scan["documents_with_secrets"] = documents_with_secrets
+            scan["secret_count"] = scan_secret_count
+        else:
+            scan["error"] = result.to_dict()
+        ScanProfileWrapper.result_queue.put(scan)
+        return result
+
+    @staticmethod
+    def dump_queue(total_duration: int) -> None:
+        scans = []
+        while not ScanProfileWrapper.result_queue.empty():
+            scans.append(ScanProfileWrapper.result_queue.get())
+        path = Path(ProfileWrapper.get_base_path() + ".json")
+
+        total_secret_count = sum(x["secret_count"] for x in scans)
+
+        summary = {
+            "parameters": {
+                "commit_workers": MAX_COMMIT_WORKERS,
+                "scan_workers": MAX_SCAN_WORKERS,
+                "doc_limit": MAX_DOC_LIMIT,
+            },
+            "total_duration": total_duration,
+            "total_secret_count": total_secret_count,
+            "scan_count": len(scans),
+            "scans": scans,
+        }
+
+        with open(path, "w") as f:
+            json.dump(summary, f, indent=2)
+        display_info(f"Scan profiling summary saved in {path}")
+
+
 class Files:
     """
     Files is a list of files. Useful for directory scanning.
@@ -271,8 +348,8 @@ class Files:
         results = []
         errors = []
         chunks = []
-        for i in range(0, len(scannable_list), MULTI_DOCUMENT_LIMIT):
-            chunks.append(scannable_list[i : i + MULTI_DOCUMENT_LIMIT])
+        for i in range(0, len(scannable_list), MAX_DOC_LIMIT):
+            chunks.append(scannable_list[i : i + MAX_DOC_LIMIT])
 
         context = click.get_current_context(silent=True)
 
@@ -280,11 +357,13 @@ class Files:
         headers["mode"] = mode_header
 
         with concurrent.futures.ThreadPoolExecutor(
-            max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"
+            max_workers=MAX_SCAN_WORKERS, thread_name_prefix="content_scan"
         ) as executor:
             future_to_scan = {
                 executor.submit(
-                    client.multi_content_scan,
+                    profile_wrapper(
+                        client.multi_content_scan, "Files.scan", ScanProfileWrapper
+                    ),
                     chunk,
                     headers,
                 ): chunk
