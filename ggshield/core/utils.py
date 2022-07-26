@@ -278,10 +278,6 @@ class ProfileWrapper:
         assert PROFILE_DIR
         return os.path.join(PROFILE_DIR, f"ggshield-{os.getpid()}")
 
-    def get_profile_path(self, suffix: str) -> str:
-        filename = f"-{self.prefix}-{self.unique_id}{suffix}"
-        return ProfileWrapper.get_base_path() + filename
-
     def __call__(self, *args: Any, **kwargs: Dict[str, Any]) -> Any:
         logger.debug(
             "Starting thread prefix=%s unique_id=%s", self.prefix, self.unique_id
@@ -302,7 +298,11 @@ class ProfileWrapper:
                 self.duration,
             )
             assert PROFILE_DIR
-            pr.dump_stats(os.path.join(PROFILE_DIR, self.get_profile_path(".profile")))
+            profile_path = (
+                ProfileWrapper.get_base_path()
+                + f"-{self.prefix}-{self.unique_id}.profile"
+            )
+            pr.dump_stats(profile_path)
 
 
 def profile_wrapper(
