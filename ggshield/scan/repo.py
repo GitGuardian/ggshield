@@ -10,8 +10,8 @@ from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.constants import CPU_COUNT
 from ggshield.core.extra_headers import generate_command_id
+from ggshield.core.constants import MAX_COMMIT_WORKERS
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
@@ -114,7 +114,7 @@ def scan_commit_range(
 
     return_code = 0
     with concurrent.futures.ThreadPoolExecutor(
-        max_workers=min(CPU_COUNT, 4)
+        max_workers=MAX_COMMIT_WORKERS
     ) as executor:
         future_to_process = [
             executor.submit(

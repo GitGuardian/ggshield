@@ -1,8 +1,28 @@
 import os
 
+from pygitguardian.config import MULTI_DOCUMENT_LIMIT
+
+
+def getint(name: str, default: int) -> int:
+    value = os.getenv(name)
+    return int(value) if value is not None else default
+
 
 # max file size to accept
 MAX_FILE_SIZE = 1048576
+
+# max number of documents to send in a single chunk
+MAX_DOC_LIMIT = getint("GG_DOC_LIMIT", MULTI_DOCUMENT_LIMIT)
+assert (
+    MAX_DOC_LIMIT <= MULTI_DOCUMENT_LIMIT
+), f"GG_DOC_LIMIT must be <= {MULTI_DOCUMENT_LIMIT}"
+
+# max number of commits scanned in parallel
+MAX_COMMIT_WORKERS = getint("GG_COMMIT_WORKERS", 4)
+
+# max number of threads scanning documents
+MAX_SCAN_WORKERS = getint("GG_SCAN_WORKERS", 4)
+
 # max files size to create a tar from
 MAX_TAR_CONTENT_SIZE = 30 * 1024 * 1024
 
