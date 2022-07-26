@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+import time
 from typing import Any, List, Optional
 
 import click
@@ -43,7 +44,8 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     show_config_deprecation_message(ctx)
 
     if ScanProfileWrapper.enabled:
-        ScanProfileWrapper.dump_queue()
+        total_duration = int((time.time() - ctx.obj["start"]) * 1000)
+        ScanProfileWrapper.dump_queue(total_duration)
 
     if ctx.obj["config"].exit_zero:
         logger.debug("scan exit_code forced to 0")
@@ -114,6 +116,8 @@ def cli(
 ) -> None:
     load_dot_env()
     ctx.ensure_object(dict)
+    if ScanProfileWrapper.enabled:
+        ctx.obj["start"] = time.time()
 
     # If --debug is set, setup logs *now*, otherwise log commands for the
     # creation of the Config instance will be ignored

@@ -355,7 +355,7 @@ class Files:
 
         headers = get_extra_headers(context, command_id=command_id)
         headers["mode"] = mode_header
-        
+
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=MAX_SCAN_WORKERS, thread_name_prefix="content_scan"
         ) as executor:
