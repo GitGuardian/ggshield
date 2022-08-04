@@ -39,6 +39,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [`secret scan commit-range`: scan each commit in the given commit range](#secret-scan-commit-range-scan-each-commit-in-the-given-commit-range)
     - [`secret scan path`: scan files or directories with the recursive option](#secret-scan-path-scan-files-or-directories-with-the-recursive-option)
     - [`secret scan pre-commit`: scan every changes that have been staged in a git repository](#secret-scan-pre-commit-scan-every-changes-that-have-been-staged-in-a-git-repository)
+    - [`secret scan pre-receive`: scan every changes that are pushed to a remote git repository](#secret-scan-pre-receive-scan-every-changes-that-are-pushed-to-a-remote-git-repository)
     - [`secret scan repo`: scan all commits in a git repository](#secret-scan-repo-scan-all-commits-in-a-git-repository)
     - [`secret scan docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command](#secret-scan-docker-scan-a-docker-image-after-exporting-its-filesystem-and-manifest-with-the-docker-save-command)
     - [`secret scan pypi`: scan a pypi package](#secret-scan-pypi-scan-a-pypi-package)
@@ -252,6 +253,17 @@ Options:
 Usage: ggshield secret scan pre-commit [OPTIONS] [PRECOMMIT_ARGS]...
 
   scan as a pre-commit git hook.
+
+Options:
+  -h, --help  Show this message and exit.
+```
+
+### `secret scan pre-receive`: scan every changes that are pushed to a remote git repository
+
+```
+Usage: ggshield secret scan pre-receive [OPTIONS] [PRERECEIVE_ARGS]...
+
+  scan as a pre-receive git hook.
 
 Options:
   -h, --help  Show this message and exit.
