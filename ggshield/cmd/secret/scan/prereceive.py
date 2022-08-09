@@ -7,6 +7,7 @@ from typing import List, Optional, Type
 
 import click
 
+from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import (
@@ -155,7 +156,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         with ExitAfter(get_prereceive_timeout()):
             return_code = scan_commit_range(
                 client=ctx.obj["client"],
-                cache=ctx.obj["cache"],
+                cache=ReadOnlyCache(),
                 commit_list=commit_list,
                 output_handler=output_handler,
                 verbose=config.verbose,

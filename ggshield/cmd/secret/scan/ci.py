@@ -3,20 +3,11 @@ from typing import List
 
 import click
 
-from ggshield.core.cache import Cache
+from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.extra_headers import add_extra_header
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA, SupportedCI, handle_exception
 from ggshield.scan.repo import scan_commit_range
-
-
-class ReadOnlyCache(Cache):
-    """
-    A version of Cache which does not write anything to the disk.
-    """
-
-    def save(self) -> None:  # pragma: no cover
-        return None
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
