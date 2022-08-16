@@ -94,3 +94,12 @@ class Cache:
                         match=get_ignore_sha(policy_break),
                     )
                 )
+
+
+class ReadOnlyCache(Cache):
+    """
+    A version of Cache which does not write anything to the disk.
+    """
+
+    def save(self) -> None:  # pragma: no cover
+        return None
