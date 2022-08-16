@@ -6,7 +6,12 @@ import click
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.extra_headers import add_extra_header
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import EMPTY_SHA, SupportedCI, handle_exception
+from ggshield.core.utils import (
+    EMPTY_SHA,
+    SupportedCI,
+    SupportedScanMode,
+    handle_exception,
+)
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -244,7 +249,7 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
 
 @click.command()
 @click.pass_context
-def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
+def ci_cmd(ctx: click.Context) -> int:
     """
     scan in a CI environment.
     """
@@ -290,6 +295,8 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
 
         add_extra_header(ctx, "Ci-Mode", ci_mode.name)
 
+        mode_header = f"{SupportedScanMode.CI.value}/{ci_mode.value}"
+
         if config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
@@ -302,6 +309,7 @@ def ci_cmd(ctx: click.Context) -> int:  # pragma: no cover
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
             scan_id=" ".join(commit_list),
+            mode_header=mode_header,
             ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:

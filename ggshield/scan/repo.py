@@ -51,6 +51,7 @@ def scan_repo_path(
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
                 scan_id=scan_id,
+                mode_header=SupportedScanMode.PATH.value,
                 ignored_detectors=config.secret.ignored_detectors,
             )
     except Exception as error:
@@ -63,6 +64,7 @@ def scan_commit(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
+    mode_header: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     try:
@@ -70,7 +72,7 @@ def scan_commit(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            mode_header=SupportedScanMode.REPO.value,
+            mode_header=mode_header,
             ignored_detectors=ignored_detectors,
         )
     except Exception as exc:
@@ -94,6 +96,7 @@ def scan_commit_range(
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
     scan_id: str,
+    mode_header: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
@@ -115,6 +118,7 @@ def scan_commit_range(
                 cache,
                 verbose,
                 matches_ignore,
+                mode_header,
                 ignored_detectors,
             )
             for sha in commit_list

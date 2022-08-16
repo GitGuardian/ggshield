@@ -114,6 +114,7 @@ class TestPrepush:
             exclusion_regexes=ANY,
             matches_ignore=ANY,
             scan_id=ANY,
+            mode_header="pre_push",
             ignored_detectors=set(),
         )
         assert_invoke_ok(result)

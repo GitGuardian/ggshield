@@ -1,7 +1,7 @@
 import click
 
 from ggshield.core.git_shell import get_list_commit_SHA
-from ggshield.core.utils import handle_exception
+from ggshield.core.utils import SupportedScanMode, handle_exception
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -32,6 +32,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
             scan_id=commit_range,
+            mode_header=SupportedScanMode.COMMIT_RANGE.value,
             ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:

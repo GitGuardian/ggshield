@@ -14,6 +14,7 @@ from ggshield.core.utils import (
     EMPTY_SHA,
     EMPTY_TREE,
     PRERECEIVE_TIMEOUT,
+    SupportedScanMode,
     handle_exception,
 )
 from ggshield.output import GitLabWebUIOutputHandler
@@ -163,6 +164,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
                 matches_ignore=config.secret.ignored_matches,
                 scan_id=" ".join(commit_list),
+                mode_header=SupportedScanMode.PRE_RECEIVE.value,
                 ignored_detectors=config.secret.ignored_detectors,
             )
             if return_code:
