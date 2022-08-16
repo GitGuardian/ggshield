@@ -7,6 +7,7 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.cmd.secret.scan.ci import EMPTY_SHA
+from tests.conftest import assert_invoke_ok
 
 
 @patch("ggshield.cmd.secret.scan.ci.get_list_commit_SHA")
@@ -70,12 +71,13 @@ def test_gitlab_ci_range(
         cli,
         [
             "-v",
+            "secret",
             "scan",
             *json_arg,
             "ci",
         ],
     )
-    assert result.exit_code == 0, result.stderr
+    assert_invoke_ok(result)
     if json_output:
         json.loads(result.output)
     get_list_mock.assert_called_once_with(expected_parameter)
