@@ -12,11 +12,11 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.constants import CPU_COUNT
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
-from ggshield.core.text_utils import STYLE, format_text
+from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import SupportedScanMode, handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import Commit, ScanCollection
+from ggshield.scan import Commit, Results, ScanCollection
 
 
 @contextmanager
@@ -65,13 +65,16 @@ def scan_commit(
     matches_ignore: Iterable[IgnoredMatch],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
-    results = commit.scan(
-        client=client,
-        cache=cache,
-        matches_ignore=matches_ignore,
-        mode_header=SupportedScanMode.REPO.value,
-        ignored_detectors=ignored_detectors,
-    )
+    try:
+        results = commit.scan(
+            client=client,
+            cache=cache,
+            matches_ignore=matches_ignore,
+            mode_header=SupportedScanMode.REPO.value,
+            ignored_detectors=ignored_detectors,
+        )
+    except Exception as exc:
+        results = Results.from_exception(exc)
 
     return ScanCollection(
         commit.sha or "unknown",
@@ -125,7 +128,12 @@ def scan_commit_range(
             file=sys.stderr,
         ) as completed_futures:
             for future in completed_futures:
-                scans.append(future.result())
+                scan_collection = future.result()
+                if scan_collection.results and scan_collection.results.errors:
+                    for error in scan_collection.results.errors:
+                        # Prefix with `\n` because we are in the middle of a progress bar
+                        display_error("\n{error.description}")
+                scans.append(scan_collection)
 
         return_code = output_handler.process_scan(
             ScanCollection(id=scan_id, type="commit-range", scans=scans)
