@@ -31,7 +31,7 @@ def is_macos():
 DATA_PATH = Path(__file__).parent.absolute() / "data"
 
 
-_MULTIPLE_SECRETS_PATCH = """@@ -0,0 +1,2 @@
+_MULTIPLE_SECRETS_PATCH_CONTENT = """@@ -0,0 +1,2 @@
 +FacebookAppKeys :
 +String docker run --name geonetwork -d \
             -p 8080:8080 -e MYSQL_HOST=google.com \
@@ -39,14 +39,20 @@ _MULTIPLE_SECRETS_PATCH = """@@ -0,0 +1,2 @@
             -e MYSQL_PASSWORD=m42ploz2wd geonetwork
 """
 
-_MULTIPLE_SECRETS = (
-    """diff --git a/test.txt b/test.txt
+_MULTIPLE_SECRETS_PATCH = (
+    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 A\0test.txt\0\0diff --git a/test.txt b/test.txt
 new file mode 100644
 index 0000000..b80e3df
 --- /dev/null
-+++ b/test
++++ b/test.txt
 """
-    + _MULTIPLE_SECRETS_PATCH
+    + _MULTIPLE_SECRETS_PATCH_CONTENT
 )
 
 _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
@@ -107,31 +113,41 @@ GG_TEST_TOKEN = (
 # This is another test token, this one is always report as a valid secret
 GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
 
-UNCHECKED_SECRET = (
-    "diff --git a/test.txt b/test.txt\n"
-    "new file mode 100644\n"
-    "index 0000000..b80e3df\n"
-    "--- /dev/null\n"
-    "+++ b/test\n"
-    "@@ -0,0 +2 @@\n"
-    "+# gg token\n"
-    f'+apikey = "{GG_TEST_TOKEN}";\n'
-)
+UNCHECKED_SECRET_PATCH = f"""commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
 
-VALID_SECRET = (
-    "diff --git a/test.txt b/test.txt\n"
-    "new file mode 100644\n"
-    "index 0000000..b80e3df\n"
-    "--- /dev/null\n"
-    "+++ b/test\n"
-    "@@ -0,0 +2 @@\n"
-    "+# gg token\n"
-    f'+apikey = "{GG_VALID_TOKEN}";\n'
-)
+A message
 
-_SIMPLE_SECRET = UNCHECKED_SECRET
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
+new file mode 100644
+index 0000000..b80e3df
+--- /dev/null
++++ b/test
+@@ -0,0 +2 @@
++# gg token
++apikey = "{GG_TEST_TOKEN}";
+"""
 
-_SIMPLE_SECRET_TOKEN = "368ac3edf9e850d1c0ff9d6c526496f8237ddf91"
+VALID_SECRET_PATCH = f"""commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
+new file mode 100644
+index 0000000..b80e3df
+--- /dev/null
++++ b/test
+@@ -0,0 +2 @@
++# gg token
++apikey = "{GG_VALID_TOKEN}";
+"""
+
+_SIMPLE_SECRET = UNCHECKED_SECRET_PATCH
+
+_SIMPLE_SECRET_TOKEN = "368ac3edf9e850d1c0ff9d6c526496f8237ddf91"  # ggignore
 _SIMPLE_SECRET_PATCH = f"""@@ -0,0 +1 @@
 +github_token: {_SIMPLE_SECRET_TOKEN}
 """
@@ -391,7 +407,13 @@ _ONE_LINE_AND_MULTILINE_PATCH_CONTENT = """@@ -0,0 +1,29 @@
 """  # noqa
 
 _ONE_LINE_AND_MULTILINE_PATCH = (
-    """diff --git a/test.txt b/test.txt
+    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
 new file mode 100644
 index 0000000..b80e3df
 --- /dev/null
@@ -413,27 +435,45 @@ _NO_SECRET = (
 
 _SECRET_RAW_FILE = '+sg_key = "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";\n'
 
-_SINGLE_ADD_PATCH = (
-    "diff --git a/test b/test\n"
-    "new file mode 100644\n"
-    "index 0000000..3c9af3f\n"
-    "--- /dev/null\n"
-    "+++ b/test\n"
-    "@@ -0,0 +1 @@\n"
-    '+sg_key = "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";\n'  # noqa
-)
+_SINGLE_ADD_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
 
-_SINGLE_MOVE_PATCH = (
-    "diff --git a/test b/test\n"
-    "index 3c9af3f..b0ce1c7 100644\n"
-    "--- a/test\n"
-    "+++ b/test\n"
-    "@@ -1 +1,2 @@\n"
-    "+something\n"
-    ' sg_key = "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";\n'
-)
+A message
+
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
+new file mode 100644
+index 0000000..3c9af3f
+--- /dev/null
++++ b/test
+@@ -0,0 +1 @@
++sg_key = "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";
+"""
+
+_SINGLE_MOVE_PATCH = """
+commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 M\0test\0\0diff --git a/test b/test
+index 3c9af3f..b0ce1c7 100644
+--- a/test
++++ b/test
+@@ -1 +1,2 @@
++something
+ sg_key = "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";
+"""
 
 _SINGLE_DELETE_PATCH = (
+    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 D\0test\0\0"""
     "diff --git a/test b/test\n"
     "index b0ce1c7..deba01f 100644\n"
     "--- a/test\n"
@@ -442,8 +482,13 @@ _SINGLE_DELETE_PATCH = (
     " something\n"
     '-sg_key = "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";\n'  # noqa
 )
-_PATCH_WITH_NONEWLINE_BEFORE_SECRET = """
-diff --git a/artifactory b/artifactory
+_PATCH_WITH_NONEWLINE_BEFORE_SECRET = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 M\0artifactory\0\0diff --git a/artifactory b/artifactory
 index 2ace9c7..4c7699d 100644
 --- a/artifactory
 +++ b/artifactory
