@@ -1,6 +1,7 @@
 import concurrent.futures
 import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
@@ -58,13 +59,25 @@ class Error(NamedTuple):
     description: str  # Description of the error
 
 
-class Results(NamedTuple):
+@dataclass(frozen=True)
+class Results:
     """
     Return model for a scan with the results and errors of the scan
+
+    Not a NamedTuple like the others because it causes mypy 0.961 to crash on the
+    `from_exception()` method (!)
+
+    Similar crash: https://github.com/python/mypy/issues/12629
     """
 
     results: List[Result]
     errors: List[Error]
+
+    @staticmethod
+    def from_exception(exc: Exception) -> "Results":
+        """Create a Results representing a failure"""
+        error = Error(files=[], description=str(exc))
+        return Results(results=[], errors=[error])
 
 
 class ScanCollection(NamedTuple):
