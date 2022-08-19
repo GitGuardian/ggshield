@@ -32,13 +32,13 @@ logger = logging.getLogger(__name__)
 
 @scan_group.result_callback()
 @deprecated_scan_group.result_callback()
+@iac_group.result_callback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     """
     exit_code guarantees that the return value of a scan is 0
     when exit_zero is enabled
     """
-
     show_config_deprecation_message(ctx)
     if ctx.obj["config"].exit_zero:
         logger.debug("scan exit_code forced to 0")

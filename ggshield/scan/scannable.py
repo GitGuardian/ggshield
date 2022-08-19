@@ -96,6 +96,10 @@ class ScanCollection(NamedTuple):
         return []
 
     @property
+    def has_iac_result(self) -> bool:
+        return bool(self.iac_result and self.iac_result.entities_with_incidents)
+
+    @property
     def has_results(self) -> bool:
         return bool(self.results and self.results.results)
 

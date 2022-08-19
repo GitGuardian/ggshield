@@ -8,32 +8,50 @@ from tests.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,
     _IAC_NO_VULNERABILITIES,
     _IAC_SINGLE_VULNERABILITY,
+    assert_invoke_exited_with,
+    assert_invoke_ok,
     my_vcr,
 )
 
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
-def test_display_single_vulnerabilities(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_single_vulnerability.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+def test_display_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_single_vulnerability.tf").write_text(
+        _IAC_SINGLE_VULNERABILITY
+    )
 
     result = cli_fs_runner.invoke(
         cli,
         [
             "iac",
             "scan",
-            "tmp",
+            str(tmp_path),
         ],
     )
-
     assert_iac_version_displayed(result)
     assert_file_single_vulnerability_displayed(result)
 
 
+@my_vcr.use_cassette("test_iac_scan_single_vulnerability")
+def test_exit_zero_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_single_vulnerability.tf").write_text(
+        _IAC_SINGLE_VULNERABILITY
+    )
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "iac",
+            "scan",
+            "--exit-zero",
+            str(tmp_path),
+        ],
+    )
+    assert_invoke_ok(result)
+
+
 @my_vcr.use_cassette("test_iac_scan_multiple_vulnerabilities")
-def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_multiple_vulnerabilities.tf").write_text(
+def test_display_multiple_vulnerabilities(tmp_path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_multiple_vulnerabilities.tf").write_text(
         _IAC_MULTIPLE_VULNERABILITIES
     )
 
@@ -42,7 +60,7 @@ def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
-            "tmp",
+            str(tmp_path),
         ],
     )
 
@@ -52,22 +70,22 @@ def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
 
 
 @my_vcr.use_cassette("test_iac_scan_no_vulnerabilities")
-def test_display_no_vulnerability(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_no_vulnerabilities.tf").write_text(_IAC_NO_VULNERABILITIES)
+def test_display_no_vulnerability(tmp_path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(_IAC_NO_VULNERABILITIES)
 
     result = cli_fs_runner.invoke(
         cli,
         [
             "iac",
             "scan",
-            "tmp",
+            str(tmp_path),
         ],
     )
 
     assert_iac_version_displayed(result)
     assert "No incidents have been found" in result.stdout
     assert_no_failures_displayed(result)
+    assert_invoke_ok(result)
 
 
 @my_vcr.use_cassette("test_iac_scan_multiple_files")
@@ -111,6 +129,7 @@ def assert_file_single_vulnerability_displayed(result: Result):
         "GG_IAC_0001",
     }
     assert '2 | resource "aws_alb_listener" "bad_example" {' in result.stdout
+    assert_invoke_exited_with(result, 1)
 
 
 def assert_file_multiple_vulnerabilities_displayed(result: Result):
@@ -124,3 +143,4 @@ def assert_file_multiple_vulnerabilities_displayed(result: Result):
     }
     assert '2 | resource "aws_security_group" "bad_example" {' in result.stdout
     assert '8 |  resource "aws_security_group_rule" "bad_example" {' in result.stdout
+    assert_invoke_exited_with(result, 1)
