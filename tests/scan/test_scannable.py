@@ -10,8 +10,8 @@ from tests.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET,
     _ONE_LINE_AND_MULTILINE_PATCH,
-    _SIMPLE_SECRET,
     GG_TEST_TOKEN,
+    UNCHECKED_SECRET_PATCH,
     my_vcr,
 )
 
@@ -35,7 +35,7 @@ _EXPECT_NO_SECRET = {
         ),
         (
             "simple_secret",
-            _SIMPLE_SECRET,
+            UNCHECKED_SECRET_PATCH,
             ExpectedScan(
                 exit_code=1,
                 matches=1,
