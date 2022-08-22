@@ -928,9 +928,11 @@ GIT_DEPTH: 0
 
 ggshield support for GitHub comes in the form of GitHub actions.
 
-The action for this repository is hosted at [ggshield-action](https://github.com/GitGuardian/ggshield-action).
+The actions for this repository are found in the [actions](https://github.com/GitGuardian/ggshield/tree/main/actions) repository.
 
 Configuring a GitHub workflow to use ggshield can be done by adding a step to your project's workflow:
+
+For secret scanning:
 
 ```yaml
 name: GitGuardian scan
@@ -947,11 +949,34 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history so multiple commits can be scanned
       - name: GitGuardian scan
-        uses: GitGuardian/ggshield-action@master
+        uses: GitGuardian/ggshield/actions/secret@main
         env:
           GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
           GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+```
+
+For IaC:
+
+```yaml
+name: GitGuardian iac scan
+
+on: [push, pull_request]
+
+jobs:
+  scanning:
+    name: GitGuardian iac scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          args: ./
+      - name: GitGuardian iac scan
+        uses: GitGuardian/ggshield/actions/iac@main
+        env:
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 ```
