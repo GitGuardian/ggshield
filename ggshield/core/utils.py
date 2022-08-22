@@ -58,22 +58,13 @@ GITGUARDIAN_DOMAINS = ["gitguardian.com", "gitguardian.tech"]
 class Filemode(Enum):
     """
     Enum class for git filemode.
-
-    Attributes:
-        start (int): The first line to read in this filemode scenario
-        mode  (str): The string filemode
     """
 
-    MODIFY = (4, "modified file")
-    DELETE = (5, "deleted file")
-    NEW = (5, "new file")
-    RENAME = (7, "renamed file")
-    PERMISSION_CHANGE = (7, "changed permissions")
-    FILE = (0, "file")
-
-    def __init__(self, start: int, mode: str):
-        self.start = start
-        self.mode = mode
+    MODIFY = "modified file"
+    DELETE = "deleted file"
+    NEW = "new file"
+    RENAME = "renamed file"
+    FILE = "file"
 
 
 def get_lines_from_content(
