@@ -30,8 +30,66 @@ from .scannable_errors import handle_scan_chunk_error
 
 logger = logging.getLogger(__name__)
 
+_RX_HEADER_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
 
-_MATCH_FILENAME_RX = re.compile(r"^a/(.*) b/\1$")
+
+def _parse_patch_header_line(line: str) -> Tuple[str, Filemode]:
+    """
+    Parse a file line in the raw patch header, returns a tuple of filename, filemode
+
+    See https://github.com/git/git/blob/master/Documentation/diff-format.txt for details
+    on the format.
+    """
+
+    prefix, name, *rest = line.rstrip("\0").split("\0")
+
+    if rest:
+        # If the line has a new name, we want to use it
+        name = rest[0]
+
+    # for a non-merge commit, prefix is
+    # :old_perm new_perm old_sha new_sha status_and_score
+    #
+    # for a 2 parent commit, prefix is
+    # ::old_perm1 old_perm2 new_perm old_sha1 old_sha2 new_sha status_and_score
+    #
+    # We can ignore most of it, because we only care about the status.
+    #
+    # status_and_score is one or more status letters, followed by an optional numerical
+    # score. We can ignore the score, but we need to check the status letters.
+    status = prefix.rsplit(" ", 1)[-1].rstrip("0123456789")
+
+    # There is one status letter per commit parent. In the case of a non-merge commit
+    # the situation is simple: there is only one letter.
+    # In the case of a merge commit we must look at all letters: if one parent is marked
+    # as D(eleted) and the other as M(odified) then we use MODIFY as filemode because
+    # the end result contains modifications. To ensure this, the order of the `if` below
+    # matters.
+
+    if "M" in status:  # modify
+        return name, Filemode.MODIFY
+    elif "C" in status:  # copy
+        return name, Filemode.NEW
+    elif "A" in status:  # add
+        return name, Filemode.NEW
+    elif "T" in status:  # type change
+        return name, Filemode.NEW
+    elif "R" in status:  # rename
+        return name, Filemode.RENAME
+    elif "D" in status:  # delete
+        return name, Filemode.DELETE
+    else:
+        raise ValueError(f"Can't parse header line {line}: unknown status {status}")
+
+
+def _parse_patch_header(header: str) -> Iterable[Tuple[str, Filemode]]:
+    """
+    Parse the header of a raw patch, generated with -z --raw
+    """
+
+    # First item returned by split() contains commit info and message, skip it
+    for line in _RX_HEADER_LINE_SEPARATOR.split(header)[1:]:
+        yield _parse_patch_header_line(f":{line}")
 
 
 class PatchParseError(Exception):
@@ -316,10 +374,11 @@ class Commit(Files):
     def patch(self) -> str:
         """Get the change patch for the commit."""
         if self._patch is None:
+            common_args = ["--raw", "-z", "--patch"]
             if self.sha:
-                self._patch = shell([GIT_PATH, "show", self.sha])
+                self._patch = shell([GIT_PATH, "show", self.sha] + common_args)
             else:
-                self._patch = shell([GIT_PATH, "diff", "--cached"])
+                self._patch = shell([GIT_PATH, "diff", "--cached"] + common_args)
 
         return self._patch
 
@@ -330,107 +389,44 @@ class Commit(Files):
 
         return self._files
 
-    @staticmethod
-    def _get_filemode(line: str) -> Filemode:
-        """
-        Get the file mode from the line patch (new, modified or deleted)
-
-        :raise: Exception if filemode is not detected
-        """
-        if line.startswith("index"):
-            return Filemode.MODIFY
-        if line.startswith("similarity"):
-            return Filemode.RENAME
-        if line.startswith("new"):
-            return Filemode.NEW
-        if line.startswith("deleted"):
-            return Filemode.DELETE
-        if line.startswith("old"):
-            return Filemode.PERMISSION_CHANGE
-
-        raise PatchParseError("Filemode is not detected")
-
-    @staticmethod
-    def _parse_diff_header_lines(lines: List[str]) -> Tuple[str, Filemode]:
-        """
-        Parses the part of the patch after a "diff --git " string to extract the
-        filename and filemode.
-        """
-
-        # This code is tricky because the first line of a diff looks like this:
-        #
-        #     diff --git a/path/to/filename b/path/to/filename
-        #
-        # But spaces are not escaped, so if a filename contains a space the line looks
-        # like this:
-        #
-        #     diff --git a/path/to/file name b/path/to/file name
-        #
-        # For all cases but RENAMEs, the old and the new file are the same. We take
-        # advantage of this in the _MATCH_FILENAME_RX regular expression.
-        #
-        # For RENAMEs we look at the next lines. A rename header looks like this:
-        #
-        #     diff --git a/old_name b/new_name
-        #     similarity index 90%
-        #     rename from old_name
-        #     rename to new_name
-        #
-        # We look for the "rename to " and get the new file name from it.
-        #
-        # Note: we can't use the "--- old", "+++ new" header lines because
-        # PERMISSION_CHANGE and RENAME without changes do not have these lines.
-        filemode = Commit._get_filemode(lines[1])
-        if filemode == Filemode.RENAME:
-            prefix = "rename to "
-            for line in lines[2:]:
-                if line.startswith(prefix):
-                    filename = line[len(prefix) :]
-                    break
-            else:
-                raise PatchParseError("Could not extract filename, no rename prefix")
-        else:
-            match = _MATCH_FILENAME_RX.match(lines[0])
-            if not match:
-                raise PatchParseError("Could not extract filename")
-            filename = match.group(1)
-        return filename, filemode
-
     def get_files(self) -> Iterable[CommitFile]:
         """
-        Format the diff into files and extract the patch for each one of them.
+        Parse the patch into files and extract the changes for each one of them.
 
-        Example :
-            diff --git a/test.txt b/test.txt\n
-            new file mode 100644\n
-            index 0000000..b80e3df\n
-            --- /dev/null\n
-            +++ b/test\n
-            @@ -0,0 +1,28 @@\n
-            +this is a test patch\n
+        See tests/data/patches for examples
         """
-        list_diff = re.split(r"^diff --git ", self.patch, flags=re.MULTILINE)[1:]
+        try:
+            tokens = self.patch.split("\0diff ", 1)
+            if len(tokens) == 1:
+                # No diff, no need to continue
+                return
+            header, rest = tokens
 
-        for diff in list_diff:
-            lines = diff.split("\n")
+            names_and_modes = _parse_patch_header(header)
 
-            try:
-                filename, filemode = self._parse_diff_header_lines(lines)
-            except PatchParseError as e:
-                if self.sha:
-                    raise click.ClickException(f"Error parsing commit {self.sha}: {e}")
-                else:
-                    raise click.ClickException(f"Error parsing diff: {e}")
+            diffs = re.split(r"^diff ", rest, flags=re.MULTILINE)
+            for (filename, filemode), diff in zip(names_and_modes, diffs):
+                if is_filepath_excluded(filename, self.exclusion_regexes):
+                    continue
 
-            if is_filepath_excluded(filename, self.exclusion_regexes):
-                continue
-            document = "\n".join(lines[filemode.start :])
-            file_size = len(document.encode("utf-8"))
-            if file_size > MAX_FILE_SIZE * 0.90:
-                continue
+                # extract document from diff: we must skip diff extended headers
+                # (lines like "old mode 100644", "--- a/foo", "+++ b/foo"...)
+                try:
+                    end_of_headers = diff.index("\n@@")
+                except ValueError:
+                    # No content
+                    continue
+                # +1 because we searched for the '\n'
+                document = diff[end_of_headers + 1 :]
 
-            if document:
-                yield CommitFile(document, filename, filemode)
+                file_size = len(document.encode("utf-8"))
+                if file_size > MAX_FILE_SIZE * 0.90:
+                    continue
+
+                if document:
+                    yield CommitFile(document, filename, filemode)
+        except Exception as exc:
+            raise PatchParseError(f"Could not parse patch (sha: {self.sha}): {exc}")
 
     def __repr__(self) -> str:
         files = list(self.files.values())

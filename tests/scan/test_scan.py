@@ -7,7 +7,7 @@ from ggshield import __version__
 from ggshield.core.cache import Cache
 from ggshield.scan import Commit
 from ggshield.scan.repo import cd
-from tests.conftest import _SIMPLE_SECRET
+from tests.conftest import UNCHECKED_SECRET_PATCH
 
 
 def test_cd_context_manager(tmpdir):
@@ -21,7 +21,7 @@ def test_cd_context_manager(tmpdir):
 @patch("pygitguardian.GGClient.multi_content_scan")
 def test_request_headers(scan_mock: Mock, client):
     c = Commit()
-    c._patch = _SIMPLE_SECRET
+    c._patch = UNCHECKED_SECRET_PATCH
 
     with Context(Command("bar"), info_name="bar") as ctx:
         ctx.parent = Context(Group("foo"), info_name="foo")

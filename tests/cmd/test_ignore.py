@@ -8,7 +8,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.types import IgnoredMatch
 from ggshield.scan import Commit
-from tests.conftest import _MULTIPLE_SECRETS, my_vcr
+from tests.conftest import _MULTIPLE_SECRETS_PATCH, my_vcr
 
 
 DOT_GITGUARDIAN_YAML = os.path.join(tempfile.gettempdir(), ".gitguardian.yml")
@@ -32,7 +32,7 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
     THEN cache last_found_secrets is updated with these secrets and saved
     """
     c = Commit()
-    c._patch = _MULTIPLE_SECRETS
+    c._patch = _MULTIPLE_SECRETS_PATCH
     config = Config()
     cache = Cache()
     cache.purge()
@@ -66,7 +66,7 @@ def test_cache_catches_nothing(client, isolated_fs):
     THEN config matches is unchanged and cache is empty
     """
     c = Commit()
-    c._patch = _MULTIPLE_SECRETS
+    c._patch = _MULTIPLE_SECRETS_PATCH
     config = Config()
     config.secret.ignored_matches = FOUND_SECRETS
     cache = Cache()

@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DEBUG=${DEBUG:-}
+
+cleanup() {
+    if [ -n "$DEBUG" ] ; then
+        echo "DEBUG is set. Keeping work dir: $WORK_DIR"
+        return
+    fi
+    echo "Deleting $WORK_DIR"
+    rm -rf "$WORK_DIR"
+}
+
+dump_patch() {
+    local name="$1"
+
+    git show --raw --patch -z > "$PATCH_DIR/$name.patch"
+}
+
+main() {
+    WORK_DIR="$(mktemp --tmpdir -d "create-test-patches-XXXXXX")"
+    trap cleanup INT TERM EXIT
+
+    cd $(dirname "$0")
+    PATCH_DIR=$PWD
+    rm -f ./*.patch
+
+    cd "$WORK_DIR"
+    git init
+    git config --local user.name "GitGuardian Owl"
+    git config --local user.email "owl@example.com"
+
+    # Plain add
+    echo "Hello" > README.md
+    git add README.md
+    git commit -m "Add README"
+    dump_patch "add"
+
+    # Add with unusual chars
+    echo "A file with unusual chars" > "I'm unusual!"
+    git add "I'm unusual!"
+    git commit -m "Add unusual file"
+    dump_patch "add_unusual"
+
+    # Add two files
+    echo one > one
+    echo two > two
+    git add one two
+    git commit -m "Add two files"
+    dump_patch "add_two_files"
+
+    # Modify
+    echo "Hello World" > README.md
+    git commit -a -m "Modify README"
+    dump_patch "modify"
+
+    # Remove
+    echo "Foo" > foo_file
+    git add foo_file
+    git commit -m "Add foo"
+    git rm foo_file
+    git commit -m "Remove foo"
+    dump_patch "remove"
+
+    # Rename (with spaces)
+    echo "Old" > "old file.txt"
+    git add "old file.txt"
+    git commit -m "Add old"
+    git mv "old file.txt" "new file.txt"
+    git commit -m "Rename old to new"
+    dump_patch "rename"
+
+    # chmod
+    echo "some script" > script
+    git add script
+    git commit -m "Add script"
+    chmod +x script
+    git add script
+    git commit -m "Make script executable"
+    dump_patch "chmod"
+
+    # chmod + rename + modify
+    echo "another script" > oldscript
+    git add oldscript
+    git commit -m "Add another script"
+    git mv oldscript newscript
+    chmod +x newscript
+    echo "more content" >> newscript
+    git add newscript
+    git commit -m "Make script executable, modify it and rename it"
+    dump_patch "chmod_rename_modify"
+
+    # merge
+    cat > longfile <<EOF
+Some content
+
+long enough
+
+
+for changes
+to merge
+
+without conflict...
+
+hopefully
+EOF
+    git add longfile
+    git commit -m "Add long file"
+
+    git checkout -b b1
+    echo "Hello from b1" >> longfile
+    git add longfile
+    git commit -m "Commit on b1"
+
+    git checkout master
+    git checkout -b b2
+    sed -i "s/for changes/for changes from b2/" longfile
+    git add longfile
+    git commit -m "Commit on b2"
+
+    git checkout master
+    sed -i "s/Some content/## Some content/" longfile
+    git add longfile
+    git commit -m "Commit on master"
+
+    git merge --no-ff b1 b2 -m "Merging branch b1 and b2"
+    git branch -d b1
+    git branch -d b2
+    dump_patch "merge"
+
+    # merge with content change
+    cat > conflicted <<EOF
+Some content, not enough to avoid conflict
+EOF
+    git add conflicted
+    git commit -m "Add conflicted"
+
+    git checkout -b b1
+    echo "Hello from b1" >> conflicted
+    git add conflicted
+    git commit -m "Commit on b1"
+
+    git checkout master
+    echo "Hello from master" >> conflicted
+    git add conflicted
+    git commit -m "Commit on master"
+
+    # Merge is going to fail because of conflicts, hence the `|| true`
+    git merge --no-ff b1 --no-commit || true
+    echo "*Solve* conflict" > conflicted
+    git add conflicted
+    git commit -m "Merging b1"
+    git branch -d b1
+    dump_patch "merge-with-changes"
+
+    # type change (README2.md changing from a symlink to a file)
+    ln -s README.md README2.md
+    git add README2.md
+    git commit -m "Add README2.md"
+
+    rm README2.md
+    echo "README2 is now a file" > README2.md
+    git add README2.md
+    git commit -m "Turn README2.md into a file"
+    dump_patch "type-change"
+}
+
+main "$@"

@@ -24,7 +24,7 @@ from tests.conftest import (
     _MULTI_SECRET_TWO_LINES_PATCH,
     _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
     _MULTILINE_SECRET,
-    _MULTIPLE_SECRETS_PATCH,
+    _MULTIPLE_SECRETS_PATCH_CONTENT,
     _MULTIPLE_SECRETS_SCAN_RESULT,
     _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
     _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
@@ -192,7 +192,7 @@ def test_censor_match(input_match: Match, expected_value: str) -> None:
     "content, policy_breaks",
     [
         pytest.param(
-            _MULTIPLE_SECRETS_PATCH,
+            _MULTIPLE_SECRETS_PATCH_CONTENT,
             _MULTIPLE_SECRETS_SCAN_RESULT.policy_breaks,
             id="_MULTIPLE_SECRETS",
         ),

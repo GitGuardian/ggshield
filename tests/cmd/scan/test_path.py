@@ -8,8 +8,8 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from tests.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
-    UNCHECKED_SECRET,
-    VALID_SECRET,
+    UNCHECKED_SECRET_PATCH,
+    VALID_SECRET_PATCH,
     assert_invoke_exited_with,
     assert_invoke_ok,
     my_vcr,
@@ -56,7 +56,7 @@ class TestPathScan:
         AND the exit code is not 0
         AND there is a deprecated message in the output if the scan used the deprecated syntax
         """
-        Path("file_secret").write_text(UNCHECKED_SECRET)
+        Path("file_secret").write_text(UNCHECKED_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
         cmd = ["scan", "path", "file_secret"]
@@ -76,7 +76,7 @@ class TestPathScan:
                 assert "deprecated" in result.output
 
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
-        Path("file_secret").write_text(VALID_SECRET)
+        Path("file_secret").write_text(VALID_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_path_file_secret_with_validity"):
@@ -92,7 +92,7 @@ class TestPathScan:
 
     @pytest.mark.parametrize("validity", [True, False])
     def test_scan_file_secret_json_with_validity(self, cli_fs_runner, validity):
-        secret = VALID_SECRET if validity else UNCHECKED_SECRET
+        secret = VALID_SECRET_PATCH if validity else UNCHECKED_SECRET_PATCH
         Path("file_secret").write_text(secret)
         assert os.path.isfile("file_secret")
 
@@ -113,7 +113,7 @@ class TestPathScan:
 
     @pytest.mark.parametrize("json_output", [False, True])
     def test_scan_file_secret_exit_zero(self, cli_fs_runner, json_output):
-        Path("file_secret").write_text(UNCHECKED_SECRET)
+        Path("file_secret").write_text(UNCHECKED_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):

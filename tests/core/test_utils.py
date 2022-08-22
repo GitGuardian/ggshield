@@ -62,7 +62,7 @@ from tests.conftest import (
             _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
             True,
             [MatchIndices(5, 5, 10, 79)],
-            id="file",
+            id="no_newline_before_secret",
         ),
     ],
 )

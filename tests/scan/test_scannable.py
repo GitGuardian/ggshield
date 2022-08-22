@@ -7,11 +7,11 @@ from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode, SupportedScanMode
 from ggshield.scan import Commit, File, Files
 from tests.conftest import (
-    _MULTIPLE_SECRETS,
+    _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET,
     _ONE_LINE_AND_MULTILINE_PATCH,
-    _SIMPLE_SECRET,
     GG_TEST_TOKEN,
+    UNCHECKED_SECRET_PATCH,
     my_vcr,
 )
 
@@ -30,12 +30,12 @@ _EXPECT_NO_SECRET = {
     [
         (
             "multiple_secrets",
-            _MULTIPLE_SECRETS,
+            _MULTIPLE_SECRETS_PATCH,
             ExpectedScan(exit_code=1, matches=4, first_match="", want=None),
         ),
         (
             "simple_secret",
-            _SIMPLE_SECRET,
+            UNCHECKED_SECRET_PATCH,
             ExpectedScan(
                 exit_code=1,
                 matches=1,
@@ -91,11 +91,18 @@ def test_scan_patch(client, cache, name, input_patch, expected):
                 assert result.filemode == expected.want["filemode"]
 
 
-PATCH_SEPARATION = """
-commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
+PATCH_SEPARATION = (
+    """commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
 Author: Testificate Jose <test@test.test>
 Date:   Fri Oct 18 13:20:00 2012 +0100
-diff --git a/ggshield/tests/cassettes/test_files_yes.yaml b/ggshield/tests/cassettes/test_files_yes.yaml
+"""
+    + ":100644 000000 1233aef 0000000 D\0ggshield/tests/cassettes/test_files_yes.yaml\0"
+    + ":000000 100644 0000000 19465ef A\0tests/test_scannable.py\0"
+    + ":100644 100755 b4d3aef b4d3aef M\0bin/shutdown.sh\0"
+    + ":000000 100644 0000000 12356ef A\0.env\0"
+    + ":100644 100644 ac204ec ac204ec R100\0ggshield/tests/test_config.py\0tests/test_config.py\0"
+    + ":100644 100644 6546aef b41653f M\0data/utils/email_sender.py\0"
+    + """\0diff --git a/ggshield/tests/cassettes/test_files_yes.yaml b/ggshield/tests/cassettes/test_files_yes.yaml
 deleted file mode 100644
 index 0000000..0000000
 --- a/ggshield/tests/cassettes/test_files_yes.yaml
@@ -138,7 +145,42 @@ index 56dc0d42..fdf48995 100644
 @@ -73,22 +74,11 @@ def send_email(subject, content, to, seperate=True):
 -   removed
 +   added
-"""  # noqa
+"""
+)  # noqa
+
+EXPECTED_PATCH_CONTENT = (
+    (
+        "ggshield/tests/cassettes/test_files_yes.yaml",
+        """@@ -1,45 +0,0 @@
+-interactions:
+
+""",
+    ),
+    (
+        "tests/test_scannable.py",
+        """@@ -0,0 +1,112 @@
++from collections import namedtuple
+
+""",
+    ),
+    (
+        ".env",
+        """@@ -0,0 +1,112 @@
+CHECK_ENVIRONMENT=true
+
+""",
+    ),
+    (
+        "data/utils/email_sender.py",
+        """@@ -49,6 +49,7 @@ def send_email(config, subject, content, tos, seperate):
+    def send_email(subject, content, to, seperate=True):
++   logger.bind(operation_name="send_email")
+@@ -73,22 +74,11 @@ def send_email(subject, content, to, seperate=True):
+-   removed
++   added
+""",
+    ),
+)
 
 
 def test_patch_separation():
@@ -146,11 +188,14 @@ def test_patch_separation():
     c._patch = PATCH_SEPARATION
     files = list(c.get_files())
 
-    assert len(files) == 4
-
     assert c.info.author == "Testificate Jose"
     assert c.info.email == "test@test.test"
     assert c.info.date == "Fri Oct 18 13:20:00 2012 +0100"
+
+    assert len(files) == len(EXPECTED_PATCH_CONTENT)
+    for file_, (name, document) in zip(files, EXPECTED_PATCH_CONTENT):
+        assert file_.filename == name
+        assert file_.document == document
 
 
 def test_patch_separation_ignore():
