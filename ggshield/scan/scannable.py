@@ -341,6 +341,49 @@ class CommitInformation(NamedTuple):
     date: str
 
 
+def _parse_patch(
+    patch: str, exclusion_regexes: Set[re.Pattern]
+) -> Iterable[CommitFile]:
+    """
+    Parse the patch generated with `git show` (or `git diff`)
+
+    If the patch represents a merge commit, then `patch` actually contains multiple
+    commits, one per parent, because we call `git show` with the `-m` option to force it
+    to generate one single-parent commit per parent. This makes later code simpler and
+    ensures we see *all* the changes.
+    """
+    for commit in patch.split("\0commit "):
+        tokens = commit.split("\0diff ", 1)
+        if len(tokens) == 1:
+            # No diff, carry on to next commit
+            continue
+        header, rest = tokens
+
+        names_and_modes = _parse_patch_header(header)
+
+        diffs = re.split(r"^diff ", rest, flags=re.MULTILINE)
+        for (filename, filemode), diff in zip(names_and_modes, diffs):
+            if is_filepath_excluded(filename, exclusion_regexes):
+                continue
+
+            # extract document from diff: we must skip diff extended headers
+            # (lines like "old mode 100644", "--- a/foo", "+++ b/foo"...)
+            try:
+                end_of_headers = diff.index("\n@@")
+            except ValueError:
+                # No content
+                continue
+            # +1 because we searched for the '\n'
+            document = diff[end_of_headers + 1 :]
+
+            file_size = len(document.encode("utf-8"))
+            if file_size > MAX_FILE_SIZE * 0.90:
+                continue
+
+            if document:
+                yield CommitFile(document, filename, filemode)
+
+
 class Commit(Files):
     """
     Commit represents a commit which is a list of commit files.
@@ -380,7 +423,12 @@ class Commit(Files):
     def patch(self) -> str:
         """Get the change patch for the commit."""
         if self._patch is None:
-            common_args = ["--raw", "-z", "--patch"]
+            common_args = [
+                "--raw",  # shows a header with the files touched by the commit
+                "-z",  # separate file names in the raw header with \0
+                "--patch",  # force output of the diff (--raw disables it)
+                "-m",  # split multi-parent (aka merge) commits into several one-parent commits
+            ]
             if self.sha:
                 self._patch = shell([GIT_PATH, "show", self.sha] + common_args)
             else:
@@ -402,35 +450,7 @@ class Commit(Files):
         See tests/data/patches for examples
         """
         try:
-            tokens = self.patch.split("\0diff ", 1)
-            if len(tokens) == 1:
-                # No diff, no need to continue
-                return
-            header, rest = tokens
-
-            names_and_modes = _parse_patch_header(header)
-
-            diffs = re.split(r"^diff ", rest, flags=re.MULTILINE)
-            for (filename, filemode), diff in zip(names_and_modes, diffs):
-                if is_filepath_excluded(filename, self.exclusion_regexes):
-                    continue
-
-                # extract document from diff: we must skip diff extended headers
-                # (lines like "old mode 100644", "--- a/foo", "+++ b/foo"...)
-                try:
-                    end_of_headers = diff.index("\n@@")
-                except ValueError:
-                    # No content
-                    continue
-                # +1 because we searched for the '\n'
-                document = diff[end_of_headers + 1 :]
-
-                file_size = len(document.encode("utf-8"))
-                if file_size > MAX_FILE_SIZE * 0.90:
-                    continue
-
-                if document:
-                    yield CommitFile(document, filename, filemode)
+            yield from _parse_patch(self.patch, self.exclusion_regexes)
         except Exception as exc:
             raise PatchParseError(f"Could not parse patch (sha: {self.sha}): {exc}")
 
