@@ -464,22 +464,21 @@ index 3c9af3f..b0ce1c7 100644
  sg_key = "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";
 """
 
-_SINGLE_DELETE_PATCH = (
-    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+_SINGLE_DELETE_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
 Author: GitGuardian Owl <owl@example.com>
 Date:   Thu Aug 18 18:20:21 2022 +0200
 
 A message
 
-:000000 100644 0000000 e965047 D\0test\0\0"""
-    "diff --git a/test b/test\n"
-    "index b0ce1c7..deba01f 100644\n"
-    "--- a/test\n"
-    "+++ b/test\n"
-    "@@ -1,2 +1 @@\n"
-    " something\n"
-    '-sg_key = "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";\n'  # noqa
-)
+:000000 100644 0000000 e965047 D\0test\0\0diff --git a/test b/test
+index b0ce1c7..deba01f 100644
+--- a/test
++++ b/test
+@@ -1,2 +1 @@
+ something
+-sg_key = "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";
+"""
+
 _PATCH_WITH_NONEWLINE_BEFORE_SECRET = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
 Author: GitGuardian Owl <owl@example.com>
 Date:   Thu Aug 18 18:20:21 2022 +0200
