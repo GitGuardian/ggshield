@@ -928,7 +928,7 @@ GIT_DEPTH: 0
 
 ggshield support for GitHub comes in the form of GitHub actions.
 
-The actions for this repository are found in the [actions](https://github.com/GitGuardian/ggshield/tree/main/actions) repository.
+The actions for this repository are found in the [actions](https://github.com/GitGuardian/ggshield/tree/main/actions) directory.
 
 Configuring a GitHub workflow to use ggshield can be done by adding a step to your project's workflow:
 
