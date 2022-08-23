@@ -220,15 +220,22 @@ class Files:
     """
 
     def __init__(self, files: List[File]):
-        self._files = {entry.filename: entry for entry in files}
+        self._files = files
 
     @property
-    def files(self) -> Dict[str, File]:
+    def files(self) -> List[File]:
+        """The list of files owned by this instance. The same filename can appear twice,
+        in case of a merge commit."""
         return self._files
 
     @property
+    def filenames(self) -> List[str]:
+        """Convenience property to list filenames in the same order as files"""
+        return [x.filename for x in self.files]
+
+    @property
     def scannable_list(self) -> List[Dict[str, Any]]:
-        return [entry.scan_dict for entry in self.files.values()]
+        return [entry.scan_dict for entry in self.files]
 
     @property
     def extra_headers(self) -> Dict[str, str]:
@@ -246,14 +253,13 @@ class Files:
         }
 
     def __repr__(self) -> str:
-        files = list(self.files.values())
-        return f"<Files files={files}>"
+        return f"<Files files={self.files}>"
 
     def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
-        return Files([file for file in self.files.values() if filter_func(file)])
+        return Files([file for file in self.files if filter_func(file)])
 
     def relative_to(self, root_path: Path) -> "Files":
-        return Files([file.relative_to(root_path) for file in self.files.values()])
+        return Files([file.relative_to(root_path) for file in self.files])
 
     def scan(
         self,
@@ -345,7 +351,7 @@ class Commit(Files):
     ):
         self.sha = sha
         self._patch: Optional[str] = None
-        self._files = {}
+        self._files = []
         self.exclusion_regexes = exclusion_regexes
         self._info: Optional[CommitInformation] = None
 
@@ -383,9 +389,9 @@ class Commit(Files):
         return self._patch
 
     @property
-    def files(self) -> Dict[str, File]:
+    def files(self) -> List[File]:
         if not self._files:
-            self._files = {entry.filename: entry for entry in list(self.get_files())}
+            self._files = list(self.get_files())
 
         return self._files
 
@@ -429,5 +435,4 @@ class Commit(Files):
             raise PatchParseError(f"Could not parse patch (sha: {self.sha}): {exc}")
 
     def __repr__(self) -> str:
-        files = list(self.files.values())
-        return f"<Commit sha={self.sha} files={files}>"
+        return f"<Commit sha={self.sha} files={self.files}>"

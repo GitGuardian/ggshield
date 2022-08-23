@@ -26,7 +26,7 @@ def create_tar(root_path: Path, files: Files) -> bytes:
     tar_stream = BytesIO()
     current_dir_size = 0
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
-        for filename in files.files:
+        for filename in files.filenames:
             full_path = root_path / filename
             current_dir_size += os.path.getsize(full_path)
             if current_dir_size > MAX_TAR_CONTENT_SIZE:

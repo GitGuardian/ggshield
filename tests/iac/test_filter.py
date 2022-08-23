@@ -34,8 +34,8 @@ def test_get_iac_files_from_paths(tmp_path):
 
     files = get_iac_files_from_paths(tmp_path, set(), True)
     assert len(files.files) == 10
-    assert "file1.json" not in files.files
-    assert "file2.json" in files.files
+    assert "file1.json" not in files.filenames
+    assert "file2.json" in files.filenames
 
 
 def test_get_iac_files_from_paths_excluded(tmp_path):
@@ -50,8 +50,8 @@ def test_get_iac_files_from_paths_excluded(tmp_path):
 
     files = get_iac_files_from_paths(tmp_path, {re.compile(r"file2")}, True)
     assert len(files.files) == 9
-    assert "file2.json" not in files.files
-    assert "file3.yaml" in files.files
+    assert "file2.json" not in files.filenames
+    assert "file3.yaml" in files.filenames
 
 
 @pytest.mark.parametrize("ignore_git", (False, True))
@@ -77,8 +77,8 @@ def test_get_iac_files_from_paths_ignore_git(tmp_path, ignore_git):
     files = get_iac_files_from_paths(tmp_path, set(), True, ignore_git)
     if ignore_git:
         assert len(files.files) == 10
-        assert "file2.json" in files.files
+        assert "file2.json" in files.filenames
     else:
         assert len(files.files) == 9
-        assert "file2.json" not in files.files
-        assert "file3.yaml" in files.files
+        assert "file2.json" not in files.filenames
+        assert "file3.yaml" in files.filenames
