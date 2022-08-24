@@ -1,9 +1,12 @@
 import os
+from typing import List
 from unittest import mock
 
 import click
 import pytest
+from pygitguardian import GGClient
 
+from ggshield.core.cache import Cache
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.utils import (
@@ -27,7 +30,7 @@ from tests.conftest import (
 
 
 @pytest.mark.parametrize(
-    ["name", "content", "is_patch", "expected_indices_l"],
+    ["name", "content", "is_patch", "expected_indices_list"],
     [
         pytest.param(
             "single_add",
@@ -66,7 +69,14 @@ from tests.conftest import (
         ),
     ],
 )
-def test_make_indices_patch(client, cache, name, content, is_patch, expected_indices_l):
+def test_make_indices_patch(
+    client: GGClient,
+    cache: Cache,
+    name: str,
+    content: str,
+    is_patch: bool,
+    expected_indices_list: List[MatchIndices],
+):
     if is_patch:
         o = Commit()
         o._patch = content
@@ -92,13 +102,14 @@ def test_make_indices_patch(client, cache, name, content, is_patch, expected_ind
         for policy_break in result.scan.policy_breaks
         for match in policy_break.matches
     ]
-    for i, match in enumerate(matches):
-        expected_indices = expected_indices_l[i]
+    for expected_indices, match in zip(expected_indices_list, matches):
         match_indices = find_match_indices(match, lines, is_patch=is_patch)
         assert expected_indices.line_index_start == match_indices.line_index_start
         assert expected_indices.line_index_end == match_indices.line_index_end
         assert expected_indices.index_start == match_indices.index_start
         assert expected_indices.index_end == match_indices.index_end
+
+    assert len(expected_indices_list) == len(matches)
 
 
 def test_retrieve_client_invalid_api_url():
