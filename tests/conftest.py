@@ -420,16 +420,20 @@ index 0000000..b80e3df
     + _ONE_LINE_AND_MULTILINE_PATCH_CONTENT
 )
 
-_NO_SECRET = (
-    "diff --git a/test.txt b/test.txt\n"
-    "new file mode 100644\n"
-    "index 0000000..b80e3df\n"
-    "--- /dev/null\n"
-    "+++ b/test\n"
-    "@@ -0,0 +1 @@\n"
-    "+this is a patch without secret\n"
-)
+_NO_SECRET_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
 
+A message
+
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
+new file mode 100644
+index 0000000..b80e3df
+--- /dev/null
++++ b/test
+@@ -0,0 +1 @@
++this is a patch without secret
+"""
 
 _SECRET_RAW_FILE = '+sg_key = "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";\n'
 

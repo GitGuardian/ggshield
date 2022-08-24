@@ -8,7 +8,7 @@ from ggshield.core.utils import Filemode, SupportedScanMode
 from ggshield.scan import Commit, File, Files
 from tests.conftest import (
     _MULTIPLE_SECRETS_PATCH,
-    _NO_SECRET,
+    _NO_SECRET_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH,
     GG_TEST_TOKEN,
     UNCHECKED_SECRET_PATCH,
@@ -50,7 +50,7 @@ _EXPECT_NO_SECRET = {
         ),
         (
             "no_secret",
-            _NO_SECRET,
+            _NO_SECRET_PATCH,
             ExpectedScan(
                 exit_code=0, matches=0, first_match=None, want=_EXPECT_NO_SECRET
             ),

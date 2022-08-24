@@ -10,7 +10,7 @@ from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import Commit, ScanCollection
 from tests.conftest import (
     _MULTIPLE_SECRETS_PATCH,
-    _NO_SECRET,
+    _NO_SECRET_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _SINGLE_ADD_PATCH,
     _SINGLE_DELETE_PATCH,
@@ -91,7 +91,7 @@ SCHEMA_WITH_INCIDENTS = S(
         ("simple_secret", UNCHECKED_SECRET_PATCH, 1),
         ("test_scan_file_secret_with_validity", VALID_SECRET_PATCH, 1),
         ("one_line_and_multiline_patch", _ONE_LINE_AND_MULTILINE_PATCH, 1),
-        ("no_secret", _NO_SECRET, 0),
+        ("no_secret", _NO_SECRET_PATCH, 0),
         ("single_add", _SINGLE_ADD_PATCH, 1),
         ("single_delete", _SINGLE_DELETE_PATCH, 1),
         ("single_move", _SINGLE_MOVE_PATCH, 1),
