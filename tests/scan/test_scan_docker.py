@@ -97,10 +97,11 @@ class TestDockerScan:
             "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f:/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",  # noqa: E501
         }
 
-        assert set(files.files) == {str(file_path) for file_path in expected_files}
+        assert set(files.filenames) == {str(file_path) for file_path in expected_files}
 
+        file_dict = {x.filename: x for x in files.files}
         for file_path, expected_content in expected_files.items():
-            file = files.files[str(file_path)]
+            file = file_dict[str(file_path)]
             assert expected_content is None or file.document == expected_content
 
 

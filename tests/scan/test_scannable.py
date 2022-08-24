@@ -233,4 +233,4 @@ def test_apply_filter():
 
     filtered_files = files.apply_filter(lambda file: file.filename == "file1")
     assert len(filtered_files.files) == 1
-    assert file1 in filtered_files.files.values()
+    assert file1 in filtered_files.files

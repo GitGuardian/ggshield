@@ -15,7 +15,7 @@ cleanup() {
 dump_patch() {
     local name="$1"
 
-    git show --raw --patch -z > "$PATCH_DIR/$name.patch"
+    git show -m --raw --patch -z > "$PATCH_DIR/$name.patch"
 }
 
 main() {

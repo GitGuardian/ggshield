@@ -87,11 +87,16 @@ def test_parse_patch_header_line(
         ),
         (
             "merge.patch",
-            [],  # a merge with no content change yields no content
+            [
+                ("longfile", Filemode.MODIFY),
+                ("longfile", Filemode.MODIFY),
+                ("longfile", Filemode.MODIFY),
+            ],
         ),
         (
             "merge-with-changes.patch",
             [
+                ("conflicted", Filemode.MODIFY),
                 ("conflicted", Filemode.MODIFY),
             ],
         ),
