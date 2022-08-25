@@ -73,7 +73,11 @@ def check_git_installed() -> None:
             raise click.ClickException("Git is not installed.")
 
 
-def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
+def shell(
+    command: List[str],
+    timeout: int = COMMAND_TIMEOUT,
+    raise_on_process_error: bool = False,
+) -> str:
     """Execute a command in a subprocess."""
     env = os.environ.copy()
     env["LANG"] = "C"
@@ -90,7 +94,8 @@ def shell(command: List[str], timeout: int = COMMAND_TIMEOUT) -> str:
         )
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
     except subprocess.CalledProcessError:
-        pass
+        if raise_on_process_error:
+            raise
     except subprocess.TimeoutExpired:
         raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
     except Exception as exc:
@@ -115,15 +120,39 @@ def git_ls(wd: Optional[str] = None) -> List[str]:
     return shell_split(cmd, timeout=600)
 
 
+def is_valid_git_commit_ref(ref: str) -> bool:
+    """
+    Check if a reference is valid and can be resolved to a commit
+    """
+    ref += "^{commit}"
+    cmd = [GIT_PATH, "cat-file", "-e", ref]
+
+    try:
+        shell(cmd, raise_on_process_error=True)
+    except subprocess.CalledProcessError:
+        return False
+
+    return True
+
+
 def get_list_commit_SHA(commit_range: str) -> List[str]:
     """
     Retrieve the list of commit SHA from a range.
     :param commit_range: A range of commits (ORIGIN...HEAD)
     """
+    try:
+        commit_list = shell_split(
+            [GIT_PATH, "rev-list", "--reverse", *commit_range.split(), "--"],
+            raise_on_process_error=True,
+        )
+    except subprocess.CalledProcessError as e:
+        if b"bad revision" in e.stderr and commit_range.endswith("~1..."):
+            # Handle the case where commit_ref has no parent
+            commit_ref = commit_range[:-5]
+            if is_valid_git_commit_ref(commit_ref):
+                return [commit_ref] + get_list_commit_SHA(f"{commit_ref}...")
+        return []
 
-    commit_list = shell_split(
-        [GIT_PATH, "rev-list", "--reverse", *commit_range.split()]
-    )
     if "" in commit_list:
         commit_list.remove("")
         # only happens when git rev-list doesn't error

@@ -3,7 +3,13 @@ import os
 import pytest
 from click import ClickException
 
-from ggshield.core.git_shell import GIT_PATH, check_git_dir, is_git_dir, shell
+from ggshield.core.git_shell import (
+    GIT_PATH,
+    check_git_dir,
+    is_git_dir,
+    is_valid_git_commit_ref,
+    shell,
+)
 from ggshield.scan.repo import cd
 
 
@@ -14,6 +20,11 @@ def test_git_shell():
 def test_is_git_dir(tmp_path):
     assert is_git_dir(os.getcwd())
     assert not is_git_dir(str(tmp_path))
+
+
+def test_is_valid_git_commit_ref():
+    assert is_valid_git_commit_ref("HEAD")
+    assert not is_valid_git_commit_ref("invalid_ref")
 
 
 def test_check_git_dir(tmp_path):
