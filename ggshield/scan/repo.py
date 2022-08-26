@@ -136,7 +136,7 @@ def scan_commit_range(
                 if scan_collection.results and scan_collection.results.errors:
                     for error in scan_collection.results.errors:
                         # Prefix with `\n` because we are in the middle of a progress bar
-                        display_error("\n{error.description}")
+                        display_error(f"\n{error.description}")
                 scans.append(scan_collection)
 
         return_code = output_handler.process_scan(
