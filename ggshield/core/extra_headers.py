@@ -2,6 +2,8 @@ from typing import Dict, Optional
 
 import click
 
+from ggshield import __version__
+
 
 def add_extra_header(ctx: Optional[click.Context], key: str, value: str) -> None:
     """
@@ -22,15 +24,19 @@ def add_extra_header(ctx: Optional[click.Context], key: str, value: str) -> None
 
 def get_extra_headers(ctx: Optional[click.Context]) -> Dict[str, str]:
     """
-    Returns the extra headers stored in the command's context.
-    Adds the prefix "GGShield-" to the header's names.
+    Returns the extra headers to send in HTTP requests.
+    Adds the "GGShield-" prefix to the header's names.
     """
-    if (
-        ctx is not None
-        and isinstance(ctx.obj, dict)
-        and isinstance(ctx.obj.get("headers"), dict)
-    ):
-        return {
-            str(key): f"GGShield-{value}" for key, value in ctx.obj["headers"].items()
-        }
-    return {}
+
+    command_path = ctx.command_path if ctx is not None else "external"
+
+    headers = {
+        "Version": __version__,
+        "Command-Path": command_path,
+    }
+    if ctx is not None and isinstance(ctx.obj, dict):
+        context_headers = ctx.obj.get("headers")
+        if context_headers:
+            headers = {**headers, **context_headers}
+
+    return {f"GGShield-{key}": str(value) for key, value in headers.items()}

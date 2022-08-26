@@ -3,7 +3,6 @@ from typing import Any, Optional, Sequence, Type
 
 import click
 
-from ggshield import __version__
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.extra_headers import get_extra_headers
@@ -149,13 +148,7 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
     scan = client.directory_scan(
         tar,
         scan_parameters,
-        {
-            "GGShield-Version": __version__,
-            "GGShield-Command-Path": ctx.command_path
-            if ctx is not None
-            else "external",
-            **get_extra_headers(ctx),
-        },
+        get_extra_headers(ctx),
     )
 
     if not scan.success or not isinstance(scan, IaCScanResult):
