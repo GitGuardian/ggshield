@@ -32,7 +32,7 @@ from ggshield.core.filter import (
 from ggshield.core.git_shell import GIT_PATH, shell
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, SupportedScanMode
+from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, ScanMode
 
 from ..iac.models import IaCScanResult
 from .scannable_errors import handle_scan_chunk_error
@@ -267,7 +267,7 @@ class Files:
         client: GGClient,
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
-        scan_mode: Union[SupportedScanMode, str],
+        scan_mode: Union[ScanMode, str],
         command_id: Optional[str] = None,
         ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
@@ -289,7 +289,7 @@ class Files:
 
         headers = get_extra_headers(context, command_id=command_id)
         headers["mode"] = (
-            scan_mode.value if isinstance(scan_mode, SupportedScanMode) else scan_mode
+            scan_mode.value if isinstance(scan_mode, ScanMode) else scan_mode
         )
 
         with concurrent.futures.ThreadPoolExecutor(

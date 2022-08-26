@@ -15,7 +15,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.text_utils import display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import SupportedScanMode
+from ggshield.core.utils import ScanMode
 from ggshield.scan import ScanCollection
 from ggshield.scan.scannable import File, Files
 
@@ -264,7 +264,7 @@ def docker_scan_archive(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            scan_mode=SupportedScanMode.DOCKER,
+            scan_mode=ScanMode.DOCKER,
             ignored_detectors=ignored_detectors,
             on_file_chunk_scanned=update_progress,
         )

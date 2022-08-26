@@ -215,7 +215,7 @@ class SupportedCI(Enum):
     AZURE = "AZURE PIPELINES"
 
 
-class SupportedScanMode(Enum):
+class ScanMode(Enum):
     REPO = "repo"
     PATH = "path"
     COMMIT_RANGE = "commit_range"

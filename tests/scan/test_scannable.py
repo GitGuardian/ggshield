@@ -4,7 +4,7 @@ import pytest
 
 from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.utils import Filemode, SupportedScanMode
+from ggshield.core.utils import Filemode, ScanMode
 from ggshield.scan import Commit, File, Files
 from tests.conftest import (
     _MULTIPLE_SECRETS_PATCH,
@@ -72,7 +72,7 @@ def test_scan_patch(client, cache, name, input_patch, expected):
             client=client,
             cache=cache,
             matches_ignore={},
-            scan_mode=SupportedScanMode.PATH,
+            scan_mode=ScanMode.PATH,
         )
         for result in results.results:
             if result.scan.policy_breaks:

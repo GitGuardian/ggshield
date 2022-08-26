@@ -11,7 +11,7 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.utils import (
     MatchIndices,
-    SupportedScanMode,
+    ScanMode,
     api_to_dashboard_url,
     dashboard_to_api_url,
     find_match_indices,
@@ -87,7 +87,7 @@ def test_make_indices_patch(
             client=client,
             cache=cache,
             matches_ignore={},
-            scan_mode=SupportedScanMode.PATH,
+            scan_mode=ScanMode.PATH,
             ignored_detectors=None,
         )
         result = results.results[0]

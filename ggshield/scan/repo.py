@@ -15,7 +15,7 @@ from ggshield.core.extra_headers import generate_command_id
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import SupportedScanMode, handle_exception
+from ggshield.core.utils import ScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection
 
@@ -50,7 +50,7 @@ def scan_repo_path(
                 verbose=config.verbose,
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
-                scan_mode=SupportedScanMode.PATH,
+                scan_mode=ScanMode.PATH,
                 ignored_detectors=config.secret.ignored_detectors,
             )
     except Exception as error:
@@ -63,7 +63,7 @@ def scan_commit(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    scan_mode: Union[SupportedScanMode, str],
+    scan_mode: Union[ScanMode, str],
     command_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
@@ -96,7 +96,7 @@ def scan_commit_range(
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    scan_mode: Union[SupportedScanMode, str],
+    scan_mode: Union[ScanMode, str],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """

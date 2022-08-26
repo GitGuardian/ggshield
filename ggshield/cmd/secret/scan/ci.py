@@ -6,12 +6,7 @@ import click
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.extra_headers import add_extra_header
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import (
-    EMPTY_SHA,
-    SupportedCI,
-    SupportedScanMode,
-    handle_exception,
-)
+from ggshield.core.utils import EMPTY_SHA, ScanMode, SupportedCI, handle_exception
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -295,7 +290,7 @@ def ci_cmd(ctx: click.Context) -> int:
 
         add_extra_header(ctx, "Ci-Mode", ci_mode.name)
 
-        mode_header = f"{SupportedScanMode.CI.value}/{ci_mode.value}"
+        mode_header = f"{ScanMode.CI.value}/{ci_mode.value}"
 
         if config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}", err=True)
