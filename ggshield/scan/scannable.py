@@ -12,7 +12,7 @@ from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
 from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
-from ggshield.core.extra_headers import get_extra_headers
+from ggshield.core.extra_headers import generate_command_id, get_extra_headers
 from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
@@ -251,12 +251,15 @@ class Files:
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
         mode_header: str,
+        command_id: Optional[str] = None,
         ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
     ) -> Results:
-        logger.debug("self=%s", self)
+        if command_id is None:
+            command_id = generate_command_id()
+        logger.debug("self=%s command_id=%s", self, command_id)
         cache.purge()
         scannable_list = self.scannable_list
         results = []
@@ -267,6 +270,9 @@ class Files:
 
         context = click.get_current_context(silent=True)
 
+        headers = get_extra_headers(context, command_id=command_id)
+        headers["mode"] = mode_header
+
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"
         ) as executor:
@@ -274,7 +280,7 @@ class Files:
                 executor.submit(
                     client.multi_content_scan,
                     chunk,
-                    {"mode": mode_header, **get_extra_headers(context)},
+                    headers,
                 ): chunk
                 for chunk in chunks
             }
