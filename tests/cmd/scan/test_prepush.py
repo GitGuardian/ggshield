@@ -6,7 +6,12 @@ from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
+from ggshield.core.utils import (
+    EMPTY_SHA,
+    EMPTY_TREE,
+    IGNORED_DEFAULT_WILDCARDS,
+    SupportedScanMode,
+)
 from tests.conftest import assert_invoke_ok
 
 
@@ -113,7 +118,7 @@ class TestPrepush:
             verbose=True,
             exclusion_regexes=ANY,
             matches_ignore=ANY,
-            mode_header="pre_push",
+            scan_mode=SupportedScanMode.PRE_PUSH,
             ignored_detectors=set(),
         )
         assert_invoke_ok(result)

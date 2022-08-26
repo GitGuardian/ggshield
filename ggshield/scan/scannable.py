@@ -3,7 +3,18 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 import click
 from pygitguardian import GGClient
@@ -21,7 +32,7 @@ from ggshield.core.filter import (
 from ggshield.core.git_shell import GIT_PATH, shell
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
+from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, SupportedScanMode
 
 from ..iac.models import IaCScanResult
 from .scannable_errors import handle_scan_chunk_error
@@ -256,7 +267,7 @@ class Files:
         client: GGClient,
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
-        mode_header: str,
+        scan_mode: Union[SupportedScanMode, str],
         command_id: Optional[str] = None,
         ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
@@ -277,7 +288,9 @@ class Files:
         context = click.get_current_context(silent=True)
 
         headers = get_extra_headers(context, command_id=command_id)
-        headers["mode"] = mode_header
+        headers["mode"] = (
+            scan_mode.value if isinstance(scan_mode, SupportedScanMode) else scan_mode
+        )
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"

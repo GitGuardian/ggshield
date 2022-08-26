@@ -117,7 +117,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
             client=client,
             cache=cache,
             matches_ignore={},
-            mode_header=SupportedScanMode.PATH.value,
+            scan_mode=SupportedScanMode.PATH,
             ignored_detectors=None,
         )
 

@@ -264,7 +264,7 @@ def docker_scan_archive(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            mode_header=SupportedScanMode.DOCKER.value,
+            scan_mode=SupportedScanMode.DOCKER,
             ignored_detectors=ignored_detectors,
             on_file_chunk_scanned=update_progress,
         )

@@ -308,7 +308,7 @@ def ci_cmd(ctx: click.Context) -> int:
             verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
-            mode_header=mode_header,
+            scan_mode=mode_header,
             ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:

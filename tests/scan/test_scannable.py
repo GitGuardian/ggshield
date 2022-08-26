@@ -72,7 +72,7 @@ def test_scan_patch(client, cache, name, input_patch, expected):
             client=client,
             cache=cache,
             matches_ignore={},
-            mode_header=SupportedScanMode.PATH.value,
+            scan_mode=SupportedScanMode.PATH,
         )
         for result in results.results:
             if result.scan.policy_breaks:

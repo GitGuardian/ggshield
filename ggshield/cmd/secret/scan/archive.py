@@ -49,7 +49,7 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 matches_ignore=config.secret.ignored_matches,
-                mode_header=SupportedScanMode.ARCHIVE.value,
+                scan_mode=SupportedScanMode.ARCHIVE,
                 ignored_detectors=config.secret.ignored_detectors,
                 on_file_chunk_scanned=update_progress,
             )

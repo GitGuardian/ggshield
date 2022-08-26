@@ -31,7 +31,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
-            mode_header=SupportedScanMode.COMMIT_RANGE.value,
+            scan_mode=SupportedScanMode.COMMIT_RANGE,
             ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:

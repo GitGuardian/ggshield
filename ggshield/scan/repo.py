@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from contextlib import contextmanager
-from typing import Iterable, Iterator, List, Optional, Set
+from typing import Iterable, Iterator, List, Optional, Set, Union
 
 import click
 from pygitguardian import GGClient
@@ -50,7 +50,7 @@ def scan_repo_path(
                 verbose=config.verbose,
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
-                mode_header=SupportedScanMode.PATH.value,
+                scan_mode=SupportedScanMode.PATH,
                 ignored_detectors=config.secret.ignored_detectors,
             )
     except Exception as error:
@@ -63,7 +63,7 @@ def scan_commit(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    mode_header: str,
+    scan_mode: Union[SupportedScanMode, str],
     command_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
@@ -72,7 +72,7 @@ def scan_commit(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            mode_header=mode_header,
+            scan_mode=scan_mode,
             command_id=command_id,
             ignored_detectors=ignored_detectors,
         )
@@ -96,7 +96,7 @@ def scan_commit_range(
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    mode_header: str,
+    scan_mode: Union[SupportedScanMode, str],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
@@ -121,7 +121,7 @@ def scan_commit_range(
                 cache,
                 verbose,
                 matches_ignore,
-                mode_header,
+                scan_mode,
                 command_id,
                 ignored_detectors,
             )

@@ -27,7 +27,7 @@ def precommit_cmd(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.secret.ignored_matches,
-            mode_header=SupportedScanMode.PRE_COMMIT.value,
+            scan_mode=SupportedScanMode.PRE_COMMIT,
             ignored_detectors=config.secret.ignored_detectors,
         )
 

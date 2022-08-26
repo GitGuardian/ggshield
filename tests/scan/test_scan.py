@@ -5,6 +5,7 @@ from click import Command, Context, Group
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
+from ggshield.core.utils import SupportedScanMode
 from ggshield.scan import Commit
 from ggshield.scan.repo import cd
 from tests.conftest import UNCHECKED_SECRET_PATCH
@@ -29,7 +30,7 @@ def test_request_headers(scan_mock: Mock, client):
             client=client,
             cache=Cache(),
             matches_ignore={},
-            mode_header="test",
+            scan_mode=SupportedScanMode.PATH,
         )
     scan_mock.assert_called_with(
         ANY,
@@ -37,6 +38,6 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-Version": __version__,
             "GGShield-Command-Path": "foo bar",
             "GGShield-Command-Id": ANY,
-            "mode": "test",
+            "mode": "path",
         },
     )
