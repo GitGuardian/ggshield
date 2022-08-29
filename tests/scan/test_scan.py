@@ -36,6 +36,7 @@ def test_request_headers(scan_mock: Mock, client):
         {
             "GGShield-Version": __version__,
             "GGShield-Command-Path": "foo bar",
+            "GGShield-Command-Id": ANY,
             "mode": "test",
         },
     )

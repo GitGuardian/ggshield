@@ -11,6 +11,7 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.constants import CPU_COUNT
+from ggshield.core.extra_headers import generate_command_id
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
@@ -65,6 +66,7 @@ def scan_commit(
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
     mode_header: str,
+    command_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     try:
@@ -73,6 +75,7 @@ def scan_commit(
             cache=cache,
             matches_ignore=matches_ignore,
             mode_header=mode_header,
+            command_id=command_id,
             ignored_detectors=ignored_detectors,
         )
     except Exception as exc:
@@ -106,6 +109,9 @@ def scan_commit_range(
     :param commit_list: List of commits sha to scan
     :param verbose: Display successfull scan's message
     """
+
+    command_id = generate_command_id()
+
     return_code = 0
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(CPU_COUNT, 4)
@@ -119,6 +125,7 @@ def scan_commit_range(
                 verbose,
                 matches_ignore,
                 mode_header,
+                command_id,
                 ignored_detectors,
             )
             for sha in commit_list
