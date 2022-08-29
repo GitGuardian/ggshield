@@ -46,6 +46,7 @@ def test_parse_patch_header_line(
     ("patch_name", "expected_names_and_modes"),
     [
         ("add.patch", [("README.md", Filemode.NEW)]),
+        ("pre-commit.patch", [("NEW.md", Filemode.NEW)]),
         (
             "add_two_files.patch",
             [

@@ -3,6 +3,8 @@ set -euo pipefail
 
 DEBUG=${DEBUG:-}
 
+DIFF_SHOW_ARGS="-m --raw --patch -z"
+
 cleanup() {
     if [ -n "$DEBUG" ] ; then
         echo "DEBUG is set. Keeping work dir: $WORK_DIR"
@@ -15,7 +17,7 @@ cleanup() {
 dump_patch() {
     local name="$1"
 
-    git show -m --raw --patch -z > "$PATCH_DIR/$name.patch"
+    git show $DIFF_SHOW_ARGS > "$PATCH_DIR/$name.patch"
 }
 
 main() {
@@ -36,6 +38,12 @@ main() {
     git add README.md
     git commit -m "Add README"
     dump_patch "add"
+
+    # Pre-commit diff
+    echo "Not committed yet" > NEW.md
+    git add NEW.md
+    git diff --cached $DIFF_SHOW_ARGS > "$PATCH_DIR/pre-commit.patch"
+    git rm -f NEW.md
 
     # Add with unusual chars
     echo "A file with unusual chars" > "I'm unusual!"
