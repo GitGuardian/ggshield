@@ -250,7 +250,6 @@ def docker_scan_archive(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    scan_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
@@ -270,4 +269,4 @@ def docker_scan_archive(
             on_file_chunk_scanned=update_progress,
         )
 
-    return ScanCollection(id=scan_id, type="scan_docker_archive", results=results)
+    return ScanCollection(id=str(archive), type="scan_docker_archive", results=results)

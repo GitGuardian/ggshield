@@ -82,7 +82,6 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
-            scan_id=" ".join(commit_list),
             mode_header=SupportedScanMode.PRE_PUSH.value,
             ignored_detectors=config.secret.ignored_detectors,
         )

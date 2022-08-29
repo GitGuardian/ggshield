@@ -36,7 +36,6 @@ def scan_repo_path(
     output_handler: OutputHandler,
     config: Config,
     repo_path: str,
-    scan_id: str,
 ) -> int:  # pragma: no cover
     try:
         with cd(repo_path):
@@ -51,7 +50,6 @@ def scan_repo_path(
                 verbose=config.verbose,
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
-                scan_id=scan_id,
                 mode_header=SupportedScanMode.PATH.value,
                 ignored_detectors=config.secret.ignored_detectors,
             )
@@ -98,7 +96,6 @@ def scan_commit_range(
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    scan_id: str,
     mode_header: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
@@ -147,6 +144,6 @@ def scan_commit_range(
                 scans.append(scan_collection)
 
         return_code = output_handler.process_scan(
-            ScanCollection(id=scan_id, type="commit-range", scans=scans)
+            ScanCollection(id=command_id, type="commit-range", scans=scans)
         )
     return return_code

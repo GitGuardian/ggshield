@@ -113,7 +113,6 @@ class TestPrepush:
             verbose=True,
             exclusion_regexes=ANY,
             matches_ignore=ANY,
-            scan_id=ANY,
             mode_header="pre_push",
             ignored_detectors=set(),
         )
