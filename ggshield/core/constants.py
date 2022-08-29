@@ -1,8 +1,6 @@
 import os
 
 
-# max file size to accept
-MAX_FILE_SIZE = 1048576
 # max files size to create a tar from
 MAX_TAR_CONTENT_SIZE = 30 * 1024 * 1024
 
