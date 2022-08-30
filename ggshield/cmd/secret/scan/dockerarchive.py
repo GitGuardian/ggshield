@@ -31,7 +31,6 @@ def docker_archive_cmd(
             cache=ctx.obj["cache"],
             verbose=config.verbose,
             matches_ignore=config.secret.ignored_matches,
-            scan_id=str(archive),
             ignored_detectors=config.secret.ignored_detectors,
         )
 

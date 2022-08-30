@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from contextlib import contextmanager
-from typing import Iterable, Iterator, List, Optional, Set
+from typing import Iterable, Iterator, List, Optional, Set, Union
 
 import click
 from pygitguardian import GGClient
@@ -15,7 +15,7 @@ from ggshield.core.extra_headers import generate_command_id
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import SupportedScanMode, handle_exception
+from ggshield.core.utils import ScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection
 
@@ -36,7 +36,6 @@ def scan_repo_path(
     output_handler: OutputHandler,
     config: Config,
     repo_path: str,
-    scan_id: str,
 ) -> int:  # pragma: no cover
     try:
         with cd(repo_path):
@@ -51,8 +50,7 @@ def scan_repo_path(
                 verbose=config.verbose,
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
-                scan_id=scan_id,
-                mode_header=SupportedScanMode.PATH.value,
+                scan_mode=ScanMode.PATH,
                 ignored_detectors=config.secret.ignored_detectors,
             )
     except Exception as error:
@@ -65,7 +63,7 @@ def scan_commit(
     cache: Cache,
     verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    mode_header: str,
+    scan_mode: Union[ScanMode, str],
     command_id: str,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
@@ -74,7 +72,7 @@ def scan_commit(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            mode_header=mode_header,
+            scan_mode=scan_mode,
             command_id=command_id,
             ignored_detectors=ignored_detectors,
         )
@@ -98,8 +96,7 @@ def scan_commit_range(
     verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    scan_id: str,
-    mode_header: str,
+    scan_mode: Union[ScanMode, str],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
@@ -124,7 +121,7 @@ def scan_commit_range(
                 cache,
                 verbose,
                 matches_ignore,
-                mode_header,
+                scan_mode,
                 command_id,
                 ignored_detectors,
             )
@@ -147,6 +144,6 @@ def scan_commit_range(
                 scans.append(scan_collection)
 
         return_code = output_handler.process_scan(
-            ScanCollection(id=scan_id, type="commit-range", scans=scans)
+            ScanCollection(id=command_id, type="commit-range", scans=scans)
         )
     return return_code

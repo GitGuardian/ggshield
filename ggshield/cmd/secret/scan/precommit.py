@@ -3,7 +3,7 @@ from typing import List
 import click
 
 from ggshield.core.git_shell import check_git_dir
-from ggshield.core.utils import SupportedScanMode, handle_exception
+from ggshield.core.utils import ScanMode, handle_exception
 from ggshield.output import TextOutputHandler
 from ggshield.scan import Commit, ScanCollection
 
@@ -27,7 +27,7 @@ def precommit_cmd(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.secret.ignored_matches,
-            mode_header=SupportedScanMode.PRE_COMMIT.value,
+            scan_mode=ScanMode.PRE_COMMIT,
             ignored_detectors=config.secret.ignored_detectors,
         )
 

@@ -35,7 +35,6 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
             output_handler=ctx.obj["output_handler"],
             config=config,
             repo_path=repository,
-            scan_id=repository,
         )
 
     if REGEX_GIT_URL.match(repository):
@@ -47,7 +46,6 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
                 output_handler=ctx.obj["output_handler"],
                 config=config,
                 repo_path=tmpdirname,
-                scan_id=repository,
             )
 
     if any(host in repository for host in ("gitlab.com", "github.com")):
