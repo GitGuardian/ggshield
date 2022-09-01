@@ -74,7 +74,6 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
             cache=ctx.obj["cache"],
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
-            verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
             scan_mode=ScanMode.PRE_PUSH,

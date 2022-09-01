@@ -115,7 +115,6 @@ class TestPrepush:
             cache=ANY,
             commit_list=commit_list,
             output_handler=ANY,
-            verbose=True,
             exclusion_regexes=ANY,
             matches_ignore=ANY,
             scan_mode=ScanMode.PRE_PUSH,

@@ -160,7 +160,6 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 cache=ReadOnlyCache(),
                 commit_list=commit_list,
                 output_handler=output_handler,
-                verbose=config.verbose,
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
                 matches_ignore=config.secret.ignored_matches,
                 scan_mode=ScanMode.PRE_RECEIVE,
