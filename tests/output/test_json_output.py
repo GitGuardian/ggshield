@@ -4,7 +4,7 @@ import pytest
 from pytest_voluptuous import Partial, S
 from voluptuous import Optional, validators
 
-from ggshield.core.utils import Filemode, ScanMode
+from ggshield.core.utils import Filemode, ScanContext, ScanMode
 from ggshield.output import JSONOutputHandler, OutputHandler
 from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import Commit, ScanCollection
@@ -117,7 +117,10 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
             client=client,
             cache=cache,
             matches_ignore={},
-            scan_mode=ScanMode.PATH,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.PATH,
+                command_path="external",
+            ),
             ignored_detectors=None,
         )
 

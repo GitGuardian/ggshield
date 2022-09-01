@@ -7,7 +7,7 @@ from ggshield.cmd.secret.ignore import ignore_last_found
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import ScanMode
+from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.scan import Commit
 from tests.conftest import _MULTIPLE_SECRETS_PATCH, my_vcr
 
@@ -44,7 +44,10 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
             client=client,
             cache=cache,
             matches_ignore=config.secret.ignored_matches,
-            scan_mode=ScanMode.COMMIT_RANGE,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.COMMIT_RANGE,
+                command_path="external",
+            ),
         )
     assert config.secret.ignored_matches == list()
 
@@ -78,7 +81,10 @@ def test_cache_catches_nothing(client, isolated_fs):
             client=client,
             cache=cache,
             matches_ignore=config.secret.ignored_matches,
-            scan_mode=ScanMode.COMMIT_RANGE,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.COMMIT_RANGE,
+                command_path="external",
+            ),
         )
 
         assert results.results == []

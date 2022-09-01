@@ -1,8 +1,10 @@
 import os
 import re
 import traceback
+import uuid
+from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, List, NamedTuple
+from typing import Iterable, List, NamedTuple, Union
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -356,3 +358,12 @@ def urljoin(url: str, *args: str) -> str:
         url += url_part
 
     return url
+
+
+@dataclass
+class ScanContext:
+    scan_mode: Union[ScanMode, str]
+    command_path: str
+
+    def __post_init__(self) -> None:
+        self.command_id = str(uuid.uuid4())

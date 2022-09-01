@@ -3,27 +3,15 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
-import click
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
 from ggshield.core.constants import CPU_COUNT
-from ggshield.core.extra_headers import generate_command_id, get_extra_headers
+from ggshield.core.extra_headers import get_headers
 from ggshield.core.filter import (
     is_filepath_excluded,
     remove_ignored_from_result,
@@ -32,7 +20,7 @@ from ggshield.core.filter import (
 from ggshield.core.git_shell import GIT_PATH, shell
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, ScanMode
+from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, ScanContext
 
 from ..iac.models import IaCScanResult
 from .scannable_errors import handle_scan_chunk_error
@@ -267,16 +255,13 @@ class Files:
         client: GGClient,
         cache: Cache,
         matches_ignore: Iterable[IgnoredMatch],
-        scan_mode: Union[ScanMode, str],
-        command_id: Optional[str] = None,
+        scan_context: ScanContext,
         ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[
             [List[Dict[str, Any]]], None
         ] = lambda chunk: None,
     ) -> Results:
-        if command_id is None:
-            command_id = generate_command_id()
-        logger.debug("self=%s command_id=%s", self, command_id)
+        logger.debug("self=%s command_id=%s", self, scan_context.command_id)
         cache.purge()
         scannable_list = self.scannable_list
         results = []
@@ -285,12 +270,7 @@ class Files:
         for i in range(0, len(scannable_list), MULTI_DOCUMENT_LIMIT):
             chunks.append(scannable_list[i : i + MULTI_DOCUMENT_LIMIT])
 
-        context = click.get_current_context(silent=True)
-
-        headers = get_extra_headers(context, command_id=command_id)
-        headers["mode"] = (
-            scan_mode.value if isinstance(scan_mode, ScanMode) else scan_mode
-        )
+        headers = get_headers(scan_context)
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"

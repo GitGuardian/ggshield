@@ -14,6 +14,7 @@ from ggshield.core.utils import (
     EMPTY_SHA,
     EMPTY_TREE,
     PRERECEIVE_TIMEOUT,
+    ScanContext,
     ScanMode,
     handle_exception,
 )
@@ -155,6 +156,12 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
 
     try:
         with ExitAfter(get_prereceive_timeout()):
+
+            scan_context = ScanContext(
+                scan_mode=ScanMode.PRE_RECEIVE,
+                command_path=ctx.command_path,
+            )
+
             return_code = scan_commit_range(
                 client=ctx.obj["client"],
                 cache=ReadOnlyCache(),
@@ -162,7 +169,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 output_handler=output_handler,
                 exclusion_regexes=ctx.obj["exclusion_regexes"],
                 matches_ignore=config.secret.ignored_matches,
-                scan_mode=ScanMode.PRE_RECEIVE,
+                scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
             )
             if return_code:

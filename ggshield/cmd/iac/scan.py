@@ -5,8 +5,9 @@ import click
 
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.extra_headers import get_extra_headers
+from ggshield.core.extra_headers import get_headers
 from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.utils import ScanContext
 from ggshield.iac.filter import get_iac_files_from_paths
 from ggshield.iac.models import IaCScanResult
 from ggshield.iac.models.iac_scan_parameters import IaCScanParameters
@@ -148,7 +149,13 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
     scan = client.directory_scan(
         tar,
         scan_parameters,
-        get_extra_headers(ctx),
+        get_headers(
+            scan_context=ScanContext(
+                command_path=ctx.command_path,
+                scan_mode="external",
+            ),
+            context_headers=ctx.obj.get("headers"),
+        ),
     )
 
     if not scan.success or not isinstance(scan, IaCScanResult):

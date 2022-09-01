@@ -4,7 +4,7 @@ import pytest
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.utils import Filemode, ScanMode
+from ggshield.core.utils import Filemode, ScanContext, ScanMode
 from ggshield.scan import Commit, File, Files
 from tests.conftest import (
     _MULTIPLE_SECRETS_PATCH,
@@ -72,7 +72,10 @@ def test_scan_patch(client, cache, name, input_patch, expected):
             client=client,
             cache=cache,
             matches_ignore={},
-            scan_mode=ScanMode.PATH,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.PATH,
+                command_path="external",
+            ),
         )
         for result in results.results:
             if result.scan.policy_breaks:

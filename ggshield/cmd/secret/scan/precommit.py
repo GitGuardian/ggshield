@@ -3,7 +3,7 @@ from typing import List
 import click
 
 from ggshield.core.git_shell import check_git_dir
-from ggshield.core.utils import ScanMode, handle_exception
+from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import TextOutputHandler
 from ggshield.scan import Commit, ScanCollection
 
@@ -23,11 +23,17 @@ def precommit_cmd(
     )
     try:
         check_git_dir()
+
+        scan_context = ScanContext(
+            scan_mode=ScanMode.PRE_COMMIT,
+            command_path=ctx.command_path,
+        )
+
         results = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"]).scan(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.secret.ignored_matches,
-            scan_mode=ScanMode.PRE_COMMIT,
+            scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
         )
 
