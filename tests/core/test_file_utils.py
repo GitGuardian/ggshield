@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable
 
 import pytest
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.file_utils import generate_files_from_paths
 
@@ -39,7 +40,10 @@ def test_generate_files_from_paths(
     ["filename", "creator"],
     [
         ("a_binary_file.tar", lambda x: x.write_text("Uninteresting")),
-        ("big_file", lambda x: x.write_text(2_000_000 * " ")),
+        (
+            "big_file",
+            lambda x: x.write_text((DOCUMENT_SIZE_THRESHOLD_BYTES + 12) * " "),
+        ),
         ("i_am_a_dir", lambda x: x.mkdir()),
     ],
 )

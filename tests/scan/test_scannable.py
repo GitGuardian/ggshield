@@ -1,8 +1,8 @@
 from collections import namedtuple
 
 import pytest
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
-from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode, ScanMode
 from ggshield.scan import Commit, File, Files
@@ -220,7 +220,7 @@ index 0000000..0000000
 @@ -0,0 +1,112 @@
 CHECK_ENVIRONMENT=true
     """
-    c._patch += "a" * MAX_FILE_SIZE
+    c._patch += "a" * DOCUMENT_SIZE_THRESHOLD_BYTES
     files = list(c.get_files())
 
     assert len(files) == 0

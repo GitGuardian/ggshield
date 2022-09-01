@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Iterable, Iterator, List, Set, Union
 
 import click
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
-from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git_ls, is_git_dir
 from ggshield.scan import File, Files
@@ -94,9 +94,12 @@ def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[F
             continue
 
         file_size = os.path.getsize(path)
-        if file_size > MAX_FILE_SIZE:
+        if file_size > DOCUMENT_SIZE_THRESHOLD_BYTES:
             if verbose:
-                click.echo(f"ignoring file over 1MB: {path}", err=True)
+                click.echo(
+                    f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_BYTES:,} bytes: {path}",
+                    err=True,
+                )
             continue
         if path.endswith(BINARY_FILE_EXTENSIONS):
             if verbose:

@@ -10,9 +10,9 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import click
 from pygitguardian import GGClient
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.cache import Cache
-from ggshield.core.constants import MAX_FILE_SIZE
 from ggshield.core.text_utils import display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanMode
@@ -165,7 +165,7 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         if not file_info.isfile():
             continue
 
-        if file_info.size > MAX_FILE_SIZE * 0.95:
+        if file_info.size > DOCUMENT_SIZE_THRESHOLD_BYTES * 0.95:
             continue
 
         if not _validate_filepath(

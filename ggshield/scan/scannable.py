@@ -18,11 +18,11 @@ from typing import (
 
 import click
 from pygitguardian import GGClient
-from pygitguardian.config import MULTI_DOCUMENT_LIMIT
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
-from ggshield.core.constants import CPU_COUNT, MAX_FILE_SIZE
+from ggshield.core.constants import CPU_COUNT
 from ggshield.core.extra_headers import generate_command_id, get_extra_headers
 from ggshield.core.filter import (
     is_filepath_excluded,
@@ -388,7 +388,7 @@ def _parse_patch(
             document = diff[end_of_headers + 1 :]
 
             file_size = len(document.encode("utf-8"))
-            if file_size > MAX_FILE_SIZE * 0.90:
+            if file_size > DOCUMENT_SIZE_THRESHOLD_BYTES * 0.90:
                 continue
 
             if document:
