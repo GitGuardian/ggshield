@@ -1,4 +1,5 @@
 import concurrent.futures
+import itertools
 import os
 import re
 import sys
@@ -7,6 +8,7 @@ from typing import Iterable, Iterator, List, Optional, Set
 
 import click
 from pygitguardian import GGClient
+from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
@@ -16,7 +18,7 @@ from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext, handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import Commit, Results, ScanCollection
+from ggshield.scan import Commit, Files, Results, ScanCollection
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
@@ -60,8 +62,8 @@ def scan_repo_path(
         return handle_exception(error, config.verbose)
 
 
-def scan_commit(
-    commit: Commit,
+def scan_commits_content(
+    commits: List[Commit],
     client: GGClient,
     cache: Cache,
     matches_ignore: Iterable[IgnoredMatch],
@@ -69,7 +71,8 @@ def scan_commit(
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     try:
-        results = commit.scan(
+        commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
+        results = Files(commit_files).scan(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
@@ -80,13 +83,55 @@ def scan_commit(
     except Exception as exc:
         results = Results.from_exception(exc)
 
-    return ScanCollection(
-        commit.sha or "unknown",
-        type="commit",
-        results=results,
-        optional_header=commit.optional_header,
-        extra_info=commit.info._asdict(),
-    )
+    scans = []
+    for commit in commits:
+        concerned_results = [
+            res
+            for res in results.results
+            if any(
+                res.content == file.document and res.filename == file.filename
+                for file in commit.files
+            )
+        ]
+        scans.append(
+            ScanCollection(
+                commit.sha or "unknown",
+                type="commit",
+                results=Results(
+                    results=concerned_results,
+                    errors=results.errors,
+                ),
+                optional_header=commit.optional_header,
+                extra_info=commit.info._asdict(),
+            )
+        )
+
+    return ScanCollection(id=scan_context.command_id, type="commit-ranges", scans=scans)
+
+
+def get_commits_by_batch(
+    commit_list: Iterable[Commit],
+    batch_max_size: int = MULTI_DOCUMENT_LIMIT,
+) -> Iterator[List[Commit]]:
+    """
+    Given a list of commit shas yield the commit files
+    by biggest batches possible of length at most MULTI_DOCUMENT_LIMIT
+    """
+    current_count = 0
+    batch = []
+    for commit in commit_list:
+        num_files = len(commit.files)
+        if current_count + num_files < batch_max_size:
+            batch.append(commit)
+            current_count += num_files
+        else:
+            # The first batch can remain empty if it has too many files
+            if batch:
+                yield batch
+            current_count = num_files
+            batch = [commit]
+    # Send the last batch that remains
+    yield batch
 
 
 def scan_commit_range(
@@ -107,19 +152,26 @@ def scan_commit_range(
     :param verbose: Display successful scan's message
     """
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    commits_batch = get_commits_by_batch(
+        commit_list=(
+            Commit(sha=sha, exclusion_regexes=exclusion_regexes) for sha in commit_list
+        )
+    )
 
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=MAX_WORKERS
+    ) as executor:
         future_to_process = [
             executor.submit(
-                scan_commit,
-                Commit(sha, exclusion_regexes),
+                scan_commits_content,
+                commits,
                 client,
                 cache,
                 matches_ignore,
                 scan_context,
                 ignored_detectors,
             )
-            for sha in commit_list
+            for commits in commits_batch
         ]
 
         scans: List[ScanCollection] = []
@@ -131,11 +183,12 @@ def scan_commit_range(
         ) as completed_futures:
             for future in completed_futures:
                 scan_collection = future.result()
-                if scan_collection.results and scan_collection.results.errors:
-                    for error in scan_collection.results.errors:
-                        # Prefix with `\n` since we are in the middle of a progress bar
-                        display_error(f"\n{error.description}")
-                scans.append(scan_collection)
+                for scan in scan_collection.scans:
+                    if scan.results and scan.results.errors:
+                        for error in scan.results.errors:
+                            # Prefix with `\n` since we are in the middle of a progress bar
+                            display_error(f"\n{error.description}")
+                    scans.append(scan)
 
         return_code = output_handler.process_scan(
             ScanCollection(id=scan_context.command_id, type="commit-range", scans=scans)
