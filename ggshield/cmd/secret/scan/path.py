@@ -8,6 +8,9 @@ from ggshield.output import OutputHandler
 from ggshield.scan import ScanCollection
 
 
+SCAN_CMD_THREADS = 10
+
+
 @click.command()
 @click.argument(
     "paths", nargs=-1, type=click.Path(exists=True, resolve_path=True), required=True
@@ -45,6 +48,7 @@ def path_cmd(
             matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
+            scan_threads=SCAN_CMD_THREADS,
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 
