@@ -15,7 +15,7 @@ from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 from ggshield.core.cache import Cache
 from ggshield.core.text_utils import display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import ScanMode
+from ggshield.core.utils import ScanContext
 from ggshield.scan import ScanCollection
 from ggshield.scan.scannable import File, Files
 
@@ -248,8 +248,8 @@ def docker_scan_archive(
     archive: Path,
     client: GGClient,
     cache: Cache,
-    verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
+    scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
@@ -264,7 +264,7 @@ def docker_scan_archive(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            scan_mode=ScanMode.DOCKER,
+            scan_context=scan_context,
             ignored_detectors=ignored_detectors,
             on_file_chunk_scanned=update_progress,
         )

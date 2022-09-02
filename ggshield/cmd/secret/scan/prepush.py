@@ -6,7 +6,13 @@ from typing import List, Optional, Tuple
 import click
 
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, ScanMode, handle_exception
+from ggshield.core.utils import (
+    EMPTY_SHA,
+    EMPTY_TREE,
+    ScanContext,
+    ScanMode,
+    handle_exception,
+)
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -69,15 +75,20 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
 
     try:
         check_git_dir()
+
+        scan_context = ScanContext(
+            scan_mode=ScanMode.PRE_PUSH,
+            command_path=ctx.command_path,
+        )
+
         return scan_commit_range(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
-            verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
-            scan_mode=ScanMode.PRE_PUSH,
+            scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:

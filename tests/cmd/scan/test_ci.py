@@ -142,7 +142,7 @@ def test_ci_cmd_uses_right_mode_header(
 
     # TODO: When Python 3.7 is dropped, we can use the `args.kwargs` syntax
     # assert args.kwargs["scan_mode"] == expected_mode
-    assert args[1]["scan_mode"] == expected_mode
+    assert args[1]["scan_context"].scan_mode == expected_mode
 
 
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")

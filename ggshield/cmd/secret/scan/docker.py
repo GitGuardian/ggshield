@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from ggshield.core.utils import handle_exception
+from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan.docker import docker_save_to_tmp, docker_scan_archive
 
@@ -38,11 +38,16 @@ def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
             archive = Path(temporary_dir) / "archive.tar"
             docker_save_to_tmp(name, archive, docker_timeout)
 
+            scan_context = ScanContext(
+                scan_mode=ScanMode.DOCKER,
+                command_path=ctx.command_path,
+            )
+
             scan = docker_scan_archive(
                 archive=archive,
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                verbose=config.verbose,
+                scan_context=scan_context,
                 matches_ignore=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
             )

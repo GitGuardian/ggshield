@@ -1,9 +1,9 @@
-import uuid
 from typing import Dict, Optional
 
 import click
 
 from ggshield import __version__
+from ggshield.core.utils import ScanContext, ScanMode
 
 
 def add_extra_header(ctx: Optional[click.Context], key: str, value: str) -> None:
@@ -23,8 +23,8 @@ def add_extra_header(ctx: Optional[click.Context], key: str, value: str) -> None
         ctx.obj["headers"][key] = value
 
 
-def get_extra_headers(
-    ctx: Optional[click.Context], command_id: Optional[str] = None
+def get_headers(
+    scan_context: ScanContext, context_headers: Optional[Dict[str, str]] = None
 ) -> Dict[str, str]:
     """
     Returns the extra headers to send in HTTP requests.
@@ -32,25 +32,18 @@ def get_extra_headers(
     Adds the "GGShield-" prefix to the header's names.
     """
 
-    command_path = ctx.command_path if ctx is not None else "external"
-
     headers = {
         "Version": __version__,
-        "Command-Path": command_path,
+        "Command-Path": scan_context.command_path,
+        "Command-Id": scan_context.command_id,
     }
-    if command_id:
-        headers["Command-Id"] = command_id
 
-    if ctx is not None and isinstance(ctx.obj, dict):
-        context_headers = ctx.obj.get("headers")
-        if context_headers:
-            headers = {**headers, **context_headers}
+    if context_headers:
+        headers = {**headers, **context_headers}
 
-    return {f"GGShield-{key}": str(value) for key, value in headers.items()}
-
-
-def generate_command_id() -> str:
-    """
-    Returns an opaque ID used to identify multiple API calls belonging to the same command
-    """
-    return str(uuid.uuid4())
+    return {
+        **{f"GGShield-{key}": str(value) for key, value in headers.items()},
+        "mode": scan_context.scan_mode.value
+        if isinstance(scan_context.scan_mode, ScanMode)
+        else scan_context.scan_mode,
+    }

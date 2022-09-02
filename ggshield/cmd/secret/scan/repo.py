@@ -7,7 +7,7 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.git_shell import GIT_PATH, shell
-from ggshield.core.utils import REGEX_GIT_URL
+from ggshield.core.utils import REGEX_GIT_URL, ScanContext, ScanMode
 from ggshield.scan.repo import scan_repo_path
 
 
@@ -28,12 +28,19 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
     config: Config = ctx.obj["config"]
     cache: Cache = ctx.obj["cache"]
     client: GGClient = ctx.obj["client"]
+
+    scan_context = ScanContext(
+        scan_mode=ScanMode.REPO,
+        command_path=ctx.command_path,
+    )
+
     if os.path.isdir(repository):
         return scan_repo_path(
             client=client,
             cache=cache,
             output_handler=ctx.obj["output_handler"],
             config=config,
+            scan_context=scan_context,
             repo_path=repository,
         )
 
@@ -45,6 +52,7 @@ def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
                 cache=cache,
                 output_handler=ctx.obj["output_handler"],
                 config=config,
+                scan_context=scan_context,
                 repo_path=tmpdirname,
             )
 

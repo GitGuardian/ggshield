@@ -10,6 +10,7 @@ from ggshield.core.utils import (
     EMPTY_SHA,
     EMPTY_TREE,
     IGNORED_DEFAULT_WILDCARDS,
+    ScanContext,
     ScanMode,
 )
 from tests.conftest import assert_invoke_ok
@@ -115,10 +116,12 @@ class TestPrepush:
             cache=ANY,
             commit_list=commit_list,
             output_handler=ANY,
-            verbose=True,
             exclusion_regexes=ANY,
             matches_ignore=ANY,
-            scan_mode=ScanMode.PRE_PUSH,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.PRE_PUSH,
+                command_path="cli scan pre-push",
+            ),
             ignored_detectors=set(),
         )
         assert_invoke_ok(result)

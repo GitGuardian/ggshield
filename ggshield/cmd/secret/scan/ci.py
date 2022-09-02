@@ -6,7 +6,13 @@ import click
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.extra_headers import add_extra_header
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import EMPTY_SHA, ScanMode, SupportedCI, handle_exception
+from ggshield.core.utils import (
+    EMPTY_SHA,
+    ScanContext,
+    ScanMode,
+    SupportedCI,
+    handle_exception,
+)
 from ggshield.scan.repo import scan_commit_range
 
 
@@ -295,15 +301,19 @@ def ci_cmd(ctx: click.Context) -> int:
         if config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
+        scan_context = ScanContext(
+            scan_mode=mode_header,
+            command_path=ctx.command_path,
+        )
+
         return scan_commit_range(
             client=ctx.obj["client"],
             cache=ReadOnlyCache(),
             commit_list=commit_list,
             output_handler=ctx.obj["output_handler"],
-            verbose=config.verbose,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
-            scan_mode=mode_header,
+            scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
         )
     except Exception as error:

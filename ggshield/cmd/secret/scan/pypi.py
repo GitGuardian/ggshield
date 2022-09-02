@@ -10,7 +10,7 @@ import click
 
 from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
-from ggshield.core.utils import ScanMode
+from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.output import OutputHandler
 from ggshield.scan import Files, ScanCollection
 
@@ -104,11 +104,16 @@ def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
             def update_progress(chunk: List[Dict[str, Any]]) -> None:
                 progressbar.update(len(chunk))
 
+            scan_context = ScanContext(
+                scan_mode=ScanMode.PYPI,
+                command_path=ctx.command_path,
+            )
+
             results = files.scan(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 matches_ignore=config.secret.ignored_matches,
-                scan_mode=ScanMode.PYPI,
+                scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
                 on_file_chunk_scanned=update_progress,
             )

@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from contextlib import contextmanager
-from typing import Iterable, Iterator, List, Optional, Set, Union
+from typing import Iterable, Iterator, List, Optional, Set
 
 import click
 from pygitguardian import GGClient
@@ -11,11 +11,10 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.constants import CPU_COUNT
-from ggshield.core.extra_headers import generate_command_id
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import ScanMode, handle_exception
+from ggshield.core.utils import ScanContext, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection
 
@@ -35,6 +34,7 @@ def scan_repo_path(
     cache: Cache,
     output_handler: OutputHandler,
     config: Config,
+    scan_context: ScanContext,
     repo_path: str,
 ) -> int:  # pragma: no cover
     try:
@@ -47,10 +47,9 @@ def scan_repo_path(
                 cache=cache,
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
-                verbose=config.verbose,
                 exclusion_regexes=set(),
                 matches_ignore=config.secret.ignored_matches,
-                scan_mode=ScanMode.PATH,
+                scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
             )
     except Exception as error:
@@ -61,10 +60,8 @@ def scan_commit(
     commit: Commit,
     client: GGClient,
     cache: Cache,
-    verbose: bool,
     matches_ignore: Iterable[IgnoredMatch],
-    scan_mode: Union[ScanMode, str],
-    command_id: str,
+    scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     try:
@@ -72,8 +69,7 @@ def scan_commit(
             client=client,
             cache=cache,
             matches_ignore=matches_ignore,
-            scan_mode=scan_mode,
-            command_id=command_id,
+            scan_context=scan_context,
             ignored_detectors=ignored_detectors,
         )
     except Exception as exc:
@@ -93,10 +89,9 @@ def scan_commit_range(
     cache: Cache,
     commit_list: List[str],
     output_handler: OutputHandler,
-    verbose: bool,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
-    scan_mode: Union[ScanMode, str],
+    scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> int:  # pragma: no cover
     """
@@ -107,22 +102,18 @@ def scan_commit_range(
     :param verbose: Display successfull scan's message
     """
 
-    command_id = generate_command_id()
-
-    return_code = 0
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(CPU_COUNT, 4)
     ) as executor:
+
         future_to_process = [
             executor.submit(
                 scan_commit,
                 Commit(sha, exclusion_regexes),
                 client,
                 cache,
-                verbose,
                 matches_ignore,
-                scan_mode,
-                command_id,
+                scan_context,
                 ignored_detectors,
             )
             for sha in commit_list
@@ -139,11 +130,11 @@ def scan_commit_range(
                 scan_collection = future.result()
                 if scan_collection.results and scan_collection.results.errors:
                     for error in scan_collection.results.errors:
-                        # Prefix with `\n` because we are in the middle of a progress bar
+                        # Prefix with `\n` since we are in the middle of a progress bar
                         display_error(f"\n{error.description}")
                 scans.append(scan_collection)
 
         return_code = output_handler.process_scan(
-            ScanCollection(id=command_id, type="commit-range", scans=scans)
+            ScanCollection(id=scan_context.command_id, type="commit-range", scans=scans)
         )
     return return_code
