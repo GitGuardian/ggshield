@@ -255,7 +255,7 @@ def test_handle_scan_error_api_key():
         pytest.param(
             Detail("Too many documents to scan"),
             400,
-            [{"document": "", "filename": "/example"} for _ in range(21)],
+            [File("", "/example") for _ in range(21)],
             id="too many documents",
         ),
         pytest.param(
@@ -264,13 +264,13 @@ def test_handle_scan_error_api_key():
             ),
             400,
             [
-                {
-                    "document": "still valid",
-                    "filename": "/home/user/too/long/file/name",
-                },
-                {"document": "", "filename": "valid"},
-                {"document": "", "filename": "valid"},
-                {"document": "", "filename": "valid"},
+                File(
+                    "still valid",
+                    "/home/user/too/long/file/name",
+                ),
+                File("", "valid"),
+                File("", "valid"),
+                File("", "valid"),
             ],
             id="single file exception",
         ),

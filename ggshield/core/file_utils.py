@@ -105,7 +105,4 @@ def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[F
             if verbose:
                 click.echo(f"ignoring binary file extension: {path}", err=True)
             continue
-        with open(path, "rb") as file:
-            content = file.read()
-            if content:
-                yield File.from_bytes(content, file.name)
+        yield File.from_path(path)

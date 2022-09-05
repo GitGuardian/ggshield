@@ -2,7 +2,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 import click
 
@@ -10,7 +10,7 @@ from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.output import OutputHandler
-from ggshield.scan import Files, ScanCollection
+from ggshield.scan import File, Files, ScanCollection
 
 
 @click.command()
@@ -42,7 +42,7 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
             length=len(files.files), label="Scanning", file=sys.stderr
         ) as progressbar:
 
-            def update_progress(chunk: List[Dict[str, Any]]) -> None:
+            def update_progress(chunk: List[File]) -> None:
                 progressbar.update(len(chunk))
 
             scan_context = ScanContext(

@@ -257,7 +257,7 @@ def docker_scan_archive(
         length=len(files.files), label="Scanning", file=sys.stderr
     ) as progressbar:
 
-        def update_progress(chunk: List[Dict[str, Any]]) -> None:
+        def update_progress(chunk: List[File]) -> None:
             progressbar.update(len(chunk))
 
         results = files.scan(
