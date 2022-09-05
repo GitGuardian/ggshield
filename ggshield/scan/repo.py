@@ -99,7 +99,7 @@ def scan_commit_range(
 
     :param client: Public Scanning API client
     :param commit_list: List of commits sha to scan
-    :param verbose: Display successfull scan's message
+    :param verbose: Display successful scan's message
     """
 
     with concurrent.futures.ThreadPoolExecutor(
