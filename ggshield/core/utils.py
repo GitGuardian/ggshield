@@ -270,9 +270,10 @@ def load_dot_env() -> None:
         if os.path.isfile(cwd_env):
             load_dotenv(cwd_env, override=True)
             return
-        if is_git_dir() and os.path.isfile(os.path.join(get_git_root(), ".env")):
-            load_dotenv(os.path.join(get_git_root(), ".env"), override=True)
-            return
+        if is_git_dir(os.getcwd()):
+            git_root_env = os.path.join(get_git_root(), ".env")
+            if os.path.isfile(git_root_env):
+                load_dotenv(git_root_env, override=True)
 
 
 def clean_url(url: str, warn: bool = False) -> ParseResult:
