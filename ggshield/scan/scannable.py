@@ -1,10 +1,12 @@
 import concurrent.futures
 import logging
 import re
+from ast import literal_eval
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
+import click
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail, ScanResult
@@ -18,12 +20,11 @@ from ggshield.core.filter import (
     remove_results_from_ignore_detectors,
 )
 from ggshield.core.git_shell import GIT_PATH, shell
-from ggshield.core.text_utils import STYLE, format_text
+from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, ScanContext
 
 from ..iac.models import IaCScanResult
-from .scannable_errors import handle_scan_chunk_error
 
 
 logger = logging.getLogger(__name__)
@@ -447,3 +448,42 @@ class Commit(Files):
 
     def __repr__(self) -> str:
         return f"<Commit sha={self.sha} files={self.files}>"
+
+
+def handle_scan_chunk_error(detail: Detail, chunk: List[Dict[str, str]]) -> None:
+    logger.error("status_code=%d detail=%s", detail.status_code, detail.detail)
+    if detail.status_code == 401:
+        raise click.UsageError(detail.detail)
+
+    details = None
+
+    display_error("\nError scanning. Results may be incomplete.")
+    try:
+        # try to load as list of dicts to get per file details
+        details = literal_eval(detail.detail)
+    except Exception:
+        pass
+
+    if isinstance(details, list) and details:
+        # if the details had per file details
+        display_error(
+            f"Add the following {pluralize('file', len(details))}"
+            " to your paths-ignore:"
+        )
+        for i, inner_detail in enumerate(details):
+            if inner_detail:
+                click.echo(
+                    f"- {format_text(chunk[i]['filename'], STYLE['filename'])}:"
+                    f" {str(inner_detail)}",
+                    err=True,
+                )
+        return
+    else:
+        # if the details had a request error
+        filenames = ", ".join([file_dict["filename"] for file_dict in chunk])
+        display_error(
+            "The following chunk is affected:\n"
+            f"{format_text(filenames, STYLE['filename'])}"
+        )
+
+        display_error(str(detail))
