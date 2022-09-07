@@ -257,23 +257,28 @@ def handle_exception(e: Exception, verbose: bool) -> int:
 def load_dot_env() -> None:
     """Loads .env file into sys.environ."""
     dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
+    if dont_load_env:
+        return
+
     dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
-    cwd_env = os.path.join("..", ".env")
-    if not dont_load_env:
-        if dotenv_path and os.path.isfile(dotenv_path):
+    if dotenv_path:
+        if os.path.isfile(dotenv_path):
             load_dotenv(dotenv_path, override=True)
             return
-        elif dotenv_path:
+        else:
             display_error(
                 "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
             )
-        if os.path.isfile(cwd_env):
-            load_dotenv(cwd_env, override=True)
-            return
-        if is_git_dir(os.getcwd()):
-            git_root_env = os.path.join(get_git_root(), ".env")
-            if os.path.isfile(git_root_env):
-                load_dotenv(git_root_env, override=True)
+
+    cwd_env = os.path.join("..", ".env")
+    if os.path.isfile(cwd_env):
+        load_dotenv(cwd_env, override=True)
+        return
+
+    if is_git_dir(os.getcwd()):
+        git_root_env = os.path.join(get_git_root(), ".env")
+        if os.path.isfile(git_root_env):
+            load_dotenv(git_root_env, override=True)
 
 
 def clean_url(url: str, warn: bool = False) -> ParseResult:
