@@ -76,7 +76,7 @@ def check_git_installed() -> None:
 def shell(
     command: List[str],
     timeout: int = COMMAND_TIMEOUT,
-    raise_on_process_error: bool = False,
+    check: bool = False,
 ) -> str:
     """Execute a command in a subprocess."""
     env = os.environ.copy()
@@ -86,24 +86,15 @@ def shell(
         logger.debug("command=%s", command)
         result = subprocess.run(
             command,
-            check=True,
+            check=check,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=timeout,
             env=env,
         )
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
-    except subprocess.CalledProcessError:
-        if raise_on_process_error:
-            raise
     except subprocess.TimeoutExpired:
         raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
-    except Exception as exc:
-        raise click.ClickException(
-            f"Unhandled exception: {' '.join(command)}\n\t{str(exc)}"
-        )
-
-    return ""
 
 
 def shell_split(command: List[str], **kwargs: Any) -> List[str]:
@@ -128,7 +119,7 @@ def is_valid_git_commit_ref(ref: str) -> bool:
     cmd = [GIT_PATH, "cat-file", "-e", ref]
 
     try:
-        shell(cmd, raise_on_process_error=True)
+        shell(cmd, check=True)
     except subprocess.CalledProcessError:
         return False
 
@@ -143,7 +134,7 @@ def get_list_commit_SHA(commit_range: str) -> List[str]:
     try:
         commit_list = shell_split(
             [GIT_PATH, "rev-list", "--reverse", *commit_range.split(), "--"],
-            raise_on_process_error=True,
+            check=True,
         )
     except subprocess.CalledProcessError as e:
         if b"bad revision" in e.stderr and commit_range.endswith("~1..."):
