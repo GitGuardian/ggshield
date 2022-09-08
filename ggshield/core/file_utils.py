@@ -6,12 +6,13 @@ from typing import Iterable, Iterator, List, Set, Union
 import click
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
+from ggshield.core.binary_extensions import BINARY_EXTENSIONS
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git_ls, is_git_dir
 from ggshield.scan import File, Files
 
 
-BINARY_FILE_EXTENSIONS = (".tar", ".xz", ".gz")
+DOCUMENT_SIZE_THRESHOLD_MBYTES = DOCUMENT_SIZE_THRESHOLD_BYTES // (1024 * 1024)
 
 
 def get_files_from_paths(
@@ -87,22 +88,41 @@ def get_filepaths(
     return targets
 
 
+def is_path_binary(path: str) -> bool:
+    _, ext = os.path.splitext(path)
+    # `[1:]` because `ext` starts with a "." but extensions in `BINARY_EXTENSIONS` do not
+    return ext[1:] in BINARY_EXTENSIONS
+
+
 def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[File]:
     """Loop on filepaths and return an iterator on scannable files."""
     for path in paths:
         if os.path.isdir(path) or not os.path.exists(path):
             continue
 
+        if is_path_binary(path):
+            if verbose:
+                click.echo(
+                    f"ignoring binary file: {path}",
+                    err=True,
+                )
+            continue
+
         file_size = os.path.getsize(path)
         if file_size > DOCUMENT_SIZE_THRESHOLD_BYTES:
             if verbose:
                 click.echo(
-                    f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_BYTES:,} bytes: {path}",
+                    f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_MBYTES} MB: {path}",
                     err=True,
                 )
             continue
-        if path.endswith(BINARY_FILE_EXTENSIONS):
+
+        if file_size == 0:
             if verbose:
-                click.echo(f"ignoring binary file extension: {path}", err=True)
+                click.echo(
+                    f"ignoring empty file: {path}",
+                    err=True,
+                )
             continue
+
         yield File.from_path(path)
