@@ -206,7 +206,7 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
         "  Repository URL: <Fill if public>\n"
         f"github_push_before_sha: {push_before_sha}\n"
         f"github_push_base_sha: {push_base_sha}\n"
-        f"github_pull_base_sha: {pull_req_base_sha}"
+        f"github_pull_base_sha: {pull_req_base_sha}\n"
         f"github_default_branch: {default_branch}\n"
         f"github_head_sha: {head_sha}"
     )
