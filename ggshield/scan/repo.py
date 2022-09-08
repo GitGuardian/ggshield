@@ -38,10 +38,10 @@ def scan_repo_path(
     repo_path: str,
 ) -> int:  # pragma: no cover
     try:
-        with cd(repo_path):
-            if not is_git_dir():
-                raise click.ClickException(f"{repo_path} is not a git repository")
+        if not is_git_dir(repo_path):
+            raise click.ClickException(f"{repo_path} is not a git repository")
 
+        with cd(repo_path):
             return scan_commit_range(
                 client=client,
                 cache=cache,

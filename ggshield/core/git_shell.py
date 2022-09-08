@@ -38,32 +38,22 @@ def get_git_path(cwd: str) -> str:
 GIT_PATH = get_git_path(os.getcwd())
 
 
-def is_git_dir(wd: Optional[str] = None) -> bool:
-    try:
-        check_git_dir(wd)
-        return True
-    except click.ClickException:
-        return False
-
-
 @lru_cache(None)
+def is_git_dir(wd: str) -> bool:
+    check_git_installed()
+    cmd = [GIT_PATH, "-C", wd, "status"]
+    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return result.returncode == 0
+
+
 def check_git_dir(wd: Optional[str] = None) -> None:
     """Check if folder is git directory."""
-    check_git_installed()
-
-    cmd = [GIT_PATH]
-    if wd is not None:
-        cmd.extend(("-C", wd))
-
-    cmd.append("status")
-    with subprocess.Popen(
-        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    ) as process:
-        if process.wait():
-            raise click.ClickException("Not a git directory.")
+    if wd is None:
+        wd = os.getcwd()
+    if not is_git_dir(wd):
+        raise click.ClickException("Not a git directory.")
 
 
-@lru_cache(None)
 def get_git_root(wd: Optional[str] = None) -> str:
     cmd = [GIT_PATH]
     if wd is not None:

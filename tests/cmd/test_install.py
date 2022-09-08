@@ -44,6 +44,7 @@ class TestInstallLocal:
         assert "Error: .git/hooks/pre-commit is a directory" in result.output
 
     def test_local_exist_not_force(self, cli_fs_runner):
+        os.system("git init")
         os.makedirs(".git/hooks", exist_ok=True)
         Path(".git/hooks/pre-commit").write_text("pre-commit file")
         assert os.path.isfile(".git/hooks/pre-commit")
@@ -54,6 +55,7 @@ class TestInstallLocal:
         assert "Error: .git/hooks/pre-commit already exists." in result.output
 
     def test_local_exist_force(self, cli_fs_runner):
+        os.system("git init")
         os.makedirs(".git/hooks", exist_ok=True)
         Path(".git/hooks/pre-commit").write_text("pre-commit file")
         assert os.path.isfile(".git/hooks/pre-commit")
