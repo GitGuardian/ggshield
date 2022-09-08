@@ -1,3 +1,4 @@
+import codecs
 import concurrent.futures
 import logging
 import re
@@ -7,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
+import charset_normalizer
 import click
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
@@ -194,22 +196,39 @@ class File:
         return self._document
 
     def prepare(self) -> None:
+        """Ensures self._document has been decoded"""
         if self._document is not None:
             return
         with open(self.filename, "rb") as f:
-            self._document = File._decode_bytes(f.read())
+            self._document = File._decode_bytes(f.read(), self.filename)
 
     @staticmethod
     def from_bytes(raw_document: bytes, filename: str) -> "File":
-        return File(File._decode_bytes(raw_document), filename)
+        """Creates a File instance for a raw document. Document is decoded immediately."""
+        document = File._decode_bytes(raw_document, filename)
+        return File(document, filename)
 
     @staticmethod
     def from_path(filename: str) -> "File":
+        """Creates a File instance for a file. Content is *not* read immediately."""
         return File(None, filename)
 
     @staticmethod
-    def _decode_bytes(raw_document: bytes) -> str:
-        return raw_document.decode(errors="replace")
+    def _decode_bytes(raw_document: bytes, filename: str) -> str:
+        """Low level function to decode bytes, tries hard to find the correct encoding.
+        For now it returns an empty string if the document could not be decoded"""
+        result = charset_normalizer.from_bytes(raw_document).best()
+        if result is None:
+            # This means we were not able to detect the encoding. Report it using logging for now
+            # TODO: we should report this in the output
+            logger.warning("Skipping %s, can't detect encoding", filename)
+            return ""
+
+        # Special case for utf_8 + BOM: `bytes.decode()` does not skip the BOM, so do it
+        # ourselves
+        if result.encoding == "utf_8" and raw_document.startswith(codecs.BOM_UTF8):
+            raw_document = raw_document[len(codecs.BOM_UTF8) :]
+        return raw_document.decode(result.encoding, errors="replace")
 
     def __repr__(self) -> str:
         return f"<File filename={self.filename} filemode={self.filemode}>"

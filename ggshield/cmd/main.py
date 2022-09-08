@@ -67,6 +67,10 @@ def setup_debug_logs(debug: bool) -> None:
     else:
         logging.basicConfig(filename=None, level=level, format=LOG_FORMAT, force=True)
 
+    if debug:
+        # Silence charset_normalizer, its debug output does not bring much
+        logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
+
 
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
