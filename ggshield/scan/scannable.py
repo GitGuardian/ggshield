@@ -285,88 +285,135 @@ class Files:
         on_file_chunk_scanned: Callable[[List[File]], None] = lambda chunk: None,
     ) -> Results:
         logger.debug("self=%s command_id=%s", self, scan_context.command_id)
-        cache.purge()
+        scanner = Scanner(
+            client, cache, matches_ignore, scan_context, ignored_detectors
+        )
+        return scanner.scan(self.files, on_file_chunk_scanned)
+
+
+class Scanner:
+    def __init__(
+        self,
+        client: GGClient,
+        cache: Cache,
+        matches_ignore: Iterable[IgnoredMatch],
+        scan_context: ScanContext,
+        ignored_detectors: Optional[Set[str]] = None,
+    ):
+        self.client = client
+        self.cache = cache
+        self.matches_ignore = matches_ignore
+        self.ignored_detectors = ignored_detectors
+        self.headers = get_headers(scan_context)
+
+    def _scan_chunk(
+        self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[File]
+    ) -> Future:
+        """
+        Sends a chunk of files to scan to the API
+        """
+        # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
+        documents = [{"document": x.document, "filename": x.filename} for x in chunk]
+        return executor.submit(
+            self.client.multi_content_scan,
+            documents,
+            self.headers,
+        )
+
+    def _start_scans(
+        self, executor: concurrent.futures.ThreadPoolExecutor, files: Iterable[File]
+    ) -> Tuple[Dict[Future, List[File]], List[File]]:
+        """
+        Start all scans, return a tuple containing:
+        - a mapping of future to the list of files it is scanning
+        - a list of files which we did not send to scan because we could not decode them
+        """
+        chunks_for_futures = {}
+        skipped_chunk = []
+
+        chunk: List[File] = []
+        for file in files:
+            if file.document:
+                chunk.append(file)
+                if len(chunk) == MULTI_DOCUMENT_LIMIT:
+                    future = self._scan_chunk(executor, chunk)
+                    chunks_for_futures[future] = chunk
+                    chunk = []
+            else:
+                skipped_chunk.append(file)
+        if chunk:
+            future = self._scan_chunk(executor, chunk)
+            chunks_for_futures[future] = chunk
+        return chunks_for_futures, skipped_chunk
+
+    def _collect_results(
+        self,
+        chunks_for_futures: Dict[Future, List[File]],
+        on_file_chunk_scanned: Callable[[List[File]], None],
+    ) -> Results:
+        """
+        Receive scans as they complete, report progress and collect them and return
+        a Results.
+        """
+        self.cache.purge()
+
         results = []
         errors = []
+        for future in concurrent.futures.as_completed(chunks_for_futures):
+            chunk = chunks_for_futures[future]
+            on_file_chunk_scanned(chunk)
 
-        headers = get_headers(scan_context)
+            exception = future.exception()
+            if exception is None:
+                scan = future.result()
+            else:
+                scan = Detail(detail=str(exception))
+                errors.append(
+                    Error(
+                        files=[(file.filename, file.filemode) for file in chunk],
+                        description=scan.detail,
+                    )
+                )
+
+            if not scan.success:
+                handle_scan_chunk_error(scan, chunk)
+                continue
+
+            for file, scanned in zip(chunk, scan.scan_results):
+                remove_ignored_from_result(scanned, self.matches_ignore)
+                remove_results_from_ignore_detectors(scanned, self.ignored_detectors)
+                if scanned.has_policy_breaks:
+                    for policy_break in scanned.policy_breaks:
+                        self.cache.add_found_policy_break(policy_break, file.filename)
+                    results.append(
+                        Result(
+                            content=file.document,
+                            scan=scanned,
+                            filemode=file.filemode,
+                            filename=file.filename,
+                        )
+                    )
+
+        self.cache.save()
+        return Results(results=results, errors=errors)
+
+    def scan(
+        self,
+        files: Iterable[File],
+        on_file_chunk_scanned: Callable[[List[File]], None],
+    ) -> Results:
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"
         ) as executor:
-            # Start scans
-            def scan_chunk(chunk: List[File]) -> Future:
-                # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
-                documents = [
-                    {"document": x.document, "filename": x.filename} for x in chunk
-                ]
-                return executor.submit(
-                    client.multi_content_scan,
-                    documents,
-                    headers,
-                )
+            chunks_for_futures, skipped_chunk = self._start_scans(executor, files)
 
-            chunks_for_futures = {}
-            skipped_chunk = []
-
-            chunk: List[File] = []
-            for file in self.files:
-                if file.document:
-                    chunk.append(file)
-                    if len(chunk) == MULTI_DOCUMENT_LIMIT:
-                        future = scan_chunk(chunk)
-                        chunks_for_futures[future] = chunk
-                        chunk = []
-                else:
-                    skipped_chunk.append(file)
-            if chunk:
-                future = scan_chunk(chunk)
-                chunks_for_futures[future] = chunk
-
-            # Report progress, collect results
             if skipped_chunk:
                 # Report skipped_chunk as progress. If we only report files really sent
                 # for scanning then the progress bar won't reach 100%.
                 on_file_chunk_scanned(skipped_chunk)
 
-            for future in concurrent.futures.as_completed(chunks_for_futures):
-                chunk = chunks_for_futures[future]
-                on_file_chunk_scanned(chunk)
-
-                exception = future.exception()
-                if exception is None:
-                    scan = future.result()
-                else:
-                    scan = Detail(detail=str(exception))
-                    errors.append(
-                        Error(
-                            files=[(file.filename, file.filemode) for file in chunk],
-                            description=scan.detail,
-                        )
-                    )
-
-                if not scan.success:
-                    handle_scan_chunk_error(scan, chunk)
-                    continue
-
-                for index, scanned in enumerate(scan.scan_results):
-                    remove_ignored_from_result(scanned, matches_ignore)
-                    remove_results_from_ignore_detectors(scanned, ignored_detectors)
-                    if scanned.has_policy_breaks:
-                        for policy_break in scanned.policy_breaks:
-                            cache.add_found_policy_break(
-                                policy_break, chunk[index].filename
-                            )
-                        results.append(
-                            Result(
-                                content=chunk[index].document,
-                                scan=scanned,
-                                filemode=chunk[index].filemode,
-                                filename=chunk[index].filename,
-                            )
-                        )
-        cache.save()
-        return Results(results=results, errors=errors)
+            return self._collect_results(chunks_for_futures, on_file_chunk_scanned)
 
 
 class CommitInformation(NamedTuple):
