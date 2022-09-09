@@ -101,6 +101,11 @@ def shell_split(command: List[str], **kwargs: Any) -> List[str]:
     return shell(command, **kwargs).split("\n")
 
 
+def git(command: List[str], timeout: int = COMMAND_TIMEOUT, check: bool = True) -> str:
+    """Calls git with the given arguments, returns stdout as a string"""
+    return shell([GIT_PATH] + command, timeout=timeout, check=check)
+
+
 def git_ls(wd: Optional[str] = None) -> List[str]:
     cmd = [GIT_PATH]
     if wd is not None:
