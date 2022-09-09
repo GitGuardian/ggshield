@@ -150,11 +150,15 @@ def get_list_commit_SHA(
     try:
         commit_list = shell_split(cmd, check=True)
     except subprocess.CalledProcessError as e:
-        if b"bad revision" in e.stderr and commit_range.endswith("~1..."):
-            # Handle the case where commit_ref has no parent
-            commit_ref = commit_range[:-5]
-            if is_valid_git_commit_ref(commit_ref):
-                return [commit_ref] + get_list_commit_SHA(f"{commit_ref}...")
+        if b"bad revision" in e.stderr and "~1.." in commit_range:
+            # We got asked to list commits for A~1...B. If A~1 does not exist, but A
+            # does, then return A and its descendants until B.
+            a_ref, remaining = commit_range.split("~1", maxsplit=1)
+            if not is_valid_git_commit_ref(f"{a_ref}~1") and is_valid_git_commit_ref(
+                a_ref
+            ):
+                commit_range = a_ref + remaining
+                return [a_ref] + get_list_commit_SHA(commit_range)
         return []
 
     if "" in commit_list:
