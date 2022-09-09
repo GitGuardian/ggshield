@@ -186,7 +186,7 @@ class TestPrepush:
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
     @patch("ggshield.cmd.secret.scan.prepush.check_git_dir")
-    def test_prepush_new_branch(
+    def test_prepush_new_branch_pre_commit_framework(
         self,
         check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
@@ -273,3 +273,83 @@ class TestPrepush:
         assert_invoke_ok(result)
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
+
+    @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
+    def test_prepush_new_branch(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a cloned repository
+        AND a local branch with new commits in it
+        WHEN the command is run
+        THEN it should only scan the new commits
+        """
+        local_repo = create_local_repo_with_remote(tmp_path)
+
+        branch = "topic"
+        local_repo.create_branch(branch)
+        shas = [local_repo.create_commit() for _ in range(3)]
+
+        scan_commit_range_mock.return_value = 0
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-push", "origin", local_repo.remote_url],
+                input=f"refs/heads/{branch} {shas[-1]} refs/heads/{branch} {EMPTY_SHA}\n",
+            )
+
+        assert_invoke_ok(result)
+        scan_commit_range_mock.assert_called_once_with(
+            client=ANY,
+            cache=ANY,
+            commit_list=shas,
+            output_handler=ANY,
+            exclusion_regexes=ANY,
+            matches_ignore=ANY,
+            scan_context=ANY,
+            ignored_detectors=set(),
+        )
+
+    @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
+    def test_prepush_new_orphan_branch(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a cloned repository
+        AND an orphan branch with commits in it
+        WHEN the command is run
+        THEN it should only scan the orphan branch commits
+        """
+        local_repo = create_local_repo_with_remote(tmp_path)
+
+        branch = "topic"
+        local_repo.create_branch(branch, orphan=True)
+        shas = [local_repo.create_commit() for _ in range(3)]
+
+        scan_commit_range_mock.return_value = 0
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-push", "origin", local_repo.remote_url],
+                input=f"refs/heads/{branch} {shas[-1]} refs/heads/{branch} {EMPTY_SHA}\n",
+            )
+
+        assert_invoke_ok(result)
+        scan_commit_range_mock.assert_called_once_with(
+            client=ANY,
+            cache=ANY,
+            commit_list=shas,
+            output_handler=ANY,
+            exclusion_regexes=ANY,
+            matches_ignore=ANY,
+            scan_context=ANY,
+            ignored_detectors=set(),
+        )

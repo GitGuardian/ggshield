@@ -5,7 +5,12 @@ from typing import List, Optional, Tuple
 
 import click
 
-from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
+from ggshield.core.git_shell import (
+    check_git_dir,
+    get_list_commit_SHA,
+    git,
+    is_valid_git_commit_ref,
+)
 from ggshield.core.utils import (
     EMPTY_SHA,
     EMPTY_TREE,
@@ -22,7 +27,7 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.argument("prepush_args", nargs=-1, type=click.UNPROCESSED)
 @click.pass_context
-def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: no cover
+def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:
     """
     scan as a pre-push git hook.
     """
@@ -30,7 +35,9 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
 
     local_commit, remote_commit = collect_from_precommit_env()
     if local_commit is None or remote_commit is None:
-        local_commit, remote_commit = collect_from_stdin()
+        remote_name = prepush_args[0]
+        local_commit, remote_commit = collect_from_stdin(remote_name)
+    logger.debug("refs=(%s, %s)", local_commit, remote_commit)
 
     if local_commit == EMPTY_SHA:
         click.echo("Deletion event or nothing to scan.", err=True)
@@ -95,22 +102,51 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         return handle_exception(error, config.verbose)
 
 
-def collect_from_stdin() -> Tuple[str, str]:
+def find_branch_start(commit: str, remote: str) -> str:
+    """
+    Returns the first local-only commit of the branch
+    """
+    # List all ancestors of `commit` which are not in `remote`
+    # Based on _pre_push_ns() from pre-commit
+    #
+    # Note: The `--remotes` argument MUST be set using a `=`: `--remotes={remote}` works,
+    # but `--remotes {remote}` fails.
+    output = git(
+        [
+            "rev-list",
+            commit,
+            "--topo-order",
+            "--reverse",
+            "--not",
+            f"--remotes={remote}",
+        ]
+    )
+    ancestors = output.splitlines()
+    return ancestors[0]
+
+
+def collect_from_stdin(remote_name: str) -> Tuple[str, str]:
     """
     Collect pre-commit variables from stdin.
     """
-    prepush_input = sys.stdin.read().split()
+    prepush_input = sys.stdin.read().strip()
     logger.debug("input=%s", prepush_input)
-    if len(prepush_input) < 4:
-        # Then it's either a tag or a deletion event
-        local_commit = EMPTY_SHA
-        remote_commit = EMPTY_SHA
-    else:
-        local_commit = prepush_input[1].strip()
-        remote_commit = prepush_input[3].strip()
+    if not prepush_input:
+        # Happens when there's nothing to push
+        return (EMPTY_SHA, EMPTY_SHA)
 
-    logger.debug("refs=(%s, %s)", local_commit, remote_commit)
-    return (local_commit, remote_commit)
+    # TODO There can be more than one line here, for example when pushing multiple
+    # branches. We should support this.
+    line = prepush_input.splitlines()[0]
+    _, local_commit, _, remote_commit = line.split(maxsplit=3)
+
+    if is_valid_git_commit_ref(remote_commit):
+        # Pushing to an existing branch
+        return (local_commit, remote_commit)
+
+    # Pushing to a new branch
+    start_commit = find_branch_start(local_commit, remote_name)
+    return (local_commit, f"{start_commit}~1")
 
 
 def collect_from_precommit_env() -> Tuple[Optional[str], Optional[str]]:
@@ -126,5 +162,4 @@ def collect_from_precommit_env() -> Tuple[Optional[str], Optional[str]]:
         local_commit = os.getenv("PRE_COMMIT_FROM_REF", None)
         remote_commit = os.getenv("PRE_COMMIT_TO_REF", None)
 
-    logger.debug("refs=(%s, %s)", local_commit, remote_commit)
     return (local_commit, remote_commit)
