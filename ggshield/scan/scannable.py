@@ -1,10 +1,15 @@
+import codecs
 import concurrent.futures
 import logging
 import re
+from ast import literal_eval
+from concurrent.futures import Future
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
+import charset_normalizer
+import click
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail, ScanResult
@@ -18,12 +23,11 @@ from ggshield.core.filter import (
     remove_results_from_ignore_detectors,
 )
 from ggshield.core.git_shell import GIT_PATH, shell
-from ggshield.core.text_utils import STYLE, format_text
+from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import REGEX_HEADER_INFO, Filemode, ScanContext
 
 from ..iac.models import IaCScanResult
-from .scannable_errors import handle_scan_chunk_error
 
 
 logger = logging.getLogger(__name__)
@@ -177,29 +181,54 @@ class ScanCollection(NamedTuple):
 class File:
     """Class representing a simple file."""
 
-    def __init__(self, document: str, filename: str):
-        self.document = document
+    def __init__(self, document: Optional[str], filename: str):
+        self._document = document
         self.filename = filename
         self.filemode = Filemode.FILE
 
     def relative_to(self, root_path: Path) -> "File":
-        return File(self.document, str(Path(self.filename).relative_to(root_path)))
+        return File(self._document, str(Path(self.filename).relative_to(root_path)))
+
+    @property
+    def document(self) -> str:
+        self.prepare()
+        assert self._document is not None
+        return self._document
+
+    def prepare(self) -> None:
+        """Ensures self._document has been decoded"""
+        if self._document is not None:
+            return
+        with open(self.filename, "rb") as f:
+            self._document = File._decode_bytes(f.read(), self.filename)
 
     @staticmethod
     def from_bytes(raw_document: bytes, filename: str) -> "File":
-        document = raw_document.decode(errors="replace")
+        """Creates a File instance for a raw document. Document is decoded immediately."""
+        document = File._decode_bytes(raw_document, filename)
         return File(document, filename)
 
-    @property
-    def scan_dict(self) -> Dict[str, Any]:
-        """Return a payload compatible with the scanning API."""
-        return {
-            "filename": self.filename
-            if len(self.filename) <= 256
-            else self.filename[-255:],
-            "document": self.document,
-            "filemode": self.filemode,
-        }
+    @staticmethod
+    def from_path(filename: str) -> "File":
+        """Creates a File instance for a file. Content is *not* read immediately."""
+        return File(None, filename)
+
+    @staticmethod
+    def _decode_bytes(raw_document: bytes, filename: str) -> str:
+        """Low level function to decode bytes, tries hard to find the correct encoding.
+        For now it returns an empty string if the document could not be decoded"""
+        result = charset_normalizer.from_bytes(raw_document).best()
+        if result is None:
+            # This means we were not able to detect the encoding. Report it using logging for now
+            # TODO: we should report this in the output
+            logger.warning("Skipping %s, can't detect encoding", filename)
+            return ""
+
+        # Special case for utf_8 + BOM: `bytes.decode()` does not skip the BOM, so do it
+        # ourselves
+        if result.encoding == "utf_8" and raw_document.startswith(codecs.BOM_UTF8):
+            raw_document = raw_document[len(codecs.BOM_UTF8) :]
+        return raw_document.decode(result.encoding, errors="replace")
 
     def __repr__(self) -> str:
         return f"<File filename={self.filename} filemode={self.filemode}>"
@@ -237,10 +266,6 @@ class Files:
         """Convenience property to list filenames in the same order as files"""
         return [x.filename for x in self.files]
 
-    @property
-    def scannable_list(self) -> List[Dict[str, Any]]:
-        return [entry.scan_dict for entry in self.files]
-
     def __repr__(self) -> str:
         return f"<Files files={self.files}>"
 
@@ -257,73 +282,138 @@ class Files:
         matches_ignore: Iterable[IgnoredMatch],
         scan_context: ScanContext,
         ignored_detectors: Optional[Set[str]] = None,
-        on_file_chunk_scanned: Callable[
-            [List[Dict[str, Any]]], None
-        ] = lambda chunk: None,
+        on_file_chunk_scanned: Callable[[List[File]], None] = lambda chunk: None,
     ) -> Results:
         logger.debug("self=%s command_id=%s", self, scan_context.command_id)
-        cache.purge()
-        scannable_list = self.scannable_list
+        scanner = Scanner(
+            client, cache, matches_ignore, scan_context, ignored_detectors
+        )
+        return scanner.scan(self.files, on_file_chunk_scanned)
+
+
+class Scanner:
+    def __init__(
+        self,
+        client: GGClient,
+        cache: Cache,
+        matches_ignore: Iterable[IgnoredMatch],
+        scan_context: ScanContext,
+        ignored_detectors: Optional[Set[str]] = None,
+    ):
+        self.client = client
+        self.cache = cache
+        self.matches_ignore = matches_ignore
+        self.ignored_detectors = ignored_detectors
+        self.headers = get_headers(scan_context)
+
+    def _scan_chunk(
+        self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[File]
+    ) -> Future:
+        """
+        Sends a chunk of files to scan to the API
+        """
+        # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
+        documents = [{"document": x.document, "filename": x.filename} for x in chunk]
+        return executor.submit(
+            self.client.multi_content_scan,
+            documents,
+            self.headers,
+        )
+
+    def _start_scans(
+        self, executor: concurrent.futures.ThreadPoolExecutor, files: Iterable[File]
+    ) -> Tuple[Dict[Future, List[File]], List[File]]:
+        """
+        Start all scans, return a tuple containing:
+        - a mapping of future to the list of files it is scanning
+        - a list of files which we did not send to scan because we could not decode them
+        """
+        chunks_for_futures = {}
+        skipped_chunk = []
+
+        chunk: List[File] = []
+        for file in files:
+            if file.document:
+                chunk.append(file)
+                if len(chunk) == MULTI_DOCUMENT_LIMIT:
+                    future = self._scan_chunk(executor, chunk)
+                    chunks_for_futures[future] = chunk
+                    chunk = []
+            else:
+                skipped_chunk.append(file)
+        if chunk:
+            future = self._scan_chunk(executor, chunk)
+            chunks_for_futures[future] = chunk
+        return chunks_for_futures, skipped_chunk
+
+    def _collect_results(
+        self,
+        chunks_for_futures: Dict[Future, List[File]],
+        on_file_chunk_scanned: Callable[[List[File]], None],
+    ) -> Results:
+        """
+        Receive scans as they complete, report progress and collect them and return
+        a Results.
+        """
+        self.cache.purge()
+
         results = []
         errors = []
-        chunks = []
-        for i in range(0, len(scannable_list), MULTI_DOCUMENT_LIMIT):
-            chunks.append(scannable_list[i : i + MULTI_DOCUMENT_LIMIT])
+        for future in concurrent.futures.as_completed(chunks_for_futures):
+            chunk = chunks_for_futures[future]
+            on_file_chunk_scanned(chunk)
 
-        headers = get_headers(scan_context)
+            exception = future.exception()
+            if exception is None:
+                scan = future.result()
+            else:
+                scan = Detail(detail=str(exception))
+                errors.append(
+                    Error(
+                        files=[(file.filename, file.filemode) for file in chunk],
+                        description=scan.detail,
+                    )
+                )
+
+            if not scan.success:
+                handle_scan_chunk_error(scan, chunk)
+                continue
+
+            for file, scanned in zip(chunk, scan.scan_results):
+                remove_ignored_from_result(scanned, self.matches_ignore)
+                remove_results_from_ignore_detectors(scanned, self.ignored_detectors)
+                if scanned.has_policy_breaks:
+                    for policy_break in scanned.policy_breaks:
+                        self.cache.add_found_policy_break(policy_break, file.filename)
+                    results.append(
+                        Result(
+                            content=file.document,
+                            scan=scanned,
+                            filemode=file.filemode,
+                            filename=file.filename,
+                        )
+                    )
+
+        self.cache.save()
+        return Results(results=results, errors=errors)
+
+    def scan(
+        self,
+        files: Iterable[File],
+        on_file_chunk_scanned: Callable[[List[File]], None],
+    ) -> Results:
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"
         ) as executor:
-            future_to_scan = {
-                executor.submit(
-                    client.multi_content_scan,
-                    chunk,
-                    headers,
-                ): chunk
-                for chunk in chunks
-            }
+            chunks_for_futures, skipped_chunk = self._start_scans(executor, files)
 
-            for future in concurrent.futures.as_completed(future_to_scan):
-                chunk = future_to_scan[future]
-                on_file_chunk_scanned(chunk)
+            if skipped_chunk:
+                # Report skipped_chunk as progress. If we only report files really sent
+                # for scanning then the progress bar won't reach 100%.
+                on_file_chunk_scanned(skipped_chunk)
 
-                exception = future.exception()
-                if exception is None:
-                    scan = future.result()
-                else:
-                    scan = Detail(detail=str(exception))
-                    errors.append(
-                        Error(
-                            files=[
-                                (file["filename"], file["filemode"]) for file in chunk
-                            ],
-                            description=scan.detail,
-                        )
-                    )
-
-                if not scan.success:
-                    handle_scan_chunk_error(scan, chunk)
-                    continue
-
-                for index, scanned in enumerate(scan.scan_results):
-                    remove_ignored_from_result(scanned, matches_ignore)
-                    remove_results_from_ignore_detectors(scanned, ignored_detectors)
-                    if scanned.has_policy_breaks:
-                        for policy_break in scanned.policy_breaks:
-                            cache.add_found_policy_break(
-                                policy_break, chunk[index]["filename"]
-                            )
-                        results.append(
-                            Result(
-                                content=chunk[index]["document"],
-                                scan=scanned,
-                                filemode=chunk[index]["filemode"],
-                                filename=chunk[index]["filename"],
-                            )
-                        )
-        cache.save()
-        return Results(results=results, errors=errors)
+            return self._collect_results(chunks_for_futures, on_file_chunk_scanned)
 
 
 class CommitInformation(NamedTuple):
@@ -447,3 +537,42 @@ class Commit(Files):
 
     def __repr__(self) -> str:
         return f"<Commit sha={self.sha} files={self.files}>"
+
+
+def handle_scan_chunk_error(detail: Detail, chunk: List[File]) -> None:
+    logger.error("status_code=%d detail=%s", detail.status_code, detail.detail)
+    if detail.status_code == 401:
+        raise click.UsageError(detail.detail)
+
+    details = None
+
+    display_error("\nError scanning. Results may be incomplete.")
+    try:
+        # try to load as list of dicts to get per file details
+        details = literal_eval(detail.detail)
+    except Exception:
+        pass
+
+    if isinstance(details, list) and details:
+        # if the details had per file details
+        display_error(
+            f"Add the following {pluralize('file', len(details))}"
+            " to your paths-ignore:"
+        )
+        for i, inner_detail in enumerate(details):
+            if inner_detail:
+                click.echo(
+                    f"- {format_text(chunk[i].filename, STYLE['filename'])}:"
+                    f" {str(inner_detail)}",
+                    err=True,
+                )
+        return
+    else:
+        # if the details had a request error
+        filenames = ", ".join([file.filename for file in chunk])
+        display_error(
+            "The following chunk is affected:\n"
+            f"{format_text(filenames, STYLE['filename'])}"
+        )
+
+        display_error(str(detail))

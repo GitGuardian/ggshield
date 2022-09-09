@@ -13,6 +13,7 @@ from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.cache import Cache
+from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext
@@ -38,8 +39,6 @@ FILEPATH_BANLIST = [
 FILEPATH_BANLIST_PATTERNS = {
     re.compile(banned_filepath) for banned_filepath in FILEPATH_BANLIST
 }
-
-EXTENSIONS_BANLIST = {".md", ".html", ".css", ".lock", ".storyboard", ".xib"}
 
 LAYER_TO_SCAN_PATTERN = re.compile(r"\b(copy|add)\b", re.IGNORECASE)
 
@@ -146,7 +145,7 @@ def _validate_filepath(
     ):
         return False
 
-    if any(filepath.endswith(extension) for extension in EXTENSIONS_BANLIST):
+    if is_path_binary(filepath):
         return False
     return True
 
@@ -166,6 +165,9 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
             continue
 
         if file_info.size > DOCUMENT_SIZE_THRESHOLD_BYTES * 0.95:
+            continue
+
+        if file_info.size == 0:
             continue
 
         if not _validate_filepath(
@@ -257,7 +259,7 @@ def docker_scan_archive(
         length=len(files.files), label="Scanning", file=sys.stderr
     ) as progressbar:
 
-        def update_progress(chunk: List[Dict[str, Any]]) -> None:
+        def update_progress(chunk: List[File]) -> None:
             progressbar.update(len(chunk))
 
         results = files.scan(

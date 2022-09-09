@@ -34,9 +34,9 @@ class TestDockerUtils:
             ["/usr/share/nginx/secret.py", True],
             ["/gems/secret.py", True],
             ["/npm-bis/secret.py", True],
-            ["/banned/extension/secret.md", False],
-            ["/banned/extension/secret.html", False],
-            ["/banned/extension/secret.css", False],
+            ["/banned/extension/secret.exe", False],
+            ["/banned/extension/secret.mng", False],
+            ["/banned/extension/secret.tar", False],
             ["/banned/extension/secret.other", True],
         ),
     )

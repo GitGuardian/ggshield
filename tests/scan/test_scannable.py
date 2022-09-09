@@ -1,11 +1,14 @@
 from collections import namedtuple
 
+import click
 import pytest
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
+from pygitguardian.models import Detail
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode, ScanContext, ScanMode
 from ggshield.scan import Commit, File, Files
+from ggshield.scan.scannable import handle_scan_chunk_error
 from tests.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -237,3 +240,44 @@ def test_apply_filter():
     filtered_files = files.apply_filter(lambda file: file.filename == "file1")
     assert len(filtered_files.files) == 1
     assert file1 in filtered_files.files
+
+
+def test_handle_scan_error_api_key():
+    detail = Detail("Invalid API key.")
+    detail.status_code = 401
+    with pytest.raises(click.UsageError):
+        handle_scan_chunk_error(detail, [])
+
+
+@pytest.mark.parametrize(
+    "detail, status_code, chunk",
+    [
+        pytest.param(
+            Detail("Too many documents to scan"),
+            400,
+            [File("", "/example") for _ in range(21)],
+            id="too many documents",
+        ),
+        pytest.param(
+            Detail(
+                "[\"filename:: [ErrorDetail(string='Ensure this field has no more than 256 characters.', code='max_length')]\", '', '', '']"  # noqa
+            ),
+            400,
+            [
+                File(
+                    "still valid",
+                    "/home/user/too/long/file/name",
+                ),
+                File("", "valid"),
+                File("", "valid"),
+                File("", "valid"),
+            ],
+            id="single file exception",
+        ),
+    ],
+)
+def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
+    detail.status_code = 400
+    handle_scan_chunk_error(detail, chunk)
+    captured = capsys.readouterr()
+    snapshot.assert_match(captured.err)
