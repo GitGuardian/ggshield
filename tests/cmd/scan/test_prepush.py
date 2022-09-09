@@ -40,7 +40,7 @@ class TestPrepush:
         get_list_mock.return_value = []
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
         assert_invoke_ok(result)
@@ -65,7 +65,7 @@ class TestPrepush:
         get_list_mock.return_value = ["a"] * 51
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
         assert_invoke_ok(result)
@@ -116,7 +116,14 @@ class TestPrepush:
         with cd(str(local_repo.path)):
             result = cli_fs_runner.invoke(
                 cli,
-                ["-v", "scan", "pre-push", "origin", "https://example.com/remote"],
+                [
+                    "-v",
+                    "secret",
+                    "scan",
+                    "pre-push",
+                    "origin",
+                    "https://example.com/remote",
+                ],
                 env=env,
             )
 
@@ -129,7 +136,7 @@ class TestPrepush:
             matches_ignore=ANY,
             scan_context=ScanContext(
                 scan_mode=ScanMode.PRE_PUSH,
-                command_path="cli scan pre-push",
+                command_path="cli secret scan pre-push",
             ),
             ignored_detectors=set(),
         )
@@ -163,7 +170,14 @@ class TestPrepush:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push", "origin", "https://example.com/remote"],
+            [
+                "-v",
+                "secret",
+                "scan",
+                "pre-push",
+                "origin",
+                "https://example.com/remote",
+            ],
             input="",
         )
         assert_invoke_ok(result)
@@ -189,7 +203,7 @@ class TestPrepush:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
         )
         assert_invoke_ok(result)
@@ -221,7 +235,7 @@ class TestPrepush:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": EMPTY_SHA, "PRE_COMMIT_TO_REF": "a" * 40},
         )
         assert_invoke_ok(result)
@@ -248,7 +262,14 @@ class TestPrepush:
         with cd(str(local_repo.path)):
             result = cli_fs_runner.invoke(
                 cli,
-                ["-v", "scan", "pre-push", "origin", "https://example.com/remote"],
+                [
+                    "-v",
+                    "secret",
+                    "scan",
+                    "pre-push",
+                    "origin",
+                    "https://example.com/remote",
+                ],
                 input=f"refs/heads/main {shas[-1]} refs/heads/main {remote_sha}",
             )
         assert_invoke_ok(result)
