@@ -15,7 +15,6 @@ from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_L
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
-from ggshield.core.constants import CPU_COUNT
 from ggshield.core.extra_headers import get_headers
 from ggshield.core.filter import (
     is_filepath_excluded,
@@ -283,12 +282,13 @@ class Files:
         scan_context: ScanContext,
         ignored_detectors: Optional[Set[str]] = None,
         on_file_chunk_scanned: Callable[[List[File]], None] = lambda chunk: None,
+        scan_threads: int = 4,
     ) -> Results:
         logger.debug("self=%s command_id=%s", self, scan_context.command_id)
         scanner = Scanner(
             client, cache, matches_ignore, scan_context, ignored_detectors
         )
-        return scanner.scan(self.files, on_file_chunk_scanned)
+        return scanner.scan(self.files, on_file_chunk_scanned, scan_threads)
 
 
 class Scanner:
@@ -401,10 +401,11 @@ class Scanner:
         self,
         files: Iterable[File],
         on_file_chunk_scanned: Callable[[List[File]], None],
+        scan_threads: int = 4,
     ) -> Results:
 
         with concurrent.futures.ThreadPoolExecutor(
-            max_workers=min(CPU_COUNT, 4), thread_name_prefix="content_scan"
+            max_workers=scan_threads, thread_name_prefix="content_scan"
         ) as executor:
             chunks_for_futures, skipped_chunk = self._start_scans(executor, files)
 
