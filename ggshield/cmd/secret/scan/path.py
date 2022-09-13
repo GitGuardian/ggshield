@@ -2,6 +2,7 @@ from typing import List
 
 import click
 
+from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import OutputHandler
@@ -45,6 +46,7 @@ def path_cmd(
             matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
+            scan_threads=MAX_WORKERS,
         )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 

@@ -10,13 +10,17 @@ from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.constants import CPU_COUNT
+from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import STYLE, display_error, format_text
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection
+
+
+# We add a maximal value to avoid silently consuming all threads on powerful machines
+SCAN_THREADS = 4
 
 
 @contextmanager
@@ -71,6 +75,7 @@ def scan_commit(
             matches_ignore=matches_ignore,
             scan_context=scan_context,
             ignored_detectors=ignored_detectors,
+            scan_threads=SCAN_THREADS,
         )
     except Exception as exc:
         results = Results.from_exception(exc)
@@ -102,9 +107,7 @@ def scan_commit_range(
     :param verbose: Display successful scan's message
     """
 
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=min(CPU_COUNT, 4)
-    ) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
 
         future_to_process = [
             executor.submit(
