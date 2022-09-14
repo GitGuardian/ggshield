@@ -97,16 +97,7 @@ jobs:
           release_id: ${{ steps.create_release.outputs.id }}
           overwrite: true
           verbose: true
-          draft: false
-
-      - name: Sleep for 3 seconds (otherwise release notary will not get the latest release)
-        run: sleep 3s
-        shell: bash
-
-      - name: Release Notary Action
-        uses: docker://aevea/release-notary:0.9.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          draft: true
 
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
