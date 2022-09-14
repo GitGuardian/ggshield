@@ -684,7 +684,7 @@ Create a `.pre-commit-config.yaml` file in your root repository:
 ```yaml
 repos:
   - repo: https://github.com/gitguardian/ggshield
-    rev: v1.13.2
+    rev: v1.13.3
     hooks:
       - id: ggshield
         language_version: python3
