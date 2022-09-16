@@ -274,12 +274,20 @@ class TestPrepush:
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
 
+    @pytest.mark.parametrize(
+        ["called_with_pre_push_args"],
+        [
+            (True,),
+            (False,),
+        ],
+    )
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
     def test_prepush_new_branch(
         self,
         scan_commit_range_mock: Mock,
         tmp_path,
         cli_fs_runner: CliRunner,
+        called_with_pre_push_args: bool,
     ):
         """
         GIVEN a cloned repository
@@ -295,10 +303,13 @@ class TestPrepush:
 
         scan_commit_range_mock.return_value = 0
 
+        cmd = ["-v", "secret", "scan", "pre-push"]
+        if called_with_pre_push_args:
+            cmd.extend(["origin", local_repo.remote_url])
         with cd(str(local_repo.path)):
             result = cli_fs_runner.invoke(
                 cli,
-                ["-v", "secret", "scan", "pre-push", "origin", local_repo.remote_url],
+                cmd,
                 input=f"refs/heads/{branch} {shas[-1]} refs/heads/{branch} {EMPTY_SHA}\n",
             )
 

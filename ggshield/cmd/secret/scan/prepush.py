@@ -11,6 +11,7 @@ from ggshield.core.git_shell import (
     git,
     is_valid_git_commit_ref,
 )
+from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import (
     EMPTY_SHA,
     EMPTY_TREE,
@@ -22,6 +23,15 @@ from ggshield.scan.repo import scan_commit_range
 
 
 logger = logging.getLogger(__name__)
+
+OUTDATED_HOOK_MESSAGE = """The installed pre-push hook did not pass its command-line arguments to ggshield. This can cause the hook to fail if the name of the remote you are pushing to is not "origin".
+
+This can happen if the hook has been created manually or by an old version of ggshield.
+
+To fix it, either edit the hook manually or make a backup of it and reinstall it with the following command:
+
+    ggshield install -m local -t pre-push -f
+"""  # noqa: E501
 
 
 @click.command()
@@ -35,7 +45,11 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:
 
     local_commit, remote_commit = collect_from_precommit_env()
     if local_commit is None or remote_commit is None:
-        remote_name = prepush_args[0]
+        if len(prepush_args) == 0:
+            display_warning(OUTDATED_HOOK_MESSAGE)
+            remote_name = "origin"
+        else:
+            remote_name = prepush_args[0]
         local_commit, remote_commit = collect_from_stdin(remote_name)
     logger.debug("refs=(%s, %s)", local_commit, remote_commit)
 
