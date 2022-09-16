@@ -270,7 +270,7 @@ def load_dot_env() -> None:
                 "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
             )
 
-    cwd_env = os.path.join("..", ".env")
+    cwd_env = ".env"
     if os.path.isfile(cwd_env):
         load_dotenv(cwd_env, override=True)
         return

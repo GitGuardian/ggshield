@@ -1,6 +1,6 @@
 import os
-from typing import List
-from unittest import mock
+from typing import Dict, List, Optional
+from unittest.mock import ANY, Mock, patch
 
 import click
 import pytest
@@ -17,8 +17,10 @@ from ggshield.core.utils import (
     dashboard_to_api_url,
     find_match_indices,
     get_lines_from_content,
+    load_dot_env,
 )
 from ggshield.scan import Commit
+from ggshield.scan.repo import cd
 from ggshield.scan.scannable import File, Files
 from tests.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
@@ -127,7 +129,7 @@ def test_retrieve_client_invalid_api_url():
         click.ClickException,
         match=f"Invalid scheme for API URL '{url}', expected HTTPS",
     ):
-        with mock.patch.dict(os.environ, {"GITGUARDIAN_API_URL": url}):
+        with patch.dict(os.environ, {"GITGUARDIAN_API_URL": url}):
             create_client_from_config(Config())
 
 
@@ -138,7 +140,7 @@ def test_retrieve_client_invalid_api_key():
     THEN it raises a ClickException
     """
     with pytest.raises(click.ClickException, match="Invalid value for API Key"):
-        with mock.patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "\u2023"}):
+        with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "\u2023"}):
             create_client_from_config(Config())
 
 
@@ -152,7 +154,7 @@ def test_retrieve_client_blank_state(isolated_fs):
         click.ClickException,
         match="GitGuardian API key is needed",
     ):
-        with mock.patch.dict(os.environ, clear=True):
+        with patch.dict(os.environ, clear=True):
             create_client_from_config(Config())
 
 
@@ -167,7 +169,7 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
         click.ClickException,
         match="Unknown instance: 'https://example.com'",
     ):
-        with mock.patch.dict(os.environ, clear=True):
+        with patch.dict(os.environ, clear=True):
             config = Config()
             config.set_cmdline_instance_name("https://example.com")
             create_client_from_config(config)
@@ -249,3 +251,86 @@ class TestAPIDashboardURL:
             click.exceptions.ClickException, match="got an unexpected path"
         ):
             api_to_dashboard_url(dashboard_url)
+
+
+@patch("ggshield.core.utils.load_dotenv")
+@pytest.mark.parametrize(
+    ["cwd", "env", "expected_dotenv_path"],
+    [
+        ("sub", {}, None),
+        (".", {}, ".env"),
+        (".", {"GITGUARDIAN_DONT_LOAD_ENV": "1"}, None),
+        (".", {"GITGUARDIAN_DOTENV_PATH": ".custom-env"}, ".custom-env"),
+    ],
+)
+def test_load_dot_env(
+    load_dotenv_mock: Mock,
+    monkeypatch,
+    tmp_path,
+    cwd: str,
+    env: Dict[str, str],
+    expected_dotenv_path: Optional[str],
+):
+    """
+    GIVEN a file hierarchy like this:
+    /sub/
+    /.env
+    /.custom-env
+    AND environment variables set according to `env`
+    AND the current working directory being `/sub/`
+    WHEN load_dot_env() is called
+    THEN the appropriate environment file is loaded
+    """
+    (tmp_path / "sub").mkdir()
+    (tmp_path / ".env").touch()
+    (tmp_path / ".custom-env").touch()
+
+    if env:
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+
+    with cd(str(tmp_path / cwd)):
+        load_dot_env()
+
+        if expected_dotenv_path:
+            expected_dotenv_path = tmp_path / expected_dotenv_path
+            load_dotenv_mock.assert_called_once_with(ANY, override=True)
+            path = load_dotenv_mock.call_args.args[0]
+            path = os.path.abspath(path)
+            assert path == str(expected_dotenv_path)
+        else:
+            load_dotenv_mock.assert_not_called()
+
+
+@patch("ggshield.core.utils.get_git_root")
+@patch("ggshield.core.utils.is_git_dir")
+@patch("ggshield.core.utils.load_dotenv")
+def test_load_dot_env_loads_git_root_env(
+    load_dotenv_mock: Mock, is_git_dir_mock, get_git_root_mock, tmp_path
+):
+    """
+    GIVEN a git repository checkout with this file hierarchy:
+    /sub1/sub2
+    /sub1/.env
+    /.env
+    AND the current working directory being `/sub1/sub2`
+    WHEN load_dot_env() is called
+    THEN the .env file at the root of the git repository is loaded
+    """
+    is_git_dir_mock.return_value = True
+    get_git_root_mock.return_value = str(tmp_path)
+
+    sub_dir = tmp_path / "sub1" / "sub2"
+    git_root_dotenv = tmp_path / ".env"
+
+    sub_dir.mkdir(parents=True)
+    (tmp_path / "sub1" / "sub2").touch()
+    git_root_dotenv.touch()
+
+    with cd(str(sub_dir)):
+        load_dot_env()
+
+        load_dotenv_mock.assert_called_once_with(ANY, override=True)
+        path = load_dotenv_mock.call_args.args[0]
+        path = os.path.abspath(path)
+        assert path == str(git_root_dotenv)
