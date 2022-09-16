@@ -131,16 +131,24 @@ def is_valid_git_commit_ref(ref: str) -> bool:
     return True
 
 
-def get_list_commit_SHA(commit_range: str) -> List[str]:
+def get_list_commit_SHA(
+    commit_range: str, max_count: Optional[int] = None
+) -> List[str]:
     """
     Retrieve the list of commit SHA from a range.
     :param commit_range: A range of commits (ORIGIN...HEAD)
+    :param max_count: If set, limits the number of SHA returned to this amount. This
+    returns the *end* of the list, so max_count=3 returns [HEAD~2, HEAD~1, HEAD].
     """
+
+    cmd = [GIT_PATH, "rev-list", "--reverse", *commit_range.split()]
+    if max_count is not None:
+        cmd.extend(["--max-count", str(max_count)])
+    # Makes rev-list print "bad revision" instead of telling the range is ambiguous
+    cmd.append("--")
+
     try:
-        commit_list = shell_split(
-            [GIT_PATH, "rev-list", "--reverse", *commit_range.split(), "--"],
-            check=True,
-        )
+        commit_list = shell_split(cmd, check=True)
     except subprocess.CalledProcessError as e:
         if b"bad revision" in e.stderr and commit_range.endswith("~1..."):
             # Handle the case where commit_ref has no parent

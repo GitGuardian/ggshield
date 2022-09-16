@@ -207,9 +207,7 @@ class TestPrepush:
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
         )
         assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with(
-            f"--max-count=51 {EMPTY_TREE} { 'a' * 40}"
-        )
+        get_list_mock.assert_called_once_with(f"{EMPTY_TREE} {'a' * 40}", max_count=51)
         scan_commit_range_mock.assert_called_once()
 
         assert "New tree event. Scanning last 50 commits" in result.output

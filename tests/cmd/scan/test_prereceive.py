@@ -45,7 +45,7 @@ class TestPreReceive:
             input="bbbb\naaaa\norigin/main\n",
         )
         assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
+        get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
 
@@ -71,7 +71,7 @@ class TestPreReceive:
             input="bbbb\naaaa\norigin/main\n",
         )
         assert_invoke_exited_with(result, 1)
-        get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
+        get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_called_once()
         assert (
             "if those secrets are false positives and you still want your push to pass, run:\n'git push -o breakglass'"
@@ -100,7 +100,7 @@ class TestPreReceive:
             input="bbbb\naaaa\norigin/main\n",
         )
         assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with("--max-count=51 bbbb" + "..." + "aaaa")
+        get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_not_called()
         assert (
             "Unable to get commit range.\n  before: bbbb\n  after: aaaa\nSkipping pre-receive hook\n\n"
@@ -189,7 +189,7 @@ class TestPreReceive:
             },
         )
         assert_invoke_exited_with(result, 1)
-        get_list_mock.assert_called_once_with(f"--max-count=51 {old_sha}...{new_sha}")
+        get_list_mock.assert_called_once_with(f"{old_sha}...{new_sha}", max_count=51)
         scan_commits_content_mock.assert_called_once()
         web_ui_lines = [
             x for x in result.output.splitlines() if x.startswith("GL-HOOK-ERR: ")
@@ -245,7 +245,7 @@ class TestPreReceive:
         assert "New tree event. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
         assert get_list_mock.call_count == 2
-        get_list_mock.assert_called_with(f"--max-count=21 {EMPTY_TREE} { 'a' * 40}")
+        get_list_mock.assert_called_with(f"{EMPTY_TREE} {'a' * 40}", max_count=21)
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -273,7 +273,7 @@ class TestPreReceive:
 
         assert_invoke_ok(result)
         assert get_list_mock.call_count == 1
-        get_list_mock.assert_called_with(f"--max-count=51 HEAD...{ 'a' * 40}")
+        get_list_mock.assert_called_with(f"HEAD...{'a' * 40}", max_count=51)
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -303,7 +303,7 @@ class TestPreReceive:
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
         assert get_list_mock.call_count == 2
-        get_list_mock.assert_called_with(f"--max-count=51 {EMPTY_TREE} { 'a' * 40}")
+        get_list_mock.assert_called_with(f"{EMPTY_TREE} { 'a' * 40}", max_count=51)
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -351,8 +351,9 @@ class TestPreReceive:
         )
         assert_invoke_ok(result)
         get_list_mock.assert_called_once_with(
-            "--max-count=51 649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
-        )  # noqa: E501
+            "649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09",
+            max_count=51,
+        )
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
 

@@ -43,15 +43,15 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:  # pragma: 
         )
         before = EMPTY_TREE
         after = local_commit
-        cmd_range = (
-            f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {local_commit}"
-        )
+        cmd_range = f"{EMPTY_TREE} {local_commit}"
     else:
         before = remote_commit
         after = local_commit
-        cmd_range = f"--max-count={config.max_commits_for_hook+1} {remote_commit}...{local_commit}"  # noqa
+        cmd_range = f"{remote_commit}...{local_commit}"
 
-    commit_list = get_list_commit_SHA(cmd_range)
+    commit_list = get_list_commit_SHA(
+        cmd_range, max_count=config.max_commits_for_hook + 1
+    )
 
     if not commit_list:
         click.echo(
