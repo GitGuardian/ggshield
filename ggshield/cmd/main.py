@@ -111,12 +111,13 @@ def cli(
     allow_self_signed: bool,
     debug: Optional[bool],
 ) -> None:
-    load_dot_env()
     ctx.ensure_object(dict)
 
     # If --debug is set, setup logs *now*, otherwise log commands for the
     # creation of the Config instance will be ignored
     setup_debug_logs(debug is True)
+
+    load_dot_env()
 
     config = Config(config_path)
 

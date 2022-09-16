@@ -1,6 +1,6 @@
 import os
 from typing import Dict, List, Optional
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import Mock, patch
 
 import click
 import pytest
@@ -261,6 +261,7 @@ class TestAPIDashboardURL:
         (".", {}, ".env"),
         (".", {"GITGUARDIAN_DONT_LOAD_ENV": "1"}, None),
         (".", {"GITGUARDIAN_DOTENV_PATH": ".custom-env"}, ".custom-env"),
+        (".", {"GITGUARDIAN_DOTENV_PATH": ".does-not-exist"}, None),
     ],
 )
 def test_load_dot_env(
@@ -294,10 +295,9 @@ def test_load_dot_env(
 
         if expected_dotenv_path:
             expected_dotenv_path = tmp_path / expected_dotenv_path
-            load_dotenv_mock.assert_called_once_with(ANY, override=True)
-            path = load_dotenv_mock.call_args.args[0]
-            path = os.path.abspath(path)
-            assert path == str(expected_dotenv_path)
+            load_dotenv_mock.assert_called_once_with(
+                str(expected_dotenv_path), override=True
+            )
         else:
             load_dotenv_mock.assert_not_called()
 
@@ -320,17 +320,13 @@ def test_load_dot_env_loads_git_root_env(
     is_git_dir_mock.return_value = True
     get_git_root_mock.return_value = str(tmp_path)
 
-    sub_dir = tmp_path / "sub1" / "sub2"
+    sub1_sub2_dir = tmp_path / "sub1" / "sub2"
     git_root_dotenv = tmp_path / ".env"
 
-    sub_dir.mkdir(parents=True)
-    (tmp_path / "sub1" / "sub2").touch()
+    sub1_sub2_dir.mkdir(parents=True)
+    (tmp_path / "sub1" / ".env").touch()
     git_root_dotenv.touch()
 
-    with cd(str(sub_dir)):
+    with cd(str(sub1_sub2_dir)):
         load_dot_env()
-
-        load_dotenv_mock.assert_called_once_with(ANY, override=True)
-        path = load_dotenv_mock.call_args.args[0]
-        path = os.path.abspath(path)
-        assert path == str(git_root_dotenv)
+        load_dotenv_mock.assert_called_once_with(str(git_root_dotenv), override=True)
