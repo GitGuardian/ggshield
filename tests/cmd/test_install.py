@@ -10,13 +10,13 @@ from ggshield.cmd.main import cli
 from tests.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
-SAMPLE_PRE_COMMIT = """#!/bin/bash
+SAMPLE_PRE_COMMIT = """#!/usr/bin/env bash
 
 
 ggshield secret scan pre-commit "$@"
 """
 
-SAMPLE_PRE_PUSH = """#!/bin/bash
+SAMPLE_PRE_PUSH = """#!/usr/bin/env bash
 
 
 ggshield secret scan pre-push "$@"
