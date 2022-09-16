@@ -1,10 +1,11 @@
+import logging
 import os
 import re
 import traceback
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Union
+from typing import Iterable, List, NamedTuple, Optional, Union
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -15,6 +16,9 @@ from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
 from .git_shell import get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error, display_warning
+
+
+logger = logging.getLogger()
 
 
 REGEX_PATCH_HEADER = re.compile(
@@ -254,31 +258,42 @@ def handle_exception(e: Exception, verbose: bool) -> int:
         raise click.ClickException(str(e))
 
 
+def _find_dot_env() -> Optional[str]:
+    """Look for a .env to load, returns its path if found"""
+    env = os.getenv("GITGUARDIAN_DOTENV_PATH")
+    if env:
+        if os.path.isfile(env):
+            return env
+        else:
+            display_error("GITGUARDIAN_DOTENV_PATH does not point to a valid .env file")
+            return None
+
+    # Look for a .env in the current directory
+    env = ".env"
+    if os.path.isfile(env):
+        return env
+
+    # If we are in a git checkout, look for a .env at the root of the checkout
+    if is_git_dir(os.getcwd()):
+        env = os.path.join(get_git_root(), ".env")
+        if os.path.isfile(env):
+            return env
+
+    return None
+
+
 def load_dot_env() -> None:
-    """Loads .env file into sys.environ."""
+    """Loads .env file into os.environ."""
     dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
     if dont_load_env:
+        logger.debug("Not loading .env, GITGUARDIAN_DONT_LOAD_ENV is set")
         return
 
-    dotenv_path = os.getenv("GITGUARDIAN_DOTENV_PATH", None)
-    if dotenv_path:
-        if os.path.isfile(dotenv_path):
-            load_dotenv(dotenv_path, override=True)
-            return
-        else:
-            display_error(
-                "GITGUARDIAN_DOTENV_LOCATION does not point to a valid .env file"
-            )
-
-    cwd_env = os.path.join("..", ".env")
-    if os.path.isfile(cwd_env):
-        load_dotenv(cwd_env, override=True)
-        return
-
-    if is_git_dir(os.getcwd()):
-        git_root_env = os.path.join(get_git_root(), ".env")
-        if os.path.isfile(git_root_env):
-            load_dotenv(git_root_env, override=True)
+    dot_env_path = _find_dot_env()
+    if dot_env_path:
+        dot_env_path = os.path.abspath(dot_env_path)
+        logger.debug("Loading environment file %s", dot_env_path)
+        load_dotenv(dot_env_path, override=True)
 
 
 def clean_url(url: str, warn: bool = False) -> ParseResult:
