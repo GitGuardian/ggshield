@@ -1,8 +1,8 @@
-import concurrent.futures
 import itertools
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from typing import Iterable, Iterator, List, Optional, Set
 
@@ -158,30 +158,25 @@ def scan_commit_range(
         )
     )
 
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=MAX_WORKERS
-    ) as executor:
-        future_to_process = [
-            executor.submit(
-                scan_commits_content,
-                commits,
-                client,
-                cache,
-                matches_ignore,
-                scan_context,
-                ignored_detectors,
-            )
-            for commits in commits_batch
-        ]
-
-        scans: List[ScanCollection] = []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         with click.progressbar(
-            iterable=concurrent.futures.as_completed(future_to_process),
-            length=len(future_to_process),
+            iterable=(
+                executor.submit(
+                    scan_commits_content,
+                    commits,
+                    client,
+                    cache,
+                    matches_ignore,
+                    scan_context,
+                    ignored_detectors,
+                )
+                for commits in commits_batch
+            ),
             label=format_text("Scanning Commits", STYLE["progress"]),
             file=sys.stderr,
-        ) as completed_futures:
-            for future in completed_futures:
+        ) as futures:
+            scans: List[ScanCollection] = []
+            for future in as_completed(futures):
                 scan_collection = future.result()
                 for scan in scan_collection.scans:
                     if scan.results and scan.results.errors:
