@@ -281,14 +281,14 @@ class Files:
         matches_ignore: Iterable[IgnoredMatch],
         scan_context: ScanContext,
         ignored_detectors: Optional[Set[str]] = None,
-        on_file_chunk_scanned: Callable[[List[File]], None] = lambda chunk: None,
+        progress_callback: Callable[..., None] = lambda advance: None,
         scan_threads: int = 4,
     ) -> Results:
         logger.debug("self=%s command_id=%s", self, scan_context.command_id)
         scanner = Scanner(
             client, cache, matches_ignore, scan_context, ignored_detectors
         )
-        return scanner.scan(self.files, on_file_chunk_scanned, scan_threads)
+        return scanner.scan(self.files, progress_callback, scan_threads)
 
 
 class Scanner:
@@ -321,12 +321,17 @@ class Scanner:
         )
 
     def _start_scans(
-        self, executor: concurrent.futures.ThreadPoolExecutor, files: Iterable[File]
-    ) -> Tuple[Dict[Future, List[File]], List[File]]:
+        self,
+        executor: concurrent.futures.ThreadPoolExecutor,
+        files: Iterable[File],
+        progress_callback: Callable[..., None],
+    ) -> Dict[Future, List[File]]:
         """
         Start all scans, return a tuple containing:
         - a mapping of future to the list of files it is scanning
         - a list of files which we did not send to scan because we could not decode them
+
+        on_file
         """
         chunks_for_futures = {}
         skipped_chunk = []
@@ -337,19 +342,21 @@ class Scanner:
                 chunk.append(file)
                 if len(chunk) == MULTI_DOCUMENT_LIMIT:
                     future = self._scan_chunk(executor, chunk)
+                    progress_callback(advance=len(chunk))
                     chunks_for_futures[future] = chunk
                     chunk = []
             else:
                 skipped_chunk.append(file)
         if chunk:
             future = self._scan_chunk(executor, chunk)
+            progress_callback(advance=len(chunk))
             chunks_for_futures[future] = chunk
-        return chunks_for_futures, skipped_chunk
+        progress_callback(advance=len(skipped_chunk))
+        return chunks_for_futures
 
     def _collect_results(
         self,
         chunks_for_futures: Dict[Future, List[File]],
-        on_file_chunk_scanned: Callable[[List[File]], None],
     ) -> Results:
         """
         Receive scans as they complete, report progress and collect them and return
@@ -361,7 +368,6 @@ class Scanner:
         errors = []
         for future in concurrent.futures.as_completed(chunks_for_futures):
             chunk = chunks_for_futures[future]
-            on_file_chunk_scanned(chunk)
 
             exception = future.exception()
             if exception is None:
@@ -400,21 +406,20 @@ class Scanner:
     def scan(
         self,
         files: Iterable[File],
-        on_file_chunk_scanned: Callable[[List[File]], None],
+        progress_callback: Callable[..., None],
         scan_threads: int = 4,
     ) -> Results:
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=scan_threads, thread_name_prefix="content_scan"
         ) as executor:
-            chunks_for_futures, skipped_chunk = self._start_scans(executor, files)
+            chunks_for_futures = self._start_scans(
+                executor,
+                files,
+                progress_callback,
+            )
 
-            if skipped_chunk:
-                # Report skipped_chunk as progress. If we only report files really sent
-                # for scanning then the progress bar won't reach 100%.
-                on_file_chunk_scanned(skipped_chunk)
-
-            return self._collect_results(chunks_for_futures, on_file_chunk_scanned)
+            return self._collect_results(chunks_for_futures)
 
 
 class CommitInformation(NamedTuple):

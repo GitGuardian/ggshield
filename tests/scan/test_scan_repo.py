@@ -61,7 +61,7 @@ def test_get_commits_content_by_batch(
             ]
         )
         commits.append(commit)
-    batches = list(get_commits_by_batch(commit_list=commits, batch_max_size=batch_size))
+    batches = list(get_commits_by_batch(commits=commits, batch_max_size=batch_size))
     assert len(batches) == len(expected_batches)
     for (batch, expected_batch) in zip(batches, expected_batches):
         assert len(batch) == len(expected_batch)

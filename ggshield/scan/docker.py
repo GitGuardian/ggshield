@@ -2,11 +2,11 @@ import json
 import os.path
 import re
 import subprocess
-import sys
 import tarfile
+from functools import partial
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
 import click
 from pygitguardian import GGClient
@@ -14,7 +14,7 @@ from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.cache import Cache
 from ggshield.core.file_utils import is_path_binary
-from ggshield.core.text_utils import display_info
+from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext
 from ggshield.scan import ScanCollection
@@ -255,12 +255,11 @@ def docker_scan_archive(
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
-    with click.progressbar(
-        length=len(files.files), label="Scanning", file=sys.stderr
-    ) as progressbar:
 
-        def update_progress(chunk: List[File]) -> None:
-            progressbar.update(len(chunk))
+    with create_progress_bar(doc_type="files") as progress:
+        task_scan = progress.add_task(
+            "[green]Scanning Docker Image...", total=len(files.files)
+        )
 
         results = files.scan(
             client=client,
@@ -268,7 +267,7 @@ def docker_scan_archive(
             matches_ignore=matches_ignore,
             scan_context=scan_context,
             ignored_detectors=ignored_detectors,
-            on_file_chunk_scanned=update_progress,
+            progress_callback=partial(progress.update, task_scan),
         )
 
     return ScanCollection(id=str(archive), type="scan_docker_archive", results=results)

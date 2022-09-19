@@ -1,16 +1,16 @@
 import shutil
-import sys
 import tempfile
+from functools import partial
 from pathlib import Path
-from typing import List
 
 import click
 
 from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
+from ggshield.core.text_utils import create_progress_bar
 from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.output import OutputHandler
-from ggshield.scan import File, Files, ScanCollection
+from ggshield.scan import Files, ScanCollection
 
 
 @click.command()
@@ -38,12 +38,10 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
             ignore_git=True,
         )
 
-        with click.progressbar(
-            length=len(files.files), label="Scanning", file=sys.stderr
-        ) as progressbar:
-
-            def update_progress(chunk: List[File]) -> None:
-                progressbar.update(len(chunk))
+        with create_progress_bar(doc_type="files") as progress:
+            task_scan = progress.add_task(
+                "[green]Scanning Archive...", total=len(files.files)
+            )
 
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
@@ -56,10 +54,10 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 scan_context=scan_context,
                 matches_ignore=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
-                on_file_chunk_scanned=update_progress,
+                progress_callback=partial(progress.update, task_scan),
             )
 
-            scan = ScanCollection(id=path, type="archive_scan", results=results)
+        scan = ScanCollection(id=path, type="archive_scan", results=results)
 
-            output_handler: OutputHandler = ctx.obj["output_handler"]
-            return output_handler.process_scan(scan)
+        output_handler: OutputHandler = ctx.obj["output_handler"]
+        return output_handler.process_scan(scan)

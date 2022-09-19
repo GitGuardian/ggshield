@@ -1,10 +1,10 @@
 import itertools
 import os
 import re
-import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from typing import Iterable, Iterator, List, Optional, Set
+from functools import partial
+from typing import Callable, Iterable, Iterator, List, Optional, Set
 
 import click
 from pygitguardian import GGClient
@@ -14,7 +14,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
-from ggshield.core.text_utils import STYLE, display_error, format_text
+from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext, handle_exception
 from ggshield.output import OutputHandler
@@ -68,10 +68,12 @@ def scan_commits_content(
     cache: Cache,
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
+    progress_callback: Callable[..., None],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:  # pragma: no cover
     try:
         commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
+        progress_callback(advance=len(commits))
         results = Files(commit_files).scan(
             client=client,
             cache=cache,
@@ -110,7 +112,7 @@ def scan_commits_content(
 
 
 def get_commits_by_batch(
-    commit_list: Iterable[Commit],
+    commits: Iterable[Commit],
     batch_max_size: int = MULTI_DOCUMENT_LIMIT,
 ) -> Iterator[List[Commit]]:
     """
@@ -119,7 +121,7 @@ def get_commits_by_batch(
     """
     current_count = 0
     batch = []
-    for commit in commit_list:
+    for commit in commits:
         num_files = len(commit.files)
         if current_count + num_files < batch_max_size:
             batch.append(commit)
@@ -152,40 +154,46 @@ def scan_commit_range(
     :param verbose: Display successful scan's message
     """
 
-    commits_batch = get_commits_by_batch(
-        commit_list=(
-            Commit(sha=sha, exclusion_regexes=exclusion_regexes) for sha in commit_list
-        )
-    )
+    with create_progress_bar(doc_type="commits") as progress:
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        with click.progressbar(
-            iterable=(
-                executor.submit(
-                    scan_commits_content,
-                    commits,
-                    client,
-                    cache,
-                    matches_ignore,
-                    scan_context,
-                    ignored_detectors,
-                )
-                for commits in commits_batch
+        task_scan = progress.add_task(
+            "[green]Scanning Commits...", total=len(commit_list)
+        )
+
+        commits_batch = get_commits_by_batch(
+            commits=(
+                Commit(sha=sha, exclusion_regexes=exclusion_regexes)
+                for sha in commit_list
             ),
-            label=format_text("Scanning Commits", STYLE["progress"]),
-            file=sys.stderr,
-        ) as futures:
-            scans: List[ScanCollection] = []
+        )
+        scans: List[ScanCollection] = []
+
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = []
+            for commits in commits_batch:
+                futures.append(
+                    executor.submit(
+                        scan_commits_content,
+                        commits,
+                        client,
+                        cache,
+                        matches_ignore,
+                        scan_context,
+                        partial(progress.update, task_scan),
+                        ignored_detectors,
+                    )
+                )
+
             for future in as_completed(futures):
                 scan_collection = future.result()
-                for scan in scan_collection.scans:
+                for scan in scan_collection.scans_with_results:
                     if scan.results and scan.results.errors:
                         for error in scan.results.errors:
                             # Prefix with `\n` since we are in the middle of a progress bar
                             display_error(f"\n{error.description}")
                     scans.append(scan)
 
-        return_code = output_handler.process_scan(
-            ScanCollection(id=scan_context.command_id, type="commit-range", scans=scans)
-        )
+    return_code = output_handler.process_scan(
+        ScanCollection(id=scan_context.command_id, type="commit-range", scans=scans)
+    )
     return return_code
