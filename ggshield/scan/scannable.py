@@ -544,6 +544,10 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[File]) -> None:
     logger.error("status_code=%d detail=%s", detail.status_code, detail.detail)
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
+    if detail.status_code is None:
+        raise click.ClickException(
+            f"Error scanning, network error occurred: {detail.detail}"
+        )
 
     details = None
 
