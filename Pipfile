@@ -15,6 +15,7 @@ pyyaml = ">=6.0,<6.1"
 python-dotenv = ">=0.19.1,<0.20.0"
 typeguard = ">=2.13.3,<2.14.0"
 charset-normalizer = ">=2.1.1,<2.2.0"
+rich = ">=12.5.1,<12.6.0"
 
 [dev-packages]
 black = "==22.3.0"

@@ -141,10 +141,10 @@ class TestPreReceive:
         )
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.scan.repo.scan_commit")
+    @patch("ggshield.scan.repo.scan_commits_content")
     def test_stdin_supports_gitlab_web_ui(
         self,
-        scan_commit_mock: Mock,
+        scan_commits_content_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
@@ -158,20 +158,26 @@ class TestPreReceive:
         old_sha = "56781234"
         new_sha = "1234abcd"
         get_list_mock.return_value = [new_sha]
-        scan_commit_mock.return_value = ScanCollection(
-            new_sha,
-            type="commit",
-            results=Results(
-                results=[
-                    Result(
-                        _SIMPLE_SECRET_PATCH,
-                        Filemode.MODIFY,
-                        "server.conf",
-                        _SIMPLE_SECRET_PATCH_SCAN_RESULT,
-                    )
-                ],
-                errors=[],
-            ),
+        scan_commits_content_mock.return_value = ScanCollection(
+            id="some_id",
+            type="commit-ranges",
+            scans=[
+                ScanCollection(
+                    new_sha,
+                    type="commit",
+                    results=Results(
+                        results=[
+                            Result(
+                                _SIMPLE_SECRET_PATCH,
+                                Filemode.MODIFY,
+                                "server.conf",
+                                _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                            )
+                        ],
+                        errors=[],
+                    ),
+                )
+            ],
         )
 
         result = cli_fs_runner.invoke(
@@ -184,7 +190,7 @@ class TestPreReceive:
         )
         assert_invoke_exited_with(result, 1)
         get_list_mock.assert_called_once_with(f"--max-count=51 {old_sha}...{new_sha}")
-        scan_commit_mock.assert_called_once()
+        scan_commits_content_mock.assert_called_once()
         web_ui_lines = [
             x for x in result.output.splitlines() if x.startswith("GL-HOOK-ERR: ")
         ]

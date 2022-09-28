@@ -3,16 +3,19 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from functools import partial
 from pathlib import Path
 from typing import Dict, List, Set
 
 import click
 
 from ggshield.core.config import Config
+from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
+from ggshield.core.text_utils import create_progress_bar
 from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.output import OutputHandler
-from ggshield.scan import File, Files, ScanCollection
+from ggshield.scan import Files, ScanCollection
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
@@ -97,12 +100,10 @@ def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
             verbose=config.verbose,
         )
 
-        with click.progressbar(
-            length=len(files.files), label="Scanning", file=sys.stderr
-        ) as progressbar:
-
-            def update_progress(chunk: List[File]) -> None:
-                progressbar.update(len(chunk))
+        with create_progress_bar(doc_type="files") as progress:
+            task_scan = progress.add_task(
+                "[green]Scanning PyPI Package...", total=len(files.files)
+            )
 
             scan_context = ScanContext(
                 scan_mode=ScanMode.PYPI,
@@ -115,7 +116,8 @@ def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
                 matches_ignore=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
-                on_file_chunk_scanned=update_progress,
+                progress_callback=partial(progress.update, task_scan),
+                scan_threads=MAX_WORKERS,
             )
         scan = ScanCollection(id=package_name, type="path_scan", results=results)
 
