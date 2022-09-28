@@ -6,26 +6,29 @@ labels: 'bug, status:: triage'
 assignees: ''
 ---
 
-**GitGuardian Shield Version**
+## Environment
 
-- [ ] I can reproduce this bug in the latest version
+- ggshield version:
+- Operating system (Linux, macOS, Windows):
+- Operating system version:
+- Python version:
 
-**Command executed**
-
-`ggshield secret scan ...`
-
-**Describe the bug**
+## Describe the bug
 
 A clear and concise description of what the bug is.
 
-**Expected behavior**
+Steps to reproduce:
 
-A clear and concise description of what you expected to happen.
+1. Setup steps required to reproduce the issue
+2. Run command `ggshield scan something`
+3. …
 
-**Screenshots**
+Actual result:
 
-If applicable, add screenshots to help explain your problem.
+<!--what currently happens-->
 
-**Traceback (if available)**
+Expected result:
 
-Add any other context about the problem here.
+<!--what should happen instead -->
+
+If applicable, add logs or screenshots to help explain your problem.
