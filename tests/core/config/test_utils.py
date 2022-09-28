@@ -5,6 +5,7 @@ import pytest
 
 from ggshield.core.config.utils import (
     remove_common_dict_items,
+    remove_url_trailing_slash,
     replace_in_keys,
     update_from_other_instance,
 )
@@ -106,3 +107,8 @@ def test_remove_common_dict_items(
 ):
     result = remove_common_dict_items(src, reference)
     assert result == expected
+
+
+def test_remove_url_trailing_slash():
+    result = remove_url_trailing_slash("https://dashboard.gitguardian.com/")
+    assert result == "https://dashboard.gitguardian.com"
