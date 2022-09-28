@@ -126,3 +126,10 @@ def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:
         result_dct[key] = value
 
     return result_dct
+
+
+def remove_url_trailing_slash(url: str) -> str:
+    if url[-1] == "/":
+        return url[:-1]
+    else:
+        return url
