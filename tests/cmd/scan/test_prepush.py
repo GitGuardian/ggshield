@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from pathlib import Path
 from unittest.mock import ANY, Mock, patch
 
 import pytest
@@ -13,7 +13,20 @@ from ggshield.core.utils import (
     ScanContext,
     ScanMode,
 )
+from ggshield.scan.repo import cd
 from tests.conftest import assert_invoke_ok
+from tests.repository import Repository
+
+
+def create_local_repo_with_remote(work_dir: Path) -> Repository:
+    remote_repo_path = work_dir / "remote"
+    remote_repo = Repository.create(remote_repo_path)
+    remote_repo.create_commit("initial commit")
+
+    local_repo_path = work_dir / "local"
+    local_repo = Repository.clone(str(remote_repo_path), local_repo_path)
+
+    return local_repo
 
 
 class TestPrepush:
@@ -27,7 +40,7 @@ class TestPrepush:
         get_list_mock.return_value = []
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
         assert_invoke_ok(result)
@@ -52,7 +65,7 @@ class TestPrepush:
         get_list_mock.return_value = ["a"] * 51
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
         assert_invoke_ok(result)
@@ -61,37 +74,29 @@ class TestPrepush:
         assert len(kwargs["commit_list"]) == 50
         assert "Too many commits. Scanning last 50" in result.output
 
-    @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
-    @patch("ggshield.cmd.secret.scan.prepush.check_git_dir")
     @pytest.mark.parametrize(
-        ["env", "input"],
+        ["local_ref_env_var", "remote_ref_env_var"],
         [
             pytest.param(
-                {"PRE_COMMIT_SOURCE": "a" * 40, "PRE_COMMIT_ORIGIN": "b" * 40},
-                None,
+                "PRE_COMMIT_SOURCE",
+                "PRE_COMMIT_ORIGIN",
                 id="old env names",
             ),
             pytest.param(
-                {"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
-                None,
+                "PRE_COMMIT_FROM_REF",
+                "PRE_COMMIT_TO_REF",
                 id="new env names",
-            ),
-            pytest.param(
-                {},
-                f"main\n{'a'*40}\norigin/main\n{'b'*40}\n",
-                id="stdin input",
             ),
         ],
     )
     def test_prepush_pre_commit_framework(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
-        env: Dict,
-        input: Optional[str],
+        local_ref_env_var: str,
+        remote_ref_env_var: str,
     ):
         """
         GIVEN a prepush range with 20 commits provided by the pre-commit framework
@@ -100,27 +105,38 @@ class TestPrepush:
         AND the `exclusion_regexes` argument of the scan_commit_range() call should
         match IGNORED_DEFAULT_WILDCARDS
         """
-        scan_commit_range_mock.return_value = 0
-        commit_list = ["a"] * 20
-        get_list_mock.return_value = commit_list
+        local_repo = create_local_repo_with_remote(tmp_path)
+        remote_sha = local_repo.get_top_sha()
+        shas = [local_repo.create_commit() for _ in range(20)]
 
-        result = cli_fs_runner.invoke(
-            cli, ["-v", "scan", "pre-push"], env=env, input=input
-        )
-        get_list_mock.assert_called_once_with(
-            "--max-count=51 " + "b" * 40 + "..." + "a" * 40
-        )
+        scan_commit_range_mock.return_value = 0
+
+        env = {local_ref_env_var: shas[-1], remote_ref_env_var: remote_sha}
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "-v",
+                    "secret",
+                    "scan",
+                    "pre-push",
+                    "origin",
+                    "https://example.com/remote",
+                ],
+                env=env,
+            )
 
         scan_commit_range_mock.assert_called_once_with(
             client=ANY,
             cache=ANY,
-            commit_list=commit_list,
+            commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
             matches_ignore=ANY,
             scan_context=ScanContext(
                 scan_mode=ScanMode.PRE_PUSH,
-                command_path="cli scan pre-push",
+                command_path="cli secret scan pre-push",
             ),
             ignored_detectors=set(),
         )
@@ -152,14 +168,25 @@ class TestPrepush:
         THEN it should print nothing to scan and return 0
         """
 
-        result = cli_fs_runner.invoke(cli, ["-v", "scan", "pre-push"], input="")
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "-v",
+                "secret",
+                "scan",
+                "pre-push",
+                "origin",
+                "https://example.com/remote",
+            ],
+            input="",
+        )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
     @patch("ggshield.cmd.secret.scan.prepush.check_git_dir")
-    def test_prepush_new_branch(
+    def test_prepush_new_branch_pre_commit_framework(
         self,
         check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
@@ -176,13 +203,11 @@ class TestPrepush:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": EMPTY_SHA},
         )
         assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with(
-            f"--max-count=51 {EMPTY_TREE} { 'a' * 40}"
-        )
+        get_list_mock.assert_called_once_with(f"{EMPTY_TREE} {'a' * 40}", max_count=51)
         scan_commit_range_mock.assert_called_once()
 
         assert "New tree event. Scanning last 50 commits" in result.output
@@ -208,20 +233,17 @@ class TestPrepush:
 
         result = cli_fs_runner.invoke(
             cli,
-            ["-v", "scan", "pre-push"],
+            ["-v", "secret", "scan", "pre-push"],
             env={"PRE_COMMIT_FROM_REF": EMPTY_SHA, "PRE_COMMIT_TO_REF": "a" * 40},
         )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
 
-    @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
-    @patch("ggshield.cmd.secret.scan.prepush.check_git_dir")
     def test_prepush_stdin_input_no_newline(
         self,
-        check_dir_mock: Mock,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
@@ -229,17 +251,116 @@ class TestPrepush:
         WHEN the command is run
         THEN it should pass onto scan and return 0
         """
-        scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = ["a" for _ in range(20)]
+        local_repo = create_local_repo_with_remote(tmp_path)
+        remote_sha = local_repo.get_top_sha()
+        shas = [local_repo.create_commit() for _ in range(20)]
 
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "scan", "pre-push"],
-            input="refs/heads/main bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main 649061dcda8bff94e02adbaac70ca64cfb84bc78",  # noqa: E501
-        )
+        scan_commit_range_mock.return_value = 0
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "-v",
+                    "secret",
+                    "scan",
+                    "pre-push",
+                    "origin",
+                    "https://example.com/remote",
+                ],
+                input=f"refs/heads/main {shas[-1]} refs/heads/main {remote_sha}",
+            )
         assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with(
-            "--max-count=51 649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09"  # noqa: E501
-        )  # noqa: E501
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
+
+    @pytest.mark.parametrize(
+        ["called_with_pre_push_args"],
+        [
+            (True,),
+            (False,),
+        ],
+    )
+    @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
+    def test_prepush_new_branch(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+        called_with_pre_push_args: bool,
+    ):
+        """
+        GIVEN a cloned repository
+        AND a local branch with new commits in it
+        WHEN the command is run
+        THEN it should only scan the new commits
+        """
+        local_repo = create_local_repo_with_remote(tmp_path)
+
+        branch = "topic"
+        local_repo.create_branch(branch)
+        shas = [local_repo.create_commit() for _ in range(3)]
+
+        scan_commit_range_mock.return_value = 0
+
+        cmd = ["-v", "secret", "scan", "pre-push"]
+        if called_with_pre_push_args:
+            cmd.extend(["origin", local_repo.remote_url])
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                cmd,
+                input=f"refs/heads/{branch} {shas[-1]} refs/heads/{branch} {EMPTY_SHA}\n",
+            )
+
+        assert_invoke_ok(result)
+        scan_commit_range_mock.assert_called_once_with(
+            client=ANY,
+            cache=ANY,
+            commit_list=shas,
+            output_handler=ANY,
+            exclusion_regexes=ANY,
+            matches_ignore=ANY,
+            scan_context=ANY,
+            ignored_detectors=set(),
+        )
+
+    @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
+    def test_prepush_new_orphan_branch(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a cloned repository
+        AND an orphan branch with commits in it
+        WHEN the command is run
+        THEN it should only scan the orphan branch commits
+        """
+        local_repo = create_local_repo_with_remote(tmp_path)
+
+        branch = "topic"
+        local_repo.create_branch(branch, orphan=True)
+        shas = [local_repo.create_commit() for _ in range(3)]
+
+        scan_commit_range_mock.return_value = 0
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-push", "origin", local_repo.remote_url],
+                input=f"refs/heads/{branch} {shas[-1]} refs/heads/{branch} {EMPTY_SHA}\n",
+            )
+
+        assert_invoke_ok(result)
+        scan_commit_range_mock.assert_called_once_with(
+            client=ANY,
+            cache=ANY,
+            commit_list=shas,
+            output_handler=ANY,
+            exclusion_regexes=ANY,
+            matches_ignore=ANY,
+            scan_context=ANY,
+            ignored_detectors=set(),
+        )

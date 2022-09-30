@@ -101,6 +101,11 @@ def shell_split(command: List[str], **kwargs: Any) -> List[str]:
     return shell(command, **kwargs).split("\n")
 
 
+def git(command: List[str], timeout: int = COMMAND_TIMEOUT, check: bool = True) -> str:
+    """Calls git with the given arguments, returns stdout as a string"""
+    return shell([GIT_PATH] + command, timeout=timeout, check=check)
+
+
 def git_ls(wd: Optional[str] = None) -> List[str]:
     cmd = [GIT_PATH]
     if wd is not None:
@@ -126,22 +131,34 @@ def is_valid_git_commit_ref(ref: str) -> bool:
     return True
 
 
-def get_list_commit_SHA(commit_range: str) -> List[str]:
+def get_list_commit_SHA(
+    commit_range: str, max_count: Optional[int] = None
+) -> List[str]:
     """
     Retrieve the list of commit SHA from a range.
     :param commit_range: A range of commits (ORIGIN...HEAD)
+    :param max_count: If set, limits the number of SHA returned to this amount. This
+    returns the *end* of the list, so max_count=3 returns [HEAD~2, HEAD~1, HEAD].
     """
+
+    cmd = [GIT_PATH, "rev-list", "--reverse", *commit_range.split()]
+    if max_count is not None:
+        cmd.extend(["--max-count", str(max_count)])
+    # Makes rev-list print "bad revision" instead of telling the range is ambiguous
+    cmd.append("--")
+
     try:
-        commit_list = shell_split(
-            [GIT_PATH, "rev-list", "--reverse", *commit_range.split(), "--"],
-            check=True,
-        )
+        commit_list = shell_split(cmd, check=True)
     except subprocess.CalledProcessError as e:
-        if b"bad revision" in e.stderr and commit_range.endswith("~1..."):
-            # Handle the case where commit_ref has no parent
-            commit_ref = commit_range[:-5]
-            if is_valid_git_commit_ref(commit_ref):
-                return [commit_ref] + get_list_commit_SHA(f"{commit_ref}...")
+        if b"bad revision" in e.stderr and "~1.." in commit_range:
+            # We got asked to list commits for A~1...B. If A~1 does not exist, but A
+            # does, then return A and its descendants until B.
+            a_ref, remaining = commit_range.split("~1", maxsplit=1)
+            if not is_valid_git_commit_ref(f"{a_ref}~1") and is_valid_git_commit_ref(
+                a_ref
+            ):
+                commit_range = a_ref + remaining
+                return [a_ref] + get_list_commit_SHA(commit_range)
         return []
 
     if "" in commit_list:

@@ -116,9 +116,9 @@ fi
 
     with open(hook_path, mode) as f:
         if mode == "w":
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\n")
 
-        f.write(f"\n{local_hook_str}\nggshield secret scan {hook_type}\n")
+        f.write(f'\n{local_hook_str}\nggshield secret scan {hook_type} "$@"\n')
         os.chmod(hook_path, 0o700)
 
     click.echo(

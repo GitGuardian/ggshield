@@ -117,7 +117,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
     if before == EMPTY_SHA:
         before = "HEAD"
         commit_list = get_list_commit_SHA(
-            f"--max-count={config.max_commits_for_hook+1} {before}...{after}"
+            f"{before}...{after}", max_count=config.max_commits_for_hook + 1
         )
 
         if not commit_list:
@@ -127,11 +127,11 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 err=True,
             )
             commit_list = get_list_commit_SHA(
-                f"--max-count={config.max_commits_for_hook+1} {EMPTY_TREE} {after}",
+                f"{EMPTY_TREE} {after}", max_count=config.max_commits_for_hook + 1
             )
     else:
         commit_list = get_list_commit_SHA(
-            f"--max-count={config.max_commits_for_hook+1} {before}...{after}"
+            f"{before}...{after}", max_count=config.max_commits_for_hook + 1
         )
 
     if not commit_list:

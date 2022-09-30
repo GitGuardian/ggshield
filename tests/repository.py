@@ -1,0 +1,57 @@
+import subprocess
+import sys
+from pathlib import Path
+from typing import Optional, Union
+
+from ggshield.core.git_shell import git
+
+
+class Repository:
+    """
+    Helper class to create Git repositories, for test purposes
+    """
+
+    def __init__(self, path: Path, remote_url: Optional[str] = None):
+        self.path = path
+        self.remote_url = remote_url
+        self._credentials_set = False
+
+    def git(self, *args: Union[str, Path]) -> str:
+        try:
+            return git(["-C", str(self.path)] + [str(x) for x in args])
+        except subprocess.CalledProcessError as exc:
+            out = exc.stdout.decode("utf-8", errors="ignore")
+            err = exc.stderr.decode("utf-8", errors="ignore")
+            print(f"Command failed with return code {exc.returncode}", file=sys.stderr)
+            print(f"\n# stdout\n\n{out}", file=sys.stderr)
+            print(f"\n# stderr\n\n{err}", file=sys.stderr)
+            raise exc
+
+    @classmethod
+    def create(cls, path: Path) -> "Repository":
+        git(["init", str(path)])
+        return cls(path)
+
+    @classmethod
+    def clone(cls, url: Union[str, Path], path: Path) -> "Repository":
+        git(["clone", str(url), str(path)])
+        return cls(path, remote_url=str(url))
+
+    def create_commit(self, message: str = "Test commit") -> str:
+        self._ensure_credentials_are_set()
+        self.git("commit", "--allow-empty", "-m", message)
+        return self.get_top_sha()
+
+    def create_branch(self, name: str, orphan: bool = False) -> None:
+        self.git("checkout", "--orphan" if orphan else "-b", name)
+
+    def get_top_sha(self) -> str:
+        out = self.git("rev-parse", "HEAD")
+        return out.strip()
+
+    def _ensure_credentials_are_set(self):
+        if self._credentials_set:
+            return
+        self.git("config", "user.name", "ggshield-test")
+        self.git("config", "user.email", "ggshield-test@example.com")
+        self._credentials_set = True
