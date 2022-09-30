@@ -5,7 +5,7 @@ import click
 
 from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
-from ggshield.core.config.utils import get_attr_mapping
+from ggshield.core.config.utils import get_attr_mapping, remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_DASHBOARD_URL
 from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
@@ -77,7 +77,8 @@ class Config:
             return self._cmdline_instance_name
 
         try:
-            return os.environ["GITGUARDIAN_INSTANCE"]
+            url = os.environ["GITGUARDIAN_INSTANCE"]
+            return remove_url_trailing_slash(url)
         except KeyError:
             pass
 
