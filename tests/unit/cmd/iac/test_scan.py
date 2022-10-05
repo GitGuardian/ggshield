@@ -6,7 +6,11 @@ from click.testing import CliRunner
 from pytest_mock import MockerFixture
 
 from ggshield.cmd.main import cli
-from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
+from tests.unit.conftest import (
+    _IAC_SINGLE_VULNERABILITY,
+    mocked_requests_unknow_error,
+    my_vcr,
+)
 
 
 @my_vcr.use_cassette("test_iac_scan_empty_directory")
@@ -114,8 +118,13 @@ def test_iac_scan_json_error_response(cli_fs_runner: CliRunner) -> None:
     }
 
 
-@my_vcr.use_cassette("test_iac_scan_unknown_error_response.yaml")
-def test_iac_scan_unknown_error_response(cli_fs_runner: CliRunner) -> None:
+def test_iac_scan_unknown_error_response(
+    cli_fs_runner: CliRunner, mocker: MockerFixture
+) -> None:
+    mocker.patch(
+        "ggshield.core.client.IaCGGClient.request",
+        side_effect=mocked_requests_unknow_error,
+    )
     result = cli_fs_runner.invoke(
         cli,
         ["iac", "scan", "."],
