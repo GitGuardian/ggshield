@@ -623,7 +623,7 @@ def mocked_requests_unknow_error(*args, **kwargs):
     return MockResponse()
 
 
-def mocked_requests_json_error(*args, **kwargs):
+def mocked_requests_scan_error(*args, **kwargs):
     class MockResponse:
         def __init__(self, *args, **kwargs):
             self.headers = {"content-type": "application/json"}
