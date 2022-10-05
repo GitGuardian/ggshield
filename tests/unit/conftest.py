@@ -610,27 +610,11 @@ def assert_invoke_ok(result: Result):
     assert_invoke_exited_with(result, 0)
 
 
-def mocked_requests_unknow_error(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, *args, **kwargs):
-            self.headers = {"content-type": "application/json"}
-            self.status_code = 404
-            self.json_data = {"unknown_detail": "no detail"}
+class MockRequestsResponse:
+    def __init__(self, status_code, json_data):
+        self.headers = {"content-type": "application/json"}
+        self.status_code = status_code
+        self.json_data = json_data
 
-        def json(self):
-            return self.json_data
-
-    return MockResponse()
-
-
-def mocked_requests_scan_error(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, *args, **kwargs):
-            self.headers = {"content-type": "application/json"}
-            self.status_code = 404
-            self.json_data = {"detail": "Not found (404)"}
-
-        def json(self):
-            return self.json_data
-
-    return MockResponse()
+    def json(self):
+        return self.json_data
