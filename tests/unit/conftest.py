@@ -621,3 +621,16 @@ def mocked_requests_unknow_error(*args, **kwargs):
             return self.json_data
 
     return MockResponse()
+
+
+def mocked_requests_json_error(*args, **kwargs):
+    class MockResponse:
+        def __init__(self, *args, **kwargs):
+            self.headers = {"content-type": "application/json"}
+            self.status_code = 404
+            self.json_data = {"detail": "Not found (404)"}
+
+        def json(self):
+            return self.json_data
+
+    return MockResponse()

@@ -8,6 +8,7 @@ from pytest_mock import MockerFixture
 from ggshield.cmd.main import cli
 from tests.unit.conftest import (
     _IAC_SINGLE_VULNERABILITY,
+    mocked_requests_json_error,
     mocked_requests_unknow_error,
     my_vcr,
 )
@@ -95,8 +96,13 @@ def test_iac_scan_error_response(cli_fs_runner: CliRunner) -> None:
     assert "404:Not found (404)" in result.stdout
 
 
-@my_vcr.use_cassette("test_iac_scan_error_response")
-def test_iac_scan_json_error_response(cli_fs_runner: CliRunner) -> None:
+def test_iac_scan_json_error_response(
+    cli_fs_runner: CliRunner, mocker: MockerFixture
+) -> None:
+    mocker.patch(
+        "ggshield.core.client.IaCGGClient.request",
+        side_effect=mocked_requests_json_error,
+    )
     cli_fs_runner.mix_stderr = False
     result = cli_fs_runner.invoke(
         cli,
