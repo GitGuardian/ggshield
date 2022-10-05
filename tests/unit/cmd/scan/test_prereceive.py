@@ -1,12 +1,14 @@
 import os
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
-from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, Filemode
+from ggshield.core.utils import EMPTY_SHA, Filemode
 from ggshield.scan import Result, Results, ScanCollection
+from ggshield.scan.repo import cd
+from tests.repository import Repository
 from tests.unit.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
@@ -211,7 +213,7 @@ class TestPreReceive:
             cli, ["-v", "secret", "scan", "pre-receive"], input=""
         )
         assert_invoke_exited_with(result, 1)
-        assert "Error: Invalid input arguments: []\n" in result.output
+        assert "Error: Invalid input arguments: ''\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -226,84 +228,66 @@ class TestPreReceive:
         WHEN the command is run with a changed env variable for max commit hooks
         THEN it should scan the last 20 commits
         """
+        old_sha = "56781234"
         new_sha = "1234abcd"
 
         scan_commit_range_mock.return_value = 0
-        get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
+        get_list_mock.return_value = ["a" for _ in range(40)]
 
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{EMPTY_SHA} {new_sha} main",
+            input=f"{old_sha} {new_sha} main",
             env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "20"},
         )
 
         assert_invoke_ok(result)
-        assert "New tree event. Scanning last 20 commits" in result.output
+        assert "Too many commits. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
-        assert get_list_mock.call_count == 2
-        get_list_mock.assert_called_with(f"{EMPTY_TREE} {new_sha}", max_count=21)
+        get_list_mock.assert_called_once_with(f"{old_sha}...{new_sha}", max_count=21)
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
-    def test_new_branch_diff_with_head_success(
+    def test_new_branch(
         self,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
-        GIVEN a ref creation event
-        WHEN the command is run and its able to diff with HEAD
-        THEN it should scan the rev-list presented
+        GIVEN a repository
+        AND commits received by a push of a new branch from another repository
+        WHEN the pre-receive command is run on the commits from the push
+        THEN it should scan only scan the commits of the new branch
         """
-        new_sha = "124abcd"
+        repo = Repository.create(tmp_path)
+        repo.create_commit("initial commit")
+
+        # Detach from the current branch to simulate what happens when pre-receive
+        # is called: the new commits are not in any branch yet.
+        repo.git("checkout", "--detach")
+        shas = [repo.create_commit() for _ in range(3)]
 
         scan_commit_range_mock.return_value = 0
-        get_list_mock.side_effect = [["a" for _ in range(60)]]
 
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input=f"{EMPTY_SHA} {new_sha} main",
-        )
-
-        assert_invoke_ok(result)
-        assert get_list_mock.call_count == 1
-        get_list_mock.assert_called_with(f"HEAD...{new_sha}", max_count=51)
-        scan_commit_range_mock.assert_called_once()
-
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
-    def test_stdin_input_creation(
-        self,
-        scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
-        cli_fs_runner: CliRunner,
-    ):
-        """
-        GIVEN a ref creation event
-        WHEN the command is run
-        THEN it should scan the last 50 commits
-        """
-        new_sha = "124abcd"
-
-        scan_commit_range_mock.return_value = 0
-        get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
-
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input=f"{EMPTY_SHA} {new_sha} main",
-        )
+        with cd(str(repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{EMPTY_SHA} {shas[-1]} refs/heads/topic",
+            )
 
         assert_invoke_ok(result)
-        assert "New tree event. Scanning last 50 commits" in result.output
-        assert "Commits to scan: 50" in result.output
-        assert get_list_mock.call_count == 2
-        get_list_mock.assert_called_with(f"{EMPTY_TREE} {new_sha}", max_count=51)
-        scan_commit_range_mock.assert_called_once()
+        scan_commit_range_mock.assert_called_once_with(
+            client=ANY,
+            cache=ANY,
+            commit_list=shas,
+            output_handler=ANY,
+            exclusion_regexes=ANY,
+            matches_ignore=ANY,
+            scan_context=ANY,
+            ignored_detectors=set(),
+        )
 
     def test_stdin_input_deletion(
         self,
