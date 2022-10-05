@@ -56,19 +56,36 @@
 
 ## Testing
 
-### Run all tests on GitGuardian Shield
+The test suite contains two kinds of tests: unit tests and functional tests.
+
+Unit tests must execute fast, so they do not access the network and try to limit IO access. They are in the `tests/unit` directory.
+
+Functional tests exercise the whole product, so they need access to GitGuardian API and are slow. They are in the `tests/functional` directory.
+
+### Run unit tests
 
 Set the `TEST_GITGUARDIAN_API_KEY` environment variable to a valid GitGuardian API key.
 
 ```sh
-$ make test
+$ make unittest
 ```
 
 ### Verify coverage of your patch
 
 ```sh
 $ make coverage
-$ open htmlcov/index.html
+```
+
+Then open [htmlcov/index.html](htmlcov/index.html).
+
+### Run functional tests
+
+Set the `GITGUARDIAN_API_KEY` environment variable to a valid GitGuardian API key.
+
+You can also set the `GITGUARDIAN_API_URL` environment variable to test against another GitGuardian instance.
+
+```sh
+$ make functest
 ```
 
 ### Run linting locally
