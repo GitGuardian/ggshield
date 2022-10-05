@@ -17,6 +17,7 @@ from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.ignore import deprecated_ignore_cmd
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
+from ggshield.core import check_updates
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.text_utils import display_warning
@@ -102,6 +103,12 @@ def setup_debug_logs(debug: bool) -> None:
     help="Ignore ssl verification.",
 )
 @click.option("--debug", is_flag=True, default=None, help="Show debug information.")
+@click.option(
+    "--check-for-updates/--no-check-for-updates",
+    is_flag=True,
+    default=True,
+    help="Check for ggshield updates.",
+)
 @click.version_option()
 @click.pass_context
 def cli(
@@ -110,6 +117,7 @@ def cli(
     verbose: bool,
     allow_self_signed: bool,
     debug: Optional[bool],
+    check_for_updates: bool,
 ) -> None:
     ctx.ensure_object(dict)
 
@@ -139,6 +147,15 @@ def cli(
 
     logger.debug("args=%s", sys.argv)
     logger.debug("py-gitguardian=%s", pygitguardian.__version__)
+
+    # Prevent check for updates within tests, PYTEST_CURRENT_TEST is present only in tests
+    if check_for_updates and "PYTEST_CURRENT_TEST" not in os.environ:
+        latest_version = check_updates.check_for_updates()
+        if latest_version:
+            display_warning(
+                f"A new version of ggshield (v{latest_version}) has been released "
+                f"(https://github.com/GitGuardian/ggshield)."
+            )
 
 
 @cli.result_callback()
