@@ -42,7 +42,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
+            input="bbbb aaaa origin/main\n",
         )
         assert_invoke_ok(result)
         get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
@@ -68,7 +68,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
+            input="bbbb aaaa origin/main\n",
         )
         assert_invoke_exited_with(result, 1)
         get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
@@ -97,7 +97,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
+            input="bbbb aaaa origin/main\n",
         )
         assert_invoke_ok(result)
         get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
@@ -125,7 +125,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb\naaaa\norigin/main\n",
+            input="bbbb aaaa origin/main\n",
             env={
                 "GIT_PUSH_OPTION_COUNT": "2",
                 "GIT_PUSH_OPTION_0": "unrelated",
@@ -183,7 +183,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{old_sha}\n{new_sha}\norigin/main\n",
+            input=f"{old_sha} {new_sha} origin/main\n",
             env={
                 "GL_PROTOCOL": "web",
             },
@@ -197,12 +197,8 @@ class TestPreReceive:
         assert web_ui_lines
         assert any(contains_secret(x, _SIMPLE_SECRET_TOKEN) for x in web_ui_lines)
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_empty(
         self,
-        scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
         """
@@ -230,6 +226,7 @@ class TestPreReceive:
         WHEN the command is run with a changed env variable for max commit hooks
         THEN it should scan the last 20 commits
         """
+        new_sha = "1234abcd"
 
         scan_commit_range_mock.return_value = 0
         get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
@@ -237,7 +234,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
+            input=f"{EMPTY_SHA} {new_sha} main",
             env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "20"},
         )
 
@@ -245,7 +242,7 @@ class TestPreReceive:
         assert "New tree event. Scanning last 20 commits" in result.output
         assert "Commits to scan: 20" in result.output
         assert get_list_mock.call_count == 2
-        get_list_mock.assert_called_with(f"{EMPTY_TREE} {'a' * 40}", max_count=21)
+        get_list_mock.assert_called_with(f"{EMPTY_TREE} {new_sha}", max_count=21)
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -261,6 +258,7 @@ class TestPreReceive:
         WHEN the command is run and its able to diff with HEAD
         THEN it should scan the rev-list presented
         """
+        new_sha = "124abcd"
 
         scan_commit_range_mock.return_value = 0
         get_list_mock.side_effect = [["a" for _ in range(60)]]
@@ -268,12 +266,12 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
+            input=f"{EMPTY_SHA} {new_sha} main",
         )
 
         assert_invoke_ok(result)
         assert get_list_mock.call_count == 1
-        get_list_mock.assert_called_with(f"HEAD...{'a' * 40}", max_count=51)
+        get_list_mock.assert_called_with(f"HEAD...{new_sha}", max_count=51)
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
@@ -289,6 +287,7 @@ class TestPreReceive:
         WHEN the command is run
         THEN it should scan the last 50 commits
         """
+        new_sha = "124abcd"
 
         scan_commit_range_mock.return_value = 0
         get_list_mock.side_effect = [[], ["a" for _ in range(60)]]
@@ -296,22 +295,18 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{EMPTY_SHA}\n{'a'*40}\nmain",
+            input=f"{EMPTY_SHA} {new_sha} main",
         )
 
         assert_invoke_ok(result)
         assert "New tree event. Scanning last 50 commits" in result.output
         assert "Commits to scan: 50" in result.output
         assert get_list_mock.call_count == 2
-        get_list_mock.assert_called_with(f"{EMPTY_TREE} { 'a' * 40}", max_count=51)
+        get_list_mock.assert_called_with(f"{EMPTY_TREE} {new_sha}", max_count=51)
         scan_commit_range_mock.assert_called_once()
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_deletion(
         self,
-        scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
         """
@@ -323,7 +318,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{'a'*40} {EMPTY_SHA}  main",
+            input=f"{'a'*40} {EMPTY_SHA} main",
         )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
@@ -343,15 +338,17 @@ class TestPreReceive:
         """
         scan_commit_range_mock.return_value = 0
         get_list_mock.return_value = ["a" for _ in range(20)]
+        old_sha = "649061dcda8bff94e02adbaac70ca64cfb84bc78"
+        new_sha = "bfffbd925b1ce9298e6c56eb525b8d7211603c09"
 
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input="649061dcda8bff94e02adbaac70ca64cfb84bc78 bfffbd925b1ce9298e6c56eb525b8d7211603c09 refs/heads/main",  # noqa: E501
+            input=f"{old_sha} {new_sha} refs/heads/main",
         )
         assert_invoke_ok(result)
         get_list_mock.assert_called_once_with(
-            "649061dcda8bff94e02adbaac70ca64cfb84bc78...bfffbd925b1ce9298e6c56eb525b8d7211603c09",
+            f"{old_sha}...{new_sha}",
             max_count=51,
         )
         scan_commit_range_mock.assert_called_once()
@@ -388,7 +385,7 @@ class TestPreReceive:
             result = cli_fs_runner.invoke(
                 cli,
                 ["-v", "secret", "scan", "pre-receive"],
-                input="bbbb\naaaa\norigin/main\n",
+                input="bbbb aaaa origin/main\n",
             )
         duration = time.time() - start
         assert_invoke_ok(result)
