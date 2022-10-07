@@ -608,3 +608,13 @@ def assert_invoke_exited_with(result: Result, exit_code: int):
 
 def assert_invoke_ok(result: Result):
     assert_invoke_exited_with(result, 0)
+
+
+class MockRequestsResponse:
+    def __init__(self, status_code, json_data):
+        self.headers = {"content-type": "application/json"}
+        self.status_code = status_code
+        self.json_data = json_data
+
+    def json(self):
+        return self.json_data
