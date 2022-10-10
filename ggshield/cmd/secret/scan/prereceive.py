@@ -3,16 +3,15 @@ import os
 import sys
 import threading
 from types import TracebackType
-from typing import List, Optional, Type
+from typing import List, Optional, Tuple, Type
 
 import click
 
 from ggshield.core.cache import ReadOnlyCache
-from ggshield.core.git_shell import get_list_commit_SHA
+from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import (
     EMPTY_SHA,
-    EMPTY_TREE,
     PRERECEIVE_TIMEOUT,
     ScanContext,
     ScanMode,
@@ -73,6 +72,39 @@ def get_breakglass_option() -> bool:
     return False
 
 
+def find_branch_start(commit: str) -> str:
+    """
+    Returns the first local-only commit of the branch
+    """
+    # List all ancestors of `commit` which are not in any branches
+    output = git(
+        ["rev-list", commit, "--topo-order", "--reverse", "--not", "--branches"]
+    )
+    ancestors = output.splitlines()
+    return ancestors[0]
+
+
+def parse_stdin() -> Tuple[str, str]:
+    """
+    Parse stdin and return the first and last commit to scan
+    """
+    prereceive_input = sys.stdin.read().strip()
+    if not prereceive_input:
+        raise click.ClickException(f"Invalid input arguments: '{prereceive_input}'")
+
+    # TODO There can be more than one line here, for example when pushing multiple
+    # branches. We should support this.
+    line = prereceive_input.splitlines()[0]
+    old_commit, new_commit, _ = line.split(maxsplit=2)
+
+    if old_commit == EMPTY_SHA:
+        # Pushing to a new branch
+        start_commit = find_branch_start(new_commit)
+        old_commit = f"{start_commit}~1"
+
+    return (old_commit, new_commit)
+
+
 @click.command()
 @click.argument("prereceive_args", nargs=-1, type=click.UNPROCESSED)
 @click.option(
@@ -103,36 +135,16 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         )
         return 0
 
-    args = sys.stdin.read().strip().split()
-    if len(args) < 3:
-        raise click.ClickException(f"Invalid input arguments: {args}")
-
-    before, after, *_ = args
-    commit_list = []
+    before, after = parse_stdin()
 
     if after == EMPTY_SHA:
         click.echo("Deletion event or nothing to scan.", err=True)
         return 0
 
-    if before == EMPTY_SHA:
-        before = "HEAD"
-        commit_list = get_list_commit_SHA(
-            f"{before}...{after}", max_count=config.max_commits_for_hook + 1
-        )
-
-        if not commit_list:
-            before = EMPTY_TREE
-            click.echo(
-                f"New tree event. Scanning last {config.max_commits_for_hook} commits.",
-                err=True,
-            )
-            commit_list = get_list_commit_SHA(
-                f"{EMPTY_TREE} {after}", max_count=config.max_commits_for_hook + 1
-            )
-    else:
-        commit_list = get_list_commit_SHA(
-            f"{before}...{after}", max_count=config.max_commits_for_hook + 1
-        )
+    assert before != EMPTY_SHA
+    commit_list = get_list_commit_SHA(
+        f"{before}...{after}", max_count=config.max_commits_for_hook + 1
+    )
 
     if not commit_list:
         click.echo(
