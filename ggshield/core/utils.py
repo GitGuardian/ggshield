@@ -18,7 +18,7 @@ from .git_shell import get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error, display_warning
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 REGEX_PATCH_HEADER = re.compile(
