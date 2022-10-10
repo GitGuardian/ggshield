@@ -18,6 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Can I access dummy secret from clone?
+        env:
+          DUMMY_SECRET: ${{ secrets.DUMMY_SECRET }}
+        run: |
+          echo "sha256sum for DUMMY_SECRET:"
+          echo "$DUMMY_SECRET" | sha256sum
+
       - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
