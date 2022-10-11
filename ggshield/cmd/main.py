@@ -148,7 +148,9 @@ def cli(
     logger.debug("args=%s", sys.argv)
     logger.debug("py-gitguardian=%s", pygitguardian.__version__)
 
-    # Prevent check for updates within tests, PYTEST_CURRENT_TEST is present only in tests
+    # Check for PYTEST_CURRENT_TEST to ensure update check does not happen when running
+    # tests: we don't want it to happen because on the CI the unit test-suite is run
+    # with --disable-socket, which causes failure on any network access.
     if check_for_updates and "PYTEST_CURRENT_TEST" not in os.environ:
         latest_version = check_updates.check_for_updates()
         if latest_version:
