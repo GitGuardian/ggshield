@@ -10,7 +10,7 @@ from ggshield.core.config import Config
 from ggshield.core.extra_headers import get_headers
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
-from ggshield.core.utils import ScanContext
+from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.iac.filter import get_iac_files_from_paths
 from ggshield.iac.models import IaCScanResult
 from ggshield.iac.models.iac_scan_parameters import IaCScanParameters
@@ -157,7 +157,7 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
         get_headers(
             scan_context=ScanContext(
                 command_path=ctx.command_path,
-                scan_mode="external",
+                scan_mode=ScanMode.IAC_DIRECTORY,
             ),
             context_headers=ctx.obj.get("headers"),
         ),
