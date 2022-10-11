@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Run the functional tests in a clean virtualenv. This way the tests will fail
+# if all required dependencies are not installed by the package.
+set -euo pipefail
+
+ENV_DIR=.functestenv
+
+log_progress() {
+    local cstart="\e[35m"
+    local cend="\e[0m"
+    echo -e "${cstart}$*${cend}"
+}
+
+build_wheel() {
+    log_progress "Building wheel"
+    # Remove existing .whl files to make sure there is only one .whl. This way we
+    # can use a glob to refer to it.
+    rm -rf dist/*.whl
+    pipenv run python setup.py bdist_wheel
+}
+
+create_venv() {
+    log_progress "Creating venv"
+    rm -rf $ENV_DIR
+    python -m venv $ENV_DIR
+
+    # Activate it
+    if [ -e $ENV_DIR/bin/activate ] ; then
+        # Linux, macOS
+        . $ENV_DIR/bin/activate
+    else
+        # Windows
+        . $ENV_DIR/Scripts/activate
+    fi
+}
+
+install_packages() {
+    log_progress "Installing packages"
+    # Install ggshield and test dependencies
+    pip install dist/*.whl pytest
+}
+
+run_tests() {
+    log_progress "Running tests"
+    pytest --disable-pytest-warnings -vvv tests/functional
+}
+
+build_wheel
+create_venv
+install_packages
+run_tests

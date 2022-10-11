@@ -92,6 +92,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Run functional tests
+        shell: bash
         run: |
           make functest GITGUARDIAN_API_KEY=${{ secrets.GITGUARDIAN_API_KEY }} GITGUARDIAN_API_URL=${{ secrets.GITGUARDIAN_API_URL }}
 
