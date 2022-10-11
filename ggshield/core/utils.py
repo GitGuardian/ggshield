@@ -232,6 +232,7 @@ class ScanMode(Enum):
     DOCKER = "docker"
     PYPI = "pypi"
     ARCHIVE = "archive"
+    IAC_DIRECTORY = "directory"
 
 
 json_output_option_decorator = click.option(
