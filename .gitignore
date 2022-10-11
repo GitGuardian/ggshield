@@ -93,6 +93,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.functestenv/
 
 # Spyder project settings
 .spyderproject

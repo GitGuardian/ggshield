@@ -24,7 +24,7 @@ unittest:
 	pipenv run pytest --disable-pytest-warnings -vvv tests/unit
 
 functest:
-	pipenv run pytest --disable-pytest-warnings -vvv tests/functional
+	scripts/run-functional-tests
 
 coverage:
 	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings tests/unit
