@@ -86,7 +86,7 @@ jobs:
         with:
           tag_name: ${{ steps.tags.outputs.tag }}
           release_name: ${{ steps.tags.outputs.tag }}
-          draft: false
+          draft: true
           prerelease: false
 
       - uses: xresloader/upload-to-github-release@v1
