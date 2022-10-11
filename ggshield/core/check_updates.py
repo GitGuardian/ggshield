@@ -12,7 +12,10 @@ from .config.utils import load_yaml, save_yaml
 
 
 logger = logging.getLogger(__name__)
-CACHE_FILE = os.path.join(appdirs.user_cache_dir(), "ggshield", "update_check.yaml")
+CACHE_FILE = os.path.join(
+    appdirs.user_cache_dir(appname="ggshield", appauthor="GitGuardian"),
+    "update_check.yaml",
+)
 
 
 def _split_version(version: str) -> Tuple[int, ...]:
