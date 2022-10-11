@@ -1,4 +1,3 @@
-import time
 from unittest.mock import Mock, patch
 
 import pytest
@@ -7,7 +6,6 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 
 import ggshield.core
 from ggshield.core.check_updates import CACHE_FILE, check_for_updates
-from ggshield.core.config.utils import save_yaml
 
 
 @patch("requests.get")
@@ -23,7 +21,7 @@ from ggshield.core.config.utils import save_yaml
         ("1.2.3", "0.2.3", None),
     ),
 )
-def test_check_for_updates_warning(
+def test_check_for_updates(
     request_get_mock: Mock,
     current_version: str,
     remote_version: str,
@@ -47,19 +45,23 @@ def test_check_for_updates_warning(
 
 
 @patch("requests.get")
-def test_check_for_updates_warning_cache_used(
+def test_check_for_updates_twice_only_notifies_once(
     request_get_mock: Mock, fs: FakeFilesystem, monkeypatch: MonkeyPatch
 ):
     """
-    GIVEN a recent check_for_updates_warning's cache
-    WHEN calling check_for_updates
-    THEN no network call are made and the cached version is used
+    GIVEN a first check_for_updates() call
+    WHEN calling check_for_updates() a second time
+    THEN no network calls are made and no update is reported
     """
     monkeypatch.setattr(ggshield.core.check_updates, "__version__", "1.0")
-    save_yaml({"latest_version": "1.1", "check_at": time.time()}, CACHE_FILE)
 
+    request_get_mock.return_value.status_code = 200
+    request_get_mock.return_value.json.return_value = {"tag_name": "v1.1"}
+    latest_version = check_for_updates()
+    assert latest_version == "1.1"
+
+    request_get_mock.reset_mock()
     latest_version = check_for_updates()
 
     request_get_mock.assert_not_called()
-    assert latest_version == "1.1"
-    assert fs.exists(CACHE_FILE)
+    assert latest_version is None
