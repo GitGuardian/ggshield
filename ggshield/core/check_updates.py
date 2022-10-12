@@ -56,7 +56,11 @@ def check_for_updates() -> Optional[str]:
         return None
 
     # Cache the time of the check
-    save_yaml({"check_at": time.time()}, CACHE_FILE)
+    try:
+        save_yaml({"check_at": time.time()}, CACHE_FILE)
+    except Exception as e:
+        logger.warning("Could not save time of version check to cache: %s", e)
+        return None
 
     current_version_split = _split_version(__version__)
     latest_version_split = _split_version(latest_version)
