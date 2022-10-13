@@ -5,7 +5,7 @@ import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.core.client import create_client
-from ggshield.core.config import AccountConfig, Config
+from ggshield.core.config import Config
 from ggshield.core.oauth import OAuthClient
 from ggshield.core.utils import clean_url
 
@@ -133,15 +133,7 @@ def login_cmd(
         if "scan" not in scopes:
             raise click.ClickException("This token does not have the scan scope.")
 
-        account_config = AccountConfig(
-            workspace_id=api_token_data.get("account_id"),
-            token=token,
-            expire_at=api_token_data.get("expire_at"),
-            token_name=api_token_data.get("name", ""),
-            type=api_token_data.get("type", ""),
-        )
-
-        instance_config.account = account_config
+        instance_config.init_account(token, api_token_data)
         config.auth_config.save()
         click.echo("Authentication was successful.")
         return 0
