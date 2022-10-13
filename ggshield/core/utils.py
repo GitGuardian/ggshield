@@ -4,6 +4,7 @@ import re
 import traceback
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Iterable, List, NamedTuple, Optional, Union
 from urllib.parse import ParseResult, urlparse
@@ -389,3 +390,10 @@ class ScanContext:
 
     def __post_init__(self) -> None:
         self.command_id = str(uuid.uuid4())
+
+
+def datetime_from_isoformat(text: str) -> datetime:
+    """Work around for datetime.isoformat() not supporting ISO dates ending with Z"""
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    return datetime.fromisoformat(text)

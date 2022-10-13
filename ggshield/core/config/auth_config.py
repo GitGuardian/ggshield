@@ -1,7 +1,7 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import marshmallow_dataclass
 
@@ -17,6 +17,7 @@ from ggshield.core.config.utils import (
     load_yaml,
     save_yaml,
 )
+from ggshield.core.utils import datetime_from_isoformat
 
 
 @dataclass
@@ -43,6 +44,21 @@ class InstanceConfig:
             self.account is not None
             and self.account.expire_at is not None
             and self.account.expire_at <= datetime.now(timezone.utc)
+        )
+
+    def init_account(self, token: str, token_data: Dict[str, Any]) -> None:
+        """Initialize our account based on the token and the data received from the
+        `token` endpoint"""
+        expire_at_str = token_data.get("expire_at")
+        expire_at = (
+            None if expire_at_str is None else datetime_from_isoformat(expire_at_str)
+        )
+        self.account = AccountConfig(
+            workspace_id=cast(int, token_data["account_id"]),
+            token=token,
+            expire_at=expire_at,
+            token_name=token_data["name"],
+            type=token_data["type"],
         )
 
 

@@ -1,12 +1,14 @@
 import os
 import sys
 from copy import deepcopy
+from datetime import datetime, timezone
 
 import pytest
 
 from ggshield.core.config import Config
 from ggshield.core.config.auth_config import (
     AuthConfigSchema,
+    InstanceConfig,
     prepare_auth_config_dict_for_save,
 )
 from ggshield.core.config.utils import get_auth_config_filepath, replace_in_keys
@@ -141,3 +143,18 @@ class TestAuthConfig:
         write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
         config = Config()
         assert config.instances[0].account.expire_at.tzinfo is not None
+
+    def test_init_instance_config_with_expiration_date(self):
+        token_data = {
+            "type": "personal_access_token",
+            "account_id": 8,
+            "name": "ggshield token 2022-10-13",
+            "scope": ["scan"],
+            "expire_at": "2022-10-17T11:55:06Z",
+        }
+        instance = InstanceConfig(account=None, url="u")
+        instance.init_account(token="tok", token_data=token_data)
+
+        assert instance.account.expire_at == datetime(
+            2022, 10, 17, 11, 55, 6, tzinfo=timezone.utc
+        )

@@ -459,7 +459,9 @@ class TestAuthLoginWeb:
         if is_exchange_ok:
             token_response_payload = _TOKEN_RESPONSE_PAYLOAD.copy()
             if lifetime is not None:
-                token_response_payload["expire_at"] = self._get_expiry_date()
+                token_response_payload[
+                    "expire_at"
+                ] = self._get_expiry_date().isoformat()
 
         # mock api call to exchange the code against a valid access token
         self._client_post_mock = Mock(
