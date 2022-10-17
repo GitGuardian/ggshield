@@ -289,6 +289,35 @@ class TestPreReceive:
             ignored_detectors=set(),
         )
 
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
+    def test_new_branch_without_commits(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a repository
+        AND a new branch pushed from another repository, without any commit
+        WHEN the pre-receive command is run on the commits from the push
+        THEN it scans nothing
+        """
+        repo = Repository.create(tmp_path)
+        sha = repo.create_commit("initial commit")
+        branch_name = "topic"
+        repo.create_branch(branch_name)
+
+        with cd(str(repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{EMPTY_SHA} {sha} refs/heads/{branch_name}",
+            )
+
+        assert_invoke_ok(result)
+        scan_commit_range_mock.assert_not_called()
+        assert "Pushed branch does not contain any new commit" in result.output
+
     def test_stdin_input_deletion(
         self,
         cli_fs_runner: CliRunner,

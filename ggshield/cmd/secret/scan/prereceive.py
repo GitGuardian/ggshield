@@ -72,16 +72,20 @@ def get_breakglass_option() -> bool:
     return False
 
 
-def find_branch_start(commit: str) -> str:
+def find_branch_start(commit: str) -> Optional[str]:
     """
-    Returns the first local-only commit of the branch
+    Returns the first local-only commit of the branch.
+    Returns None if the branch does not contain any new commit.
     """
     # List all ancestors of `commit` which are not in any branches
     output = git(
         ["rev-list", commit, "--topo-order", "--reverse", "--not", "--branches"]
     )
     ancestors = output.splitlines()
-    return ancestors[0]
+
+    if ancestors:
+        return ancestors[0]
+    return None
 
 
 def parse_stdin() -> Tuple[str, str]:
@@ -100,7 +104,11 @@ def parse_stdin() -> Tuple[str, str]:
     if old_commit == EMPTY_SHA:
         # Pushing to a new branch
         start_commit = find_branch_start(new_commit)
-        old_commit = f"{start_commit}~1"
+        if start_commit is None:
+            # branch does not contain any new commit
+            old_commit = new_commit
+        else:
+            old_commit = f"{start_commit}~1"
 
     return (old_commit, new_commit)
 
@@ -136,6 +144,12 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
         return 0
 
     before, after = parse_stdin()
+    if before == after:
+        click.echo(
+            "Pushed branch does not contain any new commit.",
+            err=True,
+        )
+        return 0
 
     if after == EMPTY_SHA:
         click.echo("Deletion event or nothing to scan.", err=True)
