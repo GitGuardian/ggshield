@@ -116,9 +116,10 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:
         return handle_exception(error, config.verbose)
 
 
-def find_branch_start(commit: str, remote: str) -> str:
+def find_branch_start(commit: str, remote: str) -> Optional[str]:
     """
-    Returns the first local-only commit of the branch
+    Returns the first local-only commit of the branch.
+    Returns None if the branch does not contain any new commit.
     """
     # List all ancestors of `commit` which are not in `remote`
     # Based on _pre_push_ns() from pre-commit
@@ -136,7 +137,10 @@ def find_branch_start(commit: str, remote: str) -> str:
         ]
     )
     ancestors = output.splitlines()
-    return ancestors[0]
+
+    if ancestors:
+        return ancestors[0]
+    return None
 
 
 def collect_from_stdin(remote_name: str) -> Tuple[str, str]:
@@ -160,6 +164,8 @@ def collect_from_stdin(remote_name: str) -> Tuple[str, str]:
 
     # Pushing to a new branch
     start_commit = find_branch_start(local_commit, remote_name)
+    if start_commit is None:
+        return local_commit, local_commit
     return (local_commit, f"{start_commit}~1")
 
 
