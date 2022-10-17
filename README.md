@@ -827,7 +827,7 @@ $ ggshield install --mode local --force  -t "pre-push"
 Or you can append to the existing `pre-push` script with the `--append` option:
 
 ```shell
-$ ggshield install --mode local --force  -t "pre-push"
+$ ggshield install --mode local --force  -t "pre-push" --append
 ```
 
 Now you're good to go!
