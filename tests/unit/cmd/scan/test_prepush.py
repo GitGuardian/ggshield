@@ -31,7 +31,7 @@ def create_local_repo_with_remote(work_dir: Path) -> Repository:
 
 class TestPrepush:
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
-    def test_pre_push_no_commits(self, get_list_mock: Mock, cli_fs_runner: CliRunner):
+    def test_prepush_no_commits(self, get_list_mock: Mock, cli_fs_runner: CliRunner):
         """
         GIVEN a prepush range with 0 commits
         WHEN the command is run
@@ -44,6 +44,37 @@ class TestPrepush:
             env={"PRE_COMMIT_FROM_REF": "a" * 40, "PRE_COMMIT_TO_REF": "b" * 40},
         )
         assert_invoke_ok(result)
+        assert "Unable to get commit range." in result.output
+
+    @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
+    def test_prepush_no_commits_stdin(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a repository
+        AND a new branch pushed from another repository, without any commit
+        WHEN the pre-push command is run on the commits from the push
+        THEN it scans nothing
+        """
+        local_repo = create_local_repo_with_remote(tmp_path)
+
+        branch = "topic"
+        local_repo.create_branch(branch)
+
+        sha = local_repo.get_top_sha()
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-push", "origin", local_repo.remote_url],
+                input=f"refs/heads/master {sha} refs/heads/master {EMPTY_SHA}\n",
+            )
+
+        assert_invoke_ok(result)
+        scan_commit_range_mock.assert_not_called()
         assert "Unable to get commit range." in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")
