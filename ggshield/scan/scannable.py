@@ -33,6 +33,9 @@ logger = logging.getLogger(__name__)
 
 _RX_HEADER_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
 
+# GitGuardian API does not accept paths longer than this
+_API_PATH_MAX_LENGTH = 256
+
 
 def _parse_patch_header_line(line: str) -> Tuple[str, Filemode]:
     """
@@ -313,7 +316,10 @@ class Scanner:
         Sends a chunk of files to scan to the API
         """
         # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
-        documents = [{"document": x.document, "filename": x.filename} for x in chunk]
+        documents = [
+            {"document": x.document, "filename": x.filename[-_API_PATH_MAX_LENGTH:]}
+            for x in chunk
+        ]
         return executor.submit(
             self.client.multi_content_scan,
             documents,
