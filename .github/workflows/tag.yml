@@ -143,75 +143,22 @@ jobs:
         with:
           python-version: 3.9
 
-      - name: Read info
-        id: tags
-        shell: bash
-        run: |
-          echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
-
       - name: Checkout Homebrew-tap
         uses: actions/checkout@master
         with:
           repository: GitGuardian/homebrew-tap
           token: ${{ secrets.PAT_GITHUB }}
-          path: ./homebrew-tap
 
-      - name: Checkout Homebrew-ggshield
-        uses: actions/checkout@master
-        with:
-          repository: GitGuardian/homebrew-ggshield
-          token: ${{ secrets.PAT_GITHUB }}
-          path: ./homebrew-ggshield
-
-      - name: Install dependencies
-        shell: bash
+      - name: Update Homebrew-tap
         run: |
-          python -m pip install --upgrade pip
-
-          pip install homebrew-pypi-poet
-
-          # Install the newly released version of ggshield. Retry in case of
-          # failure because it can take some time before the version we just
-          # published on pypi.org is available for download.
           version=${GITHUB_REF/refs\/tags\/v/}
-          max_tries=5
-          for try in $(seq 1 $max_tries) ; do
-              echo "Downloading ggshield==$version, attempt $try/$max_tries"
-              if pip install ggshield==$version ; then
-                  exit 0
-              else
-                  sleep 10
-              fi
-          done
 
-      - name: Update Homebrew formulas
-        run: |
-          poet -f ggshield \
-              | sed 's/Shiny new formula/Detect secrets in source code, scan your repos and docker images for leaks/g' \
-              | sed '7a\  license "MIT"' \
-              | tee homebrew-ggshield/Formula/ggshield.rb homebrew-tap/Formula/ggshield.rb
-
-      - name: Push to gitguardian/homebrew-tap
-        run: |
-          cd ./homebrew-tap
-          git add Formula/ggshield.rb
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git commit -am "update from ggshield"
-          git tag ${{ steps.tags.outputs.tag }}
-          git push
-          git push --tags
 
-      - name: Push to gitguardian/homebrew-ggshield
-        run: |
-          cd ./homebrew-ggshield
-          git add Formula/ggshield.rb
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git commit -am "update from ggshield"
-          git tag ${{ steps.tags.outputs.tag }}
+          scripts/update-ggshield --commit "$version"
+
           git push
-          git push --tags
 
   push_to_cloudsmith:
     needs: build_packages
