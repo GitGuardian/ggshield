@@ -18,6 +18,10 @@ CACHE_FILE = os.path.join(
 )
 
 
+# Use a short timeout to prevent blocking
+CHECK_TIMEOUT = 5
+
+
 def _split_version(version: str) -> Tuple[int, ...]:
     return tuple([int(x) for x in version.split(".")])
 
@@ -41,9 +45,26 @@ def check_for_updates() -> Optional[str]:
         return None
 
     logger.debug("Checking the latest released version of ggshield...")
-    resp = requests.get(
-        "https://api.github.com/repos/GitGuardian/GGShield/releases/latest"
-    )
+
+    # Save check time now so that it is saved even if the check fails. This ensures we
+    # don't try for every command if the user does not have network access.
+    try:
+        save_yaml({"check_at": time.time()}, CACHE_FILE)
+    except Exception as e:
+        logger.error("Could not save time of version check to cache: %s", e)
+        # Do not continue if we can't save check time. If we continue we are going to
+        # send requests to api.github.com every time ggshield is called.
+        return None
+
+    try:
+        resp = requests.get(
+            "https://api.github.com/repos/GitGuardian/GGShield/releases/latest",
+            timeout=CHECK_TIMEOUT,
+        )
+    except Exception as e:
+        logger.error("Failed to connect to api.github.com: %s", e)
+        return None
+
     if resp.status_code != 200:
         logger.error("Failed to check: %s", resp.text)
         return None
@@ -51,19 +72,13 @@ def check_for_updates() -> Optional[str]:
     try:
         data = resp.json()
         latest_version: str = data["tag_name"][1:]
-    except (requests.exceptions.JSONDecodeError, AttributeError, TypeError):
-        logger.error("Failed to parse response: %s", resp.text)
-        return None
 
-    # Cache the time of the check
-    try:
-        save_yaml({"check_at": time.time()}, CACHE_FILE)
+        current_version_split = _split_version(__version__)
+        latest_version_split = _split_version(latest_version)
     except Exception as e:
-        logger.warning("Could not save time of version check to cache: %s", e)
+        logger.error("Failed to parse response: %s", e)
         return None
 
-    current_version_split = _split_version(__version__)
-    latest_version_split = _split_version(latest_version)
     if current_version_split < latest_version_split:
         return latest_version
     return None

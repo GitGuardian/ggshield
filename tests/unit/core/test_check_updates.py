@@ -1,6 +1,8 @@
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import requests.exceptions
 from _pytest.monkeypatch import MonkeyPatch
 from pyfakefs.fake_filesystem import FakeFilesystem
 
@@ -65,3 +67,39 @@ def test_check_for_updates_twice_only_notifies_once(
 
     request_get_mock.assert_not_called()
     assert latest_version is None
+
+
+@patch("requests.get")
+def test_check_for_updates_request_exceptions_are_caught(
+    request_get_mock: Mock, fs: FakeFilesystem
+):
+    """
+    GIVEN an environment with no network access to api.github.com
+    WHEN check_for_updates() is called
+    THEN it does not fail
+    AND the check time is recorded to avoid rechecking every time
+    """
+    request_get_mock.side_effect = requests.exceptions.ConnectTimeout()
+    latest_version = check_for_updates()
+    assert latest_version is None
+
+    assert fs.exists(CACHE_FILE)
+
+
+@patch("requests.get")
+def test_check_for_updates_does_nothing_if_cache_cant_be_saved(
+    request_get_mock: Mock, fs: FakeFilesystem
+):
+    """
+    GIVEN an environment where it is not possible to save the check time
+    WHEN check_for_updates() is called
+    THEN it does not fail
+    AND no network access happens
+    """
+    # Create the cache file as a directory to simulate the case where the cache file is
+    # not writable
+    Path(CACHE_FILE).mkdir(parents=True, exist_ok=False)
+
+    latest_version = check_for_updates()
+    assert latest_version is None
+    request_get_mock.assert_not_called()
