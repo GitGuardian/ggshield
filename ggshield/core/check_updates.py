@@ -3,17 +3,17 @@ import os.path
 import time
 from typing import Optional, Tuple
 
-import appdirs
 import requests
 
 from ggshield import __version__
+from ggshield.core.dirs import get_cache_dir
 
 from .config.utils import load_yaml, save_yaml
 
 
 logger = logging.getLogger(__name__)
 CACHE_FILE = os.path.join(
-    appdirs.user_cache_dir(appname="ggshield", appauthor="GitGuardian"),
+    get_cache_dir(),
     "update_check.yaml",
 )
 

@@ -5,9 +5,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import click
 import yaml
-from appdirs import user_config_dir
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
+from ggshield.core.dirs import get_config_dir
 from ggshield.core.text_utils import display_error
 
 
@@ -54,12 +54,8 @@ def save_yaml(data: Dict[str, Any], path: str) -> None:
             ) from e
 
 
-def get_auth_config_dir() -> str:
-    return user_config_dir(appname="ggshield", appauthor="GitGuardian")
-
-
 def get_auth_config_filepath() -> str:
-    return os.path.join(get_auth_config_dir(), AUTH_CONFIG_FILENAME)
+    return os.path.join(get_config_dir(), AUTH_CONFIG_FILENAME)
 
 
 def get_global_path(filename: str) -> str:
