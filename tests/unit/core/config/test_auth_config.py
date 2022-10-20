@@ -1,5 +1,5 @@
 import os
-import sys
+import re
 from copy import deepcopy
 from datetime import datetime, timezone
 
@@ -61,20 +61,22 @@ class TestAuthConfig:
         ):
             Config()
 
-    def test_invalid_format(self, capsys):
+    def test_invalid_format(self):
         """
         GIVEN an auth config file with invalid content
         WHEN loading AuthConfig
         THEN it raises
         """
         write_text(get_auth_config_filepath(), "Not a:\nyaml file.\n")
+        expected_output = (
+            f"Parsing error while reading {re.escape(get_auth_config_filepath())}:"
+        )
 
-        Config()
-        out, err = capsys.readouterr()
-        sys.stdout.write(out)
-        sys.stderr.write(err)
-
-        assert f"Parsing error while reading {get_auth_config_filepath()}:" in err
+        with pytest.raises(
+            ValueError,
+            match=expected_output,
+        ):
+            Config()
 
     def test_token_not_expiring(self):
         """

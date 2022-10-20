@@ -8,7 +8,6 @@ import yaml
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
 from ggshield.core.dirs import get_config_dir
-from ggshield.core.text_utils import display_error
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -24,23 +23,26 @@ def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> No
             replace_in_keys(element, old_char=old_char, new_char=new_char)
 
 
-def load_yaml(path: str) -> Optional[Dict[str, Any]]:
+def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
     if not os.path.isfile(path):
         return None
 
     with open(path, "r") as f:
         try:
             data = yaml.safe_load(f) or {}
-        except Exception as e:
+            if not isinstance(data, dict):
+                raise ValueError(
+                    f"The configuration in '{path}' is invalid. Configuration must be a dict."
+                )
+        except (yaml.parser.ParserError, yaml.scanner.ScannerError) as e:
             message = f"Parsing error while reading {path}:\n{str(e)}"
-            display_error(message)
-            return None
+            raise ValueError(message)
         else:
             replace_in_keys(data, old_char="-", new_char="_")
             return data
 
 
-def save_yaml(data: Dict[str, Any], path: str) -> None:
+def save_yaml_dict(data: Dict[str, Any], path: str) -> None:
     replace_in_keys(data, "_", "-")
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)

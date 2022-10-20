@@ -9,7 +9,7 @@ import pytest
 
 from ggshield.core.config import AccountConfig, Config, InstanceConfig
 from ggshield.core.config.errors import UnknownInstanceError
-from ggshield.core.config.utils import get_auth_config_filepath, load_yaml
+from ggshield.core.config.utils import get_auth_config_filepath, load_yaml_dict
 from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.utils import dashboard_to_api_url
 from tests.unit.conftest import write_yaml
@@ -310,5 +310,5 @@ class TestConfig:
 
         assert not Path(DEFAULT_LOCAL_CONFIG_PATH).exists()
 
-        dct = load_yaml(local_config_path)
+        dct = load_yaml_dict(local_config_path)
         assert dct["instance"] == "https://after.com"

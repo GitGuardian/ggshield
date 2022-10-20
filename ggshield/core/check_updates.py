@@ -8,7 +8,7 @@ import requests
 from ggshield import __version__
 from ggshield.core.dirs import get_cache_dir
 
-from .config.utils import load_yaml, save_yaml
+from .config.utils import load_yaml_dict, save_yaml_dict
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,11 @@ def check_for_updates() -> Optional[str]:
     """
     check_at = -1.0
     # Load the last time we checked
-    cached_data = load_yaml(CACHE_FILE)
+    try:
+        cached_data = load_yaml_dict(CACHE_FILE)
+    except ValueError:
+        # Swallow the error
+        cached_data = None
     if cached_data is not None:
         try:
             check_at = cached_data["check_at"]
@@ -49,7 +53,7 @@ def check_for_updates() -> Optional[str]:
     # Save check time now so that it is saved even if the check fails. This ensures we
     # don't try for every command if the user does not have network access.
     try:
-        save_yaml({"check_at": time.time()}, CACHE_FILE)
+        save_yaml_dict({"check_at": time.time()}, CACHE_FILE)
     except Exception as e:
         logger.error("Could not save time of version check to cache: %s", e)
         # Do not continue if we can't save check time. If we continue we are going to

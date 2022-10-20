@@ -13,8 +13,8 @@ from ggshield.core.config.errors import (
 from ggshield.core.config.utils import (
     ensure_path_exists,
     get_auth_config_filepath,
-    load_yaml,
-    save_yaml,
+    load_yaml_dict,
+    save_yaml_dict,
 )
 from ggshield.core.dirs import get_config_dir
 from ggshield.core.utils import datetime_from_isoformat
@@ -117,7 +117,8 @@ class AuthConfig:
     def load(cls) -> "AuthConfig":
         """Load the auth config from the app config file"""
         config_path = get_auth_config_filepath()
-        data = load_yaml(config_path)
+
+        data = load_yaml_dict(config_path)
         if data:
             data = prepare_auth_config_dict_for_parse(data)
             return AuthConfigSchema().load(data)  # type: ignore
@@ -128,7 +129,7 @@ class AuthConfig:
         ensure_path_exists(get_config_dir())
         data = AuthConfigSchema().dump(self)
         data = prepare_auth_config_dict_for_save(data)
-        save_yaml(data, config_path)
+        save_yaml_dict(data, config_path)
 
     def get_instance(self, instance_name: str) -> InstanceConfig:
         for instance in self.instances:
