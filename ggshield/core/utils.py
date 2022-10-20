@@ -234,6 +234,7 @@ class ScanMode(Enum):
     PYPI = "pypi"
     ARCHIVE = "archive"
     IAC_DIRECTORY = "directory"
+    DOCSET = "docset"
 
 
 json_output_option_decorator = click.option(

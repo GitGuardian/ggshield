@@ -7,6 +7,7 @@ from ggshield.cmd.secret.scan.archive import archive_cmd
 from ggshield.cmd.secret.scan.ci import ci_cmd
 from ggshield.cmd.secret.scan.docker import docker_name_cmd
 from ggshield.cmd.secret.scan.dockerarchive import docker_archive_cmd
+from ggshield.cmd.secret.scan.docset import docset_cmd
 from ggshield.cmd.secret.scan.path import path_cmd
 from ggshield.cmd.secret.scan.precommit import precommit_cmd
 from ggshield.cmd.secret.scan.prepush import prepush_cmd
@@ -35,6 +36,7 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
         "docker-archive": docker_archive_cmd,
         "pypi": pypi_cmd,
         "archive": archive_cmd,
+        "docset": docset_cmd,
     },
 )
 @json_output_option_decorator
