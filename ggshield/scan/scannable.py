@@ -217,7 +217,8 @@ class File:
 
     @staticmethod
     def _decode_bytes(raw_document: bytes, filename: str) -> str:
-        """Low level function to decode bytes, tries hard to find the correct encoding.
+        """Low level function to decode bytes, tries hard to find the correct encoding
+        and converts to UTF-8, as expected by pygitguardian.models.DocumentSchema.
         For now it returns an empty string if the document could not be decoded"""
         result = charset_normalizer.from_bytes(raw_document).best()
         if result is None:
@@ -230,7 +231,11 @@ class File:
         # ourselves
         if result.encoding == "utf_8" and raw_document.startswith(codecs.BOM_UTF8):
             raw_document = raw_document[len(codecs.BOM_UTF8) :]
-        return raw_document.decode(result.encoding, errors="replace")
+        return (
+            raw_document.decode(result.encoding, errors="replace")
+            .encode("utf-8", errors="replace")
+            .decode("utf-8", errors="replace")
+        )
 
     def __repr__(self) -> str:
         return f"<File filename={self.filename} filemode={self.filemode}>"
