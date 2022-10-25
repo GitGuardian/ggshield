@@ -22,7 +22,7 @@ from ggshield.core.constants import (
 )
 from ggshield.core.types import FilteredConfig, IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
-from ggshield.iac.utils import POLICY_ID_PATTERN, validate_policy_id
+from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
 
 logger = logging.getLogger(__name__)
