@@ -8,7 +8,7 @@ from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import ScanCollection, Scanner
+from ggshield.scan import ScanCollection, SecretScanner
 
 
 @click.command()
@@ -47,7 +47,7 @@ def path_cmd(
                 command_path=ctx.command_path,
             )
 
-            scanner = Scanner(
+            scanner = SecretScanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 ignored_matches=config.secret.ignored_matches,

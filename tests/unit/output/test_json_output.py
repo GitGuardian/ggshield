@@ -7,7 +7,7 @@ from voluptuous import Optional, validators
 from ggshield.core.utils import Filemode, ScanContext, ScanMode
 from ggshield.output import JSONOutputHandler, OutputHandler
 from ggshield.output.json.schemas import JSONScanCollectionSchema
-from ggshield.scan import Commit, ScanCollection, Scanner
+from ggshield.scan import Commit, ScanCollection, SecretScanner
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -113,7 +113,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
     handler = JSONOutputHandler(verbose=True, show_secrets=False)
 
     with my_vcr.use_cassette(name):
-        scanner = Scanner(
+        scanner = SecretScanner(
             client=client,
             cache=cache,
             scan_context=ScanContext(

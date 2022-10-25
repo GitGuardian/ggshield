@@ -8,7 +8,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext, ScanMode
-from ggshield.scan import Commit, Scanner
+from ggshield.scan import Commit, SecretScanner
 from tests.unit.conftest import _MULTIPLE_SECRETS_PATCH, my_vcr
 
 
@@ -40,7 +40,7 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
     assert cache.last_found_secrets == list()
 
     with my_vcr.use_cassette("multiple_secrets"):
-        scanner = Scanner(
+        scanner = SecretScanner(
             client=client,
             cache=cache,
             ignored_matches=config.secret.ignored_matches,
@@ -78,7 +78,7 @@ def test_cache_catches_nothing(client, isolated_fs):
     cache.last_found_secrets = FOUND_SECRETS
 
     with my_vcr.use_cassette("multiple_secrets"):
-        scanner = Scanner(
+        scanner = SecretScanner(
             client=client,
             cache=cache,
             ignored_matches=config.secret.ignored_matches,

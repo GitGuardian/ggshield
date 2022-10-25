@@ -9,7 +9,7 @@ from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import File, ScanCollection
-from ggshield.scan.scanner import Scanner
+from ggshield.scan.scanner import SecretScanner
 
 
 def generate_files_from_docsets(file: TextIO, verbose: bool = False) -> Iterator[File]:
@@ -23,7 +23,7 @@ def generate_files_from_docsets(file: TextIO, verbose: bool = False) -> Iterator
 
 
 def create_scans_from_docset_files(
-    scanner: Scanner,
+    scanner: SecretScanner,
     input_files: Iterable[TextIO],
     progress_callback: Callable[..., None],
     verbose: bool = False,
@@ -63,7 +63,7 @@ def docset_cmd(ctx: click.Context, files: List[TextIO]) -> int:  # pragma: no co
                 scan_mode=ScanMode.DOCSET,
                 command_path=ctx.command_path,
             )
-            scanner = Scanner(
+            scanner = SecretScanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 ignored_matches=config.secret.ignored_matches,

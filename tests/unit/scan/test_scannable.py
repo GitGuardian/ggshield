@@ -7,7 +7,7 @@ from pygitguardian.models import Detail
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode, ScanContext, ScanMode
-from ggshield.scan import Commit, File, Files, Scanner
+from ggshield.scan import Commit, File, Files, SecretScanner
 from ggshield.scan.scanner import handle_scan_chunk_error
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
@@ -71,7 +71,7 @@ def test_scan_patch(client, cache, name, input_patch, expected):
     c._patch = input_patch
 
     with my_vcr.use_cassette(name):
-        scanner = Scanner(
+        scanner = SecretScanner(
             client=client,
             cache=cache,
             scan_context=ScanContext(

@@ -6,7 +6,7 @@ from click import Command, Context, Group
 from ggshield import __version__
 from ggshield.core.cache import Cache
 from ggshield.core.utils import ScanContext, ScanMode
-from ggshield.scan import Commit, Scanner
+from ggshield.scan import Commit, SecretScanner
 from ggshield.scan.repo import cd
 from tests.unit.conftest import UNCHECKED_SECRET_PATCH
 
@@ -26,7 +26,7 @@ def test_request_headers(scan_mock: Mock, client):
 
     with Context(Command("bar"), info_name="bar") as ctx:
         ctx.parent = Context(Group("foo"), info_name="foo")
-        scanner = Scanner(
+        scanner = SecretScanner(
             client=client,
             cache=Cache(),
             scan_context=ScanContext(

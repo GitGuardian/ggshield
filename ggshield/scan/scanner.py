@@ -99,7 +99,11 @@ class ScanCollection(NamedTuple):
                 yield from scan.results.results
 
 
-class Scanner:
+class SecretScanner:
+    """
+    A SecretScanner scans a list of File, using multiple threads
+    """
+
     def __init__(
         self,
         client: GGClient,
@@ -114,6 +118,33 @@ class Scanner:
         self.ignored_detectors = ignored_detectors
         self.headers = get_headers(scan_context)
         self.command_id = scan_context.command_id
+
+    def scan(
+        self,
+        files: Iterable[File],
+        progress_callback: Callable[..., None] = lambda advance: None,
+        scan_threads: int = 4,
+    ) -> Results:
+        """
+        Starts the scan, using at most scan_threads.
+        Reports progress using progress_callback if set.
+        Returns a Results instance.
+
+        progress_callback must take an `advance: int` keyword argument: the number of
+        scanned files.
+        """
+        logger.debug("files=%s command_id=%s", self, self.command_id)
+
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=scan_threads, thread_name_prefix="content_scan"
+        ) as executor:
+            chunks_for_futures = self._start_scans(
+                executor,
+                files,
+                progress_callback,
+            )
+
+            return self._collect_results(chunks_for_futures)
 
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[File]
@@ -142,8 +173,6 @@ class Scanner:
         Start all scans, return a tuple containing:
         - a mapping of future to the list of files it is scanning
         - a list of files which we did not send to scan because we could not decode them
-
-        on_file
         """
         chunks_for_futures = {}
         skipped_chunk = []
@@ -214,25 +243,6 @@ class Scanner:
 
         self.cache.save()
         return Results(results=results, errors=errors)
-
-    def scan(
-        self,
-        files: Iterable[File],
-        progress_callback: Callable[..., None] = lambda advance: None,
-        scan_threads: int = 4,
-    ) -> Results:
-        logger.debug("files=%s command_id=%s", self, self.command_id)
-
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=scan_threads, thread_name_prefix="content_scan"
-        ) as executor:
-            chunks_for_futures = self._start_scans(
-                executor,
-                files,
-                progress_callback,
-            )
-
-            return self._collect_results(chunks_for_futures)
 
 
 def handle_scan_chunk_error(detail: Detail, chunk: List[File]) -> None:
