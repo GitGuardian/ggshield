@@ -1,4 +1,4 @@
-from collections import namedtuple
+from typing import List, Tuple
 
 import click
 import pytest
@@ -7,95 +7,13 @@ from pygitguardian.models import Detail
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode
-from ggshield.scan import Commit, File, Files, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import Commit, File, Files
+from ggshield.scan.scannable import _parse_patch_header_line
 from ggshield.scan.scanner import handle_scan_chunk_error
-from tests.unit.conftest import (
-    _MULTIPLE_SECRETS_PATCH,
-    _NO_SECRET_PATCH,
-    _ONE_LINE_AND_MULTILINE_PATCH,
-    GG_TEST_TOKEN,
-    UNCHECKED_SECRET_PATCH,
-    my_vcr,
-)
+from tests.unit.conftest import DATA_PATH
 
 
-ExpectedScan = namedtuple("expectedScan", "exit_code matches first_match want")
-
-_EXPECT_NO_SECRET = {
-    "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
-    "filename": "test.txt",
-    "filemode": Filemode.NEW,
-}
-
-
-@pytest.mark.parametrize(
-    "name,input_patch,expected",
-    [
-        (
-            "multiple_secrets",
-            _MULTIPLE_SECRETS_PATCH,
-            ExpectedScan(exit_code=1, matches=4, first_match="", want=None),
-        ),
-        (
-            "simple_secret",
-            UNCHECKED_SECRET_PATCH,
-            ExpectedScan(
-                exit_code=1,
-                matches=1,
-                first_match=GG_TEST_TOKEN,
-                want=None,
-            ),
-        ),
-        (
-            "one_line_and_multiline_patch",
-            _ONE_LINE_AND_MULTILINE_PATCH,
-            ExpectedScan(exit_code=1, matches=1, first_match=None, want=None),
-        ),
-        (
-            "no_secret",
-            _NO_SECRET_PATCH,
-            ExpectedScan(
-                exit_code=0, matches=0, first_match=None, want=_EXPECT_NO_SECRET
-            ),
-        ),
-    ],
-    ids=[
-        "_MULTIPLE_SECRETS",
-        "_SIMPLE_SECRET",
-        "_ONE_LINE_AND_MULTILINE_PATCH",
-        "_NO_SECRET",
-    ],
-)
-def test_scan_patch(client, cache, name, input_patch, expected):
-    c = Commit()
-    c._patch = input_patch
-
-    with my_vcr.use_cassette(name):
-        scanner = SecretScanner(
-            client=client,
-            cache=cache,
-            scan_context=ScanContext(
-                scan_mode=ScanMode.PATH,
-                command_path="external",
-            ),
-        )
-        results = scanner.scan(c.files)
-        for result in results.results:
-            if result.scan.policy_breaks:
-                assert len(result.scan.policy_breaks[0].matches) == expected.matches
-                if expected.first_match:
-                    assert (
-                        result.scan.policy_breaks[0].matches[0].match
-                        == expected.first_match
-                    )
-            else:
-                assert result.scan.policy_breaks == []
-
-            if expected.want:
-                assert result.content == expected.want["content"]
-                assert result.filename == expected.want["filename"]
-                assert result.filemode == expected.want["filemode"]
-
+PATCHES_DIR = DATA_PATH / "patches"
 
 PATCH_SEPARATION = (
     """commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
@@ -281,3 +199,124 @@ def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
     handle_scan_chunk_error(detail, chunk)
     captured = capsys.readouterr()
     snapshot.assert_match(captured.err)
+
+
+@pytest.mark.parametrize(
+    ("line", "expected_name", "expected_mode"),
+    [
+        (":100644 100644 bcd1234 0123456 M\0file0\0", "file0", Filemode.MODIFY),
+        (":100644 100644 abcd123 1234567 C68\0file1\0file2\0", "file2", Filemode.NEW),
+        (
+            ":100644 100644 abcd123 1234567 R86\0file1\0file3\0",
+            "file3",
+            Filemode.RENAME,
+        ),
+        (":000000 100644 0000000 1234567 A\0file4\0", "file4", Filemode.NEW),
+        (":100644 000000 1234567 0000000 D\0file5\0", "file5", Filemode.DELETE),
+        (
+            ":100644 100755 abcd123 abcd123 M\0file6\0",
+            "file6",
+            Filemode.MODIFY,
+        ),
+        (
+            ":::100644 100644 100644 100644 c57e98a c9d3d3d 6eb4116 127e89b MMM\0file7\0",
+            "file7",
+            Filemode.MODIFY,
+        ),
+    ],
+)
+def test_parse_patch_header_line(
+    line: str, expected_name: str, expected_mode: Filemode
+):
+    """
+    GIVEN a header line from a git show raw patch
+    WHEN _parse_patch_header_line() is called
+    THEN it returns the correct filename and mode
+    """
+    name, mode = _parse_patch_header_line(line)
+    assert (name, mode) == (expected_name, expected_mode)
+
+
+@pytest.mark.parametrize(
+    ("patch_name", "expected_names_and_modes"),
+    [
+        ("add.patch", [("README.md", Filemode.NEW)]),
+        ("pre-commit.patch", [("NEW.md", Filemode.NEW)]),
+        (
+            "add_two_files.patch",
+            [
+                ("one", Filemode.NEW),
+                ("two", Filemode.NEW),
+            ],
+        ),
+        (
+            "add_unusual.patch",
+            [
+                ("I'm unusual!", Filemode.NEW),
+            ],
+        ),
+        (
+            "chmod.patch",
+            [],  # a permission change with no content change yields no content
+        ),
+        (
+            "chmod_rename_modify.patch",
+            [
+                ("newscript", Filemode.RENAME),
+            ],
+        ),
+        (
+            "modify.patch",
+            [
+                ("README.md", Filemode.MODIFY),
+            ],
+        ),
+        (
+            "remove.patch",
+            [
+                ("foo_file", Filemode.DELETE),
+            ],
+        ),
+        (
+            "rename.patch",
+            [],  # a rename with no content change yields no content
+        ),
+        (
+            "merge.patch",
+            [
+                ("longfile", Filemode.MODIFY),
+                ("longfile", Filemode.MODIFY),
+                ("longfile", Filemode.MODIFY),
+            ],
+        ),
+        (
+            "merge-with-changes.patch",
+            [
+                ("conflicted", Filemode.MODIFY),
+                ("conflicted", Filemode.MODIFY),
+            ],
+        ),
+        (
+            "type-change.patch",
+            [
+                ("README2.md", Filemode.NEW),
+            ],
+        ),
+    ],
+)
+def test_get_files(
+    patch_name: str, expected_names_and_modes: List[Tuple[str, Filemode]]
+):
+    """
+    GIVEN a Commit created from a patch from data/patches
+    WHEN Commit.get_files() is called
+    THEN it returns files with correct names and modes
+    """
+    patch_path = PATCHES_DIR / patch_name
+
+    commit = Commit()
+    commit._patch = patch_path.read_text()
+    files = list(commit.get_files())
+
+    names_and_modes = [(x.filename, x.filemode) for x in files]
+    assert names_and_modes == expected_names_and_modes
