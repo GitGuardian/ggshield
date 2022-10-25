@@ -195,6 +195,38 @@ class TestAuthLoginToken:
             == second_instance_token
         )
 
+    def test_auth_login_token_from_stdin(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN a valid API token in stdin input
+        WHEN the auth login command is called
+        THEN the authentication is successfully made
+        """
+        config = Config()
+        assert len(config.auth_config.instances) == 0
+
+        self.mock_autho_login_request(monkeypatch, 200, self.VALID_TOKEN_PAYLOAD)
+
+        token = "mysupertoken"
+
+        get_text_stream_mock = Mock()
+        get_text_stream_mock.isatty.return_value = False
+        get_text_stream_mock.read.return_value = token
+        monkeypatch.setattr(
+            "ggshield.cmd.auth.click.get_text_stream",
+            Mock(return_value=get_text_stream_mock),
+        )
+
+        cmd = ["auth", "login", "--method=token"]
+
+        result = cli_fs_runner.invoke(cli, cmd, color=False)
+
+        config = Config()
+        assert_invoke_ok(result)
+
+        assert (
+            config.auth_config.get_instance(config.instance_name).account.token == token
+        )
+
 
 class TestAuthLoginWeb:
     @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])

@@ -110,7 +110,6 @@ def login_cmd(
         )
 
     if method == "token":
-
         if instance:
             config.set_cmdline_instance_name(instance)
         instance = config.instance_name
@@ -118,7 +117,16 @@ def login_cmd(
         instance_config = config.auth_config.get_or_create_instance(
             instance_name=instance
         )
-        token = click.prompt("Enter your GitGuardian API token", hide_input=True)
+
+        token = None
+        if not click.get_text_stream("stdin").isatty():
+            # Read from stdin only when the stdin is not connected to terminal, but is provided from the pipe
+            token = click.get_text_stream("stdin").read().strip()
+
+        # Prompt if the token was not provided with stdin
+        if not token:
+            token = click.prompt("Enter your GitGuardian API token", hide_input=True)
+
         if not token:
             raise click.ClickException("No API token was provided.")
 
