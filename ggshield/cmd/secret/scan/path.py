@@ -8,7 +8,7 @@ from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import ScanCollection
+from ggshield.scan import ScanCollection, Scanner
 
 
 @click.command()
@@ -47,14 +47,17 @@ def path_cmd(
                 command_path=ctx.command_path,
             )
 
-            results = files.scan(
+            scanner = Scanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                matches_ignore=config.secret.ignored_matches,
+                ignored_matches=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
-                scan_threads=MAX_WORKERS,
+            )
+            results = scanner.scan(
+                files.files,
                 progress_callback=partial(progress.update, task_scan),
+                scan_threads=MAX_WORKERS,
             )
         scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
 

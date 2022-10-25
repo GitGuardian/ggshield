@@ -10,7 +10,7 @@ from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
 from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.output import OutputHandler
-from ggshield.scan import Files, ScanCollection
+from ggshield.scan import Files, ScanCollection, Scanner
 
 
 @click.command()
@@ -48,12 +48,15 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 command_path=ctx.command_path,
             )
 
-            results = files.scan(
+            scanner = Scanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 scan_context=scan_context,
-                matches_ignore=config.secret.ignored_matches,
+                ignored_matches=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
+            )
+            results = scanner.scan(
+                files.files,
                 progress_callback=partial(progress.update, task_scan),
             )
 

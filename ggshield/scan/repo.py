@@ -18,7 +18,7 @@ from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import ScanContext, handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import Commit, Files, Results, ScanCollection
+from ggshield.scan import Commit, Results, ScanCollection, Scanner
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
@@ -74,12 +74,15 @@ def scan_commits_content(
     try:
         commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
         progress_callback(advance=len(commits))
-        results = Files(commit_files).scan(
+        scanner = Scanner(
             client=client,
             cache=cache,
-            matches_ignore=matches_ignore,
             scan_context=scan_context,
+            ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
+        )
+        results = scanner.scan(
+            commit_files,
             scan_threads=SCAN_THREADS,
         )
     except Exception as exc:

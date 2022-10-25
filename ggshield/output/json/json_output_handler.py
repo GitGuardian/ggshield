@@ -8,8 +8,8 @@ from ggshield.core.text_utils import Line
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
 from ggshield.output.json.schemas import ExtendedMatch, JSONScanCollectionSchema
 from ggshield.output.output_handler import OutputHandler
-from ggshield.scan import Result
-from ggshield.scan.scannable import Error, ScanCollection
+from ggshield.scan import Result, ScanCollection
+from ggshield.scan.scanner import Error
 
 
 class JSONOutputHandler(OutputHandler):

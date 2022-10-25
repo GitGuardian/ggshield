@@ -19,9 +19,8 @@ from ggshield.core.utils import (
     get_lines_from_content,
     load_dot_env,
 )
-from ggshield.scan import Commit
+from ggshield.scan import Commit, File, Files, Scanner
 from ggshield.scan.repo import cd
-from ggshield.scan.scannable import File, Files
 from tests.unit.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,
@@ -86,16 +85,15 @@ def test_make_indices_patch(
     else:
         o = Files([File(content, "test_file")])
     with my_vcr.use_cassette(name):
-        results = o.scan(
+        scanner = Scanner(
             client=client,
             cache=cache,
-            matches_ignore={},
             scan_context=ScanContext(
                 scan_mode=ScanMode.PATH,
                 command_path="external",
             ),
-            ignored_detectors=None,
         )
+        results = scanner.scan(o.files)
         result = results.results[0]
 
     lines = get_lines_from_content(

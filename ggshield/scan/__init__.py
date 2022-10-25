@@ -1,4 +1,5 @@
-from .scannable import Commit, File, Files, Result, Results, ScanCollection
+from .scannable import Commit, File, Files
+from .scanner import Result, Results, ScanCollection, Scanner
 
 
 __all__ = [
@@ -7,5 +8,6 @@ __all__ = [
     "Files",
     "Result",
     "Results",
+    "Scanner",
     "ScanCollection",
 ]

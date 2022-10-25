@@ -5,7 +5,7 @@ import click
 from ggshield.core.git_shell import check_git_dir
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import TextOutputHandler
-from ggshield.scan import Commit, ScanCollection
+from ggshield.scan import Commit, ScanCollection, Scanner
 
 
 @click.command()
@@ -29,13 +29,15 @@ def precommit_cmd(
             command_path=ctx.command_path,
         )
 
-        results = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"]).scan(
+        commit = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"])
+        scanner = Scanner(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
-            matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,
+            ignored_matches=config.secret.ignored_matches,
             ignored_detectors=config.secret.ignored_detectors,
         )
+        results = scanner.scan(commit.files)
 
         return output_handler.process_scan(
             ScanCollection(id="cached", type="pre-commit", results=results)

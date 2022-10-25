@@ -9,7 +9,7 @@ from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import File, ScanCollection
-from ggshield.scan.scannable import Scanner
+from ggshield.scan.scanner import Scanner
 
 
 def generate_files_from_docsets(file: TextIO, verbose: bool = False) -> Iterator[File]:
@@ -66,7 +66,7 @@ def docset_cmd(ctx: click.Context, files: List[TextIO]) -> int:  # pragma: no co
             scanner = Scanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                matches_ignore=config.secret.ignored_matches,
+                ignored_matches=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
             )
