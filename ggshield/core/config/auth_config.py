@@ -12,11 +12,11 @@ from ggshield.core.config.errors import (
 )
 from ggshield.core.config.utils import (
     ensure_path_exists,
-    get_auth_config_dir,
     get_auth_config_filepath,
     load_yaml,
     save_yaml,
 )
+from ggshield.core.dirs import get_config_dir
 from ggshield.core.utils import datetime_from_isoformat
 
 
@@ -125,7 +125,7 @@ class AuthConfig:
 
     def save(self) -> None:
         config_path = get_auth_config_filepath()
-        ensure_path_exists(get_auth_config_dir())
+        ensure_path_exists(get_config_dir())
         data = AuthConfigSchema().dump(self)
         data = prepare_auth_config_dict_for_save(data)
         save_yaml(data, config_path)
