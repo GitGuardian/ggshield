@@ -1,13 +1,25 @@
 import os
+from enum import Enum
 from typing import List
 
 import click
 
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import EMPTY_SHA, SupportedCI, handle_exception
+from ggshield.core.utils import EMPTY_SHA, handle_exception
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
+
+
+class SupportedCI(Enum):
+    GITLAB = "GITLAB"
+    TRAVIS = "TRAVIS"
+    CIRCLECI = "CIRCLECI"
+    JENKINS = "JENKINS HOME"
+    GITHUB = "GITHUB ACTIONS"
+    BITBUCKET = "BITBUCKET PIPELINES"
+    DRONE = "DRONE"
+    AZURE = "AZURE PIPELINES"
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover

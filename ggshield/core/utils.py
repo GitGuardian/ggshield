@@ -209,17 +209,6 @@ def find_match_indices(match: Match, lines: List[Line], is_patch: bool) -> Match
     )
 
 
-class SupportedCI(Enum):
-    GITLAB = "GITLAB"
-    TRAVIS = "TRAVIS"
-    CIRCLECI = "CIRCLECI"
-    JENKINS = "JENKINS HOME"
-    GITHUB = "GITHUB ACTIONS"
-    BITBUCKET = "BITBUCKET PIPELINES"
-    DRONE = "DRONE"
-    AZURE = "AZURE PIPELINES"
-
-
 json_output_option_decorator = click.option(
     "--json",
     "json_output",
