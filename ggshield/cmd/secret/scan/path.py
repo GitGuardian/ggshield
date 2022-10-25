@@ -6,9 +6,9 @@ import click
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
-from ggshield.core.utils import ScanContext, ScanMode, handle_exception
+from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import ScanCollection, SecretScanner
+from ggshield.scan import ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
 @click.command()

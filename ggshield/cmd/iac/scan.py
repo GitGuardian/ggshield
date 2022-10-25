@@ -13,7 +13,6 @@ from ggshield.core.config import Config
 from ggshield.core.constants import MAX_TAR_CONTENT_SIZE
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
-from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.iac.filter import get_iac_files_from_paths
 from ggshield.iac.models import IaCScanResult
 from ggshield.iac.models.iac_scan_parameters import IaCScanParameters
@@ -21,7 +20,7 @@ from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 from ggshield.output import OutputHandler
 from ggshield.output.json.iac_json_output_handler import IaCJSONOutputHandler
 from ggshield.output.text.iac_text_output_handler import IaCTextOutputHandler
-from ggshield.scan import Files, ScanCollection
+from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode
 
 
 logger = logging.getLogger(__name__)

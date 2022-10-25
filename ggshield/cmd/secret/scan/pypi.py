@@ -13,9 +13,8 @@ from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
-from ggshield.core.utils import ScanContext, ScanMode
 from ggshield.output import OutputHandler
-from ggshield.scan import Files, ScanCollection, SecretScanner
+from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30

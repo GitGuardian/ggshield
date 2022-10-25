@@ -6,10 +6,9 @@ import click
 
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.text_utils import create_progress_bar, display_info
-from ggshield.core.utils import ScanContext, ScanMode, handle_exception
+from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import File, ScanCollection
-from ggshield.scan.scanner import SecretScanner
+from ggshield.scan import File, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
 def generate_files_from_docsets(file: TextIO, verbose: bool = False) -> Iterator[File]:

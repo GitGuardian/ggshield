@@ -6,8 +6,8 @@ from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 from pygitguardian.models import Detail
 
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.utils import Filemode, ScanContext, ScanMode
-from ggshield.scan import Commit, File, Files, SecretScanner
+from ggshield.core.utils import Filemode
+from ggshield.scan import Commit, File, Files, ScanContext, ScanMode, SecretScanner
 from ggshield.scan.scanner import handle_scan_chunk_error
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,

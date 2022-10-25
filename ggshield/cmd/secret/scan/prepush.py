@@ -12,13 +12,8 @@ from ggshield.core.git_shell import (
     is_valid_git_commit_ref,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.utils import (
-    EMPTY_SHA,
-    EMPTY_TREE,
-    ScanContext,
-    ScanMode,
-    handle_exception,
-)
+from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, handle_exception
+from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
 
 

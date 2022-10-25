@@ -16,9 +16,9 @@ from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import ScanContext, handle_exception
+from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
-from ggshield.scan import Commit, Results, ScanCollection, SecretScanner
+from ggshield.scan import Commit, Results, ScanCollection, ScanContext, SecretScanner
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines

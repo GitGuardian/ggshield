@@ -16,8 +16,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import ScanContext
-from ggshield.scan import File, Files, ScanCollection, SecretScanner
+from ggshield.scan import File, Files, ScanCollection, ScanContext, SecretScanner
 
 
 FILEPATH_BANLIST = [

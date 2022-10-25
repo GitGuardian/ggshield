@@ -2,18 +2,15 @@ import logging
 import os
 import re
 import traceback
-import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Iterable, List, NamedTuple, Optional, Union
+from typing import Iterable, List, NamedTuple, Optional
 from urllib.parse import ParseResult, urlparse
 
 import click
 from dotenv import load_dotenv
 from pygitguardian.models import Match
 
-from ggshield import __version__
 from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
 from .git_shell import get_git_root, is_git_dir
@@ -223,21 +220,6 @@ class SupportedCI(Enum):
     AZURE = "AZURE PIPELINES"
 
 
-class ScanMode(Enum):
-    REPO = "repo"
-    PATH = "path"
-    COMMIT_RANGE = "commit_range"
-    PRE_COMMIT = "pre_commit"
-    PRE_PUSH = "pre_push"
-    PRE_RECEIVE = "pre_receive"
-    CI = "ci"
-    DOCKER = "docker"
-    PYPI = "pypi"
-    ARCHIVE = "archive"
-    IAC_DIRECTORY = "directory"
-    DOCSET = "docset"
-
-
 json_output_option_decorator = click.option(
     "--json",
     "json_output",
@@ -383,38 +365,6 @@ def urljoin(url: str, *args: str) -> str:
         url += url_part
 
     return url
-
-
-@dataclass
-class ScanContext:
-    scan_mode: Union[ScanMode, str]
-    command_path: str
-    extra_headers: Optional[Dict[str, str]] = None
-
-    def __post_init__(self) -> None:
-        self.command_id = str(uuid.uuid4())
-
-    def get_http_headers(self) -> Dict[str, str]:
-        """
-        Returns the extra headers to send in HTTP requests.
-        If `command_id` is not None, a `GGShield-Command-Id` header will be sent.
-        Adds the "GGShield-" prefix to the header's names.
-        """
-        headers = {
-            "Version": __version__,
-            "Command-Path": self.command_path,
-            "Command-Id": self.command_id,
-        }
-
-        if self.extra_headers:
-            headers = {**headers, **self.extra_headers}
-
-        return {
-            **{f"GGShield-{key}": str(value) for key, value in headers.items()},
-            "mode": self.scan_mode.value
-            if isinstance(self.scan_mode, ScanMode)
-            else self.scan_mode,
-        }
 
 
 def datetime_from_isoformat(text: str) -> datetime:

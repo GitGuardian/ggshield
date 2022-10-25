@@ -3,9 +3,9 @@ from typing import List
 import click
 
 from ggshield.core.git_shell import check_git_dir
-from ggshield.core.utils import ScanContext, ScanMode, handle_exception
+from ggshield.core.utils import handle_exception
 from ggshield.output import TextOutputHandler
-from ggshield.scan import Commit, ScanCollection, SecretScanner
+from ggshield.scan import Commit, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
 @click.command()

@@ -17,9 +17,11 @@ from ggshield.core.filter import (
 )
 from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import Filemode, ScanContext
+from ggshield.core.utils import Filemode
 from ggshield.iac.models import IaCScanResult
-from ggshield.scan import File
+
+from .scan_context import ScanContext
+from .scannable import File
 
 
 logger = logging.getLogger(__name__)

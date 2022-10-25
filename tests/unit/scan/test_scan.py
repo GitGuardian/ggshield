@@ -5,8 +5,7 @@ from click import Command, Context, Group
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
-from ggshield.core.utils import ScanContext, ScanMode
-from ggshield.scan import Commit, SecretScanner
+from ggshield.scan import Commit, ScanContext, ScanMode, SecretScanner
 from ggshield.scan.repo import cd
 from tests.unit.conftest import UNCHECKED_SECRET_PATCH
 

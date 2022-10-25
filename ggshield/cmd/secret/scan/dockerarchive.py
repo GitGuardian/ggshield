@@ -2,8 +2,9 @@ from pathlib import Path
 
 import click
 
-from ggshield.core.utils import ScanContext, ScanMode, handle_exception
+from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
+from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.docker import docker_scan_archive
 
 

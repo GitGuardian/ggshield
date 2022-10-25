@@ -11,15 +11,13 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.utils import (
     MatchIndices,
-    ScanContext,
-    ScanMode,
     api_to_dashboard_url,
     dashboard_to_api_url,
     find_match_indices,
     get_lines_from_content,
     load_dot_env,
 )
-from ggshield.scan import Commit, File, Files, SecretScanner
+from ggshield.scan import Commit, File, Files, ScanContext, ScanMode, SecretScanner
 from ggshield.scan.repo import cd
 from tests.unit.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
