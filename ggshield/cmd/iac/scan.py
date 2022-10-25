@@ -7,7 +7,6 @@ from pygitguardian.models import Detail
 
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.extra_headers import get_headers
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import ScanContext, ScanMode
@@ -154,12 +153,10 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
     scan = client.directory_scan(
         tar,
         scan_parameters,
-        get_headers(
-            ScanContext(
-                command_path=ctx.command_path,
-                scan_mode=ScanMode.IAC_DIRECTORY,
-            )
-        ),
+        ScanContext(
+            command_path=ctx.command_path,
+            scan_mode=ScanMode.IAC_DIRECTORY,
+        ).get_http_headers(),
     )
 
     if not scan.success or not isinstance(scan, IaCScanResult):

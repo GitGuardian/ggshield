@@ -11,7 +11,6 @@ from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
-from ggshield.core.extra_headers import get_headers
 from ggshield.core.filter import (
     remove_ignored_from_result,
     remove_results_from_ignore_detectors,
@@ -116,7 +115,7 @@ class SecretScanner:
         self.cache = cache
         self.ignored_matches = ignored_matches or []
         self.ignored_detectors = ignored_detectors
-        self.headers = get_headers(scan_context)
+        self.headers = scan_context.get_http_headers()
         self.command_id = scan_context.command_id
 
     def scan(
