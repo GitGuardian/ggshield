@@ -155,11 +155,10 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
         tar,
         scan_parameters,
         get_headers(
-            scan_context=ScanContext(
+            ScanContext(
                 command_path=ctx.command_path,
                 scan_mode=ScanMode.IAC_DIRECTORY,
-            ),
-            context_headers=ctx.obj.get("headers"),
+            )
         ),
     )
 

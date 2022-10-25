@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional, Union
+from typing import Dict, Iterable, List, NamedTuple, Optional, Union
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -388,6 +388,7 @@ def urljoin(url: str, *args: str) -> str:
 class ScanContext:
     scan_mode: Union[ScanMode, str]
     command_path: str
+    extra_headers: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
         self.command_id = str(uuid.uuid4())
