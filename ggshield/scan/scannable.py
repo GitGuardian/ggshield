@@ -244,12 +244,14 @@ class Commit(Files):
     """
 
     def __init__(
-        self, sha: Optional[str] = None, exclusion_regexes: Set[re.Pattern] = set()
+        self,
+        sha: Optional[str] = None,
+        exclusion_regexes: Optional[Set[re.Pattern]] = None,
     ):
+        super().__init__([])
         self.sha = sha
         self._patch: Optional[str] = None
-        self._files = []
-        self.exclusion_regexes = exclusion_regexes
+        self.exclusion_regexes: Set[re.Pattern] = exclusion_regexes or set()
         self._info: Optional[CommitInformation] = None
 
     @property
