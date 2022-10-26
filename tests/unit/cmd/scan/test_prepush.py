@@ -15,7 +15,7 @@ from ggshield.core.utils import (
 )
 from ggshield.scan.repo import cd
 from tests.repository import Repository
-from tests.unit.conftest import assert_invoke_ok
+from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
 def create_local_repo_with_remote(work_dir: Path) -> Repository:
@@ -394,4 +394,61 @@ class TestPrepush:
             matches_ignore=ANY,
             scan_context=ANY,
             ignored_detectors=set(),
+        )
+
+    @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
+    def test_remediation_message(
+        self,
+        scan_commit_range_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN some commits
+        WHEN the command is run and some secrets are found
+        THEN the remediation message is present in the output
+        """
+        local_repo = create_local_repo_with_remote(tmp_path)
+        remote_sha = local_repo.get_top_sha()
+        shas = [local_repo.create_commit() for _ in range(20)]
+
+        scan_commit_range_mock.return_value = 1
+
+        with cd(str(local_repo.path)):
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "-v",
+                    "secret",
+                    "scan",
+                    "pre-push",
+                    "origin",
+                    "https://example.com/remote",
+                ],
+                input=f"refs/heads/main {shas[-1]} refs/heads/main {remote_sha}",
+            )
+        assert_invoke_exited_with(result, 1)
+        scan_commit_range_mock.assert_called_once()
+        assert "Commits to scan: 20" in result.output
+
+        assert (
+            """
+> How to remediate
+
+  Since the secret was detected before the push BUT after the commit, you need to:
+  1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
+  2. push again
+
+
+  To prevent having to rewrite git history in the future, setup ggshield as a pre-commit hook:
+      https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit
+
+
+> [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
+  - if you use the pre-commit framework:
+      SKIP=ggshield-push git push
+  - otherwise (warning: the following command bypasses all pre-push hooks):
+      git push --no-verify
+"""
+            in result.output
         )

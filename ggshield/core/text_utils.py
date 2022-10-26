@@ -32,7 +32,10 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "line_count_secret": {"fg": "yellow"},
     "progress": {"fg": "bright_yellow", "bold": False},
     "warning": {"fg": "yellow"},
+    "incident_value": {"fg": "bright_yellow", "bold": True},
 }
+
+POLICY_TO_DISPLAY_NAME = {"secrets detection": "Secret detected"}
 
 
 class LineCategory(Enum):

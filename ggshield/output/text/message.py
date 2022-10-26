@@ -7,6 +7,7 @@ from pygitguardian.client import VERSIONS
 from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
 from ggshield.core.text_utils import (
+    POLICY_TO_DISPLAY_NAME,
     STYLE,
     Line,
     format_text,
@@ -19,9 +20,46 @@ from ggshield.output.text.utils import get_offset, get_padding
 
 DECORATION_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
 
+FILE_WITH_INCIDENT_OPEN_ICON_BY_OS = {"posix": "🔍🦉️"}
+FILE_WITH_INCIDENT_CLOSE_ICON_BY_OS = {"posix": "🦉🔍"}
+INCIDENT_ICON_BY_OS = {"posix": "🚨"}
+LIGHTBULB_ICON_BY_OS = {"posix": "💡"}
+INFO_ICON_BY_OS = {"posix": "ℹ️"}
+POINT_ICON_BY_OS = {"posix": "👉"}
+
+
 # MAX_SECRET_SIZE controls the max length of |-----| under a secret
 # avoids occupying a lot of space in a CI terminal.
 MAX_SECRET_SIZE = 80
+
+
+def remediation_message(
+    remediation_steps: str, bypass_message: str, rewrite_git_history: bool = False
+) -> str:
+
+    rewrite_git_history_message = (
+        """
+  To prevent having to rewrite git history in the future, setup ggshield as a pre-commit hook:
+      https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit
+
+"""
+        if rewrite_git_history
+        else ""
+    )
+
+    return """{} How to remediate
+
+{}
+{}
+{} [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
+{}
+    """.format(
+        format_text(">", STYLE["detector_line_start"]),
+        remediation_steps,
+        rewrite_git_history_message,
+        format_text(">", STYLE["detector_line_start"]),
+        bypass_message,
+    )
 
 
 def leak_message_located(
@@ -189,28 +227,32 @@ def iac_vulnerability_location_failed(
     return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
 
 
-def policy_break_header(
-    issue_n: int, policy_breaks: List[PolicyBreak], ignore_sha: str
-) -> str:
+def policy_break_header(policy_breaks: List[PolicyBreak], ignore_sha: str) -> str:
     """
     Build a header for the policy break.
     """
     validity_msg = (
-        f" (Validity: {format_text(translate_validity(policy_breaks[0].validity), STYLE['nb_secrets'])}) "
+        f"\n   Validity: {format_text(translate_validity(policy_breaks[0].validity), STYLE['incident_value'])}"
         if policy_breaks[0].validity
         else ""
     )
 
-    return "\n{} Incident {}({}): {}{} (Ignore with SHA: {}) ({} {})\n".format(
-        format_text(">>>", STYLE["detector_line_start"]),
-        issue_n,
-        format_text(policy_breaks[0].policy, STYLE["detector"]),
-        format_text(policy_breaks[0].break_type, STYLE["detector"]),
-        validity_msg,
-        format_text(ignore_sha, STYLE["ignore_sha"]),
-        len(policy_breaks),
-        pluralize("occurrence", len(policy_breaks), "occurrences"),
+    start_line = format_text(">>", STYLE["detector_line_start"])
+    policy_name = POLICY_TO_DISPLAY_NAME.get(
+        policy_breaks[0].policy.lower(), policy_breaks[0].policy
     )
+    policy_break_type = format_text(
+        policy_breaks[0].break_type, STYLE["incident_value"]
+    )
+    number_occurrences = format_text(str(len(policy_breaks)), STYLE["incident_value"])
+    ignore_sha = format_text(ignore_sha, STYLE["incident_value"])
+
+    return f"""
+{start_line} {policy_name}: {policy_break_type}{validity_msg}
+   Occurrences: {number_occurrences}
+   Ignore with SHA: {ignore_sha}
+
+"""
 
 
 def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> str:
@@ -372,11 +414,11 @@ def _file_info_default_decoration() -> str:
 
 def file_info(filename: str, nb_secrets: int) -> str:
     """Return the formatted file info (number of secrets + filename)."""
-    return "\n{} {} {} been found in file {}\n".format(
-        _file_info_decoration(),
-        format_text(str(nb_secrets), STYLE["nb_secrets"]),
-        pluralize("incident has", nb_secrets, "incidents have"),
+    return "\n{} {}: {} {} detected\n".format(
+        format_text(">", STYLE["detector_line_start"]),
         format_text(filename, STYLE["filename"]),
+        nb_secrets,
+        pluralize("incident", nb_secrets, "incidents"),
     )
 
 

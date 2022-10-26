@@ -121,10 +121,7 @@ def assert_no_failures_displayed(result: Result):
 
 
 def assert_file_single_vulnerability_displayed(result: Result):
-    assert (
-        "1 incident has been found in file iac_file_single_vulnerability.tf"
-        in result.stdout
-    )
+    assert "iac_file_single_vulnerability.tf: 1 incident detected" in result.stdout
     assert set(re.findall(r"GG_IAC_\d{4}", result.stdout)) >= {
         "GG_IAC_0001",
     }
@@ -133,10 +130,7 @@ def assert_file_single_vulnerability_displayed(result: Result):
 
 
 def assert_file_multiple_vulnerabilities_displayed(result: Result):
-    assert (
-        "2 incidents have been found in file iac_file_multiple_vulnerabilities.tf"
-        in result.stdout
-    )
+    assert "iac_file_multiple_vulnerabilities.tf: 2 incidents detected" in result.stdout
     assert set(re.findall(r"GG_IAC_\d{4}", result.stdout)) >= {
         "GG_IAC_0002",
         "GG_IAC_0003",

@@ -76,7 +76,21 @@ class TestPreReceive:
         get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_called_once()
         assert (
-            "if those secrets are false positives and you still want your push to pass, run:\n'git push -o breakglass'"
+            """> How to remediate
+
+  A pre-receive hook set server side prevented you from pushing secrets.
+  Since the secret was detected during the push BUT after the commit, you need to:
+  1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
+  2. push again
+
+
+  To prevent having to rewrite git history in the future, setup ggshield as a pre-commit hook:
+      https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit
+
+
+> [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
+    git push -o breakglass
+"""
             in result.output
         )
 

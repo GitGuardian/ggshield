@@ -5,6 +5,7 @@ import click
 from ggshield.core.git_shell import check_git_dir
 from ggshield.core.utils import ScanContext, ScanMode, handle_exception
 from ggshield.output import TextOutputHandler
+from ggshield.output.text.message import remediation_message
 from ggshield.scan import Commit, ScanCollection
 
 
@@ -37,8 +38,25 @@ def precommit_cmd(
             ignored_detectors=config.secret.ignored_detectors,
         )
 
-        return output_handler.process_scan(
+        return_code = output_handler.process_scan(
             ScanCollection(id="cached", type="pre-commit", results=results)
         )
+        if return_code:
+            remediation_steps = """  Since the secret was detected before the commit was made:
+  1. replace the secret with its reference (e.g. environment variable).
+  2. commit again.
+"""
+            bypass_message = """  - if you use the pre-commit framework:
+      SKIP=ggshield git commit -m "<your message>"
+  - otherwise (warning: the following command bypasses all pre-commit hooks):
+      git commit -m "<your message>" --no-verify
+"""
+            click.echo(
+                remediation_message(
+                    remediation_steps, bypass_message, rewrite_git_history=False
+                ),
+                err=True,
+            )
+        return return_code
     except Exception as error:
         return handle_exception(error, config.verbose)
