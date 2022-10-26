@@ -292,7 +292,7 @@ def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     handles the SaaS edge case where the host changes instead of the path
     """
     parsed_url = clean_url(dashboard_url, warn=warn)
-    if parsed_url.scheme != "https":
+    if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
         raise click.ClickException(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
         )
@@ -317,7 +317,7 @@ def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
     handles the SaaS edge case where the host changes instead of the path
     """
     parsed_url = clean_url(api_url, warn=warn)
-    if parsed_url.scheme != "https":
+    if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
         raise click.ClickException(
             f"Invalid scheme for API URL '{api_url}', expected HTTPS"
         )
