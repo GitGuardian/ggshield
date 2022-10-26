@@ -111,9 +111,9 @@ class JSONScanCollectionSchema(BaseSchema):
 
 
 class IaCJSONFileResultSchema(IaCFileResultSchema):  # type: ignore
-    total_incidents = fields.Integer(default=0)
+    total_incidents = fields.Integer(dump_default=0)
 
 
 class IaCJSONScanResultSchema(IaCScanResultSchema):  # type: ignore
     entities_with_incidents = fields.List(fields.Nested(IaCJSONFileResultSchema))
-    total_incidents = fields.Integer(default=0)
+    total_incidents = fields.Integer(dump_default=0)
