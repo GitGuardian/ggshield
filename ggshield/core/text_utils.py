@@ -26,13 +26,22 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "no_secret": {"fg": "white"},
     "detector": {"fg": "bright_yellow", "bold": True},
     "policy": {"fg": "cyan", "bold": True},
-    "ignore_sha": {"fg": "cyan"},
     "detector_line_start": {"fg": "cyan"},
     "line_count": {"fg": "white", "dim": True},
     "line_count_secret": {"fg": "yellow"},
     "progress": {"fg": "bright_yellow", "bold": False},
     "warning": {"fg": "yellow"},
+    "incident_validity": {"fg": "bright_yellow", "bold": True},
+    "policy_break_type": {"fg": "bright_yellow", "bold": True},
+    "occurrence_count": {"fg": "bright_yellow", "bold": True},
+    "ignore_sha": {"fg": "bright_yellow", "bold": True},
 }
+
+_DISPLAY_NAME_FOR_POLICY = {"secrets detection": "Secret detected"}
+
+
+def get_display_name_for_policy(policy: str) -> str:
+    return _DISPLAY_NAME_FOR_POLICY.get(policy.lower(), policy)
 
 
 class LineCategory(Enum):

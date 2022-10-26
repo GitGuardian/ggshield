@@ -29,7 +29,7 @@ class TextOutputHandler(OutputHandler):
         if scan.optional_header and (scan.has_results or self.verbose):
             scan_buf.write(scan.optional_header)
 
-        if top and (scan.has_results or self.verbose):
+        if top and self.verbose:
             scan_buf.write(secrets_engine_version())
 
         if scan.has_results:
@@ -79,8 +79,8 @@ class TextOutputHandler(OutputHandler):
 
         result_buf.write(file_info(result.filename, len(sha_dict)))
 
-        for issue_n, (ignore_sha, policy_breaks) in enumerate(sha_dict.items(), 1):
-            result_buf.write(policy_break_header(issue_n, policy_breaks, ignore_sha))
+        for ignore_sha, policy_breaks in sha_dict.items():
+            result_buf.write(policy_break_header(policy_breaks, ignore_sha))
             for policy_break in policy_breaks:
                 policy_break.matches = TextOutputHandler.make_matches(
                     policy_break.matches, lines, is_patch

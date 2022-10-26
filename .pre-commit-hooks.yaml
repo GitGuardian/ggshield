@@ -1,17 +1,17 @@
 - id: ggshield
-  name: GitGuardian Shield (pre-commit)
+  name: ggshield (pre-commit)
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
   stages: [commit]
   args: ['secret', 'scan', 'pre-commit']
   language: python
 - id: docker-ggshield
-  name: GitGuardian Shield (pre-commit,docker)
+  name: ggshield (pre-commit,docker)
   language: docker_image
   entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield secret scan pre-commit
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks in docker images.
 - id: ggshield-push
-  name: GitGuardian Shield (pre-push)
+  name: ggshield (pre-push)
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
   args: ['secret', 'scan', 'pre-push']
@@ -19,7 +19,7 @@
   pass_filenames: false
   language: python
 - id: docker-ggshield-push
-  name: GitGuardian Shield (pre-push,docker)
+  name: ggshield (pre-push,docker)
   language: docker_image
   entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield secret scan pre-push
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks in docker images.

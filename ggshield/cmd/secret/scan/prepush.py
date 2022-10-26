@@ -13,6 +13,7 @@ from ggshield.core.git_shell import (
 )
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, handle_exception
+from ggshield.output.text.message import remediation_message
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
 
@@ -27,6 +28,19 @@ To fix it, either edit the hook manually or make a backup of it and reinstall it
 
     ggshield install -m local -t pre-push -f
 """  # noqa: E501
+
+
+REMEDIATION_STEPS = """  Since the secret was detected before the push BUT after the commit, you need to:
+  1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
+  2. push again."""
+
+BYPASS_MESSAGE = """  - if you use the pre-commit framework:
+
+     SKIP=ggshield-push git push
+
+  - otherwise (warning: the following command bypasses all pre-push hooks):
+
+     git push --no-verify"""
 
 
 @click.command()
@@ -97,7 +111,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:
             command_path=ctx.command_path,
         )
 
-        return scan_commit_range(
+        return_code = scan_commit_range(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             commit_list=commit_list,
@@ -107,6 +121,16 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str]) -> int:
             scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
         )
+        if return_code:
+            click.echo(
+                remediation_message(
+                    remediation_steps=REMEDIATION_STEPS,
+                    bypass_message=BYPASS_MESSAGE,
+                    rewrite_git_history=True,
+                ),
+                err=True,
+            )
+        return return_code
     except Exception as error:
         return handle_exception(error, config.verbose)
 
