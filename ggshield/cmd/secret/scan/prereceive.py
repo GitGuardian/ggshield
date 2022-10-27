@@ -198,6 +198,7 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
                 matches_ignore=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
+                ignore_known_secrets=config.ignore_known_secrets,
             )
             if return_code:
                 remediation_steps = """  A pre-receive hook set server side prevented you from pushing secrets.

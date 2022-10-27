@@ -90,6 +90,12 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
     is_flag=True,
     hidden=True,
 )
+@click.option(
+    "--ignore-known-secrets",
+    is_flag=True,
+    default=None,
+    help="Ignore",
+)
 @click.pass_context
 def scan_group(
     ctx: click.Context,
@@ -102,6 +108,7 @@ def scan_group(
     banlist_detector: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
     ignore_default_excludes: bool = False,
+    ignore_known_secrets: bool = False,
 ) -> int:
     """Commands to scan various contents."""
     return scan_group_impl(
@@ -113,6 +120,7 @@ def scan_group(
         output,
         banlist_detector,
         exclude,
+        ignore_known_secrets,
     )
 
 
@@ -125,6 +133,7 @@ def scan_group_impl(
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
+    ignore_known_secrets: bool = False,
 ) -> int:
     """Implementation for scan_group(). Must be a separate function so that its code can
     be reused from the deprecated `cmd.scan` package."""
@@ -151,6 +160,9 @@ def scan_group_impl(
 
     if banlist_detector:
         config.secret.ignored_detectors.update(banlist_detector)
+
+    if ignore_known_secrets:
+        config.ignore_known_secrets = ignore_known_secrets
 
     max_commits = get_max_commits_for_hook()
     if max_commits:

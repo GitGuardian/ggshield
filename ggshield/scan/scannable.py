@@ -121,6 +121,15 @@ class Result(NamedTuple):
     filename: str  # Filename of content scanned
     scan: ScanResult  # Result of content scan
 
+    @property
+    def has_new_secrets(self) -> bool:
+        """
+        Returns true when at least one new secret is found in the result
+        """
+        return not all(
+            policy_break.known_secret for policy_break in self.scan.policy_breaks
+        )
+
 
 class Error(NamedTuple):
     files: List[Tuple[str, Filemode]]
@@ -170,6 +179,30 @@ class ScanCollection(NamedTuple):
     @property
     def has_results(self) -> bool:
         return bool(self.results and self.results.results)
+
+    @property
+    def has_new_secrets(self) -> bool:
+        """
+        Returns true when at least one new secret is found in the results of this scan (subscans are NOT checked)
+        """
+        if self.results and self.results.results:
+            return not all(
+                policy_break.known_secret
+                for result in self.results.results
+                for policy_break in result.scan.policy_breaks
+            )
+        return False
+
+    @property
+    def has_new_secrets_all_scans(self) -> bool:
+        """
+        Returns true when at least one new secret is found in the results of this scan (subscans are checked)
+        """
+        return not all(
+            policy_break.known_secret
+            for result in self.get_all_results()
+            for policy_break in result.scan.policy_breaks
+        )
 
     def get_all_results(self) -> Iterable[Result]:
         """Returns an iterable on all results and sub-scan results"""
@@ -284,12 +317,18 @@ class Files:
         matches_ignore: Iterable[IgnoredMatch],
         scan_context: ScanContext,
         ignored_detectors: Optional[Set[str]] = None,
+        ignore_known_secrets: bool = False,
         progress_callback: Callable[..., None] = lambda advance: None,
         scan_threads: int = 4,
     ) -> Results:
         logger.debug("self=%s command_id=%s", self, scan_context.command_id)
         scanner = Scanner(
-            client, cache, matches_ignore, scan_context, ignored_detectors
+            client,
+            cache,
+            matches_ignore,
+            scan_context,
+            ignored_detectors,
+            ignore_known_secrets,
         )
         return scanner.scan(self.files, progress_callback, scan_threads)
 
@@ -302,12 +341,14 @@ class Scanner:
         matches_ignore: Iterable[IgnoredMatch],
         scan_context: ScanContext,
         ignored_detectors: Optional[Set[str]] = None,
+        ignore_known_secrets=False,
     ):
         self.client = client
         self.cache = cache
         self.matches_ignore = matches_ignore
         self.ignored_detectors = ignored_detectors
         self.headers = get_headers(scan_context)
+        self.ignore_known_secrets = ignore_known_secrets
 
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[File]
@@ -324,6 +365,7 @@ class Scanner:
             self.client.multi_content_scan,
             documents,
             self.headers,
+            params={"ignore_known_secrets": self.ignore_known_secrets},
         )
 
     def _start_scans(

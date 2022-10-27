@@ -33,6 +33,8 @@ class OutputHandler(ABC):
                 f.write(text)
         else:
             click.echo(text)
+
+        print(f"EXIT CODE {OutputHandler._get_exit_code(scan)}")
         return OutputHandler._get_exit_code(scan)
 
     @abstractmethod
@@ -49,8 +51,10 @@ class OutputHandler(ABC):
 
     @staticmethod
     def _get_exit_code(scan: ScanCollection) -> int:
-        if scan.has_results or scan.has_iac_result:
+        if scan.has_iac_result:
             return 1
+        if not scan.has_new_secrets_all_scans:
+            return 0
         if scan.scans and any(x.has_results for x in scan.scans):
             return 1
         return 0

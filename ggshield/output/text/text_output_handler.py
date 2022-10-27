@@ -26,7 +26,8 @@ class TextOutputHandler(OutputHandler):
 
     def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
         scan_buf = StringIO()
-        if scan.optional_header and (scan.has_results or self.verbose):
+
+        if scan.optional_header and (scan.has_new_secrets or self.verbose):
             scan_buf.write(scan.optional_header)
 
         if top and self.verbose:
@@ -35,13 +36,9 @@ class TextOutputHandler(OutputHandler):
         if scan.has_results:
             for result in cast(Results, scan.results).results:
                 scan_buf.write(self.process_result(result))
-        else:
-            has_results = False
-            if scan.scans:
-                has_results = any(x.has_results for x in scan.scans)
 
-            if top and not has_results:
-                scan_buf.write(no_leak_message())
+        if top and not scan.has_new_secrets_all_scans:
+            scan_buf.write(no_leak_message())
 
         if scan.scans:
             for sub_scan in scan.scans:
@@ -50,7 +47,7 @@ class TextOutputHandler(OutputHandler):
 
         return scan_buf.getvalue()
 
-    def process_result(self, result: Result) -> str:
+    def process_result(self, result: Result, show_only_new_secrets: bool) -> str:
         """
         Build readable message on the found incidents.
 
@@ -77,26 +74,34 @@ class TextOutputHandler(OutputHandler):
         if len(lines) == 0:
             raise click.ClickException("Parsing of scan result failed.")
 
-        result_buf.write(file_info(result.filename, len(sha_dict)))
+        if result.has_new_secrets or self.verbose:
+            result_buf.write(file_info(result.filename, len(sha_dict)))
 
         for ignore_sha, policy_breaks in sha_dict.items():
-            result_buf.write(policy_break_header(policy_breaks, ignore_sha))
-            for policy_break in policy_breaks:
-                policy_break.matches = TextOutputHandler.make_matches(
-                    policy_break.matches, lines, is_patch
-                )
+            known = (
+                policy_breaks[0].policy == "Secrets detection"
+                and policy_breaks[0].known_secret
+            )
 
-            if policy_breaks[0].policy == "Secrets detection":
-                result_buf.write(
-                    leak_message_located(
-                        flatten_policy_breaks_by_line(policy_breaks),
-                        lines,
-                        padding,
-                        offset,
-                        self.nb_lines,
-                        clip_long_lines=not self.verbose,
+            if not known or self.verbose:
+                result_buf.write(policy_break_header(policy_breaks, ignore_sha))
+
+                for policy_break in policy_breaks:
+                    policy_break.matches = TextOutputHandler.make_matches(
+                        policy_break.matches, lines, is_patch
                     )
-                )
+
+                if policy_breaks[0].policy == "Secrets detection":
+                    result_buf.write(
+                        leak_message_located(
+                            flatten_policy_breaks_by_line(policy_breaks),
+                            lines,
+                            padding,
+                            offset,
+                            self.nb_lines,
+                            clip_long_lines=not self.verbose,
+                        )
+                    )
 
         return result_buf.getvalue()
 
