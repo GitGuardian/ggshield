@@ -68,7 +68,10 @@ class TestPathScan:
             assert_invoke_exited_with(result, 1)
             assert result.exception
             assert (
-                "GitGuardian Development Secret (Validity: No Checker)  (Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4)"  # noqa
+                """>> Secret detected: GitGuardian Development Secret
+   Validity: No Checker
+   Occurrences: 1
+   Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4"""
                 in result.output
             )
 
@@ -86,7 +89,11 @@ class TestPathScan:
         assert_invoke_exited_with(result, 1)
         assert result.exception
         assert (
-            "Incident 1(Secrets detection): GitGuardian Test Token Checked (Validity: Valid)  (Ignore with SHA: 56c12"
+            """>> Secret detected: GitGuardian Test Token Checked
+   Validity: Valid
+   Occurrences: 1
+   Ignore with SHA: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd
+"""
             in result.output
         )
 
@@ -349,8 +356,7 @@ class TestScanDirectory:
             if nb_secret:
                 plural = nb_secret > 1
                 assert (
-                    f"{nb_secret} incident{'s' if plural else ''} "
-                    f"{'have' if plural else 'has'} been found"
+                    f": {nb_secret} incident{'s' if plural else ''} "
                 ) in result.output
             else:
                 assert "No secrets have been found" in result.output

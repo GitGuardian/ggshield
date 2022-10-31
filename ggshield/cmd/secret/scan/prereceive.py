@@ -12,8 +12,17 @@ from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import EMPTY_SHA, PRERECEIVE_TIMEOUT, handle_exception
 from ggshield.output import GitLabWebUIOutputHandler
+from ggshield.output.text.message import remediation_message
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
+
+
+REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from pushing secrets.
+  Since the secret was detected during the push BUT after the commit, you need to:
+  1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
+  2. push again."""
+
+BYPASS_MESSAGE = """\n     git push -o breakglass"""
 
 
 def quit_function() -> None:
@@ -195,15 +204,11 @@ def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) ->
             )
             if return_code:
                 click.echo(
-                    """Rewrite your git history to delete evidence of your secrets.
-Use environment variables to use your secrets instead and store them in a file not tracked by git.
-
-If you don't want to go through this painful git history rewrite in the future,
-you can set up ggshield in your pre commit:
-https://docs.gitguardian.com/internal-repositories-monitoring/integrations/git_hooks/pre_commit
-
-Use it carefully: if those secrets are false positives and you still want your push to pass, run:
-'git push -o breakglass'""",
+                    remediation_message(
+                        remediation_steps=REMEDIATION_MESSAGE,
+                        bypass_message=BYPASS_MESSAGE,
+                        rewrite_git_history=True,
+                    ),
                     err=True,
                 )
             return return_code
