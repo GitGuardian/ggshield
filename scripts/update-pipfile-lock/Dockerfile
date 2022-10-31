@@ -1,4 +1,10 @@
-FROM python:3.7
+# Update Pipfile.lock.
+# The lock is defined for the version of Python defined here.
+#
+# If you change this version, you must also change:
+# - The image version in the root Dockerfile
+# - The version in .github/workflows/main.yml
+FROM python:3.9-slim
 
 ARG UID
 
@@ -7,4 +13,4 @@ RUN useradd --uid $UID --create-home user
 
 WORKDIR /home/user/src
 
-CMD ["pipenv", "--python", "3.7", "lock"]
+CMD ["pipenv", "lock"]

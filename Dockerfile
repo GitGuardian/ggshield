@@ -1,3 +1,4 @@
+# Keep image in sync with scripts/update-pipfile-lock/Dockerfile
 FROM python:3.9-slim as build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
