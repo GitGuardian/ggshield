@@ -2,11 +2,9 @@ import logging
 import os
 import re
 import traceback
-import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional, Union
+from typing import Iterable, List, NamedTuple, Optional
 from urllib.parse import ParseResult, urlparse
 
 import click
@@ -211,32 +209,6 @@ def find_match_indices(match: Match, lines: List[Line], is_patch: bool) -> Match
     )
 
 
-class SupportedCI(Enum):
-    GITLAB = "GITLAB"
-    TRAVIS = "TRAVIS"
-    CIRCLECI = "CIRCLECI"
-    JENKINS = "JENKINS HOME"
-    GITHUB = "GITHUB ACTIONS"
-    BITBUCKET = "BITBUCKET PIPELINES"
-    DRONE = "DRONE"
-    AZURE = "AZURE PIPELINES"
-
-
-class ScanMode(Enum):
-    REPO = "repo"
-    PATH = "path"
-    COMMIT_RANGE = "commit_range"
-    PRE_COMMIT = "pre_commit"
-    PRE_PUSH = "pre_push"
-    PRE_RECEIVE = "pre_receive"
-    CI = "ci"
-    DOCKER = "docker"
-    PYPI = "pypi"
-    ARCHIVE = "archive"
-    IAC_DIRECTORY = "directory"
-    DOCSET = "docset"
-
-
 json_output_option_decorator = click.option(
     "--json",
     "json_output",
@@ -382,15 +354,6 @@ def urljoin(url: str, *args: str) -> str:
         url += url_part
 
     return url
-
-
-@dataclass
-class ScanContext:
-    scan_mode: Union[ScanMode, str]
-    command_path: str
-
-    def __post_init__(self) -> None:
-        self.command_id = str(uuid.uuid4())
 
 
 def datetime_from_isoformat(text: str) -> datetime:

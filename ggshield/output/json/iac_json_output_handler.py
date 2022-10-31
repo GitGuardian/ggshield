@@ -3,7 +3,7 @@ from typing import Any, Dict, cast
 from ggshield.iac.models import IaCScanResultSchema
 from ggshield.output.json.schemas import IaCJSONScanResultSchema
 from ggshield.output.output_handler import OutputHandler
-from ggshield.scan.scannable import ScanCollection
+from ggshield.scan import ScanCollection
 
 
 class IaCJSONOutputHandler(OutputHandler):

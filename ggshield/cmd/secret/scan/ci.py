@@ -1,19 +1,25 @@
 import os
+from enum import Enum
 from typing import List
 
 import click
 
 from ggshield.core.cache import ReadOnlyCache
-from ggshield.core.extra_headers import add_extra_header
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import (
-    EMPTY_SHA,
-    ScanContext,
-    ScanMode,
-    SupportedCI,
-    handle_exception,
-)
+from ggshield.core.utils import EMPTY_SHA, handle_exception
+from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
+
+
+class SupportedCI(Enum):
+    GITLAB = "GITLAB"
+    TRAVIS = "TRAVIS"
+    CIRCLECI = "CIRCLECI"
+    JENKINS = "JENKINS HOME"
+    GITHUB = "GITHUB ACTIONS"
+    BITBUCKET = "BITBUCKET PIPELINES"
+    DRONE = "DRONE"
+    AZURE = "AZURE PIPELINES"
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
@@ -294,8 +300,6 @@ def ci_cmd(ctx: click.Context) -> int:
                 f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
             )
 
-        add_extra_header(ctx, "Ci-Mode", ci_mode.name)
-
         mode_header = f"{ScanMode.CI.value}/{ci_mode.value}"
 
         if config.verbose:
@@ -304,6 +308,7 @@ def ci_cmd(ctx: click.Context) -> int:
         scan_context = ScanContext(
             scan_mode=mode_header,
             command_path=ctx.command_path,
+            extra_headers={"Ci-Mode": ci_mode.name},
         )
 
         return scan_commit_range(

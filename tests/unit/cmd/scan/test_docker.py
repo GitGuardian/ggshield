@@ -6,8 +6,9 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
+from ggshield.scan import ScanCollection
 from ggshield.scan.docker import _validate_filepath
-from ggshield.scan.scannable import File, Files, ScanCollection
+from ggshield.scan.scannable import File, Files
 from tests.unit.conftest import (
     DATA_PATH,
     UNCHECKED_SECRET_PATCH,

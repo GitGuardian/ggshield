@@ -10,8 +10,7 @@ from ggshield.output.text.message import (
     _file_info_decoration,
     _file_info_default_decoration,
 )
-from ggshield.scan import Result
-from ggshield.scan.scannable import Results, ScanCollection
+from ggshield.scan import Result, Results, ScanCollection
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,

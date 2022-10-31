@@ -7,7 +7,8 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.git_shell import GIT_PATH, shell
-from ggshield.core.utils import REGEX_GIT_URL, ScanContext, ScanMode
+from ggshield.core.utils import REGEX_GIT_URL
+from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_repo_path
 
 

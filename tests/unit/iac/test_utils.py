@@ -5,7 +5,7 @@ from unittest import mock
 import click
 import pytest
 
-from ggshield.iac.utils import create_tar
+from ggshield.cmd.iac.scan import create_tar
 from ggshield.scan import File, Files
 
 

@@ -16,9 +16,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import ScanContext
-from ggshield.scan import ScanCollection
-from ggshield.scan.scannable import File, Files
+from ggshield.scan import File, Files, ScanCollection, ScanContext, SecretScanner
 
 
 FILEPATH_BANLIST = [
@@ -261,12 +259,15 @@ def docker_scan_archive(
             "[green]Scanning Docker Image...", total=len(files.files)
         )
 
-        results = files.scan(
+        scanner = SecretScanner(
             client=client,
             cache=cache,
-            matches_ignore=matches_ignore,
             scan_context=scan_context,
+            ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
+        )
+        results = scanner.scan(
+            files.files,
             progress_callback=partial(progress.update, task_scan),
         )
 

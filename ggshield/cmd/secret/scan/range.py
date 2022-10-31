@@ -1,7 +1,8 @@
 import click
 
 from ggshield.core.git_shell import get_list_commit_SHA
-from ggshield.core.utils import ScanContext, ScanMode, handle_exception
+from ggshield.core.utils import handle_exception
+from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
 
 
