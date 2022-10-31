@@ -12,11 +12,11 @@ from ggshield.core.types import IgnoredMatch
 
 @pytest.mark.usefixtures("isolated_fs")
 class TestCache:
-    def test_defaults(self, cli_fs_runner):
+    def test_defaults(self):
         cache = Cache()
         assert cache.last_found_secrets == []
 
-    def test_load_cache_and_purge(self, cli_fs_runner):
+    def test_load_cache_and_purge(self):
         with open(".cache_ggshield", "w") as file:
             json.dump({"last_found_secrets": [{"name": "", "match": "XXX"}]}, file)
         cache = Cache()
@@ -25,7 +25,7 @@ class TestCache:
         cache.purge()
         assert cache.last_found_secrets == []
 
-    def test_load_invalid_cache(self, cli_fs_runner, capsys):
+    def test_load_invalid_cache(self, capsys):
         with open(".cache_ggshield", "w") as file:
             json.dump({"invalid_option": True}, file)
 
@@ -33,7 +33,7 @@ class TestCache:
         captured = capsys.readouterr()
         assert "Unrecognized key in cache" in captured.err
 
-    def test_save_cache(self, cli_fs_runner):
+    def test_save_cache(self):
         with open(".cache_ggshield", "w") as file:
             json.dump({}, file)
         cache = Cache()
@@ -75,7 +75,7 @@ class TestCache:
 
         assert os.path.isfile(".cache_ggshield") is with_entry
 
-    def test_max_commits_for_hook_setting(self, cli_fs_runner):
+    def test_max_commits_for_hook_setting(self):
         """
         GIVEN a yaml config with `max-commits-for-hook=75`
         WHEN the config gets parsed

@@ -1,5 +1,3 @@
-import sys
-
 import pytest
 from click import ClickException
 
@@ -16,32 +14,26 @@ from tests.unit.conftest import write_text, write_yaml
 
 @pytest.mark.usefixtures("isolated_fs")
 class TestUserConfig:
-    def test_parsing_error(cli_fs_runner, capsys, local_config_path):
+    def test_parsing_error(cli_fs_runner, local_config_path):
         write_text(local_config_path, "Not a:\nyaml file.\n")
+        expected_output = f"Parsing error while reading {local_config_path}:"
+        with pytest.raises(ParseError, match=expected_output):
+            Config()
 
-        Config()
-        out, err = capsys.readouterr()
-        sys.stdout.write(out)
-        sys.stderr.write(err)
-
-        assert f"Parsing error while reading {local_config_path}:" in err
-
-    def test_display_options(self, cli_fs_runner, local_config_path):
+    def test_display_options(self, local_config_path):
         write_yaml(local_config_path, {"verbose": True, "show_secrets": True})
 
         config = Config()
         assert config.verbose is True
         assert config.secret.show_secrets is True
 
-    def test_unknown_option(self, cli_fs_runner, capsys, local_config_path):
+    def test_unknown_option(self, local_config_path):
         write_yaml(local_config_path, {"verbosity": True})
 
         with pytest.raises(ParseError, match="Unknown field"):
             Config()
 
-    def test_display_options_inheritance(
-        self, cli_fs_runner, local_config_path, global_config_path
-    ):
+    def test_display_options_inheritance(self, local_config_path, global_config_path):
         write_yaml(
             local_config_path,
             {
@@ -64,15 +56,13 @@ class TestUserConfig:
         assert config.secret.show_secrets is False
         assert config.api_url == "https://api.gitguardian.com"
 
-    def test_exclude_regex(self, cli_fs_runner, local_config_path):
+    def test_exclude_regex(self, local_config_path):
         write_yaml(local_config_path, {"paths-ignore": ["/tests/"]})
 
         config = Config()
         assert r"/tests/" in config.secret.ignored_paths
 
-    def test_accumulation_matches(
-        self, cli_fs_runner, local_config_path, global_config_path
-    ):
+    def test_accumulation_matches(self, local_config_path, global_config_path):
         write_yaml(
             local_config_path,
             {
@@ -171,7 +161,7 @@ class TestUserConfig:
             IgnoredMatch(name="", match="dbca"),
         ]
 
-    def test_iac_config(self, cli_fs_runner, local_config_path):
+    def test_iac_config(self, local_config_path):
         write_yaml(
             local_config_path,
             {
@@ -189,7 +179,7 @@ class TestUserConfig:
         assert config.iac.ignored_policies == {"GG_IAC_0001"}
         assert config.iac.minimum_severity == "myseverity"
 
-    def test_iac_config_bad_policy_id(self, cli_fs_runner, local_config_path):
+    def test_iac_config_bad_policy_id(self, local_config_path):
         write_yaml(
             local_config_path,
             {
@@ -205,7 +195,7 @@ class TestUserConfig:
             Config()
 
     def test_iac_config_options_inheritance(
-        self, cli_fs_runner, local_config_path, global_config_path
+        self, local_config_path, global_config_path
     ):
         write_yaml(
             global_config_path,

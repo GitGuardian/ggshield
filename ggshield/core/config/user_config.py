@@ -10,9 +10,9 @@ from marshmallow import ValidationError
 from ggshield.core.config.errors import ParseError, format_validation_error
 from ggshield.core.config.utils import (
     get_global_path,
-    load_yaml,
+    load_yaml_dict,
     remove_common_dict_items,
-    save_yaml,
+    save_yaml_dict,
     update_from_other_instance,
 )
 from ggshield.core.constants import (
@@ -113,7 +113,7 @@ class UserConfig(FilteredConfig):
 
         dct["version"] = CURRENT_CONFIG_VERSION
 
-        save_yaml(dct, config_path)
+        save_yaml_dict(dct, config_path)
 
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> Tuple["UserConfig", str]:
@@ -153,10 +153,10 @@ class UserConfig(FilteredConfig):
         return user_config, config_path
 
     def _update_from_file(self, config_path: str) -> None:
-        data = load_yaml(config_path) or {"version": CURRENT_CONFIG_VERSION}
-        config_version = data.pop("version", 1)
 
         try:
+            data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
+            config_version = data.pop("version", 1)
             if config_version == 2:
                 obj = UserConfigSchema().load(data)
             elif config_version == 1:
@@ -172,6 +172,8 @@ class UserConfig(FilteredConfig):
         except ValidationError as exc:
             message = format_validation_error(exc)
             raise ParseError(f"Error in {config_path}:\n{message}") from exc
+        except ValueError as ve:
+            raise ParseError(f"Error in {config_path}:\n{str(ve)}") from ve
 
         update_from_other_instance(self, obj)
 
