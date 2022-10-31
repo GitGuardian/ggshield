@@ -16,7 +16,7 @@ from tests.unit.conftest import write_text, write_yaml
 class TestUserConfig:
     def test_parsing_error(cli_fs_runner, local_config_path):
         write_text(local_config_path, "Not a:\nyaml file.\n")
-        expected_output = f"Parsing error while reading {local_config_path}:"
+        expected_output = f"{local_config_path} is not a valid YAML file:"
         with pytest.raises(ParseError, match=expected_output):
             Config()
 
