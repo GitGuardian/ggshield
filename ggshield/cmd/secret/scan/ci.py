@@ -1,9 +1,10 @@
 import os
 from enum import Enum
-from typing import List
+from typing import Any, List
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA, handle_exception
@@ -255,8 +256,9 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
 
 
 @click.command()
+@add_common_options()
 @click.pass_context
-def ci_cmd(ctx: click.Context) -> int:
+def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     scan in a CI environment.
     """

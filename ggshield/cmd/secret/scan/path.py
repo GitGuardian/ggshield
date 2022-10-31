@@ -1,8 +1,9 @@
 from functools import partial
-from typing import List
+from typing import Any, List
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
@@ -17,9 +18,14 @@ from ggshield.scan import ScanCollection, ScanContext, ScanMode, SecretScanner
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
+@add_common_options()
 @click.pass_context
 def path_cmd(
-    ctx: click.Context, paths: List[str], recursive: bool, yes: bool
+    ctx: click.Context,
+    paths: List[str],
+    recursive: bool,
+    yes: bool,
+    **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
     scan files and directories.

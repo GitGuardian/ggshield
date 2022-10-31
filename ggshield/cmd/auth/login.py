@@ -1,9 +1,10 @@
 import re
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import click
 
 from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.oauth import OAuthClient
@@ -81,6 +82,7 @@ def validate_login_path(
     default=None,
     help="Number of days before the token expires. 0 means the token never expires.",
 )
+@add_common_options()
 @click.pass_context
 def login_cmd(
     ctx: click.Context,
@@ -89,6 +91,7 @@ def login_cmd(
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
+    **kwargs: Any,
 ) -> int:
     """
     Authenticate with a GitGuardian workspace.

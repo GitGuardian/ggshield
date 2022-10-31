@@ -5,10 +5,11 @@ import sys
 import tempfile
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
@@ -81,8 +82,13 @@ def get_files_from_package(
 
 @click.command()
 @click.argument("package_name", nargs=1, type=click.STRING, required=True)
+@add_common_options()
 @click.pass_context
-def pypi_cmd(ctx: click.Context, package_name: str) -> int:  # pragma: no cover
+def pypi_cmd(
+    ctx: click.Context,
+    package_name: str,
+    **kwargs: Any,
+) -> int:  # pragma: no cover
     """
     scan a pypi package <NAME>.
     """

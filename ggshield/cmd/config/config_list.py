@@ -1,5 +1,8 @@
+from typing import Any
+
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
 from .constants import DATETIME_FORMAT
@@ -7,7 +10,8 @@ from .constants import DATETIME_FORMAT
 
 @click.command()
 @click.pass_context
-def config_list_cmd(ctx: click.Context) -> int:
+@add_common_options()
+def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Print the list of configuration keys and values.
     """

@@ -8,6 +8,7 @@ import click
 import pygitguardian
 
 from ggshield.cmd.auth import auth_group
+from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config import config_group
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
@@ -71,6 +72,28 @@ def setup_debug_logs(debug: bool) -> None:
         logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
 
 
+def config_path_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[str]
+) -> Optional[str]:
+    # The --config option is marked as "is_eager" to ensure it's called before all the
+    # others. This makes it the right place to create the configuration object.
+    if not ctx.obj:
+        ctx.obj = {"cache": Cache()}
+
+    ctx.obj["config"] = Config(value)
+    return value
+
+
+def debug_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    # The --debug option is marked as "is_eager" so that we can setup logs as soon as
+    # possible. If we don't then log commands for the creation of the Config instance
+    # are ignored
+    setup_debug_logs(value is True)
+    return value
+
+
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
@@ -89,10 +112,9 @@ def setup_debug_logs(debug: bool) -> None:
     "-c",
     "--config-path",
     type=click.Path(exists=True, resolve_path=True, file_okay=True, dir_okay=False),
+    is_eager=True,
     help="Set a custom config file. Ignores local and global config files.",
-)
-@click.option(
-    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
+    callback=config_path_callback,
 )
 @click.option(
     "--allow-self-signed",
@@ -100,32 +122,33 @@ def setup_debug_logs(debug: bool) -> None:
     default=None,
     help="Ignore ssl verification.",
 )
-@click.option("--debug", is_flag=True, default=None, help="Show debug information.")
+@click.option(
+    "--debug",
+    is_flag=True,
+    default=None,
+    is_eager=True,
+    help="Show debug information.",
+    callback=debug_callback,
+)
 @click.option(
     "--check-for-updates/--no-check-for-updates",
     is_flag=True,
     default=True,
     help="Check for ggshield updates.",
 )
+@add_common_options()
 @click.version_option()
 @click.pass_context
 def cli(
     ctx: click.Context,
-    config_path: Optional[str],
-    verbose: bool,
     allow_self_signed: bool,
     debug: Optional[bool],
     check_for_updates: bool,
+    **kwargs: Any,
 ) -> None:
-    ctx.ensure_object(dict)
-
-    # If --debug is set, setup logs *now*, otherwise log commands for the
-    # creation of the Config instance will be ignored
-    setup_debug_logs(debug is True)
-
     load_dot_env()
 
-    config = Config(config_path)
+    config = ctx.obj["config"]
 
     if debug is not None:
         config.debug = debug
@@ -133,12 +156,6 @@ def cli(
         # if --debug is not set, but `debug` is set in the configuration file,
         # we still have to setup logs
         setup_debug_logs(True)
-
-    ctx.obj["config"] = config
-    ctx.obj["cache"] = Cache()
-
-    if verbose is not None:
-        config.verbose = verbose
 
     if allow_self_signed is not None:
         config.allow_self_signed = allow_self_signed

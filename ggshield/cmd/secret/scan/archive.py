@@ -2,9 +2,11 @@ import shutil
 import tempfile
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
@@ -16,8 +18,13 @@ from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretSc
 @click.argument(
     "path", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
 )
+@add_common_options()
 @click.pass_context
-def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
+def archive_cmd(
+    ctx: click.Context,
+    path: str,
+    **kwargs: Any,
+) -> int:  # pragma: no cover
     """
     scan archive <PATH>.
     """

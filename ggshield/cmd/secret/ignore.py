@@ -1,5 +1,8 @@
+from typing import Any
+
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 
@@ -10,8 +13,13 @@ from ggshield.core.config import Config
     is_flag=True,
     help="Ignore secrets found in the last ggshield secret scan run",
 )
+@add_common_options()
 @click.pass_context
-def ignore_cmd(ctx: click.Context, last_found: bool) -> None:
+def ignore_cmd(
+    ctx: click.Context,
+    last_found: bool,
+    **kwargs: Any,
+) -> None:
     """
     Ignore some secrets.
     """

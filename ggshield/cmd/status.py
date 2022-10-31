@@ -1,9 +1,11 @@
 #!/usr/bin/python3
+from typing import Any
 
 import click
 from pygitguardian import GGClient
 from pygitguardian.models import HealthCheckResponse
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.utils import json_output_option_decorator
@@ -11,8 +13,9 @@ from ggshield.output.text.message import format_healthcheck_status
 
 
 @click.command()
+@add_common_options()
 @click.pass_context
-def status_cmd(ctx: click.Context, json_output: bool) -> int:
+def status_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
     """Show API status."""
     client: GGClient = create_client_from_config(ctx.obj["config"])
     response: HealthCheckResponse = client.health_check()

@@ -1,4 +1,8 @@
+from typing import Any
+
 import click
+
+from ggshield.cmd.common_options import add_common_options
 
 from .config_get import config_get_command
 from .config_list import config_list_cmd
@@ -16,5 +20,6 @@ from .config_unset import config_unset_command
         "migrate": config_migrate_cmd,
     }
 )
-def config_group() -> None:
+@add_common_options()
+def config_group(**kwargs: Any) -> None:
     """Commands to manage configuration."""

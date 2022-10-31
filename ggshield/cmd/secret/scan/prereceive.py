@@ -3,10 +3,11 @@ import os
 import sys
 import threading
 from types import TracebackType
-from typing import List, Optional, Tuple, Type
+from typing import Any, List, Optional, Tuple, Type
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
@@ -126,8 +127,11 @@ def parse_stdin() -> Tuple[str, str]:
     help="Deprecated",
     hidden=True,
 )
+@add_common_options()
 @click.pass_context
-def prereceive_cmd(ctx: click.Context, web: bool, prereceive_args: List[str]) -> int:
+def prereceive_cmd(
+    ctx: click.Context, web: bool, prereceive_args: List[str], **kwargs: Any
+) -> int:
     """
     scan as a pre-receive git hook.
     """

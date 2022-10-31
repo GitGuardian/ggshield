@@ -1,8 +1,9 @@
 import os
-from typing import List, Optional, Type
+from typing import Any, List, Optional, Type
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.secret.scan.archive import archive_cmd
 from ggshield.cmd.secret.scan.ci import ci_cmd
 from ggshield.cmd.secret.scan.docker import docker_name_cmd
@@ -61,9 +62,6 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
     hidden=True,
 )
 @click.option(
-    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
-)
-@click.option(
     "--output",
     "-o",
     type=click.Path(exists=False, resolve_path=True),
@@ -96,26 +94,26 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
     default=None,
     help="Ignore",
 )
+@add_common_options()
 @click.pass_context
 def scan_group(
     ctx: click.Context,
     show_secrets: bool,
     exit_zero: bool,
     all_policies: bool,
-    verbose: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
     ignore_default_excludes: bool = False,
     ignore_known_secrets: bool = False,
+    **kwargs: Any,
 ) -> int:
     """Commands to scan various contents."""
     return scan_group_impl(
         ctx,
         show_secrets,
         exit_zero,
-        verbose,
         json_output,
         output,
         banlist_detector,
@@ -128,7 +126,6 @@ def scan_group_impl(
     ctx: click.Context,
     show_secrets: bool,
     exit_zero: bool,
-    verbose: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
@@ -151,9 +148,6 @@ def scan_group_impl(
 
     if show_secrets is not None:
         config.secret.show_secrets = show_secrets
-
-    if verbose is not None:
-        config.verbose = verbose
 
     if exit_zero is not None:
         config.exit_zero = exit_zero
