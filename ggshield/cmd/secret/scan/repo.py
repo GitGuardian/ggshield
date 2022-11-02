@@ -5,7 +5,9 @@ from typing import Any
 import click
 from pygitguardian import GGClient
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.git_shell import GIT_PATH, shell
@@ -16,7 +18,7 @@ from ggshield.scan.repo import scan_repo_path
 
 @click.command()
 @click.argument("repository", nargs=1, type=click.STRING, required=True)
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def repo_cmd(
     ctx: click.Context, repository: str, **kwargs: Any

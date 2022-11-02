@@ -9,7 +9,9 @@ from typing import Any, Dict, List, Set
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
@@ -82,7 +84,7 @@ def get_files_from_package(
 
 @click.command()
 @click.argument("package_name", nargs=1, type=click.STRING, required=True)
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def pypi_cmd(
     ctx: click.Context,

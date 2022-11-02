@@ -4,7 +4,9 @@ from typing import Any, List
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA, handle_exception
@@ -256,7 +258,7 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
 
 
 @click.command()
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """

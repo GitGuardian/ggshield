@@ -4,7 +4,9 @@ from typing import Any, Callable, Iterable, Iterator, List, TextIO
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.utils import handle_exception
@@ -46,7 +48,7 @@ def create_scans_from_docset_files(
 
 @click.command()
 @click.argument("files", nargs=-1, type=click.File(), required=True)
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def docset_cmd(
     ctx: click.Context,

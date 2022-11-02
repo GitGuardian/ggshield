@@ -2,8 +2,8 @@ from typing import Any, List, Optional
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.secret.scan import (
+    add_secret_scan_common_options,
     archive_cmd,
     ci_cmd,
     docker_archive_cmd,
@@ -45,21 +45,6 @@ from ggshield.core.utils import json_output_option_decorator
     help="Show secrets in plaintext instead of hiding them.",
 )
 @click.option(
-    "--exit-zero",
-    is_flag=True,
-    default=None,
-    envvar="GITGUARDIAN_EXIT_ZERO",
-    help="Always return a 0 (non-error) status code, even if incidents are found."
-    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
-)
-@click.option(
-    "--all-policies",
-    is_flag=True,
-    default=None,
-    help="Present fails of all policies (Filenames, FileExtensions, Secret Detection)."
-    "By default, only Secret Detection is shown.",
-)
-@click.option(
     "--output",
     "-o",
     type=click.Path(exists=False, resolve_path=True),
@@ -73,30 +58,28 @@ from ggshield.core.utils import json_output_option_decorator
     help="Exclude results from a detector.",
     multiple=True,
 )
+# Deprecated options
 @click.option(
-    "--exclude",
+    "--all-policies",
+    is_flag=True,
     default=None,
-    type=click.Path(),
-    help="Do not scan the specified path.",
-    multiple=True,
+    hidden=True,
 )
 @click.option(
     "--ignore-default-excludes",
     default=False,
     is_flag=True,
-    help="Ignore excluded patterns by default. [default: False]",
+    hidden=True,
 )
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
     show_secrets: bool,
-    exit_zero: bool,
-    all_policies: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
-    exclude: Optional[List[str]] = None,
+    all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
     **kwargs: Any,
 ) -> int:
@@ -109,9 +92,7 @@ def deprecated_scan_group(
     return scan_group_impl(
         ctx,
         show_secrets,
-        exit_zero,
         json_output,
         output,
         banlist_detector,
-        exclude,
     )

@@ -3,7 +3,9 @@ from typing import Any, List
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
@@ -18,7 +20,7 @@ from ggshield.scan import ScanCollection, ScanContext, ScanMode, SecretScanner
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def path_cmd(
     ctx: click.Context,
