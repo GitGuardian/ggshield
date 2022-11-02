@@ -40,13 +40,6 @@ from ggshield.core.text_utils import display_error
     },
 )
 @click.option(
-    "--output",
-    "-o",
-    type=click.Path(exists=False, resolve_path=True),
-    default=None,
-    help="Route ggshield output to file.",
-)
-@click.option(
     "--banlist-detector",
     "-b",
     default=None,
@@ -70,7 +63,6 @@ from ggshield.core.text_utils import display_error
 @click.pass_context
 def scan_group(
     ctx: click.Context,
-    output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
@@ -79,14 +71,12 @@ def scan_group(
     """Commands to scan various contents."""
     return scan_group_impl(
         ctx,
-        output,
         banlist_detector,
     )
 
 
 def scan_group_impl(
     ctx: click.Context,
-    output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
 ) -> int:
     """Implementation for scan_group(). Must be a separate function so that its code can
@@ -102,8 +92,6 @@ def scan_group_impl(
     max_commits = get_max_commits_for_hook()
     if max_commits:
         config.max_commits_for_hook = max_commits
-
-    ctx.obj["output"] = output
 
     return return_code
 

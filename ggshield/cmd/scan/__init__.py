@@ -37,13 +37,6 @@ from ggshield.core.text_utils import display_warning
     },
 )
 @click.option(
-    "--output",
-    "-o",
-    type=click.Path(exists=False, resolve_path=True),
-    default=None,
-    help="Route ggshield output to file.",
-)
-@click.option(
     "--banlist-detector",
     "-b",
     default=None,
@@ -67,7 +60,6 @@ from ggshield.core.text_utils import display_warning
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
-    output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
@@ -81,6 +73,5 @@ def deprecated_scan_group(
     )
     return scan_group_impl(
         ctx,
-        output,
         banlist_detector,
     )

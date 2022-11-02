@@ -29,6 +29,16 @@ _json_option = click.option(
 )
 
 
+_output_option = click.option(
+    "--output",
+    "-o",
+    type=click.Path(exists=False, resolve_path=True),
+    default=None,
+    help="Route ggshield output to file.",
+    callback=create_ctx_callback("output"),
+)
+
+
 _show_secrets_option = click.option(
     "--show-secrets",
     is_flag=True,
@@ -84,6 +94,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
         _json_option(cmd)
+        _output_option(cmd)
         _show_secrets_option(cmd)
         _exit_zero_option(cmd)
         _exclude_option(cmd)
@@ -99,7 +110,7 @@ def create_output_handler(ctx: click.Context) -> OutputHandler:
     use_json = ctx.obj.get("use_json", False)
     output_handler_cls = JSONOutputHandler if use_json else TextOutputHandler
     config = ctx.obj["config"].user_config
-    output = ctx.obj["output"]
+    output = ctx.obj.get("output")
     return output_handler_cls(
         show_secrets=config.secret.show_secrets, verbose=config.verbose, output=output
     )
