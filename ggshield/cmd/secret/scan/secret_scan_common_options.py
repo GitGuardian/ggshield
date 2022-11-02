@@ -90,6 +90,26 @@ _ignore_known_secrets_option = click.option(
 )
 
 
+def _banlist_detectors_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[List[str]]
+) -> Optional[List[str]]:
+    if value is not None:
+        config = _get_secret_config(ctx)
+        config.ignored_detectors.update(value)
+
+    return value
+
+
+_banlist_detectors_option = click.option(
+    "--banlist-detector",
+    "-b",
+    default=None,
+    help="Exclude results from a detector.",
+    multiple=True,
+    callback=_banlist_detectors_callback,
+)
+
+
 def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
@@ -99,6 +119,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _exit_zero_option(cmd)
         _exclude_option(cmd)
         _ignore_known_secrets_option(cmd)
+        _banlist_detectors_option(cmd)
         return cmd
 
     return decorator

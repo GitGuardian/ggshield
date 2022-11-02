@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import click
 
@@ -36,13 +36,6 @@ from ggshield.core.text_utils import display_warning
         "archive": archive_cmd,
     },
 )
-@click.option(
-    "--banlist-detector",
-    "-b",
-    default=None,
-    help="Exclude results from a detector.",
-    multiple=True,
-)
 # Deprecated options
 @click.option(
     "--all-policies",
@@ -60,7 +53,6 @@ from ggshield.core.text_utils import display_warning
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
-    banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
     **kwargs: Any,
@@ -71,7 +63,4 @@ def deprecated_scan_group(
     display_warning(
         "Warning: Using `ggshield scan (...)` is deprecated. Use `ggshield secret scan (...)` instead.",
     )
-    return scan_group_impl(
-        ctx,
-        banlist_detector,
-    )
+    return scan_group_impl(ctx)

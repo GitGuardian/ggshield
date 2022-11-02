@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import click
 
@@ -39,13 +39,6 @@ from ggshield.core.text_utils import display_error
         "docset": docset_cmd,
     },
 )
-@click.option(
-    "--banlist-detector",
-    "-b",
-    default=None,
-    help="Exclude results from a detector.",
-    multiple=True,
-)
 # Deprecated options
 @click.option(
     "--all-policies",
@@ -63,31 +56,21 @@ from ggshield.core.text_utils import display_error
 @click.pass_context
 def scan_group(
     ctx: click.Context,
-    banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
     **kwargs: Any,
 ) -> int:
     """Commands to scan various contents."""
-    return scan_group_impl(
-        ctx,
-        banlist_detector,
-    )
+    return scan_group_impl(ctx)
 
 
-def scan_group_impl(
-    ctx: click.Context,
-    banlist_detector: Optional[List[str]] = None,
-) -> int:
+def scan_group_impl(ctx: click.Context) -> int:
     """Implementation for scan_group(). Must be a separate function so that its code can
     be reused from the deprecated `cmd.scan` package."""
     ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
     return_code = 0
 
     config: Config = ctx.obj["config"]
-
-    if banlist_detector:
-        config.secret.ignored_detectors.update(banlist_detector)
 
     max_commits = get_max_commits_for_hook()
     if max_commits:
