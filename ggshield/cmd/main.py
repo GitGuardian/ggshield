@@ -82,12 +82,6 @@ def config_path_callback(
     callback=config_path_callback,
 )
 @click.option(
-    "--allow-self-signed",
-    is_flag=True,
-    default=None,
-    help="Ignore ssl verification.",
-)
-@click.option(
     "--check-for-updates/--no-check-for-updates",
     is_flag=True,
     default=True,
@@ -98,7 +92,6 @@ def config_path_callback(
 @click.pass_context
 def cli(
     ctx: click.Context,
-    allow_self_signed: bool,
     debug: Optional[bool],
     check_for_updates: bool,
     **kwargs: Any,
@@ -115,9 +108,6 @@ def cli(
         # if --debug is not set but `debug` is set in the configuration file, then
         # we must setup logs now.
         setup_debug_logs(True)
-
-    if allow_self_signed is not None:
-        config.allow_self_signed = allow_self_signed
 
     logger.debug("args=%s", sys.argv)
     logger.debug("py-gitguardian=%s", pygitguardian.__version__)

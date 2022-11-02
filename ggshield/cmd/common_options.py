@@ -64,10 +64,28 @@ _debug_option = click.option(
 )
 
 
+def allow_self_signed_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    if value is not None:
+        _get_config(ctx).allow_self_signed = value
+    return value
+
+
+_allow_self_signed_option = click.option(
+    "--allow-self-signed",
+    is_flag=True,
+    default=None,
+    help="Ignore ssl verification.",
+    callback=allow_self_signed_callback,
+)
+
+
 def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)
         _debug_option(cmd)
+        _allow_self_signed_option(cmd)
         return cmd
 
     return decorator
