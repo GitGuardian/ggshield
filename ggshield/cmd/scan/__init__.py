@@ -18,7 +18,6 @@ from ggshield.cmd.secret.scan import (
     scan_group_impl,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.utils import json_output_option_decorator
 
 
 @click.group(
@@ -37,7 +36,6 @@ from ggshield.core.utils import json_output_option_decorator
         "archive": archive_cmd,
     },
 )
-@json_output_option_decorator
 @click.option(
     "--output",
     "-o",
@@ -69,7 +67,6 @@ from ggshield.core.utils import json_output_option_decorator
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
-    json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
@@ -84,7 +81,6 @@ def deprecated_scan_group(
     )
     return scan_group_impl(
         ctx,
-        json_output,
         output,
         banlist_detector,
     )

@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Type
+from typing import Callable, List, Optional
 
 import click
 
@@ -6,16 +6,27 @@ from ggshield.cmd.common_options import (
     AnyFunction,
     add_common_options,
     create_config_callback,
+    create_ctx_callback,
     get_config_from_context,
 )
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
-from ggshield.output import OutputHandler
+from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
 
 
 def _get_secret_config(ctx: click.Context) -> SecretConfig:
     return get_config_from_context(ctx).secret
+
+
+_json_option = click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=None,
+    help="JSON output results",
+    callback=create_ctx_callback("use_json"),
+)
 
 
 _show_secrets_option = click.option(
@@ -72,6 +83,7 @@ _ignore_known_secrets_option = click.option(
 def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
+        _json_option(cmd)
         _show_secrets_option(cmd)
         _exit_zero_option(cmd)
         _exclude_option(cmd)
@@ -84,7 +96,8 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
 def create_output_handler(ctx: click.Context) -> OutputHandler:
     """Read objects defined in ctx.obj and create the appropriate OutputHandler
     instance"""
-    output_handler_cls: Type[OutputHandler] = ctx.obj["output_handler_cls"]
+    use_json = ctx.obj.get("use_json", False)
+    output_handler_cls = JSONOutputHandler if use_json else TextOutputHandler
     config = ctx.obj["config"].user_config
     output = ctx.obj["output"]
     return output_handler_cls(

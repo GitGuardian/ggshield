@@ -21,8 +21,6 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.text_utils import display_error
-from ggshield.core.utils import json_output_option_decorator
-from ggshield.output import JSONOutputHandler, TextOutputHandler
 
 
 @click.group(
@@ -41,7 +39,6 @@ from ggshield.output import JSONOutputHandler, TextOutputHandler
         "docset": docset_cmd,
     },
 )
-@json_output_option_decorator
 @click.option(
     "--output",
     "-o",
@@ -73,7 +70,6 @@ from ggshield.output import JSONOutputHandler, TextOutputHandler
 @click.pass_context
 def scan_group(
     ctx: click.Context,
-    json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
@@ -83,7 +79,6 @@ def scan_group(
     """Commands to scan various contents."""
     return scan_group_impl(
         ctx,
-        json_output,
         output,
         banlist_detector,
     )
@@ -91,7 +86,6 @@ def scan_group(
 
 def scan_group_impl(
     ctx: click.Context,
-    json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
 ) -> int:
@@ -109,10 +103,6 @@ def scan_group_impl(
     if max_commits:
         config.max_commits_for_hook = max_commits
 
-    if json_output:
-        ctx.obj["output_handler_cls"] = JSONOutputHandler
-    else:
-        ctx.obj["output_handler_cls"] = TextOutputHandler
     ctx.obj["output"] = output
 
     return return_code

@@ -81,8 +81,8 @@ def test_gitlab_ci_range(
             "-v",
             "secret",
             "scan",
-            *json_arg,
             "ci",
+            *json_arg,
         ],
     )
     assert_invoke_ok(result)
