@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Type
 
 import click
 
@@ -11,6 +11,7 @@ from ggshield.cmd.common_options import (
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
+from ggshield.output import OutputHandler
 
 
 def _get_secret_config(ctx: click.Context) -> SecretConfig:
@@ -68,3 +69,14 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         return cmd
 
     return decorator
+
+
+def create_output_handler(ctx: click.Context) -> OutputHandler:
+    """Read objects defined in ctx.obj and create the appropriate OutputHandler
+    instance"""
+    output_handler_cls: Type[OutputHandler] = ctx.obj["output_handler_cls"]
+    config = ctx.obj["config"].user_config
+    output = ctx.obj["output"]
+    return output_handler_cls(
+        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=output
+    )

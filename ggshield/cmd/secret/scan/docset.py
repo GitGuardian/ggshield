@@ -6,11 +6,11 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.utils import handle_exception
-from ggshield.output import OutputHandler
 from ggshield.scan import File, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
@@ -59,7 +59,7 @@ def docset_cmd(
     scan docset JSONL files.
     """
     config = ctx.obj["config"]
-    output_handler: OutputHandler = ctx.obj["output_handler"]
+    output_handler = create_output_handler(ctx)
     try:
         with create_progress_bar(doc_type="files") as progress:
             task_scan = progress.add_task(

@@ -5,9 +5,9 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.utils import handle_exception
-from ggshield.output import OutputHandler
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.docker import docker_scan_archive
 
@@ -29,7 +29,7 @@ def docker_archive_cmd(
     Hidden command `ggshield secret scan docker-archive`
     """
     config = ctx.obj["config"]
-    output_handler: OutputHandler = ctx.obj["output_handler"]
+    output_handler = create_output_handler(ctx)
 
     scan_context = ScanContext(
         scan_mode=ScanMode.DOCKER,

@@ -5,12 +5,12 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
 from ggshield.core.utils import handle_exception
-from ggshield.output import OutputHandler
 from ggshield.scan import ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
@@ -33,7 +33,7 @@ def path_cmd(
     scan files and directories.
     """
     config = ctx.obj["config"]
-    output_handler: OutputHandler = ctx.obj["output_handler"]
+    output_handler = create_output_handler(ctx)
     try:
         files = get_files_from_paths(
             paths=paths,

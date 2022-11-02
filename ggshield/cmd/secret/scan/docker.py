@@ -6,9 +6,9 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.utils import handle_exception
-from ggshield.output import OutputHandler
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.docker import docker_save_to_tmp, docker_scan_archive
 
@@ -40,7 +40,7 @@ def docker_name_cmd(
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
         config = ctx.obj["config"]
-        output_handler: OutputHandler = ctx.obj["output_handler"]
+        output_handler = create_output_handler(ctx)
 
         try:
             archive = Path(temporary_dir) / "archive.tar"

@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Optional, Type
+from typing import Any, List, Optional
 
 import click
 
@@ -22,7 +22,7 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import json_output_option_decorator
-from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
+from ggshield.output import JSONOutputHandler, TextOutputHandler
 
 
 @click.group(
@@ -121,13 +121,11 @@ def scan_group_impl(
     if max_commits:
         config.max_commits_for_hook = max_commits
 
-    output_handler_cls: Type[OutputHandler] = TextOutputHandler
     if json_output:
-        output_handler_cls = JSONOutputHandler
-
-    ctx.obj["output_handler"] = output_handler_cls(
-        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=output
-    )
+        ctx.obj["output_handler_cls"] = JSONOutputHandler
+    else:
+        ctx.obj["output_handler_cls"] = TextOutputHandler
+    ctx.obj["output"] = output
 
     return return_code
 
