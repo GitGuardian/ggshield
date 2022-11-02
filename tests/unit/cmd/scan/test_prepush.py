@@ -165,6 +165,7 @@ class TestPrepush:
                 command_path="cli secret scan pre-push",
             ),
             ignored_detectors=set(),
+            ignore_known_secrets=False,
         )
         assert_invoke_ok(result)
         assert "Commits to scan: 20" in result.output
@@ -349,6 +350,7 @@ class TestPrepush:
             matches_ignore=ANY,
             scan_context=ANY,
             ignored_detectors=set(),
+            ignore_known_secrets=False,
         )
 
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -389,6 +391,7 @@ class TestPrepush:
             matches_ignore=ANY,
             scan_context=ANY,
             ignored_detectors=set(),
+            ignore_known_secrets=False,
         )
 
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")

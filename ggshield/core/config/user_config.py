@@ -91,6 +91,7 @@ class UserConfig(FilteredConfig):
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
+    ignore_known_secrets: bool = False
     debug: bool = False
 
     # If we hit any deprecated syntax when loading a configuration file, we do not

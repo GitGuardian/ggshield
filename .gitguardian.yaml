@@ -20,6 +20,8 @@ secret:
       name:
     - match: 1a56aa9f3d76450ec4731ba7ae247176dfb460dca2989c40ed634eb9a2c1c262
       name: Generic High Entropy Secret - tests/output/snapshots/snap_test_text_output.py
+    - match: 6a1d11d5bbbb48f044bedfc2db5749e7fde3ad7e3f6a79601db034478a95f88a
+      name: Facebook Access Token - tests/output/snapshots/snap_test_text_output.py
     - match: 793865a3729a2c5d38ef874a270accf407cd993af32acefb4e13fc1ea242e9cb
       name: Generic High Entropy Secret - tests/cassettes/test_scan_file_secret-False.yaml
     - match: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd

@@ -531,6 +531,43 @@ resource "aws_network_acl_rule" "bad_example" {
 }
 """
 
+TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
+    {
+        "policy_breaks": [
+            {
+                "type": "RSA Private Key",
+                "policy": "Secrets detection",
+                "matches": [
+                    {
+                        "line_start": 2,
+                        "match": _MULTILINE_SECRET,
+                        "index_start": 86,
+                        "index_end": 585,
+                        "type": "apikey",
+                        "line_end": 10,
+                    }
+                ],
+            },
+            {
+                "type": "SendGrid Key",
+                "policy": "Secrets detection",
+                "matches": [
+                    {
+                        "line_start": 10,
+                        "match": "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",  # noqa
+                        "index_start": 594,
+                        "index_end": 662,
+                        "type": "apikey",
+                        "line_end": 10,
+                    }
+                ],
+            },
+        ],
+        "policies": ["Filenames", "File extensions", "Secrets detection"],
+        "policy_break_count": 2,
+    }
+)
+
 my_vcr = vcr.VCR(
     cassette_library_dir=join(dirname(realpath(__file__)), "cassettes"),
     path_transformer=vcr.VCR.ensure_suffix(".yaml"),

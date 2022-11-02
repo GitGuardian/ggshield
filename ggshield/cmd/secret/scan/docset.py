@@ -68,6 +68,7 @@ def docset_cmd(ctx: click.Context, files: List[TextIO]) -> int:  # pragma: no co
                 ignored_matches=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
+                ignore_known_secrets=config.ignore_known_secrets,
             )
 
             scans = create_scans_from_docset_files(

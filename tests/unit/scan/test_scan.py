@@ -42,4 +42,5 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-Command-Id": ANY,
             "mode": "path",
         },
+        ignore_known_secrets=None,
     )

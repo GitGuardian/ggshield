@@ -45,7 +45,6 @@ class TestPathScan:
             result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file"])
         assert result.exit_code == 0, result.output
         assert not result.exception
-        assert "No secrets have been found" in result.output
 
     @pytest.mark.parametrize("use_deprecated_syntax", [False, True])
     def test_scan_file_secret(self, cli_fs_runner, use_deprecated_syntax):
@@ -173,7 +172,6 @@ class TestPathScan:
         assert not result.exception
         assert "file1\n" in result.output
         assert "file2\n" in result.output
-        assert "No secrets have been found" in result.output
 
     def test_files_verbose_abort(self, cli_fs_runner):
         self.create_files()
@@ -193,7 +191,6 @@ class TestPathScan:
         assert not result.exception
         assert "file1\n" in result.output
         assert "file2\n" in result.output
-        assert "No secrets have been found" in result.output
 
 
 class TestScanDirectory:
@@ -245,7 +242,6 @@ class TestScanDirectory:
         assert "file1\n" in result.output
         assert self.path_line("dir/file2") in result.output
         assert self.path_line("dir/subdir/file3") in result.output
-        assert "No secrets have been found" in result.output
 
     def test_directory_verbose_abort(self, cli_fs_runner):
         self.create_files()
@@ -291,7 +287,6 @@ class TestScanDirectory:
         assert "file1\n" in result.output
         assert self.path_line("dir/file2") in result.output
         assert self.path_line("dir/subdir/file3") in result.output
-        assert "No secrets have been found" in result.output
 
     def test_scan_path_should_detect_non_git_files(self, cli_fs_runner):
         """
@@ -358,5 +353,3 @@ class TestScanDirectory:
                 assert (
                     f": {nb_secret} incident{'s' if plural else ''} "
                 ) in result.output
-            else:
-                assert "No secrets have been found" in result.output

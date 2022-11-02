@@ -10,7 +10,6 @@ from ggshield.core.text_utils import (
     STYLE,
     Line,
     format_text,
-    get_display_name_for_policy,
     pluralize,
     translate_validity,
 )
@@ -211,7 +210,9 @@ def iac_vulnerability_location_failed(
     return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
 
 
-def policy_break_header(policy_breaks: List[PolicyBreak], ignore_sha: str) -> str:
+def policy_break_header(
+    policy_breaks: List[PolicyBreak], ignore_sha: str, known_secret: bool = False
+) -> str:
     """
     Build a header for the policy break.
     """
@@ -222,7 +223,7 @@ def policy_break_header(policy_breaks: List[PolicyBreak], ignore_sha: str) -> st
     )
 
     start_line = format_text(">>", STYLE["detector_line_start"])
-    policy_name = get_display_name_for_policy(policy_breaks[0].policy)
+    policy_header = "Known secret" if known_secret else "Secret detected"
     policy_break_type = format_text(
         policy_breaks[0].break_type, STYLE["policy_break_type"]
     )
@@ -230,7 +231,7 @@ def policy_break_header(policy_breaks: List[PolicyBreak], ignore_sha: str) -> st
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
     return f"""
-{start_line} {policy_name}: {policy_break_type}{validity_msg}
+{start_line} {policy_header}: {policy_break_type}{validity_msg}
    Occurrences: {number_occurrences}
    Ignore with SHA: {ignore_sha}
 
@@ -402,13 +403,6 @@ def file_info(filename: str, nb_secrets: int) -> str:
         nb_secrets,
         pluralize("incident", nb_secrets, "incidents"),
     )
-
-
-def no_leak_message() -> str:
-    """
-    Build a message if no secret is found.
-    """
-    return format_text("\nNo secrets have been found\n", STYLE["no_secret"])
 
 
 def no_iac_vulnerabilities() -> str:

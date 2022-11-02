@@ -117,6 +117,9 @@ class JSONOutputHandler(OutputHandler):
         if policy_breaks[0].validity:
             flattened_dict["validity"] = policy_breaks[0].validity
 
+        if policy_breaks[0].known_secret:
+            flattened_dict["known_secret"] = policy_breaks[0].known_secret
+
         for policy_break in policy_breaks:
             matches = JSONOutputHandler.make_matches(
                 policy_break.matches, lines, is_patch

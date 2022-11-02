@@ -38,6 +38,7 @@ def range_cmd(ctx: click.Context, commit_range: str) -> int:  # pragma: no cover
             matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
+            ignore_known_secrets=config.ignore_known_secrets,
         )
     except Exception as error:
         return handle_exception(error, config.verbose)

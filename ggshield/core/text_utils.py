@@ -37,12 +37,6 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "ignore_sha": {"fg": "bright_yellow", "bold": True},
 }
 
-_DISPLAY_NAME_FOR_POLICY = {"secrets detection": "Secret detected"}
-
-
-def get_display_name_for_policy(policy: str) -> str:
-    return _DISPLAY_NAME_FOR_POLICY.get(policy.lower(), policy)
-
 
 class LineCategory(Enum):
     addition = auto()

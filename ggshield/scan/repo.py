@@ -57,6 +57,7 @@ def scan_repo_path(
                 matches_ignore=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
+                ignore_known_secrets=config.ignore_known_secrets,
             )
     except Exception as error:
         return handle_exception(error, config.verbose)
@@ -70,6 +71,7 @@ def scan_commits_content(
     scan_context: ScanContext,
     progress_callback: Callable[..., None],
     ignored_detectors: Optional[Set[str]] = None,
+    ignore_known_secrets: bool = False,
 ) -> ScanCollection:  # pragma: no cover
     try:
         commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
@@ -80,6 +82,7 @@ def scan_commits_content(
             scan_context=scan_context,
             ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
+            ignore_known_secrets=ignore_known_secrets,
         )
         results = scanner.scan(
             commit_files,
@@ -148,6 +151,7 @@ def scan_commit_range(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
+    ignore_known_secrets: bool = False,
 ) -> int:  # pragma: no cover
     """
     Scan every commit in a range.
@@ -184,6 +188,7 @@ def scan_commit_range(
                         scan_context,
                         partial(progress.update, task_scan),
                         ignored_detectors,
+                        ignore_known_secrets,
                     )
                 )
 
