@@ -18,6 +18,15 @@ def _get_secret_config(ctx: click.Context) -> SecretConfig:
     return get_config_from_context(ctx).secret
 
 
+_show_secrets_option = click.option(
+    "--show-secrets",
+    is_flag=True,
+    default=None,
+    help="Show secrets in plaintext instead of hiding them.",
+    callback=create_config_callback("secret", "show_secrets"),
+)
+
+
 _exit_zero_option = click.option(
     "--exit-zero",
     is_flag=True,
@@ -63,6 +72,7 @@ _ignore_known_secrets_option = click.option(
 def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
+        _show_secrets_option(cmd)
         _exit_zero_option(cmd)
         _exclude_option(cmd)
         _ignore_known_secrets_option(cmd)

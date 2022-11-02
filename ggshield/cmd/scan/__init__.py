@@ -39,12 +39,6 @@ from ggshield.core.utils import json_output_option_decorator
 )
 @json_output_option_decorator
 @click.option(
-    "--show-secrets",
-    is_flag=True,
-    default=None,
-    help="Show secrets in plaintext instead of hiding them.",
-)
-@click.option(
     "--output",
     "-o",
     type=click.Path(exists=False, resolve_path=True),
@@ -75,7 +69,6 @@ from ggshield.core.utils import json_output_option_decorator
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
-    show_secrets: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
@@ -91,7 +84,6 @@ def deprecated_scan_group(
     )
     return scan_group_impl(
         ctx,
-        show_secrets,
         json_output,
         output,
         banlist_detector,

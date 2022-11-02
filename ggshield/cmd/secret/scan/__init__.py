@@ -43,12 +43,6 @@ from ggshield.output import JSONOutputHandler, TextOutputHandler
 )
 @json_output_option_decorator
 @click.option(
-    "--show-secrets",
-    is_flag=True,
-    default=None,
-    help="Show secrets in plaintext instead of hiding them.",
-)
-@click.option(
     "--output",
     "-o",
     type=click.Path(exists=False, resolve_path=True),
@@ -79,7 +73,6 @@ from ggshield.output import JSONOutputHandler, TextOutputHandler
 @click.pass_context
 def scan_group(
     ctx: click.Context,
-    show_secrets: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
@@ -90,7 +83,6 @@ def scan_group(
     """Commands to scan various contents."""
     return scan_group_impl(
         ctx,
-        show_secrets,
         json_output,
         output,
         banlist_detector,
@@ -99,7 +91,6 @@ def scan_group(
 
 def scan_group_impl(
     ctx: click.Context,
-    show_secrets: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
@@ -110,9 +101,6 @@ def scan_group_impl(
     return_code = 0
 
     config: Config = ctx.obj["config"]
-
-    if show_secrets is not None:
-        config.secret.show_secrets = show_secrets
 
     if banlist_detector:
         config.secret.ignored_detectors.update(banlist_detector)
