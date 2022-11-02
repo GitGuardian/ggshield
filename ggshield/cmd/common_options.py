@@ -10,7 +10,7 @@ To use it:
 The `kwargs` argument is required because due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 import click
 
@@ -21,16 +21,39 @@ from ggshield.core.config.user_config import UserConfig
 AnyFunction = Callable[..., Any]
 
 
-def _get_config(ctx: click.Context) -> UserConfig:
+# The argument of a Click option callback function
+ArgT = TypeVar("ArgT")
+
+# A Click option callback function
+ClickCallback = Callable[
+    [click.Context, click.Parameter, Optional[ArgT]], Optional[ArgT]
+]
+
+
+def get_config_from_context(ctx: click.Context) -> UserConfig:
+    """Returns the UserConfig object stored in Click context"""
     return cast(UserConfig, ctx.obj["config"].user_config)
 
 
-def _verbose_callback(
-    ctx: click.Context, param: click.Parameter, value: Optional[bool]
-) -> Optional[bool]:
-    if value is not None:
-        _get_config(ctx).verbose = value
-    return value
+def create_config_callback(*option_names: str) -> ClickCallback:
+    """Helper function to define a Click option callback for simple cases where we only
+    have to set a configuration attribute if the option is defined.
+
+    to reach UserConfig.foo, set option_names to ["foo"]
+    to reach Userconfig.secret.bar, set option_names to ["secret", "bar"]
+    """
+
+    def callback(
+        ctx: click.Context, param: click.Parameter, value: Optional[ArgT]
+    ) -> Optional[ArgT]:
+        if value is not None:
+            obj = get_config_from_context(ctx)
+            for name in option_names[:-1]:
+                obj = getattr(obj, name)
+            setattr(obj, option_names[-1], value)
+        return value
+
+    return callback
 
 
 _verbose_option = click.option(
@@ -39,7 +62,7 @@ _verbose_option = click.option(
     is_flag=True,
     default=None,
     help="Verbose display mode.",
-    callback=_verbose_callback,
+    callback=create_config_callback("verbose"),
 )
 
 
@@ -64,20 +87,12 @@ _debug_option = click.option(
 )
 
 
-def allow_self_signed_callback(
-    ctx: click.Context, param: click.Parameter, value: Optional[bool]
-) -> Optional[bool]:
-    if value is not None:
-        _get_config(ctx).allow_self_signed = value
-    return value
-
-
 _allow_self_signed_option = click.option(
     "--allow-self-signed",
     is_flag=True,
     default=None,
     help="Ignore ssl verification.",
-    callback=allow_self_signed_callback,
+    callback=create_config_callback("allow_self_signed"),
 )
 
 
