@@ -10,6 +10,7 @@ import pygitguardian
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config import config_group
+from ggshield.cmd.debug_logs import setup_debug_logs
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
@@ -24,8 +25,6 @@ from ggshield.core.config import Config
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 
-
-LOG_FORMAT = "%(asctime)s %(levelname)s %(process)x:%(thread)x %(name)s:%(funcName)s:%(lineno)d %(message)s"
 
 logger = logging.getLogger(__name__)
 
@@ -48,30 +47,6 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     sys.exit(exit_code)
 
 
-def setup_debug_logs(debug: bool) -> None:
-    """Configure Python logger. Disable messages up to logging.ERROR level by default.
-
-    The reason we disable error messages is that we call logging.error() in addition to
-    showing user-friendly error messages, but we don't want the error logs to show up
-    with the user-friendly error messages, unless --debug has been set.
-    """
-    level = logging.DEBUG if debug else logging.CRITICAL
-
-    if sys.version_info[:2] < (3, 8):
-        # Simulate logging.basicConfig() `force` argument, introduced in Python 3.8
-        root = logging.getLogger()
-        for handler in root.handlers[:]:
-            root.removeHandler(handler)
-            handler.close()
-        logging.basicConfig(filename=None, level=level, format=LOG_FORMAT)
-    else:
-        logging.basicConfig(filename=None, level=level, format=LOG_FORMAT, force=True)
-
-    if debug:
-        # Silence charset_normalizer, its debug output does not bring much
-        logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
-
-
 def config_path_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[str]
 ) -> Optional[str]:
@@ -81,16 +56,6 @@ def config_path_callback(
         ctx.obj = {"cache": Cache()}
 
     ctx.obj["config"] = Config(value)
-    return value
-
-
-def debug_callback(
-    ctx: click.Context, param: click.Parameter, value: Optional[bool]
-) -> Optional[bool]:
-    # The --debug option is marked as "is_eager" so that we can setup logs as soon as
-    # possible. If we don't then log commands for the creation of the Config instance
-    # are ignored
-    setup_debug_logs(value is True)
     return value
 
 
@@ -123,14 +88,6 @@ def debug_callback(
     help="Ignore ssl verification.",
 )
 @click.option(
-    "--debug",
-    is_flag=True,
-    default=None,
-    is_eager=True,
-    help="Show debug information.",
-    callback=debug_callback,
-)
-@click.option(
     "--check-for-updates/--no-check-for-updates",
     is_flag=True,
     default=True,
@@ -149,12 +106,14 @@ def cli(
     load_dot_env()
 
     config = ctx.obj["config"]
-
-    if debug is not None:
-        config.debug = debug
+    if debug:
+        # --debug was set. Update the config to reflect this. Unlike other options, this
+        # can't be done in the debug_callback() because --debug is eager, so its
+        # callback can be called *before* the configuration has been loaded.
+        config.debug = True
     elif config.debug:
-        # if --debug is not set, but `debug` is set in the configuration file,
-        # we still have to setup logs
+        # if --debug is not set but `debug` is set in the configuration file, then
+        # we must setup logs now.
         setup_debug_logs(True)
 
     if allow_self_signed is not None:

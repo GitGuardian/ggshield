@@ -14,6 +14,7 @@ from typing import Any, Callable, Optional, cast
 
 import click
 
+from ggshield.cmd.debug_logs import setup_debug_logs
 from ggshield.core.config.user_config import UserConfig
 
 
@@ -42,9 +43,31 @@ _verbose_option = click.option(
 )
 
 
+def debug_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    # The --debug option is marked as "is_eager" so that we can setup logs as soon as
+    # possible. If we don't then log commands for the creation of the Config instance
+    # are ignored
+    if value is not None:
+        setup_debug_logs(value is True)
+    return value
+
+
+_debug_option = click.option(
+    "--debug",
+    is_flag=True,
+    default=None,
+    is_eager=True,
+    help="Show debug information.",
+    callback=debug_callback,
+)
+
+
 def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)
+        _debug_option(cmd)
         return cmd
 
     return decorator
