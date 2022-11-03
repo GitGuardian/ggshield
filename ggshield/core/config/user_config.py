@@ -171,9 +171,9 @@ class UserConfig(FilteredConfig):
                 )
         except ValidationError as exc:
             message = format_validation_error(exc)
-            raise ParseError(f"Error in {config_path}:\n{message}") from exc
-        except ValueError as ve:
-            raise ParseError(f"Error in {config_path}:\n{str(ve)}") from ve
+            raise ParseError(message) from exc
+        except ValueError as exc:
+            raise ParseError(str(exc)) from exc
 
         update_from_other_instance(self, obj)
 

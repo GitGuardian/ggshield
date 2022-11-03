@@ -30,16 +30,15 @@ def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
     with open(path, "r") as f:
         try:
             data = yaml.safe_load(f) or {}
-            if not isinstance(data, dict):
-                raise ValueError(
-                    f"The configuration in '{path}' is invalid. Configuration must be a dict."
-                )
         except (yaml.parser.ParserError, yaml.scanner.ScannerError) as e:
-            message = f"Parsing error while reading {path}:\n{str(e)}"
+            message = f"{path} is not a valid YAML file:\n{str(e)}"
             raise ValueError(message)
-        else:
-            replace_in_keys(data, old_char="-", new_char="_")
-            return data
+
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} should be a dictionary.")
+
+    replace_in_keys(data, old_char="-", new_char="_")
+    return data
 
 
 def save_yaml_dict(data: Dict[str, Any], path: str) -> None:
