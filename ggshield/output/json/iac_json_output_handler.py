@@ -1,6 +1,7 @@
 from typing import Any, Dict, cast
 
-from ggshield.iac.models import IaCScanResultSchema
+from pygitguardian.iac_models import IaCScanResultSchema
+
 from ggshield.output.json.schemas import IaCJSONScanResultSchema
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import ScanCollection

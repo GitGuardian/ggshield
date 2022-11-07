@@ -1,15 +1,11 @@
-from typing import Dict, Optional, Union, cast
+from typing import cast
 
-import requests
 import urllib3
 from click import UsageError
 from pygitguardian import GGClient
-from pygitguardian.client import is_ok
 from pygitguardian.models import Detail
 from requests import Response, Session
 
-from ..iac.models import IaCScanResult, IaCScanResultSchema
-from ..iac.models.iac_scan_parameters import IaCScanParameters, IaCScanParametersSchema
 from .config import Config
 from .constants import DEFAULT_DASHBOARD_URL
 from .errors import UnexpectedError, UnknownInstanceError
@@ -63,7 +59,7 @@ def create_client(
     """
     session = create_session(allow_self_signed=allow_self_signed)
     try:
-        return IaCGGClient(
+        return GGClient(
             api_key=api_key,
             base_uri=api_url,
             user_agent="ggshield",
@@ -81,38 +77,3 @@ def create_session(allow_self_signed: bool = False) -> Session:
         urllib3.disable_warnings()
         session.verify = False
     return session
-
-
-class IaCGGClient(GGClient):
-    def directory_scan(
-        self,
-        directory: bytes,
-        scan_parameters: IaCScanParameters,
-        extra_headers: Optional[Dict[str, str]] = None,
-    ) -> Union[Detail, IaCScanResult]:
-
-        result: Union[Detail, IaCScanResult]
-        try:
-            resp = self.request(
-                "post",
-                endpoint="iac_scan",
-                extra_headers=extra_headers,
-                files={
-                    "directory": directory,
-                },
-                data={
-                    "scan_parameters": IaCScanParametersSchema().dumps(scan_parameters),
-                },
-            )
-        except requests.exceptions.ReadTimeout:
-            result = Detail("The request timed out.")
-            result.status_code = 504
-        else:
-            if is_ok(resp):
-                result = IaCScanResultSchema().load(resp.json())
-            else:
-                result = load_detail(resp)
-
-            result.status_code = resp.status_code
-
-        return result

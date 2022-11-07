@@ -8,6 +8,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tu
 import click
 from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
+from pygitguardian.iac_models import IaCScanResult
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
@@ -20,7 +21,6 @@ from ggshield.core.filter import (
 from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import Filemode
-from ggshield.iac.models import IaCScanResult
 
 from .scan_context import ScanContext
 from .scannable import File
