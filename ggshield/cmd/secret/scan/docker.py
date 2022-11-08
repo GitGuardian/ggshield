@@ -51,6 +51,7 @@ def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
                 scan_context=scan_context,
                 matches_ignore=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
+                ignore_known_secrets=config.ignore_known_secrets,
             )
 
             return output_handler.process_scan(scan)

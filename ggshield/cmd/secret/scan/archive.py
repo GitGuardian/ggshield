@@ -53,6 +53,7 @@ def archive_cmd(ctx: click.Context, path: str) -> int:  # pragma: no cover
                 scan_context=scan_context,
                 ignored_matches=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
+                ignore_known_secrets=config.ignore_known_secrets,
             )
             results = scanner.scan(
                 files.files,

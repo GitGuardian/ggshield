@@ -1,20 +1,20 @@
+from copy import deepcopy
 from io import StringIO
-from typing import ClassVar, List, cast
+from typing import ClassVar, List
 
 import click
 from pygitguardian.models import Match
 
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.core.text_utils import Line
+from ggshield.core.text_utils import Line, pluralize
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
 from ggshield.output.output_handler import OutputHandler
-from ggshield.scan import Result, Results, ScanCollection
+from ggshield.scan import Result, ScanCollection
 
 from .message import (
     file_info,
     flatten_policy_breaks_by_line,
     leak_message_located,
-    no_leak_message,
     policy_break_header,
     secrets_engine_version,
 )
@@ -26,31 +26,58 @@ class TextOutputHandler(OutputHandler):
 
     def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
         scan_buf = StringIO()
-        if scan.optional_header and (scan.has_results or self.verbose):
-            scan_buf.write(scan.optional_header)
 
-        if top and self.verbose:
+        if self.verbose:
             scan_buf.write(secrets_engine_version())
 
-        if scan.has_results:
-            for result in cast(Results, scan.results).results:
-                scan_buf.write(self.process_result(result))
-        else:
-            has_results = False
-            if scan.scans:
-                has_results = any(x.has_results for x in scan.scans)
+        scan_buf.write(self.process_scan_results(scan))
 
-            if top and not has_results:
-                scan_buf.write(no_leak_message())
+        if scan.known_secrets_count > 0:
+            scan_buf.write(
+                f"\nWarning: {scan.known_secrets_count} {pluralize('secret', scan.known_secrets_count)} ignored "
+                f"because {pluralize('it is', scan.known_secrets_count, 'they are')} already known by your "
+                f"GitGuardian dashboard and you used the `--ignore-known-secrets` option.\n"
+            )
 
-        if scan.scans:
-            for sub_scan in scan.scans:
-                inner_scan_str = self._process_scan_impl(sub_scan, top=False)
-                scan_buf.write(inner_scan_str)
+            if self.verbose:
+                scan_buf.write(self.process_scan_results(scan, True))
+            else:
+                scan_buf.write("Use `--verbose` for more details.\n")
 
         return scan_buf.getvalue()
 
-    def process_result(self, result: Result) -> str:
+    def process_scan_results(
+        self, scan: ScanCollection, show_only_known_secrets: bool = False
+    ) -> str:
+        results_buf = StringIO()
+        if scan.results:
+            current_result_buf = StringIO()
+            for result in scan.results.results:
+                current_result_buf.write(
+                    self.process_result(result, show_only_known_secrets)
+                )
+            current_result_string = current_result_buf.getvalue()
+
+            # We want to show header in the verbose mode for new secrets or when at least one result is not empty
+            if scan.optional_header and (
+                current_result_string or (self.verbose and not show_only_known_secrets)
+            ):
+                results_buf.write(scan.optional_header)
+
+            results_buf.write(current_result_string)
+
+        if scan.scans:
+            for sub_scan in scan.scans:
+                inner_scan_str = self.process_scan_results(
+                    sub_scan, show_only_known_secrets
+                )
+                results_buf.write(inner_scan_str)
+
+        return results_buf.getvalue()
+
+    def process_result(
+        self, result: Result, show_only_known_secrets: bool = False
+    ) -> str:
         """
         Build readable message on the found incidents.
 
@@ -58,17 +85,22 @@ class TextOutputHandler(OutputHandler):
         :param nb_lines: The number of lines to display before and after a secret in the
         patch
         :param show_secrets: Option to show secrets value
+        :param show_only_known_secrets: If True, display only known secrets, and only new secrets otherwise
         :return: The formatted message to display
         """
         result_buf = StringIO()
-        policy_breaks = result.scan.policy_breaks
+
+        # policy breaks and matches are modified in the functions leak_dictionary_by_ignore_sha and censor_content.
+        # Previously process_result was executed only once, so it did not create any issue.
+        # In the future we could rework those functions such that they do not change what is in the result.
+        policy_breaks = deepcopy(result.scan.policy_breaks)
         is_patch = result.filemode != Filemode.FILE
         sha_dict = leak_dictionary_by_ignore_sha(policy_breaks)
 
         if self.show_secrets:
             content = result.content
         else:
-            content = censor_content(result.content, result.scan.policy_breaks)
+            content = censor_content(result.content, policy_breaks)
 
         lines = get_lines_from_content(content, result.filemode, is_patch)
         padding = get_padding(lines)
@@ -77,16 +109,23 @@ class TextOutputHandler(OutputHandler):
         if len(lines) == 0:
             raise click.ClickException("Parsing of scan result failed.")
 
-        result_buf.write(file_info(result.filename, len(sha_dict)))
-
+        number_of_displayed_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():
-            result_buf.write(policy_break_header(policy_breaks, ignore_sha))
-            for policy_break in policy_breaks:
-                policy_break.matches = TextOutputHandler.make_matches(
-                    policy_break.matches, lines, is_patch
+            known_secret = policy_breaks[0].known_secret
+            if (not known_secret and not show_only_known_secrets) or (
+                known_secret and show_only_known_secrets
+            ):
+                number_of_displayed_secrets += 1
+
+                result_buf.write(
+                    policy_break_header(policy_breaks, ignore_sha, known_secret)
                 )
 
-            if policy_breaks[0].policy == "Secrets detection":
+                for policy_break in policy_breaks:
+                    policy_break.matches = TextOutputHandler.make_matches(
+                        policy_break.matches, lines, is_patch
+                    )
+
                 result_buf.write(
                     leak_message_located(
                         flatten_policy_breaks_by_line(policy_breaks),
@@ -98,7 +137,11 @@ class TextOutputHandler(OutputHandler):
                     )
                 )
 
-        return result_buf.getvalue()
+        file_info_line = ""
+        if number_of_displayed_secrets > 0:
+            file_info_line = file_info(result.filename, number_of_displayed_secrets)
+
+        return file_info_line + result_buf.getvalue()
 
     @staticmethod
     def make_matches(
