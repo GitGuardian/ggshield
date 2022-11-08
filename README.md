@@ -43,6 +43,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [`secret scan docker`: scan a Docker image after exporting its filesystem and manifest with the `docker save` command](#secret-scan-docker-scan-a-docker-image-after-exporting-its-filesystem-and-manifest-with-the-docker-save-command)
     - [`secret scan pypi`: scan a pypi package](#secret-scan-pypi-scan-a-pypi-package)
     - [`secret scan archive`: scan an archive files](#secret-scan-archive-scan-an-archive-files)
+    - [`secret scan docset`: scan docset files](#secret-scan-docset-scan-docset-files)
   - [`secret ignore` command](#secret-ignore-command)
   - [`iac scan` command](#iac-scan-command)
   - [`install` command](#install-command)
@@ -76,6 +77,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
   - [Jenkins](#jenkins)
   - [Drone](#drone)
   - [Azure Pipelines](#azure-pipelines)
+  - [Generic Docset Format](#generic-docset-format)
 - [Output](#output)
 - [Related open source projects](#related-open-source-projects)
 - [License](#license)
@@ -326,6 +328,19 @@ Usage: ggshield secret scan archive [OPTIONS] PATH
 Options:
   -h, --help  Show this message and exit.
 ```
+
+### `secret scan docset`: scan docset files
+
+```
+Usage: ggshield secret scan docset [OPTIONS] FILES...
+
+  scan docset JSONL files.
+
+Options:
+  -h, --help  Show this message and exit.
+```
+
+Using this command you can integrate with other data sources. It supports JSONL files in which each object is conform to the [Generic "Docset" Format](#generic-docset-format) format.
 
 ## `secret ignore` command
 
@@ -1110,6 +1125,67 @@ jobs:
 Do not forget to add your [GitGuardian API Key](https://dashboard.gitguardian.com/api/v1/auth/user/github_login/authorize?utm_source=github&utm_medium=gg_shield&utm_campaign=shield1) to the `gitguardianApiKey` secret variable in your pipeline settings.
 
 - [Defining secret variables in Azure Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#secret-variables)
+
+## Generic Docset Format
+
+`ggshield` also support a generic input format via its `secret scan docset` command. The input files for that command must be in JSONL format, each line containing a "docset" JSON object.
+
+A docset represents a set of documents for a given type. Each document has authors and content. Authors may have a name and email and a role. This is a simple and flexible model to ease preparing data for ggshield consumption.
+
+For a more detailed view of the format, first the structure of a docset:
+
+```js
+{
+  // Required. Defines the type of data stored in the docset.
+  "type": "",
+
+  // Required. A string to uniquely identify this docset.
+  // Content depends on the type and is considered opaque but will be displayed in the output.
+  "id": "",
+
+  // Optional. Authors of the doc set.
+  // Only set if the whole docset has the same authors.
+  "authors": [$author],
+
+  // Required. The documents of the docset.
+  "documents": [$document]
+}
+```
+
+The structure of an author is:
+
+```js
+{
+  // Required. Content depends on the format and is considered opaque.
+  // Could be an email, a username or a system specific ID.
+  "id": "",
+  // Optional. The author name, if available.
+  "name": "",
+  // Optional. The author email, if available.
+  // This field should be set even if email is used as the ID, since the ID is
+  // considered opaque.
+  "email": "",
+  // Optional. Meaning depends on the format.
+  // For example in a commit it would be "author" or "committer".
+  "role": ""
+}
+```
+
+The structure of a document is:
+
+```js
+{
+  // Required. A string to uniquely identify the document inside the docset.
+  // Content depends on the type and is considered opaque but will be displayed in the output.
+  "id": "",
+
+  // Optional. If defined, it replaces (not extend) the global docset authors.
+  "authors": [$author],
+
+  // Required. The content of the document in UTF-8.
+  "content": ""
+}
+```
 
 # Output
 
