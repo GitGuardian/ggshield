@@ -41,7 +41,7 @@ setup(
         "marshmallow>=3.18.0,<3.19.0",
         "marshmallow-dataclass>=8.5.8,<8.6.0",
         "oauthlib>=3.2.1,<3.3.0",
-        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git",  # TODO fix after pygitguardian merge
+        "pygitguardian>=1.4.0,<1.5.0",
         "python-dotenv>=0.21.0,<0.22.0",
         "pyyaml>=6.0,<6.1",
         "rich>=12.5.1,<12.6.0",

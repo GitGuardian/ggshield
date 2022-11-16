@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "755688435972b39e265f6b31aadd7bb9e19eeb5ae33745f55d3b5b8707bbc399"
+            "sha256": "2a0e4a4392513291710e942075811f8de88302fd9757aff5e4c5c94a9d618fd7"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -105,9 +105,12 @@
             "version": "==21.3"
         },
         "pygitguardian": {
-            "editable": true,
-            "git": "https://github.com/GitGuardian/py-gitguardian.git",
-            "ref": "a939cf711e610dea5a3956651344097c916d0c02"
+            "hashes": [
+                "sha256:3ebb7e69f3060c981b92ba5011d9c704b0153f582cdca2cc9d553891794af7f3",
+                "sha256:f080bc2172a6e1d948a4d45c2967eee69c86a8d190bd4a2f1b9f6ef6674f08d7"
+            ],
+            "index": "pypi",
+            "version": "==1.4.0"
         },
         "pygments": {
             "hashes": [
