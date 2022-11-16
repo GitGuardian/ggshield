@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""
+This script benchmarks ggshield by measuring the time spent to run different
+ggshield commands against several repositories, using several ggshield versions
+"""
+import logging
+
+import click
+from report_cmd import report_cmd
+from run_cmd import run_cmd
+from setup_cmd import setup_cmd
+
+
+LOG_FORMAT = "%(asctime)s %(levelname)s: %(message)s"
+
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+
+
+@click.group(
+    context_settings=CONTEXT_SETTINGS,
+    commands={
+        "setup": setup_cmd,
+        "run": run_cmd,
+        "report": report_cmd,
+    },
+)
+@click.pass_context
+def main(context: click.Context) -> None:
+    """Run performance benchmarks on various versions of ggshield"""
+    logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT, datefmt="%H:%M:%S")
+
+
+if __name__ == "__main__":
+    main()

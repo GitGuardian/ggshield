@@ -1,0 +1,43 @@
+name: Performance benchmark
+
+on:
+  pull_request:
+  workflow_dispatch:
+    run_options:
+      description: 'Additional options to pass to `run`'
+
+jobs:
+  benchmark:
+    name: Run performance benchmark
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: 1
+      # How many time to repeat each run
+      REPEATS: 3
+      # If a run takes more than $MAX_DELTA seconds compared to reference, fail the job
+      MAX_DELTA: 3
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pipenv
+          pipenv install --system
+
+      - name: Setup benchmark
+        run: |
+          scripts/perfbench/perfbench setup
+
+      - name: Run benchmark
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+        run: |
+          scripts/perfbench/perfbench run --repeats $REPEATS ${{ github.event.inputs.run_options }}
+
+      - name: Generate report
+        run: |
+          scripts/perfbench/perfbench report --max-delta $MAX_DELTA >> $GITHUB_STEP_SUMMARY
