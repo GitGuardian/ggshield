@@ -8,6 +8,11 @@ FROM python:3.9-slim
 
 ARG UID
 
+# pipenv needs git
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install pipenv==2022.5.2
 RUN useradd --uid $UID --create-home user
 
