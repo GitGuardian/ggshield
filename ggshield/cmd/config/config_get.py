@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config.constants import FIELD_OPTIONS
 from ggshield.core.config import Config
 from ggshield.core.config.errors import UnknownInstanceError
@@ -17,9 +18,10 @@ from ggshield.core.config.errors import UnknownInstanceError
     metavar="URL",
     help="Get per instance configuration.",
 )
+@add_common_options()
 @click.pass_context
 def config_get_command(
-    ctx: click.Context, field_name: str, instance_url: Optional[str]
+    ctx: click.Context, field_name: str, instance_url: Optional[str], **kwargs: Any
 ) -> int:
     """
     Print the value of the given configuration key.

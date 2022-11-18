@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
 from .constants import FIELD_OPTIONS
@@ -18,9 +19,14 @@ from .constants import FIELD_OPTIONS
     help="Set per instance configuration.",
 )
 @click.option("--all", "all_", is_flag=True, help="Iterate over every instances.")
+@add_common_options()
 @click.pass_context
 def config_unset_command(
-    ctx: click.Context, field_name: str, instance_url: Optional[str], all_: bool
+    ctx: click.Context,
+    field_name: str,
+    instance_url: Optional[str],
+    all_: bool,
+    **kwargs: Any,
 ) -> int:
     """
     Remove the value of the given configuration key.

@@ -1,10 +1,11 @@
 import os
 import subprocess
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.git_shell import GIT_PATH, check_git_dir, check_git_installed
 
 
@@ -25,7 +26,10 @@ from ggshield.core.git_shell import GIT_PATH, check_git_dir, check_git_installed
 )
 @click.option("--force", "-f", is_flag=True, help="Force override")
 @click.option("--append", "-a", is_flag=True, help="Append to existing script")
-def install_cmd(mode: str, hook_type: str, force: bool, append: bool) -> int:
+@add_common_options()
+def install_cmd(
+    mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any
+) -> int:
     """Install a pre-commit or pre-push git hook (local or global)."""
     return_code = (
         install_global(hook_type=hook_type, force=force, append=append)

@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
 from .constants import FIELD_OPTIONS
@@ -17,9 +18,14 @@ from .constants import FIELD_OPTIONS
     metavar="URL",
     help="Set per instance configuration.",
 )
+@add_common_options()
 @click.pass_context
 def config_set_command(
-    ctx: click.Context, field_name: str, value: str, instance: Optional[str]
+    ctx: click.Context,
+    field_name: str,
+    value: str,
+    instance: Optional[str],
+    **kwargs: Any,
 ) -> int:
     """
     Update the value of the given configuration key.

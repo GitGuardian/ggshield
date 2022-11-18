@@ -1,11 +1,15 @@
 import os
+from typing import Any
 
 import click
+
+from ggshield.cmd.common_options import add_common_options
 
 
 @click.command()
 @click.pass_context
-def config_migrate_cmd(ctx: click.Context) -> None:
+@add_common_options()
+def config_migrate_cmd(ctx: click.Context, **kwargs: Any) -> None:
     """
     Migrate configuration file to the latest version
     """

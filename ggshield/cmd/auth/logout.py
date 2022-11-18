@@ -1,6 +1,9 @@
+from typing import Any
+
 import click
 from requests.exceptions import ConnectionError
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.utils import dashboard_to_api_url
@@ -22,8 +25,11 @@ from .utils import CONNECTION_ERROR_MESSAGE
     help="Whether the token should be revoked on logout before being removed from the configuration.",
 )
 @click.option("--all", "all_", is_flag=True, help="Iterate over every saved tokens.")
+@add_common_options()
 @click.pass_context
-def logout_cmd(ctx: click.Context, instance: str, revoke: bool, all_: bool) -> int:
+def logout_cmd(
+    ctx: click.Context, instance: str, revoke: bool, all_: bool, **kwargs: Any
+) -> int:
     """
     Remove authentication for a GitGuardian instance.
     A successful logout results in the deletion of personal access token stored in the configuration.

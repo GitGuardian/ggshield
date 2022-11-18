@@ -1,9 +1,11 @@
 import os
 import tempfile
+from typing import Any
 
 import click
 from pygitguardian import GGClient
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.git_shell import GIT_PATH, shell
@@ -14,8 +16,11 @@ from ggshield.scan.repo import scan_repo_path
 
 @click.command()
 @click.argument("repository", nargs=1, type=click.STRING, required=True)
+@add_common_options()
 @click.pass_context
-def repo_cmd(ctx: click.Context, repository: str) -> int:  # pragma: no cover
+def repo_cmd(
+    ctx: click.Context, repository: str, **kwargs: Any
+) -> int:  # pragma: no cover
     """
     scan a REPOSITORY's commits at a given URL or path.
 

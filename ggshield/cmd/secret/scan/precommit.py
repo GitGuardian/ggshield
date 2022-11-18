@@ -1,7 +1,8 @@
-from typing import List
+from typing import Any, List
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.git_shell import check_git_dir
 from ggshield.core.utils import handle_exception
 from ggshield.output import TextOutputHandler
@@ -24,9 +25,10 @@ BYPASS_MESSAGE = """  - if you use the pre-commit framework:
 
 @click.command()
 @click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
+@add_common_options()
 @click.pass_context
 def precommit_cmd(
-    ctx: click.Context, precommit_args: List[str]
+    ctx: click.Context, precommit_args: List[str], **kwargs: Any
 ) -> int:  # pragma: no cover
     """
     scan as a pre-commit git hook.

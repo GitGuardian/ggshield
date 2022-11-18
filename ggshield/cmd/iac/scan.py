@@ -8,6 +8,7 @@ from typing import Any, Optional, Sequence, Type
 import click
 from pygitguardian.models import Detail
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_TAR_CONTENT_SIZE
@@ -72,22 +73,23 @@ def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[s
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
 )
+@add_common_options()
 @click.pass_context
 def scan_cmd(
     ctx: click.Context,
     exit_zero: bool,
     minimum_severity: str,
-    verbose: bool,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
     json: bool,
     directory: Path,
+    **kwargs: Any,
 ) -> int:
     """
     Scan a directory for IaC vulnerabilities.
     """
     update_context(
-        ctx, exit_zero, minimum_severity, verbose, ignore_policies, ignore_paths, json
+        ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths, json
     )
     result = iac_scan(ctx, directory)
     scan = ScanCollection(id=str(directory), type="path_scan", iac_result=result)
@@ -100,7 +102,6 @@ def update_context(
     ctx: click.Context,
     exit_zero: bool,
     minimum_severity: str,
-    verbose: bool,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
     json: bool,
@@ -117,9 +118,6 @@ def update_context(
 
     if ignore_policies is not None:
         config.user_config.iac.ignored_policies.update(ignore_policies)
-
-    if verbose is not None:
-        config.user_config.verbose = verbose
 
     if exit_zero is not None:
         config.user_config.exit_zero = exit_zero

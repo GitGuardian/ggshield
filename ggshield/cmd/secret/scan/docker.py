@@ -1,8 +1,10 @@
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import ScanContext, ScanMode
@@ -23,8 +25,11 @@ DOCKER_COMMAND_TIMEOUT = 360
     show_default=True,
 )
 @click.argument("name", nargs=1, type=click.STRING, required=True)
+@add_common_options()
 @click.pass_context
-def docker_name_cmd(ctx: click.Context, name: str, docker_timeout: int) -> int:
+def docker_name_cmd(
+    ctx: click.Context, name: str, docker_timeout: int, **kwargs: Any
+) -> int:
     """
     scan a docker image <NAME>.
 

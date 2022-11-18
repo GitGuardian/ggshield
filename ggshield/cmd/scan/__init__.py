@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import click
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.secret.scan import (
     archive_cmd,
     ci_cmd,
@@ -59,9 +60,6 @@ from ggshield.core.utils import json_output_option_decorator
     "By default, only Secret Detection is shown.",
 )
 @click.option(
-    "--verbose", "-v", is_flag=True, default=None, help="Verbose display mode."
-)
-@click.option(
     "--output",
     "-o",
     type=click.Path(exists=False, resolve_path=True),
@@ -88,18 +86,19 @@ from ggshield.core.utils import json_output_option_decorator
     is_flag=True,
     help="Ignore excluded patterns by default. [default: False]",
 )
+@add_common_options()
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
     show_secrets: bool,
     exit_zero: bool,
     all_policies: bool,
-    verbose: bool,
     json_output: bool,
     output: Optional[str],
     banlist_detector: Optional[List[str]] = None,
     exclude: Optional[List[str]] = None,
     ignore_default_excludes: bool = False,
+    **kwargs: Any,
 ) -> int:
     """
     Deprecated: use `ggshield secret scan (...)` instead.
@@ -111,7 +110,6 @@ def deprecated_scan_group(
         ctx,
         show_secrets,
         exit_zero,
-        verbose,
         json_output,
         output,
         banlist_detector,

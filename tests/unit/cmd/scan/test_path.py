@@ -235,7 +235,7 @@ class TestScanDirectory:
     def test_directory_verbose(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
-            cli, ["-v", "secret", "scan", "path", "./", "-r"], input="y\n"
+            cli, ["secret", "scan", "path", "./", "-r", "-v"], input="y\n"
         )
         assert_invoke_ok(result)
         assert not result.exception
@@ -246,7 +246,7 @@ class TestScanDirectory:
     def test_directory_verbose_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
-            cli, ["-v", "secret", "scan", "path", "./", "-r"], input="n\n"
+            cli, ["secret", "-v", "scan", "path", "./", "-r"], input="n\n"
         )
         assert_invoke_ok(result)
         assert not result.exception
@@ -257,9 +257,9 @@ class TestScanDirectory:
         result = cli_fs_runner.invoke(
             cli,
             [
-                "-v",
                 "secret",
                 "scan",
+                "-v",
                 "--exclude",
                 "file1",
                 "--exclude",
@@ -280,7 +280,7 @@ class TestScanDirectory:
     def test_directory_verbose_yes(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
-            cli, ["-v", "secret", "scan", "path", "./", "-r", "-y"]
+            cli, ["secret", "scan", "path", "./", "-r", "-vy"]
         )
         assert result.exit_code == 0, result.output
         assert not result.exception

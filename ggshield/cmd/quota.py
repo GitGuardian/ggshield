@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-from typing import Union
+from typing import Any, Union
 
 import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, Quota, QuotaResponse
 
+from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.utils import json_output_option_decorator
 from ggshield.output.text.message import format_quota_color
@@ -12,8 +13,9 @@ from ggshield.output.text.message import format_quota_color
 
 @click.command()
 @json_output_option_decorator
+@add_common_options()
 @click.pass_context
-def quota_cmd(ctx: click.Context, json_output: bool) -> int:
+def quota_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
     """Show quotas overview."""
     client: GGClient = create_client_from_config(ctx.obj["config"])
     response: Union[Detail, QuotaResponse] = client.quota_overview()
