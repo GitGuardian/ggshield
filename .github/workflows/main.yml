@@ -44,7 +44,9 @@ jobs:
     name: Build and Test
     runs-on: ${{ matrix.os }}
     env:
-      PIPENV_ARGS: ''
+      # We skip pipenv lockfile by default, because a Pipfile.lock should only
+      # be used for the Python version it was generated for.
+      PIPENV_SKIP_LOCK: 1
     strategy:
       fail-fast: false
       matrix:
@@ -59,15 +61,15 @@ jobs:
 
       - name: Use Pipfile.lock on locked version of Python
         # Keep version in sync with scripts/update-pipfile-lock/Dockerfile
-        if: ${{ matrix.python-version }} == "3.9"
+        if: matrix.python-version == '3.9'
         run: |
-          echo "PIPENV_ARGS=--ignore-pipfile" >> $GITHUB_ENV
+          echo "PIPENV_SKIP_LOCK=0" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade pipenv
-          pipenv install --system --dev $PIPENV_ARGS
+          pipenv install --system --dev
 
       - name: Install Windows dev dependencies
         if: matrix.os == 'windows-2022'
