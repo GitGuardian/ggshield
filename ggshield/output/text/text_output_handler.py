@@ -58,10 +58,8 @@ class TextOutputHandler(OutputHandler):
                 )
             current_result_string = current_result_buf.getvalue()
 
-            # We want to show header in the verbose mode for new secrets or when at least one result is not empty
-            if scan.optional_header and (
-                current_result_string or (self.verbose and not show_only_known_secrets)
-            ):
+            # We want to show header when at least one result is not empty
+            if scan.optional_header and current_result_string:
                 results_buf.write(scan.optional_header)
 
             results_buf.write(current_result_string)
