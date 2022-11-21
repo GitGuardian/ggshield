@@ -97,7 +97,7 @@ class TestDockerCMD:
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
         assert_invoke_exited_with(result, 1)
-        assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
+        assert 'Image "ggshield-non-existant" not found\n' in result.output
 
     @patch("ggshield.scan.docker.get_files_from_docker_archive")
     @pytest.mark.parametrize(
