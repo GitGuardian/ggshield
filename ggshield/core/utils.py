@@ -11,6 +11,7 @@ import click
 from dotenv import load_dotenv
 from pygitguardian.models import Match
 
+from ggshield.core.config.errors import ExitCode, _ExitError
 from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
 from .git_shell import get_git_root, is_git_dir
@@ -224,13 +225,15 @@ def handle_exception(e: Exception, verbose: bool) -> int:
     Handle exception from a scan command.
     """
     if isinstance(e, click.exceptions.Abort):
-        return 0
-    elif isinstance(e, click.ClickException):
-        raise e
-    else:
-        if verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(e))
+        return ExitCode.SUCCESS
+    exit_code = e.exit_code if isinstance(e, _ExitError) else ExitCode.UNEXPECTED_ERROR
+
+    if not isinstance(e, click.ClickException) and verbose:
+        traceback.print_exc()
+
+    display_error(str(e))
+
+    return exit_code
 
 
 def _find_dot_env() -> Optional[str]:

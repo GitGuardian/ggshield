@@ -22,6 +22,7 @@ from ggshield.cmd.status import status_cmd
 from ggshield.core import check_updates
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.config.errors import ExitCode
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 
@@ -39,9 +40,9 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
     when exit_zero is enabled
     """
     show_config_deprecation_message(ctx)
-    if ctx.obj["config"].exit_zero:
+    if exit_code == ExitCode.SCAN_FOUND_PROBLEMS and ctx.obj["config"].exit_zero:
         logger.debug("scan exit_code forced to 0")
-        sys.exit(0)
+        sys.exit(ExitCode.SUCCESS)
 
     logger.debug("scan exit_code=%d", exit_code)
     sys.exit(exit_code)

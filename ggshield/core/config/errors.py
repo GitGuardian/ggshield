@@ -1,24 +1,55 @@
+from enum import IntEnum
 from typing import Any, Dict
 
 import click
 from marshmallow import ValidationError
 
 
-class ParseError(click.ClickException):
+class ExitCode(IntEnum):
+    """
+    Define constant exit codes based on their type
+    """
+
+    SUCCESS = 0
+    # Scan was successful, and found problems (leaked secrets, IAC security issues...)
+    SCAN_FOUND_PROBLEMS = 1
+    # Error on the command-line, like a missing parameter
+    USAGE_ERROR = 2
+    # auth subcommand failed
+    AUTHENTICATION_ERROR = 3
+
+    # Catch all for other failures
+    UNEXPECTED_ERROR = 128
+
+
+class _ExitError(click.ClickException):
+    """
+    Base class for exceptions which must exit with an exit code as defined in ExitCode.
+
+    This class is internal, inherit from it to create public exception classes.
+    """
+
+    def __init__(self, exit_code: ExitCode, message: str) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
+
+
+class ParseError(_ExitError):
     """
     Failed to load file
     """
 
-    pass
+    def __init__(self, message: str):
+        super().__init__(ExitCode.UNEXPECTED_ERROR, message)
 
 
-class AuthError(click.ClickException):
+class AuthError(_ExitError):
     """
     Base exception for Auth-related configuration error
     """
 
     def __init__(self, instance: str, message: str):
-        super(AuthError, self).__init__(message)
+        super().__init__(ExitCode.AUTHENTICATION_ERROR, message)
         self.instance = instance
 
 
@@ -28,9 +59,7 @@ class UnknownInstanceError(AuthError):
     """
 
     def __init__(self, instance: str):
-        super(UnknownInstanceError, self).__init__(
-            instance, f"Unknown instance: '{instance}'"
-        )
+        super().__init__(instance, f"Unknown instance: '{instance}'")
 
 
 class AuthExpiredError(AuthError):
@@ -39,7 +68,7 @@ class AuthExpiredError(AuthError):
     """
 
     def __init__(self, instance: str):
-        super(AuthExpiredError, self).__init__(
+        super().__init__(
             instance,
             f"Instance '{instance}' authentication expired, please authenticate again.",
         )
@@ -47,9 +76,16 @@ class AuthExpiredError(AuthError):
 
 class MissingTokenError(AuthError):
     def __init__(self, instance: str):
-        super(MissingTokenError, self).__init__(
-            instance, f"No token is saved for this instance: '{instance}'"
-        )
+        super().__init__(instance, f"No token is saved for this instance: '{instance}'")
+
+
+class ScanFoundProblemsError(_ExitError):
+    """
+    Raised when problems are found during a scan
+    """
+
+    def __init__(self) -> None:
+        super().__init__(ExitCode.SCAN_FOUND_PROBLEMS, "")
 
 
 def format_validation_error(exc: ValidationError) -> str:

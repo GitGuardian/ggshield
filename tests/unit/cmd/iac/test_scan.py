@@ -6,6 +6,7 @@ from click.testing import CliRunner
 from pytest_mock import MockerFixture
 
 from ggshield.cmd.main import cli
+from ggshield.core.config.errors import ExitCode
 from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, MockRequestsResponse, my_vcr
 
 
@@ -32,7 +33,7 @@ def test_scan_valid_args(cli_fs_runner: CliRunner) -> None:
             ".",
         ],
     )
-    assert result.exit_code == 0
+    assert result.exit_code == ExitCode.SUCCESS
 
 
 def test_invalid_policy_id(cli_fs_runner: CliRunner) -> None:
@@ -53,7 +54,7 @@ def test_invalid_policy_id(cli_fs_runner: CliRunner) -> None:
             ".",
         ],
     )
-    assert result.exit_code == 1
+    assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
     assert (
         "The policies ['GG_IAC_002'] do not match the pattern 'GG_IAC_[0-9]{4}'"
         in str(result.exception)
@@ -72,7 +73,7 @@ def test_iac_scan_file_error_response(cli_fs_runner: CliRunner) -> None:
             "tmp/iac_file_single_vulnerability.tf",
         ],
     )
-    assert result.exit_code == 2
+    assert result.exit_code == ExitCode.USAGE_ERROR
     assert "Error: Invalid value for 'DIRECTORY'" in result.stdout
 
 

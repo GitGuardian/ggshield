@@ -9,6 +9,7 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
+from ggshield.core.config.errors import UnknownInstanceError
 from ggshield.core.utils import (
     MatchIndices,
     api_to_dashboard_url,
@@ -162,7 +163,7 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
     THEN the exception message mentions the instance name
     """
     with pytest.raises(
-        click.ClickException,
+        UnknownInstanceError,
         match="Unknown instance: 'https://example.com'",
     ):
         with patch.dict(os.environ, clear=True):

@@ -6,6 +6,7 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
+from ggshield.core.config.errors import ExitCode
 from ggshield.scan import ScanCollection
 from ggshield.scan.docker import _validate_filepath
 from ggshield.scan.scannable import File, Files
@@ -96,7 +97,7 @@ class TestDockerCMD:
             cli,
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert 'Image "ggshield-non-existant" not found\n' in result.output
 
     @patch("ggshield.scan.docker.get_files_from_docker_archive")
