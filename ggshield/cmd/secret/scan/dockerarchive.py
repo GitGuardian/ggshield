@@ -3,7 +3,9 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import ScanContext, ScanMode
@@ -14,7 +16,7 @@ from ggshield.scan.docker import docker_scan_archive
 @click.argument(
     "archive", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
 )
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def docker_archive_cmd(
     ctx: click.Context,

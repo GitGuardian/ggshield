@@ -130,10 +130,10 @@ class TestPathScan:
                 [
                     "secret",
                     "scan",
-                    "--exit-zero",
                     "-v",
                     *json_arg,
                     "path",
+                    "--exit-zero",
                     "file_secret",
                 ],
             )
@@ -262,11 +262,11 @@ class TestScanDirectory:
                 "-v",
                 "--exclude",
                 "file1",
-                "--exclude",
-                "dir/file2",
                 "path",
                 "./",
                 "-r",
+                "--exclude",
+                "dir/file2",
             ],
             input="n\n",
         )
@@ -340,11 +340,11 @@ class TestScanDirectory:
                 [
                     "secret",
                     "scan",
-                    "--exit-zero",
                     "-v",
                     *ignored_detectors,
                     "path",
                     "file_secret",
+                    "--exit-zero",
                 ],
             )
             assert result.exit_code == 0, result.output

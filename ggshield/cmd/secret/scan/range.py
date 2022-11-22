@@ -2,7 +2,9 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.utils import handle_exception
 from ggshield.scan import ScanContext, ScanMode
@@ -11,7 +13,7 @@ from ggshield.scan.repo import scan_commit_range
 
 @click.command()
 @click.argument("commit_range", nargs=1, type=click.STRING)
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def range_cmd(
     ctx: click.Context,

@@ -6,7 +6,9 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
@@ -18,7 +20,7 @@ from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretSc
 @click.argument(
     "path", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
 )
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def archive_cmd(
     ctx: click.Context,

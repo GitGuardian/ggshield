@@ -5,7 +5,9 @@ from typing import Any, List, Optional, Tuple
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.secret.scan.secret_scan_common_options import (
+    add_secret_scan_common_options,
+)
 from ggshield.core.git_shell import (
     check_git_dir,
     get_list_commit_SHA,
@@ -46,7 +48,7 @@ BYPASS_MESSAGE = """  - if you use the pre-commit framework:
 
 @click.command()
 @click.argument("prepush_args", nargs=-1, type=click.UNPROCESSED)
-@add_common_options()
+@add_secret_scan_common_options()
 @click.pass_context
 def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> int:
     """
