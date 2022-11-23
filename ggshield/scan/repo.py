@@ -1,4 +1,3 @@
-import itertools
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -73,8 +72,12 @@ def scan_commits_content(
     ignored_detectors: Optional[Set[str]] = None,
     ignore_known_secrets: bool = False,
 ) -> ScanCollection:  # pragma: no cover
+    commit_files_tuple = []
     try:
-        commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
+        for commit in commits:
+            for file in commit.files:
+                commit_files_tuple.append((commit, file))
+
         progress_callback(advance=len(commits))
         scanner = SecretScanner(
             client=client,
@@ -85,28 +88,20 @@ def scan_commits_content(
             ignore_known_secrets=ignore_known_secrets,
         )
         results = scanner.scan(
-            commit_files,
+            [file for _, file in commit_files_tuple],
             scan_threads=SCAN_THREADS,
         )
     except Exception as exc:
         results = Results.from_exception(exc)
 
     scans = []
-    for commit in commits:
-        concerned_results = [
-            res
-            for res in results.results
-            if any(
-                res.content == file.document and res.filename == file.filename
-                for file in commit.files
-            )
-        ]
+    for (commit, file), result in zip(commit_files_tuple, results.results):
         scans.append(
             ScanCollection(
                 commit.sha or "unknown",
                 type="commit",
                 results=Results(
-                    results=concerned_results,
+                    results=[result],
                     errors=results.errors,
                 ),
                 optional_header=commit.optional_header,
