@@ -88,13 +88,19 @@ def scan_cmd(
     """
     Scan a directory for IaC vulnerabilities.
     """
-    update_context(
-        ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths, json
-    )
+    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     result = iac_scan(ctx, directory)
     scan = ScanCollection(id=str(directory), type="path_scan", iac_result=result)
 
-    output_handler: OutputHandler = ctx.obj["output_handler"]
+    output_handler_cls: Type[OutputHandler]
+    if json:
+        output_handler_cls = IaCJSONOutputHandler
+    else:
+        output_handler_cls = IaCTextOutputHandler
+    config: Config = ctx.obj["config"]
+    output_handler = output_handler_cls(
+        show_secrets=False, verbose=config.user_config.verbose
+    )
     return output_handler.process_scan(scan)
 
 
@@ -104,7 +110,6 @@ def update_context(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
-    json: bool,
 ) -> None:
     config: Config = ctx.obj["config"]
     ctx.obj["client"] = create_client_from_config(config)
@@ -124,14 +129,6 @@ def update_context(
 
     if minimum_severity is not None:
         config.user_config.iac.minimum_severity = minimum_severity
-
-    output_handler_cls: Type[OutputHandler] = IaCTextOutputHandler
-    if json:
-        output_handler_cls = IaCJSONOutputHandler
-
-    ctx.obj["output_handler"] = output_handler_cls(
-        show_secrets=False, verbose=config.user_config.verbose
-    )
 
 
 def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:

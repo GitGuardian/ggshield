@@ -11,12 +11,12 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
-from ggshield.output import OutputHandler
 from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
@@ -95,7 +95,7 @@ def pypi_cmd(
     scan a pypi package <NAME>.
     """
     config: Config = ctx.obj["config"]
-    output_handler: OutputHandler = ctx.obj["output_handler"]
+    output_handler = create_output_handler(ctx)
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         save_package_to_tmp(temp_dir=temp_dir, package_name=package_name)

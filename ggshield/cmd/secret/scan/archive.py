@@ -8,11 +8,11 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.config import Config
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
-from ggshield.output import OutputHandler
 from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 
@@ -71,5 +71,5 @@ def archive_cmd(
 
         scan = ScanCollection(id=path, type="archive_scan", results=results)
 
-        output_handler: OutputHandler = ctx.obj["output_handler"]
+        output_handler = create_output_handler(ctx)
         return output_handler.process_scan(scan)

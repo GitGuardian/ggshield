@@ -6,6 +6,7 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
@@ -319,7 +320,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
             client=ctx.obj["client"],
             cache=ReadOnlyCache(),
             commit_list=commit_list,
-            output_handler=ctx.obj["output_handler"],
+            output_handler=create_output_handler(ctx),
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,

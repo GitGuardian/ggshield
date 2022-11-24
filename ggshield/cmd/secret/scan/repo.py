@@ -7,6 +7,7 @@ from pygitguardian import GGClient
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
@@ -46,7 +47,7 @@ def repo_cmd(
         return scan_repo_path(
             client=client,
             cache=cache,
-            output_handler=ctx.obj["output_handler"],
+            output_handler=create_output_handler(ctx),
             config=config,
             scan_context=scan_context,
             repo_path=repository,
@@ -58,7 +59,7 @@ def repo_cmd(
             return scan_repo_path(
                 client=client,
                 cache=cache,
-                output_handler=ctx.obj["output_handler"],
+                output_handler=create_output_handler(ctx),
                 config=config,
                 scan_context=scan_context,
                 repo_path=tmpdirname,

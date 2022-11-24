@@ -4,6 +4,7 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.utils import handle_exception
@@ -43,7 +44,7 @@ def range_cmd(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             commit_list=commit_list,
-            output_handler=ctx.obj["output_handler"],
+            output_handler=create_output_handler(ctx),
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,

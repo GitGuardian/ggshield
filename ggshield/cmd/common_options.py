@@ -35,6 +35,21 @@ def get_config_from_context(ctx: click.Context) -> UserConfig:
     return cast(UserConfig, ctx.obj["config"].user_config)
 
 
+def create_ctx_callback(name: str) -> ClickCallback:
+    """Helper function to define a Click option callback for simple cases where we only
+    have to set a value on Click context object if the option is defined.
+    """
+
+    def callback(
+        ctx: click.Context, param: click.Parameter, value: Optional[ArgT]
+    ) -> Optional[ArgT]:
+        if value is not None:
+            ctx.obj[name] = value
+        return value
+
+    return callback
+
+
 def create_config_callback(*option_names: str) -> ClickCallback:
     """Helper function to define a Click option callback for simple cases where we only
     have to set a configuration attribute if the option is defined.

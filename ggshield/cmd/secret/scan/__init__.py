@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Optional, Type
+from typing import Any, Optional
 
 import click
 
@@ -21,8 +21,6 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.text_utils import display_error
-from ggshield.core.utils import json_output_option_decorator
-from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
 
 
 @click.group(
@@ -41,27 +39,6 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
         "docset": docset_cmd,
     },
 )
-@json_output_option_decorator
-@click.option(
-    "--show-secrets",
-    is_flag=True,
-    default=None,
-    help="Show secrets in plaintext instead of hiding them.",
-)
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(exists=False, resolve_path=True),
-    default=None,
-    help="Route ggshield output to file.",
-)
-@click.option(
-    "--banlist-detector",
-    "-b",
-    default=None,
-    help="Exclude results from a detector.",
-    multiple=True,
-)
 # Deprecated options
 @click.option(
     "--all-policies",
@@ -79,31 +56,15 @@ from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
 @click.pass_context
 def scan_group(
     ctx: click.Context,
-    show_secrets: bool,
-    json_output: bool,
-    output: Optional[str],
-    banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
     **kwargs: Any,
 ) -> int:
     """Commands to scan various contents."""
-    return scan_group_impl(
-        ctx,
-        show_secrets,
-        json_output,
-        output,
-        banlist_detector,
-    )
+    return scan_group_impl(ctx)
 
 
-def scan_group_impl(
-    ctx: click.Context,
-    show_secrets: bool,
-    json_output: bool,
-    output: Optional[str],
-    banlist_detector: Optional[List[str]] = None,
-) -> int:
+def scan_group_impl(ctx: click.Context) -> int:
     """Implementation for scan_group(). Must be a separate function so that its code can
     be reused from the deprecated `cmd.scan` package."""
     ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
@@ -111,23 +72,9 @@ def scan_group_impl(
 
     config: Config = ctx.obj["config"]
 
-    if show_secrets is not None:
-        config.secret.show_secrets = show_secrets
-
-    if banlist_detector:
-        config.secret.ignored_detectors.update(banlist_detector)
-
     max_commits = get_max_commits_for_hook()
     if max_commits:
         config.max_commits_for_hook = max_commits
-
-    output_handler_cls: Type[OutputHandler] = TextOutputHandler
-    if json_output:
-        output_handler_cls = JSONOutputHandler
-
-    ctx.obj["output_handler"] = output_handler_cls(
-        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=output
-    )
 
     return return_code
 

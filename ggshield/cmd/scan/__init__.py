@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import click
 
@@ -18,7 +18,6 @@ from ggshield.cmd.secret.scan import (
     scan_group_impl,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.utils import json_output_option_decorator
 
 
 @click.group(
@@ -37,27 +36,6 @@ from ggshield.core.utils import json_output_option_decorator
         "archive": archive_cmd,
     },
 )
-@json_output_option_decorator
-@click.option(
-    "--show-secrets",
-    is_flag=True,
-    default=None,
-    help="Show secrets in plaintext instead of hiding them.",
-)
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(exists=False, resolve_path=True),
-    default=None,
-    help="Route ggshield output to file.",
-)
-@click.option(
-    "--banlist-detector",
-    "-b",
-    default=None,
-    help="Exclude results from a detector.",
-    multiple=True,
-)
 # Deprecated options
 @click.option(
     "--all-policies",
@@ -75,10 +53,6 @@ from ggshield.core.utils import json_output_option_decorator
 @click.pass_context
 def deprecated_scan_group(
     ctx: click.Context,
-    show_secrets: bool,
-    json_output: bool,
-    output: Optional[str],
-    banlist_detector: Optional[List[str]] = None,
     all_policies: Optional[bool] = None,
     ignore_default_excludes: bool = False,
     **kwargs: Any,
@@ -89,10 +63,4 @@ def deprecated_scan_group(
     display_warning(
         "Warning: Using `ggshield scan (...)` is deprecated. Use `ggshield secret scan (...)` instead.",
     )
-    return scan_group_impl(
-        ctx,
-        show_secrets,
-        json_output,
-        output,
-        banlist_detector,
-    )
+    return scan_group_impl(ctx)

@@ -9,6 +9,7 @@ import click
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
+    create_output_handler,
 )
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_shell import get_list_commit_SHA, git
@@ -138,7 +139,7 @@ def prereceive_cmd(
     scan as a pre-receive git hook.
     """
     config = ctx.obj["config"]
-    output_handler = ctx.obj["output_handler"]
+    output_handler = create_output_handler(ctx)
 
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI

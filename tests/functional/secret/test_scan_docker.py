@@ -46,7 +46,7 @@ def test_scan_docker() -> None:
 
 
 def test_scan_docker_json() -> None:
-    proc = run_ggshield_scan("--json", "docker", TEST_DOCKER_IMAGE)
+    proc = run_ggshield_scan("docker", TEST_DOCKER_IMAGE, "--json")
     assert_is_valid_json(proc.stdout)
 
 
