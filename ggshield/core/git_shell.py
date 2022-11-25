@@ -44,9 +44,11 @@ GIT_PATH = get_git_path(os.getcwd())
 @lru_cache(None)
 def is_git_dir(wd: str) -> bool:
     check_git_installed()
-    cmd = [GIT_PATH, "-C", wd, "status"]
-    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return result.returncode == 0
+    try:
+        git(["rev-parse", "--show-toplevel"], cwd=wd)
+    except subprocess.CalledProcessError:
+        return False
+    return True
 
 
 def check_git_dir(wd: Optional[str] = None) -> None:
