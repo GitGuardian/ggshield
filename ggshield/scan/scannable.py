@@ -8,7 +8,7 @@ import charset_normalizer
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.filter import is_filepath_excluded
-from ggshield.core.git_shell import GIT_PATH, shell
+from ggshield.core.git_shell import git
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
 
@@ -286,9 +286,9 @@ class Commit(Files):
                 "-m",  # split multi-parent (aka merge) commits into several one-parent commits
             ]
             if self.sha:
-                self._patch = shell([GIT_PATH, "show", self.sha] + common_args)
+                self._patch = git(["show", self.sha] + common_args)
             else:
-                self._patch = shell([GIT_PATH, "diff", "--cached"] + common_args)
+                self._patch = git(["diff", "--cached"] + common_args)
 
         return self._patch
 

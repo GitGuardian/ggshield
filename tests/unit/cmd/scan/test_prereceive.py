@@ -7,7 +7,7 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
-from ggshield.scan import Result, Results, ScanCollection
+from ggshield.scan import Commit, Result, Results, ScanCollection
 from ggshield.scan.repo import cd
 from tests.repository import Repository
 from tests.unit.conftest import (
@@ -156,10 +156,12 @@ class TestPreReceive:
         )
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
+    @patch("ggshield.scan.repo.get_commits_by_batch")
     @patch("ggshield.scan.repo.scan_commits_content")
     def test_stdin_supports_gitlab_web_ui(
         self,
         scan_commits_content_mock: Mock,
+        get_commits_by_batch_mock: Mock,
         get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
@@ -173,6 +175,7 @@ class TestPreReceive:
         old_sha = "56781234"
         new_sha = "1234abcd"
         get_list_mock.return_value = [new_sha]
+        get_commits_by_batch_mock.return_value = [[Commit(sha=new_sha)]]
         scan_commits_content_mock.return_value = ScanCollection(
             id="some_id",
             type="commit-ranges",

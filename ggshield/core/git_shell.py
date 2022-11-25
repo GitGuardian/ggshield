@@ -58,12 +58,7 @@ def check_git_dir(wd: Optional[str] = None) -> None:
 
 
 def get_git_root(wd: Optional[str] = None) -> str:
-    cmd = [GIT_PATH]
-    if wd is not None:
-        cmd.extend(("-C", wd))
-
-    cmd.extend(("rev-parse", "--show-toplevel"))
-    return shell(cmd)
+    return git(["rev-parse", "--show-toplevel"], cwd=wd)
 
 
 @lru_cache(None)
@@ -76,43 +71,35 @@ def check_git_installed() -> None:
             raise UnexpectedError("Git is not installed.")
 
 
-def shell(
+def git(
     command: List[str],
     timeout: int = COMMAND_TIMEOUT,
-    check: bool = False,
+    check: bool = True,
+    cwd: Optional[str] = None,
 ) -> str:
-    """Execute a command in a subprocess."""
+    """Calls git with the given arguments, returns stdout as a string"""
     env = os.environ.copy()
     env["LANG"] = "C"
 
     try:
         logger.debug("command=%s", command)
         result = subprocess.run(
-            command,
+            [GIT_PATH] + command,
             check=check,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=timeout,
             env=env,
+            cwd=cwd,
         )
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
     except subprocess.TimeoutExpired:
         raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
 
 
-def git(command: List[str], timeout: int = COMMAND_TIMEOUT, check: bool = True) -> str:
-    """Calls git with the given arguments, returns stdout as a string"""
-    return shell([GIT_PATH] + command, timeout=timeout, check=check)
-
-
 def git_ls(wd: Optional[str] = None) -> List[str]:
-    cmd = [GIT_PATH]
-    if wd is not None:
-        cmd.extend(("-C", wd))
-
-    cmd.extend(("ls-files", "--recurse-submodules"))
-
-    return shell(cmd, timeout=600).split("\n")
+    cmd = ["ls-files", "--recurse-submodules"]
+    return git(cmd, timeout=600, cwd=wd).split("\n")
 
 
 def is_valid_git_commit_ref(ref: str) -> bool:
@@ -120,10 +107,10 @@ def is_valid_git_commit_ref(ref: str) -> bool:
     Check if a reference is valid and can be resolved to a commit
     """
     ref += "^{commit}"
-    cmd = [GIT_PATH, "cat-file", "-e", ref]
+    cmd = ["cat-file", "-e", ref]
 
     try:
-        shell(cmd, check=True)
+        git(cmd)
     except subprocess.CalledProcessError:
         return False
 
@@ -140,14 +127,14 @@ def get_list_commit_SHA(
     returns the *end* of the list, so max_count=3 returns [HEAD~2, HEAD~1, HEAD].
     """
 
-    cmd = [GIT_PATH, "rev-list", "--reverse", *commit_range.split()]
+    cmd = ["rev-list", "--reverse", *commit_range.split()]
     if max_count is not None:
         cmd.extend(["--max-count", str(max_count)])
     # Makes rev-list print "bad revision" instead of telling the range is ambiguous
     cmd.append("--")
 
     try:
-        commit_list = shell(cmd, check=True).split("\n")
+        commit_list = git(cmd).split("\n")
     except subprocess.CalledProcessError as e:
         if b"bad revision" in e.stderr and "~1.." in commit_range:
             # We got asked to list commits for A~1...B. If A~1 does not exist, but A
