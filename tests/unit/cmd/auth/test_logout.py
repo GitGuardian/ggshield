@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -172,7 +172,7 @@ class TestAuthLogout:
         instance: Optional[str] = None,
         revoke: bool = True,
         all_tokens: bool = False,
-    ) -> None:
+    ) -> Tuple[int, str]:
         cmd = ["auth", "logout"]
         if instance is not None:
             cmd.append("--instance=" + instance)
