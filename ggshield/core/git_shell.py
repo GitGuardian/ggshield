@@ -8,6 +8,8 @@ from typing import List, Optional
 import click
 from click import UsageError
 
+from ggshield.core.errors import UnexpectedError
+
 
 COMMAND_TIMEOUT = 45
 
@@ -15,28 +17,26 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(None)
-def get_git_path(cwd: str) -> str:
+def _get_git_path() -> str:
     git_path = which("git")
 
     if git_path is None:
-        raise Exception("unable to find git executable in PATH/PATHEXT")
+        raise UnexpectedError("unable to find git executable in PATH/PATHEXT")
 
     # lower()ing these would provide additional coverage on case-
     # insensitive filesystems but detection is problematic
     git_path = os.path.abspath(git_path)
-    cwd = os.path.abspath(cwd)
+    cwd = os.getcwd()
     path_env = [
         os.path.abspath(p) for p in os.environ.get("PATH", "").split(os.pathsep)
     ]
 
     # git was found - ignore git in cwd if cwd not in PATH
     if cwd == os.path.dirname(git_path) and cwd not in path_env:
-        raise Exception("rejecting git executable in CWD not in PATH")
+        raise UnexpectedError("rejecting git executable in CWD not in PATH")
 
+    logger.debug("Found git at %s", git_path)
     return git_path
-
-
-GIT_PATH = get_git_path(os.getcwd())
 
 
 @lru_cache(None)
@@ -73,7 +73,7 @@ def git(
     try:
         logger.debug("command=%s", command)
         result = subprocess.run(
-            [GIT_PATH] + command,
+            [_get_git_path()] + command,
             check=check,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
