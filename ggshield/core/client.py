@@ -11,8 +11,8 @@ from requests import Response, Session
 from ..iac.models import IaCScanResult, IaCScanResultSchema
 from ..iac.models.iac_scan_parameters import IaCScanParameters, IaCScanParametersSchema
 from .config import Config
-from .config.errors import UnknownInstanceError
 from .constants import DEFAULT_DASHBOARD_URL
+from .errors import UnknownInstanceError
 
 
 def load_detail(resp: Response) -> Detail:

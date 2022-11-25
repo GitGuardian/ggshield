@@ -5,7 +5,7 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config.constants import FIELD_OPTIONS
 from ggshield.core.config import Config
-from ggshield.core.config.errors import UnknownInstanceError
+from ggshield.core.errors import UnknownInstanceError
 
 
 @click.command()

@@ -22,7 +22,7 @@ from ggshield.cmd.status import status_cmd
 from ggshield.core import check_updates
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import load_dot_env
 

@@ -7,7 +7,7 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.cmd.secret.scan.ci import EMPTY_SHA
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 

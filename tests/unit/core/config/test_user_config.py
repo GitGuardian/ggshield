@@ -2,12 +2,12 @@ import pytest
 from click import ClickException
 
 from ggshield.core.config import Config
-from ggshield.core.config.errors import ParseError
 from ggshield.core.config.user_config import (
     CURRENT_CONFIG_VERSION,
     IaCConfig,
     UserConfig,
 )
+from ggshield.core.errors import ParseError
 from ggshield.core.types import IgnoredMatch
 from tests.unit.conftest import write_text, write_yaml
 

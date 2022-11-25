@@ -6,7 +6,7 @@ from requests.exceptions import ConnectionError
 
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 
 from ..utils import prepare_config
 

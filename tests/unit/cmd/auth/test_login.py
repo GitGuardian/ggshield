@@ -14,7 +14,7 @@ from ggshield.cmd.auth.utils import (
 )
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from ggshield.core.oauth import (
     OAuthClient,
     OAuthError,

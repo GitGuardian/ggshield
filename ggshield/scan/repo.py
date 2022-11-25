@@ -13,10 +13,10 @@ from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
+from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection, ScanContext, SecretScanner
 

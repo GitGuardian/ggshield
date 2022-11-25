@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
     UNCHECKED_SECRET_PATCH,

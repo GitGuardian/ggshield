@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import pytest
 
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from ggshield.core.utils import Filemode
 from ggshield.scan import Commit, ScanContext, ScanMode, SecretScanner
 from tests.unit.conftest import (

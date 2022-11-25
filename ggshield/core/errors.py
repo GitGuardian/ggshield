@@ -1,8 +1,11 @@
+import traceback
 from enum import IntEnum
 from typing import Any, Dict
 
 import click
 from marshmallow import ValidationError
+
+from ggshield.core.text_utils import display_error
 
 
 class ExitCode(IntEnum):
@@ -108,3 +111,21 @@ def format_validation_error(exc: ValidationError) -> str:
     format_items(message_dct, 0)
 
     return "\n".join(lines)
+
+
+def handle_exception(exc: Exception, verbose: bool) -> int:
+    """
+    Take an exception, print information about it and return the exit code to use
+    """
+    if isinstance(exc, click.exceptions.Abort):
+        return ExitCode.SUCCESS
+    exit_code = (
+        exc.exit_code if isinstance(exc, _ExitError) else ExitCode.UNEXPECTED_ERROR
+    )
+
+    if not isinstance(exc, click.ClickException) and verbose:
+        traceback.print_exc()
+
+    display_error(str(exc))
+
+    return exit_code

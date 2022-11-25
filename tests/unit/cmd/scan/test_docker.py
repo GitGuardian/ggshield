@@ -6,7 +6,7 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from ggshield.scan import ScanCollection
 from ggshield.scan.docker import _validate_filepath
 from ggshield.scan.scannable import File, Files

@@ -5,11 +5,6 @@ from typing import Any, Dict, List, Optional, cast
 
 import marshmallow_dataclass
 
-from ggshield.core.config.errors import (
-    AuthExpiredError,
-    MissingTokenError,
-    UnknownInstanceError,
-)
 from ggshield.core.config.utils import (
     ensure_path_exists,
     get_auth_config_filepath,
@@ -17,6 +12,11 @@ from ggshield.core.config.utils import (
     save_yaml_dict,
 )
 from ggshield.core.dirs import get_config_dir
+from ggshield.core.errors import (
+    AuthExpiredError,
+    MissingTokenError,
+    UnknownInstanceError,
+)
 from ggshield.core.utils import datetime_from_isoformat
 
 

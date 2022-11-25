@@ -5,8 +5,8 @@ import click
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
 )
+from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import check_git_dir
-from ggshield.core.utils import handle_exception
 from ggshield.output import TextOutputHandler
 from ggshield.output.text.message import remediation_message
 from ggshield.scan import Commit, ScanCollection, ScanContext, ScanMode, SecretScanner

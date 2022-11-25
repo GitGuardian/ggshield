@@ -6,7 +6,7 @@ from click.testing import CliRunner
 from pytest_mock import MockerFixture
 
 from ggshield.cmd.main import cli
-from ggshield.core.config.errors import ExitCode
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, MockRequestsResponse, my_vcr
 
 
