@@ -35,6 +35,11 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "policy_break_type": {"fg": "bright_yellow", "bold": True},
     "occurrence_count": {"fg": "bright_yellow", "bold": True},
     "ignore_sha": {"fg": "bright_yellow", "bold": True},
+    "iac_vulnerability_critical": {"fg": (255, 0, 0), "bold": True},  # red
+    "iac_vulnerability_high": {"fg": (255, 128, 0), "bold": True},  # orange
+    "iac_vulnerability_medium": {"fg": "bright_yellow", "bold": True},
+    "iac_vulnerability_low": {"fg": (146, 146, 146), "bold": True},  # light-grey
+    "iac_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
 }
 
 

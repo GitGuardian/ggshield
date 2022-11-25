@@ -252,6 +252,29 @@ def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> s
     )
 
 
+def iac_vulnerability_severity_line(severity: str) -> str:
+    """
+    Build a line to output the severity of a vulnerability
+    """
+    if severity == "CRITICAL":
+        severity_string = "Critical"
+        style = STYLE["iac_vulnerability_critical"]
+    elif severity == "HIGH":
+        severity_string = "High"
+        style = STYLE["iac_vulnerability_high"]
+    elif severity == "MEDIUM":
+        severity_string = "Medium"
+        style = STYLE["iac_vulnerability_medium"]
+    elif severity == "LOW":
+        severity_string = "Low"
+        style = STYLE["iac_vulnerability_low"]
+    else:  # In the other case, print `severity``
+        severity_string = severity
+        style = STYLE["iac_vulnerability_unknown"]
+
+    return f"Severity: {format_text(severity_string, style)}\n"
+
+
 def clip_long_line(
     content: str,
     max_length: int,
