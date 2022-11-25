@@ -3,7 +3,7 @@ import os
 import subprocess
 from functools import lru_cache
 from shutil import which
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import click
 from click import UsageError
@@ -100,10 +100,6 @@ def shell(
         raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
 
 
-def shell_split(command: List[str], **kwargs: Any) -> List[str]:
-    return shell(command, **kwargs).split("\n")
-
-
 def git(command: List[str], timeout: int = COMMAND_TIMEOUT, check: bool = True) -> str:
     """Calls git with the given arguments, returns stdout as a string"""
     return shell([GIT_PATH] + command, timeout=timeout, check=check)
@@ -116,7 +112,7 @@ def git_ls(wd: Optional[str] = None) -> List[str]:
 
     cmd.extend(("ls-files", "--recurse-submodules"))
 
-    return shell_split(cmd, timeout=600)
+    return shell(cmd, timeout=600).split("\n")
 
 
 def is_valid_git_commit_ref(ref: str) -> bool:
@@ -151,7 +147,7 @@ def get_list_commit_SHA(
     cmd.append("--")
 
     try:
-        commit_list = shell_split(cmd, check=True)
+        commit_list = shell(cmd, check=True).split("\n")
     except subprocess.CalledProcessError as e:
         if b"bad revision" in e.stderr and "~1.." in commit_range:
             # We got asked to list commits for A~1...B. If A~1 does not exist, but A
