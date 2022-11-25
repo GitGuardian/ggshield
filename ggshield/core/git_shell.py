@@ -8,8 +8,6 @@ from typing import List, Optional
 import click
 from click import UsageError
 
-from ggshield.core.errors import UnexpectedError
-
 
 COMMAND_TIMEOUT = 45
 
@@ -43,7 +41,6 @@ GIT_PATH = get_git_path(os.getcwd())
 
 @lru_cache(None)
 def is_git_dir(wd: str) -> bool:
-    check_git_installed()
     try:
         git(["rev-parse", "--show-toplevel"], cwd=wd)
     except subprocess.CalledProcessError:
@@ -61,16 +58,6 @@ def check_git_dir(wd: Optional[str] = None) -> None:
 
 def get_git_root(wd: Optional[str] = None) -> str:
     return git(["rev-parse", "--show-toplevel"], cwd=wd)
-
-
-@lru_cache(None)
-def check_git_installed() -> None:
-    """Check if git is installed."""
-    with subprocess.Popen(
-        [GIT_PATH, "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    ) as process:
-        if process.wait():
-            raise UnexpectedError("Git is not installed.")
 
 
 def git(

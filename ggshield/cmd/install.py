@@ -8,7 +8,7 @@ from click import UsageError
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import check_git_dir, check_git_installed, git
+from ggshield.core.git_shell import check_git_dir, git
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -43,7 +43,6 @@ def install_cmd(
 
 def install_global(hook_type: str, force: bool, append: bool) -> int:
     """Global pre-commit/pre-push hook installation."""
-    check_git_installed()
     hook_dir_path = get_global_hook_dir_path()
 
     if not hook_dir_path:
