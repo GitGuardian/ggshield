@@ -1,10 +1,13 @@
+from copy import deepcopy
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ggshield.scan import Commit, File
-from ggshield.scan.repo import get_commits_by_batch
+from ggshield.core.utils import Filemode
+from ggshield.scan import Commit, File, Result, Results
+from ggshield.scan.repo import get_commits_by_batch, scan_commits_content
+from tests.unit.conftest import TWO_POLICY_BREAKS
 
 
 @pytest.mark.parametrize(
@@ -65,3 +68,51 @@ def test_get_commits_content_by_batch(
     assert len(batches) == len(expected_batches)
     for (batch, expected_batch) in zip(batches, expected_batches):
         assert len(batch) == len(expected_batch)
+
+
+@patch("ggshield.scan.repo.SecretScanner")
+def test_scan_2_commits_same_content(secret_scanner_mock):
+    """
+    GIVEN 2 commits where each commit has a file with same content and same filename
+    WHEN scan_commits_content returns 2 policy break for each commit
+    THEN the total number of policy breaks is 4
+    """
+    commit_1 = Commit(sha="some_sha_1")
+    commit_1._files = [File(document="document", filename="filename")]
+
+    commit_2 = Commit(sha="some_sha_2")
+    commit_2._files = [File(document="document", filename="filename")]
+
+    secret_scanner_mock.return_value.scan.return_value = Results(
+        results=[
+            Result(
+                filename="filename",
+                content="document",
+                filemode=Filemode.NEW,
+                scan=deepcopy(TWO_POLICY_BREAKS),
+            ),
+            Result(
+                filename="filename",
+                content="document",
+                filemode=Filemode.NEW,
+                scan=deepcopy(TWO_POLICY_BREAKS),
+            ),
+        ],
+        errors=[],
+    )
+
+    scan_collection = scan_commits_content(
+        commits=[commit_1, commit_2],
+        client=MagicMock(),
+        cache=MagicMock(),
+        matches_ignore=[],
+        scan_context=MagicMock(),
+        progress_callback=(lambda advance: None),
+    )
+
+    assert len(scan_collection.scans) == 2
+
+    all_policy_breaks_count = sum(
+        result.scan.policy_break_count for result in scan_collection.get_all_results()
+    )
+    assert all_policy_breaks_count == 4

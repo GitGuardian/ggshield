@@ -72,11 +72,9 @@ def scan_commits_content(
     ignored_detectors: Optional[Set[str]] = None,
     ignore_known_secrets: bool = False,
 ) -> ScanCollection:  # pragma: no cover
-    commit_files_tuple = []
+    commit_files_tuples = []
     try:
-        for commit in commits:
-            for file in commit.files:
-                commit_files_tuple.append((commit, file))
+        commit_files_tuples = [(c, f) for c in commits for f in c.files]
 
         progress_callback(advance=len(commits))
         scanner = SecretScanner(
@@ -88,14 +86,14 @@ def scan_commits_content(
             ignore_known_secrets=ignore_known_secrets,
         )
         results = scanner.scan(
-            [file for _, file in commit_files_tuple],
+            [file for _, file in commit_files_tuples],
             scan_threads=SCAN_THREADS,
         )
     except Exception as exc:
         results = Results.from_exception(exc)
 
     scans = []
-    for (commit, file), result in zip(commit_files_tuple, results.results):
+    for (commit, _), result in zip(commit_files_tuples, results.results):
         scans.append(
             ScanCollection(
                 commit.sha or "unknown",
