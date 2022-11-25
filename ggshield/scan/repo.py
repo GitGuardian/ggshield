@@ -5,17 +5,17 @@ from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Iterable, Iterator, List, Optional, Set
 
-import click
+from click import UsageError
 from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
+from ggshield.core.errors import ExitCode, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.utils import handle_exception
 from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection, ScanContext, SecretScanner
 
@@ -44,7 +44,7 @@ def scan_repo_path(
 ) -> int:  # pragma: no cover
     try:
         if not is_git_dir(repo_path):
-            raise click.ClickException(f"{repo_path} is not a git repository")
+            raise UsageError(f"{repo_path} is not a git repository")
 
         with cd(repo_path):
             return scan_commit_range(
@@ -145,7 +145,7 @@ def scan_commit_range(
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
     ignore_known_secrets: bool = False,
-) -> int:  # pragma: no cover
+) -> ExitCode:
     """
     Scan every commit in a range.
 

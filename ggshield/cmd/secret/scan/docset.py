@@ -9,8 +9,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.core.constants import MAX_WORKERS
+from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import create_progress_bar, display_info
-from ggshield.core.utils import handle_exception
 from ggshield.scan import File, ScanCollection, ScanContext, ScanMode, SecretScanner
 
 

@@ -2,10 +2,10 @@ import json
 import os
 from typing import Any, Dict, List
 
-import click
 from pygitguardian.models import PolicyBreak
 
 from ggshield.core.constants import CACHE_FILENAME
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import get_ignore_sha
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
@@ -37,7 +37,7 @@ class Cache:
                 try:
                     _cache = json.load(f)
                 except Exception as e:
-                    raise click.ClickException(
+                    raise UnexpectedError(
                         "Parsing error while"
                         f"reading {self.cache_filename}:\n{str(e)}"
                     )
@@ -75,7 +75,7 @@ class Cache:
             try:
                 json.dump(self.to_dict(), f)
             except Exception as e:
-                raise click.ClickException(
+                raise UnexpectedError(
                     f"Error while saving cache in {self.cache_filename}:\n{str(e)}"
                 )
 

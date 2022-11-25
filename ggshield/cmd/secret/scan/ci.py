@@ -3,14 +3,16 @@ from enum import Enum
 from typing import Any, List
 
 import click
+from click import UsageError
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
 from ggshield.core.cache import ReadOnlyCache
+from ggshield.core.errors import UnexpectedError, handle_exception
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
-from ggshield.core.utils import EMPTY_SHA, handle_exception
+from ggshield.core.utils import EMPTY_SHA
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
 
@@ -45,7 +47,7 @@ def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
     if commit_list:
         return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "\tRepository URL: <Fill if public>\n"
         f"\tGIT_COMMIT: {head_commit}"
@@ -72,7 +74,7 @@ def travis_range(verbose: bool) -> List[str]:  # pragma: no cover
     if commit_list:
         return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "\tRepository URL: <Fill if public>\n"
         f"\tTRAVIS_COMMIT_RANGE: {commit_range}"
@@ -89,7 +91,7 @@ def bitbucket_pipelines_range(verbose: bool) -> List[str]:  # pragma: no cover
     if commit_list:
         return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
         f"  CI_COMMIT_SHA: {commit_sha}"
@@ -123,7 +125,7 @@ def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     if commit_list:
         return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "\tRepository URL: <Fill if public>\n"
         f"\tCIRCLE_RANGE: {compare_range}\n"
@@ -160,7 +162,7 @@ def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     if commit_list:
         return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
         f"  CI_MERGE_REQUEST_TARGET_BRANCH_NAME: {merge_request_target_branch}\n"
@@ -211,7 +213,7 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
         if commit_list:
             return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
         f"github_push_before_sha: {push_before_sha}\n"
@@ -233,7 +235,7 @@ def drone_range(verbose: bool) -> List[str]:  # pragma: no cover
         if commit_list:
             return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
         f"  DRONE_COMMIT_BEFORE: {before_sha}"
@@ -251,7 +253,7 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
         if commit_list:
             return commit_list
 
-    raise click.ClickException(
+    raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "  Repository URL: <Fill if public>\n"
         f"  BUILD_SOURCEVERSION: {head_commit}"
@@ -271,7 +273,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
         if not (
             os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")
         ):
-            raise click.ClickException(
+            raise UsageError(
                 "`secret scan ci` should only be used in a CI environment."
             )
 
@@ -300,7 +302,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
             commit_list = azure_range(config.verbose)
             ci_mode = SupportedCI.AZURE
         else:
-            raise click.ClickException(
+            raise UnexpectedError(
                 f"Current CI is not detected or supported."
                 f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
             )

@@ -6,6 +6,7 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
+from ggshield.core.errors import ExitCode
 from ggshield.scan import ScanCollection
 from ggshield.scan.docker import _validate_filepath
 from ggshield.scan.scannable import File, Files
@@ -86,7 +87,7 @@ class TestDockerCMD:
     def test_docker_scan_failed_to_save(
         self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
     ):
-        save_mock.side_effect = click.exceptions.ClickException(
+        save_mock.side_effect = click.UsageError(
             'Image "ggshield-non-existant" not found'
         )
         scan_mock.return_value = ScanCollection(
@@ -96,8 +97,8 @@ class TestDockerCMD:
             cli,
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
-        assert_invoke_exited_with(result, 1)
-        assert 'Error: Image "ggshield-non-existant" not found\n' in result.output
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+        assert 'Image "ggshield-non-existant" not found\n' in result.output
 
     @patch("ggshield.scan.docker.get_files_from_docker_archive")
     @pytest.mark.parametrize(
@@ -130,7 +131,7 @@ class TestDockerCMD:
                     str(image_path),
                 ],
             )
-            assert_invoke_exited_with(result, 1)
+            assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
             get_files_mock.assert_called_once()
 
             if json_output:

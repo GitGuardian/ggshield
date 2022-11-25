@@ -9,6 +9,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import (
     check_git_dir,
     get_list_commit_SHA,
@@ -16,7 +17,7 @@ from ggshield.core.git_shell import (
     is_valid_git_commit_ref,
 )
 from ggshield.core.text_utils import display_warning
-from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, handle_exception
+from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE
 from ggshield.output.text.message import remediation_message
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range

@@ -6,6 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
     UNCHECKED_SECRET_PATCH,
@@ -43,7 +44,7 @@ class TestPathScan:
             result = cli_fs_runner.invoke(cli, ["-v", "secret", "scan", "path", "file"])
         else:
             result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file"])
-        assert result.exit_code == 0, result.output
+        assert result.exit_code == ExitCode.SUCCESS, result.output
         assert not result.exception
 
     @pytest.mark.parametrize("use_deprecated_syntax", [False, True])
@@ -64,7 +65,7 @@ class TestPathScan:
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             result = cli_fs_runner.invoke(cli, cmd)
-            assert_invoke_exited_with(result, 1)
+            assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
             assert result.exception
             assert (
                 """>> Secret detected: GitGuardian Development Secret
@@ -85,7 +86,7 @@ class TestPathScan:
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "path", "file_secret"]
             )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         assert result.exception
         assert (
             """>> Secret detected: GitGuardian Test Token Checked
@@ -108,7 +109,7 @@ class TestPathScan:
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "--json", "path", "file_secret"]
             )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         assert result.exception
 
         if validity:
@@ -282,7 +283,7 @@ class TestScanDirectory:
         result = cli_fs_runner.invoke(
             cli, ["secret", "scan", "path", "./", "-r", "-vy"]
         )
-        assert result.exit_code == 0, result.output
+        assert result.exit_code == ExitCode.SUCCESS, result.output
         assert not result.exception
         assert "file1\n" in result.output
         assert self.path_line("dir/file2") in result.output
@@ -308,7 +309,7 @@ class TestScanDirectory:
         result = cli_fs_runner.invoke(
             cli, ["secret", "scan", "-v", "path", "--recursive", "."]
         )
-        assert result.exit_code == 0, result.output
+        assert result.exit_code == ExitCode.SUCCESS, result.output
         assert all(
             string in result.output
             for string in ["Do you want to continue", "not_committed"]
@@ -347,7 +348,7 @@ class TestScanDirectory:
                     "--exit-zero",
                 ],
             )
-            assert result.exit_code == 0, result.output
+            assert result.exit_code == ExitCode.SUCCESS, result.output
             if nb_secret:
                 plural = nb_secret > 1
                 assert (

@@ -7,6 +7,7 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.cmd.secret.scan.ci import EMPTY_SHA
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
@@ -152,7 +153,7 @@ def test_ci_cmd_does_not_work_outside_ci(_, cli_fs_runner: click.testing.CliRunn
     result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
 
     # THEN it fails
-    assert_invoke_exited_with(result, 1)
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
 
     # And the error message explains why
     assert "only be used in a CI environment" in result.stdout
@@ -169,7 +170,7 @@ def test_ci_cmd_does_not_work_if_ci_env_is_odd(
     result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
 
     # THEN it fails
-    assert_invoke_exited_with(result, 1)
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
 
     # And the error message explains why
     assert "Current CI is not detected" in result.stdout

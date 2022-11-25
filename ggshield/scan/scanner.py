@@ -11,6 +11,7 @@ from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import (
     leak_dictionary_by_ignore_sha,
     remove_ignored_from_result,
@@ -308,7 +309,7 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[File]) -> None:
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
     if detail.status_code is None:
-        raise click.ClickException(f"Error scanning: {detail.detail}")
+        raise UnexpectedError(f"Error scanning: {detail.detail}")
 
     details = None
 

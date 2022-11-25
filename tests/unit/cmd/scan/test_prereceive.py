@@ -5,6 +5,7 @@ from unittest.mock import ANY, Mock, patch
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
+from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
 from ggshield.scan import Result, Results, ScanCollection
 from ggshield.scan.repo import cd
@@ -64,7 +65,7 @@ class TestPreReceive:
         WHEN the command is run and there are secrets
         THEN it should return a special remediation message
         """
-        scan_commit_range_mock.return_value = 1
+        scan_commit_range_mock.return_value = ExitCode.SCAN_FOUND_PROBLEMS
         get_list_mock.return_value = ["a" for _ in range(20)]
 
         result = cli_fs_runner.invoke(
@@ -72,7 +73,7 @@ class TestPreReceive:
             ["-v", "secret", "scan", "pre-receive"],
             input="bbbb aaaa origin/main\n",
         )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_called_once()
         assert (
@@ -202,7 +203,7 @@ class TestPreReceive:
                 "GL_PROTOCOL": "web",
             },
         )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         get_list_mock.assert_called_once_with(f"{old_sha}...{new_sha}", max_count=51)
         scan_commits_content_mock.assert_called_once()
         web_ui_lines = [
@@ -224,7 +225,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli, ["-v", "secret", "scan", "pre-receive"], input=""
         )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert "Error: Invalid input arguments: ''\n" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")

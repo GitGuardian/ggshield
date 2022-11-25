@@ -7,6 +7,7 @@ from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.oauth import OAuthClient
 from ggshield.core.utils import clean_url
 
@@ -45,7 +46,7 @@ def validate_login_path(
         config_parsed_url.scheme != sso_parsed_url.scheme
         or config_parsed_url.netloc != sso_parsed_url.netloc
     ):
-        raise click.ClickException("instance and SSO URL params do not match")
+        raise UnexpectedError("instance and SSO URL params do not match")
     return instance, sso_login_path
 
 
@@ -131,18 +132,18 @@ def login_cmd(
             token = click.prompt("Enter your GitGuardian API token", hide_input=True)
 
         if not token:
-            raise click.ClickException("No API token was provided.")
+            raise UnexpectedError("No API token was provided.")
 
         # enforce using the token (and not use config default)
         client = create_client(api_key=token, api_url=config.api_url)
         response = client.get(endpoint="token")
         if not response.ok:
-            raise click.ClickException("Authentication failed with token.")
+            raise UnexpectedError("Authentication failed with token.")
 
         api_token_data = response.json()
         scopes = api_token_data["scope"]
         if "scan" not in scopes:
-            raise click.ClickException("This token does not have the scan scope.")
+            raise UnexpectedError("This token does not have the scan scope.")
 
         instance_config.init_account(token, api_token_data)
         config.auth_config.save()

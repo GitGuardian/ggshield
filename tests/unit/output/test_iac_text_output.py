@@ -4,6 +4,7 @@ from pathlib import Path
 from click.testing import CliRunner, Result
 
 from ggshield.cmd.main import cli
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,
     _IAC_NO_VULNERABILITIES,
@@ -126,7 +127,7 @@ def assert_file_single_vulnerability_displayed(result: Result):
         "GG_IAC_0001",
     }
     assert '2 | resource "aws_alb_listener" "bad_example" {' in result.stdout
-    assert_invoke_exited_with(result, 1)
+    assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
 
 
 def assert_file_multiple_vulnerabilities_displayed(result: Result):
@@ -137,4 +138,4 @@ def assert_file_multiple_vulnerabilities_displayed(result: Result):
     }
     assert '2 | resource "aws_security_group" "bad_example" {' in result.stdout
     assert '8 |  resource "aws_security_group_rule" "bad_example" {' in result.stdout
-    assert_invoke_exited_with(result, 1)
+    assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)

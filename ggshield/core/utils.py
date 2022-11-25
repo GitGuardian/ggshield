@@ -1,13 +1,13 @@
 import logging
 import os
 import re
-import traceback
 from datetime import datetime
 from enum import Enum
 from typing import Iterable, List, NamedTuple, Optional
 from urllib.parse import ParseResult, urlparse
 
 import click
+from click import UsageError
 from dotenv import load_dotenv
 from pygitguardian.models import Match
 
@@ -219,20 +219,6 @@ json_output_option_decorator = click.option(
 )
 
 
-def handle_exception(e: Exception, verbose: bool) -> int:
-    """
-    Handle exception from a scan command.
-    """
-    if isinstance(e, click.exceptions.Abort):
-        return 0
-    elif isinstance(e, click.ClickException):
-        raise e
-    else:
-        if verbose:
-            traceback.print_exc()
-        raise click.ClickException(str(e))
-
-
 def _find_dot_env() -> Optional[str]:
     """Look for a .env to load, returns its path if found"""
     env = os.getenv("GITGUARDIAN_DOTENV_PATH")
@@ -293,12 +279,12 @@ def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     """
     parsed_url = clean_url(dashboard_url, warn=warn)
     if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
-        raise click.ClickException(
+        raise UsageError(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
         )
     if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
         if parsed_url.path:
-            raise click.ClickException(
+            raise UsageError(
                 f"Invalid dashboard URL '{dashboard_url}', got an unexpected path '{parsed_url.path}'"
             )
         parsed_url = parsed_url._replace(
@@ -318,12 +304,10 @@ def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
     """
     parsed_url = clean_url(api_url, warn=warn)
     if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
-        raise click.ClickException(
-            f"Invalid scheme for API URL '{api_url}', expected HTTPS"
-        )
+        raise UsageError(f"Invalid scheme for API URL '{api_url}', expected HTTPS")
     if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
         if parsed_url.path:
-            raise click.ClickException(
+            raise UsageError(
                 f"Invalid API URL '{api_url}', got an unexpected path '{parsed_url.path}'"
             )
         parsed_url = parsed_url._replace(

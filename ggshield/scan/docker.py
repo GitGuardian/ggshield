@@ -8,11 +8,12 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
-import click
+from click import UsageError
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.cache import Cache
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
@@ -207,9 +208,9 @@ def docker_pull_image(image_name: str, timeout: int) -> None:
             timeout=timeout,
         )
     except subprocess.CalledProcessError:
-        raise click.ClickException(f'Image "{image_name}" not found')
+        raise UsageError(f'Image "{image_name}" not found')
     except subprocess.TimeoutExpired:
-        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
+        raise UnexpectedError('Command "{}" timed out'.format(" ".join(command)))
 
 
 def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) -> None:
@@ -237,11 +238,11 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
 
             docker_save_to_tmp(image_name, destination_path, timeout)
         else:
-            raise click.ClickException(
+            raise UnexpectedError(
                 f"Unable to save docker archive:\nError: {err_string}"
             )
     except subprocess.TimeoutExpired:
-        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
+        raise UnexpectedError('Command "{}" timed out'.format(" ".join(command)))
 
 
 def docker_scan_archive(

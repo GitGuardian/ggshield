@@ -3,6 +3,7 @@ from typing import Optional
 
 import click
 
+from ggshield.core.errors import ExitCode
 from ggshield.scan import ScanCollection
 
 
@@ -21,7 +22,7 @@ class OutputHandler(ABC):
         self.verbose = verbose
         self.output = output
 
-    def process_scan(self, scan: ScanCollection) -> int:
+    def process_scan(self, scan: ScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`
 
         :param scan: The scan collection to process
@@ -48,9 +49,9 @@ class OutputHandler(ABC):
         raise NotImplementedError()
 
     @staticmethod
-    def _get_exit_code(scan: ScanCollection) -> int:
+    def _get_exit_code(scan: ScanCollection) -> ExitCode:
         if scan.has_iac_result:
-            return 1
+            return ExitCode.SCAN_FOUND_PROBLEMS
         if scan.has_new_secrets:
-            return 1
-        return 0
+            return ExitCode.SCAN_FOUND_PROBLEMS
+        return ExitCode.SUCCESS

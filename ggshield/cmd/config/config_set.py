@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
 import click
+from click import UsageError
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
@@ -37,7 +38,7 @@ def config_set_command(
         try:
             value = int(value)  # type: ignore
         except ValueError:
-            raise click.ClickException("default_token_lifetime must be an int")
+            raise UsageError("default_token_lifetime must be an int")
 
     if instance is None:
         setattr(config.auth_config, field_name, value)

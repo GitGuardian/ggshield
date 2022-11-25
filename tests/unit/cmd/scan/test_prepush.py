@@ -5,6 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
+from ggshield.core.errors import ExitCode
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
 from ggshield.scan import ScanContext, ScanMode
@@ -410,7 +411,7 @@ class TestPrepush:
         remote_sha = local_repo.get_top_sha()
         shas = [local_repo.create_commit() for _ in range(20)]
 
-        scan_commit_range_mock.return_value = 1
+        scan_commit_range_mock.return_value = ExitCode.SCAN_FOUND_PROBLEMS
 
         with cd(str(local_repo.path)):
             result = cli_fs_runner.invoke(
@@ -425,7 +426,7 @@ class TestPrepush:
                 ],
                 input=f"refs/heads/main {shas[-1]} refs/heads/main {remote_sha}",
             )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
 

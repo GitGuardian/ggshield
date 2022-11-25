@@ -7,7 +7,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
-from ggshield.core.utils import handle_exception
+from ggshield.core.errors import handle_exception
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.docker import docker_scan_archive
 

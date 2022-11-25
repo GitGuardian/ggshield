@@ -7,6 +7,7 @@ from unittest.mock import patch
 import click
 import pytest
 
+from ggshield.core.errors import UnexpectedError
 from ggshield.scan.docker import (
     InvalidDockerArchiveException,
     _get_config,
@@ -123,7 +124,7 @@ class TestDockerPull:
             "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=[])
         ):
             with pytest.raises(
-                click.exceptions.ClickException,
+                click.UsageError,
                 match='Image "ggshield-non-existant" not found',
             ):
                 docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
@@ -134,7 +135,7 @@ class TestDockerPull:
             side_effect=subprocess.TimeoutExpired(cmd=[], timeout=DOCKER_TIMEOUT),
         ):
             with pytest.raises(
-                click.exceptions.ClickException,
+                UnexpectedError,
                 match='docker pull ggshield-non-existant" timed out',
             ):
                 docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
@@ -169,7 +170,7 @@ class TestDockerSave:
             ),
         ):
             with pytest.raises(
-                click.exceptions.ClickException,
+                click.UsageError,
                 match='Image "ggshield-non-existant" not found',
             ):
                 docker_save_to_tmp(
@@ -213,7 +214,7 @@ class TestDockerSave:
             ),
         ):
             with pytest.raises(
-                click.exceptions.ClickException,
+                UnexpectedError,
                 match="Unable to save docker archive:",
             ):
                 docker_save_to_tmp(
@@ -227,7 +228,7 @@ class TestDockerSave:
         ):
             expected_msg = f'Command "docker save ggshield-non-existant -o {str(self.TMP_ARCHIVE)}" timed out'  # noqa: E501
             with pytest.raises(
-                click.exceptions.ClickException,
+                UnexpectedError,
                 match=re.escape(expected_msg),
             ):
                 docker_save_to_tmp(

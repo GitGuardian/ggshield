@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import pytest
 
+from ggshield.core.errors import ExitCode
 from ggshield.core.utils import Filemode
 from ggshield.scan import Commit, ScanContext, ScanMode, SecretScanner
 from tests.unit.conftest import (
@@ -28,13 +29,15 @@ _EXPECT_NO_SECRET = {
         (
             "multiple_secrets",
             _MULTIPLE_SECRETS_PATCH,
-            ExpectedScan(exit_code=1, matches=4, first_match="", want=None),
+            ExpectedScan(
+                ExitCode.SCAN_FOUND_PROBLEMS, matches=4, first_match="", want=None
+            ),
         ),
         (
             "simple_secret",
             UNCHECKED_SECRET_PATCH,
             ExpectedScan(
-                exit_code=1,
+                ExitCode.SCAN_FOUND_PROBLEMS,
                 matches=1,
                 first_match=GG_TEST_TOKEN,
                 want=None,
@@ -43,7 +46,9 @@ _EXPECT_NO_SECRET = {
         (
             "one_line_and_multiline_patch",
             _ONE_LINE_AND_MULTILINE_PATCH,
-            ExpectedScan(exit_code=1, matches=1, first_match=None, want=None),
+            ExpectedScan(
+                ExitCode.SCAN_FOUND_PROBLEMS, matches=1, first_match=None, want=None
+            ),
         ),
         (
             "no_secret",

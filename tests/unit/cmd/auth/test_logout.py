@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +6,7 @@ from requests.exceptions import ConnectionError
 
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.errors import ExitCode
 
 from ..utils import prepare_config
 
@@ -31,7 +32,7 @@ class TestAuthLogout:
         prepare_config(with_account=False)
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
 
-        assert exit_code == 1, output
+        assert exit_code == ExitCode.UNEXPECTED_ERROR, output
         assert output == (
             f"Error: No token found for instance {instance_url}\n"
             "First try to login by running:\n"
@@ -71,7 +72,7 @@ class TestAuthLogout:
             config.auth_config.get_instance(unrelated_url).account is not None
         ), "the unrelated instance should not be affected."
 
-        assert exit_code == 0, output
+        assert exit_code == ExitCode.SUCCESS, output
         instance_url = instance_url or "https://dashboard.gitguardian.com"
 
         expected_output = f"Successfully logged out for instance {instance_url}\n\n"
@@ -108,7 +109,7 @@ class TestAuthLogout:
         config = Config()
         assert config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account is not None
 
-        assert exit_code == 1, output
+        assert exit_code == ExitCode.UNEXPECTED_ERROR, output
         assert output == (
             "Error: Could not connect to GitGuardian.\n"
             "Please check your internet connection and if the specified URL is correct.\n"
@@ -132,7 +133,7 @@ class TestAuthLogout:
         config = Config()
         assert config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account is not None
 
-        assert exit_code == 1, output
+        assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
         assert output == (
             "Error: Could not perform the logout command "
             "because your token is already revoked or invalid.\n"
@@ -163,7 +164,7 @@ class TestAuthLogout:
         for instance in Config().auth_config.instances:
             assert instance.account is None, output
 
-        assert exit_code == 0, output
+        assert exit_code == ExitCode.SUCCESS, output
 
     @staticmethod
     def run_cmd(
@@ -171,7 +172,7 @@ class TestAuthLogout:
         instance: Optional[str] = None,
         revoke: bool = True,
         all_tokens: bool = False,
-    ) -> None:
+    ) -> Tuple[int, str]:
         cmd = ["auth", "logout"]
         if instance is not None:
             cmd.append("--instance=" + instance)

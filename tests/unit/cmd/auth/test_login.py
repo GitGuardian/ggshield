@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 from unittest.mock import Mock
 
 import pytest
-from click import ClickException
 
 from ggshield.cmd.auth.utils import (
     DISABLED_FLOW_MESSAGE,
@@ -14,6 +13,7 @@ from ggshield.cmd.auth.utils import (
 )
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.core.oauth import (
     OAuthClient,
     OAuthError,
@@ -236,7 +236,7 @@ class TestAuthLoginWeb:
         prepare_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 0, output
+        assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
@@ -263,7 +263,7 @@ class TestAuthLoginWeb:
         prepare_config(instance_url=instance_url, expiry_date=dt)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 0, output
+        assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
@@ -280,7 +280,7 @@ class TestAuthLoginWeb:
 
         self.prepare_mocks(monkeypatch, used_port_count=1000)
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 1
+        assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_not_called()
         self._client_post_mock.assert_not_called()
@@ -311,7 +311,7 @@ class TestAuthLoginWeb:
             is_state_valid=is_state_valid,
         )
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 1
+        assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
@@ -333,7 +333,7 @@ class TestAuthLoginWeb:
         """
         self.prepare_mocks(monkeypatch, is_exchange_ok=False)
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 1
+        assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
@@ -351,7 +351,7 @@ class TestAuthLoginWeb:
         """
         self.prepare_mocks(monkeypatch, is_token_valid=False)
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 1
+        assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
@@ -394,7 +394,7 @@ class TestAuthLoginWeb:
             prepare_config(instance_url="http://some-gg-instance.com")
 
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 0, output
+        assert exit_code == ExitCode.SUCCESS, output
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url(expected_port=29170 + used_port_count)
@@ -674,7 +674,7 @@ class TestAuthLoginWeb:
                 try:
                     self.process_callback(callback_url)
                 except OAuthError as e:
-                    raise ClickException(e.message)
+                    raise UnexpectedError(e.message)
 
         return FakeOAuthClient
 
@@ -727,7 +727,7 @@ class TestAuthLoginWeb:
         monkeypatch.setattr("ggshield.core.client.Session.get", client_get_mock)
 
         if expected_error:
-            with pytest.raises(ClickException, match=expected_error):
+            with pytest.raises(UnexpectedError, match=expected_error):
                 check_instance_has_enabled_flow(Config())
         else:
             check_instance_has_enabled_flow(Config())
@@ -821,7 +821,7 @@ class TestAuthLoginWeb:
         self._check_instance_has_enabled_flow_mock.side_effect = setter
 
         exit_code, output = self.run_cmd(cli_fs_runner)
-        assert exit_code == 0, output
+        assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_called()
         self._assert_open_url(host=expected_web_host)
         self._check_instance_has_enabled_flow_mock.assert_called_once()

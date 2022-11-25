@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from click import ClickException
+from click import UsageError
 
 from ggshield.core.git_shell import (
     GIT_PATH,
@@ -41,5 +41,5 @@ def test_check_git_dir(tmp_path):
     check_git_dir()
 
     with cd(str(tmp_path)):
-        with pytest.raises(ClickException):
+        with pytest.raises(UsageError):
             check_git_dir()

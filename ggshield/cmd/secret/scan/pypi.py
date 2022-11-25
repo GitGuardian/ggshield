@@ -15,6 +15,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
 from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
@@ -45,10 +46,10 @@ def save_package_to_tmp(temp_dir: str, package_name: str) -> None:
         click.echo("OK", err=True)
 
     except subprocess.CalledProcessError:
-        raise click.ClickException(f'Failed to download "{package_name}"')
+        raise UnexpectedError(f'Failed to download "{package_name}"')
 
     except subprocess.TimeoutExpired:
-        raise click.ClickException('Command "{}" timed out'.format(" ".join(command)))
+        raise UnexpectedError('Command "{}" timed out'.format(" ".join(command)))
 
 
 def get_files_from_package(
@@ -68,7 +69,7 @@ def get_files_from_package(
             str(archive), extract_dir=archive_dir_path, **unpack_kwargs
         )
     except Exception as exn:
-        raise click.ClickException(f'Failed to unpack package "{package_name}": {exn}.')
+        raise UnexpectedError(f'Failed to unpack package "{package_name}": {exn}.')
 
     exclusion_regexes.add(re.compile(re.escape(archive.name)))
 

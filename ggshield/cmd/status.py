@@ -7,6 +7,7 @@ from pygitguardian.models import HealthCheckResponse
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.utils import json_output_option_decorator
 from ggshield.output.text.message import format_healthcheck_status
@@ -21,7 +22,7 @@ def status_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
     response: HealthCheckResponse = client.health_check()
 
     if not isinstance(response, HealthCheckResponse):
-        raise click.ClickException("Unexpected health check response")
+        raise UnexpectedError("Unexpected health check response")
 
     click.echo(
         response.to_json()
