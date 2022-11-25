@@ -3,7 +3,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
-import click
 import marshmallow_dataclass
 from marshmallow import ValidationError
 
@@ -19,7 +18,7 @@ from ggshield.core.constants import (
     GLOBAL_CONFIG_FILENAMES,
     LOCAL_CONFIG_PATHS,
 )
-from ggshield.core.errors import ParseError, format_validation_error
+from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
 from ggshield.core.types import FilteredConfig, IgnoredMatch, IgnoredMatchSchema
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
@@ -167,7 +166,7 @@ class UserConfig(FilteredConfig):
                 )
                 obj = UserV1Config.load_v1(data)
             else:
-                raise click.ClickException(
+                raise UnexpectedError(
                     f"Don't know how to load config version {config_version}"
                 )
         except ValidationError as exc:

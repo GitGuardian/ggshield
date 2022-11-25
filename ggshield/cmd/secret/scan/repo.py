@@ -3,6 +3,7 @@ import tempfile
 from typing import Any
 
 import click
+from click import UsageError
 from pygitguardian import GGClient
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
@@ -66,8 +67,8 @@ def repo_cmd(
             )
 
     if any(host in repository for host in ("gitlab.com", "github.com")):
-        raise click.ClickException(
+        raise UsageError(
             f"{repository} doesn't seem to be a valid git URL.\n"
             f"Did you mean {repository}.git?"
         )
-    raise click.ClickException(f"{repository} is neither a valid path nor a git URL")
+    raise UsageError(f"{repository} is neither a valid path nor a git URL")

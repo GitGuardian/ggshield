@@ -1,8 +1,8 @@
 from typing import Dict, Optional, Union, cast
 
-import click
 import requests
 import urllib3
+from click import UsageError
 from pygitguardian import GGClient
 from pygitguardian.client import is_ok
 from pygitguardian.models import Detail
@@ -12,7 +12,7 @@ from ..iac.models import IaCScanResult, IaCScanResultSchema
 from ..iac.models.iac_scan_parameters import IaCScanParameters, IaCScanParametersSchema
 from .config import Config
 from .constants import DEFAULT_DASHBOARD_URL
-from .errors import UnknownInstanceError
+from .errors import UnexpectedError, UnknownInstanceError
 
 
 def load_detail(resp: Response) -> Detail:
@@ -47,7 +47,7 @@ def create_client_from_config(config: Config) -> GGClient:
             # This can happen when the user first tries the app and has not gone through
             # the authentication procedure yet. In this case, replace the error message
             # complaining about an unknown instance with a more user-friendly one.
-            raise click.ClickException("GitGuardian API key is needed.")
+            raise UsageError("GitGuardian API key is needed.")
         else:
             raise
 
@@ -72,7 +72,7 @@ def create_client(
         )
     except ValueError as e:
         # Can be raised by pygitguardian
-        raise click.ClickException(f"Failed to create API client. {e}")
+        raise UnexpectedError(f"Failed to create API client. {e}")
 
 
 def create_session(allow_self_signed: bool = False) -> Session:

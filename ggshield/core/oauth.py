@@ -15,6 +15,7 @@ from ggshield.core.utils import urljoin
 
 from .client import create_client, create_session
 from .config import Config, InstanceConfig
+from .errors import UnexpectedError
 
 
 CLIENT_ID = "ggshield_oauth"
@@ -171,7 +172,7 @@ class OAuthClient:
             except OSError:
                 continue
         else:
-            raise click.ClickException("Could not find unoccupied port.")
+            raise UnexpectedError("Could not find unoccupied port.")
 
     def _wait_for_callback(self) -> None:
         """
@@ -187,11 +188,11 @@ class OAuthClient:
                 # the `process_callback` function
                 self.server.handle_request()  # type: ignore
         except KeyboardInterrupt:
-            raise click.ClickException("Aborting")
+            raise click.Abort()
 
         if self._handler_wrapper.error_message is not None:
             # if no error message is attached, the process is considered successful
-            raise click.ClickException(self._handler_wrapper.error_message)
+            raise UnexpectedError(self._handler_wrapper.error_message)
 
     def _get_code(self, uri: str) -> str:
         """

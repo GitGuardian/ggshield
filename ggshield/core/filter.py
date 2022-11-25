@@ -5,7 +5,7 @@ import re
 from collections import OrderedDict
 from typing import Dict, Iterable, List, Optional, Set
 
-import click
+from click import UsageError
 from pygitguardian.models import Match, PolicyBreak, ScanResult
 
 from ggshield.core.types import IgnoredMatch
@@ -166,7 +166,7 @@ def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern]:
     res = set()
     for path in paths_ignore:
         if not is_pattern_valid(path):
-            raise click.ClickException(f"{path} is not a valid exclude pattern.")
+            raise UsageError(f"{path} is not a valid exclude pattern.")
         res.add(re.compile(translate_user_pattern(path)))
     return res
 

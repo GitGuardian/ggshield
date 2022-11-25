@@ -1,6 +1,7 @@
 from typing import Any
 
 import click
+from click import UsageError
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
@@ -31,7 +32,7 @@ def range_cmd(
     try:
         commit_list = get_list_commit_SHA(commit_range)
         if not commit_list:
-            raise click.ClickException("invalid commit range")
+            raise UsageError("invalid commit range")
         if config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 

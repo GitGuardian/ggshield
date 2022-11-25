@@ -7,6 +7,7 @@ from pygitguardian.models import Detail, Quota, QuotaResponse
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.utils import json_output_option_decorator
 from ggshield.output.text.message import format_quota_color
 
@@ -21,10 +22,10 @@ def quota_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
     response: Union[Detail, QuotaResponse] = client.quota_overview()
 
     if not isinstance(response, (Detail, QuotaResponse)):
-        raise click.ClickException("Unexpected quota response")
+        raise UnexpectedError("Unexpected quota response")
 
     if isinstance(response, Detail):
-        raise click.ClickException(response.detail)
+        raise UnexpectedError(response.detail)
 
     quota: Quota = response.content
 

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Set
 from unittest.mock import Mock, patch
 
-import click
 import pytest
 
 from ggshield.cmd.secret.scan.pypi import (
@@ -13,6 +12,7 @@ from ggshield.cmd.secret.scan.pypi import (
     get_files_from_package,
     save_package_to_tmp,
 )
+from ggshield.core.errors import UnexpectedError
 
 
 class TestPipDownload:
@@ -43,7 +43,7 @@ class TestPipDownload:
             "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=None)
         ):
             with pytest.raises(
-                click.exceptions.ClickException,
+                UnexpectedError,
                 match=f'Failed to download "{self.package_name}"',
             ):
                 save_package_to_tmp(
@@ -58,7 +58,7 @@ class TestPipDownload:
             ),
         ):
             with pytest.raises(
-                click.exceptions.ClickException,
+                UnexpectedError,
                 match=(
                     f'Command "pip download {self.package_name} '
                     f'--dest {self.tmp_dir} --no-deps" timed out'

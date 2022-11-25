@@ -12,7 +12,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.core.cache import ReadOnlyCache
-from ggshield.core.errors import handle_exception
+from ggshield.core.errors import UnexpectedError, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import EMPTY_SHA, PRERECEIVE_TIMEOUT
@@ -103,7 +103,7 @@ def parse_stdin() -> Tuple[str, str]:
     """
     prereceive_input = sys.stdin.read().strip()
     if not prereceive_input:
-        raise click.ClickException(f"Invalid input arguments: '{prereceive_input}'")
+        raise UnexpectedError(f"Invalid input arguments: '{prereceive_input}'")
 
     # TODO There can be more than one line here, for example when pushing multiple
     # branches. We should support this.

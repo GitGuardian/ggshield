@@ -3,11 +3,11 @@ from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
-import click
 import yaml
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
 from ggshield.core.dirs import get_config_dir
+from ggshield.core.errors import UnexpectedError
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -50,7 +50,7 @@ def save_yaml_dict(data: Dict[str, Any], path: str) -> None:
             stream = yaml.dump(data, indent=2, default_flow_style=False)
             f.write(stream)
         except Exception as e:
-            raise click.ClickException(
+            raise UnexpectedError(
                 f"Error while saving config in {path}:\n{str(e)}"
             ) from e
 

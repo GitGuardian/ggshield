@@ -4,12 +4,13 @@ from unittest.mock import Mock, patch
 
 import click
 import pytest
+from click import UsageError
 from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.errors import UnknownInstanceError
+from ggshield.core.errors import UnexpectedError, UnknownInstanceError
 from ggshield.core.utils import (
     MatchIndices,
     api_to_dashboard_url,
@@ -119,11 +120,11 @@ def test_retrieve_client_invalid_api_url():
     """
     GIVEN a GITGUARDIAN_API_URL missing its https scheme
     WHEN retrieve_client() is called
-    THEN it raises a ClickException
+    THEN it raises a UsageError
     """
     url = "no-scheme.com"
     with pytest.raises(
-        click.ClickException,
+        click.UsageError,
         match=f"Invalid scheme for API URL '{url}', expected HTTPS",
     ):
         with patch.dict(os.environ, {"GITGUARDIAN_API_URL": url}):
@@ -134,9 +135,9 @@ def test_retrieve_client_invalid_api_key():
     """
     GIVEN a GITGUARDIAN_API_KEY with a non-latin-1 character
     WHEN retrieve_client() is called
-    THEN it raises a ClickException
+    THEN it raises a UnexpectedError
     """
-    with pytest.raises(click.ClickException, match="Invalid value for API Key"):
+    with pytest.raises(UnexpectedError, match="Invalid value for API Key"):
         with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "\u2023"}):
             create_client_from_config(Config())
 
@@ -148,7 +149,7 @@ def test_retrieve_client_blank_state(isolated_fs):
     THEN the exception message is user-friendly for new users
     """
     with pytest.raises(
-        click.ClickException,
+        click.UsageError,
         match="GitGuardian API key is needed",
     ):
         with patch.dict(os.environ, clear=True):
@@ -231,9 +232,7 @@ class TestAPIDashboardURL:
         ["https://api.gitguardian.com/exposed", "https://api.gitguardian.com/toto"],
     )
     def test_unexpected_path_api_url(self, api_url):
-        with pytest.raises(
-            click.exceptions.ClickException, match="got an unexpected path"
-        ):
+        with pytest.raises(UsageError, match="got an unexpected path"):
             api_to_dashboard_url(api_url)
 
     @pytest.mark.parametrize(
@@ -244,9 +243,7 @@ class TestAPIDashboardURL:
         ],
     )
     def test_unexpected_path_dashboard_url(self, dashboard_url):
-        with pytest.raises(
-            click.exceptions.ClickException, match="got an unexpected path"
-        ):
+        with pytest.raises(UsageError, match="got an unexpected path"):
             api_to_dashboard_url(dashboard_url)
 
 

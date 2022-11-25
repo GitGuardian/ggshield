@@ -87,7 +87,7 @@ class TestDockerCMD:
     def test_docker_scan_failed_to_save(
         self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
     ):
-        save_mock.side_effect = click.exceptions.ClickException(
+        save_mock.side_effect = click.UsageError(
             'Image "ggshield-non-existant" not found'
         )
         scan_mock.return_value = ScanCollection(
@@ -131,7 +131,7 @@ class TestDockerCMD:
                     str(image_path),
                 ],
             )
-            assert_invoke_exited_with(result, 1)
+            assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
             get_files_mock.assert_called_once()
 
             if json_output:

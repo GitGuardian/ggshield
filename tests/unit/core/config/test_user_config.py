@@ -1,5 +1,4 @@
 import pytest
-from click import ClickException
 
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import (
@@ -7,7 +6,7 @@ from ggshield.core.config.user_config import (
     IaCConfig,
     UserConfig,
 )
-from ggshield.core.errors import ParseError
+from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.types import IgnoredMatch
 from tests.unit.conftest import write_text, write_yaml
 
@@ -91,7 +90,7 @@ class TestUserConfig:
         """
         write_yaml(local_config_path, {"version": CURRENT_CONFIG_VERSION + 1})
 
-        with pytest.raises(ClickException):
+        with pytest.raises(UnexpectedError):
             UserConfig.load(local_config_path)
 
     def test_save_load_roundtrip(self):

@@ -6,6 +6,9 @@ from shutil import which
 from typing import Any, List, Optional
 
 import click
+from click import UsageError
+
+from ggshield.core.errors import UnexpectedError
 
 
 COMMAND_TIMEOUT = 45
@@ -51,7 +54,7 @@ def check_git_dir(wd: Optional[str] = None) -> None:
     if wd is None:
         wd = os.getcwd()
     if not is_git_dir(wd):
-        raise click.ClickException("Not a git directory.")
+        raise UsageError("Not a git directory.")
 
 
 def get_git_root(wd: Optional[str] = None) -> str:
@@ -70,7 +73,7 @@ def check_git_installed() -> None:
         [GIT_PATH, "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     ) as process:
         if process.wait():
-            raise click.ClickException("Git is not installed.")
+            raise UnexpectedError("Git is not installed.")
 
 
 def shell(

@@ -32,7 +32,7 @@ class TestAuthLogout:
         prepare_config(with_account=False)
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
 
-        assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS, output
+        assert exit_code == ExitCode.UNEXPECTED_ERROR, output
         assert output == (
             f"Error: No token found for instance {instance_url}\n"
             "First try to login by running:\n"
@@ -109,7 +109,7 @@ class TestAuthLogout:
         config = Config()
         assert config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account is not None
 
-        assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS, output
+        assert exit_code == ExitCode.UNEXPECTED_ERROR, output
         assert output == (
             "Error: Could not connect to GitGuardian.\n"
             "Please check your internet connection and if the specified URL is correct.\n"
@@ -133,7 +133,7 @@ class TestAuthLogout:
         config = Config()
         assert config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account is not None
 
-        assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS, output
+        assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
         assert output == (
             "Error: Could not perform the logout command "
             "because your token is already revoked or invalid.\n"

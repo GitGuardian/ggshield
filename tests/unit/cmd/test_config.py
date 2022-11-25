@@ -177,8 +177,8 @@ class TestAuthConfigSet:
 
         exit_code, output = self.run_cmd(cli_fs_runner, "wrong_value")
 
-        assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS, output
-        assert output == "Error: default_token_lifetime must be an int\n"
+        assert exit_code == ExitCode.USAGE_ERROR, output
+        assert "Error: default_token_lifetime must be an int" in output
 
         config = Config()
         assert (

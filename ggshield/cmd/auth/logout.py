@@ -6,6 +6,7 @@ from requests.exceptions import ConnectionError
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
+from ggshield.core.errors import AuthError, UnexpectedError
 from ggshield.core.utils import dashboard_to_api_url
 
 from .utils import CONNECTION_ERROR_MESSAGE
@@ -66,7 +67,7 @@ def logout(config: Config, instance_url: str, revoke: bool) -> None:
 def check_account_config_exists(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
     if instance.account is None:
-        raise click.ClickException(
+        raise UnexpectedError(
             f"No token found for instance {instance_url}\n"
             "First try to login by running:\n"
             "  ggshield auth login"
@@ -88,13 +89,14 @@ def revoke_token(config: Config, instance_url: str) -> None:
     try:
         response = client.post(endpoint="token/revoke")
     except ConnectionError:
-        raise click.ClickException(CONNECTION_ERROR_MESSAGE)
+        raise UnexpectedError(CONNECTION_ERROR_MESSAGE)
 
     if response.status_code != 204:
-        raise click.ClickException(
+        raise AuthError(
+            instance_url,
             "Could not perform the logout command because your token is already revoked or invalid.\n"
             "Please try with the following command:\n"
-            "  ggshield auth logout --no-revoke"
+            "  ggshield auth logout --no-revoke",
         )
 
 

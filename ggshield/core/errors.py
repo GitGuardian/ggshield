@@ -37,6 +37,11 @@ class _ExitError(click.ClickException):
         self.exit_code = exit_code
 
 
+class UnexpectedError(_ExitError):
+    def __init__(self, message: str) -> None:
+        super().__init__(ExitCode.UNEXPECTED_ERROR, message)
+
+
 class ParseError(_ExitError):
     """
     Failed to load file

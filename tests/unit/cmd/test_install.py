@@ -7,6 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
+from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
@@ -39,7 +40,7 @@ class TestInstallLocal:
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
         os.system("rm -R .git/hooks/pre-commit")
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert result.exception
         assert "Error: .git/hooks/pre-commit is a directory" in result.output
 
@@ -50,7 +51,7 @@ class TestInstallLocal:
         assert os.path.isfile(".git/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert result.exception
         assert "Error: .git/hooks/pre-commit already exists." in result.output
 
@@ -115,7 +116,7 @@ class TestInstallLocal:
             "already exists. Use --force to override or --append to add to current script\n"
             in result.output
         )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
     @patch("ggshield.cmd.install.check_git_dir")
@@ -208,7 +209,7 @@ class TestInstallGlobal:
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         os.system("rm -R global/hooks/pre-commit")
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert result.exception
 
     def test_global_not_exist(self, cli_fs_runner, mockHookDirPath):
@@ -258,7 +259,7 @@ class TestInstallGlobal:
         assert os.path.isfile("global/hooks/pre-commit")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert result.exception
         assert "Error: global/hooks/pre-commit already exists." in result.output
 

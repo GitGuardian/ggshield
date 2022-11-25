@@ -65,7 +65,7 @@ class TestPathScan:
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             result = cli_fs_runner.invoke(cli, cmd)
-            assert_invoke_exited_with(result, 1)
+            assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
             assert result.exception
             assert (
                 """>> Secret detected: GitGuardian Development Secret
@@ -86,7 +86,7 @@ class TestPathScan:
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "path", "file_secret"]
             )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         assert result.exception
         assert (
             """>> Secret detected: GitGuardian Test Token Checked
@@ -109,7 +109,7 @@ class TestPathScan:
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "--json", "path", "file_secret"]
             )
-        assert_invoke_exited_with(result, 1)
+        assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         assert result.exception
 
         if validity:

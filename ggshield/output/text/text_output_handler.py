@@ -2,9 +2,9 @@ from copy import deepcopy
 from io import StringIO
 from typing import ClassVar, List
 
-import click
 from pygitguardian.models import Match
 
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.text_utils import Line, pluralize
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
@@ -105,7 +105,7 @@ class TextOutputHandler(OutputHandler):
         offset = get_offset(padding, is_patch)
 
         if len(lines) == 0:
-            raise click.ClickException("Parsing of scan result failed.")
+            raise UnexpectedError("Parsing of scan result failed.")
 
         number_of_displayed_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():

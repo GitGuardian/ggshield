@@ -4,8 +4,10 @@ import sys
 from typing import Any, Optional
 
 import click
+from click import UsageError
 
 from ggshield.cmd.common_options import add_common_options
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.git_shell import GIT_PATH, check_git_dir, check_git_installed
 
 
@@ -97,10 +99,10 @@ def create_hook(
     hook_path = f"{hook_dir_path}/{hook_type}"
 
     if os.path.isdir(hook_path):
-        raise click.ClickException(f"{hook_path} is a directory.")
+        raise UsageError(f"{hook_path} is a directory.")
 
     if os.path.isfile(hook_path) and not (force or append):
-        raise click.ClickException(
+        raise UnexpectedError(
             f"{hook_path} already exists."
             " Use --force to override or --append to add to current script"
         )

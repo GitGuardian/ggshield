@@ -1,8 +1,8 @@
-import click
 from requests import ConnectionError
 
 from ggshield.core.client import create_session
 from ggshield.core.config import Config
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.utils import urljoin
 
 
@@ -30,18 +30,18 @@ def check_instance_has_enabled_flow(config: Config) -> None:
     try:
         response = session.get(urljoin(config.api_url, "/v1/metadata"), timeout=30)
     except ConnectionError:
-        raise click.ClickException(CONNECTION_ERROR_MESSAGE)
+        raise UnexpectedError(CONNECTION_ERROR_MESSAGE)
 
     if response.status_code == 404:
-        raise click.ClickException(VERSION_TOO_LOW_MESSAGE)
+        raise UnexpectedError(VERSION_TOO_LOW_MESSAGE)
     if not response.ok:
-        raise click.ClickException("Cannot check GitGuardian version.")
+        raise UnexpectedError("Cannot check GitGuardian version.")
     data = response.json()
     if data["version"].startswith("2022.04"):
-        raise click.ClickException(VERSION_TOO_LOW_MESSAGE)
+        raise UnexpectedError(VERSION_TOO_LOW_MESSAGE)
 
     flow_enabled = data["preferences"].get(
         "public_api__ggshield_auth_flow_enabled", True
     )
     if not flow_enabled:
-        raise click.ClickException(DISABLED_FLOW_MESSAGE)
+        raise UnexpectedError(DISABLED_FLOW_MESSAGE)
