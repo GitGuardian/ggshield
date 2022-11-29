@@ -18,6 +18,7 @@ from ggshield.scan import (
     ScanMode,
     SecretScanner,
 )
+from ggshield.scan.scannable import CommitFile
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -163,9 +164,11 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     output_handler = JSONOutputHandler(show_secrets=True, verbose=verbose)
 
     result: Result = Result(
-        content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
-        filename="leak.txt",
-        filemode=Filemode.NEW,
+        CommitFile(
+            document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
+            filename="leak.txt",
+            filemode=Filemode.NEW,
+        ),
         scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
     )
 

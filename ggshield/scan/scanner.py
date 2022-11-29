@@ -35,13 +35,23 @@ _API_PATH_MAX_LENGTH = 256
 class Result(NamedTuple):
     """
     Return model for a scan which zips the information
-    between the Scan result and its input content.
+    between the Scan result and its input file.
     """
 
-    content: str  # Text content scanned
-    filemode: Filemode  # Filemode (useful for commits)
-    filename: str  # Filename of content scanned
+    file: File  # filename that was scanned
     scan: ScanResult  # Result of content scan
+
+    @property
+    def filename(self) -> str:
+        return self.file.filename
+
+    @property
+    def filemode(self) -> Filemode:
+        return self.file.filemode
+
+    @property
+    def content(self) -> str:
+        return self.file.document
 
 
 class Error(NamedTuple):
@@ -291,10 +301,8 @@ class SecretScanner:
                         self.cache.add_found_policy_break(policy_break, file.filename)
                     results.append(
                         Result(
-                            content=file.document,
+                            file=file,
                             scan=scanned,
-                            filemode=file.filemode,
-                            filename=file.filename,
                         )
                     )
 

@@ -10,7 +10,8 @@ from ggshield.output.text.message import (
     _file_info_decoration,
     _file_info_default_decoration,
 )
-from ggshield.scan import Result, Results, ScanCollection
+from ggshield.scan import File, Result, Results, ScanCollection
+from ggshield.scan.scannable import CommitFile
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -41,54 +42,66 @@ from tests.unit.conftest import (
     [
         pytest.param(
             Result(
-                content=_SIMPLE_SECRET_PATCH,
-                filename="leak.txt",
-                filemode=Filemode.NEW,
+                CommitFile(
+                    document=_SIMPLE_SECRET_PATCH,
+                    filename="leak.txt",
+                    filemode=Filemode.NEW,
+                ),
                 scan=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
             ),
             id="_SIMPLE_SECRET_PATCH_SCAN_RESULT",
         ),
         pytest.param(
             Result(
-                content=_MULTI_SECRET_ONE_LINE_PATCH,
-                filename="leak.txt",
-                filemode=Filemode.NEW,
+                CommitFile(
+                    document=_MULTI_SECRET_ONE_LINE_PATCH,
+                    filename="leak.txt",
+                    filemode=Filemode.NEW,
+                ),
                 scan=_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
             ),
             id="_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT",
         ),
         pytest.param(
             Result(
-                content=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
-                filename="leak.txt",
-                filemode=Filemode.NEW,
+                CommitFile(
+                    document=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
+                    filename="leak.txt",
+                    filemode=Filemode.NEW,
+                ),
                 scan=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT,
             ),
             id="_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT",
         ),
         pytest.param(
             Result(
-                content=_MULTI_SECRET_TWO_LINES_PATCH,
-                filename="leak.txt",
-                filemode=Filemode.NEW,
+                CommitFile(
+                    document=_MULTI_SECRET_TWO_LINES_PATCH,
+                    filename="leak.txt",
+                    filemode=Filemode.NEW,
+                ),
                 scan=_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
             ),
             id="_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT",
         ),
         pytest.param(
             Result(
-                content=_SIMPLE_SECRET_MULTILINE_PATCH,
-                filename="leak.txt",
-                filemode=Filemode.NEW,
+                CommitFile(
+                    document=_SIMPLE_SECRET_MULTILINE_PATCH,
+                    filename="leak.txt",
+                    filemode=Filemode.NEW,
+                ),
                 scan=_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
             ),
             id="_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT",
         ),
         pytest.param(
             Result(
-                content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
-                filename="leak.txt",
-                filemode=Filemode.NEW,
+                CommitFile(
+                    document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
+                    filename="leak.txt",
+                    filemode=Filemode.NEW,
+                ),
                 scan=_ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
             ),
             id="_ONE_LINE_AND_MULTILINE_PATCH_CONTENT",
@@ -169,9 +182,7 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     output_handler = TextOutputHandler(show_secrets=True, verbose=verbose)
 
     result: Result = Result(
-        content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
-        filename="leak.txt",
-        filemode=Filemode.NEW,
+        File(document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT, filename="leak.txt"),
         scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
     )
 
@@ -251,9 +262,10 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
     output_handler = TextOutputHandler(show_secrets=True, verbose=False)
 
     result: Result = Result(
-        content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
-        filename="leak.txt",
-        filemode=Filemode.NEW,
+        File(
+            document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
+            filename="leak.txt",
+        ),
         scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
     )
 
