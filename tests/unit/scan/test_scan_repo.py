@@ -7,6 +7,7 @@ import pytest
 from ggshield.core.utils import Filemode
 from ggshield.scan import Commit, File, Result, Results
 from ggshield.scan.repo import get_commits_by_batch, scan_commits_content
+from ggshield.scan.scannable import CommitInformation
 from tests.unit.conftest import TWO_POLICY_BREAKS
 
 
@@ -77,11 +78,14 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     WHEN scan_commits_content returns 2 policy break for each commit
     THEN the total number of policy breaks is 4
     """
+    commit_info = CommitInformation("unknown", "", "")
     commit_1 = Commit(sha="some_sha_1")
     commit_1._files = [File(document="document", filename="filename")]
+    commit_1._info = commit_info
 
     commit_2 = Commit(sha="some_sha_2")
     commit_2._files = [File(document="document", filename="filename")]
+    commit_2._info = commit_info
 
     secret_scanner_mock.return_value.scan.return_value = Results(
         results=[

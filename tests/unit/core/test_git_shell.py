@@ -4,17 +4,16 @@ import pytest
 from click import UsageError
 
 from ggshield.core.git_shell import (
-    GIT_PATH,
     check_git_dir,
+    git,
     is_git_dir,
     is_valid_git_commit_ref,
-    shell,
 )
 from ggshield.scan.repo import cd
 
 
 def test_git_shell():
-    assert "usage: git" in shell([GIT_PATH, "help"])
+    assert "usage: git" in git(["help"])
 
 
 def test_is_git_dir(tmp_path):

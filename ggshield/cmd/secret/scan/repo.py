@@ -12,7 +12,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.git_shell import GIT_PATH, shell
+from ggshield.core.git_shell import git
 from ggshield.core.utils import REGEX_GIT_URL
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_repo_path
@@ -56,7 +56,7 @@ def repo_cmd(
 
     if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            shell([GIT_PATH, "clone", repository, tmpdirname])
+            git(["clone", repository, tmpdirname])
             return scan_repo_path(
                 client=client,
                 cache=cache,

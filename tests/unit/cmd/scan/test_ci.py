@@ -1,4 +1,3 @@
-import json
 from typing import Dict
 from unittest.mock import Mock, patch
 
@@ -6,7 +5,7 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
-from ggshield.cmd.secret.scan.ci import EMPTY_SHA
+from ggshield.cmd.secret.scan.ci import EMPTY_SHA, gitlab_ci_range
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
@@ -58,7 +57,6 @@ def clear_current_ci_envs(monkeypatch):
         ({"HEAD": "head_sha"}, "HEAD~1..."),
     ],
 )
-@pytest.mark.parametrize("json_output", (False, True))
 def test_gitlab_ci_range(
     _: Mock,
     get_list_mock: Mock,
@@ -66,30 +64,28 @@ def test_gitlab_ci_range(
     monkeypatch,
     env: Dict[str, str],
     expected_parameter: str,
-    json_output: bool,
+    capsys,
 ):
+    """
+    GIVEN a GitLab CI environment
+    WHEN gitlab_ci_range(verbose=True) is called
+    THEN the correct commit range is requested
+    AND stdout is empty (to avoid polluting redirections)
+    AND stderr is not empty
+    """
     monkeypatch.setenv("CI", "1")
     monkeypatch.setenv("GITLAB_CI", "1")
     for k, v in env.items():
         monkeypatch.setenv(k, v)
 
     get_list_mock.return_value = ["a"] * 51
-    cli_fs_runner.mix_stderr = False
-    json_arg = ["--json"] if json_output else []
-    result = cli_fs_runner.invoke(
-        cli,
-        [
-            "-v",
-            "secret",
-            "scan",
-            "ci",
-            *json_arg,
-        ],
-    )
-    assert_invoke_ok(result)
-    if json_output:
-        json.loads(result.output)
+
+    gitlab_ci_range(verbose=True)
     get_list_mock.assert_called_once_with(expected_parameter)
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err != ""
 
 
 @patch("ggshield.cmd.secret.scan.ci.scan_commit_range")
