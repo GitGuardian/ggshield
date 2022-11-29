@@ -9,7 +9,7 @@ from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
 from ggshield.scan import Commit, Result, Results, ScanCollection
 from ggshield.scan.repo import cd
-from ggshield.scan.scannable import CommitFile
+from ggshield.scan.scannable import File
 from tests.repository import Repository
 from tests.unit.conftest import (
     _SIMPLE_SECRET_PATCH,
@@ -187,7 +187,7 @@ class TestPreReceive:
                     results=Results(
                         results=[
                             Result(
-                                file=CommitFile(
+                                file=File(
                                     _SIMPLE_SECRET_PATCH, "server.conf", Filemode.MODIFY
                                 ),
                                 scan=_SIMPLE_SECRET_PATCH_SCAN_RESULT,

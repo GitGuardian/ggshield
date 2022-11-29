@@ -94,10 +94,12 @@ class PatchParseError(Exception):
 class File:
     """Class representing a simple file."""
 
-    def __init__(self, document: Optional[str], filename: str):
+    def __init__(
+        self, document: Optional[str], filename: str, filemode: Filemode = Filemode.FILE
+    ):
         self._document = document
         self.filename = filename
-        self.filemode = Filemode.FILE
+        self.filemode = filemode
 
     def relative_to(self, root_path: Path) -> "File":
         return File(self._document, str(Path(self.filename).relative_to(root_path)))
@@ -152,14 +154,6 @@ class File:
         return any(ext in extensions for ext in file_extensions)
 
 
-class CommitFile(File):
-    """Class representing a commit file."""
-
-    def __init__(self, document: str, filename: str, filemode: Filemode):
-        super().__init__(document, filename)
-        self.filemode = filemode
-
-
 class Files:
     """
     Files is a list of files. Useful for directory scanning.
@@ -195,9 +189,7 @@ class CommitInformation(NamedTuple):
     date: str
 
 
-def _parse_patch(
-    patch: str, exclusion_regexes: Set[re.Pattern]
-) -> Iterable[CommitFile]:
+def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[File]:
     """
     Parse the patch generated with `git show` (or `git diff`)
 
@@ -235,7 +227,7 @@ def _parse_patch(
                 continue
 
             if document:
-                yield CommitFile(document, filename, filemode)
+                yield File(document, filename, filemode)
 
 
 class Commit(Files):
@@ -299,7 +291,7 @@ class Commit(Files):
 
         return self._files
 
-    def get_files(self) -> Iterable[CommitFile]:
+    def get_files(self) -> Iterable[File]:
         """
         Parse the patch into files and extract the changes for each one of them.
 

@@ -11,7 +11,6 @@ from ggshield.output.text.message import (
     _file_info_default_decoration,
 )
 from ggshield.scan import File, Result, Results, ScanCollection
-from ggshield.scan.scannable import CommitFile
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -42,7 +41,7 @@ from tests.unit.conftest import (
     [
         pytest.param(
             Result(
-                CommitFile(
+                File(
                     document=_SIMPLE_SECRET_PATCH,
                     filename="leak.txt",
                     filemode=Filemode.NEW,
@@ -53,7 +52,7 @@ from tests.unit.conftest import (
         ),
         pytest.param(
             Result(
-                CommitFile(
+                File(
                     document=_MULTI_SECRET_ONE_LINE_PATCH,
                     filename="leak.txt",
                     filemode=Filemode.NEW,
@@ -64,7 +63,7 @@ from tests.unit.conftest import (
         ),
         pytest.param(
             Result(
-                CommitFile(
+                File(
                     document=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
                     filename="leak.txt",
                     filemode=Filemode.NEW,
@@ -75,7 +74,7 @@ from tests.unit.conftest import (
         ),
         pytest.param(
             Result(
-                CommitFile(
+                File(
                     document=_MULTI_SECRET_TWO_LINES_PATCH,
                     filename="leak.txt",
                     filemode=Filemode.NEW,
@@ -86,7 +85,7 @@ from tests.unit.conftest import (
         ),
         pytest.param(
             Result(
-                CommitFile(
+                File(
                     document=_SIMPLE_SECRET_MULTILINE_PATCH,
                     filename="leak.txt",
                     filemode=Filemode.NEW,
@@ -97,7 +96,7 @@ from tests.unit.conftest import (
         ),
         pytest.param(
             Result(
-                CommitFile(
+                File(
                     document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
                     filename="leak.txt",
                     filemode=Filemode.NEW,
