@@ -15,6 +15,7 @@ from .message import (
     iac_vulnerability_header,
     iac_vulnerability_location,
     iac_vulnerability_location_failed,
+    iac_vulnerability_severity_line,
     no_iac_vulnerabilities,
 )
 
@@ -63,6 +64,7 @@ class IaCTextOutputHandler(OutputHandler):
 
         for issue_n, vulnerability in enumerate(file_result.incidents, 1):
             result_buf.write(iac_vulnerability_header(issue_n, vulnerability))
+            result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
             if len(lines) == 0:
                 result_buf.write(
                     iac_vulnerability_location_failed(
