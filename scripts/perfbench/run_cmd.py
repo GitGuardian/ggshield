@@ -23,7 +23,7 @@ DEFAULT_GGSHIELD_VERSIONS = ["prod", "current"]
 
 BENCHMARK_COMMANDS = [
     ("secret", "scan", "--exit-zero", "path", "-ry", "."),
-    ("secret", "scan", "--exit-zero", "commit-range", "HEAD~50.."),
+    ("secret", "scan", "--exit-zero", "commit-range", "HEAD~9.."),
     ("iac", "scan", "--exit-zero", "."),
 ]
 
