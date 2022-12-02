@@ -1,27 +1,22 @@
 import logging
-import os
-import tarfile
-from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional, Sequence, Type
 
 import click
+from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 from pygitguardian.models import Detail
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.constants import MAX_TAR_CONTENT_SIZE
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
 from ggshield.iac.filter import get_iac_files_from_paths
-from ggshield.iac.models import IaCScanResult
-from ggshield.iac.models.iac_scan_parameters import IaCScanParameters
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 from ggshield.output import OutputHandler
 from ggshield.output.json.iac_json_output_handler import IaCJSONOutputHandler
 from ggshield.output.text.iac_text_output_handler import IaCTextOutputHandler
-from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode
+from ggshield.scan import ScanCollection, ScanContext, ScanMode
 
 
 logger = logging.getLogger(__name__)
@@ -139,7 +134,6 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
         # If the repository is a git repository, ignore untracked files
         ignore_git=False,
     )
-    tar = create_tar(directory, files)
 
     config = ctx.obj["config"]
     client = ctx.obj["client"]
@@ -148,8 +142,9 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
     )
 
-    scan = client.directory_scan(
-        tar,
+    scan = client.iac_directory_scan(
+        directory,
+        files.filenames,
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
@@ -169,24 +164,3 @@ def handle_scan_error(detail: Detail) -> None:
         raise click.UsageError(detail.detail)
     display_error("\nError scanning.")
     display_error(str(detail))
-
-
-def create_tar(root_path: Path, files: Files) -> bytes:
-    """
-    :param root_path: the root_path from which the tar is created
-    :param files: the files which need to be added to the tar, filenames should be the paths relative to the root_path
-    :return: a bytes object containing the tar.gz created from the files, with paths relative to root_path
-    """
-    tar_stream = BytesIO()
-    current_dir_size = 0
-    with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
-        for filename in files.filenames:
-            full_path = root_path / filename
-            current_dir_size += os.path.getsize(full_path)
-            if current_dir_size > MAX_TAR_CONTENT_SIZE:
-                raise click.ClickException(
-                    f"The total size of the files processed exceeds {MAX_TAR_CONTENT_SIZE / (1024 * 1024):.0f}MB, "
-                    f"please try again with less files"
-                )
-            tar.add(full_path, filename)
-    return tar_stream.getvalue()

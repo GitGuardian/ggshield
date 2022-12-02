@@ -81,7 +81,7 @@ def test_iac_scan_error_response(
     cli_fs_runner: CliRunner, mocker: MockerFixture
 ) -> None:
     mocker.patch(
-        "ggshield.core.client.IaCGGClient.request",
+        "ggshield.core.client.GGClient.request",
         return_value=MockRequestsResponse(404, {"detail": "Not found (404)"}),
     )
     result = cli_fs_runner.invoke(
@@ -101,7 +101,7 @@ def test_iac_scan_json_error_response(
     cli_fs_runner: CliRunner, mocker: MockerFixture
 ) -> None:
     mocker.patch(
-        "ggshield.core.client.IaCGGClient.request",
+        "ggshield.core.client.GGClient.request",
         return_value=MockRequestsResponse(404, {"detail": "Not found (404)"}),
     )
     cli_fs_runner.mix_stderr = False
@@ -129,22 +129,22 @@ def test_iac_scan_unknown_error_response(
     cli_fs_runner: CliRunner, mocker: MockerFixture
 ) -> None:
     mocker.patch(
-        "ggshield.core.client.IaCGGClient.request",
-        return_value=MockRequestsResponse(404, {"unknown_detail": "no detail"}),
+        "ggshield.core.client.GGClient.request",
+        return_value=MockRequestsResponse(404, {"detail": "Not found (404)"}),
     )
     result = cli_fs_runner.invoke(
         cli,
         ["iac", "scan", "."],
     )
     assert "Error scanning." in result.stdout
-    assert "404:{'unknown_detail': 'no detail'}" in result.stdout
+    assert "404:Not found (404)" in result.stdout
 
 
 def test_iac_scan_error_response_read_timeout(
     cli_fs_runner: CliRunner, mocker: MockerFixture
 ) -> None:
     mocker.patch(
-        "ggshield.core.client.IaCGGClient.request",
+        "ggshield.core.client.GGClient.request",
         side_effect=requests.exceptions.ReadTimeout("Timeout error"),
     )
     result = cli_fs_runner.invoke(

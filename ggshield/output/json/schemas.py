@@ -1,9 +1,8 @@
 from typing import Any, Dict, Optional
 
 from marshmallow import fields, post_dump
+from pygitguardian.iac_models import IaCFileResultSchema, IaCScanResultSchema
 from pygitguardian.models import BaseSchema, Match, MatchSchema
-
-from ggshield.iac.models import IaCFileResultSchema, IaCScanResultSchema
 
 
 class ExtendedMatchSchema(MatchSchema):
@@ -111,10 +110,10 @@ class JSONScanCollectionSchema(BaseSchema):
     secrets_engine_version = fields.String(required=False)
 
 
-class IaCJSONFileResultSchema(IaCFileResultSchema):  # type: ignore
+class IaCJSONFileResultSchema(IaCFileResultSchema):
     total_incidents = fields.Integer(dump_default=0)
 
 
-class IaCJSONScanResultSchema(IaCScanResultSchema):  # type: ignore
+class IaCJSONScanResultSchema(IaCScanResultSchema):
     entities_with_incidents = fields.List(fields.Nested(IaCJSONFileResultSchema))
     total_incidents = fields.Integer(dump_default=0)

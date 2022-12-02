@@ -4,6 +4,7 @@ from io import StringIO
 from typing import Dict, List, Optional, Set, Tuple
 
 from pygitguardian.client import VERSIONS
+from pygitguardian.iac_models import IaCVulnerability
 from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
 from ggshield.core.text_utils import (
@@ -13,7 +14,6 @@ from ggshield.core.text_utils import (
     pluralize,
     translate_validity,
 )
-from ggshield.iac.models import IaCVulnerability
 from ggshield.output.text.utils import get_offset, get_padding
 
 

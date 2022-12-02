@@ -2,12 +2,13 @@ from io import StringIO
 from pathlib import Path
 from typing import ClassVar, List
 
+from pygitguardian.iac_models import IaCFileResult
+
 from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import File, ScanCollection
 
 from ...core.text_utils import Line
 from ...core.utils import Filemode, get_lines_from_content
-from ...iac.models import IaCFileResult
 from .message import (
     file_info,
     iac_engine_version,
