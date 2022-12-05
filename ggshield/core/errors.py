@@ -128,9 +128,13 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
         exc.exit_code if isinstance(exc, _ExitError) else ExitCode.UNEXPECTED_ERROR
     )
 
-    if not isinstance(exc, click.ClickException) and verbose:
-        traceback.print_exc()
+    display_error(f"ERROR: {exc}.")
 
-    display_error(str(exc))
+    if not isinstance(exc, click.ClickException):
+        click.echo()
+        if verbose:
+            traceback.print_exc()
+        else:
+            display_error("Re-run the command with --verbose to get a stack trace.")
 
     return exit_code
