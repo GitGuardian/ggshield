@@ -615,6 +615,10 @@ def isolated_fs(fs):
     # add cassettes dir
     cassettes_dir = join(dirname(realpath(__file__)), "cassettes")
     fs.add_real_directory(cassettes_dir)
+    # Add a fake OS-release file. It describes a linux OS
+    mock_contents = """ID="ubuntu"\nVERSION_ID="22.04"\n"""
+    f = fs.create_file("/etc/os-release")
+    f.set_contents(mock_contents)
 
 
 def write_text(filename: str, content: str):

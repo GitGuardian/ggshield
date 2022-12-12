@@ -1,4 +1,5 @@
 import os
+import platform
 from unittest.mock import ANY, Mock, patch
 
 from click import Command, Context, Group
@@ -7,6 +8,7 @@ from ggshield import __version__
 from ggshield.core.cache import Cache
 from ggshield.scan import Commit, ScanContext, ScanMode, SecretScanner
 from ggshield.scan.repo import cd
+from ggshield.scan.scan_context import get_os_info
 from tests.unit.conftest import UNCHECKED_SECRET_PATCH
 
 
@@ -24,6 +26,7 @@ def test_request_headers(scan_mock: Mock, client):
     c._patch = UNCHECKED_SECRET_PATCH
 
     with Context(Command("bar"), info_name="bar") as ctx:
+        os_name, os_version = get_os_info()
         ctx.parent = Context(Group("foo"), info_name="foo")
         scanner = SecretScanner(
             client=client,
@@ -40,6 +43,9 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-Version": __version__,
             "GGShield-Command-Path": "foo bar",
             "GGShield-Command-Id": ANY,
+            "GGShield-OS-Name": os_name,
+            "GGShield-OS-Version": os_version,
+            "GGShield-Python-Version": platform.python_version(),
             "mode": "path",
         },
         ignore_known_secrets=None,
