@@ -1,3 +1,4 @@
+import platform
 import traceback
 from enum import IntEnum
 from typing import Any, Dict
@@ -127,10 +128,21 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
     exit_code = (
         exc.exit_code if isinstance(exc, _ExitError) else ExitCode.UNEXPECTED_ERROR
     )
+    click.echo()
 
-    if not isinstance(exc, click.ClickException) and verbose:
-        traceback.print_exc()
+    display_error(f"ERROR: {exc}.")
+    if isinstance(exc, UnicodeEncodeError) and platform.system() == "Windows":
+        display_error(
+            "\n"
+            "ggshield failed to print a message because of an Unicode encoding issue."
+            " To workaround that, try setting the PYTHONUTF8 environment variable to 1."
+        )
 
-    display_error(str(exc))
+    if not isinstance(exc, click.ClickException):
+        click.echo()
+        if verbose:
+            traceback.print_exc()
+        else:
+            display_error("Re-run the command with --verbose to get a stack trace.")
 
     return exit_code
