@@ -1,5 +1,6 @@
 import os
-from typing import Dict, List, Optional
+import sys
+from typing import AnyStr, Dict, List, Optional, Tuple
 from unittest.mock import Mock, patch
 
 import click
@@ -21,6 +22,7 @@ from ggshield.core.utils import (
 )
 from ggshield.scan import Commit, File, Files, ScanContext, ScanMode, SecretScanner
 from ggshield.scan.repo import cd
+from ggshield.scan.scan_context import parse_os_release
 from tests.unit.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,
@@ -324,3 +326,28 @@ def test_load_dot_env_loads_git_root_env(
     with cd(str(sub1_sub2_dir)):
         load_dot_env()
         load_dotenv_mock.assert_called_once_with(str(git_root_dotenv), override=True)
+
+
+@pytest.mark.skipif(
+    sys.platform.lower() != "linux", reason="This test is only relevant on Linux."
+)
+@pytest.mark.parametrize(
+    "file_contents, file_permissions, expected_tuple",
+    [
+        ('ID="ubuntu"\nVERSION_ID=""22.04""', 777, ("ubuntu", "22.04")),
+        ('ID="arch"', 777, ("arch", "unknown")),
+        ("", 777, ("linux", "unknown")),
+        ('ID="ubuntu"\nVERSION_ID="22.04"\n', 640, ("linux", "unknown")),
+    ],
+)
+def test_parse_os_release(
+    tmp_path,
+    file_contents: AnyStr,
+    file_permissions: int,
+    expected_tuple: Tuple[str, str],
+):
+    file = tmp_path / "os-release"
+
+    file.write_text(file_contents)
+    file.chmod(file_permissions)
+    assert parse_os_release(file) == expected_tuple
