@@ -30,13 +30,13 @@ def test_scan_prereceive(tmp_path: Path) -> None:
     secret_file = local_repo.path / "secret.conf"
     secret_content = f"password = {GG_VALID_TOKEN}"
     secret_file.write_text(secret_content)
-    local_repo.git("add", "secret.conf")
+    local_repo.add("secret.conf")
     local_repo.create_commit()
 
     # WHEN I try to push
     # THEN the hook prevents the push
     with pytest.raises(CalledProcessError) as exc:
-        local_repo.git("push")
+        local_repo.push()
 
     # AND the error message contains the leaked secret
     stderr = exc.value.stderr.decode()
@@ -53,7 +53,7 @@ def test_scan_prereceive_branch_without_new_commits(tmp_path: Path) -> None:
     # Add a commit to the remote repository, otherwise git complains the branch does not
     # contain anything
     local_repo.create_commit()
-    local_repo.git("push")
+    local_repo.push()
 
     # AND ggshield installed as a pre-receive hook
     hook_path = remote_repo.path / "hooks" / "pre-receive"
@@ -66,4 +66,4 @@ def test_scan_prereceive_branch_without_new_commits(tmp_path: Path) -> None:
 
     # WHEN I try to push the branch
     # THEN the hook does not crash
-    local_repo.git("push", "-u", "origin", branch_name)
+    local_repo.push("-u", "origin", branch_name)

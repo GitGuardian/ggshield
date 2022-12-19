@@ -13,7 +13,7 @@ def test_scan_repo(tmp_path: Path) -> None:
     secret_file = repo.path / "secret.conf"
     leak_content = f"password = {GG_VALID_TOKEN}"
     secret_file.write_text(leak_content)
-    repo.git("add", "secret.conf")
+    repo.add("secret.conf")
 
     # AND some clean commits on top of it
     for _ in range(3):

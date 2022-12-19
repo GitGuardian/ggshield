@@ -10,7 +10,7 @@ def test_scan_commit_range(tmp_path: Path) -> None:
     test_file = repo.path / "test"
     for n in range(10):
         test_file.write_text(f"Hello {n}")
-        repo.git("add", test_file)
+        repo.add(test_file)
         repo.create_commit(message=f"Hello {n}")
 
     run_ggshield_scan("commit-range", "HEAD~4...", expected_code=0, cwd=repo.path)
@@ -25,7 +25,7 @@ def test_scan_commit_range_finds_old_leak(tmp_path: Path) -> None:
     secret_file = repo.path / "secret.conf"
     secret_content = f"password = {GG_VALID_TOKEN}"
     secret_file.write_text(secret_content)
-    repo.git("add", "secret.conf")
+    repo.add("secret.conf")
 
     # AND some clean commits on top of it
     for _ in range(3):
