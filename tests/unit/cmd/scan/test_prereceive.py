@@ -1,4 +1,3 @@
-import os
 import time
 from unittest.mock import ANY, Mock, patch
 
@@ -7,7 +6,7 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
-from ggshield.scan import Commit, Result, Results, ScanCollection
+from ggshield.scan import Result, Results, ScanCollection
 from ggshield.scan.repo import cd
 from ggshield.scan.scannable import File
 from tests.repository import Repository
@@ -26,56 +25,68 @@ def contains_secret(line: str, secret: str) -> bool:
     return f'"{secret[:6]}' in line and f'{secret[-6:]}"' in line
 
 
+def create_pre_receive_repo(tmp_path) -> Repository:
+    repo = Repository.create(tmp_path)
+    repo.create_commit("initial commit")
+
+    # Detach from the current branch to simulate what happens when pre-receive
+    # is called: the new commits are not in any branch yet.
+    repo.git("checkout", "--detach")
+    return repo
+
+
 class TestPreReceive:
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
         self,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
-        GIVEN 20 commits through stdin input
+        GIVEN 3 commits through stdin input
         WHEN the command is run
         THEN it should pass onto scan and return 0
         """
-        scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = ["a" for _ in range(20)]
+        scan_commit_range_mock.return_value = ExitCode.SUCCESS
 
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb aaaa origin/main\n",
-        )
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        shas = [repo.create_commit() for _ in range(3)]
+        with cd(repo.path):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{old_sha} {shas[-1]} origin/main\n",
+            )
         assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_called_once()
-        assert "Commits to scan: 20" in result.output
+        assert "Commits to scan: 3" in result.output
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_secret(
         self,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
-        GIVEN 20 commits through stdin input
+        GIVEN 3 commits through stdin input
         WHEN the command is run and there are secrets
         THEN it should return a special remediation message
         """
         scan_commit_range_mock.return_value = ExitCode.SCAN_FOUND_PROBLEMS
-        get_list_mock.return_value = ["a" for _ in range(20)]
 
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb aaaa origin/main\n",
-        )
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        shas = [repo.create_commit() for _ in range(3)]
+        with cd(repo.path):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{old_sha} {shas[-1]} origin/main\n",
+            )
         assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
-        get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
         scan_commit_range_mock.assert_called_once()
         assert (
             """> How to remediate
@@ -94,50 +105,18 @@ class TestPreReceive:
             in result.output
         )
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
-    def test_stdin_input_no_commits(
-        self,
-        scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
-        cli_fs_runner: CliRunner,
-    ):
-        """
-        GIVEN a range through stdin input but it corresponds to no commits
-        WHEN the command is run
-        THEN it should warn no commits were found and return 0
-        """
-        scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = []
-
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input="bbbb aaaa origin/main\n",
-        )
-        assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with("bbbb...aaaa", max_count=51)
-        scan_commit_range_mock.assert_not_called()
-        assert (
-            "Unable to get commit range.\n  before: bbbb\n  after: aaaa\nSkipping pre-receive hook\n\n"
-            in result.output
-        )
-
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_breakglass_2ndoption(
         self,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
         cli_fs_runner: CliRunner,
     ):
         """
-        GIVEN 20 commits through stdin input but breakglass active
+        GIVEN commits sent through stdin but breakglass active
         WHEN the command is run
         THEN it should return 0
+        AND no commits should be scanned
         """
-        get_list_mock.return_value = ["a" for _ in range(20)]
-
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
@@ -149,21 +128,17 @@ class TestPreReceive:
             },
         )
         assert_invoke_ok(result)
-        get_list_mock.assert_not_called()
         scan_commit_range_mock.assert_not_called()
         assert (
             "SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.\n"
             in result.output
         )
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.scan.repo.get_commits_by_batch")
     @patch("ggshield.scan.repo.scan_commits_content")
     def test_stdin_supports_gitlab_web_ui(
         self,
         scan_commits_content_mock: Mock,
-        get_commits_by_batch_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
@@ -173,16 +148,22 @@ class TestPreReceive:
         AND the GL-HOOK-ERR line should be there
         AND it should contain an obfuscated version of the secret
         """
-        old_sha = "56781234"
-        new_sha = "1234abcd"
-        get_list_mock.return_value = [new_sha]
-        get_commits_by_batch_mock.return_value = [[Commit(sha=new_sha)]]
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        secret_file = repo.path / "server.conf"
+        secret_file.write_text(f"github_token = {_SIMPLE_SECRET_TOKEN}\n")
+        repo.add(secret_file)
+        secret_sha = repo.create_commit()
+
+        # This test cannot mock scan_commit_range(): if it did that we would not get
+        # the GitLab-specific output because output_handler.process_scan() would not be
+        # called.
         scan_commits_content_mock.return_value = ScanCollection(
             id="some_id",
             type="commit-ranges",
             scans=[
                 ScanCollection(
-                    new_sha,
+                    secret_sha,
                     type="commit",
                     results=Results(
                         results=[
@@ -199,16 +180,16 @@ class TestPreReceive:
             ],
         )
 
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input=f"{old_sha} {new_sha} origin/main\n",
-            env={
-                "GL_PROTOCOL": "web",
-            },
-        )
+        with cd(repo.path):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{old_sha} {secret_sha} origin/main\n",
+                env={
+                    "GL_PROTOCOL": "web",
+                },
+            )
         assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
-        get_list_mock.assert_called_once_with(f"{old_sha}...{new_sha}", max_count=51)
         scan_commits_content_mock.assert_called_once()
         web_ui_lines = [
             x for x in result.output.splitlines() if x.startswith("GL-HOOK-ERR: ")
@@ -232,36 +213,35 @@ class TestPreReceive:
         assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert "Error: Invalid input arguments: ''\n" in result.output
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_changing_max_commit_hooks(
         self,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
         GIVEN a ref creation event
         WHEN the command is run with a changed env variable for max commit hooks
-        THEN it should scan the last 20 commits
+        THEN it should scan the last 2 commits
         """
-        old_sha = "56781234"
-        new_sha = "1234abcd"
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        shas = [repo.create_commit() for _ in range(3)]
 
-        scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = ["a" for _ in range(40)]
+        scan_commit_range_mock.return_value = ExitCode.SUCCESS
 
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input=f"{old_sha} {new_sha} main",
-            env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "20"},
-        )
+        with cd(repo.path):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{old_sha} {shas[-1]} main",
+                env={"GITGUARDIAN_MAX_COMMITS_FOR_HOOK": "2"},
+            )
 
         assert_invoke_ok(result)
-        assert "Too many commits. Scanning last 20 commits" in result.output
-        assert "Commits to scan: 20" in result.output
-        get_list_mock.assert_called_once_with(f"{old_sha}...{new_sha}", max_count=21)
+        assert "Too many commits. Scanning last 2 commits" in result.output
+        assert "Commits to scan: 2" in result.output
         scan_commit_range_mock.assert_called_once()
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
@@ -354,43 +334,11 @@ class TestPreReceive:
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
 
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
-    def test_stdin_input_no_newline(
-        self,
-        scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
-        cli_fs_runner: CliRunner,
-    ):
-        """
-        GIVEN 20 commits through stdin input
-        WHEN the command is run
-        THEN it should pass onto scan and return 0
-        """
-        scan_commit_range_mock.return_value = 0
-        get_list_mock.return_value = ["a" for _ in range(20)]
-        old_sha = "649061dcda8bff94e02adbaac70ca64cfb84bc78"
-        new_sha = "bfffbd925b1ce9298e6c56eb525b8d7211603c09"
-
-        result = cli_fs_runner.invoke(
-            cli,
-            ["-v", "secret", "scan", "pre-receive"],
-            input=f"{old_sha} {new_sha} refs/heads/main",
-        )
-        assert_invoke_ok(result)
-        get_list_mock.assert_called_once_with(
-            f"{old_sha}...{new_sha}",
-            max_count=51,
-        )
-        scan_commit_range_mock.assert_called_once()
-        assert "Commits to scan: 20" in result.output
-
-    @patch("ggshield.cmd.secret.scan.prereceive.get_list_commit_SHA")
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_timeout(
         self,
         scan_commit_range_mock: Mock,
-        get_list_mock: Mock,
+        tmp_path,
         cli_fs_runner: CliRunner,
     ):
         """
@@ -408,15 +356,18 @@ class TestPreReceive:
                 time.sleep(0.05)
 
         scan_commit_range_mock.side_effect = sleepy_scan
-        scan_commit_range_mock.return_value = 2
-        get_list_mock.return_value = ["a" for _ in range(20)]
+        scan_commit_range_mock.return_value = ExitCode.UNEXPECTED_ERROR
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        new_sha = repo.create_commit()
 
         start = time.time()
-        with patch.dict(os.environ, {"GITGUARDIAN_TIMEOUT": str(scan_timeout)}):
+        with cd(repo.path):
             result = cli_fs_runner.invoke(
                 cli,
                 ["-v", "secret", "scan", "pre-receive"],
-                input="bbbb aaaa origin/main\n",
+                input=f"{old_sha} {new_sha} origin/main\n",
+                env={"GITGUARDIAN_TIMEOUT": str(scan_timeout)},
             )
         duration = time.time() - start
         assert_invoke_ok(result)

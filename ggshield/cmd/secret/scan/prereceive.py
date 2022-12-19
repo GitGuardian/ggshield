@@ -172,15 +172,7 @@ def prereceive_cmd(
         f"{before}...{after}", max_count=config.max_commits_for_hook + 1
     )
 
-    if not commit_list:
-        click.echo(
-            "Unable to get commit range.\n"
-            f"  before: {before}\n"
-            f"  after: {after}\n"
-            "Skipping pre-receive hook\n",
-            err=True,
-        )
-        return 0
+    assert commit_list, "Commit list should not be empty at this point"
 
     if len(commit_list) > config.max_commits_for_hook:
         click.echo(
