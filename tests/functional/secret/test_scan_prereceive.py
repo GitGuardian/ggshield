@@ -67,3 +67,36 @@ def test_scan_prereceive_branch_without_new_commits(tmp_path: Path) -> None:
     # WHEN I try to push the branch
     # THEN the hook does not crash
     local_repo.push("-u", "origin", branch_name)
+
+
+def test_scan_prereceive_push_force(tmp_path: Path) -> None:
+    # GIVEN a remote repository
+    remote_repo = Repository.create(tmp_path / "remote", bare=True)
+
+    # AND a local clone
+    local_repo = Repository.clone(remote_repo.path, tmp_path / "local")
+    initial_sha = local_repo.create_commit("Initial commit")
+
+    # AND a secret committed and pushed
+    secret_file = local_repo.path / "secret.conf"
+    secret_content = f"password = {GG_VALID_TOKEN}"
+    secret_file.write_text(secret_content)
+    local_repo.add("secret.conf")
+    local_repo.create_commit()
+    local_repo.push()
+
+    # AND ggshield installed as a pre-receive hook
+    hook_path = remote_repo.path / "hooks" / "pre-receive"
+    hook_path.write_text(HOOK_CONTENT)
+    hook_path.chmod(0o755)
+
+    # AND a commit overwriting the leak commit
+    local_repo.git("reset", "--hard", initial_sha)
+    secret_file.write_text("password = $FROM_ENV")
+    local_repo.add("secret.conf")
+    local_repo.create_commit()
+
+    # WHEN I push force to overwrite the commit with the secret
+    # THEN the push is accepted because the commit containing the secret has not been
+    # scanned
+    local_repo.push("--force")

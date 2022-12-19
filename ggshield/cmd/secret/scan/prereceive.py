@@ -1,4 +1,5 @@
 import _thread as thread
+import logging
 import os
 import sys
 import threading
@@ -21,6 +22,8 @@ from ggshield.output.text.message import remediation_message
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
 
+
+logger = logging.getLogger(__name__)
 
 REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from pushing secrets.
   Since the secret was detected during the push BUT after the commit, you need to:
@@ -97,9 +100,10 @@ def find_branch_start(commit: str) -> Optional[str]:
     return None
 
 
-def parse_stdin() -> Tuple[str, str]:
+def parse_stdin() -> Optional[Tuple[str, str]]:
     """
-    Parse stdin and return the first and last commit to scan
+    Parse stdin and return the first and last commit to scan,
+    or None if there is nothing to do
     """
     prereceive_input = sys.stdin.read().strip()
     if not prereceive_input:
@@ -108,16 +112,21 @@ def parse_stdin() -> Tuple[str, str]:
     # TODO There can be more than one line here, for example when pushing multiple
     # branches. We should support this.
     line = prereceive_input.splitlines()[0]
-    old_commit, new_commit, _ = line.split(maxsplit=2)
+    logger.debug("stdin: %s", line)
+    _old_commit, new_commit, _ = line.split(maxsplit=2)
 
-    if old_commit == EMPTY_SHA:
-        # Pushing to a new branch
-        start_commit = find_branch_start(new_commit)
-        if start_commit is None:
-            # branch does not contain any new commit
-            old_commit = new_commit
-        else:
-            old_commit = f"{start_commit}~1"
+    if new_commit == EMPTY_SHA:
+        # Deletion event, nothing to do
+        return None
+
+    # ignore _old_commit because in case of a force-push, it is going to be overwritten
+    # and should not be scanned (see #437)
+    start_commit = find_branch_start(new_commit)
+    if start_commit is None:
+        # branch does not contain any new commit
+        old_commit = new_commit
+    else:
+        old_commit = f"{start_commit}~1"
 
     return (old_commit, new_commit)
 
@@ -155,7 +164,12 @@ def prereceive_cmd(
         )
         return 0
 
-    before, after = parse_stdin()
+    before_after = parse_stdin()
+    if before_after is None:
+        click.echo("Deletion event or nothing to scan.", err=True)
+        return 0
+
+    before, after = before_after
     if before == after:
         click.echo(
             "Pushed branch does not contain any new commit.",
@@ -163,11 +177,8 @@ def prereceive_cmd(
         )
         return 0
 
-    if after == EMPTY_SHA:
-        click.echo("Deletion event or nothing to scan.", err=True)
-        return 0
-
     assert before != EMPTY_SHA
+    assert after != EMPTY_SHA
     commit_list = get_list_commit_SHA(
         f"{before}...{after}", max_count=config.max_commits_for_hook + 1
     )
