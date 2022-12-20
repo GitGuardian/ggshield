@@ -63,6 +63,10 @@ class Config:
         self.auth_config.save()
 
     @property
+    def config_path(self) -> str:
+        return self._config_path
+
+    @property
     def instance_name(self) -> str:
         """
         The instance name (defaulting to URL) of the selected instance
