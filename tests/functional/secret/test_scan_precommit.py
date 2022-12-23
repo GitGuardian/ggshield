@@ -22,7 +22,7 @@ def test_scan_precommit(tmp_path: Path) -> None:
 
     # WHEN I try to commit a secret
     # THEN the hook prevents the commit
-    repo.git("add", "secret.conf")
+    repo.add("secret.conf")
     with pytest.raises(CalledProcessError) as exc:
         repo.create_commit()
 

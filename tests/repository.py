@@ -40,6 +40,12 @@ class Repository:
         git(["clone", str(url), str(path)])
         return cls(path, remote_url=str(url))
 
+    def add(self, *args: Union[str, Path]):
+        self.git("add", *args)
+
+    def push(self, *args: str) -> None:
+        self.git("push", *args)
+
     def create_commit(self, message: str = "Test commit") -> str:
         self._ensure_credentials_are_set()
         self.git("commit", "--allow-empty", "-m", message)
