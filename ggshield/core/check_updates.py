@@ -63,6 +63,11 @@ def check_for_updates() -> Optional[str]:
     try:
         resp = requests.get(
             "https://api.github.com/repos/GitGuardian/GGShield/releases/latest",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"GGShield {__version__}",
+                "X-Github-Api-Version": "2022-11-28",
+            },
             timeout=CHECK_TIMEOUT,
         )
     except Exception as e:
