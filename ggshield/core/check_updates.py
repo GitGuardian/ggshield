@@ -81,7 +81,7 @@ def check_for_updates() -> Optional[str]:
             logger.debug("GitHub rate limit exceeded - rescheduling update check")
 
             # Reset the next update check based on when the GH API quota resets
-            check_at = int(resp.headers.get("X-RateLimit-Reset", -1.0)) - 24 * 60 * 60
+            check_at = int(resp.headers.get("X-RateLimit-Reset", -1)) - 24 * 60 * 60
             if check_at < 0:
                 # Somehow we've hit the rate limit and the reset header is missing
                 # This can only happen if GH changes their responses
