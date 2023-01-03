@@ -38,8 +38,7 @@ class Cache:
                     _cache = json.load(f)
                 except Exception as e:
                     raise UnexpectedError(
-                        "Parsing error while"
-                        f"reading {self.cache_filename}:\n{str(e)}"
+                        f"Parsing error while reading {self.cache_filename}:\n{str(e)}"
                     )
         self.update_cache(**_cache)
         return True

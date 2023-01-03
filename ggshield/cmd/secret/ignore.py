@@ -5,6 +5,7 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.text_utils import pluralize
 
 
 @click.command()
@@ -47,9 +48,10 @@ def ignore_cmd_impl(ctx: click.Context, last_found: bool) -> None:
         config = ctx.obj["config"]
         cache = ctx.obj["cache"]
         nb = ignore_last_found(config, cache)
+        path = config.config_path
+        secrets_word = pluralize("secret", nb)
         click.echo(
-            f"{nb} secrets have been added to your ignore list in"
-            " .gitguardian.yaml under matches-ignore section."
+            f"Added {nb} {secrets_word} to the `secret.ignored-matches` section of {path}."
         )
 
 
