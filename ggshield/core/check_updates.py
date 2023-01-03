@@ -63,6 +63,11 @@ def check_for_updates() -> Optional[str]:
     try:
         resp = requests.get(
             "https://api.github.com/repos/GitGuardian/GGShield/releases/latest",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"GGShield {__version__}",
+                "X-Github-Api-Version": "2022-11-28",
+            },
             timeout=CHECK_TIMEOUT,
         )
     except Exception as e:
@@ -70,6 +75,26 @@ def check_for_updates() -> Optional[str]:
         return None
 
     if resp.status_code != 200:
+        # Handle GitHub rate limit responses gracefully
+        # https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#rate-limiting
+        if int(resp.headers.get("X-RateLimit-Remaining", -1)) == 0:
+            logger.debug("GitHub rate limit exceeded - rescheduling update check")
+
+            # Reset the next update check based on when the GH API quota resets
+            check_at = int(resp.headers.get("X-RateLimit-Reset", -1)) - 24 * 60 * 60
+            if check_at < 0:
+                # Somehow we've hit the rate limit and the reset header is missing
+                # This can only happen if GH changes their responses
+                logger.error("Failed rescheduling update check")
+                return None
+
+            try:
+                save_yaml_dict({"check_at": check_at}, CACHE_FILE)
+            except Exception as e:
+                logger.error("Could not save time of version check to cache: %s", e)
+
+            return None
+
         logger.error("Failed to check: %s", resp.text)
         return None
 
