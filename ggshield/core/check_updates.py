@@ -86,6 +86,7 @@ def check_for_updates() -> Optional[str]:
                 # Somehow we've hit the rate limit and the reset header is missing
                 # This can only happen if GH changes their responses
                 logger.error("Failed rescheduling update check")
+                return None
 
             try:
                 save_yaml_dict({"check_at": check_at}, CACHE_FILE)
