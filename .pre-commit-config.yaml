@@ -23,8 +23,8 @@ repos:
         types: [python]
         # use require_serial so that script is only called once per commit
         require_serial: true
-        # print the number of files as a sanity-check
-        verbose: true
+        # do not pass filenames, otherwise mypy might scan files we don't want it to scan
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
