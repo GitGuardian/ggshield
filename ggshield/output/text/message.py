@@ -238,6 +238,20 @@ def policy_break_header(
 """
 
 
+def no_leak_message() -> str:
+    """
+    Build a message if no secret is found.
+    """
+    return format_text("\nNo secrets have been found\n", STYLE["no_secret"])
+
+
+def no_new_leak_message() -> str:
+    """
+    Build a message if no new secret is found.
+    """
+    return format_text("\nNo new secrets have been found\n", STYLE["no_secret"])
+
+
 def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> str:
     """
     Build a header for the iac policy break.

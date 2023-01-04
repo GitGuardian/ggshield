@@ -138,28 +138,26 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     snapshot.assert_match(output)
 
 
-def assert_policies_displayed(output, policy_breaks):
+def assert_policies_displayed(output, verbose, ignore_known_secrets, policy_breaks):
+    nb_new_secrets = 0
     for policy_break in policy_breaks:
-        if policy_break.known_secret:
-            assert f"Known secret: {policy_break.break_type}" in output
-        else:
+        if not ignore_known_secrets:
+            # All secrets are displayed no matter if they're known or not
+            nb_new_secrets += 1
             assert f"Secret detected: {policy_break.break_type}" in output
-
-
-def assert_warning_is_displayed(output, warning_is_displayed, known_secrets_number):
-    if warning_is_displayed:
-        plural = (
-            "s ignored because they are"
-            if known_secrets_number > 1
-            else " ignored because it is"
-        )
-        assert (
-            f"Warning: {known_secrets_number} secret{plural} already known by your GitGuardian"
-            f" dashboard and you used the `--ignore-known-secrets` option." in output
-        )
-
-
-def assert_number_of_secrets_is_displayed(output, nb_new_secrets):
+        else:
+            if verbose:
+                # Known secrets are still displayed with a dedicated message
+                if policy_break.known_secret:
+                    assert f"Known secret: {policy_break.break_type}" in output
+                else:
+                    nb_new_secrets += 1
+                    assert f"Secret detected: {policy_break.break_type}" in output
+            else:
+                # Only new secrets are displayed
+                if not policy_break.known_secret:
+                    nb_new_secrets += 1
+                    assert f"Secret detected: {policy_break.break_type}" in output
     if nb_new_secrets:
         assert (
             f"{nb_new_secrets} incident{'s' if nb_new_secrets > 1 else ''} detected"
@@ -167,10 +165,47 @@ def assert_number_of_secrets_is_displayed(output, nb_new_secrets):
         )
 
 
+def assert_warning_is_displayed(
+    output: str,
+    ignore_known_secrets: bool,
+    secrets_types: str,
+    known_secrets_number: int,
+):
+    if ignore_known_secrets and secrets_types in {
+        "only_known_secrets",
+        "mixed_secrets",
+    }:
+        plural = (
+            "s ignored because they are"
+            if known_secrets_number > 1
+            else " ignored because it is"
+        )
+        assert (
+            f"Warning: {known_secrets_number} secret{plural} already known by "
+            "your GitGuardian dashboard and you used the "
+            "`--ignore-known-secrets` option." in output
+        )
+
+
+def assert_no_leak_message_is_diplayed(
+    output: str, ignore_known_secrets: bool, secrets_types: str
+):
+    if secrets_types == "no_secrets":
+        assert "No secrets have been found" in output
+        assert "No new secrets have been found" not in output
+    elif ignore_known_secrets and secrets_types == "only_known_secrets":
+        assert "No new secrets have been found" in output
+        assert "No secrets have been found" not in output
+    else:
+        assert "No secrets have been found" not in output
+        assert "No new secrets have been found" not in output
+
+
 @pytest.mark.parametrize("verbose", [True, False])
 @pytest.mark.parametrize("ignore_known_secrets", [True, False])
 @pytest.mark.parametrize(
-    "secrets_types", ["only_new_secrets", "only_known_secrets", "mixed_secrets"]
+    "secrets_types",
+    ["only_new_secrets", "only_known_secrets", "mixed_secrets", "no_secrets"],
 )
 def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     """
@@ -190,7 +225,10 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     known_policy_breaks = []
     new_policy_breaks = all_policy_breaks
 
-    # add known_secret for the secrets that are known, when the option is, the known_secret field is not returned
+    if secrets_types == "no_secrets":
+        known_policy_breaks = []
+        new_policy_breaks = []
+
     if ignore_known_secrets:
         if secrets_types == "only_known_secrets":
             known_policy_breaks = all_policy_breaks
@@ -213,39 +251,27 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
                 ScanCollection(
                     id="scan",
                     type="test",
-                    results=Results(results=[result], errors=[]),
+                    results=Results(
+                        results=[result] if secrets_types != "no_secrets" else [],
+                        errors=[],
+                    ),
                     optional_header="> This is an example header",
                 )
             ],
         )
     )
 
-    if secrets_types == "only_new_secrets" or not ignore_known_secrets:
-        expected_policies_break_displayed = all_policy_breaks
-        expected_warning_is_displayed = False
-    else:
-        expected_warning_is_displayed = True
-
-        if verbose:
-            expected_policies_break_displayed = known_policy_breaks
-        else:
-            if secrets_types == "only_known_secrets":
-                # Do not show secrets if there are only known secrets and not in verbose mode
-                expected_policies_break_displayed = []
-            else:
-                expected_policies_break_displayed = new_policy_breaks
-
     output = click.unstyle(output).replace(
         _file_info_decoration(), _file_info_default_decoration()
     )
 
-    assert_policies_displayed(output, expected_policies_break_displayed)
+    assert_policies_displayed(
+        output, verbose, ignore_known_secrets, known_policy_breaks + new_policy_breaks
+    )
     assert_warning_is_displayed(
-        output, expected_warning_is_displayed, len(known_policy_breaks)
+        output, ignore_known_secrets, secrets_types, len(known_policy_breaks)
     )
-    assert_number_of_secrets_is_displayed(
-        output, len(expected_policies_break_displayed)
-    )
+    assert_no_leak_message_is_diplayed(output, ignore_known_secrets, secrets_types)
 
 
 @pytest.mark.parametrize("ignore_known_secrets", [True, False])

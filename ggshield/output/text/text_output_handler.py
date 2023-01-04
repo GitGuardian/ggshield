@@ -15,6 +15,8 @@ from .message import (
     file_info,
     flatten_policy_breaks_by_line,
     leak_message_located,
+    no_leak_message,
+    no_new_leak_message,
     policy_break_header,
     secrets_engine_version,
 )
@@ -25,12 +27,16 @@ class TextOutputHandler(OutputHandler):
     nb_lines: ClassVar[int] = 3
 
     def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
-        scan_buf = StringIO()
+        processed_scan_results = self.process_scan_results(scan)
 
+        scan_buf = StringIO()
         if self.verbose:
             scan_buf.write(secrets_engine_version())
-
-        scan_buf.write(self.process_scan_results(scan))
+        scan_buf.write(processed_scan_results)
+        if not processed_scan_results:
+            scan_buf.write(
+                no_new_leak_message() if scan.known_secrets_count else no_leak_message()
+            )
 
         if scan.known_secrets_count > 0:
             scan_buf.write(
