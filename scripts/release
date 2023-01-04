@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""
+A multi-command tool to automate steps of the release process
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, List, Union
+
+import click
+
+
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+
+
+ROOT_DIR = Path(__file__).parent.parent
+INIT_PATH = ROOT_DIR / "ggshield" / "__init__.py"
+CASSETTES_DIR = ROOT_DIR / "tests" / "unit" / "cassettes"
+
+VERSION = os.environ.get("VERSION", "")
+TAG = f"v{VERSION}"
+
+# The branch this script must be run from. Can be overriden with an environment
+# variable to make working on the script itself easier.
+RELEASE_BRANCH = os.environ.get("RELEASE_BRANCH", "main")
+
+
+def check_run(
+    cmd: List[Union[str, Path]], **kwargs: Any
+) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, check=True, **kwargs)
+
+
+def log_progress(message: str) -> None:
+    click.secho(message, fg="magenta", err=True)
+
+
+def fail(message: str) -> None:
+    prefix = click.style("ERROR:", fg="red")
+    click.secho(f"{prefix} {message}", err=True)
+    sys.exit(1)
+
+
+def check_working_tree_is_on_release_branch() -> None:
+    proc = check_run(["git", "branch"], capture_output=True, text=True)
+    lines = proc.stdout.splitlines()
+    if f"* {RELEASE_BRANCH}" not in lines:
+        fail(f"This script must be run on the '{RELEASE_BRANCH}' branch")
+
+
+def check_working_tree_is_clean(allow_dirty: bool) -> None:
+    proc = check_run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    lines = proc.stdout.splitlines()
+    if lines:
+        if allow_dirty:
+            log_progress("Ignoring changes because --allow-dirty is set")
+        else:
+            fail("Working tree contains changes. Use --allow-dirty to ignore.")
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "--allow-dirty",
+    is_flag=True,
+    help="Do not abort if the working tree contains changes",
+)
+def main(allow_dirty: bool) -> int:
+    """Helper script to release ggshield. Commands should be run in this order:
+
+    \b
+    1. run-tests
+    2. prepare-tag
+    3. push-tag
+    4. publish-gh-release
+    """
+    if VERSION == "":
+        fail("Environment variable $VERSION is not set")
+
+    if not re.fullmatch(r"\d+\.\d+\.\d+", VERSION):
+        fail(f"'{VERSION}' is not a valid version number")
+
+    check_working_tree_is_on_release_branch()
+    check_working_tree_is_clean(allow_dirty)
+
+    return 0
+
+
+@main.command()
+def run_tests() -> None:
+    """Run all tests.
+
+    Unit-tests are run without cassettes. This ensures the recorded cassettes
+    still match production reality.
+    """
+
+    # Set the TEST_GITGUARDIAN_API_KEY environment variable: some tests rely on
+    # it
+    try:
+        api_key = os.environ["GITGUARDIAN_API_KEY"]
+    except KeyError:
+        fail("Environment variable $GITGUARDIAN_API_KEY is not set")
+
+    env = dict(os.environ)
+    env["TEST_GITGUARDIAN_API_KEY"] = api_key
+
+    # If CASSETTES_DIR does not exist, tests fail, so recreate it
+    log_progress("Removing cassettes")
+    shutil.rmtree(CASSETTES_DIR)
+    CASSETTES_DIR.mkdir()
+
+    log_progress("Running unit tests")
+    check_run(["pytest", "tests/unit"], cwd=ROOT_DIR, env=env)
+
+    log_progress("Running functional tests")
+    check_run(["pytest", "tests/functional"], cwd=ROOT_DIR, env=env)
+
+    log_progress("Restoring cassettes")
+    check_run(["git", "restore", CASSETTES_DIR], cwd=ROOT_DIR)
+
+
+def update_version() -> None:
+    content = INIT_PATH.read_text()
+    version_line = f'__version__ = "{VERSION}"'
+    content, count = re.subn(
+        "^__version__ = .*$", version_line, content, flags=re.MULTILINE
+    )
+    if count != 1:
+        fail(f"Did not make any change to {INIT_PATH}")
+    INIT_PATH.write_text(content)
+
+
+def commit_changes() -> None:
+    check_run(["git", "add", INIT_PATH])
+    message = f"chore(release): {VERSION}"
+    check_run(["git", "commit", "--message", message])
+
+
+def create_tag() -> None:
+    message = f"Releasing {VERSION}"
+    check_run(["git", "tag", "--annotate", TAG, "--message", message])
+
+
+@main.command()
+def prepare_tag() -> None:
+    """Prepare the code for the release:
+
+    \b
+    - Bump the version in __init__.py
+    - Commit changes
+    - Create the release tag
+    """
+    update_version()
+    commit_changes()
+    create_tag()
+    log_progress(f"Done, review changes and then run `{sys.argv[0]} push-tag`")
+
+
+@main.command()
+def push_tag() -> None:
+    """Push the main branch and the tag for the version to release."""
+    check_run(["git", "push", "origin", "main:main", f"{TAG}:{TAG}"])
+
+
+@main.command()
+@click.argument("release-notes", type=click.Path(exists=True, dir_okay=False))
+def publish_gh_release(release_notes: str) -> None:
+    """Set the release notes of the GitHub release, then remove its "draft" status.
+
+    RELEASE_NOTES: path to a Markdown file containing the release notes.
+
+    GitHub CLI (https://cli.github.com/) must be installed."""
+    check_run(
+        [
+            "gh",
+            "release",
+            "edit",
+            TAG,
+            "--title",
+            VERSION,
+            "--notes-file",
+            release_notes,
+        ]
+    )
+    check_run(["gh", "release", "edit", TAG, "--draft=false"])
+
+
+if __name__ == "__main__":
+    sys.exit(main())
