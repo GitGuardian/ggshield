@@ -9,7 +9,7 @@ from ggshield.cmd.common_options import add_common_options
 @click.command()
 @click.pass_context
 @add_common_options()
-def config_migrate_cmd(ctx: click.Context, **kwargs: Any) -> None:
+def config_migrate_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Migrate configuration file to the latest version
     """
@@ -31,3 +31,4 @@ def config_migrate_cmd(ctx: click.Context, **kwargs: Any) -> None:
     click.echo(
         f"Configuration file has been migrated. The previous version has been kept as a backup as {old_path}."
     )
+    return 0

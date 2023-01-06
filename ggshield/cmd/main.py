@@ -33,18 +33,17 @@ logger = logging.getLogger(__name__)
 @deprecated_scan_group.result_callback()
 @iac_group.result_callback()
 @click.pass_context
-def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
+def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     """
     exit_code guarantees that the return value of a scan is 0
     when exit_zero is enabled
     """
-    show_config_deprecation_message(ctx)
     if exit_code == ExitCode.SCAN_FOUND_PROBLEMS and ctx.obj["config"].exit_zero:
         logger.debug("scan exit_code forced to 0")
         sys.exit(ExitCode.SUCCESS)
 
     logger.debug("scan exit_code=%d", exit_code)
-    sys.exit(exit_code)
+    return exit_code
 
 
 def config_path_callback(
@@ -121,14 +120,22 @@ def cli(
             )
 
 
-@cli.result_callback()
-@click.pass_context
-def show_config_deprecation_message(
-    ctx: click.Context, *args: Any, **kwargs: Any
-) -> None:
+def display_deprecation_message(ctx: click.Context) -> None:
     cfg: Config = ctx.obj["config"]
     for message in cfg.user_config.deprecation_messages:
         display_warning(message)
+
+
+@cli.result_callback()
+@click.pass_context
+def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -> None:
+    """
+    This function is launched as a final callback once subcommands have run.
+    It executes some final functions and then terminates.
+    The argument exit_code is the result of the previously executed click command.
+    """
+    display_deprecation_message(ctx)
+    sys.exit(exit_code)
 
 
 def main(args: Optional[List[str]] = None) -> Any:

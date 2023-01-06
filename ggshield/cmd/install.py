@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 from typing import Any, Optional
 
 import click
@@ -38,7 +37,7 @@ def install_cmd(
         if mode == "global"
         else install_local(hook_type=hook_type, force=force, append=append)
     )
-    sys.exit(return_code)
+    return return_code
 
 
 def install_global(hook_type: str, force: bool, append: bool) -> int:
