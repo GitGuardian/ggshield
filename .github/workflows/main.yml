@@ -85,6 +85,13 @@ jobs:
         run: |
           echo "GGTEST_DOCKER_IMAGE=mcr.microsoft.com/windows/nanoserver:ltsc2022" >> $GITHUB_ENV
 
+      - name: Ensure a clean package installation
+        run: |
+          pip install wheel check-wheel-contents
+          python setup.py clean --all bdist_wheel
+          # The created wheel (.whl) file will be found and analyzed within the `dist/` folder
+          check-wheel-contents dist/
+
       - name: Run unit tests
         run: |
           coverage run --source ggshield -m pytest --disable-pytest-warnings --disable-socket tests/unit

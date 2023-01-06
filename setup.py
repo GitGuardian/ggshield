@@ -24,7 +24,7 @@ def get_version() -> str:
 setup(
     name="ggshield",
     version=get_version(),
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     description="Detect secrets from all sources using GitGuardian's brains",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
