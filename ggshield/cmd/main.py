@@ -5,7 +5,6 @@ import sys
 from typing import Any, List, Optional
 
 import click
-import pygitguardian
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.common_options import add_common_options
@@ -109,9 +108,6 @@ def cli(
         # if --debug is not set but `debug` is set in the configuration file, then
         # we must setup logs now.
         setup_debug_logs(True)
-
-    logger.debug("args=%s", sys.argv)
-    logger.debug("py-gitguardian=%s", pygitguardian.__version__)
 
     # Check for PYTEST_CURRENT_TEST to ensure update check does not happen when running
     # tests: we don't want it to happen because on the CI the unit test-suite is run
