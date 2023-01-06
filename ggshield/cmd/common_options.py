@@ -110,12 +110,21 @@ _allow_self_signed_option = click.option(
     callback=create_config_callback("allow_self_signed"),
 )
 
+_check_for_updates = click.option(
+    "--check-for-updates/--no-check-for-updates",
+    is_flag=True,
+    default=None,
+    help="Check for ggshield updates.",
+    callback=create_ctx_callback("check_for_updates"),
+)
+
 
 def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)
         _debug_option(cmd)
         _allow_self_signed_option(cmd)
+        _check_for_updates(cmd)
         return cmd
 
     return decorator

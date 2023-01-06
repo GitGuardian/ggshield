@@ -80,19 +80,12 @@ def config_path_callback(
     help="Set a custom config file. Ignores local and global config files.",
     callback=config_path_callback,
 )
-@click.option(
-    "--check-for-updates/--no-check-for-updates",
-    is_flag=True,
-    default=True,
-    help="Check for ggshield updates.",
-)
 @add_common_options()
 @click.version_option()
 @click.pass_context
 def cli(
     ctx: click.Context,
     debug: Optional[bool],
-    check_for_updates: bool,
     **kwargs: Any,
 ) -> None:
     load_dot_env()
@@ -108,6 +101,13 @@ def cli(
         # we must setup logs now.
         setup_debug_logs(True)
 
+
+def _display_deprecation_message(cfg: Config) -> None:
+    for message in cfg.user_config.deprecation_messages:
+        display_warning(message)
+
+
+def _check_for_updates(check_for_updates: bool) -> None:
     # Check for PYTEST_CURRENT_TEST to ensure update check does not happen when running
     # tests: we don't want it to happen because on the CI the unit test-suite is run
     # with --disable-socket, which causes failure on any network access.
@@ -120,12 +120,6 @@ def cli(
             )
 
 
-def display_deprecation_message(ctx: click.Context) -> None:
-    cfg: Config = ctx.obj["config"]
-    for message in cfg.user_config.deprecation_messages:
-        display_warning(message)
-
-
 @cli.result_callback()
 @click.pass_context
 def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -> None:
@@ -134,7 +128,8 @@ def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -
     It executes some final functions and then terminates.
     The argument exit_code is the result of the previously executed click command.
     """
-    display_deprecation_message(ctx)
+    _display_deprecation_message(ctx.obj["config"])
+    _check_for_updates(ctx.obj.get("check_for_updates", True))
     sys.exit(exit_code)
 
 
