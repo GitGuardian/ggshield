@@ -21,5 +21,5 @@ from .config_unset import config_unset_command
     }
 )
 @add_common_options()
-def config_group(**kwargs: Any) -> None:
+def config_group(**kwargs: Any) -> int:
     """Commands to manage configuration."""

@@ -1,8 +1,12 @@
 import logging
 import sys
 
+import pygitguardian
+
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(process)x:%(thread)x %(name)s:%(funcName)s:%(lineno)d %(message)s"
+
+logger = logging.getLogger(__name__)
 
 
 def setup_debug_logs(debug: bool) -> None:
@@ -27,3 +31,6 @@ def setup_debug_logs(debug: bool) -> None:
     if debug:
         # Silence charset_normalizer, its debug output does not bring much
         logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
+
+    logger.debug("args=%s", sys.argv)
+    logger.debug("py-gitguardian=%s", pygitguardian.__version__)

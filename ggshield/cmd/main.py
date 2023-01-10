@@ -5,7 +5,6 @@ import sys
 from typing import Any, List, Optional
 
 import click
-import pygitguardian
 
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.common_options import add_common_options
@@ -34,18 +33,17 @@ logger = logging.getLogger(__name__)
 @deprecated_scan_group.result_callback()
 @iac_group.result_callback()
 @click.pass_context
-def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> None:
+def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     """
     exit_code guarantees that the return value of a scan is 0
     when exit_zero is enabled
     """
-    show_config_deprecation_message(ctx)
     if exit_code == ExitCode.SCAN_FOUND_PROBLEMS and ctx.obj["config"].exit_zero:
         logger.debug("scan exit_code forced to 0")
         sys.exit(ExitCode.SUCCESS)
 
     logger.debug("scan exit_code=%d", exit_code)
-    sys.exit(exit_code)
+    return exit_code
 
 
 def config_path_callback(
@@ -82,19 +80,12 @@ def config_path_callback(
     help="Set a custom config file. Ignores local and global config files.",
     callback=config_path_callback,
 )
-@click.option(
-    "--check-for-updates/--no-check-for-updates",
-    is_flag=True,
-    default=True,
-    help="Check for ggshield updates.",
-)
 @add_common_options()
 @click.version_option()
 @click.pass_context
 def cli(
     ctx: click.Context,
     debug: Optional[bool],
-    check_for_updates: bool,
     **kwargs: Any,
 ) -> None:
     load_dot_env()
@@ -110,9 +101,13 @@ def cli(
         # we must setup logs now.
         setup_debug_logs(True)
 
-    logger.debug("args=%s", sys.argv)
-    logger.debug("py-gitguardian=%s", pygitguardian.__version__)
 
+def _display_deprecation_message(cfg: Config) -> None:
+    for message in cfg.user_config.deprecation_messages:
+        display_warning(message)
+
+
+def _check_for_updates(check_for_updates: bool) -> None:
     # Check for PYTEST_CURRENT_TEST to ensure update check does not happen when running
     # tests: we don't want it to happen because on the CI the unit test-suite is run
     # with --disable-socket, which causes failure on any network access.
@@ -127,12 +122,15 @@ def cli(
 
 @cli.result_callback()
 @click.pass_context
-def show_config_deprecation_message(
-    ctx: click.Context, *args: Any, **kwargs: Any
-) -> None:
-    cfg: Config = ctx.obj["config"]
-    for message in cfg.user_config.deprecation_messages:
-        display_warning(message)
+def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -> None:
+    """
+    This function is launched as a final callback once subcommands have run.
+    It executes some final functions and then terminates.
+    The argument exit_code is the result of the previously executed click command.
+    """
+    _display_deprecation_message(ctx.obj["config"])
+    _check_for_updates(ctx.obj.get("check_for_updates", True))
+    sys.exit(exit_code)
 
 
 def main(args: Optional[List[str]] = None) -> Any:

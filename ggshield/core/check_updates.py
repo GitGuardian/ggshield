@@ -55,7 +55,7 @@ def check_for_updates() -> Optional[str]:
     try:
         save_yaml_dict({"check_at": time.time()}, CACHE_FILE)
     except Exception as e:
-        logger.error("Could not save time of version check to cache: %s", e)
+        logger.warning("Could not save time of version check to cache: %s", e)
         # Do not continue if we can't save check time. If we continue we are going to
         # send requests to api.github.com every time ggshield is called.
         return None
@@ -71,31 +71,31 @@ def check_for_updates() -> Optional[str]:
             timeout=CHECK_TIMEOUT,
         )
     except Exception as e:
-        logger.error("Failed to connect to api.github.com: %s", e)
+        logger.warning("Failed to connect to api.github.com: %s", e)
         return None
 
     if resp.status_code != 200:
         # Handle GitHub rate limit responses gracefully
         # https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#rate-limiting
         if int(resp.headers.get("X-RateLimit-Remaining", -1)) == 0:
-            logger.debug("GitHub rate limit exceeded - rescheduling update check")
+            logger.warning("GitHub rate limit exceeded - rescheduling update check")
 
             # Reset the next update check based on when the GH API quota resets
             check_at = int(resp.headers.get("X-RateLimit-Reset", -1)) - 24 * 60 * 60
             if check_at < 0:
                 # Somehow we've hit the rate limit and the reset header is missing
                 # This can only happen if GH changes their responses
-                logger.error("Failed rescheduling update check")
+                logger.warning("Failed rescheduling update check")
                 return None
 
             try:
                 save_yaml_dict({"check_at": check_at}, CACHE_FILE)
             except Exception as e:
-                logger.error("Could not save time of version check to cache: %s", e)
+                logger.warning("Could not save time of version check to cache: %s", e)
 
             return None
 
-        logger.error("Failed to check: %s", resp.text)
+        logger.warning("Failed to check: %s", resp.text)
         return None
 
     try:
@@ -105,7 +105,7 @@ def check_for_updates() -> Optional[str]:
         current_version_split = _split_version(__version__)
         latest_version_split = _split_version(latest_version)
     except Exception as e:
-        logger.error("Failed to parse response: %s", e)
+        logger.warning("Failed to parse response: %s", e)
         return None
 
     if current_version_split < latest_version_split:
