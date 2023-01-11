@@ -153,16 +153,15 @@ jobs:
             packages
 
   scanning:
-    name: Docker build test and scan
+    name: Test GitHub secret action
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Scan commit with ggshield
-        uses: ./ # local action compiles docker image and runs scan ci
+      - name: Scan commits
+        uses: ./actions/secret
         env:
           GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
