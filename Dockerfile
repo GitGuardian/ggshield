@@ -16,7 +16,7 @@ WORKDIR /app
 RUN set -e ; \
     apt-get update ; \
     apt-get dist-upgrade -y --no-install-recommends ; \
-    apt-get install -y --no-install-recommends git ssh ; \
+    apt-get install -y --no-install-recommends git openssh-client ; \
     apt-get autoremove -y ; \
     apt-get clean ; \
     pip3 install pipenv --upgrade ; \
