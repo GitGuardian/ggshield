@@ -12,15 +12,14 @@ ENV PATH /app/.venv/bin:$PATH
 
 WORKDIR /app
 
-# Install your required build dependencies here
-RUN set -e ; \
-    apt-get update ; \
-    apt-get dist-upgrade -y --no-install-recommends ; \
-    apt-get install -y --no-install-recommends git ssh ; \
-    apt-get autoremove -y ; \
-    apt-get clean ; \
-    pip3 install pipenv --upgrade ; \
-    rm -rf /var/lib/apt/lists/*
+RUN \
+    apt-get update \
+    && apt-get dist-upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends git openssh-client \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install pipenv --upgrade
 
 COPY . .
 
