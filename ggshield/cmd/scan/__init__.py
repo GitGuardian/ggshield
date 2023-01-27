@@ -17,7 +17,7 @@ from ggshield.cmd.secret.scan import (
     repo_cmd,
     scan_group_impl,
 )
-from ggshield.core.text_utils import display_warning
+from ggshield.core.text_utils import display_error
 
 
 @click.group(
@@ -60,7 +60,9 @@ def deprecated_scan_group(
     """
     Deprecated: use `ggshield secret scan (...)` instead.
     """
-    display_warning(
-        "Warning: Using `ggshield scan (...)` is deprecated. Use `ggshield secret scan (...)` instead.",
+    # We use `display_error` to print this warning message in red color
+    display_error(
+        "Warning: The `ggshield scan (...)` commands are deprecated and will be removed in version 1.15.0. "
+        "Use `ggshield secret scan (...)` instead."
     )
     return scan_group_impl(ctx)
