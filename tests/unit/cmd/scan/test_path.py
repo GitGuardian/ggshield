@@ -14,7 +14,6 @@ from tests.unit.conftest import (
     assert_invoke_exited_with,
     assert_invoke_ok,
     my_vcr,
-    skipwindows,
 )
 
 
@@ -256,7 +255,6 @@ class TestScanDirectory:
         assert_invoke_ok(result)
         assert not result.exception
 
-    @skipwindows
     def test_directory_verbose_ignored_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(
@@ -277,8 +275,32 @@ class TestScanDirectory:
         )
         assert_invoke_ok(result)
         assert "file1\n" not in result.output
-        assert "dir/file2\n" not in result.output
-        assert "dir/subdir/file3\n" in result.output
+        assert self.path_line("dir/file2") not in result.output
+        assert self.path_line("dir/subdir/file3") in result.output
+        assert self.path_line("dir/subdir/file4") in result.output
+        assert not result.exception
+
+    def test_directory_verbose_ignored_path_abort(self, cli_fs_runner):
+        self.create_files()
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "-v",
+                "path",
+                "./",
+                "-r",
+                "--exclude",
+                "dir/subdir/*",
+            ],
+            input="n\n",
+        )
+        assert_invoke_ok(result)
+        assert "file1\n" in result.output
+        assert self.path_line("dir/file2") in result.output
+        assert self.path_line("dir/subdir/file3") not in result.output
+        assert self.path_line("dir/subdir/file4") not in result.output
         assert not result.exception
 
     @my_vcr.use_cassette()
