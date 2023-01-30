@@ -31,6 +31,7 @@ RUN set -ex; \
     mkdir /data; chmod 777 /data
 
 USER app
+RUN git config --global --add safe.directory /data
 
 WORKDIR /data
 VOLUME [ "/data" ]
