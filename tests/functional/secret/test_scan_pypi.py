@@ -8,7 +8,7 @@ from tests.functional.utils import run_ggshield_scan
 @pytest.mark.parametrize(
     "package, expected_code",
     (
-        ("ggshield", 1),  # ggshield contains some test secrets
+        ("ggshield==1.14.2", 1),  # ggshield 1.14.2 contains some test secrets
         ("marshmallow", 0),
     ),
 )
