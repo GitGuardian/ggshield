@@ -258,9 +258,6 @@ def docker_scan_archive(
     files = get_files_from_docker_archive(archive)
 
     with create_progress_bar(doc_type="files") as progress:
-        task_scan = progress.add_task(
-            "[green]Scanning Docker Image...", total=len(files.files)
-        )
 
         scanner = SecretScanner(
             client=client,
@@ -269,6 +266,9 @@ def docker_scan_archive(
             ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
             ignore_known_secrets=ignore_known_secrets,
+        )
+        task_scan = progress.add_task(
+            "[green]Scanning Docker Image...", total=len(files.files)
         )
         results = scanner.scan(
             files.files,

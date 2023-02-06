@@ -1,8 +1,60 @@
 interactions:
   - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+      method: GET
+      uri: https://api.gitguardian.com/v1/health
+    response:
       body:
-        '[{"filename": "/private/var/folders/8g/n692j_595cg2nq1gbbb6_c1h0000gp/T/tmp8mk5zl_2/file",
-        "document": "This is a file with no secrets."}]'
+        string: '{"detail":"Valid API key."}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, HEAD, OPTIONS
+        content-length:
+          - '27'
+        content-type:
+          - application/json
+        date:
+          - Mon, 06 Feb 2023 10:55:49 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '10'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body:
+        '[{"filename": "/tmp/tmpo6icvcox/file", "document": "This is a file with
+        no secrets."}]'
       headers:
         Accept:
           - '*/*'
@@ -11,59 +63,64 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '138'
+          - '86'
         Content-Type:
           - application/json
+        GGShield-Command-Id:
+          - e707351a-b085-4b22-a9f3-ec1565208d8b
         GGShield-Command-Path:
           - cli secret scan path
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.6
         GGShield-Version:
-          - 1.12.0
+          - 1.14.2
         User-Agent:
-          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
         mode:
           - path
       method: POST
       uri: https://api.gitguardian.com/v1/multiscan
     response:
       body:
-        string: '[{"policy_break_count":0,"policies":["Secrets detection","File extensions","Filenames"],"policy_breaks":[]}]'
+        string:
+          '[{"policy_break_count":0,"policies":["File extensions","Filenames","Secrets
+          detection"],"policy_breaks":[]}]'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Connection:
-          - keep-alive
-        Content-Length:
+        content-length:
           - '108'
-        Content-Type:
+        content-type:
           - application/json
-        Date:
-          - Fri, 15 Jul 2022 16:33:11 GMT
-        Referrer-Policy:
+        date:
+          - Mon, 06 Feb 2023 10:55:50 GMT
+        referrer-policy:
           - strict-origin-when-cross-origin
-        Server:
-          - nginx
-        Set-Cookie:
-          - AWSALB=Zrz1YBr7nYDv1JX+6GLX63gr2Slp5l4bvf3zSKpV6kcueVWjo7KlndVJT4iappGy0BaNP7D4lveLRGsCbvv1RguRo9BF+L+/o5EsV5KPk6eMM9WZ9VowzSU9hTaq;
-            Expires=Fri, 22 Jul 2022 16:33:11 GMT; Path=/
-          - AWSALBCORS=Zrz1YBr7nYDv1JX+6GLX63gr2Slp5l4bvf3zSKpV6kcueVWjo7KlndVJT4iappGy0BaNP7D4lveLRGsCbvv1RguRo9BF+L+/o5EsV5KPk6eMM9WZ9VowzSU9hTaq;
-            Expires=Fri, 22 Jul 2022 16:33:11 GMT; Path=/; SameSite=None; Secure
-        Strict-Transport-Security:
+        server:
+          - istio-envoy
+        strict-transport-security:
           - max-age=31536000; includeSubDomains
-        Vary:
+        vary:
           - Cookie
-        X-App-Version:
-          - v2.9.0
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
           - nosniff
           - nosniff
-        X-Frame-Options:
+        x-envoy-upstream-service-time:
+          - '37'
+        x-frame-options:
           - DENY
           - SAMEORIGIN
-        X-Secrets-Engine-Version:
-          - 2.71.0
-        X-XSS-Protection:
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
           - 1; mode=block
       status:
         code: 200

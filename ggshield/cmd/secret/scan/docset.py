@@ -62,9 +62,6 @@ def docset_cmd(
     output_handler = create_output_handler(ctx)
     try:
         with create_progress_bar(doc_type="files") as progress:
-            task_scan = progress.add_task(
-                "[green]Scanning content...", total=len(files)
-            )
 
             scan_context = ScanContext(
                 scan_mode=ScanMode.DOCSET,
@@ -78,7 +75,9 @@ def docset_cmd(
                 ignored_detectors=config.secret.ignored_detectors,
                 ignore_known_secrets=config.ignore_known_secrets,
             )
-
+            task_scan = progress.add_task(
+                "[green]Scanning content...", total=len(files)
+            )
             scans = create_scans_from_docset_files(
                 scanner=scanner,
                 input_files=files,

@@ -48,9 +48,6 @@ def archive_cmd(
         )
 
         with create_progress_bar(doc_type="files") as progress:
-            task_scan = progress.add_task(
-                "[green]Scanning Archive...", total=len(files.files)
-            )
 
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
@@ -64,6 +61,9 @@ def archive_cmd(
                 ignored_matches=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
                 ignore_known_secrets=config.ignore_known_secrets,
+            )
+            task_scan = progress.add_task(
+                "[green]Scanning Archive...", total=len(files.files)
             )
             results = scanner.scan(
                 files.files,

@@ -35,6 +35,7 @@ def test_request_headers(scan_mock: Mock, client):
                 scan_mode=ScanMode.PATH,
                 command_path=ctx.command_path,
             ),
+            check_api_key=False,
         )
         scanner.scan(c.files)
     scan_mock.assert_called_with(
