@@ -19,12 +19,6 @@ from tests.conftest import GG_VALID_TOKEN
 os.environ.setdefault("PYTHONBREAKPOINT", "ipdb.set_trace")
 
 
-skipwindows = pytest.mark.skipif(
-    platform.system() == "Windows" and not os.environ.get("DISABLE_SKIPWINDOWS"),
-    reason="Skipped on Windows for now, define DISABLE_SKIPWINDOWS environment variable to unskip",
-)
-
-
 def is_macos():
     return platform.system() == "Darwin"
 
