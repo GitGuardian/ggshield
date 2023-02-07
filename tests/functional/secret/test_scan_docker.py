@@ -7,7 +7,7 @@ from string import Template
 import pytest
 
 from tests.conftest import GG_VALID_TOKEN
-from tests.functional.conftest import FUNCTESTS_DATA_PATH
+from tests.functional.conftest import FUNCTESTS_DATA_PATH, requires_docker
 from tests.functional.utils import (
     assert_is_valid_json,
     recreate_censored_content,
@@ -15,12 +15,10 @@ from tests.functional.utils import (
 )
 
 
-HAS_DOCKER = shutil.which("docker") is not None
-
 TEST_DOCKER_IMAGE = os.getenv("GGTEST_DOCKER_IMAGE", "ubuntu:20.04")
 
 
-pytestmark = pytest.mark.skipif(not HAS_DOCKER, reason="These tests require Docker")
+pytestmark = requires_docker()
 
 
 def build_image(tmp_path: Path, name: str) -> None:
