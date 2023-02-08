@@ -12,14 +12,10 @@ from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
 SAMPLE_PRE_COMMIT = """#!/bin/sh
-
-
 ggshield secret scan pre-commit "$@"
 """
 
 SAMPLE_PRE_PUSH = """#!/bin/sh
-
-
 ggshield secret scan pre-push "$@"
 """
 

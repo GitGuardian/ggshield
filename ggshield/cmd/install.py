@@ -10,6 +10,21 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.git_shell import check_git_dir, git
 
 
+# This snippet is used by the global hook to call the hook defined in the
+# repository, if it exists.
+# Because of #467, we must use /bin/sh as a shell, so the shell code must
+# not make use of any Bash extension, such as double square brackets in
+# `if` statements.
+LOCAL_HOOK_SNIPPET = """
+if [ -f .git/hooks/{hook_type} ]; then
+    if ! .git/hooks/{hook_type} "$@"; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+fi
+"""
+
+
 @click.command(context_settings={"ignore_unknown_options": True})
 @click.option(
     "--mode",
@@ -98,24 +113,20 @@ def create_hook(
             " Use --force to override or --append to add to current script"
         )
 
-    local_hook_str = ""
-    if local_hook_support:
-        local_hook_str = f"""
-if [ -f .git/hooks/{hook_type} ]; then
-    if ! .git/hooks/{hook_type} "$@"; then
-        echo 'Local {hook_type} hook failed, please see output above'
-        exit 1
-    fi
-fi
-"""
+    if append and not os.path.exists(hook_path):
+        # If the file does not exist, we must add the shebang, even if we were
+        # called with --append.
+        append = False
 
-    mode = "a" if os.path.exists(hook_path) and append else "w"
-
-    with open(hook_path, mode) as f:
-        if mode == "w":
+    with open(hook_path, "a" if append else "w") as f:
+        if not append:
             f.write("#!/bin/sh\n")
 
-        f.write(f'\n{local_hook_str}\nggshield secret scan {hook_type} "$@"\n')
+        if local_hook_support:
+            f.write(LOCAL_HOOK_SNIPPET.format(hook_type=hook_type))
+            f.write("\n")
+
+        f.write(f'ggshield secret scan {hook_type} "$@"\n')
         os.chmod(hook_path, 0o700)
 
     click.echo(
