@@ -101,8 +101,8 @@ def create_hook(
     local_hook_str = ""
     if local_hook_support:
         local_hook_str = f"""
-if [[ -f .git/hooks/{hook_type} ]]; then
-    if ! .git/hooks/{hook_type} $@; then
+if [ -f .git/hooks/{hook_type} ]; then
+    if ! .git/hooks/{hook_type} "$@"; then
         echo 'Local {hook_type} hook failed, please see output above'
         exit 1
     fi
@@ -113,7 +113,7 @@ fi
 
     with open(hook_path, mode) as f:
         if mode == "w":
-            f.write("#!/usr/bin/env bash\n")
+            f.write("#!/bin/sh\n")
 
         f.write(f'\n{local_hook_str}\nggshield secret scan {hook_type} "$@"\n')
         os.chmod(hook_path, 0o700)

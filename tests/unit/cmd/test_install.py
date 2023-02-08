@@ -11,13 +11,13 @@ from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
-SAMPLE_PRE_COMMIT = """#!/usr/bin/env bash
+SAMPLE_PRE_COMMIT = """#!/bin/sh
 
 
 ggshield secret scan pre-commit "$@"
 """
 
-SAMPLE_PRE_PUSH = """#!/usr/bin/env bash
+SAMPLE_PRE_PUSH = """#!/bin/sh
 
 
 ggshield secret scan pre-push "$@"
@@ -244,7 +244,7 @@ class TestInstallGlobal:
 
         hook = open(f"{path}/{hook_type}", "r")
         hook_str = hook.read()
-        assert f"if [[ -f .git/hooks/{hook_type} ]]; then" in hook_str
+        assert f"if [ -f .git/hooks/{hook_type} ]; then" in hook_str
         assert f"ggshield secret scan {hook_type}" in hook_str
 
         assert (
