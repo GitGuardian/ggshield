@@ -54,6 +54,10 @@ jobs:
         python-version: ['3.7', '3.8', '3.9', '3.10']
     steps:
       - uses: actions/checkout@v2
+        with:
+          # Get enough commits to run `ggshield secret scan commit-range` on ourselves
+          fetch-depth: 10
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
