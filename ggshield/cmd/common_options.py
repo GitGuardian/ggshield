@@ -114,7 +114,7 @@ _check_for_updates = click.option(
     "--check-for-updates/--no-check-for-updates",
     is_flag=True,
     default=None,
-    help="Check for ggshield updates.",
+    help="After executing commands, check if a new version of ggshield is available.",
     callback=create_ctx_callback("check_for_updates"),
 )
 
