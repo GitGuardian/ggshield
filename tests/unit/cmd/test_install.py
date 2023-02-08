@@ -23,7 +23,8 @@ ggshield secret scan pre-push "$@"
 @pytest.fixture(scope="class")
 def mockHookDirPath():
     with mock.patch(
-        "ggshield.cmd.install.get_global_hook_dir_path", return_value="global/hooks"
+        "ggshield.cmd.install.get_global_hook_dir_path",
+        return_value=Path("global/hooks"),
     ):
         yield
 
@@ -31,35 +32,32 @@ def mockHookDirPath():
 class TestInstallLocal:
     def test_local_exist_is_dir(self, cli_fs_runner):
         os.system("git init")
-        os.makedirs(".git/hooks/pre-commit/")
-        assert os.path.isdir(".git/hooks/pre-commit")
+        hook_path = Path(".git/hooks/pre-commit")
+        hook_path.mkdir()
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
-        os.system("rm -R .git/hooks/pre-commit")
         assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert result.exception
-        assert "Error: .git/hooks/pre-commit is a directory" in result.output
+        assert f"Error: {hook_path} is a directory" in result.output
 
     def test_local_exist_not_force(self, cli_fs_runner):
         os.system("git init")
-        os.makedirs(".git/hooks", exist_ok=True)
-        Path(".git/hooks/pre-commit").write_text("pre-commit file")
-        assert os.path.isfile(".git/hooks/pre-commit")
+        hook_path = Path(".git/hooks/pre-commit")
+        hook_path.write_text("pre-commit file")
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "local"])
         assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert result.exception
-        assert "Error: .git/hooks/pre-commit already exists." in result.output
+        assert f"Error: {hook_path} already exists." in result.output
 
     def test_local_exist_force(self, cli_fs_runner):
         os.system("git init")
-        os.makedirs(".git/hooks", exist_ok=True)
-        Path(".git/hooks/pre-commit").write_text("pre-commit file")
-        assert os.path.isfile(".git/hooks/pre-commit")
+        hook_path = Path(".git/hooks/pre-commit")
+        hook_path.write_text("pre-commit file")
 
         result = cli_fs_runner.invoke(cli, ["install", "-f", "-m", "local"])
         assert_invoke_ok(result)
-        assert "pre-commit successfully added in .git/hooks/pre-commit" in result.output
+        assert f"pre-commit successfully added in {hook_path}" in result.output
 
     @patch("ggshield.cmd.install.check_git_dir")
     def test_precommit_install(
@@ -77,13 +75,11 @@ class TestInstallLocal:
             cli,
             ["install", "-m", "local"],
         )
-        hook = open(".git/hooks/pre-commit", "r")
-        hook_str = hook.read()
-        assert SAMPLE_PRE_COMMIT == hook_str
+        hook_path = Path(".git/hooks/pre-commit")
+        hook_str = hook_path.read_text()
+        assert hook_str == SAMPLE_PRE_COMMIT
 
-        assert (
-            "pre-commit successfully added in .git/hooks/pre-commit\n" in result.output
-        )
+        assert f"pre-commit successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
@@ -99,9 +95,9 @@ class TestInstallLocal:
         WHEN the command is run without --force or --append
         THEN it should error
         """
-        os.makedirs(".git/hooks/", exist_ok=True)
-        with open(f".git/hooks/{hook_type}", "w") as f:
-            f.write("#!/bin/bash\nsample-command\n")
+        hook_path = Path(".git/hooks") / hook_type
+        hook_path.parent.mkdir(parents=True)
+        hook_path.write_text("#!/bin/bash\nsample-command\n")
 
         result = cli_fs_runner.invoke(
             cli,
@@ -127,19 +123,16 @@ class TestInstallLocal:
         WHEN the command is run with --force
         THEN it should return 0 and install the hook
         """
-        os.makedirs(".git/hooks/", exist_ok=True)
-        with open(f".git/hooks/{hook_type}", "w") as f:
-            f.write("#!/bin/bash\nsample-command\n")
+        hook_path = Path(".git/hooks") / hook_type
+        hook_path.parent.mkdir(parents=True)
+        hook_path.write_text("#!/bin/bash\nsample-command\n")
 
         result = cli_fs_runner.invoke(
             cli,
             ["install", "-m", "local", "-t", hook_type, "--force"],
         )
 
-        assert (
-            f"{hook_type} successfully added in .git/hooks/{hook_type}\n"
-            in result.output
-        )
+        assert f"{hook_type} successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
@@ -155,23 +148,19 @@ class TestInstallLocal:
         WHEN the command is run with --append
         THEN it should return 0 and append the hook to the existing one
         """
-        os.makedirs(".git/hooks/", exist_ok=True)
-        with open(f".git/hooks/{hook_type}", "w") as f:
-            f.write("#!/bin/bash\nsample-command\n")
+        hook_path = Path(".git/hooks") / hook_type
+        hook_path.parent.mkdir(parents=True)
+        hook_path.write_text("#!/bin/bash\nsample-command\n")
 
         result = cli_fs_runner.invoke(
             cli,
             ["install", "-m", "local", "-t", hook_type, "--append"],
         )
-        hook = open(f".git/hooks/{hook_type}", "r")
-        hook_str = hook.read()
+        hook_str = hook_path.read_text()
         assert "sample-command" in hook_str
         assert "ggshield secret scan" in hook_str
 
-        assert (
-            f"{hook_type} successfully added in .git/hooks/{hook_type}\n"
-            in result.output
-        )
+        assert f"{hook_type} successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
 
     @patch("ggshield.cmd.install.check_git_dir")
@@ -190,33 +179,31 @@ class TestInstallLocal:
             cli,
             ["install", "-m", "local", "-t", "pre-push"],
         )
-        hook = open(".git/hooks/pre-push", "r")
-        hook_str = hook.read()
-        assert SAMPLE_PRE_PUSH == hook_str
+        hook_path = Path(".git/hooks/pre-push")
+        hook_str = hook_path.read_text()
+        assert hook_str == SAMPLE_PRE_PUSH
 
-        assert "pre-push successfully added in .git/hooks/pre-push\n" in result.output
+        assert f"pre-push successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
 
 
 class TestInstallGlobal:
     def test_global_exist_is_dir(self, cli_fs_runner, mockHookDirPath):
-        os.makedirs("global/hooks/pre-commit/")
-        assert os.path.isdir("global/hooks/pre-commit")
+        global_hook_path = Path("global/hooks/pre-commit")
+        global_hook_path.mkdir(parents=True)
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
-        os.system("rm -R global/hooks/pre-commit")
         assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert result.exception
 
     def test_global_not_exist(self, cli_fs_runner, mockHookDirPath):
-        assert not os.path.isfile("global/hooks/pre-commit")
+        global_hook_path = Path("global/hooks/pre-commit")
+        assert not global_hook_path.exists()
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
-        assert os.path.isfile("global/hooks/pre-commit")
+        assert global_hook_path.is_file()
         assert_invoke_ok(result)
-        assert (
-            "pre-commit successfully added in global/hooks/pre-commit" in result.output
-        )
+        assert f"pre-commit successfully added in {global_hook_path}" in result.output
 
     @pytest.mark.parametrize("hook_type", ["pre-push", "pre-commit"])
     @patch("ggshield.cmd.install.get_global_hook_dir_path")
@@ -231,41 +218,38 @@ class TestInstallGlobal:
         WHEN the command is run
         THEN it should create a pre-push git hook script in the global path
         """
-        path = "global_hooks"
-        get_global_hook_dir_path_mock.return_value = path
+        global_hooks_dir = Path("global_hooks")
+        get_global_hook_dir_path_mock.return_value = global_hooks_dir
         result = cli_fs_runner.invoke(
             cli,
             ["install", "-m", "global", "-t", hook_type],
         )
 
-        hook = open(f"{path}/{hook_type}", "r")
-        hook_str = hook.read()
+        hook_path = global_hooks_dir / hook_type
+        hook_str = hook_path.read_text()
         assert f"if [ -f .git/hooks/{hook_type} ]; then" in hook_str
         assert f"ggshield secret scan {hook_type}" in hook_str
 
-        assert (
-            f"{hook_type} successfully added in global_hooks/{hook_type}\n"
-            in result.output
-        )
+        assert f"{hook_type} successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
 
     def test_global_exist_not_force(self, cli_fs_runner, mockHookDirPath):
-        os.makedirs("global/hooks", exist_ok=True)
-        Path("global/hooks/pre-commit").write_text("pre-commit file")
-        assert os.path.isfile("global/hooks/pre-commit")
+        hook_path = Path("global/hooks/pre-commit")
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        hook_path.write_text("pre-commit file")
+        assert hook_path.is_file()
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global"])
         assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert result.exception
-        assert "Error: global/hooks/pre-commit already exists." in result.output
+        assert f"Error: {hook_path} already exists." in result.output
 
     def test_global_exist_force(self, cli_fs_runner, mockHookDirPath):
-        os.makedirs("global/hooks", exist_ok=True)
-        Path("global/hooks/pre-commit").write_text("pre-commit file")
-        assert os.path.isfile("global/hooks/pre-commit")
+        hook_path = Path("global/hooks/pre-commit")
+        hook_path.parent.mkdir(parents=True, exist_ok=True)
+        hook_path.write_text("pre-commit file")
+        assert hook_path.is_file()
 
         result = cli_fs_runner.invoke(cli, ["install", "-m", "global", "-f"])
         assert_invoke_ok(result)
-        assert (
-            "pre-commit successfully added in global/hooks/pre-commit" in result.output
-        )
+        assert f"pre-commit successfully added in {hook_path}" in result.output

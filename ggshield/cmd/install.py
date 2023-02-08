@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 from typing import Any, Optional
 
 import click
@@ -60,8 +61,8 @@ def install_global(hook_type: str, force: bool, append: bool) -> int:
     hook_dir_path = get_global_hook_dir_path()
 
     if not hook_dir_path:
-        hook_dir_path = os.path.expanduser("~/.git/hooks")
-        git(["config", "--global", "core.hooksPath", hook_dir_path])
+        hook_dir_path = Path("~/.git/hooks").expanduser()
+        git(["config", "--global", "core.hooksPath", str(hook_dir_path)])
 
     return create_hook(
         hook_dir_path=hook_dir_path,
@@ -72,20 +73,20 @@ def install_global(hook_type: str, force: bool, append: bool) -> int:
     )
 
 
-def get_global_hook_dir_path() -> Optional[str]:
+def get_global_hook_dir_path() -> Optional[Path]:
     """Return the default hooks path (if it exists)."""
     try:
         out = git(["config", "--global", "--get", "core.hooksPath"])
     except subprocess.CalledProcessError:
         return None
-    return os.path.expanduser(click.format_filename(out))
+    return Path(click.format_filename(out)).expanduser()
 
 
 def install_local(hook_type: str, force: bool, append: bool) -> int:
     """Local pre-commit/pre-push hook installation."""
     check_git_dir()
     return create_hook(
-        hook_dir_path=".git/hooks",
+        hook_dir_path=Path(".git/hooks"),
         force=force,
         local_hook_support=False,
         hook_type=hook_type,
@@ -94,31 +95,31 @@ def install_local(hook_type: str, force: bool, append: bool) -> int:
 
 
 def create_hook(
-    hook_dir_path: str,
+    hook_dir_path: Path,
     force: bool,
     local_hook_support: bool,
     hook_type: str,
     append: bool,
 ) -> int:
     """Create hook directory (if needed) and pre-commit/pre-push file."""
-    os.makedirs(hook_dir_path, exist_ok=True)
-    hook_path = f"{hook_dir_path}/{hook_type}"
+    hook_dir_path.mkdir(parents=True, exist_ok=True)
+    hook_path = hook_dir_path / hook_type
 
-    if os.path.isdir(hook_path):
+    if hook_path.is_dir():
         raise UsageError(f"{hook_path} is a directory.")
 
-    if os.path.isfile(hook_path) and not (force or append):
+    if hook_path.is_file() and not (force or append):
         raise UnexpectedError(
             f"{hook_path} already exists."
             " Use --force to override or --append to add to current script"
         )
 
-    if append and not os.path.exists(hook_path):
+    if append and not hook_path.exists():
         # If the file does not exist, we must add the shebang, even if we were
         # called with --append.
         append = False
 
-    with open(hook_path, "a" if append else "w") as f:
+    with hook_path.open("a" if append else "w") as f:
         if not append:
             f.write("#!/bin/sh\n")
 
