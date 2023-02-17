@@ -1,27 +1,31 @@
 from dataclasses import fields
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import marshmallow_dataclass
 from marshmallow.decorators import pre_load
 
-from ggshield.core.errors import ParseError
 from ggshield.core.text_utils import display_warning
 
 
 @marshmallow_dataclass.dataclass
 class ValidatedConfig:
     @classmethod
-    def validate_fields(cls, data: Dict[str, Any], **kwargs: Any) -> None:
+    def validate_fields(cls, data: Union[Dict, List], **kwargs: Any) -> None:
         """
-        Raise exception on unknown keys
+        Alert on unknown keys
         """
         field_names = {field_.name for field_ in fields(cls)}
-        hyphen_names = {name.replace("_", "-") for name in field_names}
+        hyphen_names = {name_.replace("_", "-") for name_ in field_names}
         valid_names = field_names.union(hyphen_names)
         valid_names.add("version")
-        for key in data.keys():
-            if key not in valid_names:
-                raise ParseError("Unrecognized key in config: {}".format(key))
+        if isinstance(data, dict):
+            for key, value in list(data.items()):
+                cls.validate_fields(value)
+                if key not in valid_names:
+                    display_warning(f"Unrecognized key in config: {key}")
+        elif isinstance(data, list):
+            for elem in data:
+                cls.validate_fields(elem)
 
 
 @marshmallow_dataclass.dataclass
@@ -30,15 +34,13 @@ class FilteredConfig:
     @pre_load(pass_many=False)
     def filter_fields(cls, data: Dict, **kwargs: Any) -> Dict:
         """
-        Remove and alert on unknown fields.
+        Remove unknown fields.
         """
         field_names = {field_.name for field_ in fields(cls)}
         filtered_fields = {}
         for key, item in data.items():
             if key in field_names:
                 filtered_fields[key] = item
-            else:
-                display_warning("Unrecognized key in config: {}".format(key))
 
         return filtered_fields
 
