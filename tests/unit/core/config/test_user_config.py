@@ -242,6 +242,7 @@ class TestUserConfig:
                         {"name": "", "match": "one", "match_invalid_key": "two"},
                     ],
                 },
+                "hyphen-key": "example",
             },
         )
         UserConfig.load(local_config_path)
@@ -250,3 +251,4 @@ class TestUserConfig:
         assert "Unrecognized key in config: iac_unknown" in captured.err
         assert "Unrecognized key in config: secret_invalid_key" in captured.err
         assert "Unrecognized key in config: match_invalid_key" in captured.err
+        assert "Unrecognized key in config: hyphen-key" in captured.err
