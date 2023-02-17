@@ -8,7 +8,7 @@ import marshmallow_dataclass
 from ggshield.core.config.utils import (
     ensure_path_exists,
     get_auth_config_filepath,
-    load_yaml_dict,
+    load_config_data,
     save_yaml_dict,
 )
 from ggshield.core.dirs import get_config_dir
@@ -118,7 +118,7 @@ class AuthConfig:
         """Load the auth config from the app config file"""
         config_path = get_auth_config_filepath()
 
-        data = load_yaml_dict(config_path)
+        data = load_config_data(config_path)
         if data:
             data = prepare_auth_config_dict_for_parse(data)
             return AuthConfigSchema().load(data)  # type: ignore

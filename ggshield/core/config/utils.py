@@ -7,7 +7,9 @@ import yaml
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
 from ggshield.core.dirs import get_config_dir
-from ggshield.core.errors import UnexpectedError
+from ggshield.core.errors import ParseError, UnexpectedError
+from ggshield.core.text_utils import display_warning
+from ggshield.core.types import ValidatedConfig
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -36,8 +38,21 @@ def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
 
     if not isinstance(data, dict):
         raise ValueError(f"{path} should be a dictionary.")
+    return data
 
-    replace_in_keys(data, old_char="-", new_char="_")
+
+def load_config_data(
+    path: str, config: Optional[ValidatedConfig] = None
+) -> Optional[Dict[str, Any]]:
+    """Optionally check if all keys in loaded file are known for specified config"""
+    data = load_yaml_dict(path)
+    if data:
+        try:
+            if config:
+                config.validate_fields(data)
+            replace_in_keys(data, old_char="-", new_char="_")
+        except ParseError as e:
+            display_warning(e.message)
     return data
 
 

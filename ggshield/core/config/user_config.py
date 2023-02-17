@@ -8,7 +8,7 @@ from marshmallow import ValidationError
 
 from ggshield.core.config.utils import (
     get_global_path,
-    load_yaml_dict,
+    load_config_data,
     remove_common_dict_items,
     save_yaml_dict,
     update_from_other_instance,
@@ -19,7 +19,12 @@ from ggshield.core.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
-from ggshield.core.types import FilteredConfig, IgnoredMatch, IgnoredMatchSchema
+from ggshield.core.types import (
+    FilteredConfig,
+    IgnoredMatch,
+    IgnoredMatchSchema,
+    ValidatedConfig,
+)
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
@@ -77,7 +82,7 @@ class IaCConfig(FilteredConfig):
 
 
 @marshmallow_dataclass.dataclass
-class UserConfig(FilteredConfig):
+class UserConfig(FilteredConfig, ValidatedConfig):
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
     (local and global).
@@ -155,7 +160,9 @@ class UserConfig(FilteredConfig):
     def _update_from_file(self, config_path: str) -> None:
 
         try:
-            data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
+            data = load_config_data(config_path, config=self) or {
+                "version": CURRENT_CONFIG_VERSION
+            }
             config_version = data.pop("version", 1)
             if config_version == 2:
                 obj = UserConfigSchema().load(data)

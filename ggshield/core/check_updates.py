@@ -8,7 +8,7 @@ import requests
 from ggshield import __version__
 from ggshield.core.dirs import get_cache_dir
 
-from .config.utils import load_yaml_dict, save_yaml_dict
+from .config.utils import load_config_data, save_yaml_dict
 
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def check_for_updates() -> Optional[str]:
     check_at = -1.0
     # Load the last time we checked
     try:
-        cached_data = load_yaml_dict(CACHE_FILE)
+        cached_data = load_config_data(CACHE_FILE)
     except ValueError:
         # Swallow the error
         cached_data = None
