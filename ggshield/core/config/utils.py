@@ -7,8 +7,7 @@ import yaml
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
 from ggshield.core.dirs import get_config_dir
-from ggshield.core.errors import ParseError, UnexpectedError
-from ggshield.core.text_utils import display_warning
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.types import ValidatedConfig
 
 
@@ -47,12 +46,9 @@ def load_config_data(
     """Optionally check if all keys in loaded file are known for specified config"""
     data = load_yaml_dict(path)
     if data:
-        try:
-            if config:
-                config.validate_fields(data)
-            replace_in_keys(data, old_char="-", new_char="_")
-        except ParseError as e:
-            display_warning(e.message)
+        if config:
+            config.validate_fields(data)
+        replace_in_keys(data, old_char="-", new_char="_")
     return data
 
 
