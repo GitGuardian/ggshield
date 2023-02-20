@@ -21,6 +21,7 @@ branding:
   color: 'blue'
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: 'docker://gitguardian/ggshield:unstable'
+  entrypoint: '/app/docker/actions-iac-entrypoint.sh'
   args:
     - ${{ inputs.args }}
