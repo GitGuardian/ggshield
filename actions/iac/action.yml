@@ -22,6 +22,6 @@ branding:
 runs:
   using: 'docker'
   image: 'gitguardian/ggshield:latest'
-  entrypoint: '/app/actions/iac/entrypoint.sh'
+  entrypoint: '/app/docker/actions-iac-entrypoint.sh'
   args:
     - ${{ inputs.args }}
