@@ -18,6 +18,7 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 ROOT_DIR = Path(__file__).parent.parent
 INIT_PATH = ROOT_DIR / "ggshield" / "__init__.py"
+ACTION_PATHS = [ROOT_DIR / "actions" / x / "action.yml" for x in ["iac", "secret"]]
 CASSETTES_DIR = ROOT_DIR / "tests" / "unit" / "cassettes"
 
 VERSION = os.environ.get("VERSION", "")
@@ -121,19 +122,37 @@ def run_tests() -> None:
     check_run(["git", "restore", CASSETTES_DIR], cwd=ROOT_DIR)
 
 
-def update_version() -> None:
-    content = INIT_PATH.read_text()
-    version_line = f'__version__ = "{VERSION}"'
-    content, count = re.subn(
-        "^__version__ = .*$", version_line, content, flags=re.MULTILINE
-    )
+def replace_once_in_file(path: Path, src: str, dst: str, flags: int = 0) -> None:
+    """Look for `src` in `path`, replace it with `dst`. Abort if no match or more than
+    one were found."""
+    content = path.read_text()
+    content, count = re.subn(src, dst, content, flags=flags)
     if count != 1:
-        fail(f"Did not make any change to {INIT_PATH}")
-    INIT_PATH.write_text(content)
+        fail(
+            f"Did not make any change to {path}: expected 1 match for '{src}', got {count}."
+        )
+    path.write_text(content)
+
+
+def update_version() -> None:
+    replace_once_in_file(
+        INIT_PATH,
+        "^__version__ = .*$",
+        f'__version__ = "{VERSION}"',
+        flags=re.MULTILINE,
+    )
+
+    # Pin the version of the Docker image used by the actions
+    for action_path in ACTION_PATHS:
+        replace_once_in_file(
+            action_path,
+            r"image: 'docker://gitguardian/ggshield:(unstable|v\d+\.\d+\.\d+)'",
+            f"image: 'docker://gitguardian/ggshield:v{VERSION}'",
+        )
 
 
 def commit_changes() -> None:
-    check_run(["git", "add", INIT_PATH])
+    check_run(["git", "add", INIT_PATH, *ACTION_PATHS])
     message = f"chore(release): {VERSION}"
     check_run(["git", "commit", "--message", message])
 
