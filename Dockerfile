@@ -25,13 +25,6 @@ COPY . .
 
 RUN pipenv install --ignore-pipfile --deploy
 
-RUN set -ex; \
-    groupadd -g 1337 app; \
-    useradd -u 1337 -g 1337 -b /home -c "GitGuardian App User" -m -s /bin/sh app; \
-    mkdir /data; chmod 777 /data
-
-USER app
-
 WORKDIR /data
 VOLUME [ "/data" ]
 

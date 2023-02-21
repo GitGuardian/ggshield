@@ -21,6 +21,7 @@ branding:
   color: 'blue'
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: '../../Dockerfile'
+  entrypoint: '/app/docker/actions-iac-entrypoint.sh'
   args:
     - ${{ inputs.args }}
