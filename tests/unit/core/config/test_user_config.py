@@ -239,9 +239,15 @@ class TestUserConfig:
                 "secret": {
                     "secret_invalid_key": "invalid key",
                     "ignored-matches": [
-                        {"name": "", "match": "one", "match_invalid_key": "two"},
+                        {
+                            "name": "",
+                            "match": "one",
+                            "match_invalid_key": "two",
+                            "nested-hashed": "example",
+                        },
                     ],
                 },
+                "hashed-key": "example",
             },
         )
         UserConfig.load(local_config_path)
@@ -250,3 +256,5 @@ class TestUserConfig:
         assert "Unrecognized key in config: iac_unknown" in captured.err
         assert "Unrecognized key in config: secret_invalid_key" in captured.err
         assert "Unrecognized key in config: match_invalid_key" in captured.err
+        assert "Unrecognized key in config: hashed-key" in captured.err
+        assert "Unrecognized key in config: nested-hashed" in captured.err
