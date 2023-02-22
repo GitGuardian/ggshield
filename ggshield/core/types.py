@@ -18,8 +18,9 @@ class FilteredConfig:
         field_names = {field_.name for field_ in fields(cls)}
         filtered_fields = {}
         for key, item in data.items():
-            if key in field_names or key.replace("-", "_") in field_names:
-                filtered_fields[key.replace("-", "_")] = item
+            filtered_key = key.replace("-", "_")
+            if filtered_key in field_names:
+                filtered_fields[filtered_key] = item
             else:
                 display_warning("Unrecognized key in config: {}".format(key))
 

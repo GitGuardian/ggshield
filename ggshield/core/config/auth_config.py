@@ -69,6 +69,8 @@ def prepare_auth_config_dict_for_parse(data: Dict[str, Any]) -> Dict[str, Any]:
     single instances[].account key.
 
     Stop if there is not exactly one account.
+
+    We replace `-` with `_` for compatibility reasons.
     """
     replace_in_keys(data, "-", "_")
     data = deepcopy(data)
