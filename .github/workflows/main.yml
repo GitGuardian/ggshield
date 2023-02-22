@@ -113,6 +113,10 @@ jobs:
           fail_ci_if_error: false
 
       - name: Run functional tests
+        # For security reasons, secrets are not available when running tests for a pull request from a fork. This causes
+        # all functional tests to fail because GITGUARDIAN_API_KEY is not defined. To avoid this, skip this step if we
+        # were triggered by a pull request from a fork.
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         shell: bash
         run: |
           make functest GITGUARDIAN_API_KEY=${{ secrets.GITGUARDIAN_API_KEY }} GITGUARDIAN_API_URL=${{ secrets.GITGUARDIAN_API_URL }}
@@ -158,6 +162,7 @@ jobs:
 
   test_github_secret_scan_action:
     name: Test GitHub action for `secret scan`
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -177,6 +182,7 @@ jobs:
 
   test_github_iac_scan_action:
     name: Test GitHub action for `iac scan`
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
