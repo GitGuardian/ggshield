@@ -9,6 +9,7 @@ from ggshield.core.config.utils import (
     ensure_path_exists,
     get_auth_config_filepath,
     load_yaml_dict,
+    replace_in_keys,
     save_yaml_dict,
 )
 from ggshield.core.dirs import get_config_dir
@@ -69,6 +70,7 @@ def prepare_auth_config_dict_for_parse(data: Dict[str, Any]) -> Dict[str, Any]:
 
     Stop if there is not exactly one account.
     """
+    replace_in_keys(data, "-", "_")
     data = deepcopy(data)
     try:
         instances = data["instances"]

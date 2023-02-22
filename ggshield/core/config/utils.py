@@ -37,12 +37,10 @@ def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
     if not isinstance(data, dict):
         raise ValueError(f"{path} should be a dictionary.")
 
-    replace_in_keys(data, old_char="-", new_char="_")
     return data
 
 
 def save_yaml_dict(data: Dict[str, Any], path: str) -> None:
-    replace_in_keys(data, "_", "-")
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("w") as f:
