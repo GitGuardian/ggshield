@@ -9,6 +9,7 @@ on:
 jobs:
   benchmark:
     name: Run performance benchmark
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     env:
       PYTHONUNBUFFERED: 1
