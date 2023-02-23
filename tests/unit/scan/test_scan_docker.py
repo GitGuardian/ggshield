@@ -153,7 +153,7 @@ class TestDockerSave:
                 [
                     "docker",
                     "save",
-                    "ggshield-non-existant",
+                    "ggshield-non-existant:latest",
                     "-o",
                     str(self.TMP_ARCHIVE),
                 ],
@@ -171,7 +171,7 @@ class TestDockerSave:
         ):
             with pytest.raises(
                 click.UsageError,
-                match='Image "ggshield-non-existant" not found',
+                match='Image "ggshield-non-existant:latest" not found',
             ):
                 docker_save_to_tmp(
                     "ggshield-non-existant", self.TMP_ARCHIVE, DOCKER_TIMEOUT
@@ -226,7 +226,7 @@ class TestDockerSave:
             "subprocess.run",
             side_effect=subprocess.TimeoutExpired(cmd=[], timeout=DOCKER_TIMEOUT),
         ):
-            expected_msg = f'Command "docker save ggshield-non-existant -o {str(self.TMP_ARCHIVE)}" timed out'  # noqa: E501
+            expected_msg = f'Command "docker save ggshield-non-existant:latest -o {str(self.TMP_ARCHIVE)}" timed out'  # noqa: E501
             with pytest.raises(
                 UnexpectedError,
                 match=re.escape(expected_msg),

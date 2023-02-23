@@ -219,6 +219,7 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
 
     Limit docker commands to run at most `timeout` seconds.
     """
+    image_name = image_name if ":" in image_name else image_name + ":latest"
     command = ["docker", "save", image_name, "-o", str(destination_path)]
 
     try:
