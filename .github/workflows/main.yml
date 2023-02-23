@@ -1,5 +1,11 @@
 name: Application Main Branch
 
+# About steps requiring the GITGUARDIAN_API_KEY:
+#
+# For security reasons, secrets are not available when a workflow is triggered by a pull request from a fork. This
+# causes all steps requiring the GITGUARDIAN_API_KEY to fail. To avoid this, we skip those steps when we are triggered
+# by a pull request from a fork.
+
 on:
   pull_request:
   push:
@@ -113,6 +119,8 @@ jobs:
           fail_ci_if_error: false
 
       - name: Run functional tests
+        # See note about steps requiring the GITGUARDIAN_API at the top of this file
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         shell: bash
         run: |
           make functest GITGUARDIAN_API_KEY=${{ secrets.GITGUARDIAN_API_KEY }} GITGUARDIAN_API_URL=${{ secrets.GITGUARDIAN_API_URL }}
@@ -158,6 +166,8 @@ jobs:
 
   test_github_secret_scan_action:
     name: Test GitHub action for `secret scan`
+    # See note about steps requiring the GITGUARDIAN_API at the top of this file
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -176,6 +186,8 @@ jobs:
 
   test_github_iac_scan_action:
     name: Test GitHub action for `iac scan`
+    # See note about steps requiring the GITGUARDIAN_API at the top of this file
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
