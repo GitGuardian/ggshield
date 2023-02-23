@@ -10,6 +10,7 @@ from ggshield.core.config.utils import (
     get_global_path,
     load_yaml_dict,
     remove_common_dict_items,
+    replace_in_keys,
     save_yaml_dict,
     update_from_other_instance,
 )
@@ -113,6 +114,7 @@ class UserConfig(FilteredConfig):
 
         dct["version"] = CURRENT_CONFIG_VERSION
 
+        replace_in_keys(dct, old_char="_", new_char="-")
         save_yaml_dict(dct, config_path)
 
     @classmethod
@@ -160,6 +162,7 @@ class UserConfig(FilteredConfig):
             if config_version == 2:
                 obj = UserConfigSchema().load(data)
             elif config_version == 1:
+                replace_in_keys(data, old_char="-", new_char="_")
                 self.deprecation_messages.append(
                     f"{config_path} uses a deprecated configuration file format."
                     " Run `ggshield config migrate` to migrate it to the latest version."
