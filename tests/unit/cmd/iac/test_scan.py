@@ -10,6 +10,23 @@ from ggshield.core.errors import ExitCode
 from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, MockRequestsResponse, my_vcr
 
 
+@my_vcr.use_cassette("test_iac_scan_no_argument")
+def test_scan_no_arg(cli_fs_runner: CliRunner) -> None:
+    """
+    GIVEN -
+    WHEN running the iac scan command with no argument
+    THEN the return code is 0
+    """
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "iac",
+            "scan",
+        ],
+    )
+    assert result.exit_code == ExitCode.SUCCESS
+
+
 @my_vcr.use_cassette("test_iac_scan_empty_directory")
 def test_scan_valid_args(cli_fs_runner: CliRunner) -> None:
     """
@@ -74,7 +91,7 @@ def test_iac_scan_file_error_response(cli_fs_runner: CliRunner) -> None:
         ],
     )
     assert result.exit_code == ExitCode.USAGE_ERROR
-    assert "Error: Invalid value for 'DIRECTORY'" in result.stdout
+    assert "Error: Invalid value for '[DIRECTORY]'" in result.stdout
 
 
 def test_iac_scan_error_response(
