@@ -1,0 +1,76 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS0xYWZiMmVkNzFkMWVlMmM2ZGM1MmMzM2FjYjgyMGM3Zg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
+        cen4YwL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tMWFmYjJlZDcxZDFl
+        ZTJjNmRjNTJjMzNhY2I4MjBjN2YtLQ0K
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '195'
+        Content-Type:
+          - multipart/form-data; boundary=1afb2ed71d1ee2c6dc52c33acb820c7f
+        GGShield-Command-Id:
+          - 0c0fcd4d-5e4c-43b4-b2ff-ebbce62370dc
+        GGShield-Command-Path:
+          - cli iac scan
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '20.04'
+        GGShield-Python-Version:
+          - 3.8.10
+        GGShield-Version:
+          - 1.14.4
+        User-Agent:
+          - pygitguardian/1.5.0 (Linux;py3.8.10) ggshield
+        mode:
+          - directory
+      method: POST
+      uri: https://api.gitguardian.com/v1/iac_scan
+    response:
+      body:
+        string: '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '87'
+        content-type:
+          - application/json
+        date:
+          - Fri, 24 Feb 2023 16:44:34 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.24.1
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '173'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.85.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

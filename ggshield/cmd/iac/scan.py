@@ -67,6 +67,7 @@ def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[s
 @click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
+    required=False,
 )
 @add_common_options()
 @click.pass_context
@@ -77,12 +78,14 @@ def scan_cmd(
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
     json: bool,
-    directory: Path,
+    directory: Optional[Path],
     **kwargs: Any,
 ) -> int:
     """
     Scan a directory for IaC vulnerabilities.
     """
+    if directory is None:
+        directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     result = iac_scan(ctx, directory)
     scan = ScanCollection(id=str(directory), type="path_scan", iac_result=result)
