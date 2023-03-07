@@ -41,6 +41,8 @@ FILEPATH_BANLIST_PATTERNS = {
 
 LAYER_TO_SCAN_PATTERN = re.compile(r"\b(copy|add)\b", re.IGNORECASE)
 
+TAG_PATTERN = re.compile(r":[a-zA-Z0-9_][-.a-zA-Z0-9_]{0,127}$")
+
 
 class InvalidDockerArchiveException(Exception):
     pass
@@ -219,6 +221,9 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
 
     Limit docker commands to run at most `timeout` seconds.
     """
+    image_name = (
+        image_name if TAG_PATTERN.search(image_name) else image_name + ":latest"
+    )
     command = ["docker", "save", image_name, "-o", str(destination_path)]
 
     try:
