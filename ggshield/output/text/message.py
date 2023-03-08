@@ -1,4 +1,3 @@
-import os
 import shutil
 from io import StringIO
 from typing import Dict, List, Optional, Set, Tuple
@@ -16,8 +15,6 @@ from ggshield.core.text_utils import (
 )
 from ggshield.output.text.utils import get_offset, get_padding
 
-
-DECORATION_BY_OS = {"posix": "🛡️  ⚔️  🛡️ ", "default": ">>>"}
 
 # MAX_SECRET_SIZE controls the max length of |-----| under a secret
 # avoids occupying a lot of space in a CI terminal.
@@ -417,19 +414,6 @@ def secrets_engine_version() -> str:
 
 def iac_engine_version(iac_engine_version: str) -> str:
     return f"\niac-engine-version: {iac_engine_version}\n"
-
-
-def _file_info_decoration() -> str:
-    """Returns the decoration to show at the beginning of the file_info line.
-
-    The decoration can differ from one OS to the other.
-    """
-    return DECORATION_BY_OS.get(os.name, _file_info_default_decoration())
-
-
-def _file_info_default_decoration() -> str:
-    """Returns the header decoration to use if there is no OS-specific decoration"""
-    return DECORATION_BY_OS["default"]
 
 
 def file_info(filename: str, nb_secrets: int) -> str:

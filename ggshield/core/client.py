@@ -1,34 +1,11 @@
-from typing import cast
-
 import urllib3
 from click import UsageError
 from pygitguardian import GGClient
-from pygitguardian.models import Detail
-from requests import Response, Session
+from requests import Session
 
 from .config import Config
 from .constants import DEFAULT_DASHBOARD_URL
 from .errors import UnexpectedError, UnknownInstanceError
-
-
-def load_detail(resp: Response) -> Detail:
-    """
-    load_detail loads a Detail from a response
-    be it JSON or html.
-
-    :param resp: API response
-    :type resp: Response
-    :return: detail object of response
-    :rtype: Detail
-    """
-    if resp.headers["content-type"] == "application/json":
-        data = resp.json()
-        if "detail" not in data:
-            data = {"detail": str(data)}
-    else:
-        data = {"detail": resp.text}
-
-    return cast(Detail, Detail.SCHEMA.load(data))
 
 
 def create_client_from_config(config: Config) -> GGClient:

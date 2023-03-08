@@ -88,15 +88,6 @@ class MissingTokenError(AuthError):
         super().__init__(instance, f"No token is saved for this instance: '{instance}'")
 
 
-class ScanFoundProblemsError(_ExitError):
-    """
-    Raised when problems are found during a scan
-    """
-
-    def __init__(self) -> None:
-        super().__init__(ExitCode.SCAN_FOUND_PROBLEMS, "")
-
-
 def format_validation_error(exc: ValidationError) -> str:
     """
     Take a Marshmallow ValidationError and turn it into a more user-friendly message

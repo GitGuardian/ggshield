@@ -117,10 +117,6 @@ class ScanCollection:
         return self.new_secrets_count > 0
 
     @property
-    def has_known_secrets(self) -> bool:
-        return self.known_secrets_count > 0
-
-    @property
     def scans_with_results(self) -> List["ScanCollection"]:
         if self.scans:
             return [scan for scan in self.scans if scan.results]

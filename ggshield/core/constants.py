@@ -1,9 +1,6 @@
 import os
 
 
-# max files size to create a tar from
-MAX_TAR_CONTENT_SIZE = 30 * 1024 * 1024
-
 CPU_COUNT = os.cpu_count() or 1
 
 
