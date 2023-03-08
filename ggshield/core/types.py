@@ -22,7 +22,7 @@ class FilteredConfig:
             if filtered_key in field_names:
                 filtered_fields[filtered_key] = item
             else:
-                display_warning("Unrecognized key in config: {}".format(key))
+                display_warning(f"Unrecognized key in config: {key}")
 
         return filtered_fields
 

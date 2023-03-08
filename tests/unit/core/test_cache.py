@@ -39,7 +39,7 @@ class TestCache:
         cache = Cache()
         cache.update_cache(last_found_secrets=[{"match": "XXX"}])
         cache.save()
-        with open(".cache_ggshield", "r") as file:
+        with open(".cache_ggshield") as file:
             file_content = json.load(file)
             assert file_content == {
                 "last_found_secrets": [{"match": "XXX", "name": ""}]

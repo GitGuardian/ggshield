@@ -403,7 +403,7 @@ def format_detector(match_type: str, index_start: int, index_end: int) -> str:
     if secret_size < MAX_SECRET_SIZE:
         before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
         after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
-        display = "|{}{}{}|".format(before, match_type, after)
+        display = f"|{before}{match_type}{after}|"
 
     return " " * index_start + format_text(display, STYLE["detector"]) + "\n"
 

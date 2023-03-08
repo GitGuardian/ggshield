@@ -75,8 +75,7 @@ def git(
         result = subprocess.run(
             [_get_git_path()] + command,
             check=check,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
             env=env,
             cwd=cwd,

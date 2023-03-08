@@ -27,9 +27,7 @@ DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
 
 class ManifestMock:
     def read(self, amount: int = None) -> bytes:
-        return '[{"Config": "8b907fee27ad927c595fcf873c8256796cab27e7a3fb4bf3952308a76ad791c4.json"}]'.encode(  # noqa: E501
-            "utf-8"
-        )
+        return b'[{"Config": "8b907fee27ad927c595fcf873c8256796cab27e7a3fb4bf3952308a76ad791c4.json"}]'
 
 
 class TarMock:
@@ -166,7 +164,7 @@ class TestDockerSave:
         with patch(
             "subprocess.run",
             side_effect=subprocess.CalledProcessError(
-                1, cmd=[], stderr="reference does not exist".encode("utf-8")
+                1, cmd=[], stderr=b"reference does not exist"
             ),
         ):
             with pytest.raises(
@@ -196,7 +194,7 @@ class TestDockerSave:
             "subprocess.run",
             side_effect=[
                 subprocess.CalledProcessError(
-                    1, cmd=[], stderr="reference does not exist".encode("utf-8")
+                    1, cmd=[], stderr=b"reference does not exist"
                 ),
                 None,
                 None,
@@ -210,7 +208,7 @@ class TestDockerSave:
         with patch(
             "subprocess.run",
             side_effect=subprocess.CalledProcessError(
-                1, cmd=[], stderr="docker failed weirdly".encode("utf-8")
+                1, cmd=[], stderr=b"docker failed weirdly"
             ),
         ):
             with pytest.raises(
