@@ -1,17 +1,15 @@
 interactions:
   - request:
       body: !!binary |
-        LS1iOTRhMGYyNTkyOWFhZjBjODY0MjRiMWY1YWE3ZDA3Mw0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
-        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS1iOTRhMGYyNTkyOWFhZjBjODY0MjRi
-        MWY1YWE3ZDA3Mw0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
-        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAXk3VYgL/7dO7bsIwGAXgzH4Kyw8QbJO6
-        LEgdO3avKssEB1l1QuRLC6p49xoYUFXB1DLA+TLkV2L7DMmpJ/Xk6cVsnq1Z2lD9C3507s75tDnN
-        ++eCSyEruqmuIMdkQomv7pOc0T653s6FepiJRolG1mrGG6kaUsHNc6bVnfNW99knN5bhI/vBBrNw
-        3iVnY526v+i/ao4df1Tq2HV56vxUiJ/9l5zv+8+v2f/RG2+GwZ5bV5Z13e19fxJsXOfQWsrMZ9TR
-        tjm4tNWrsM4jo2xhltpuTF/+DEa/CKV2VXbEw0hp65ZBL/y6fY90Tl8Zrw/XhLO38n5HdoTQSwE6
-        5P25v1PSdrTlROaGQxwjl7NKDqoMAAAAAAAAAAAAAAAAAAAAd+obwA9IMQAoAAANCi0tYjk0YTBm
-        MjU5MjlhYWYwYzg2NDI0YjFmNWFhN2QwNzMtLQ0K
+        LS04MGJhNTkyNmQwNTBhZDcwYWY1ODhmZjNkN2M1ZTY0NA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
+        0NzgYwL/7dO7TsMwGAXgzH4Kyw+Q2knjhKESIyM7QpaTupVF0la+QCvUd8dNB5CAskAl2vNl8K84
+        9lly8kk+ub3X2zuj58Zlf4IffbdyXk7f58N7wQtRZHSbnUH0QbsUn12noqFDsIOZCVlXsuE3tcyF
+        LGUzbUgGF8/qTi1sb9QQ+2A3aXiO/co43dreBmt8Hha/0X8px46LuhIf12P9hcjEtKy5qGRZpP4X
+        hahS//k5+697rVuzWugw6K+++2n/nyLO+HV0naFMv3jlTRedDTu1dOu4YZS1eq7MVg/pz2D0lVBq
+        lumEH0dKOzt3qu3X3ZOnM/rAeD4+E84e0/6e7AmhpwKUi4d7P6eE3cakG5ldjXGMnM5KOagyAAAA
+        AAAAAAAAAAAAAAAAXKk3RwiykQAoAAANCi0tODBiYTU5MjZkMDUwYWQ3MGFmNTg4ZmYzZDdjNWU2
+        NDQtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -20,70 +18,74 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '600'
+          - '462'
         Content-Type:
-          - multipart/form-data; boundary=b94a0f25929aaf0c86424b1f5aa7d073
+          - multipart/form-data; boundary=80ba5926d050ad70af588ff3d7c5e644
+        GGShield-Command-Id:
+          - 8c328f6e-01e2-431c-a925-7582b9c6c1a0
         GGShield-Command-Path:
           - cli iac scan
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.6
         GGShield-Version:
-          - 1.12.0
+          - 1.14.2
         User-Agent:
-          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+        mode:
+          - directory
       method: POST
       uri: https://api.gitguardian.com/v1/iac_scan
     response:
       body:
         string:
-          '{"id":"0","type":"path_scan","iac_engine_version":"1.5.0","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
+          '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
           egress traffic might lead to remote code execution","policy_id":"GG_IAC_0002","severity":"HIGH","component":"aws_security_group.bad_example","line_end":4,"line_start":4,"description":"Open
-          egress means that the asset can download data from the whole web.","documentation_url":"https://gitguardian.com"},{"policy":"Unrestricted
+          egress means that the asset can download data from the whole web.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0002"},{"policy":"Unrestricted
           ingress traffic leaves assets exposed to remote attacks","policy_id":"GG_IAC_0003","severity":"HIGH","component":"aws_security_group_rule.bad_example","line_end":10,"line_start":10,"description":"A
           security group has open ingress from all IPs, and on all ports. This means
           that the\nassets in this security group are exposed to the whole web.\n\nFurthermore,
           no port range is specified. This\nmeans that some applications running on
           assets of this security group may be reached by\nexternal traffic, while they
-          are not expected to do so.","documentation_url":"https://gitguardian.com"}]}]}'
+          are not expected to do so.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0003"}]}]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Connection:
-          - keep-alive
-        Content-Type:
+        content-length:
+          - '1167'
+        content-type:
           - application/json
-        Date:
-          - Mon, 18 Jul 2022 12:09:03 GMT
-        Referrer-Policy:
+        date:
+          - Mon, 06 Feb 2023 10:56:17 GMT
+        referrer-policy:
           - strict-origin-when-cross-origin
-        Server:
-          - nginx
-        Set-Cookie:
-          - AWSALB=+DrrNhuqI85Gl2cdAUAlqH/pc+UkOZ6kTEso3sWCuUQ77jaM4/6vQ/3abIZkKFaV9SI26JaoFnzJrX68caBWpZ7OJtwIFi6YuekB8x4FtE35Z3oAr1b6oApdznhy;
-            Expires=Mon, 25 Jul 2022 12:09:03 GMT; Path=/
-          - AWSALBCORS=+DrrNhuqI85Gl2cdAUAlqH/pc+UkOZ6kTEso3sWCuUQ77jaM4/6vQ/3abIZkKFaV9SI26JaoFnzJrX68caBWpZ7OJtwIFi6YuekB8x4FtE35Z3oAr1b6oApdznhy;
-            Expires=Mon, 25 Jul 2022 12:09:03 GMT; Path=/; SameSite=None; Secure
-        Strict-Transport-Security:
+        server:
+          - istio-envoy
+        strict-transport-security:
           - max-age=31536000; includeSubDomains
-        Transfer-Encoding:
+        transfer-encoding:
           - chunked
-        Vary:
-          - Accept-Encoding
-          - Cookie
-        X-App-Version:
-          - v2.9.0
-        X-Content-Type-Options:
+        vary:
+          - Accept-Encoding,Cookie
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
           - nosniff
           - nosniff
-        X-Frame-Options:
+        x-envoy-upstream-service-time:
+          - '331'
+        x-frame-options:
           - DENY
           - SAMEORIGIN
-        X-Secrets-Engine-Version:
-          - 2.71.0
-        X-XSS-Protection:
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
           - 1; mode=block
-        content-length:
-          - '1089'
       status:
         code: 200
         message: OK

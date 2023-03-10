@@ -1,5 +1,57 @@
 interactions:
   - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.5.0 (Linux;py3.10.6)
+      method: GET
+      uri: https://api.gitguardian.com/v1/health
+    response:
+      body:
+        string: '{"detail":"Valid API key."}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, HEAD, OPTIONS
+        content-length:
+          - '27'
+        content-type:
+          - application/json
+        date:
+          - Mon, 06 Feb 2023 10:56:10 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '9'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
       body: '[{"filename": "test", "document": "@@ -0,0 +1 @@\n+sg_key = \"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\";\n"}]'
       headers:
         Accept:
@@ -12,15 +64,20 @@ interactions:
           - '139'
         Content-Type:
           - application/json
-        Cookie:
-          - AWSALB=tPncdmpGTiDOImREBRVlgN5EQYNr7DouwSnkK8Idcx00NuVOPNzgpFBTDOgg+UQrL0JOlDsWFzaNn3viwzmGn0W7bSMVntsqIHO7iBKz2+X4g93WclTEIjaa3RN9;
-            AWSALBCORS=tPncdmpGTiDOImREBRVlgN5EQYNr7DouwSnkK8Idcx00NuVOPNzgpFBTDOgg+UQrL0JOlDsWFzaNn3viwzmGn0W7bSMVntsqIHO7iBKz2+X4g93WclTEIjaa3RN9
+        GGShield-Command-Id:
+          - c023925e-e193-4f03-809c-470f9210b1f8
         GGShield-Command-Path:
           - external
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.6
         GGShield-Version:
-          - 1.12.0
+          - 1.14.2
         User-Agent:
-          - pygitguardian/1.3.5 (Darwin;py3.10.0)
+          - pygitguardian/1.5.0 (Linux;py3.10.6)
         mode:
           - path
       method: POST
@@ -31,42 +88,37 @@ interactions:
           '[{"policy_break_count":1,"policies":["File extensions","Filenames","Secrets
           detection"],"policy_breaks":[{"type":"SendGrid Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":25,"index_end":93,"line_start":2,"line_end":2}],"validity":"no_checker"}]}]'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Connection:
-          - keep-alive
-        Content-Length:
+        content-length:
           - '354'
-        Content-Type:
+        content-type:
           - application/json
-        Date:
-          - Mon, 18 Jul 2022 17:11:41 GMT
-        Referrer-Policy:
+        date:
+          - Mon, 06 Feb 2023 10:56:10 GMT
+        referrer-policy:
           - strict-origin-when-cross-origin
-        Server:
-          - nginx
-        Set-Cookie:
-          - AWSALB=FVF4oSk9rBgqBsBubFOo8ZxLnjVgcS26LcnxW47lMDafbmJzmbnVK+qjZPhWqlX6D9zOmP3fq/NSj7YQMyD3dGxf6x+i/mQ/bRVU8OXkKfG9y1h2l0G1qPoa6OBU;
-            Expires=Mon, 25 Jul 2022 17:11:41 GMT; Path=/
-          - AWSALBCORS=FVF4oSk9rBgqBsBubFOo8ZxLnjVgcS26LcnxW47lMDafbmJzmbnVK+qjZPhWqlX6D9zOmP3fq/NSj7YQMyD3dGxf6x+i/mQ/bRVU8OXkKfG9y1h2l0G1qPoa6OBU;
-            Expires=Mon, 25 Jul 2022 17:11:41 GMT; Path=/; SameSite=None; Secure
-        Strict-Transport-Security:
+        server:
+          - istio-envoy
+        strict-transport-security:
           - max-age=31536000; includeSubDomains
-        Vary:
+        vary:
           - Cookie
-        X-App-Version:
-          - v2.9.1
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
           - nosniff
           - nosniff
-        X-Frame-Options:
+        x-envoy-upstream-service-time:
+          - '104'
+        x-frame-options:
           - DENY
           - SAMEORIGIN
-        X-Secrets-Engine-Version:
-          - 2.71.0
-        X-XSS-Protection:
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
           - 1; mode=block
       status:
         code: 200

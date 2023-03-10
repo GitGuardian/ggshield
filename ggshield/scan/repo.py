@@ -11,6 +11,7 @@ from pygitguardian import GGClient
 from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 
 from ggshield.core.cache import Cache
+from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, handle_exception
@@ -84,6 +85,7 @@ def scan_commits_content(
             ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
             ignore_known_secrets=ignore_known_secrets,
+            check_api_key=False,  # Key has been checked in `scan_commit_range()`
         )
         results = scanner.scan(
             commit_files,
@@ -157,6 +159,7 @@ def scan_commit_range(
     :param commit_list: List of commits sha to scan
     :param verbose: Display successful scan's message
     """
+    check_client_api_key(client)
 
     with create_progress_bar(doc_type="commits") as progress:
 

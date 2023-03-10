@@ -88,6 +88,15 @@ class MissingTokenError(AuthError):
         super().__init__(instance, f"No token is saved for this instance: '{instance}'")
 
 
+class APIKeyCheckError(AuthError):
+    """
+    Raised when checking the API key fails
+    """
+
+    def __init__(self, instance: str, message: str):
+        super().__init__(instance, message)
+
+
 def format_validation_error(exc: ValidationError) -> str:
     """
     Take a Marshmallow ValidationError and turn it into a more user-friendly message
@@ -121,7 +130,7 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
     )
     click.echo()
 
-    display_error(f"ERROR: {exc}.")
+    display_error(f"ERROR: {exc}")
     if isinstance(exc, UnicodeEncodeError) and platform.system() == "Windows":
         display_error(
             "\n"

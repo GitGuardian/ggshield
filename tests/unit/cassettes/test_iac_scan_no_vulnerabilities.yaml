@@ -1,17 +1,15 @@
 interactions:
   - request:
       body: !!binary |
-        LS04ZTE3MGUwNmVmYjZiMGRlNzYwZDQyMzUzNDAyZjJmYg0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
-        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS04ZTE3MGUwNmVmYjZiMGRlNzYwZDQy
-        MzUzNDAyZjJmYg0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
-        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAX03VYgL/7dS9bsMgFAVgz34K5AcgBv+l
-        Q6SOHfsGiBBcoWBjYVxHqvruxUqTVJWytRmS8y2274XLgI7piq6eX+XhRcud9sm/yI+uPfO8KC/v
-        S53lnPGEHJIbmMYgfTw+eUx8TbpgOr1hdbVmZc3KgjZP8UaqMk3g7hmpRGusFr0T75PttZdbY00w
-        eqSh/bv81+Ux401dH7POL5kvWPUr/3XVNAnJb5n/wUor+15fWxeXte393X/q9egmrzTJ5DyKXofZ
-        +b2Qygo/WZ2RbCt3Qh9kNyxfHykh+i3uGcnJhrTSjjo2Bu+CU86eG1lQQxYbrXedGJwPpwbnsRrc
-        j9q5upwajw/G9d9DpLVuXsYos/Nia53an+YzTllBWUlZlaWf+GEBAAAAAAAAAAAAAAAAAADAI/oC
-        3amPhgAoAAANCi0tOGUxNzBlMDZlZmI2YjBkZTc2MGQ0MjM1MzQwMmYyZmItLQ0K
+        LS01NGM3ZTA4MWEwYTAyMmQ0NmRhZmFjNGQ3Y2Y5Zjg4NA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
+        0dzgYwL/7dRNboMwEAVg1jmFxQGIbf6SRaQuu+wNrIGYyorByJgmUtW7F5omzaJVN22kNu/bGN7g
+        mdWQLJPl3QMd7jVttY9+BT/66uQ8zT6e51xwKWTEDtEVjEMgP42PbpNcsTaYVm9EUebFiq/LMhGr
+        tEzX2SKCf89QrRpjteqcehptpz1Vxppg9JCE5uf2vyjedlyUubg8j+sv8khkaclFXqRyyiUvMx4x
+        fs39J0tU6a6h0NJn331X/6MWXg9u9LVmMe0H1emwd36nqLbKj1bHLK5oq/SB2n5+e14wph+nOwM7
+        2bCG7KCnQu9dcLWz50Ic6j6eCo13reqdD6eClFMa3EV2Tuep0/hgXPfehKx1+7lNbbZeVdbVu1N/
+        IRORJiJLRB4vXvDDAgAAAAAAAAAAAAAAAAAAgFv0Cr7ECy8AKAAADQotLTU0YzdlMDgxYTBhMDIy
+        ZDQ2ZGFmYWM0ZDdjZjlmODg0LS0NCg==
       headers:
         Accept:
           - '*/*'
@@ -20,57 +18,62 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '618'
+          - '478'
         Content-Type:
-          - multipart/form-data; boundary=8e170e06efb6b0de760d42353402f2fb
+          - multipart/form-data; boundary=54c7e081a0a022d46dafac4d7cf9f884
+        GGShield-Command-Id:
+          - 11f19f95-6fea-42be-b4b4-63b085be29b8
         GGShield-Command-Path:
           - cli iac scan
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.6
         GGShield-Version:
-          - 1.12.0
+          - 1.14.2
         User-Agent:
-          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+        mode:
+          - directory
       method: POST
       uri: https://api.gitguardian.com/v1/iac_scan
     response:
       body:
-        string: '{"id":"0","type":"path_scan","iac_engine_version":"1.5.0","entities_with_incidents":[]}'
+        string: '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Connection:
-          - keep-alive
-        Content-Length:
+        content-length:
           - '87'
-        Content-Type:
+        content-type:
           - application/json
-        Date:
-          - Mon, 18 Jul 2022 12:09:04 GMT
-        Referrer-Policy:
+        date:
+          - Mon, 06 Feb 2023 10:56:18 GMT
+        referrer-policy:
           - strict-origin-when-cross-origin
-        Server:
-          - nginx
-        Set-Cookie:
-          - AWSALB=E0P1LcKF9ZkOMI5ZQAFrAevdpgY5ZhXhN495IhsAUOEEqfOv9WYp5WoiqvV7zyHmHrBUyUzFrJkACeH1Ifg9okPjhL4ABEHXgdKHvv9q86AURXUfFE6qDb40LS1l;
-            Expires=Mon, 25 Jul 2022 12:09:04 GMT; Path=/
-          - AWSALBCORS=E0P1LcKF9ZkOMI5ZQAFrAevdpgY5ZhXhN495IhsAUOEEqfOv9WYp5WoiqvV7zyHmHrBUyUzFrJkACeH1Ifg9okPjhL4ABEHXgdKHvv9q86AURXUfFE6qDb40LS1l;
-            Expires=Mon, 25 Jul 2022 12:09:04 GMT; Path=/; SameSite=None; Secure
-        Strict-Transport-Security:
+        server:
+          - istio-envoy
+        strict-transport-security:
           - max-age=31536000; includeSubDomains
-        Vary:
+        vary:
           - Cookie
-        X-App-Version:
-          - v2.9.0
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
           - nosniff
           - nosniff
-        X-Frame-Options:
+        x-envoy-upstream-service-time:
+          - '291'
+        x-frame-options:
           - DENY
           - SAMEORIGIN
-        X-Secrets-Engine-Version:
-          - 2.71.0
-        X-XSS-Protection:
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
           - 1; mode=block
       status:
         code: 200

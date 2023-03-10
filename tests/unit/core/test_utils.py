@@ -11,7 +11,7 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.errors import UnexpectedError, UnknownInstanceError
+from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
 from ggshield.core.utils import (
     MatchIndices,
     api_to_dashboard_url,
@@ -151,7 +151,7 @@ def test_retrieve_client_blank_state(isolated_fs):
     THEN the exception message is user-friendly for new users
     """
     with pytest.raises(
-        click.UsageError,
+        APIKeyCheckError,
         match="GitGuardian API key is needed",
     ):
         with patch.dict(os.environ, clear=True):

@@ -1,11 +1,10 @@
 import urllib3
-from click import UsageError
 from pygitguardian import GGClient
 from requests import Session
 
 from .config import Config
 from .constants import DEFAULT_DASHBOARD_URL
-from .errors import UnexpectedError, UnknownInstanceError
+from .errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
 
 
 def create_client_from_config(config: Config) -> GGClient:
@@ -20,7 +19,7 @@ def create_client_from_config(config: Config) -> GGClient:
             # This can happen when the user first tries the app and has not gone through
             # the authentication procedure yet. In this case, replace the error message
             # complaining about an unknown instance with a more user-friendly one.
-            raise UsageError("GitGuardian API key is needed.")
+            raise APIKeyCheckError(e.instance, "GitGuardian API key is needed.")
         else:
             raise
 
@@ -54,3 +53,22 @@ def create_session(allow_self_signed: bool = False) -> Session:
         urllib3.disable_warnings()
         session.verify = False
     return session
+
+
+def check_client_api_key(client: GGClient) -> None:
+    """
+    Raises APIKeyCheckError if the API key configured for the client is not usable
+    (either it is invalid or unset). Raises UnexpectedError if the API is down.
+    """
+    response = client.health_check()
+    if response.success:
+        return
+
+    if response.status_code == 401:
+        raise APIKeyCheckError(
+            client.base_uri, f"Invalid API key. Details: {response.detail}"
+        )
+    else:
+        raise UnexpectedError(
+            f"API is not responding as expected. Details: {response.detail}"
+        )

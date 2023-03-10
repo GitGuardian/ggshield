@@ -12,6 +12,7 @@ from pygitguardian.iac_models import IaCScanResult
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
+from ggshield.core.client import check_client_api_key
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import (
     leak_dictionary_by_ignore_sha,
@@ -171,7 +172,11 @@ class SecretScanner:
         ignored_matches: Optional[Iterable[IgnoredMatch]] = None,
         ignored_detectors: Optional[Set[str]] = None,
         ignore_known_secrets: Optional[bool] = None,
+        check_api_key: Optional[bool] = True,
     ):
+        if check_api_key:
+            check_client_api_key(client)
+
         self.client = client
         self.cache = cache
         self.ignored_matches = ignored_matches or []

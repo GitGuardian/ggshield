@@ -9,49 +9,44 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.3.5 (Darwin;py3.10.0) ggshield
+          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/health
     response:
       body:
         string: '{"detail":"Valid API key."}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - GET, HEAD, OPTIONS
-        Connection:
-          - keep-alive
-        Content-Length:
+        content-length:
           - '27'
-        Content-Type:
+        content-type:
           - application/json
-        Date:
-          - Fri, 15 Jul 2022 15:45:19 GMT
-        Referrer-Policy:
+        date:
+          - Mon, 06 Feb 2023 10:55:43 GMT
+        referrer-policy:
           - strict-origin-when-cross-origin
-        Server:
-          - nginx
-        Set-Cookie:
-          - AWSALB=x6mok2aHb/dr+09EDz0c2HC/Yg0HUKWq8JrU5j9jonFChlk++BIqGt0yWFGVJaVzjQiiA3KBI5Ct76uhEWBQ0zOb9ZuLufxKqo2y7/SjD0/MAjlVjomshdBJwmn5;
-            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/
-          - AWSALBCORS=x6mok2aHb/dr+09EDz0c2HC/Yg0HUKWq8JrU5j9jonFChlk++BIqGt0yWFGVJaVzjQiiA3KBI5Ct76uhEWBQ0zOb9ZuLufxKqo2y7/SjD0/MAjlVjomshdBJwmn5;
-            Expires=Fri, 22 Jul 2022 15:45:19 GMT; Path=/; SameSite=None; Secure
-        Strict-Transport-Security:
+        server:
+          - istio-envoy
+        strict-transport-security:
           - max-age=31536000; includeSubDomains
-        Vary:
+        vary:
           - Cookie
-        X-App-Version:
-          - v2.9.0
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.22.2
+        x-content-type-options:
           - nosniff
           - nosniff
-        X-Frame-Options:
+        x-envoy-upstream-service-time:
+          - '9'
+        x-frame-options:
           - DENY
           - SAMEORIGIN
-        X-Secrets-Engine-Version:
-          - 2.71.0
-        X-XSS-Protection:
+        x-secrets-engine-version:
+          - 2.83.0
+        x-xss-protection:
           - 1; mode=block
       status:
         code: 200

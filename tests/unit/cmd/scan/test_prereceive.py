@@ -134,10 +134,12 @@ class TestPreReceive:
             in result.output
         )
 
+    @patch("ggshield.scan.repo.check_client_api_key")
     @patch("ggshield.scan.repo.scan_commits_content")
     def test_stdin_supports_gitlab_web_ui(
         self,
         scan_commits_content_mock: Mock,
+        check_client_api_key_mock: Mock,
         tmp_path,
         cli_fs_runner: CliRunner,
     ):
@@ -154,6 +156,8 @@ class TestPreReceive:
         secret_file.write_text(f"github_token = {_SIMPLE_SECRET_TOKEN}\n")
         repo.add(secret_file)
         secret_sha = repo.create_commit()
+
+        check_client_api_key_mock.return_value = None
 
         # This test cannot mock scan_commit_range(): if it did that we would not get
         # the GitLab-specific output because output_handler.process_scan() would not be

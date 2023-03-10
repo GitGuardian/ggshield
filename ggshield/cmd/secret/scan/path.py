@@ -46,9 +46,6 @@ def path_cmd(
         )
 
         with create_progress_bar(doc_type="files") as progress:
-            task_scan = progress.add_task(
-                "[green]Scanning Path...", total=len(files.files)
-            )
 
             scan_context = ScanContext(
                 scan_mode=ScanMode.PATH,
@@ -62,6 +59,9 @@ def path_cmd(
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
                 ignore_known_secrets=config.ignore_known_secrets,
+            )
+            task_scan = progress.add_task(
+                "[green]Scanning Path...", total=len(files.files)
             )
             results = scanner.scan(
                 files.files,
