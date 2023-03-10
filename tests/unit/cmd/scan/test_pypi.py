@@ -72,7 +72,7 @@ class TestPipDownload:
 class TestListPackageFiles:
     package_name: str = "what-ever-non-existing"
     tmp_dir: str = "/tmp/iam-temporary"
-    exclusion_regexes: Set[re.Pattern] = set([re.compile("i am a regex")])
+    exclusion_regexes: Set[re.Pattern] = {re.compile("i am a regex")}
 
     @pytest.mark.parametrize(
         "extension,verbose",

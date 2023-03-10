@@ -29,7 +29,7 @@ class Cache:
         _cache: dict = {}
         if os.stat(self.cache_filename).st_size != 0:
             try:
-                f = open(self.cache_filename, "r")
+                f = open(self.cache_filename)
             except PermissionError:
                 # Hotfix: for the time being we skip cache handling if permission denied
                 return True

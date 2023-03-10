@@ -7,7 +7,7 @@ DOCSET_EXAMPLE_PATH = DATA_PATH / "docset-example.jsonl"
 
 class TestDocsetScan:
     def test_generate_files_from_docsets(self):
-        input_file = open(DOCSET_EXAMPLE_PATH, "r")
+        input_file = open(DOCSET_EXAMPLE_PATH)
         files = list(generate_files_from_docsets(input_file))
         assert {f.filename for f in files} == {
             "https://github.com/owner/repo/issues/1",

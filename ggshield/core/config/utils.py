@@ -27,7 +27,7 @@ def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
     if not os.path.isfile(path):
         return None
 
-    with open(path, "r") as f:
+    with open(path) as f:
         try:
             data = yaml.safe_load(f) or {}
         except (yaml.parser.ParserError, yaml.scanner.ScannerError) as e:

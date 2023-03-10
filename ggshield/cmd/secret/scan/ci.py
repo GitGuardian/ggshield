@@ -70,7 +70,7 @@ def travis_range(verbose: bool) -> List[str]:  # pragma: no cover
         if commit_list:
             return commit_list
 
-    commit_list = get_list_commit_SHA("{}~1...".format(commit_sha))
+    commit_list = get_list_commit_SHA(f"{commit_sha}~1...")
     if commit_list:
         return commit_list
 
@@ -87,7 +87,7 @@ def bitbucket_pipelines_range(verbose: bool) -> List[str]:  # pragma: no cover
     if verbose:
         click.echo(f"BITBUCKET_COMMIT: {commit_sha}", err=True)
 
-    commit_list = get_list_commit_SHA("{}~1...".format(commit_sha))
+    commit_list = get_list_commit_SHA(f"{commit_sha}~1...")
     if commit_list:
         return commit_list
 
@@ -121,7 +121,7 @@ def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
         if commit_list:
             return commit_list
 
-    commit_list = get_list_commit_SHA("{}~1...".format(commit_sha))
+    commit_list = get_list_commit_SHA(f"{commit_sha}~1...")
     if commit_list:
         return commit_list
 
@@ -147,18 +147,16 @@ def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
         )
 
     if before_sha and before_sha != EMPTY_SHA:
-        commit_list = get_list_commit_SHA("{}~1...".format(before_sha))
+        commit_list = get_list_commit_SHA(f"{before_sha}~1...")
         if commit_list:
             return commit_list
 
     if merge_request_target_branch and merge_request_target_branch != EMPTY_SHA:
-        commit_list = get_list_commit_SHA(
-            "origin/{}...".format(merge_request_target_branch)
-        )
+        commit_list = get_list_commit_SHA(f"origin/{merge_request_target_branch}...")
         if commit_list:
             return commit_list
 
-    commit_list = get_list_commit_SHA("{}~1...".format(commit_sha))
+    commit_list = get_list_commit_SHA(f"{commit_sha}~1...")
     if commit_list:
         return commit_list
 
@@ -189,27 +187,27 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
         )
 
     if push_before_sha and push_before_sha != EMPTY_SHA:
-        commit_list = get_list_commit_SHA("{}...".format(push_before_sha))
+        commit_list = get_list_commit_SHA(f"{push_before_sha}...")
         if commit_list:
             return commit_list
 
     if pull_req_base_sha and pull_req_base_sha != EMPTY_SHA:
-        commit_list = get_list_commit_SHA("{}..".format(pull_req_base_sha))
+        commit_list = get_list_commit_SHA(f"{pull_req_base_sha}..")
         if commit_list:
             return commit_list
 
     if push_base_sha and push_base_sha != "null":
-        commit_list = get_list_commit_SHA("{}...".format(push_base_sha))
+        commit_list = get_list_commit_SHA(f"{push_base_sha}...")
         if commit_list:
             return commit_list
 
     if default_branch:
-        commit_list = get_list_commit_SHA("{}...".format(default_branch))
+        commit_list = get_list_commit_SHA(f"{default_branch}...")
         if commit_list:
             return commit_list
 
     if head_sha:
-        commit_list = get_list_commit_SHA("{}~1...".format(head_sha))
+        commit_list = get_list_commit_SHA(f"{head_sha}~1...")
         if commit_list:
             return commit_list
 
@@ -231,7 +229,7 @@ def drone_range(verbose: bool) -> List[str]:  # pragma: no cover
         click.echo(f"DRONE_COMMIT_BEFORE: {before_sha}\n", err=True)
 
     if before_sha and before_sha != EMPTY_SHA:
-        commit_list = get_list_commit_SHA("{}..".format(before_sha))
+        commit_list = get_list_commit_SHA(f"{before_sha}..")
         if commit_list:
             return commit_list
 
@@ -249,7 +247,7 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
         click.echo(f"BUILD_SOURCEVERSION: {head_commit}\n", err=True)
 
     if head_commit:
-        commit_list = get_list_commit_SHA("{}~1...".format(head_commit))
+        commit_list = get_list_commit_SHA(f"{head_commit}~1...")
         if commit_list:
             return commit_list
 

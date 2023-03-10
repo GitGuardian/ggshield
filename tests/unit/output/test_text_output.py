@@ -6,10 +6,6 @@ import pytest
 
 from ggshield.core.utils import Filemode
 from ggshield.output import TextOutputHandler
-from ggshield.output.text.message import (
-    _file_info_decoration,
-    _file_info_default_decoration,
-)
 from ggshield.scan import File, Result, Results, ScanCollection
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
@@ -127,13 +123,9 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
                 optional_header="> This is an example header",
             )
         )
-    # Make output OS-independent, so that it can be safely compared to snapshots
-    # regardless of the current OS:
-    # - Remove colors because color codes are not the same on all OSes
-    # - Replace any custom decoration with the default one
-    output = click.unstyle(output).replace(
-        _file_info_decoration(), _file_info_default_decoration()
-    )
+    # remove colors because color codes are not the same on all OSes. This is required
+    # to compare the output with snapshots.
+    output = click.unstyle(output)
 
     snapshot.assert_match(output)
 
@@ -261,9 +253,7 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         )
     )
 
-    output = click.unstyle(output).replace(
-        _file_info_decoration(), _file_info_default_decoration()
-    )
+    output = click.unstyle(output)
 
     assert_policies_displayed(
         output, verbose, ignore_known_secrets, known_policy_breaks + new_policy_breaks

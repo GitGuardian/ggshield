@@ -192,10 +192,6 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         )
 
 
-class DockerArchiveCreationError(Exception):
-    pass
-
-
 def docker_pull_image(image_name: str, timeout: int) -> None:
     """
     Pull docker image and raise exception on timeout or failed to find image
