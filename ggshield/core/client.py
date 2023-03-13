@@ -1,3 +1,4 @@
+import requests
 import urllib3
 from pygitguardian import GGClient
 from requests import Session
@@ -60,15 +61,24 @@ def check_client_api_key(client: GGClient) -> None:
     Raises APIKeyCheckError if the API key configured for the client is not usable
     (either it is invalid or unset). Raises UnexpectedError if the API is down.
     """
-    response = client.health_check()
+    try:
+        response = client.health_check()
+    except requests.exceptions.ConnectionError as e:
+        raise UnexpectedError(
+            "Failed to connect to GitGuardian server. Check your"
+            f" instance URL settings.\nDetails: {e}."
+        )
+
     if response.success:
         return
 
     if response.status_code == 401:
-        raise APIKeyCheckError(
-            client.base_uri, f"Invalid API key. Details: {response.detail}"
+        raise APIKeyCheckError(client.base_uri, "Invalid API key.")
+    elif response.status_code == 404:
+        raise UnexpectedError(
+            "The server returned a 404 error. Check your instance URL" " settings."
         )
     else:
         raise UnexpectedError(
-            f"API is not responding as expected. Details: {response.detail}"
+            f"Server is not responding as expected.\nDetails: {response.detail}"
         )
