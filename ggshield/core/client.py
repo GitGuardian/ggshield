@@ -20,7 +20,18 @@ def create_client_from_config(config: Config) -> GGClient:
             # This can happen when the user first tries the app and has not gone through
             # the authentication procedure yet. In this case, replace the error message
             # complaining about an unknown instance with a more user-friendly one.
-            raise APIKeyCheckError(e.instance, "GitGuardian API key is needed.")
+            raise APIKeyCheckError(
+                e.instance,
+                """A GitGuardian API key is needed to use ggshield.
+To get one, authenticate to your dashboard by running:
+
+    ggshield auth login
+
+If you are using an on-prem version of GitGuardian, \
+use the --instance option to point to it.
+Read the following documentation for more information: \
+https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
+            )
         else:
             raise
 

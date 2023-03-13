@@ -152,7 +152,7 @@ def test_retrieve_client_blank_state(isolated_fs):
     """
     with pytest.raises(
         APIKeyCheckError,
-        match="GitGuardian API key is needed",
+        match="A GitGuardian API key is needed to use ggshield.",
     ):
         with patch.dict(os.environ, clear=True):
             create_client_from_config(Config())
