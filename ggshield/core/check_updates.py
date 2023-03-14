@@ -42,7 +42,7 @@ def check_for_updates() -> Optional[str]:
         try:
             check_at = cached_data["check_at"]
         except Exception as e:
-            logger.warning("Could not load cached latest version: %s", e)
+            logger.warning("Could not load cached latest version: %s", repr(e))
 
     if check_at > 0 and (time.time() - check_at < 24 * 60 * 60):
         # We checked today, no need to check again
@@ -55,7 +55,7 @@ def check_for_updates() -> Optional[str]:
     try:
         save_yaml_dict({"check_at": time.time()}, CACHE_FILE)
     except Exception as e:
-        logger.warning("Could not save time of version check to cache: %s", e)
+        logger.warning("Could not save time of version check to cache: %s", repr(e))
         # Do not continue if we can't save check time. If we continue we are going to
         # send requests to api.github.com every time ggshield is called.
         return None
@@ -71,7 +71,7 @@ def check_for_updates() -> Optional[str]:
             timeout=CHECK_TIMEOUT,
         )
     except Exception as e:
-        logger.warning("Failed to connect to api.github.com: %s", e)
+        logger.warning("Failed to connect to api.github.com: %s", repr(e))
         return None
 
     if resp.status_code != 200:
@@ -91,7 +91,9 @@ def check_for_updates() -> Optional[str]:
             try:
                 save_yaml_dict({"check_at": check_at}, CACHE_FILE)
             except Exception as e:
-                logger.warning("Could not save time of version check to cache: %s", e)
+                logger.warning(
+                    "Could not save time of version check to cache: %s", repr(e)
+                )
 
             return None
 
@@ -105,7 +107,7 @@ def check_for_updates() -> Optional[str]:
         current_version_split = _split_version(__version__)
         latest_version_split = _split_version(latest_version)
     except Exception as e:
-        logger.warning("Failed to parse response: %s", e)
+        logger.warning("Failed to parse response: %s", repr(e))
         return None
 
     if current_version_split < latest_version_split:
