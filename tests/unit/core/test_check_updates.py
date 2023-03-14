@@ -7,7 +7,11 @@ from _pytest.monkeypatch import MonkeyPatch
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 import ggshield.core
-from ggshield.core.check_updates import CACHE_FILE, check_for_updates
+from ggshield.core.check_updates import (
+    CACHE_FILE,
+    check_for_updates,
+    load_last_check_time,
+)
 
 
 @patch("requests.get")
@@ -103,3 +107,52 @@ def test_check_for_updates_does_nothing_if_cache_cant_be_saved(
     latest_version = check_for_updates()
     assert latest_version is None
     request_get_mock.assert_not_called()
+
+
+def test_load_last_check_time_ok(fs: FakeFilesystem):
+    """
+    GIVEN an update cache file
+    WHEN load_last_check_time() is called
+    THEN it correctly reads the last check time
+    """
+    Path(CACHE_FILE).parent.mkdir(parents=True, exist_ok=False)
+    Path(CACHE_FILE).write_text("check-at: 2")
+
+    assert load_last_check_time() == 2
+
+
+def test_load_last_check_time_no_cache_ok(caplog, fs: FakeFilesystem):
+    """
+    GIVEN no update cache file
+    WHEN load_last_check_time() is called
+    THEN it returns None
+    AND no warning messages are logged
+    """
+    assert load_last_check_time() is None
+    assert len(caplog.records) == 0
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "this-is-not-yaml",
+        "no-cache-key: 1",
+        "check-at: not_a_float",
+    ],
+)
+def test_load_last_check_time_swallows_errors(caplog, fs: FakeFilesystem, content: str):
+    """
+    GIVEN invalid content for the cache file
+    WHEN load_last_check_time() is called
+    THEN it does not raise any exception
+    AND it returns None
+    AND 1 warning message is logged
+    """
+    Path(CACHE_FILE).parent.mkdir(parents=True, exist_ok=False)
+    Path(CACHE_FILE).write_text(content)
+
+    assert load_last_check_time() is None
+    log_record = caplog.records[0]
+    assert log_record.levelname == "WARNING"
+    assert "Could not load cached latest version" in log_record.message
+    assert len(caplog.records) == 1

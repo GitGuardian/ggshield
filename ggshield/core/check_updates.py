@@ -17,6 +17,8 @@ CACHE_FILE = os.path.join(
     "update_check.yaml",
 )
 
+CHECK_AT_KEY = "check-at"
+
 
 # Use a short timeout to prevent blocking
 CHECK_TIMEOUT = 5
@@ -26,25 +28,32 @@ def _split_version(version: str) -> Tuple[int, ...]:
     return tuple([int(x) for x in version.split(".")])
 
 
+def load_last_check_time() -> Optional[float]:
+    """Returns the last time we checked, or None if not available"""
+    try:
+        cached_data = load_yaml_dict(CACHE_FILE)
+        if cached_data is None:
+            # File does not exist, do not log any warning
+            return None
+        return float(cached_data[CHECK_AT_KEY])
+    except Exception as e:
+        logger.warning("Could not load cached latest version: %s", repr(e))
+        return None
+
+
+def save_last_check_time(check_at: float) -> None:
+    """Store the last time we checked"""
+    save_yaml_dict({CHECK_AT_KEY: check_at}, CACHE_FILE)
+
+
 def check_for_updates() -> Optional[str]:
     """
     Check for ggshield updates on GitHub. Return the latest version if available.
     Query GitHub API at most once per day and save locally the latest version in a file.
     """
-    check_at = -1.0
-    # Load the last time we checked
-    try:
-        cached_data = load_yaml_dict(CACHE_FILE)
-    except ValueError:
-        # Swallow the error
-        cached_data = None
-    if cached_data is not None:
-        try:
-            check_at = cached_data["check_at"]
-        except Exception as e:
-            logger.warning("Could not load cached latest version: %s", repr(e))
+    check_at = load_last_check_time()
 
-    if check_at > 0 and (time.time() - check_at < 24 * 60 * 60):
+    if check_at is not None and (time.time() - check_at < 24 * 60 * 60):
         # We checked today, no need to check again
         return None
 
@@ -53,7 +62,7 @@ def check_for_updates() -> Optional[str]:
     # Save check time now so that it is saved even if the check fails. This ensures we
     # don't try for every command if the user does not have network access.
     try:
-        save_yaml_dict({"check_at": time.time()}, CACHE_FILE)
+        save_last_check_time(time.time())
     except Exception as e:
         logger.warning("Could not save time of version check to cache: %s", repr(e))
         # Do not continue if we can't save check time. If we continue we are going to
@@ -89,7 +98,7 @@ def check_for_updates() -> Optional[str]:
                 return None
 
             try:
-                save_yaml_dict({"check_at": check_at}, CACHE_FILE)
+                save_last_check_time(check_at)
             except Exception as e:
                 logger.warning(
                     "Could not save time of version check to cache: %s", repr(e)
