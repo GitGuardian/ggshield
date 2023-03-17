@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Mapping, Optional
 
@@ -8,6 +9,9 @@ from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import get_attr_mapping, remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_DASHBOARD_URL
 from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
+
+
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -82,12 +86,15 @@ class Config:
 
         try:
             url = os.environ["GITGUARDIAN_INSTANCE"]
-            return remove_url_trailing_slash(url)
+            logger.debug("Using instance URL from $GITGUARDIAN_INSTANCE")
         except KeyError:
             pass
+        else:
+            return remove_url_trailing_slash(url)
 
         try:
             name = os.environ["GITGUARDIAN_API_URL"]
+            logger.debug("Using API URL from $GITGUARDIAN_API_URL")
         except KeyError:
             pass
         else:
@@ -138,9 +145,11 @@ class Config:
         - the api key from the selected instance
         """
         try:
-            return os.environ["GITGUARDIAN_API_KEY"]
+            key = os.environ["GITGUARDIAN_API_KEY"]
+            logger.debug("Using API key from $GITGUARDIAN_API_KEY")
         except KeyError:
-            return self.auth_config.get_instance_token(self.instance_name)
+            key = self.auth_config.get_instance_token(self.instance_name)
+        return key
 
     def add_ignored_match(self, *args: Any, **kwargs: Any) -> None:
         return self.user_config.secret.add_ignored_match(*args, **kwargs)
