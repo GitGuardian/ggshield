@@ -1,14 +1,15 @@
-import logging
 from pathlib import Path
 from typing import Any, Optional, Sequence, Type
 
 import click
+from pygitguardian import GGClient
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 from pygitguardian.models import Detail
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
+from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
 from ggshield.iac.filter import get_iac_files_from_paths
@@ -17,9 +18,6 @@ from ggshield.output import OutputHandler
 from ggshield.output.json.iac_json_output_handler import IaCJSONOutputHandler
 from ggshield.output.text.iac_text_output_handler import IaCTextOutputHandler
 from ggshield.scan import ScanCollection, ScanContext, ScanMode
-
-
-logger = logging.getLogger(__name__)
 
 
 def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
@@ -156,14 +154,13 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
     )
 
     if not scan.success or not isinstance(scan, IaCScanResult):
-        handle_scan_error(scan)
+        handle_scan_error(client, scan)
         return None
     return scan
 
 
-def handle_scan_error(detail: Detail) -> None:
-    logger.error("status_code=%d detail=%s", detail.status_code, detail.detail)
+def handle_scan_error(client: GGClient, detail: Detail) -> None:
     if detail.status_code == 401:
-        raise click.UsageError(detail.detail)
+        raise APIKeyCheckError(client.base_uri, "Invalid API key.")
     display_error("\nError scanning.")
     display_error(str(detail))
