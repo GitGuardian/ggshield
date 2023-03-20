@@ -9,23 +9,25 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
       method: GET
-      uri: https://api.gitguardian.com/v1/health
+      uri: https://api.gitguardian.com/v1/metadata
     response:
       body:
-        string: '{"detail":"Valid API key."}'
+        string: '{"version":"v2.30.2","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"public_api__ggshield_auth_flow_enabled":true,"general__onboarding_segmentation_v1_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576}}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - GET, HEAD, OPTIONS
         content-length:
-          - '27'
+          - '446'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Mon, 06 Feb 2023 10:55:54 GMT
+          - Mon, 22 May 2023 12:28:58 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -35,17 +37,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.22.2
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '10'
+          - '20'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.83.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -53,8 +55,8 @@ interactions:
         message: OK
   - request:
       body:
-        '[{"filename": "/tmp/tmp6fbfbwg3/file1", "document": "This is a file with
-        no secrets."}, {"filename": "/tmp/tmp6fbfbwg3/file2", "document": "This is a
+        '[{"filename": "/tmp/tmptk1foibc/file2", "document": "This is a file with
+        no secrets."}, {"filename": "/tmp/tmptk1foibc/file1", "document": "This is a
         file with no secrets."}]'
       headers:
         Accept:
@@ -68,7 +70,7 @@ interactions:
         Content-Type:
           - application/json
         GGShield-Command-Id:
-          - 0d77354a-2c49-4887-8d77-635f78b29f59
+          - d1c29087-0a28-4728-803d-a26a70c6177c
         GGShield-Command-Path:
           - cli secret scan path
         GGShield-OS-Name:
@@ -78,9 +80,9 @@ interactions:
         GGShield-Python-Version:
           - 3.10.6
         GGShield-Version:
-          - 1.14.2
+          - 1.15.1
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
         mode:
           - path
       method: POST
@@ -100,8 +102,10 @@ interactions:
           - '215'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Mon, 06 Feb 2023 10:55:54 GMT
+          - Mon, 22 May 2023 12:28:59 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -111,17 +115,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.22.2
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '42'
+          - '59'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.83.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:

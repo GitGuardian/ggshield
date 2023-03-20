@@ -1,10 +1,10 @@
 interactions:
   - request:
       body: !!binary |
-        LS0xYWZiMmVkNzFkMWVlMmM2ZGM1MmMzM2FjYjgyMGM3Zg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS04YjE4YTRlNTc0YjMzZDdhNDYzYmI2OTY1OWQ2NjA1YQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        cen4YwL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tMWFmYjJlZDcxZDFl
-        ZTJjNmRjNTJjMzNhY2I4MjBjN2YtLQ0K
+        A2BrZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOGIxOGE0ZTU3NGIz
+        M2Q3YTQ2M2JiNjk2NTlkNjYwNWEtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -15,21 +15,21 @@ interactions:
         Content-Length:
           - '195'
         Content-Type:
-          - multipart/form-data; boundary=1afb2ed71d1ee2c6dc52c33acb820c7f
+          - multipart/form-data; boundary=8b18a4e574b33d7a463bb69659d6605a
         GGShield-Command-Id:
-          - 0c0fcd4d-5e4c-43b4-b2ff-ebbce62370dc
+          - 2eb3e1eb-b851-4ddc-9f84-924fec1da1e1
         GGShield-Command-Path:
           - cli iac scan
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
-          - '20.04'
+          - '22.04'
         GGShield-Python-Version:
-          - 3.8.10
+          - 3.10.6
         GGShield-Version:
-          - 1.14.4
+          - 1.15.1
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.8.10) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
         mode:
           - directory
       method: POST
@@ -46,8 +46,10 @@ interactions:
           - '87'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Fri, 24 Feb 2023 16:44:34 GMT
+          - Mon, 22 May 2023 12:28:52 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -57,17 +59,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.24.1
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '173'
+          - '208'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.85.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:

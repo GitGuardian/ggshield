@@ -40,7 +40,7 @@ setup(
         "marshmallow-dataclass>=8.5.8,<8.6.0",
         "oauthlib>=3.2.1,<3.3.0",
         # TODO: replace this with a real version number as soon as a new version of py-gitguardian is out
-        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@067188cc34a9a20e83ca983160152799bd3fe7d4",  # noqa: E501
+        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@0c54209c86ea292ba4f375d4ca44f1d4440e1cb1",  # noqa: E501
         "python-dotenv>=0.21.0,<0.22.0",
         "pyyaml>=6.0,<6.1",
         "requests>=2.31.0,<2.32.0",
