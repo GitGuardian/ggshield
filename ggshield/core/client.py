@@ -4,7 +4,7 @@ from pygitguardian import GGClient
 from requests import Session
 
 from .config import Config
-from .constants import DEFAULT_DASHBOARD_URL
+from .constants import DEFAULT_INSTANCE_URL
 from .errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
 
 
@@ -16,7 +16,7 @@ def create_client_from_config(config: Config) -> GGClient:
         api_key = config.api_key
         api_url = config.api_url
     except UnknownInstanceError as e:
-        if e.instance == DEFAULT_DASHBOARD_URL:
+        if e.instance == DEFAULT_INSTANCE_URL:
             # This can happen when the user first tries the app and has not gone through
             # the authentication procedure yet. In this case, replace the error message
             # complaining about an unknown instance with a more user-friendly one.

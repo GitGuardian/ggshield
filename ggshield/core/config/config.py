@@ -7,7 +7,7 @@ import click
 from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import get_attr_mapping, remove_url_trailing_slash
-from ggshield.core.constants import DEFAULT_DASHBOARD_URL
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
 
@@ -103,7 +103,7 @@ class Config:
         if self.user_config.instance:
             return self.user_config.instance
 
-        return DEFAULT_DASHBOARD_URL
+        return DEFAULT_INSTANCE_URL
 
     def set_cmdline_instance_name(self, name: str) -> None:
         """

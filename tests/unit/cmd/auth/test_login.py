@@ -13,6 +13,7 @@ from ggshield.cmd.auth.utils import (
 )
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.core.oauth import (
     OAuthClient,
@@ -22,7 +23,7 @@ from ggshield.core.oauth import (
 )
 from tests.unit.conftest import assert_invoke_ok
 
-from ..utils import prepare_config
+from ..utils import add_instance_config
 
 
 _TOKEN_RESPONSE_PAYLOAD = {
@@ -229,11 +230,13 @@ class TestAuthLoginToken:
 
 
 class TestAuthLoginWeb:
-    @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
+    @pytest.mark.parametrize(
+        "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
+    )
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
 
         self.prepare_mocks(monkeypatch, instance_url=instance_url)
-        prepare_config(instance_url=instance_url)
+        add_instance_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
@@ -243,7 +246,9 @@ class TestAuthLoginWeb:
             output, "ggshield is already authenticated without an expiry date"
         )
 
-    @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
+    @pytest.mark.parametrize(
+        "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
+    )
     @pytest.mark.parametrize(
         ["month", "day", "str_date"],
         [
@@ -260,7 +265,7 @@ class TestAuthLoginWeb:
         dt = datetime.strptime(f"2100-{month}-{day}T00:00:00+0000", DT_FORMAT)
 
         self.prepare_mocks(monkeypatch, instance_url=instance_url)
-        prepare_config(instance_url=instance_url, expiry_date=dt)
+        add_instance_config(instance_url=instance_url, expiry_date=dt)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
@@ -385,13 +390,13 @@ class TestAuthLoginWeb:
 
         if existing_expired_token:
             # save expired in config
-            prepare_config(
+            add_instance_config(
                 expiry_date=datetime.now(tz=timezone.utc).replace(microsecond=0)
                 - timedelta(days=2)
             )
         if existing_unrelated_token:
             # add a dummy unrelated confif
-            prepare_config(instance_url="http://some-gg-instance.com")
+            add_instance_config(instance_url="http://some-gg-instance.com")
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
@@ -764,7 +769,7 @@ class TestAuthLoginWeb:
         THEN it fails
         """
         self.prepare_mocks(monkeypatch, instance_url=instance_url, sso_url=sso_url)
-        prepare_config(instance_url=instance_url)
+        add_instance_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(
             cli_fs_runner, method=method, expect_check_feature_flag=False

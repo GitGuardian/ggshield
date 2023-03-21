@@ -6,12 +6,10 @@ from requests.exceptions import ConnectionError
 
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode
 
-from ..utils import prepare_config
-
-
-DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
+from ..utils import add_instance_config
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +27,7 @@ class TestAuthLogout:
         THEN the command exits with an explanatory message
         """
         instance_url = "https://dashboard.gitguardian.com"
-        prepare_config(with_account=False)
+        add_instance_config(with_account=False)
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url)
 
         assert exit_code == ExitCode.UNEXPECTED_ERROR, output
@@ -39,7 +37,9 @@ class TestAuthLogout:
             "  ggshield auth login\n"
         )
 
-    @pytest.mark.parametrize("instance_url", (None, "https://some-gg-instance.com"))
+    @pytest.mark.parametrize(
+        "instance_url", (DEFAULT_INSTANCE_URL, "https://some-gg-instance.com")
+    )
     @pytest.mark.parametrize("revoke", (True, False))
     def test_valid_logout(self, revoke, instance_url, monkeypatch, cli_fs_runner):
         """
@@ -54,10 +54,10 @@ class TestAuthLogout:
         monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
 
         token_name = "My great token"
-        prepare_config(instance_url=instance_url, token_name=token_name)
+        add_instance_config(instance_url=instance_url, token_name=token_name)
 
         # unrelated config that should remain unchanged
-        prepare_config(instance_url=unrelated_url)
+        add_instance_config(instance_url=unrelated_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url, revoke=revoke)
 
@@ -102,7 +102,7 @@ class TestAuthLogout:
         post_mock = Mock(side_effect=ConnectionError("Http max retry"))
         monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
 
-        prepare_config()
+        add_instance_config()
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         post_mock.assert_called_once()
@@ -126,7 +126,7 @@ class TestAuthLogout:
         post_mock = Mock(return_value=Mock(status_code=500, ok=False))
         monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
 
-        prepare_config()
+        add_instance_config()
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         post_mock.assert_called_once()
@@ -152,11 +152,11 @@ class TestAuthLogout:
         monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
 
         for instance_url in [
-            None,
+            DEFAULT_INSTANCE_URL,
             "https://some-gg-instance.com",
             "https://some-other-gg-instance.com",
         ]:
-            prepare_config(instance_url)
+            add_instance_config(instance_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner, all_tokens=True)
         assert len(post_mock.call_args_list) == 3
