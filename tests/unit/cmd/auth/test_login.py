@@ -440,7 +440,20 @@ class TestAuthLoginWeb:
     ):
         """
         Prepare object and function mocks to emulate HTTP requests
-        and server interactions
+        and server interactions. The available mocks are:
+        - self._wait_for_callback_mock
+        - self._webbrowser_open_mock
+        - self._mock_server_class
+        - self._client_post_mock
+        - self._client_get_mock
+        - self._check_instance_has_enabled_flow_mock
+
+        It also defines the following fields:
+        self._token_name
+        self._lifetime
+        self._instance_url
+        self._sso_url
+        self._generated_token_name
         """
         token = "mysupertoken"
         config = Config()
@@ -460,8 +473,8 @@ class TestAuthLoginWeb:
         )
 
         # generate the expected oauth state
-        self._state = self._get_oauth_state() if is_state_valid else "invalid_state"
-        url_params = {"state": self._state}
+        oauth_state = self._get_oauth_state() if is_state_valid else "invalid_state"
+        url_params = {"state": oauth_state}
         if authorization_code:
             url_params["code"] = authorization_code
 
