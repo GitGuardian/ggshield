@@ -230,6 +230,28 @@ class TestAuthLoginToken:
 
 
 class TestAuthLoginWeb:
+    @pytest.fixture(autouse=True)
+    def setup_method(self, monkeypatch):
+        """Define parameter-less mocks. Parametrized mocks are defined in prepare_mocks()."""
+        # open browser for the user to login
+        self._webbrowser_open_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.core.oauth.webbrowser.open_new_tab", self._webbrowser_open_mock
+        )
+
+        # Ensure that original wait_for_callback method is not called
+        self._wait_for_callback_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.core.oauth.OAuthClient._wait_for_callback",
+            self._wait_for_callback_mock,
+        )
+
+        self._check_instance_has_enabled_flow_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
+            self._check_instance_has_enabled_flow_mock,
+        )
+
     @pytest.mark.parametrize(
         "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
     )
@@ -441,12 +463,8 @@ class TestAuthLoginWeb:
         """
         Prepare object and function mocks to emulate HTTP requests
         and server interactions. The available mocks are:
-        - self._wait_for_callback_mock
-        - self._webbrowser_open_mock
-        - self._mock_server_class
         - self._client_post_mock
         - self._client_get_mock
-        - self._check_instance_has_enabled_flow_mock
 
         It also defines the following fields:
         self._token_name
@@ -486,24 +504,11 @@ class TestAuthLoginWeb:
             self._get_oauth_client_class(callback_url),
         )
 
-        # Ensure that original wait_for_code method is not called
-        self._wait_for_callback_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.core.oauth.OAuthClient._wait_for_callback",
-            self._wait_for_callback_mock,
-        )
-
-        # open browser for the user to login
-        self._webbrowser_open_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.core.oauth.webbrowser.open_new_tab", self._webbrowser_open_mock
-        )
-
         # avoid starting a server on port 1234
-        self._mock_server_class = Mock(
+        mock_server_class = Mock(
             side_effect=self._get_oserror_side_effect(used_port_count)
         )
-        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", self._mock_server_class)
+        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", mock_server_class)
 
         token_response_payload = {}
         if is_exchange_ok:
@@ -531,14 +536,6 @@ class TestAuthLoginWeb:
             )
         )
         monkeypatch.setattr("ggshield.core.client.GGClient.get", self._client_get_mock)
-
-        self._check_instance_has_enabled_flow_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
-            self._check_instance_has_enabled_flow_mock,
-        )
-
-        # run cli command
 
     def run_cmd(self, cli_fs_runner, method="web", expect_check_feature_flag=True):
         """
