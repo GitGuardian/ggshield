@@ -1,6 +1,7 @@
 import json
 import urllib.parse as urlparse
 from datetime import datetime, timedelta, timezone
+from enum import IntEnum, auto
 from typing import Any, Dict, Optional
 from unittest.mock import Mock
 
@@ -229,6 +230,19 @@ class TestAuthLoginToken:
         )
 
 
+class LoginResult(IntEnum):
+    """Represents the possible results of the `auth login`. Values are ordered in how
+    far they can happen in the process.
+    """
+
+    NOT_ENOUGH_PORTS = auto()
+    INVALID_STATE = auto()
+    NO_AUTHORIZATION_CODE = auto()
+    EXCHANGE_FAILED = auto()
+    INVALID_TOKEN = auto()
+    SUCCESS = auto()
+
+
 class TestAuthLoginWeb:
     @pytest.fixture(autouse=True)
     def setup_method(self, monkeypatch):
@@ -305,7 +319,7 @@ class TestAuthLoginWeb:
         THEN the auth flow fails with an explanatory message
         """
 
-        self.prepare_mocks(monkeypatch, used_port_count=1000)
+        self.prepare_mocks(monkeypatch, login_result=LoginResult.NOT_ENOUGH_PORTS)
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
@@ -316,14 +330,14 @@ class TestAuthLoginWeb:
         self._assert_config_is_empty()
 
     @pytest.mark.parametrize(
-        ["authorization_code", "is_state_valid"],
+        "login_result",
         [
-            pytest.param(None, True, id="no-auth-code"),
-            pytest.param("some_authorization_code", False, id="invalid-state"),
+            LoginResult.INVALID_STATE,
+            LoginResult.NO_AUTHORIZATION_CODE,
         ],
     )
     def test_invalid_oauth_params_exits_error(
-        self, authorization_code, is_state_valid, cli_fs_runner, monkeypatch
+        self, login_result, cli_fs_runner, monkeypatch
     ):
         """
         GIVEN -
@@ -334,8 +348,7 @@ class TestAuthLoginWeb:
         """
         self.prepare_mocks(
             monkeypatch,
-            authorization_code=authorization_code,
-            is_state_valid=is_state_valid,
+            login_result=login_result,
         )
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
@@ -358,7 +371,7 @@ class TestAuthLoginWeb:
         against an access token fails
         THEN the auth flow fails with an explanatory message
         """
-        self.prepare_mocks(monkeypatch, is_exchange_ok=False)
+        self.prepare_mocks(monkeypatch, login_result=LoginResult.EXCHANGE_FAILED)
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
@@ -376,7 +389,7 @@ class TestAuthLoginWeb:
         WHEN the token is invalid
         THEN the auth flow fails with an explanatory message
         """
-        self.prepare_mocks(monkeypatch, is_token_valid=False)
+        self.prepare_mocks(monkeypatch, login_result=LoginResult.INVALID_TOKEN)
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
@@ -453,11 +466,8 @@ class TestAuthLoginWeb:
         token_name=None,
         lifetime=None,
         instance_url=None,
-        authorization_code="some_authorization_code",
         used_port_count=0,
-        is_state_valid=True,
-        is_exchange_ok=True,
-        is_token_valid=True,
+        login_result: LoginResult = LoginResult.SUCCESS,
         sso_url=None,
     ):
         """
@@ -491,10 +501,14 @@ class TestAuthLoginWeb:
         )
 
         # generate the expected oauth state
-        oauth_state = self._get_oauth_state() if is_state_valid else "invalid_state"
+        oauth_state = (
+            "invalid_state"
+            if login_result == LoginResult.INVALID_STATE
+            else self._get_oauth_state()
+        )
         url_params = {"state": oauth_state}
-        if authorization_code:
-            url_params["code"] = authorization_code
+        if login_result != LoginResult.NO_AUTHORIZATION_CODE:
+            url_params["code"] = "some_authorization_code"
 
         callback_url = "http://localhost:1234/?" + urlparse.urlencode(url_params)
 
@@ -505,13 +519,19 @@ class TestAuthLoginWeb:
         )
 
         # avoid starting a server on port 1234
+        if login_result == LoginResult.NOT_ENOUGH_PORTS:
+            used_port_count = 1000
         mock_server_class = Mock(
             side_effect=self._get_oserror_side_effect(used_port_count)
         )
         monkeypatch.setattr("ggshield.core.oauth.HTTPServer", mock_server_class)
 
         token_response_payload = {}
-        if is_exchange_ok:
+        if login_result == LoginResult.EXCHANGE_FAILED:
+            self._client_post_mock = Mock(
+                return_value=MockRequestsResponse({}, status_code=400)
+            )
+        else:
             token_response_payload = _TOKEN_RESPONSE_PAYLOAD.copy()
             if lifetime is not None:
                 expire_at = self._get_expiry_date().isoformat()
@@ -523,16 +543,13 @@ class TestAuthLoginWeb:
                     {"key": token, **token_response_payload}
                 )
             )
-        else:
-            self._client_post_mock = Mock(
-                return_value=MockRequestsResponse({}, status_code=400)
-            )
         monkeypatch.setattr("ggshield.core.client.Session.post", self._client_post_mock)
 
         # mock api call to test the access token
         self._client_get_mock = Mock(
             return_value=MockRequestsResponse(
-                token_response_payload, status_code=200 if is_token_valid else 400
+                token_response_payload,
+                status_code=400 if login_result == LoginResult.INVALID_TOKEN else 200,
             )
         )
         monkeypatch.setattr("ggshield.core.client.GGClient.get", self._client_get_mock)
