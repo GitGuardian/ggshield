@@ -33,7 +33,6 @@ setup(
     maintainer="GitGuardian",
     entry_points={"console_scripts": ["ggshield=ggshield.cmd.main:main"]},
     install_requires=[
-        # Keep this in sync with the Pipfile
         "appdirs>=1.4.4,<1.5.0",
         "charset-normalizer>=2.1.1,<2.2.0",
         "click>=8.1,<8.2",
