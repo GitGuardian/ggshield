@@ -2,7 +2,7 @@ import os
 import platform
 from os.path import dirname, join, realpath
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 import pytest
 import vcr
@@ -646,10 +646,11 @@ def assert_invoke_ok(result: Result):
 
 
 class MockRequestsResponse:
-    def __init__(self, status_code, json_data):
+    def __init__(self, json_data: Dict[str, Any], status_code: int = 200):
         self.headers = {"content-type": "application/json"}
         self.status_code = status_code
         self.json_data = json_data
+        self.ok = status_code < 400
 
     def json(self):
         return self.json_data

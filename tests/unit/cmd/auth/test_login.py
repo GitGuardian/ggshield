@@ -21,7 +21,7 @@ from ggshield.core.oauth import (
     get_error_param,
     get_pretty_date,
 )
-from tests.unit.conftest import assert_invoke_ok
+from tests.unit.conftest import MockRequestsResponse, assert_invoke_ok
 
 from ..utils import add_instance_config
 
@@ -509,26 +509,25 @@ class TestAuthLoginWeb:
         if is_exchange_ok:
             token_response_payload = _TOKEN_RESPONSE_PAYLOAD.copy()
             if lifetime is not None:
-                token_response_payload[
-                    "expire_at"
-                ] = self._get_expiry_date().isoformat()
+                expire_at = self._get_expiry_date().isoformat()
+                token_response_payload["expire_at"] = expire_at
 
-        # mock api call to exchange the code against a valid access token
-        self._client_post_mock = Mock(
-            return_value=Mock(
-                ok=is_exchange_ok,
-                json=lambda: (
-                    {"key": token, **token_response_payload} if is_exchange_ok else {}
-                ),
+            # mock api call to exchange the code against a valid access token
+            self._client_post_mock = Mock(
+                return_value=MockRequestsResponse(
+                    {"key": token, **token_response_payload}
+                )
             )
-        )
+        else:
+            self._client_post_mock = Mock(
+                return_value=MockRequestsResponse({}, status_code=400)
+            )
         monkeypatch.setattr("ggshield.core.client.Session.post", self._client_post_mock)
 
         # mock api call to test the access token
         self._client_get_mock = Mock(
-            return_value=Mock(
-                ok=is_token_valid,
-                json=lambda: token_response_payload,
+            return_value=MockRequestsResponse(
+                token_response_payload, status_code=200 if is_token_valid else 400
             )
         )
         monkeypatch.setattr("ggshield.core.client.GGClient.get", self._client_get_mock)
@@ -728,10 +727,8 @@ class TestAuthLoginWeb:
 
         def client_get_mock(self_, url, **kwargs):
             if url.endswith("/v1/metadata"):
-                return Mock(
-                    ok=status_code < 400,
-                    status_code=status_code,
-                    json=lambda: {
+                return MockRequestsResponse(
+                    {
                         "version": version,
                         "preferences": {
                             "public_api__ggshield_auth_flow_enabled": preference_enabled
@@ -739,6 +736,7 @@ class TestAuthLoginWeb:
                         if preference_enabled is not None
                         else {},
                     },
+                    status_code=status_code,
                 )
             raise NotImplementedError
 
