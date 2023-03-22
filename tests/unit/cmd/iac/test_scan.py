@@ -7,7 +7,8 @@ from pytest_mock import MockerFixture
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, MockRequestsResponse, my_vcr
+from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
+from tests.unit.request_mock import MockRequestsResponse
 
 
 @my_vcr.use_cassette("test_iac_scan_no_argument")
