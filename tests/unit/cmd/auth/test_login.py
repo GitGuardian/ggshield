@@ -62,6 +62,10 @@ VALID_TOKEN_INVALID_SCOPE_RESPONSE = MockRequestsResponse(
 
 INVALID_TOKEN_RESPONSE = MockRequestsResponse({"detail": "Invalid API key."}, 401)
 
+HEALTH_ENDPOINT = "/v1/health"
+
+HEALTH_VALID_TOKEN_RESPONSE = MockRequestsResponse({"detail": "Valid API key."})
+
 
 @pytest.fixture(autouse=True)
 def tmp_config(monkeypatch, tmp_path):
@@ -283,6 +287,8 @@ class TestAuthLoginWeb:
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
 
         self._instance_url = instance_url
+        self._request_mock.add_GET(HEALTH_ENDPOINT, HEALTH_VALID_TOKEN_RESPONSE)
+
         add_instance_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
@@ -313,6 +319,8 @@ class TestAuthLoginWeb:
         dt = datetime.strptime(f"2100-{month}-{day}T00:00:00+0000", DT_FORMAT)
 
         self._instance_url = instance_url
+        self._request_mock.add_GET(HEALTH_ENDPOINT, HEALTH_VALID_TOKEN_RESPONSE)
+
         add_instance_config(instance_url=instance_url, expiry_date=dt)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
@@ -323,6 +331,31 @@ class TestAuthLoginWeb:
         self._assert_last_print(
             output, f"ggshield is already authenticated until {str_date} 2100"
         )
+
+    def test_auth_login_recreates_token_if_deleted_server_side(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a token stored in the config
+        AND the token does not exist on the server
+        WHEN `ggshield auth login` is called
+        THEN it recreates the token
+        """
+
+        # Insert the call to check the stored token
+        self._request_mock.add_GET(HEALTH_ENDPOINT, INVALID_TOKEN_RESPONSE)
+        self.prepare_mocks(monkeypatch)
+
+        add_instance_config()
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+
+        self._request_mock.assert_all_calls_happened()
+
+        assert "Success! You are now authenticated" in output
 
     def test_no_port_available_exits_error(self, cli_fs_runner, monkeypatch):
         """
