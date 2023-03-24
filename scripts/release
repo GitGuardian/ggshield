@@ -32,7 +32,7 @@ RELEASE_BRANCH = os.environ.get("RELEASE_BRANCH", "main")
 def check_run(
     cmd: List[Union[str, Path]], **kwargs: Any
 ) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, check=True, **kwargs)
+    return subprocess.run(cmd, check=True, text=True, **kwargs)
 
 
 def log_progress(message: str) -> None:
@@ -46,14 +46,14 @@ def fail(message: str) -> None:
 
 
 def check_working_tree_is_on_release_branch() -> None:
-    proc = check_run(["git", "branch"], capture_output=True, text=True)
+    proc = check_run(["git", "branch"], capture_output=True)
     lines = proc.stdout.splitlines()
     if f"* {RELEASE_BRANCH}" not in lines:
         fail(f"This script must be run on the '{RELEASE_BRANCH}' branch")
 
 
 def check_working_tree_is_clean(allow_dirty: bool) -> None:
-    proc = check_run(["git", "status", "--porcelain"], capture_output=True, text=True)
+    proc = check_run(["git", "status", "--porcelain"], capture_output=True)
     lines = proc.stdout.splitlines()
     if lines:
         if allow_dirty:
