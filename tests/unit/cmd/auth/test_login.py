@@ -23,7 +23,7 @@ from ggshield.core.oauth import (
     get_pretty_date,
 )
 from tests.unit.conftest import assert_invoke_ok
-from tests.unit.request_mock import MockRequestsResponse, RequestMock
+from tests.unit.request_mock import RequestMock, create_json_response
 
 from ..utils import add_instance_config
 
@@ -43,7 +43,7 @@ DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 
 TOKEN_ENDPOINT = "/v1/token"
 
-VALID_TOKEN_RESPONSE = MockRequestsResponse(
+VALID_TOKEN_RESPONSE = create_json_response(
     {
         "type": "personal_access_token",
         "account_id": 17,
@@ -53,18 +53,18 @@ VALID_TOKEN_RESPONSE = MockRequestsResponse(
     }
 )
 
-VALID_TOKEN_INVALID_SCOPE_RESPONSE = MockRequestsResponse(
+VALID_TOKEN_INVALID_SCOPE_RESPONSE = create_json_response(
     {
         **VALID_TOKEN_RESPONSE.json(),
         "scope": ["read:incident", "write:incident", "share:incident", "read:member"],
     }
 )
 
-INVALID_TOKEN_RESPONSE = MockRequestsResponse({"detail": "Invalid API key."}, 401)
+INVALID_TOKEN_RESPONSE = create_json_response({"detail": "Invalid API key."}, 401)
 
 HEALTH_ENDPOINT = "/v1/health"
 
-HEALTH_VALID_TOKEN_RESPONSE = MockRequestsResponse({"detail": "Valid API key."})
+HEALTH_VALID_TOKEN_RESPONSE = create_json_response({"detail": "Valid API key."})
 
 
 @pytest.fixture(autouse=True)
@@ -124,7 +124,7 @@ class TestAuthLoginToken:
                 assert "Authentication failed with token." in result.output
             assert instance not in config_instance_urls
 
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
         check_instance_has_enabled_flow_mock.assert_not_called()
 
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
@@ -153,7 +153,7 @@ class TestAuthLoginToken:
         assert (
             config.auth_config.get_instance(config.instance_name).account.token == token
         )
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
 
     def test_auth_login_token_update_existing_config(self, monkeypatch, cli_fs_runner):
         """
@@ -198,7 +198,7 @@ class TestAuthLoginToken:
             config.auth_config.get_instance(second_instance).account.token
             == second_instance_token
         )
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
 
     def test_auth_login_token_from_stdin(self, monkeypatch, cli_fs_runner):
         """
@@ -231,7 +231,7 @@ class TestAuthLoginToken:
         assert (
             config.auth_config.get_instance(config.instance_name).account.token == token
         )
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
 
 
 class LoginResult(IntEnum):
@@ -293,7 +293,7 @@ class TestAuthLoginWeb:
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
@@ -326,7 +326,7 @@ class TestAuthLoginWeb:
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_not_called()
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
 
         self._assert_last_print(
             output, f"ggshield is already authenticated until {str_date} 2100"
@@ -353,7 +353,7 @@ class TestAuthLoginWeb:
 
         self._webbrowser_open_mock.assert_called_once()
 
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
 
         assert "Success! You are now authenticated" in output
 
@@ -421,7 +421,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
 
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
         self._webbrowser_open_mock.assert_called_once()
         self._assert_last_print(output, "Error: Cannot create a token.")
 
@@ -438,7 +438,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
 
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
         self._assert_last_print(output, "Error: The created token is invalid.")
 
     @pytest.mark.parametrize("token_name", [None, "some token name"])
@@ -479,7 +479,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url(expected_port=29170 + used_port_count)
 
-        self._request_mock.assert_all_calls_happened()
+        self._request_mock.assert_all_requests_happened()
 
         if self._lifetime is None:
             str_date = "never"
@@ -565,7 +565,7 @@ class TestAuthLoginWeb:
 
         token_response_payload = {}
         if login_result == LoginResult.EXCHANGE_FAILED:
-            response = MockRequestsResponse({}, status_code=400)
+            response = create_json_response({}, status_code=400)
         else:
             token_response_payload = VALID_TOKEN_RESPONSE.json().copy()
             if lifetime is not None:
@@ -573,7 +573,7 @@ class TestAuthLoginWeb:
                 token_response_payload["expire_at"] = expire_at
 
             # mock api call to exchange the code against a valid access token
-            response = MockRequestsResponse({"key": token, **token_response_payload})
+            response = create_json_response({"key": token, **token_response_payload})
 
         self._request_mock.add_POST(
             "/v1/oauth/token", response, self._assert_post_payload
@@ -582,7 +582,7 @@ class TestAuthLoginWeb:
         if login_result >= LoginResult.INVALID_TOKEN:
             self._request_mock.add_GET(
                 TOKEN_ENDPOINT,
-                MockRequestsResponse(
+                create_json_response(
                     token_response_payload,
                     400 if login_result == LoginResult.INVALID_TOKEN else 200,
                 ),
@@ -771,7 +771,7 @@ class TestAuthLoginWeb:
 
         def client_get_mock(self_, url, **kwargs):
             if url.endswith("/v1/metadata"):
-                return MockRequestsResponse(
+                return create_json_response(
                     {
                         "version": version,
                         "preferences": {

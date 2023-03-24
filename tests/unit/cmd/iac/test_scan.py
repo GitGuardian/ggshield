@@ -8,7 +8,7 @@ from pytest_mock import MockerFixture
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
-from tests.unit.request_mock import MockRequestsResponse
+from tests.unit.request_mock import create_json_response
 
 
 @my_vcr.use_cassette("test_iac_scan_no_argument")
@@ -100,7 +100,7 @@ def test_iac_scan_error_response(
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
-        return_value=MockRequestsResponse({"detail": "Not found (404)"}, 404),
+        return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
     result = cli_fs_runner.invoke(
         cli,
@@ -120,7 +120,7 @@ def test_iac_scan_json_error_response(
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
-        return_value=MockRequestsResponse({"detail": "Not found (404)"}, 404),
+        return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
     cli_fs_runner.mix_stderr = False
     result = cli_fs_runner.invoke(
@@ -148,7 +148,7 @@ def test_iac_scan_unknown_error_response(
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
-        return_value=MockRequestsResponse({"detail": "Not found (404)"}, 404),
+        return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
     result = cli_fs_runner.invoke(
         cli,

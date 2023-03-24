@@ -1,28 +1,35 @@
+import json
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 import pytest
+from requests import Response
 
 
-class MockRequestsResponse:
-    def __init__(self, json_data: Dict[str, Any], status_code: int = 200):
-        self.headers = {"content-type": "application/json"}
-        self.status_code = status_code
-        self.json_data = json_data
-        self.ok = status_code < 400
+def create_json_response(json_data: Dict[str, Any], status_code: int = 200) -> Response:
+    """Helper function to create a Response returned by the requests package containing
+    JSON content. This is required because `requests.Response` does not provide an easy
+    way to build a response manually.
 
-    def json(self):
-        return self.json_data
+    Can be used on its own or with RequestMock."""
+    response = Response()
+    response.headers = {"content-type": "application/json"}
+    response.status_code = status_code
+    response._content = json.dumps(json_data).encode("utf-8")
+    return response
 
 
+# See ExpectedRequest.data_checker
 DataChecker = Callable[[Any], None]
 
 
 @dataclass
-class ExpectedCall:
+class ExpectedRequest:
+    """Stores an expected request and the response to return"""
+
     method: str
     endpoint: str
-    response: MockRequestsResponse
+    response: Response
 
     # If defined, RequestMock will call this function with the value of the `data` field
     # it receives. It can be used to check the payload is as expected.
@@ -31,7 +38,10 @@ class ExpectedCall:
 
 class RequestMock:
     """
-    Mocks HTTP requests. Usage:
+    Can be used to mock the `requests.Session.request()` method or the
+    `requests.request()` from the requests package.
+
+    Usage:
 
     ```python
     # Create the mock
@@ -40,62 +50,63 @@ class RequestMock:
     # Install the mock
     monkeypatch.setattr("ggshield.core.client.Session.request", mock)
 
-    # Add expected calls
-    mock.add_GET("/foo1", MockRequestsResponse({"a": 12}))
-    mock.add_POST("/login", MockRequestsResponse({"a": 12}))
-    mock.add_GET("/not_found", MockRequestsResponse({"msg": "no-such-page"}, 400))
+    # Add expected requests
+    mock.add_GET("/foo1", JSONResponse({"a": 12}))
+    mock.add_POST("/login", JSONResponse({"a": 12}))
+    mock.add_GET("/not_found", JSONResponse({"msg": "no-such-page"}, 400))
 
-    # Execute the code expected to make the calls
-    # If a call does not match the expected calls, an assert will raise
+    # Execute the code expected to send requests
+    # If a request does not match the expected requests, an assert will raise
     my_code()
 
-    # Verify the tested code passed all the calls
-    mock.assert_all_calls_happened()
+    # Verify the tested code sent all the requests
+    mock.assert_all_requests_happened()
     ```
     """
 
     def __init__(self):
-        self._calls: List[ExpectedCall] = []
+        self._requests: List[ExpectedRequest] = []
 
     def add_GET(
         self,
         endpoint: str,
-        response: MockRequestsResponse,
+        response: Response,
         data_checker: Optional[DataChecker] = None,
     ):
-        self.add_call(ExpectedCall("GET", endpoint, response, data_checker))
+        self.add_request(ExpectedRequest("GET", endpoint, response, data_checker))
 
     def add_POST(
         self,
         endpoint: str,
-        response: MockRequestsResponse,
+        response: Response,
         data_checker: Optional[DataChecker] = None,
     ):
-        self.add_call(ExpectedCall("POST", endpoint, response, data_checker))
+        self.add_request(ExpectedRequest("POST", endpoint, response, data_checker))
 
-    def add_call(self, call: ExpectedCall) -> None:
-        """Low-level method to add a call, it's simpler to use add_GET or add_POST instead"""
-        self._calls.append(call)
+    def add_request(self, request: ExpectedRequest) -> None:
+        """Low-level method to add a request, it's simpler to use add_GET or add_POST
+        instead"""
+        self._requests.append(request)
 
-    def assert_all_calls_happened(self) -> None:
-        assert self._calls == []
+    def assert_all_requests_happened(self) -> None:
+        assert self._requests == []
 
     def __call__(
         self, method: str, url: str, data: Optional[Any] = None, **kwargs: Any
-    ) -> MockRequestsResponse:
-        """This method is called by the tested code. It pops the next expected call and
-        checks it matches with the received call."""
+    ) -> Response:
+        """This method is called by the tested code. It pops the next expected request
+        and checks it matches with the received request."""
         method = method.upper()
 
-        # Get the expected call
-        if not self._calls:
+        # Get the expected request
+        if not self._requests:
             pytest.fail(f"Unexpected call: {method} {url}")
-        call = self._calls.pop(0)
+        request = self._requests.pop(0)
 
-        # Check the current call match the expected one
-        assert url.endswith(call.endpoint)
-        assert method == call.method
-        if call.data_checker:
-            call.data_checker(data)
+        # Check the current request matches the expected one
+        assert url.endswith(request.endpoint)
+        assert method == request.method
+        if request.data_checker:
+            request.data_checker(data)
 
-        return call.response
+        return request.response
