@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import urllib.parse as urlparse
 import webbrowser
@@ -13,9 +14,14 @@ from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
 from ggshield.core.utils import urljoin
 
-from .client import create_client, create_session
+from .client import (
+    check_client_api_key,
+    create_client,
+    create_client_from_config,
+    create_session,
+)
 from .config import Config, InstanceConfig
-from .errors import UnexpectedError
+from .errors import APIKeyCheckError, UnexpectedError
 
 
 CLIENT_ID = "ggshield_oauth"
@@ -26,6 +32,8 @@ SCOPE = "scan"
 # this is the largest band of not commonly occupied ports
 # https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 USABLE_PORT_RANGE = (29170, 29998)
+
+logger = logging.getLogger(__name__)
 
 
 @no_type_check
@@ -316,6 +324,18 @@ class OAuthClient:
         """
         account = self.instance_config.account
         if account is None or not account.token or self.instance_config.expired:
+            return False
+
+        # Check our API key is valid, if not forget it
+        client = create_client_from_config(self.config)
+        try:
+            check_client_api_key(client)
+        except APIKeyCheckError:
+            # Forget the account
+            logger.debug(
+                "Account had an API key recorded but it's no longer valid, removing it"
+            )
+            self.instance_config.account = None
             return False
 
         message = "ggshield is already authenticated "

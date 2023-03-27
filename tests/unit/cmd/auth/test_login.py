@@ -1,7 +1,8 @@
 import json
 import urllib.parse as urlparse
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from enum import IntEnum, auto
+from typing import Optional
 from unittest.mock import Mock
 
 import pytest
@@ -13,6 +14,7 @@ from ggshield.cmd.auth.utils import (
 )
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.core.oauth import (
     OAuthClient,
@@ -21,17 +23,10 @@ from ggshield.core.oauth import (
     get_pretty_date,
 )
 from tests.unit.conftest import assert_invoke_ok
+from tests.unit.request_mock import RequestMock, create_json_response
 
-from ..utils import prepare_config
+from ..utils import add_instance_config
 
-
-_TOKEN_RESPONSE_PAYLOAD = {
-    "type": "personal_access_token",
-    "account_id": 17,
-    "name": "key",
-    "scope": ["scan"],
-    "expire_at": None,
-}
 
 _EXPECTED_URL_PARAMS = {
     "auth_mode": ["ggshield_login"],
@@ -46,6 +41,31 @@ _EXPECTED_URL_PARAMS = {
 
 DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 
+TOKEN_ENDPOINT = "/v1/token"
+
+VALID_TOKEN_RESPONSE = create_json_response(
+    {
+        "type": "personal_access_token",
+        "account_id": 17,
+        "name": "key",
+        "scope": ["scan"],
+        "expire_at": None,
+    }
+)
+
+VALID_TOKEN_INVALID_SCOPE_RESPONSE = create_json_response(
+    {
+        **VALID_TOKEN_RESPONSE.json(),
+        "scope": ["read:incident", "write:incident", "share:incident", "read:member"],
+    }
+)
+
+INVALID_TOKEN_RESPONSE = create_json_response({"detail": "Invalid API key."}, 401)
+
+HEALTH_ENDPOINT = "/v1/health"
+
+HEALTH_VALID_TOKEN_RESPONSE = create_json_response({"detail": "Valid API key."})
+
 
 @pytest.fixture(autouse=True)
 def tmp_config(monkeypatch, tmp_path):
@@ -55,27 +75,10 @@ def tmp_config(monkeypatch, tmp_path):
 
 
 class TestAuthLoginToken:
-    VALID_TOKEN_PAYLOAD = {**_TOKEN_RESPONSE_PAYLOAD}
-    INVALID_TOKEN_PAYLOAD = {"detail": "Invalid API key."}
-    VALID_TOKEN_INVALID_SCOPE_PAYLOAD = {
-        **_TOKEN_RESPONSE_PAYLOAD,
-        "scope": ["read:incident", "write:incident", "share:incident", "read:member"],
-    }
-
-    @staticmethod
-    def mock_autho_login_request(
-        monkeypatch, status_code: int, json: Dict[str, Any]
-    ) -> None:
-        monkeypatch.setattr(
-            "ggshield.core.client.GGClient.get",
-            Mock(
-                return_value=Mock(
-                    status_code=status_code,
-                    ok=status_code < 400,
-                    json=lambda: json,
-                )
-            ),
-        )
+    @pytest.fixture(autouse=True)
+    def setup_method(self, monkeypatch):
+        self._request_mock = RequestMock()
+        monkeypatch.setattr("ggshield.core.client.Session.request", self._request_mock)
 
     @pytest.mark.parametrize("test_case", ["valid", "invalid_scope", "invalid"])
     def test_auth_login_token(self, monkeypatch, cli_fs_runner, test_case):
@@ -89,13 +92,13 @@ class TestAuthLoginToken:
         cmd = ["auth", "login", "--method=token", f"--instance={instance}"]
 
         if test_case == "valid":
-            self.mock_autho_login_request(monkeypatch, 200, self.VALID_TOKEN_PAYLOAD)
+            self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
         elif test_case == "invalid_scope":
-            self.mock_autho_login_request(
-                monkeypatch, 200, self.VALID_TOKEN_INVALID_SCOPE_PAYLOAD
+            self._request_mock.add_GET(
+                TOKEN_ENDPOINT, VALID_TOKEN_INVALID_SCOPE_RESPONSE
             )
         elif test_case == "invalid":
-            self.mock_autho_login_request(monkeypatch, 401, self.INVALID_TOKEN_PAYLOAD)
+            self._request_mock.add_GET(TOKEN_ENDPOINT, INVALID_TOKEN_RESPONSE)
 
         check_instance_has_enabled_flow_mock = Mock()
         monkeypatch.setattr(
@@ -121,6 +124,7 @@ class TestAuthLoginToken:
                 assert "Authentication failed with token." in result.output
             assert instance not in config_instance_urls
 
+        self._request_mock.assert_all_requests_happened()
         check_instance_has_enabled_flow_mock.assert_not_called()
 
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
@@ -132,7 +136,7 @@ class TestAuthLoginToken:
         config = Config()
         assert len(config.auth_config.instances) == 0
 
-        self.mock_autho_login_request(monkeypatch, 200, self.VALID_TOKEN_PAYLOAD)
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
 
         cmd = ["auth", "login", "--method=token"]
 
@@ -149,6 +153,7 @@ class TestAuthLoginToken:
         assert (
             config.auth_config.get_instance(config.instance_name).account.token == token
         )
+        self._request_mock.assert_all_requests_happened()
 
     def test_auth_login_token_update_existing_config(self, monkeypatch, cli_fs_runner):
         """
@@ -156,10 +161,9 @@ class TestAuthLoginToken:
         WHEN the auth login command is called with --method=token
         THEN the instance configuration is created if it doesn't exist, or updated otherwise
         """
-        monkeypatch.setattr(
-            "ggshield.core.client.GGClient.get",
-            Mock(return_value=Mock(ok=True, json=lambda: _TOKEN_RESPONSE_PAYLOAD)),
-        )
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
 
         instance = "https://dashboard.gitguardian.com"
         cmd = ["auth", "login", "--method=token", f"--instance={instance}"]
@@ -194,6 +198,7 @@ class TestAuthLoginToken:
             config.auth_config.get_instance(second_instance).account.token
             == second_instance_token
         )
+        self._request_mock.assert_all_requests_happened()
 
     def test_auth_login_token_from_stdin(self, monkeypatch, cli_fs_runner):
         """
@@ -204,7 +209,7 @@ class TestAuthLoginToken:
         config = Config()
         assert len(config.auth_config.instances) == 0
 
-        self.mock_autho_login_request(monkeypatch, 200, self.VALID_TOKEN_PAYLOAD)
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
 
         token = "mysupertoken"
 
@@ -226,24 +231,78 @@ class TestAuthLoginToken:
         assert (
             config.auth_config.get_instance(config.instance_name).account.token == token
         )
+        self._request_mock.assert_all_requests_happened()
+
+
+class LoginResult(IntEnum):
+    """Represents the possible results of the `auth login`. Values are ordered in how
+    far they can happen in the process.
+    """
+
+    NOT_ENOUGH_PORTS = auto()
+    INVALID_STATE = auto()
+    NO_AUTHORIZATION_CODE = auto()
+    EXCHANGE_FAILED = auto()
+    INVALID_TOKEN = auto()
+    SUCCESS = auto()
 
 
 class TestAuthLoginWeb:
-    @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
+    @pytest.fixture(autouse=True)
+    def setup_method(self, monkeypatch):
+        """Define parameter-less mocks. Parametrized mocks are defined in prepare_mocks()."""
+        # open browser for the user to login
+        self._webbrowser_open_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.core.oauth.webbrowser.open_new_tab", self._webbrowser_open_mock
+        )
+
+        # Ensure that original wait_for_callback method is not called
+        self._wait_for_callback_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.core.oauth.OAuthClient._wait_for_callback",
+            self._wait_for_callback_mock,
+        )
+
+        self._check_instance_has_enabled_flow_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
+            self._check_instance_has_enabled_flow_mock,
+        )
+
+        self._request_mock = RequestMock()
+        monkeypatch.setattr("ggshield.core.client.Session.request", self._request_mock)
+
+        self._token_name = None
+        self._lifetime = None
+        self._instance_url = None
+        self._sso_url = None
+
+        config = Config()
+        assert len(config.auth_config.instances) == 0
+
+    @pytest.mark.parametrize(
+        "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
+    )
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
 
-        self.prepare_mocks(monkeypatch, instance_url=instance_url)
-        prepare_config(instance_url=instance_url)
+        self._instance_url = instance_url
+        self._request_mock.add_GET(HEALTH_ENDPOINT, HEALTH_VALID_TOKEN_RESPONSE)
+
+        add_instance_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
+        self._request_mock.assert_all_requests_happened()
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
             output, "ggshield is already authenticated without an expiry date"
         )
 
-    @pytest.mark.parametrize("instance_url", [None, "https://some_instance.com"])
+    @pytest.mark.parametrize(
+        "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
+    )
     @pytest.mark.parametrize(
         ["month", "day", "str_date"],
         [
@@ -259,16 +318,44 @@ class TestAuthLoginWeb:
     ):
         dt = datetime.strptime(f"2100-{month}-{day}T00:00:00+0000", DT_FORMAT)
 
-        self.prepare_mocks(monkeypatch, instance_url=instance_url)
-        prepare_config(instance_url=instance_url, expiry_date=dt)
+        self._instance_url = instance_url
+        self._request_mock.add_GET(HEALTH_ENDPOINT, HEALTH_VALID_TOKEN_RESPONSE)
+
+        add_instance_config(instance_url=instance_url, expiry_date=dt)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_not_called()
+        self._request_mock.assert_all_requests_happened()
 
         self._assert_last_print(
             output, f"ggshield is already authenticated until {str_date} 2100"
         )
+
+    def test_auth_login_recreates_token_if_deleted_server_side(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a token stored in the config
+        AND the token does not exist on the server
+        WHEN `ggshield auth login` is called
+        THEN it recreates the token
+        """
+
+        # Insert the call to check the stored token
+        self._request_mock.add_GET(HEALTH_ENDPOINT, INVALID_TOKEN_RESPONSE)
+        self.prepare_mocks(monkeypatch)
+
+        add_instance_config()
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+
+        self._request_mock.assert_all_requests_happened()
+
+        assert "Success! You are now authenticated" in output
 
     def test_no_port_available_exits_error(self, cli_fs_runner, monkeypatch):
         """
@@ -278,25 +365,23 @@ class TestAuthLoginWeb:
         THEN the auth flow fails with an explanatory message
         """
 
-        self.prepare_mocks(monkeypatch, used_port_count=1000)
+        self.prepare_mocks(monkeypatch, login_result=LoginResult.NOT_ENOUGH_PORTS)
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_not_called()
-        self._client_post_mock.assert_not_called()
-        self._client_get_mock.assert_not_called()
         self._assert_last_print(output, "Error: Could not find unoccupied port.")
         self._assert_config_is_empty()
 
     @pytest.mark.parametrize(
-        ["authorization_code", "is_state_valid"],
+        "login_result",
         [
-            pytest.param(None, True, id="no-auth-code"),
-            pytest.param("some_authorization_code", False, id="invalid-state"),
+            LoginResult.INVALID_STATE,
+            LoginResult.NO_AUTHORIZATION_CODE,
         ],
     )
     def test_invalid_oauth_params_exits_error(
-        self, authorization_code, is_state_valid, cli_fs_runner, monkeypatch
+        self, login_result, cli_fs_runner, monkeypatch
     ):
         """
         GIVEN -
@@ -307,16 +392,14 @@ class TestAuthLoginWeb:
         """
         self.prepare_mocks(
             monkeypatch,
-            authorization_code=authorization_code,
-            is_state_valid=is_state_valid,
+            login_result=login_result,
         )
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
-        self._client_post_mock.assert_not_called()
-        self._client_get_mock.assert_not_called()
+        self._webbrowser_open_mock.assert_called_once()
         self._assert_last_print(
             output,
             "Error: Invalid code or state received from the callback.",
@@ -331,17 +414,16 @@ class TestAuthLoginWeb:
         against an access token fails
         THEN the auth flow fails with an explanatory message
         """
-        self.prepare_mocks(monkeypatch, is_exchange_ok=False)
+        self.prepare_mocks(monkeypatch, login_result=LoginResult.EXCHANGE_FAILED)
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
 
-        self._client_post_mock.assert_called_once()
-        self._assert_post_payload()
+        self._request_mock.assert_all_requests_happened()
+        self._webbrowser_open_mock.assert_called_once()
         self._assert_last_print(output, "Error: Cannot create a token.")
-        self._client_get_mock.assert_not_called()
 
     def test_invalid_token_exits_error(self, cli_fs_runner, monkeypatch):
         """
@@ -349,17 +431,15 @@ class TestAuthLoginWeb:
         WHEN the token is invalid
         THEN the auth flow fails with an explanatory message
         """
-        self.prepare_mocks(monkeypatch, is_token_valid=False)
+        self.prepare_mocks(monkeypatch, login_result=LoginResult.INVALID_TOKEN)
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url()
 
-        self._client_post_mock.assert_called_once()
-        self._assert_post_payload()
+        self._request_mock.assert_all_requests_happened()
         self._assert_last_print(output, "Error: The created token is invalid.")
-        self._client_get_mock.assert_called_once()
 
     @pytest.mark.parametrize("token_name", [None, "some token name"])
     @pytest.mark.parametrize("lifetime", [None, 0, 1, 365])
@@ -385,13 +465,13 @@ class TestAuthLoginWeb:
 
         if existing_expired_token:
             # save expired in config
-            prepare_config(
+            add_instance_config(
                 expiry_date=datetime.now(tz=timezone.utc).replace(microsecond=0)
                 - timedelta(days=2)
             )
         if existing_unrelated_token:
             # add a dummy unrelated confif
-            prepare_config(instance_url="http://some-gg-instance.com")
+            add_instance_config(instance_url="http://some-gg-instance.com")
 
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
@@ -399,9 +479,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called_once()
         self._assert_open_url(expected_port=29170 + used_port_count)
 
-        self._client_post_mock.assert_called_once()
-        self._assert_post_payload()
-        self._client_get_mock.assert_called_once()
+        self._request_mock.assert_all_requests_happened()
 
         if self._lifetime is None:
             str_date = "never"
@@ -426,20 +504,22 @@ class TestAuthLoginWeb:
         token_name=None,
         lifetime=None,
         instance_url=None,
-        authorization_code="some_authorization_code",
         used_port_count=0,
-        is_state_valid=True,
-        is_exchange_ok=True,
-        is_token_valid=True,
+        login_result: LoginResult = LoginResult.SUCCESS,
         sso_url=None,
     ):
         """
-        Prepare object and function mocks to emulate HTTP requests
-        and server interactions
+        Configure self._request_mock to emulate HTTP requests
+        and server interactions.
+
+        Defines the following fields:
+        self._token_name
+        self._lifetime
+        self._instance_url
+        self._sso_url
+        self._generated_token_name
         """
         token = "mysupertoken"
-        config = Config()
-        assert len(config.auth_config.instances) == 0
 
         # original token params
         self._token_name = token_name
@@ -455,10 +535,14 @@ class TestAuthLoginWeb:
         )
 
         # generate the expected oauth state
-        self._state = self._get_oauth_state() if is_state_valid else "invalid_state"
-        url_params = {"state": self._state}
-        if authorization_code:
-            url_params["code"] = authorization_code
+        oauth_state = (
+            "invalid_state"
+            if login_result == LoginResult.INVALID_STATE
+            else self._get_oauth_state()
+        )
+        url_params = {"state": oauth_state}
+        if login_result != LoginResult.NO_AUTHORIZATION_CODE:
+            url_params["code"] = "some_authorization_code"
 
         callback_url = "http://localhost:1234/?" + urlparse.urlencode(url_params)
 
@@ -468,60 +552,41 @@ class TestAuthLoginWeb:
             self._get_oauth_client_class(callback_url),
         )
 
-        # Ensure that original wait_for_code method is not called
-        self._wait_for_callback_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.core.oauth.OAuthClient._wait_for_callback",
-            self._wait_for_callback_mock,
-        )
-
-        # open browser for the user to login
-        self._webbrowser_open_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.core.oauth.webbrowser.open_new_tab", self._webbrowser_open_mock
-        )
-
         # avoid starting a server on port 1234
-        self._mock_server_class = Mock(
+        if login_result == LoginResult.NOT_ENOUGH_PORTS:
+            used_port_count = 1000
+        mock_server_class = Mock(
             side_effect=self._get_oserror_side_effect(used_port_count)
         )
-        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", self._mock_server_class)
+        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", mock_server_class)
+
+        if login_result < LoginResult.EXCHANGE_FAILED:
+            return
 
         token_response_payload = {}
-        if is_exchange_ok:
-            token_response_payload = _TOKEN_RESPONSE_PAYLOAD.copy()
+        if login_result == LoginResult.EXCHANGE_FAILED:
+            response = create_json_response({}, status_code=400)
+        else:
+            token_response_payload = VALID_TOKEN_RESPONSE.json().copy()
             if lifetime is not None:
-                token_response_payload[
-                    "expire_at"
-                ] = self._get_expiry_date().isoformat()
+                expire_at = self._get_expiry_date().isoformat()
+                token_response_payload["expire_at"] = expire_at
 
-        # mock api call to exchange the code against a valid access token
-        self._client_post_mock = Mock(
-            return_value=Mock(
-                ok=is_exchange_ok,
-                json=lambda: (
-                    {"key": token, **token_response_payload} if is_exchange_ok else {}
+            # mock api call to exchange the code against a valid access token
+            response = create_json_response({"key": token, **token_response_payload})
+
+        self._request_mock.add_POST(
+            "/v1/oauth/token", response, self._assert_post_payload
+        )
+
+        if login_result >= LoginResult.INVALID_TOKEN:
+            self._request_mock.add_GET(
+                TOKEN_ENDPOINT,
+                create_json_response(
+                    token_response_payload,
+                    400 if login_result == LoginResult.INVALID_TOKEN else 200,
                 ),
             )
-        )
-        monkeypatch.setattr("ggshield.core.client.Session.post", self._client_post_mock)
-
-        # mock api call to test the access token
-        self._client_get_mock = Mock(
-            return_value=Mock(
-                ok=is_token_valid,
-                json=lambda: token_response_payload,
-            )
-        )
-        monkeypatch.setattr("ggshield.core.client.GGClient.get", self._client_get_mock)
-
-        self._check_instance_has_enabled_flow_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
-            self._check_instance_has_enabled_flow_mock,
-        )
-
-        # run cli command
 
     def run_cmd(self, cli_fs_runner, method="web", expect_check_feature_flag=True):
         """
@@ -624,14 +689,10 @@ class TestAuthLoginWeb:
             f"http://localhost:{expected_port}"
         ), redirect_uri
 
-    def _assert_post_payload(self):
+    def _assert_post_payload(self, payload):
         """
-        assert that the post request is made to the right url
-        and include the expected token name
+        assert the payload include the expected token name
         """
-
-        (url, payload), kwargs = self._client_post_mock.call_args_list[0]
-        assert url == "https://api.gitguardian.com/v1/oauth/token"
 
         request_body = urlparse.parse_qs(payload)
 
@@ -710,10 +771,8 @@ class TestAuthLoginWeb:
 
         def client_get_mock(self_, url, **kwargs):
             if url.endswith("/v1/metadata"):
-                return Mock(
-                    ok=status_code < 400,
-                    status_code=status_code,
-                    json=lambda: {
+                return create_json_response(
+                    {
                         "version": version,
                         "preferences": {
                             "public_api__ggshield_auth_flow_enabled": preference_enabled
@@ -721,6 +780,7 @@ class TestAuthLoginWeb:
                         if preference_enabled is not None
                         else {},
                     },
+                    status_code=status_code,
                 )
             raise NotImplementedError
 
@@ -764,7 +824,7 @@ class TestAuthLoginWeb:
         THEN it fails
         """
         self.prepare_mocks(monkeypatch, instance_url=instance_url, sso_url=sso_url)
-        prepare_config(instance_url=instance_url)
+        add_instance_config(instance_url=instance_url)
 
         exit_code, output = self.run_cmd(
             cli_fs_runner, method=method, expect_check_feature_flag=False

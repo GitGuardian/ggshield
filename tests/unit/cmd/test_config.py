@@ -7,7 +7,7 @@ from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
 
-from .utils import prepare_config
+from .utils import add_instance_config
 
 
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
@@ -56,14 +56,13 @@ class TestAuthConfigList:
         # May 4th
         some_date = datetime(2022, 5, 4, 17, 0, 0, 0, tzinfo=timezone.utc)
 
-        prepare_config(expiry_date=some_date)
-        prepare_config(
+        add_instance_config(expiry_date=some_date)
+        add_instance_config(
             instance_url="https://some-gg-instance.com",
-            token="first_token",
             token_name="first token",
             expiry_date=some_date,
         )
-        prepare_config(
+        add_instance_config(
             instance_url="https://some-gg-instance.com",
             with_account=False,
             expiry_date=some_date,
@@ -92,7 +91,7 @@ class TestAuthConfigSet:
         """
         unchanged_value = 42
 
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=unchanged_value)
+        add_instance_config(default_token_lifetime=unchanged_value)
         exit_code, output = self.run_cmd(cli_fs_runner, value)
 
         config = Config()
@@ -118,8 +117,8 @@ class TestAuthConfigSet:
 
         unrelated_instance = "https://some-unreleted-gg-instance.com"
 
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=value)
-        prepare_config(unrelated_instance, default_token_lifetime=unchanged_value)
+        add_instance_config(default_token_lifetime=value)
+        add_instance_config(unrelated_instance, default_token_lifetime=unchanged_value)
 
         exit_code, output = self.run_cmd(
             cli_fs_runner, value, instance_url=DEFAULT_INSTANCE_URL
@@ -231,8 +230,8 @@ class TestAuthConfigUnset:
 
         unrelated_instance = "https://some-unreleted-gg-instance.com"
 
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=unset_value)
-        prepare_config(unrelated_instance, default_token_lifetime=unchanged_value)
+        add_instance_config(default_token_lifetime=unset_value)
+        add_instance_config(unrelated_instance, default_token_lifetime=unchanged_value)
 
         exit_code, output = self.run_cmd(
             cli_fs_runner, instance_url=DEFAULT_INSTANCE_URL
@@ -262,7 +261,7 @@ class TestAuthConfigUnset:
         AND other configs must not be affected
         """
         unchanged_value = 42
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=unchanged_value)
+        add_instance_config(default_token_lifetime=unchanged_value)
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         config = Config()
@@ -283,8 +282,8 @@ class TestAuthConfigUnset:
         (per instance and default)
         """
         second_instance = "https://some-gg-instance.com"
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=30)
-        prepare_config(second_instance, default_token_lifetime=20)
+        add_instance_config(default_token_lifetime=30)
+        add_instance_config(second_instance, default_token_lifetime=20)
 
         exit_code, output = self.run_cmd(cli_fs_runner, all_=True)
 
@@ -362,11 +361,11 @@ class TestAuthConfigGet:
         config.auth_config.default_token_lifetime = default_value
         config.save()
 
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=instance_value)
+        add_instance_config(default_token_lifetime=instance_value)
 
         # add some noise
         unrelated_instance_url = "https://some-unrelated-gg-instance.com"
-        prepare_config(unrelated_instance_url, default_token_lifetime=43)
+        add_instance_config(unrelated_instance_url, default_token_lifetime=43)
 
         exit_code, output = self.run_cmd(cli_fs_runner)
 
@@ -400,9 +399,9 @@ class TestAuthConfigGet:
         config.auth_config.default_token_lifetime = default_value
         config.save()
 
-        prepare_config(instance_url, default_token_lifetime=instance_value)
-        prepare_config(DEFAULT_INSTANCE_URL, default_token_lifetime=43)
-        prepare_config(unrelated_instance_url, default_token_lifetime=44)
+        add_instance_config(instance_url, default_token_lifetime=instance_value)
+        add_instance_config(default_token_lifetime=43)
+        add_instance_config(unrelated_instance_url, default_token_lifetime=44)
 
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
 

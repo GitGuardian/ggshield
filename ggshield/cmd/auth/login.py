@@ -114,55 +114,68 @@ def login_cmd(
         )
 
     if method == "token":
-        if instance:
-            config.set_cmdline_instance_name(instance)
-        instance = config.instance_name
-        # Override instance to make sure we get a normalized instance name
-        instance_config = config.auth_config.get_or_create_instance(
-            instance_name=instance
-        )
-
-        token = None
-        if not click.get_text_stream("stdin").isatty():
-            # Read from stdin only when the stdin is not connected to terminal, but is provided from the pipe
-            token = click.get_text_stream("stdin").read().strip()
-
-        # Prompt if the token was not provided with stdin
-        if not token:
-            token = click.prompt("Enter your GitGuardian API token", hide_input=True)
-
-        if not token:
-            raise UnexpectedError("No API token was provided.")
-
-        # enforce using the token (and not use config default)
-        client = create_client(api_key=token, api_url=config.api_url)
-        response = client.get(endpoint="token")
-        if not response.ok:
-            raise UnexpectedError("Authentication failed with token.")
-
-        api_token_data = response.json()
-        scopes = api_token_data["scope"]
-        if "scan" not in scopes:
-            raise UnexpectedError("This token does not have the scan scope.")
-
-        instance_config.init_account(token, api_token_data)
-        config.auth_config.save()
-        click.echo("Authentication was successful.")
+        token_login(config, instance)
         return 0
 
     if method == "web":
-        instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
-        if instance:
-            config.set_cmdline_instance_name(instance)
-        defined_instance = config.instance_name
-        # Override instance to make sure we get a normalized instance name
+        web_login(config, instance, token_name, lifetime, sso_url)
+        return 0
 
-        check_instance_has_enabled_flow(config=config)
+    return 1
 
-        instance_config = config.auth_config.get_or_create_instance(
-            instance_name=defined_instance
-        )
-        OAuthClient(config, defined_instance).oauth_process(
-            token_name=token_name, lifetime=lifetime, login_path=login_path
-        )
-    return 0
+
+def token_login(config: Config, instance: Optional[str]) -> None:
+    if instance:
+        config.set_cmdline_instance_name(instance)
+    instance = config.instance_name
+    # Override instance to make sure we get a normalized instance name
+    instance_config = config.auth_config.get_or_create_instance(instance_name=instance)
+
+    token = None
+    if not click.get_text_stream("stdin").isatty():
+        # Read from stdin only when the stdin is not connected to terminal, but is provided from the pipe
+        token = click.get_text_stream("stdin").read().strip()
+
+    # Prompt if the token was not provided with stdin
+    if not token:
+        token = click.prompt("Enter your GitGuardian API token", hide_input=True)
+
+    if not token:
+        raise UnexpectedError("No API token was provided.")
+
+    # enforce using the token (and not use config default)
+    client = create_client(api_key=token, api_url=config.api_url)
+    response = client.get(endpoint="token")
+    if not response.ok:
+        raise UnexpectedError("Authentication failed with token.")
+
+    api_token_data = response.json()
+    scopes = api_token_data["scope"]
+    if "scan" not in scopes:
+        raise UnexpectedError("This token does not have the scan scope.")
+
+    instance_config.init_account(token, api_token_data)
+    config.auth_config.save()
+    click.echo("Authentication was successful.")
+
+
+def web_login(
+    config: Config,
+    instance: Optional[str],
+    token_name: Optional[str],
+    lifetime: Optional[int],
+    sso_url: Optional[str],
+) -> None:
+    instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
+    if instance:
+        config.set_cmdline_instance_name(instance)
+    defined_instance = config.instance_name
+    # Override instance to make sure we get a normalized instance name
+
+    check_instance_has_enabled_flow(config=config)
+
+    config.auth_config.get_or_create_instance(instance_name=defined_instance)
+
+    OAuthClient(config, defined_instance).oauth_process(
+        token_name=token_name, lifetime=lifetime, login_path=login_path
+    )

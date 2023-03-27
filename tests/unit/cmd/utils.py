@@ -2,23 +2,19 @@ from datetime import datetime
 from typing import Optional
 
 from ggshield.core.config import AccountConfig, Config, InstanceConfig
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 
 
-def prepare_config(
-    instance_url: Optional[str] = None,
-    token: Optional[str] = None,
-    token_name: Optional[str] = None,
+def add_instance_config(
+    instance_url: str = DEFAULT_INSTANCE_URL,
+    token_name: str = "some token name",
     expiry_date: Optional[datetime] = None,
     with_account: Optional[bool] = True,
     default_token_lifetime: Optional[int] = None,
 ):
     """
-    Helper to save a token in the configuration
+    Creates an InstanceConfig with the provided arguments and adds it to the config
     """
-    instance_url = instance_url or "https://dashboard.gitguardian.com"
-    token = token or "some token name"
-    token_name = token_name or "some token name"
-
     if with_account:
         account_config = AccountConfig(
             workspace_id=1,
