@@ -114,3 +114,19 @@ If you add, update or remove dependencies:
 
 - add the dependency to `setup.py`
 - update the `Pipfile.lock` file by running `make update-pipfile-lock`
+
+## Opening a pull request
+
+### Changelog
+
+We use [scriv](https://github.com/nedbat/scriv) to manage our changelog. It is automatically installed by `pipenv install --dev`.
+
+All user visible changes must be documented in a changelog fragment. You can create one with `scriv create`. If your pull request only contains non-visible changes (such as refactors or fixes for regressions introduced _after_ the latest release), then apply the `skip-changelog` label to the pull request.
+
+### Check list
+
+Before submitting a pull request, make sure that:
+
+- All tests pass
+- Linters are happy
+- You added a changelog fragment or applied the `skip-changelog` label
