@@ -208,17 +208,46 @@ def tag() -> None:
     check_run(["git", "push", "origin", "main:main", f"{tag}:{tag}"])
 
 
-@main.command()
-@click.argument("release-notes", type=click.Path(exists=True, dir_okay=False))
-def publish_gh_release(release_notes: str) -> None:
-    """Set the release notes of the GitHub release, then remove its "draft" status.
+def get_release_notes(version: str) -> str:
+    """Reads CHANGELOG.md, returns the changes for version `version`, formatted for
+    `gh release`."""
 
-    RELEASE_NOTES: path to a Markdown file containing the release notes.
+    # Extract changes from CHANGELOG.md
+    changes = CHANGELOG_PATH.read_text()
+    start_match = re.search(
+        f"^## {re.escape(version)} - .*", changes, flags=re.MULTILINE
+    )
+    assert start_match
+    start_pos = start_match.end() + 1
+
+    end_match = re.search("^(<a |## )", changes[start_pos:], flags=re.MULTILINE)
+    assert end_match
+
+    notes = changes[start_pos : end_match.start() + start_pos]
+
+    # Remove one level of indent
+    notes = re.sub("^#", "", notes, flags=re.MULTILINE)
+    return notes.strip()
+
+
+@main.command()
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Do not publish, just print the content of the release notes",
+)
+def publish_gh_release(dry_run: bool = False) -> None:
+    """Set the release notes of the GitHub release, then remove its "draft" status.
 
     GitHub CLI (https://cli.github.com/) must be installed."""
 
     version = get_version()
     tag = get_tag(version)
+
+    notes = get_release_notes(version)
+    if dry_run:
+        print(notes)
+        return
 
     check_run(
         [
@@ -228,8 +257,8 @@ def publish_gh_release(release_notes: str) -> None:
             tag,
             "--title",
             version,
-            "--notes-file",
-            release_notes,
+            "--notes",
+            notes,
         ]
     )
     check_run(["gh", "release", "edit", tag, "--draft=false"])
