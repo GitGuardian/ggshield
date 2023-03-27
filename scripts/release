@@ -22,9 +22,8 @@ INIT_PATH = ROOT_DIR / "ggshield" / "__init__.py"
 ACTION_PATHS = [ROOT_DIR / "actions" / x / "action.yml" for x in ["iac", "secret"]]
 CASSETTES_DIR = ROOT_DIR / "tests" / "unit" / "cassettes"
 
-# The branch this script must be run from. Can be overriden with an environment
-# variable to make working on the script itself easier.
-RELEASE_BRANCH = os.environ.get("RELEASE_BRANCH", "main")
+# The branch this script must be run from, except in dev mode.
+RELEASE_BRANCH = "main"
 
 
 def get_version() -> str:
@@ -47,36 +46,41 @@ def log_progress(message: str) -> None:
     click.secho(message, fg="magenta", err=True)
 
 
-def fail(message: str) -> None:
+def log_error(message: str) -> None:
     prefix = click.style("ERROR:", fg="red")
     click.secho(f"{prefix} {message}", err=True)
+
+
+def fail(message: str) -> None:
+    log_error(message)
     sys.exit(1)
 
 
-def check_working_tree_is_on_release_branch() -> None:
+def check_working_tree_is_on_release_branch() -> bool:
     proc = check_run(["git", "branch"], capture_output=True)
     lines = proc.stdout.splitlines()
     if f"* {RELEASE_BRANCH}" not in lines:
-        fail(f"This script must be run on the '{RELEASE_BRANCH}' branch")
+        log_error(f"This script must be run on the '{RELEASE_BRANCH}' branch")
+        return False
+    return True
 
 
-def check_working_tree_is_clean(allow_dirty: bool) -> None:
+def check_working_tree_is_clean() -> bool:
     proc = check_run(["git", "status", "--porcelain"], capture_output=True)
     lines = proc.stdout.splitlines()
     if lines:
-        if allow_dirty:
-            log_progress("Ignoring changes because --allow-dirty is set")
-        else:
-            fail("Working tree contains changes. Use --allow-dirty to ignore.")
+        log_error("Working tree contains changes")
+        return False
+    return True
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
-    "--allow-dirty",
+    "--dev-mode",
     is_flag=True,
-    help="Do not abort if the working tree contains changes",
+    help=f"Do not abort if the working tree contains changes or if we are not on the '{RELEASE_BRANCH}' branch",
 )
-def main(allow_dirty: bool) -> int:
+def main(dev_mode: bool) -> int:
     """Helper script to release ggshield. Commands should be run in this order:
 
     \b
@@ -85,8 +89,12 @@ def main(allow_dirty: bool) -> int:
     3. tag
     4. publish-gh-release
     """
-    check_working_tree_is_on_release_branch()
-    check_working_tree_is_clean(allow_dirty)
+    checks = (check_working_tree_is_on_release_branch, check_working_tree_is_clean)
+    if not all(x() for x in checks):
+        if dev_mode:
+            log_progress("Ignoring errors because --dev-mode is set")
+        else:
+            fail("Use --dev-mode to ignore")
 
     return 0
 
