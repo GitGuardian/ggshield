@@ -1,34 +1,36 @@
-## I want to...
+# Contributing
 
-### Submit a bug report
+## Submitting a bug report
 
-- Make sure you can reproduce it in the latest version of GitGuardian Shield.
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues).
+Make sure you can reproduce it in the latest version of GGShield.
 
-### Fix an open and confirmed bug
+Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues).
 
-- This bug will have a `confirmed` tag on the issue tracker.
-- Leave a message on the issue tracker that you're interested in
-  fixing this bug.
+## Fixing an open and confirmed bug
 
-### Propose a new feature
+This bug will have a `confirmed` tag on the issue tracker.
+
+Leave a message on the issue tracker that you're interested in fixing this bug.
+
+## Proposing a new feature
 
 - Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues/new?assignees=&labels=feature+request&template=feature_request.md&title=Feature+Request) with a `feature request` label.
 
-### Implement a new CI integration
+## Implementing new CI integration
 
-- Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues/new?assignees=&labels=CI+integration&template=feature_request.md&title=CI+Integration:).
-- No core contributor review is necessary on this feature.
-- Submit a Pull request
+Open an issue on the [issue tracker](https://github.com/GitGuardian/ggshield/issues/new?assignees=&labels=CI+integration&template=feature_request.md&title=CI+Integration:).
 
-### Implement a new feature
+Submit a Pull request.
 
-- Follow `Propose a new feature`
-- A core contributor will work out with you if it's the project's vision
-  and some rudimentary specs
-- Submit a Pull request
+## Implementing a new feature
 
-## Setup your development environment
+Follow `Propose a new feature`.
+
+Submit a Pull Request.
+
+## Writing code
+
+### Setup your development environment
 
 1. Install pipenv (https://github.com/pypa/pipenv#installation)
 
@@ -39,22 +41,22 @@
 1. Install dev packages and environment
 
    ```sh
-   $ pipenv install --dev
+   pipenv install --dev
    ```
 
 1. Install pre-commit hooks
 
    ```sh
-   $ pre-commit install
+   pre-commit install
    ```
 
 1. Install pre-commit hooks for messages
 
    ```sh
-   $ pre-commit install --hook-type commit-msg
+   pre-commit install --hook-type commit-msg
    ```
 
-## Testing
+### Running tests
 
 The test suite contains two kinds of tests: unit tests and functional tests.
 
@@ -62,41 +64,41 @@ Unit tests must execute fast, so they do not access the network and try to limit
 
 Functional tests exercise the whole product, so they need access to GitGuardian API and are slow. They are in the `tests/functional` directory.
 
-### Run unit tests
+#### Unit tests
 
 Set the `TEST_GITGUARDIAN_API_KEY` environment variable to a valid GitGuardian API key.
 
 ```sh
-$ make unittest
+make unittest
 ```
 
-### Verify coverage of your patch
+#### Verifying code coverage
 
 ```sh
-$ make coverage
+make coverage
 ```
 
 Then open [htmlcov/index.html](htmlcov/index.html).
 
-### Run functional tests
+#### Running functional tests
 
 Set the `GITGUARDIAN_API_KEY` environment variable to a valid GitGuardian API key.
 
 You can also set the `GITGUARDIAN_API_URL` environment variable to test against another GitGuardian instance.
 
 ```sh
-$ make functest
+make functest
 ```
 
-### Run linting locally
+#### Running linters
+
+This runs all configured linters at once.
 
 ```sh
-$ make lint
+make lint
 ```
 
-## Style guides
-
-### Git commit message
+### Writing git commit messages
 
 - Use the present tense ("Add feature" not "Added feature")
 - Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
@@ -106,7 +108,9 @@ $ make lint
 
 ### Python
 
-- We're committed to support python 3.7+ for now
-- Document new functions added if they're not obvious
-- Black, flake and isort should keep the rest of your code standard
-- If you add, update or remove dependencies, update the `Pipfile.lock` file by running `make update-pipfile-lock`
+We're committed to support python 3.7+ for now.
+
+If you add, update or remove dependencies:
+
+- add the dependency to `setup.py`
+- update the `Pipfile.lock` file by running `make update-pipfile-lock`
