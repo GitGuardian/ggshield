@@ -222,9 +222,7 @@ def get_release_notes(version: str) -> str:
 
     # Extract changes from CHANGELOG.md
     changes = CHANGELOG_PATH.read_text()
-    start_match = re.search(
-        f"^## {re.escape(version)} - .*", changes, flags=re.MULTILINE
-    )
+    start_match = re.search(f"^## {re.escape(version)} .*", changes, flags=re.MULTILINE)
     assert start_match
     start_pos = start_match.end() + 1
 
