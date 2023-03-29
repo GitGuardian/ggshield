@@ -1,5 +1,23 @@
 # Changelog
 
+<a id='changelog-1.14.5'></a>
+
+## 1.14.5 — 2023-03-29
+
+### Changed
+
+- `ggshield iac scan` can now be called without arguments. In this case it scans the current directory.
+
+- GGShield now displays an easier-to-understand error message when no API key has been set.
+
+### Fixed
+
+- Fixed GGShield not correctly reporting misspelled configuration keys if the key name contained `-` characters (#480).
+
+- When called without an image tag, `ggshield secret scan docker` now automatically uses the `:latest` tag instead of scanning all versions of the image (#468).
+
+- `ggshield secret scan` now properly stops with an error message when the GitGuardian API key is not set or invalid (#456).
+
 <a id='changelog-1.14.4'></a>
 
 ## 1.14.4 — 2023-02-23
