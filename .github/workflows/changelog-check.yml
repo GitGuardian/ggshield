@@ -1,0 +1,27 @@
+# This workflow only accepts PRs if they either contain a changelog fragment,
+# or have been applied the `skip-changelog` label.
+name: Changelog check
+
+on:
+  pull_request:
+    types:
+      # On by default if you specify no types.
+      - 'opened'
+      - 'reopened'
+      - 'synchronize'
+      # For `skip-changelog` only.
+      - 'labeled'
+      - 'unlabeled'
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 'Check for changelog fragment'
+        uses: brettcannon/check-for-changed-files@v1.1.0
+        with:
+          file-pattern: |
+            changelog.d/*.md
+            CHANGELOG.md
+          skip-label: 'skip-changelog'
+          failure-message: 'Missing a changelog fragment in ${file-pattern}. Please add one using `scriv create` or apply the `${skip-label}` label to the pull request'

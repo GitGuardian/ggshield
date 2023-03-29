@@ -30,3 +30,4 @@ typing-extensions = "*"
 
 vcrpy = "*"
 pyfakefs = "*"
+scriv = { version = "*", extras = ["toml"] }

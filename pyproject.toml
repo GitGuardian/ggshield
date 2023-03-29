@@ -49,3 +49,9 @@ files = "ggshield"
 [[tool.mypy.overrides]]
 module = ["tests.*"]
 ignore_errors = true
+
+[tool.scriv]
+version = "literal: pygitguardian/__init__.py: __version__"
+format = "md"
+md_header_level = "2"
+insert_marker = "# Changelog"

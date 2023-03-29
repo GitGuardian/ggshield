@@ -17,74 +17,84 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 ROOT_DIR = Path(__file__).parent.parent
+CHANGELOG_PATH = ROOT_DIR / "CHANGELOG.md"
 INIT_PATH = ROOT_DIR / "ggshield" / "__init__.py"
 ACTION_PATHS = [ROOT_DIR / "actions" / x / "action.yml" for x in ["iac", "secret"]]
 CASSETTES_DIR = ROOT_DIR / "tests" / "unit" / "cassettes"
 
-VERSION = os.environ.get("VERSION", "")
-TAG = f"v{VERSION}"
+# The branch this script must be run from, except in dev mode.
+RELEASE_BRANCH = "main"
 
-# The branch this script must be run from. Can be overriden with an environment
-# variable to make working on the script itself easier.
-RELEASE_BRANCH = os.environ.get("RELEASE_BRANCH", "main")
+
+def get_version() -> str:
+    from ggshield import __version__
+
+    return __version__
+
+
+def get_tag(version: str) -> str:
+    return f"v{version}"
 
 
 def check_run(
     cmd: List[Union[str, Path]], **kwargs: Any
 ) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, check=True, **kwargs)
+    return subprocess.run(cmd, check=True, text=True, **kwargs)
 
 
 def log_progress(message: str) -> None:
     click.secho(message, fg="magenta", err=True)
 
 
-def fail(message: str) -> None:
+def log_error(message: str) -> None:
     prefix = click.style("ERROR:", fg="red")
     click.secho(f"{prefix} {message}", err=True)
+
+
+def fail(message: str) -> None:
+    log_error(message)
     sys.exit(1)
 
 
-def check_working_tree_is_on_release_branch() -> None:
-    proc = check_run(["git", "branch"], capture_output=True, text=True)
+def check_working_tree_is_on_release_branch() -> bool:
+    proc = check_run(["git", "branch"], capture_output=True)
     lines = proc.stdout.splitlines()
     if f"* {RELEASE_BRANCH}" not in lines:
-        fail(f"This script must be run on the '{RELEASE_BRANCH}' branch")
+        log_error(f"This script must be run on the '{RELEASE_BRANCH}' branch")
+        return False
+    return True
 
 
-def check_working_tree_is_clean(allow_dirty: bool) -> None:
-    proc = check_run(["git", "status", "--porcelain"], capture_output=True, text=True)
+def check_working_tree_is_clean() -> bool:
+    proc = check_run(["git", "status", "--porcelain"], capture_output=True)
     lines = proc.stdout.splitlines()
     if lines:
-        if allow_dirty:
-            log_progress("Ignoring changes because --allow-dirty is set")
-        else:
-            fail("Working tree contains changes. Use --allow-dirty to ignore.")
+        log_error("Working tree contains changes")
+        return False
+    return True
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
-    "--allow-dirty",
+    "--dev-mode",
     is_flag=True,
-    help="Do not abort if the working tree contains changes",
+    help=f"Do not abort if the working tree contains changes or if we are not on the '{RELEASE_BRANCH}' branch",
 )
-def main(allow_dirty: bool) -> int:
+def main(dev_mode: bool) -> int:
     """Helper script to release ggshield. Commands should be run in this order:
 
     \b
     1. run-tests
-    2. prepare-tag
-    3. push-tag
+    2. prepare
+    3. tag
     4. publish-gh-release
     """
-    if VERSION == "":
-        fail("Environment variable $VERSION is not set")
-
-    if not re.fullmatch(r"\d+\.\d+\.\d+", VERSION):
-        fail(f"'{VERSION}' is not a valid version number")
-
-    check_working_tree_is_on_release_branch()
-    check_working_tree_is_clean(allow_dirty)
+    checks = (check_working_tree_is_on_release_branch, check_working_tree_is_clean)
+    if not all(x() for x in checks):
+        if dev_mode:
+            log_progress("Ignoring errors because --dev-mode is set")
+        else:
+            fail("Use --dev-mode to ignore")
 
     return 0
 
@@ -134,11 +144,24 @@ def replace_once_in_file(path: Path, src: str, dst: str, flags: int = 0) -> None
     path.write_text(content)
 
 
-def update_version() -> None:
+def check_version(version: str) -> None:
+    # Check version is valid
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        fail(f"'{version}' is not a valid version number")
+
+    # Check version does not already exist
+    tag = get_tag(version)
+    proc = check_run(["git", "tag"], capture_output=True)
+    tags = proc.stdout.splitlines()
+    if tag in tags:
+        fail(f"The {tag} tag already exists.")
+
+
+def update_version(version: str) -> None:
     replace_once_in_file(
         INIT_PATH,
         "^__version__ = .*$",
-        f'__version__ = "{VERSION}"',
+        f'__version__ = "{version}"',
         flags=re.MULTILINE,
     )
 
@@ -147,63 +170,106 @@ def update_version() -> None:
         replace_once_in_file(
             action_path,
             r"image: 'docker://gitguardian/ggshield:(unstable|v\d+\.\d+\.\d+)'",
-            f"image: 'docker://gitguardian/ggshield:v{VERSION}'",
+            f"image: 'docker://gitguardian/ggshield:v{version}'",
         )
 
 
-def commit_changes() -> None:
-    check_run(["git", "add", INIT_PATH, *ACTION_PATHS])
-    message = f"chore(release): {VERSION}"
+def update_changelog() -> None:
+    check_run(["scriv", "collect", "--edit"])
+    # prettier and scriv disagree on some minor formatting issue.
+    # Run prettier through pre-commit to fix the CHANGELOG.md.
+    # Do not use `check_run()` here because if prettier reformats the file
+    # (which it will), then the command exit code will be 1.
+    subprocess.run(["pre-commit", "run", "prettier", "--files", CHANGELOG_PATH])
+
+
+def commit_changes(version: str) -> None:
+    check_run(["git", "add", CHANGELOG_PATH, "changelog.d", INIT_PATH, *ACTION_PATHS])
+    message = f"chore(release): {version}"
     check_run(["git", "commit", "--message", message])
 
 
-def create_tag() -> None:
-    message = f"Releasing {VERSION}"
-    check_run(["git", "tag", "--annotate", TAG, "--message", message])
-
-
 @main.command()
-def prepare_tag() -> None:
+@click.argument("version")
+def prepare(version: str) -> None:
     """Prepare the code for the release:
 
     \b
-    - Bump the version in __init__.py
+    - Bump the version in __init__.py and in GitHub action files
+    - Update the changelog
     - Commit changes
-    - Create the release tag
     """
-    update_version()
-    commit_changes()
-    create_tag()
-    log_progress(f"Done, review changes and then run `{sys.argv[0]} push-tag`")
+    check_version(version)
+    update_version(version)
+    update_changelog()
+    commit_changes(version)
+    log_progress(f"Done, review changes and then run `{sys.argv[0]} tag`")
 
 
 @main.command()
-def push_tag() -> None:
-    """Push the main branch and the tag for the version to release."""
-    check_run(["git", "push", "origin", "main:main", f"{TAG}:{TAG}"])
+def tag() -> None:
+    """Create the tag for the version, push the main branch and the tag."""
+    version = get_version()
+    tag = get_tag(version)
+    message = f"Releasing {version}"
+    check_run(["git", "tag", "--annotate", tag, "--message", message])
+    check_run(["git", "push", "origin", "main:main", f"{tag}:{tag}"])
+
+
+def get_release_notes(version: str) -> str:
+    """Reads CHANGELOG.md, returns the changes for version `version`, formatted for
+    `gh release`."""
+
+    # Extract changes from CHANGELOG.md
+    changes = CHANGELOG_PATH.read_text()
+    start_match = re.search(
+        f"^## {re.escape(version)} - .*", changes, flags=re.MULTILINE
+    )
+    assert start_match
+    start_pos = start_match.end() + 1
+
+    end_match = re.search("^(<a |## )", changes[start_pos:], flags=re.MULTILINE)
+    assert end_match
+
+    notes = changes[start_pos : end_match.start() + start_pos]
+
+    # Remove one level of indent
+    notes = re.sub("^#", "", notes, flags=re.MULTILINE)
+    return notes.strip()
 
 
 @main.command()
-@click.argument("release-notes", type=click.Path(exists=True, dir_okay=False))
-def publish_gh_release(release_notes: str) -> None:
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Do not publish, just print the content of the release notes",
+)
+def publish_gh_release(dry_run: bool = False) -> None:
     """Set the release notes of the GitHub release, then remove its "draft" status.
 
-    RELEASE_NOTES: path to a Markdown file containing the release notes.
-
     GitHub CLI (https://cli.github.com/) must be installed."""
+
+    version = get_version()
+    tag = get_tag(version)
+
+    notes = get_release_notes(version)
+    if dry_run:
+        print(notes)
+        return
+
     check_run(
         [
             "gh",
             "release",
             "edit",
-            TAG,
+            tag,
             "--title",
-            VERSION,
-            "--notes-file",
-            release_notes,
+            version,
+            "--notes",
+            notes,
         ]
     )
-    check_run(["gh", "release", "edit", TAG, "--draft=false"])
+    check_run(["gh", "release", "edit", tag, "--draft=false"])
 
 
 if __name__ == "__main__":
