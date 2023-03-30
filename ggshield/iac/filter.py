@@ -1,9 +1,9 @@
 import re
 from pathlib import Path
-from typing import Set
+from typing import List, Set
 
 from ggshield.core.file_utils import get_files_from_paths
-from ggshield.scan import File, Files
+from ggshield.scan import Scannable
 
 
 IAC_EXTENSIONS = {
@@ -24,7 +24,7 @@ def get_iac_files_from_paths(
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
     ignore_git: bool = False,
-) -> Files:
+) -> List[str]:
     """
     Create a Files object from paths, ignoring non IAC files
 
@@ -35,21 +35,22 @@ def get_iac_files_from_paths(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """
-    return (
-        get_files_from_paths(
-            paths=[str(path)],
-            exclusion_regexes=exclusion_regexes,
-            recursive=True,
-            yes=True,
-            verbose=verbose,
-            ignore_git=ignore_git,
-        )
-        .apply_filter(is_file_iac_file)
-        .relative_to(path)
-    )
+    files = get_files_from_paths(
+        paths=[str(path)],
+        exclusion_regexes=exclusion_regexes,
+        recursive=True,
+        yes=True,
+        verbose=verbose,
+        ignore_git=ignore_git,
+    ).apply_filter(is_file_iac_file)
+
+    return [str(Path(x).relative_to(path)) for x in files.paths]
 
 
-def is_file_iac_file(file: File) -> bool:
-    return file.has_extensions(IAC_EXTENSIONS) or any(
-        keyword in Path(file.filename).name.lower() for keyword in IAC_FILENAME_KEYWORDS
-    )
+def is_file_iac_file(scannable: Scannable) -> bool:
+    path = Path(scannable.filename)
+    extensions = path.suffixes
+    if any(ext in IAC_EXTENSIONS for ext in extensions):
+        return True
+    name = path.name.lower()
+    return any(keyword in name for keyword in IAC_FILENAME_KEYWORDS)

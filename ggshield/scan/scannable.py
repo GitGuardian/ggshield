@@ -1,11 +1,12 @@
 import codecs
 import logging
+import os.path
 import re
-from pathlib import Path
-from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
+import urllib.parse
+from abc import ABC, abstractmethod
+from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
 import charset_normalizer
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git
@@ -91,37 +92,64 @@ class PatchParseError(Exception):
     pass
 
 
-class File:
-    """Class representing a simple file."""
+class Scannable(ABC):
+    """Base class for content that can be scanned by GGShield"""
+
+    def __init__(self, url: str, filemode: Filemode = Filemode.FILE):
+        self.url = url
+        self._parsed_url = urllib.parse.urlparse(url)
+        self.filemode = filemode
+
+    @property
+    def filename(self) -> str:
+        # TODO: really return just the filename at some point, or deprecate
+        return self.url
+
+    @property
+    def path(self) -> str:
+        return self._parsed_url.path
+
+    @abstractmethod
+    def is_longer_than(self, size: int) -> bool:
+        """Return true if the scannable content is bigger than `size`. When possible,
+        implementations must try to answer this without reading the content"""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def content(self) -> str:
+        """Return the decoded content of the scannable"""
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} url={self.url} filemode={self.filemode}>"
+
+
+class File(Scannable):
+    """Implementation of Scannable for files from the disk."""
 
     def __init__(
         self, document: Optional[str], filename: str, filemode: Filemode = Filemode.FILE
     ):
-        self._document = document
-        self.filename = filename
-        self.filemode = filemode
+        super().__init__(filename, filemode)
+        self._content = document
 
-    def relative_to(self, root_path: Path) -> "File":
-        return File(self._document, str(Path(self.filename).relative_to(root_path)))
+    def is_longer_than(self, size: int) -> bool:
+        doc_size = len(self._content) if self._content else os.path.getsize(self.path)
+        return doc_size > size
 
     @property
-    def document(self) -> str:
-        self.prepare()
-        assert self._document is not None
-        return self._document
+    def content(self) -> str:
+        self._prepare()
+        assert self._content is not None
+        return self._content
 
-    def prepare(self) -> None:
-        """Ensures self._document has been decoded"""
-        if self._document is not None:
+    def _prepare(self) -> None:
+        """Ensures file content has been read and decoded"""
+        if self._content is not None:
             return
-        with open(self.filename, "rb") as f:
-            self._document = File._decode_bytes(f.read(), self.filename)
-
-    @staticmethod
-    def from_bytes(raw_document: bytes, filename: str) -> "File":
-        """Creates a File instance for a raw document. Document is decoded immediately."""
-        document = File._decode_bytes(raw_document, filename)
-        return File(document, filename)
+        with open(self.path, "rb") as f:
+            self._content = File._decode_bytes(f.read(), self.filename)
 
     @staticmethod
     def from_path(filename: str) -> "File":
@@ -145,13 +173,25 @@ class File:
             raw_document = raw_document[len(codecs.BOM_UTF8) :]
         return raw_document.decode(result.encoding, errors="replace")
 
-    def __repr__(self) -> str:
-        return f"<File filename={self.filename} filemode={self.filemode}>"
 
-    def has_extensions(self, extensions: Set[str]) -> bool:
-        """Returns True iff the file has one of the given extensions."""
-        file_extensions = Path(self.filename).suffixes
-        return any(ext in extensions for ext in file_extensions)
+class StringScannable(Scannable):
+    """Implementation of Scannable for content already loaded in memory"""
+
+    def __init__(
+        self, url: str, content: Union[str, bytes], filemode: Filemode = Filemode.FILE
+    ):
+        super().__init__(url, filemode)
+        if isinstance(content, bytes):
+            self._content = File._decode_bytes(content, url)
+        else:
+            self._content = content
+
+    def is_longer_than(self, size: int) -> bool:
+        return len(self._content) > size
+
+    @property
+    def content(self) -> str:
+        return self._content
 
 
 class Files:
@@ -159,28 +199,31 @@ class Files:
     Files is a list of files. Useful for directory scanning.
     """
 
-    def __init__(self, files: List[File]):
+    def __init__(self, files: List[Scannable]):
         self._files = files
 
     @property
-    def files(self) -> List[File]:
+    def files(self) -> List[Scannable]:
         """The list of files owned by this instance. The same filename can appear twice,
         in case of a merge commit."""
         return self._files
 
     @property
+    def paths(self) -> List[str]:
+        """Convenience property to list paths in the same order as files"""
+        return [x.path for x in self.files]
+
+    @property
     def filenames(self) -> List[str]:
         """Convenience property to list filenames in the same order as files"""
+        # TODO: deprecate
         return [x.filename for x in self.files]
 
     def __repr__(self) -> str:
         return f"<Files files={self.files}>"
 
-    def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
+    def apply_filter(self, filter_func: Callable[[Scannable], bool]) -> "Files":
         return Files([file for file in self.files if filter_func(file)])
-
-    def relative_to(self, root_path: Path) -> "Files":
-        return Files([file.relative_to(root_path) for file in self.files])
 
 
 class CommitInformation(NamedTuple):
@@ -189,7 +232,7 @@ class CommitInformation(NamedTuple):
     date: str
 
 
-def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[File]:
+def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[Scannable]:
     """
     Parse the patch generated with `git show` (or `git diff`)
 
@@ -220,14 +263,9 @@ def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[Fil
                 # No content
                 continue
             # +1 because we searched for the '\n'
-            document = diff[end_of_headers + 1 :]
+            content = diff[end_of_headers + 1 :]
 
-            file_size = len(document.encode("utf-8"))
-            if file_size > DOCUMENT_SIZE_THRESHOLD_BYTES * 0.90:
-                continue
-
-            if document:
-                yield File(document, filename, filemode)
+            yield StringScannable(filename, content, filemode=filemode)
 
 
 class Commit(Files):
@@ -285,13 +323,13 @@ class Commit(Files):
         return self._patch
 
     @property
-    def files(self) -> List[File]:
+    def files(self) -> List[Scannable]:
         if not self._files:
             self._files = list(self.get_files())
 
         return self._files
 
-    def get_files(self) -> Iterable[File]:
+    def get_files(self) -> Iterable[Scannable]:
         """
         Parse the patch into files and extract the changes for each one of them.
 

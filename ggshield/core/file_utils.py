@@ -9,7 +9,7 @@ from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 from ggshield.core.binary_extensions import BINARY_EXTENSIONS
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git_ls, is_git_dir
-from ggshield.scan import File, Files
+from ggshield.scan import File, Files, Scannable
 
 
 DOCUMENT_SIZE_THRESHOLD_MBYTES = DOCUMENT_SIZE_THRESHOLD_BYTES // (1024 * 1024)
@@ -94,7 +94,9 @@ def is_path_binary(path: str) -> bool:
     return ext[1:] in BINARY_EXTENSIONS
 
 
-def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[File]:
+def generate_files_from_paths(
+    paths: Iterable[str], verbose: bool
+) -> Iterator[Scannable]:
     """Loop on filepaths and return an iterator on scannable files."""
     for path in paths:
         if os.path.isdir(path) or not os.path.exists(path):
@@ -104,23 +106,6 @@ def generate_files_from_paths(paths: Iterable[str], verbose: bool) -> Iterator[F
             if verbose:
                 click.echo(
                     f"ignoring binary file: {path}",
-                    err=True,
-                )
-            continue
-
-        file_size = os.path.getsize(path)
-        if file_size > DOCUMENT_SIZE_THRESHOLD_BYTES:
-            if verbose:
-                click.echo(
-                    f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_MBYTES} MB: {path}",
-                    err=True,
-                )
-            continue
-
-        if file_size == 0:
-            if verbose:
-                click.echo(
-                    f"ignoring empty file: {path}",
                     err=True,
                 )
             continue

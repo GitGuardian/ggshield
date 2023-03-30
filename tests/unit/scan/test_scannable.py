@@ -117,9 +117,9 @@ def test_patch_separation():
     assert c.info.date == "Fri Oct 18 13:20:00 2012 +0100"
 
     assert len(files) == len(EXPECTED_PATCH_CONTENT)
-    for file_, (name, document) in zip(files, EXPECTED_PATCH_CONTENT):
+    for file_, (name, content) in zip(files, EXPECTED_PATCH_CONTENT):
         assert file_.filename == name
-        assert file_.document == document
+        assert file_.content == content
 
 
 def test_patch_separation_ignore():

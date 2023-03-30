@@ -1,10 +1,8 @@
 import codecs
 from pathlib import Path
 from random import randrange
-from typing import Callable
 
 import pytest
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.file_utils import generate_files_from_paths
 from ggshield.scan import File
@@ -34,36 +32,9 @@ def test_generate_files_from_paths(
 
     file = files[0]
     assert file.filename == str(path)
-    assert file.document == expected_content
+    assert file.content == expected_content
 
     assert len(files) == 1
-
-
-@pytest.mark.parametrize(
-    ["filename", "creator"],
-    [
-        ("empty_file", lambda x: x.write_text("")),
-        (
-            "big_file",
-            lambda x: x.write_text((DOCUMENT_SIZE_THRESHOLD_BYTES + 12) * " "),
-        ),
-        ("i_am_a_dir", lambda x: x.mkdir()),
-    ],
-)
-def test_generate_files_from_paths_skips_files(
-    tmp_path, filename: str, creator: Callable[[Path], None]
-):
-    """
-    GIVEN a file which should be skipped
-    WHEN calling generate_files_from_paths() on it
-    THEN it should return an empty list
-    """
-    path = tmp_path / filename
-    creator(path)
-
-    files = list(generate_files_from_paths([str(path)], verbose=False))
-
-    assert files == []
 
 
 @pytest.mark.parametrize(
@@ -92,7 +63,7 @@ def test_file_decode_content(tmp_path, encoding: str, bom: bytes):
     raw_content = bom + content.encode(encoding)
     path.write_bytes(raw_content)
     file = File.from_path(str(path))
-    assert file.document == content
+    assert file.content == content
 
 
 def test_file_does_not_decode_binary(tmp_path):
@@ -100,11 +71,27 @@ def test_file_does_not_decode_binary(tmp_path):
     GIVEN a 2000 random bytes file
     WHEN File tries to decode it
     THEN it fails
-    AND set its `document` attribute to ""
+    AND set its `content` attribute to ""
     """
     path = tmp_path / "test.conf"
     data = (randrange(256) for _ in range(2000))
     path.write_bytes(bytes(data))
 
     file = File.from_path(str(path))
-    assert file.document == ""
+    assert file.content == ""
+
+
+@pytest.mark.parametrize("size", [1, 100])
+def test_file_is_longer_than_does_not_read_file(tmp_path, size):
+    """
+    GIVEN a File instance
+    WHEN is_longer_than() is called on it
+    THEN it returns the right value
+    AND the content is not read
+    """
+    path = tmp_path / "test.conf"
+    path.write_text("x" * size)
+
+    file = File.from_path(str(path))
+    assert file.is_longer_than(50) == (size > 50)
+    assert file._content is None

@@ -6,7 +6,7 @@ import pytest
 
 from ggshield.core.utils import Filemode
 from ggshield.output import TextOutputHandler
-from ggshield.scan import File, Result, Results, ScanCollection
+from ggshield.scan import File, Result, Results, ScanCollection, StringScannable
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -208,7 +208,7 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     output_handler = TextOutputHandler(show_secrets=True, verbose=verbose)
 
     result: Result = Result(
-        File(document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT, filename="leak.txt"),
+        StringScannable(content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT, url="leak.txt"),
         scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
     )
 

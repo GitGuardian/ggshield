@@ -11,17 +11,26 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import create_progress_bar, display_info
-from ggshield.scan import File, ScanCollection, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import (
+    ScanCollection,
+    ScanContext,
+    ScanMode,
+    Scannable,
+    SecretScanner,
+    StringScannable,
+)
 
 
-def generate_files_from_docsets(file: TextIO, verbose: bool = False) -> Iterator[File]:
+def generate_files_from_docsets(
+    file: TextIO, verbose: bool = False
+) -> Iterator[Scannable]:
     for line in file:
         obj = json.loads(line)
         documents = obj["documents"]
         for document in documents:
             if verbose:
                 display_info(f"  * {document['id']}")
-            yield File(document["content"], document["id"])
+            yield StringScannable(document["id"], document["content"])
 
 
 def create_scans_from_docset_files(

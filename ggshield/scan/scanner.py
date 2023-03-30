@@ -7,7 +7,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tu
 
 import click
 from pygitguardian import GGClient
-from pygitguardian.config import MULTI_DOCUMENT_LIMIT
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
 from pygitguardian.iac_models import IaCScanResult
 from pygitguardian.models import Detail, ScanResult
 
@@ -24,7 +24,7 @@ from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import Filemode
 
 from .scan_context import ScanContext
-from .scannable import File
+from .scannable import Scannable
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,8 @@ class Result(NamedTuple):
     between the Scan result and its input file.
     """
 
-    file: File  # filename that was scanned
+    # TODO: Rename `file` to `scannable`?
+    file: Scannable  # filename that was scanned
     scan: ScanResult  # Result of content scan
 
     @property
@@ -52,7 +53,7 @@ class Result(NamedTuple):
 
     @property
     def content(self) -> str:
-        return self.file.document
+        return self.file.content
 
 
 class Error(NamedTuple):
@@ -187,7 +188,7 @@ class SecretScanner:
 
     def scan(
         self,
-        files: Iterable[File],
+        files: Iterable[Scannable],
         progress_callback: Callable[..., None] = lambda advance: None,
         scan_threads: int = 4,
     ) -> Results:
@@ -213,14 +214,14 @@ class SecretScanner:
             return self._collect_results(chunks_for_futures)
 
     def _scan_chunk(
-        self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[File]
+        self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[Scannable]
     ) -> Future:
         """
         Sends a chunk of files to scan to the API
         """
         # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
         documents = [
-            {"document": x.document, "filename": x.filename[-_API_PATH_MAX_LENGTH:]}
+            {"document": x.content, "filename": x.filename[-_API_PATH_MAX_LENGTH:]}
             for x in chunk
         ]
 
@@ -234,9 +235,9 @@ class SecretScanner:
     def _start_scans(
         self,
         executor: concurrent.futures.ThreadPoolExecutor,
-        files: Iterable[File],
+        scannables: Iterable[Scannable],
         progress_callback: Callable[..., None],
-    ) -> Dict[Future, List[File]]:
+    ) -> Dict[Future, List[Scannable]]:
         """
         Start all scans, return a tuple containing:
         - a mapping of future to the list of files it is scanning
@@ -245,17 +246,25 @@ class SecretScanner:
         chunks_for_futures = {}
         skipped_chunk = []
 
-        chunk: List[File] = []
-        for file in files:
-            if file.document:
-                chunk.append(file)
+        chunk: List[Scannable] = []
+        for scannable in scannables:
+            if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES):
+                click.echo(
+                    f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_BYTES // 1024 // 1024} MB:"
+                    f" {scannable.path}",
+                    err=True,
+                )
+                continue
+            content = scannable.content
+            if content:
+                chunk.append(scannable)
                 if len(chunk) == MULTI_DOCUMENT_LIMIT:
                     future = self._scan_chunk(executor, chunk)
                     progress_callback(advance=len(chunk))
                     chunks_for_futures[future] = chunk
                     chunk = []
             else:
-                skipped_chunk.append(file)
+                skipped_chunk.append(scannable)
         if chunk:
             future = self._scan_chunk(executor, chunk)
             progress_callback(advance=len(chunk))
@@ -265,7 +274,7 @@ class SecretScanner:
 
     def _collect_results(
         self,
-        chunks_for_futures: Dict[Future, List[File]],
+        chunks_for_futures: Dict[Future, List[Scannable]],
     ) -> Results:
         """
         Receive scans as they complete, report progress and collect them and return
@@ -285,7 +294,7 @@ class SecretScanner:
                 scan = Detail(detail=str(exception))
                 errors.append(
                     Error(
-                        files=[(file.filename, file.filemode) for file in chunk],
+                        files=[(x.filename, x.filemode) for x in chunk],
                         description=scan.detail,
                     )
                 )
@@ -311,7 +320,7 @@ class SecretScanner:
         return Results(results=results, errors=errors)
 
 
-def handle_scan_chunk_error(detail: Detail, chunk: List[File]) -> None:
+def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     # Use %s for status_code because it can be None. Logger is OK with an int being
     # passed for a %s placeholder.
     logger.error("status_code=%s detail=%s", detail.status_code, detail.detail)
