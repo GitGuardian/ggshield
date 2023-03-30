@@ -7,7 +7,7 @@ from pygitguardian.models import Detail
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode
-from ggshield.scan import Commit, File, Files
+from ggshield.scan import Commit, Files, StringScannable
 from ggshield.scan.scannable import _parse_patch_header_line
 from ggshield.scan.scanner import handle_scan_chunk_error
 from tests.unit.conftest import DATA_PATH
@@ -151,8 +151,8 @@ CHECK_ENVIRONMENT=true
 
 
 def test_apply_filter():
-    file1 = File("", "file1")
-    file2 = File("", "file2")
+    file1 = StringScannable(content="", url="file1")
+    file2 = StringScannable(content="", url="file2")
     files = Files([file1, file2])
 
     filtered_files = files.apply_filter(lambda file: file.filename == "file1")
@@ -173,7 +173,7 @@ def test_handle_scan_error_api_key():
         pytest.param(
             Detail("Too many documents to scan"),
             400,
-            [File("", "/example") for _ in range(21)],
+            [StringScannable(content="", url="/example") for _ in range(21)],
             id="too many documents",
         ),
         pytest.param(
@@ -182,13 +182,12 @@ def test_handle_scan_error_api_key():
             ),
             400,
             [
-                File(
-                    "still valid",
-                    "/home/user/too/long/file/name",
+                StringScannable(
+                    content="still valid", url="/home/user/too/long/file/name"
                 ),
-                File("", "valid"),
-                File("", "valid"),
-                File("", "valid"),
+                StringScannable(content="", url="valid"),
+                StringScannable(content="", url="valid"),
+                StringScannable(content="", url="valid"),
             ],
             id="single file exception",
         ),

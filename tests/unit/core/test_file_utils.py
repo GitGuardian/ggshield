@@ -62,7 +62,7 @@ def test_file_decode_content(tmp_path, encoding: str, bom: bytes):
     content = "Ascii 123, accents: éèà, hiragana: ぁ, emoji: 🛡️"
     raw_content = bom + content.encode(encoding)
     path.write_bytes(raw_content)
-    file = File.from_path(str(path))
+    file = File(str(path))
     assert file.content == content
 
 
@@ -77,7 +77,7 @@ def test_file_does_not_decode_binary(tmp_path):
     data = (randrange(256) for _ in range(2000))
     path.write_bytes(bytes(data))
 
-    file = File.from_path(str(path))
+    file = File(str(path))
     assert file.content == ""
 
 
@@ -92,6 +92,6 @@ def test_file_is_longer_than_does_not_read_file(tmp_path, size):
     path = tmp_path / "test.conf"
     path.write_text("x" * size)
 
-    file = File.from_path(str(path))
+    file = File(str(path))
     assert file.is_longer_than(50) == (size > 50)
     assert file._content is None

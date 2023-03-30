@@ -128,11 +128,9 @@ class Scannable(ABC):
 class File(Scannable):
     """Implementation of Scannable for files from the disk."""
 
-    def __init__(
-        self, document: Optional[str], filename: str, filemode: Filemode = Filemode.FILE
-    ):
-        super().__init__(filename, filemode)
-        self._content = document
+    def __init__(self, filename: str):
+        super().__init__(filename)
+        self._content: Optional[str] = None
 
     def is_longer_than(self, size: int) -> bool:
         doc_size = len(self._content) if self._content else os.path.getsize(self.path)
@@ -150,11 +148,6 @@ class File(Scannable):
             return
         with open(self.path, "rb") as f:
             self._content = File._decode_bytes(f.read(), self.filename)
-
-    @staticmethod
-    def from_path(filename: str) -> "File":
-        """Creates a File instance for a file. Content is *not* read immediately."""
-        return File(None, filename)
 
     @staticmethod
     def _decode_bytes(raw_document: bytes, filename: str) -> str:

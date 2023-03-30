@@ -6,9 +6,8 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
-from ggshield.scan import Result, Results, ScanCollection
+from ggshield.scan import Result, Results, ScanCollection, StringScannable
 from ggshield.scan.repo import cd
-from ggshield.scan.scannable import File
 from tests.repository import Repository
 from tests.unit.conftest import (
     _SIMPLE_SECRET_PATCH,
@@ -172,8 +171,10 @@ class TestPreReceive:
                     results=Results(
                         results=[
                             Result(
-                                file=File(
-                                    _SIMPLE_SECRET_PATCH, "server.conf", Filemode.MODIFY
+                                file=StringScannable(
+                                    content=_SIMPLE_SECRET_PATCH,
+                                    url="server.conf",
+                                    filemode=Filemode.MODIFY,
                                 ),
                                 scan=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
                             )

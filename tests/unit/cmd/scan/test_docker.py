@@ -7,9 +7,8 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from ggshield.scan import ScanCollection
+from ggshield.scan import Files, ScanCollection, StringScannable
 from ggshield.scan.docker import _validate_filepath
-from ggshield.scan.scannable import File, Files
 from tests.unit.conftest import (
     DATA_PATH,
     UNCHECKED_SECRET_PATCH,
@@ -115,7 +114,7 @@ class TestDockerCMD:
         assert image_path.exists()
 
         get_files_mock.return_value = Files(
-            files=[File(document=UNCHECKED_SECRET_PATCH, filename="file_secret")]
+            files=[StringScannable(content=UNCHECKED_SECRET_PATCH, url="file_secret")]
         )
         with my_vcr.use_cassette("test_scan_file_secret"):
             json_arg = ["--json"] if json_output else []

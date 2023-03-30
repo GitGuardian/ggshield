@@ -110,4 +110,4 @@ def generate_files_from_paths(
                 )
             continue
 
-        yield File.from_path(path)
+        yield File(path)

@@ -55,7 +55,7 @@ class IaCTextOutputHandler(OutputHandler):
         result_buf.write(file_info(file_result.filename, len(file_result.incidents)))
 
         try:
-            file = File.from_path(str(file_path))
+            file = File(str(file_path))
             lines: List[Line] = get_lines_from_content(
                 file.content, Filemode.FILE, False
             )
