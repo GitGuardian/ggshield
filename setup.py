@@ -36,12 +36,14 @@ setup(
         "appdirs>=1.4.4,<1.5.0",
         "charset-normalizer>=3.1.0,<3.2.0",
         "click>=8.1,<8.2",
+        "cryptography>=40.0.0,<41.0.0",
         "marshmallow>=3.18.0,<3.19.0",
         "marshmallow-dataclass>=8.5.8,<8.6.0",
         "oauthlib>=3.2.1,<3.3.0",
         # TODO: replace this with a real version number as soon as a new version of
         # py-gitguardian is out
-        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@c180fea0a563008182c24bc5241bfef9a5933030",  # noqa: E501
+        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@44aae443efd177bcdf19964c707878624e78cbe5",  # noqa: E501
+        "pyjwt>=2.6.0,<2.7.0",
         "python-dotenv>=0.21.0,<0.22.0",
         "pyyaml>=6.0,<6.1",
         "requests>=2.31.0,<2.32.0",
