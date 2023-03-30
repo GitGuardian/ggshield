@@ -206,12 +206,6 @@ class Files:
         """Convenience property to list paths in the same order as files"""
         return [x.path for x in self.files]
 
-    @property
-    def filenames(self) -> List[str]:
-        """Convenience property to list filenames in the same order as files"""
-        # TODO: deprecate
-        return [x.filename for x in self.files]
-
     def __repr__(self) -> str:
         return f"<Files files={self.files}>"
 
