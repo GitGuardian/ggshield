@@ -4,9 +4,10 @@ import re
 import urllib.parse
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 import charset_normalizer
+from charset_normalizer import CharsetMatch
 
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git
@@ -92,6 +93,16 @@ class PatchParseError(Exception):
     pass
 
 
+class DecodeError(Exception):
+    """
+    Raised when a Scannable cannot determine the encoding of its content.
+
+    Similar to UnicodeDecodeError, but easier to instantiate.
+    """
+
+    pass
+
+
 class Scannable(ABC):
     """Base class for content that can be scanned by GGShield"""
 
@@ -121,8 +132,11 @@ class Scannable(ABC):
 
     @abstractmethod
     def is_longer_than(self, size: int) -> bool:
-        """Return true if the scannable content is bigger than `size`. When possible,
-        implementations must try to answer this without reading the content"""
+        """Return true if the length of the *decoded* content is greater than `size`.
+        When possible, implementations must try to answer this without reading all
+        content.
+        Raise `DecodeError` if the content cannot be decoded.
+        """
         raise NotImplementedError
 
     @property
@@ -170,14 +184,23 @@ class File(Scannable):
         # small enough
         byte_content = b""
         str_content = ""
-        with self.path.open("rb") as f:
+        with self.path.open("rb") as fp:
+            charset_matches = charset_normalizer.from_fp(fp)
+            charset_match = charset_matches.best()
+            if charset_match is None:
+                raise DecodeError
+            fp.seek(0)
             while True:
-                byte_chunk = f.read(size)
+                # Try to read more than the requested size:
+                # - If the file is smaller, that changes nothing
+                # - if the file is bigger, we potentially avoid a second read
+                byte_chunk = fp.read(size * 2)
                 if byte_chunk:
                     byte_content += byte_chunk
-                    # We can't decode just the chunk because we have no way to know if
-                    # the end contains a complete code-point
-                    str_content = File._decode_bytes(byte_content, self.filename)
+                    # Note: we decode `byte_content` and not `byte_chunk`: we can't
+                    # decode just the chunk because we have no way to know if it starts
+                    # and ends at complete code-point boundaries
+                    str_content = File._decode_bytes(byte_content, charset_match)
                     if len(str_content) > size:
                         return True
                 else:
@@ -196,39 +219,45 @@ class File(Scannable):
         if self._content is not None:
             return
         with self.path.open("rb") as f:
-            self._content = File._decode_bytes(f.read(), self.filename)
+            self._content = File._decode_bytes(f.read())
 
     @staticmethod
-    def _decode_bytes(raw_document: bytes, filename: str) -> str:
-        """Low level function to decode bytes, tries hard to find the correct encoding.
-        For now it returns an empty string if the document could not be decoded"""
-        result = charset_normalizer.from_bytes(raw_document).best()
-        if result is None:
-            # This means we were not able to detect the encoding. Report it using logging for now
-            # TODO: we should report this in the output
-            logger.warning("Skipping %s, can't detect encoding", filename)
-            return ""
+    def _decode_bytes(
+        raw_document: bytes, charset_match: Optional[CharsetMatch] = None
+    ) -> str:
+        """Low level function to decode bytes using `charset_match`. If `charset_match`
+        is not provided, tries to determine it itself.
+
+        Raises DecodeError if the document cannot be decoded."""
+        if charset_match is None:
+            charset_match = charset_normalizer.from_bytes(raw_document).best()
+            if charset_match is None:
+                # This means we were not able to detect the encoding
+                raise DecodeError
 
         # Special case for utf_8 + BOM: `bytes.decode()` does not skip the BOM, so do it
         # ourselves
-        if result.encoding == "utf_8" and raw_document.startswith(codecs.BOM_UTF8):
+        if charset_match.encoding == "utf_8" and raw_document.startswith(
+            codecs.BOM_UTF8
+        ):
             raw_document = raw_document[len(codecs.BOM_UTF8) :]
-        return raw_document.decode(result.encoding, errors="replace")
+        return raw_document.decode(charset_match.encoding, errors="replace")
 
 
 class StringScannable(Scannable):
     """Implementation of Scannable for content already loaded in memory"""
 
-    def __init__(
-        self, url: str, content: Union[str, bytes], filemode: Filemode = Filemode.FILE
-    ):
+    def __init__(self, url: str, content: str, filemode: Filemode = Filemode.FILE):
         super().__init__(filemode)
         self._url = url
         self._path: Optional[Path] = None
-        if isinstance(content, bytes):
-            self._content = File._decode_bytes(content, url)
-        else:
-            self._content = content
+        self._content = content
+
+    @staticmethod
+    def from_bytes(
+        url: str, content: bytes, filemode: Filemode = Filemode.FILE
+    ) -> "StringScannable":
+        return StringScannable(url, File._decode_bytes(content), filemode)
 
     @property
     def url(self) -> str:

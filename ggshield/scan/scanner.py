@@ -24,7 +24,7 @@ from ggshield.core.types import IgnoredMatch
 from ggshield.core.utils import Filemode
 
 from .scan_context import ScanContext
-from .scannable import Scannable
+from .scannable import DecodeError, Scannable
 
 
 logger = logging.getLogger(__name__)
@@ -244,18 +244,25 @@ class SecretScanner:
         - a list of files which we did not send to scan because we could not decode them
         """
         chunks_for_futures = {}
-        skipped_chunk = []
+        skipped_chunks_count = 0
 
         chunk: List[Scannable] = []
         for scannable in scannables:
-            if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES):
-                click.echo(
-                    f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_BYTES // 1024 // 1024} MB:"
-                    f" {scannable.path}",
-                    err=True,
-                )
+            try:
+                if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES):
+                    click.echo(
+                        f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_BYTES // 1024 // 1024} MB:"
+                        f" {scannable.path}",
+                        err=True,
+                    )
+                    skipped_chunks_count += 1
+                    continue
+                content = scannable.content
+            except DecodeError:
+                click.echo(f"Can't decode {scannable.path}, skipping")
+                skipped_chunks_count += 1
                 continue
-            content = scannable.content
+
             if content:
                 chunk.append(scannable)
                 if len(chunk) == MULTI_DOCUMENT_LIMIT:
@@ -264,12 +271,12 @@ class SecretScanner:
                     chunks_for_futures[future] = chunk
                     chunk = []
             else:
-                skipped_chunk.append(scannable)
+                skipped_chunks_count += 1
         if chunk:
             future = self._scan_chunk(executor, chunk)
             progress_callback(advance=len(chunk))
             chunks_for_futures[future] = chunk
-        progress_callback(advance=len(skipped_chunk))
+        progress_callback(advance=skipped_chunks_count)
         return chunks_for_futures
 
     def _collect_results(

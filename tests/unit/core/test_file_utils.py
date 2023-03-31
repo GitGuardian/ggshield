@@ -5,7 +5,7 @@ from random import randrange
 import pytest
 
 from ggshield.core.file_utils import generate_files_from_paths
-from ggshield.scan import File
+from ggshield.scan import DecodeError, File
 from tests.conftest import is_windows
 
 
@@ -71,15 +71,30 @@ def test_file_does_not_decode_binary(tmp_path):
     """
     GIVEN a 2000 random bytes file
     WHEN File tries to decode it
-    THEN it fails
-    AND set its `content` attribute to ""
+    THEN it raises a DecodeError
     """
     path = tmp_path / "test.conf"
     data = (randrange(256) for _ in range(2000))
     path.write_bytes(bytes(data))
 
     file = File(str(path))
-    assert file.content == ""
+    with pytest.raises(DecodeError):
+        _dummy = file.content  # noqa (mute "_dummy" is never used)
+
+
+def test_file_is_longer_does_not_decode_binary(tmp_path):
+    """
+    GIVEN a 2000 random bytes file
+    WHEN is_longer_than() is called on it
+    THEN it raises a DecodeError
+    """
+    path = tmp_path / "test.conf"
+    data = (randrange(256) for _ in range(2000))
+    path.write_bytes(bytes(data))
+
+    file = File(str(path))
+    with pytest.raises(DecodeError):
+        file.is_longer_than(1000)
 
 
 @pytest.mark.parametrize("size", [1, 100])

@@ -18,6 +18,7 @@ from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.scan import (
+    DecodeError,
     Files,
     ScanCollection,
     ScanContext,
@@ -192,10 +193,13 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Sca
         # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
         layer_name = os.path.dirname(layer_filename)
 
-        yield StringScannable(
-            url=f"{layer_name}:/{file_info.name}",
-            content=file_content,
-        )
+        try:
+            yield StringScannable.from_bytes(
+                url=f"{layer_name}:/{file_info.name}",
+                content=file_content,
+            )
+        except DecodeError:
+            pass
 
 
 def docker_pull_image(image_name: str, timeout: int) -> None:
