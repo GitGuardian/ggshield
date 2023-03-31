@@ -133,8 +133,34 @@ class File(Scannable):
         self._content: Optional[str] = None
 
     def is_longer_than(self, size: int) -> bool:
-        doc_size = len(self._content) if self._content else os.path.getsize(self.path)
-        return doc_size > size
+        if self._content:
+            # We already have the content, easy
+            return len(self._content) > size
+
+        byte_size = os.path.getsize(self.path)
+        if byte_size < size:
+            # Shortcut: if the byte size is smaller than `size`, we can be sure the
+            # decoded size will be smaller
+            return False
+
+        # We need to decode at least the beginning of the file to determine if it's
+        # small enough
+        byte_content = b""
+        str_content = ""
+        with open(self.path, "rb") as f:
+            while True:
+                byte_chunk = f.read(size)
+                if byte_chunk:
+                    byte_content += byte_chunk
+                    # We can't decode just the chunk because we have no way to know if
+                    # the end contains a complete code-point
+                    str_content = File._decode_bytes(byte_content, self.filename)
+                    if len(str_content) > size:
+                        return True
+                else:
+                    # We read the whole file, keep it
+                    self._content = str_content
+                    return False
 
     @property
     def content(self) -> str:

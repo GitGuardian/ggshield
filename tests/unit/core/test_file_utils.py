@@ -95,3 +95,55 @@ def test_file_is_longer_than_does_not_read_file(tmp_path, size):
     file = File(str(path))
     assert file.is_longer_than(50) == (size > 50)
     assert file._content is None
+
+
+def test_file_is_longer_when_file_has_been_read(tmp_path):
+    """
+    GIVEN a File instance
+    AND it has already read its file
+    WHEN is_longer_than() is called on it
+    THEN it returns the right value
+    """
+    path = tmp_path / "test.conf"
+    content = "x" * 100
+    path.write_text(content)
+
+    file = File(str(path))
+    # Force reading
+    assert file.content == content
+
+    assert file.is_longer_than(50)
+
+
+def test_file_is_longer_use_decoded_size(tmp_path):
+    """
+    GIVEN a file encoded in utf32, whose byte size is greater than N but whose string
+    size is smaller than N
+    WHEN is_longer_than(N) is called on it
+    THEN it returns False
+    AND the content is available because is_longer_than() read all the file
+    """
+    path = tmp_path / "test.conf"
+    str_size = 200
+    str_content = "x" * str_size
+    byte_content = str_content.encode("utf32")
+    path.write_bytes(byte_content)
+
+    # byte_content should be longer than max_str_size because utf32 uses 4 bytes per
+    # code-point
+    max_str_size = str_size + 10
+    assert max_str_size < len(byte_content)
+
+    file = File(str(path))
+    assert not file.is_longer_than(max_str_size)
+    assert file._content == str_content
+
+
+def test_file_repr():
+    """
+    GIVEN a File instance
+    WHEN repr() is called
+    THEN it returns the correct output
+    """
+    file = File("/some/path")
+    assert repr(file) == "<File url=file:///some/path filemode=Filemode.FILE>"
