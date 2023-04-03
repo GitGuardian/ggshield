@@ -13,9 +13,7 @@ from ggshield.cmd.debug_logs import setup_debug_logs
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
-from ggshield.cmd.scan import deprecated_scan_group
 from ggshield.cmd.secret import secret_group
-from ggshield.cmd.secret.ignore import deprecated_ignore_cmd
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
 from ggshield.core import check_updates
@@ -30,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 
 @scan_group.result_callback()
-@deprecated_scan_group.result_callback()
 @iac_group.result_callback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
@@ -63,10 +60,8 @@ def config_path_callback(
     commands={
         "auth": auth_group,
         "config": config_group,
-        "scan": deprecated_scan_group,
         "secret": secret_group,
         "install": install_cmd,
-        "ignore": deprecated_ignore_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
         "iac": iac_group,

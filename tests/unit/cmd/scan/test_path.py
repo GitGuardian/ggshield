@@ -47,8 +47,7 @@ class TestPathScan:
         assert not result.exception
         assert "No secrets have been found" in result.output
 
-    @pytest.mark.parametrize("use_deprecated_syntax", [False, True])
-    def test_scan_file_secret(self, cli_fs_runner, use_deprecated_syntax):
+    def test_scan_file_secret(self, cli_fs_runner):
         """
         GIVEN a file with a secret
         WHEN it is scanned
@@ -59,9 +58,7 @@ class TestPathScan:
         Path("file_secret").write_text(UNCHECKED_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
-        cmd = ["scan", "path", "file_secret"]
-        if not use_deprecated_syntax:
-            cmd.insert(0, "secret")
+        cmd = ["secret", "scan", "path", "file_secret"]
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             result = cli_fs_runner.invoke(cli, cmd)
@@ -74,9 +71,6 @@ class TestPathScan:
    Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4"""
                 in result.output
             )
-
-            if use_deprecated_syntax:
-                assert "deprecated" in result.output
 
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
         Path("file_secret").write_text(VALID_SECRET_PATCH)
@@ -216,21 +210,25 @@ class TestScanDirectory:
         Path("dir/subdir/file4").write_text("This is a file with no secrets.")
 
     def test_directory_error(self, cli_fs_runner):
-        result = cli_fs_runner.invoke(cli, ["scan", "path", "-r", "./ewe-failing-test"])
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "path", "-r", "./ewe-failing-test"]
+        )
         assert_invoke_exited_with(result, 2)
         assert result.exception
         assert "does not exist" in result.output
 
     def test_directory_abort(self, cli_fs_runner):
         self.create_files()
-        result = cli_fs_runner.invoke(cli, ["scan", "path", "./", "-r"], input="n\n")
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "path", "./", "-r"], input="n\n"
+        )
         assert_invoke_ok(result)
         assert not result.exception
 
     @my_vcr.use_cassette()
     def test_directory_yes(self, cli_fs_runner):
         self.create_files()
-        result = cli_fs_runner.invoke(cli, ["scan", "path", "./", "-r", "-y"])
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "./", "-r", "-y"])
         assert_invoke_ok(result)
         assert not result.exception
 
