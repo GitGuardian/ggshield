@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Tuple
 
 import click
@@ -319,3 +320,13 @@ def test_get_files(
 
     names_and_modes = [(x.filename, x.filemode) for x in files]
     assert names_and_modes == expected_names_and_modes
+
+
+def test_string_scannable_path():
+    """
+    GIVEN a StringScannable instance
+    WHEN path() is called
+    THEN it returns the right value
+    """
+    scannable = StringScannable(url="custom:/some/path", content="")
+    assert scannable.path == Path("/some/path")

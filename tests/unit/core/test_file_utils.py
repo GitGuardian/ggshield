@@ -6,6 +6,7 @@ import pytest
 
 from ggshield.core.file_utils import generate_files_from_paths
 from ggshield.scan import File
+from tests.conftest import is_windows
 
 
 @pytest.mark.parametrize(
@@ -145,5 +146,22 @@ def test_file_repr():
     WHEN repr() is called
     THEN it returns the correct output
     """
-    file = File("/some/path")
-    assert repr(file) == "<File url=file:///some/path filemode=Filemode.FILE>"
+    if is_windows():
+        str_path = r"c:\Windows"
+        expected_url = "file://c:/Windows"
+    else:
+        str_path = "/usr"
+        expected_url = "file:///usr"
+    file = File(str_path)
+    assert repr(file) == f"<File url={expected_url} filemode=Filemode.FILE>"
+
+
+def test_file_path():
+    """
+    GIVEN an OS-specific path
+    WHEN creating a File on it
+    THEN file.path returns the correct path
+    """
+    str_path = r"c:\Windows" if is_windows() else "/usr"
+    file = File(str_path)
+    assert file.path == Path(str_path)

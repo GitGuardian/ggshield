@@ -44,13 +44,11 @@ def get_iac_files_from_paths(
         ignore_git=ignore_git,
     ).apply_filter(is_file_iac_file)
 
-    return [str(Path(x).relative_to(path)) for x in files.paths]
+    return [str(x.relative_to(path)) for x in files.paths]
 
 
 def is_file_iac_file(scannable: Scannable) -> bool:
-    path = Path(scannable.filename)
-    extensions = path.suffixes
-    if any(ext in IAC_EXTENSIONS for ext in extensions):
+    if any(ext in IAC_EXTENSIONS for ext in scannable.path.suffixes):
         return True
-    name = path.name.lower()
+    name = scannable.path.name.lower()
     return any(keyword in name for keyword in IAC_FILENAME_KEYWORDS)

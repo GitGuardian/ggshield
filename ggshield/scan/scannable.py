@@ -1,9 +1,9 @@
 import codecs
 import logging
-import os.path
 import re
 import urllib.parse
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
 import charset_normalizer
@@ -95,19 +95,29 @@ class PatchParseError(Exception):
 class Scannable(ABC):
     """Base class for content that can be scanned by GGShield"""
 
-    def __init__(self, url: str, filemode: Filemode = Filemode.FILE):
-        self.url = url
-        self._parsed_url = urllib.parse.urlparse(url)
+    def __init__(self, filemode: Filemode = Filemode.FILE):
         self.filemode = filemode
 
     @property
-    def filename(self) -> str:
-        # TODO: really return just the filename at some point, or deprecate
-        return self.url
+    @abstractmethod
+    def url(self) -> str:
+        """Act as a unique identifier for the Scannable. May use custom protocols if
+        required."""
+        raise NotImplementedError
 
     @property
-    def path(self) -> str:
-        return self._parsed_url.path
+    @abstractmethod
+    def filename(self) -> str:
+        """To avoid breakage with the rest of the code base, implementations currently
+        return the URL or path of the instance for now, but it should really return
+        just the filename, or be removed."""
+        # TODO: make this really return the filename, or remove it
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def path(self) -> Path:
+        raise NotImplementedError
 
     @abstractmethod
     def is_longer_than(self, size: int) -> bool:
@@ -128,16 +138,29 @@ class Scannable(ABC):
 class File(Scannable):
     """Implementation of Scannable for files from the disk."""
 
-    def __init__(self, filename: str):
-        super().__init__(filename)
+    def __init__(self, path: str):
+        super().__init__()
+        self._path = Path(path)
         self._content: Optional[str] = None
+
+    @property
+    def url(self) -> str:
+        return f"file://{self._path.absolute().as_posix()}"
+
+    @property
+    def filename(self) -> str:
+        return str(self._path)
+
+    @property
+    def path(self) -> Path:
+        return self._path
 
     def is_longer_than(self, size: int) -> bool:
         if self._content:
             # We already have the content, easy
             return len(self._content) > size
 
-        byte_size = os.path.getsize(self.path)
+        byte_size = self.path.stat().st_size
         if byte_size < size:
             # Shortcut: if the byte size is smaller than `size`, we can be sure the
             # decoded size will be smaller
@@ -147,7 +170,7 @@ class File(Scannable):
         # small enough
         byte_content = b""
         str_content = ""
-        with open(self.path, "rb") as f:
+        with self.path.open("rb") as f:
             while True:
                 byte_chunk = f.read(size)
                 if byte_chunk:
@@ -172,7 +195,7 @@ class File(Scannable):
         """Ensures file content has been read and decoded"""
         if self._content is not None:
             return
-        with open(self.path, "rb") as f:
+        with self.path.open("rb") as f:
             self._content = File._decode_bytes(f.read(), self.filename)
 
     @staticmethod
@@ -199,11 +222,28 @@ class StringScannable(Scannable):
     def __init__(
         self, url: str, content: Union[str, bytes], filemode: Filemode = Filemode.FILE
     ):
-        super().__init__(url, filemode)
+        super().__init__(filemode)
+        self._url = url
+        self._path: Optional[Path] = None
         if isinstance(content, bytes):
             self._content = File._decode_bytes(content, url)
         else:
             self._content = content
+
+    @property
+    def url(self) -> str:
+        return self._url
+
+    @property
+    def filename(self) -> str:
+        return str(self._url)
+
+    @property
+    def path(self) -> Path:
+        if self._path is None:
+            result = urllib.parse.urlparse(self._url)
+            self._path = Path(result.path)
+        return self._path
 
     def is_longer_than(self, size: int) -> bool:
         return len(self._content) > size
@@ -228,7 +268,7 @@ class Files:
         return self._files
 
     @property
-    def paths(self) -> List[str]:
+    def paths(self) -> List[Path]:
         """Convenience property to list paths in the same order as files"""
         return [x.path for x in self.files]
 
