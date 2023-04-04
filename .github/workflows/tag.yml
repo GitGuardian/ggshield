@@ -71,7 +71,7 @@ jobs:
         id: tags
         shell: bash
         run: |
-          echo "TAG::${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
       - name: Download packages
         uses: actions/download-artifact@v3
