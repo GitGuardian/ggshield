@@ -133,5 +133,8 @@ def create_output_handler(ctx: click.Context) -> OutputHandler:
     config = ctx.obj["config"].user_config
     output = ctx.obj.get("output")
     return output_handler_cls(
-        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=output
+        show_secrets=config.secret.show_secrets,
+        verbose=config.verbose,
+        output=output,
+        ignore_known_secrets=config.ignore_known_secrets,
     )

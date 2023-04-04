@@ -60,7 +60,6 @@ def archive_cmd(
                 scan_context=scan_context,
                 ignored_matches=config.secret.ignored_matches,
                 ignored_detectors=config.secret.ignored_detectors,
-                ignore_known_secrets=config.ignore_known_secrets,
             )
             task_scan = progress.add_task(
                 "[green]Scanning Archive...", total=len(files.files)

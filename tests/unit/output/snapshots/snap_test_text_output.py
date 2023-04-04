@@ -12,7 +12,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | Facebook = 294*********575 | ce3f9f********************5e4372;
@@ -28,7 +30,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -46,7 +50,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | Facebook = 294*********575 | ce3f9f********************5e4372;
@@ -64,7 +70,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -80,7 +88,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f**************…
@@ -96,7 +106,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01df…
@@ -114,7 +126,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f********************5e4372;
@@ -132,7 +146,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +1 @
   1 | FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -148,7 +164,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +2 @
   1 | FacebookAppId = 294*********575;
@@ -164,7 +182,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +2 @
   1 | FacebookAppId = 294790898041575;
@@ -182,7 +202,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +2 @
   1 | FacebookAppId = 294*********575;
@@ -200,7 +222,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
     | @@ -0,0 +2 @
   1 | FacebookAppId = 294790898041575;
@@ -216,7 +240,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys:294*********5733 /ce3f9f********************5e43711 -----…
@@ -228,7 +254,9 @@ snapshots[
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
     | @@ -0,0 +1,29 @
   1 | …**5733 /ce3f9f********************5e43711 -----BEGIN RSA PRIVATE KEY-----
@@ -244,7 +272,9 @@ snapshots[
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
-   Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
 
   7 | **********************+*****************************************
   8 | ****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -259,7 +289,9 @@ snapshots[
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----…
@@ -271,7 +303,9 @@ snapshots[
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
     | @@ -0,0 +1,29 @
   1 | …041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -287,7 +321,9 @@ snapshots[
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
-   Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
 
   7 | bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
   8 | RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -304,7 +340,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys:294*********5733 /ce3f9f********************5e43711 -----BEGIN RSA PRIVATE KEY-----
@@ -316,7 +354,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys:294*********5733 /ce3f9f********************5e43711 -----BEGIN RSA PRIVATE KEY-----
@@ -332,7 +372,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
-   Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
 
   7 | **********************+*****************************************
   8 | ****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -349,7 +391,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
-   Ignore with SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -361,7 +405,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
     | @@ -0,0 +1,29 @
   1 | FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -377,7 +423,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
-   Ignore with SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
 
   7 | bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
   8 | RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -392,7 +440,9 @@ snapshots[
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
       | @@ -0,0 +1,29 @
     1 | PrivateKeyRsa:
@@ -415,7 +465,9 @@ snapshots[
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
       | @@ -0,0 +1,29 @
     1 | PrivateKeyRsa:
@@ -440,7 +492,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
       | @@ -0,0 +1,29 @
     1 | PrivateKeyRsa:
@@ -465,7 +519,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
-   Ignore with SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
       | @@ -0,0 +1,29 @
     1 | PrivateKeyRsa:
@@ -488,7 +544,9 @@ snapshots[
 
 >> Secret detected: GitHub Token
    Occurrences: 1
-   Ignore with SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
     | @@ -0,0 +1 @
   1 | github_token: 368ac3e**************************37ddf91
@@ -502,7 +560,9 @@ snapshots[
 
 >> Secret detected: GitHub Token
    Occurrences: 1
-   Ignore with SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
     | @@ -0,0 +1 @
   1 | github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
@@ -518,7 +578,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: GitHub Token
    Occurrences: 1
-   Ignore with SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
     | @@ -0,0 +1 @
   1 | github_token: 368ac3e**************************37ddf91
@@ -534,7 +596,9 @@ secrets-engine-version: 3.14.159
 
 >> Secret detected: GitHub Token
    Occurrences: 1
-   Ignore with SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
     | @@ -0,0 +1 @
   1 | github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91

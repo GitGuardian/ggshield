@@ -253,7 +253,6 @@ def docker_scan_archive(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
-    ignore_known_secrets: Optional[bool] = None,
 ) -> ScanCollection:
     files = get_files_from_docker_archive(archive)
 
@@ -265,7 +264,6 @@ def docker_scan_archive(
             scan_context=scan_context,
             ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
-            ignore_known_secrets=ignore_known_secrets,
         )
         task_scan = progress.add_task(
             "[green]Scanning Docker Image...", total=len(files.files)

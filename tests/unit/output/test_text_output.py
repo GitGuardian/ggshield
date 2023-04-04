@@ -131,28 +131,30 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
 
 
 def assert_policies_displayed(output, verbose, ignore_known_secrets, policy_breaks):
-    nb_new_secrets = 0
     for policy_break in policy_breaks:
-        if not ignore_known_secrets:
+        if not ignore_known_secrets or verbose:
             # All secrets are displayed no matter if they're known or not
-            nb_new_secrets += 1
             assert f"Secret detected: {policy_break.break_type}" in output
-        else:
-            if verbose:
-                # Known secrets are still displayed with a dedicated message
-                if policy_break.known_secret:
-                    assert f"Known secret: {policy_break.break_type}" in output
-                else:
-                    nb_new_secrets += 1
-                    assert f"Secret detected: {policy_break.break_type}" in output
+            if policy_break.known_secret:
+                assert "Known by GitGuardian dashboard: YES" in output
+                assert (
+                    "https://dashboard.gitguardian.com/workspace/1/incidents/" in output
+                )
             else:
-                # Only new secrets are displayed
-                if not policy_break.known_secret:
-                    nb_new_secrets += 1
-                    assert f"Secret detected: {policy_break.break_type}" in output
-    if nb_new_secrets:
+                assert "Known by GitGuardian dashboard: NO" in output
+                assert "Incident URL: N/A" in output
+        else:
+            if policy_break.known_secret:
+                assert f"Secret detected: {policy_break.break_type}" not in output
+
+    if ignore_known_secrets:
+        secrets_number = sum(1 for x in policy_breaks if not x.known_secret)
+    else:
+        secrets_number = len(policy_breaks)
+
+    if secrets_number:
         assert (
-            f"{nb_new_secrets} incident{'s' if nb_new_secrets > 1 else ''} detected"
+            f"{secrets_number} incident{'s' if secrets_number > 1 else ''} detected"
             in output
         )
 
@@ -205,7 +207,9 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     WHEN generating text output
     THEN if ignore_known_secrets is used, do not show known secret (unless the verbose mode)
     """
-    output_handler = TextOutputHandler(show_secrets=True, verbose=verbose)
+    output_handler = TextOutputHandler(
+        show_secrets=True, verbose=verbose, ignore_known_secrets=ignore_known_secrets
+    )
 
     result: Result = Result(
         File(document=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT, filename="leak.txt"),
@@ -220,18 +224,19 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     if secrets_types == "no_secrets":
         known_policy_breaks = []
         new_policy_breaks = []
+    elif secrets_types == "only_known_secrets":
+        known_policy_breaks = all_policy_breaks
+        new_policy_breaks = []
+    elif secrets_types == "mixed_secrets":
+        # set only first policy break as known
+        known_policy_breaks = all_policy_breaks[:1]
+        new_policy_breaks = all_policy_breaks[1:]
 
-    if ignore_known_secrets:
-        if secrets_types == "only_known_secrets":
-            known_policy_breaks = all_policy_breaks
-            new_policy_breaks = []
-        elif secrets_types == "mixed_secrets":
-            # set only first policy break as known
-            known_policy_breaks = all_policy_breaks[:1]
-            new_policy_breaks = all_policy_breaks[1:]
-
-    for policy_break in known_policy_breaks:
+    for index, policy_break in enumerate(known_policy_breaks):
         policy_break.known_secret = True
+        policy_break.incident_url = (
+            f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
+        )
 
     # call output handler
     output = output_handler._process_scan_impl(
@@ -274,7 +279,9 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
     WHEN checking for the exit code
     THEN the exit code is 1 when the new secrets are present, and 0 otherwise
     """
-    output_handler = TextOutputHandler(show_secrets=True, verbose=False)
+    output_handler = TextOutputHandler(
+        show_secrets=True, verbose=False, ignore_known_secrets=ignore_known_secrets
+    )
 
     result: Result = Result(
         File(
@@ -289,18 +296,19 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
     known_policy_breaks = []
     new_policy_breaks = all_policy_breaks
 
-    # add known_secret for the secrets that are known, when the option is, the known_secret field is not returned
-    if ignore_known_secrets:
-        if secrets_types == "only_known_secrets":
-            known_policy_breaks = all_policy_breaks
-            new_policy_breaks = []
-        elif secrets_types == "mixed_secrets":
-            # set only first policy break as known
-            known_policy_breaks = all_policy_breaks[:1]
-            new_policy_breaks = all_policy_breaks[1:]
+    if secrets_types == "only_known_secrets":
+        known_policy_breaks = all_policy_breaks
+        new_policy_breaks = []
+    elif secrets_types == "mixed_secrets":
+        # set only first policy break as known
+        known_policy_breaks = all_policy_breaks[:1]
+        new_policy_breaks = all_policy_breaks[1:]
 
-    for policy_break in known_policy_breaks:
+    for index, policy_break in enumerate(known_policy_breaks):
         policy_break.known_secret = True
+        policy_break.incident_url = (
+            f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
+        )
 
     # call output handler
     exit_code = output_handler._get_exit_code(
@@ -319,6 +327,10 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
         )
     )
 
-    expected_exit_code = len(new_policy_breaks) > 0
+    expected_exit_code = (
+        len(new_policy_breaks) > 0
+        if ignore_known_secrets
+        else len(all_policy_breaks) > 0
+    )
 
     assert exit_code == expected_exit_code
