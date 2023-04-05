@@ -25,7 +25,7 @@ DEFAULT_MAX_DELTA_SECS = 3
 @dataclass
 class ReportRow:
     command: str
-    repository: str
+    dataset: str
     # Mapping of version => [durations]
     durations_for_versions: Dict[str, List[float]] = field(default_factory=dict)
 
@@ -143,7 +143,7 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
             report_path,
         )
 
-    # Load raw report file, group report rows by command and repository
+    # Load raw report file, group report rows by command and dataset
     version_set = set()
     row_dict: Dict[Tuple[str, str], ReportRow] = {}
     with report_path.open() as fp:
@@ -154,8 +154,8 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
             version_set.add(entry.version)
 
             row = row_dict.setdefault(
-                (entry.command, entry.repository),
-                ReportRow(entry.command, entry.repository),
+                (entry.command, entry.dataset),
+                ReportRow(entry.command, entry.dataset),
             )
             durations = row.durations_for_versions.setdefault(entry.version, [])
             durations.append(entry.duration)
@@ -165,7 +165,7 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
     # Create table rows
     table_rows = []
     has_failed = False
-    for row in sorted(row_dict.values(), key=lambda x: (x.command, x.repository)):
+    for row in sorted(row_dict.values(), key=lambda x: (x.command, x.dataset)):
         duration_cells, fail = create_duration_cells(
             sorted_versions,
             row.durations_for_versions,
@@ -173,7 +173,7 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
             max_delta,
         )
         has_failed |= fail
-        table_rows.append([row.command, row.repository, *duration_cells])
+        table_rows.append([row.command, row.dataset, *duration_cells])
 
     # Create headers (no delta column for reference)
     version_headers = [sorted_versions[0]]
@@ -183,7 +183,7 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
     print_markdown_table(
         sys.stdout,
         table_rows,
-        headers=["command", "repository", *version_headers],
+        headers=["command", "dataset", *version_headers],
         alignments="LL" + "R" * len(version_headers),
     )
 
