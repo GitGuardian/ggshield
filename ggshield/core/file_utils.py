@@ -4,15 +4,11 @@ from pathlib import Path
 from typing import Iterable, Iterator, List, Set, Union
 
 import click
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.binary_extensions import BINARY_EXTENSIONS
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git_ls, is_git_dir
 from ggshield.scan import File, Files, Scannable
-
-
-DOCUMENT_SIZE_THRESHOLD_MBYTES = DOCUMENT_SIZE_THRESHOLD_BYTES // (1024 * 1024)
 
 
 def get_files_from_paths(

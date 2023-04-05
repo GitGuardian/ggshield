@@ -4,7 +4,7 @@ import re
 import urllib.parse
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
+from typing import BinaryIO, Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 import charset_normalizer
 from charset_normalizer import CharsetMatch
@@ -170,6 +170,41 @@ class Scannable(ABC):
             raw_document = raw_document[len(codecs.BOM_UTF8) :]
         return raw_document.decode(charset_match.encoding, errors="replace")
 
+    @staticmethod
+    def _is_file_longer_than(fp: BinaryIO, size: int) -> Tuple[bool, Optional[str]]:
+        """Helper function to implement is_longer_than() for file-based Scannable classes.
+
+        Returns a tuple of:
+        - True if file is longer than `size`, False otherwise
+        - The decoded content as a string, if it has been fully read, None otherwise
+
+        Raises DecodeError if the file cannot be decoded.
+        """
+        byte_content = b""
+        str_content = ""
+
+        charset_matches = charset_normalizer.from_fp(fp)
+        charset_match = charset_matches.best()
+        if charset_match is None:
+            raise DecodeError
+        fp.seek(0)
+        while True:
+            # Try to read more than the requested size:
+            # - If the file is smaller, that changes nothing
+            # - if the file is bigger, we potentially avoid a second read
+            byte_chunk = fp.read(size * 2)
+            if byte_chunk:
+                byte_content += byte_chunk
+                # Note: we decode `byte_content` and not `byte_chunk`: we can't
+                # decode just the chunk because we have no way to know if it starts
+                # and ends at complete code-point boundaries
+                str_content = Scannable._decode_bytes(byte_content, charset_match)
+                if len(str_content) > size:
+                    return True, None
+            else:
+                # We read the whole file, keep it
+                return False, str_content
+
 
 class File(Scannable):
     """Implementation of Scannable for files from the disk."""
@@ -196,52 +231,21 @@ class File(Scannable):
             # We already have the content, easy
             return len(self._content) > size
 
-        byte_size = self.path.stat().st_size
-        if byte_size < size:
+        if self.path.stat().st_size < size:
             # Shortcut: if the byte size is smaller than `size`, we can be sure the
             # decoded size will be smaller
             return False
 
-        # We need to decode at least the beginning of the file to determine if it's
-        # small enough
-        byte_content = b""
-        str_content = ""
         with self.path.open("rb") as fp:
-            charset_matches = charset_normalizer.from_fp(fp)
-            charset_match = charset_matches.best()
-            if charset_match is None:
-                raise DecodeError
-            fp.seek(0)
-            while True:
-                # Try to read more than the requested size:
-                # - If the file is smaller, that changes nothing
-                # - if the file is bigger, we potentially avoid a second read
-                byte_chunk = fp.read(size * 2)
-                if byte_chunk:
-                    byte_content += byte_chunk
-                    # Note: we decode `byte_content` and not `byte_chunk`: we can't
-                    # decode just the chunk because we have no way to know if it starts
-                    # and ends at complete code-point boundaries
-                    str_content = Scannable._decode_bytes(byte_content, charset_match)
-                    if len(str_content) > size:
-                        return True
-                else:
-                    # We read the whole file, keep it
-                    self._content = str_content
-                    return False
+            result, self._content = Scannable._is_file_longer_than(fp, size)
+        return result
 
     @property
     def content(self) -> str:
-        self._prepare()
-        assert self._content is not None
+        if self._content is None:
+            with self.path.open("rb") as f:
+                self._content = Scannable._decode_bytes(f.read())
         return self._content
-
-    def _prepare(self) -> None:
-        """Ensures file content has been read and decoded"""
-        if self._content is not None:
-            return
-        with self.path.open("rb") as f:
-            self._content = Scannable._decode_bytes(f.read())
 
 
 class StringScannable(Scannable):
@@ -252,12 +256,6 @@ class StringScannable(Scannable):
         self._url = url
         self._path: Optional[Path] = None
         self._content = content
-
-    @staticmethod
-    def from_bytes(
-        url: str, content: bytes, filemode: Filemode = Filemode.FILE
-    ) -> "StringScannable":
-        return StringScannable(url, Scannable._decode_bytes(content), filemode)
 
     @property
     def url(self) -> str:
