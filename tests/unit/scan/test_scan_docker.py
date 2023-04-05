@@ -10,6 +10,7 @@ import pytest
 from ggshield.core.errors import UnexpectedError
 from ggshield.scan.docker import (
     InvalidDockerArchiveException,
+    LayerInfo,
     _get_config,
     _should_scan_layer,
     docker_pull_image,
@@ -59,7 +60,7 @@ class TestDockerScan:
         ],
     )
     def test_should_scan_layer(self, op: str, want: bool):
-        assert _should_scan_layer({"created_by": op}) is want
+        assert _should_scan_layer(LayerInfo(filename="dummy", command=op)) is want
 
     @pytest.mark.parametrize(
         ["members", "match"],

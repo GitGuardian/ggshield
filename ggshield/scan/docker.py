@@ -3,6 +3,7 @@ import os.path
 import re
 import subprocess
 import tarfile
+from dataclasses import dataclass
 from functools import partial
 from itertools import chain
 from pathlib import Path
@@ -114,6 +115,12 @@ class DockerContentScannable(Scannable):
         return self._content
 
 
+@dataclass
+class LayerInfo:
+    filename: str
+    command: str
+
+
 class DockerFiles(Files):
     """A Files instance which keeps a reference to the TarFile storing the image
     content, so that we can continue to access it"""
@@ -174,37 +181,49 @@ def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
 
 def _get_layer_infos(
     manifest: Dict[str, Any], config: Dict[str, Any]
-) -> Iterable[Dict[str, Dict]]:
+) -> Iterable[LayerInfo]:
     """
-    Extracts the non-empty layers information with:
-    - the filename,
-    - the command used to generate the layer,
-    - and the date and time of creation.
+    Returns LayerInfo instances for all non-empty layers
     """
+    layer_filenames = manifest["Layers"]
+
+    # config["history"] contains a list of entries like this:
+    # {
+    #   "created": ISO8601 timestamp,
+    #   "created_by": command to build the layer
+    #   "empty_layer": if present, equals true
+    # }
+    #
+    # manifest["Layers"] contains a list of non-empty layers like this:
+    #
+    #   "<uuid>/layer.tar"
     return (
-        {
-            "filename": filename,
-            "created": info["created"],
-            "created_by": info.get("created_by"),
-        }
-        for info, filename in zip(
+        LayerInfo(filename=filename, command=layer.get("created_by", ""))
+        for filename, layer in zip(
+            layer_filenames,
             (layer for layer in config["history"] if not layer.get("empty_layer")),
-            manifest["Layers"],
         )
     )
 
 
-def _should_scan_layer(layer_info: Dict) -> bool:
+def _should_scan_layer(layer_info: LayerInfo) -> bool:
     """
     Returns True if a layer should be scanned, False otherwise.
     Only COPY and ADD layers should be scanned.
     """
-    cmd = layer_info["created_by"]
-    return LAYER_TO_SCAN_PATTERN.search(cmd) is not None if cmd else True
+    if layer_info.command == "":
+        # Some images contain layers with no commands. Since we don't know how they have
+        # been created, we must scan them.
+        # Examples of such images from Docker Hub:
+        # - aevea/release-notary:0.9.7
+        # - redhat/ubi8:8.6-754
+        return True
+    else:
+        return LAYER_TO_SCAN_PATTERN.search(layer_info.command) is not None
 
 
 def _get_layers_files(
-    archive: tarfile.TarFile, layers_info: Iterable[Dict]
+    archive: tarfile.TarFile, layers_info: Iterable[LayerInfo]
 ) -> Iterable[Scannable]:
     """
     Extracts File objects to be scanned for given layers.
@@ -226,11 +245,13 @@ def _validate_filepath(
     return True
 
 
-def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Scannable]:
+def _get_layer_files(
+    archive: tarfile.TarFile, layer_info: LayerInfo
+) -> Iterable[Scannable]:
     """
     Extracts File objects to be scanned for given layer.
     """
-    layer_filename = layer_info["filename"]
+    layer_filename = layer_info.filename
     layer_archive = tarfile.TarFile(
         name=os.path.join(archive.name, layer_filename),  # type: ignore
         fileobj=archive.extractfile(layer_filename),
