@@ -148,6 +148,28 @@ class Scannable(ABC):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} url={self.url} filemode={self.filemode}>"
 
+    @staticmethod
+    def _decode_bytes(
+        raw_document: bytes, charset_match: Optional[CharsetMatch] = None
+    ) -> str:
+        """Low level helper function to decode bytes using `charset_match`. If
+        `charset_match` is not provided, tries to determine it itself.
+
+        Raises DecodeError if the document cannot be decoded."""
+        if charset_match is None:
+            charset_match = charset_normalizer.from_bytes(raw_document).best()
+            if charset_match is None:
+                # This means we were not able to detect the encoding
+                raise DecodeError
+
+        # Special case for utf_8 + BOM: `bytes.decode()` does not skip the BOM, so do it
+        # ourselves
+        if charset_match.encoding == "utf_8" and raw_document.startswith(
+            codecs.BOM_UTF8
+        ):
+            raw_document = raw_document[len(codecs.BOM_UTF8) :]
+        return raw_document.decode(charset_match.encoding, errors="replace")
+
 
 class File(Scannable):
     """Implementation of Scannable for files from the disk."""
@@ -200,7 +222,7 @@ class File(Scannable):
                     # Note: we decode `byte_content` and not `byte_chunk`: we can't
                     # decode just the chunk because we have no way to know if it starts
                     # and ends at complete code-point boundaries
-                    str_content = File._decode_bytes(byte_content, charset_match)
+                    str_content = Scannable._decode_bytes(byte_content, charset_match)
                     if len(str_content) > size:
                         return True
                 else:
@@ -219,29 +241,7 @@ class File(Scannable):
         if self._content is not None:
             return
         with self.path.open("rb") as f:
-            self._content = File._decode_bytes(f.read())
-
-    @staticmethod
-    def _decode_bytes(
-        raw_document: bytes, charset_match: Optional[CharsetMatch] = None
-    ) -> str:
-        """Low level function to decode bytes using `charset_match`. If `charset_match`
-        is not provided, tries to determine it itself.
-
-        Raises DecodeError if the document cannot be decoded."""
-        if charset_match is None:
-            charset_match = charset_normalizer.from_bytes(raw_document).best()
-            if charset_match is None:
-                # This means we were not able to detect the encoding
-                raise DecodeError
-
-        # Special case for utf_8 + BOM: `bytes.decode()` does not skip the BOM, so do it
-        # ourselves
-        if charset_match.encoding == "utf_8" and raw_document.startswith(
-            codecs.BOM_UTF8
-        ):
-            raw_document = raw_document[len(codecs.BOM_UTF8) :]
-        return raw_document.decode(charset_match.encoding, errors="replace")
+            self._content = Scannable._decode_bytes(f.read())
 
 
 class StringScannable(Scannable):
@@ -257,7 +257,7 @@ class StringScannable(Scannable):
     def from_bytes(
         url: str, content: bytes, filemode: Filemode = Filemode.FILE
     ) -> "StringScannable":
-        return StringScannable(url, File._decode_bytes(content), filemode)
+        return StringScannable(url, Scannable._decode_bytes(content), filemode)
 
     @property
     def url(self) -> str:
