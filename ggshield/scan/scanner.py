@@ -61,7 +61,7 @@ class Error(NamedTuple):
     description: str  # Description of the error
 
 
-@dataclass(frozen=True)
+@dataclass
 class Results:
     """
     Return model for a scan with the results and errors of the scan
@@ -80,6 +80,10 @@ class Results:
         """Create a Results representing a failure"""
         error = Error(files=[], description=str(exc))
         return Results(results=[], errors=[error])
+
+    def extend(self, others: "Results") -> None:
+        self.results.extend(others.results)
+        self.errors.extend(others.errors)
 
 
 class ScanCollection:
