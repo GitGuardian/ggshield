@@ -17,7 +17,15 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import File, Files, ScanCollection, ScanContext, SecretScanner
+from ggshield.scan import (
+    DecodeError,
+    Files,
+    ScanCollection,
+    ScanContext,
+    Scannable,
+    SecretScanner,
+    StringScannable,
+)
 
 
 FILEPATH_BANLIST = [
@@ -64,7 +72,7 @@ def get_files_from_docker_archive(archive_path: Path) -> Files:
         return Files(list(chain((config_file_to_scan,), layer_files_to_scan)))
 
 
-def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, File]:
+def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
     """
     Extracts Docker image archive manifest and configuration.
     Returns a tuple with:
@@ -93,7 +101,7 @@ def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, File]:
     return (
         manifest,
         json.loads(config_file_content),
-        File(config_file_content, filename="Dockerfile or build-args"),
+        StringScannable("Dockerfile or build-args", config_file_content),
     )
 
 
@@ -130,7 +138,7 @@ def _should_scan_layer(layer_info: Dict) -> bool:
 
 def _get_layers_files(
     archive: tarfile.TarFile, layers_info: Iterable[Dict]
-) -> Iterable[File]:
+) -> Iterable[Scannable]:
     """
     Extracts File objects to be scanned for given layers.
     """
@@ -151,7 +159,7 @@ def _validate_filepath(
     return True
 
 
-def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[File]:
+def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Scannable]:
     """
     Extracts File objects to be scanned for given layer.
     """
@@ -185,11 +193,13 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Fil
         # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
         layer_name = os.path.dirname(layer_filename)
 
-        # Do not use os.path.join() for the filename argument: we always want Unix path
-        # separators here
-        yield File.from_bytes(
-            raw_document=file_content, filename=f"{layer_name}:/{file_info.name}"
-        )
+        try:
+            yield StringScannable.from_bytes(
+                url=f"{layer_name}:/{file_info.name}",
+                content=file_content,
+            )
+        except DecodeError:
+            pass
 
 
 def docker_pull_image(image_name: str, timeout: int) -> None:

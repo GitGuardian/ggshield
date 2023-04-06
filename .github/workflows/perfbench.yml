@@ -3,8 +3,12 @@ name: Performance benchmark
 on:
   pull_request:
   workflow_dispatch:
-    run_options:
-      description: 'Additional options to pass to `run`'
+    inputs:
+      run_options:
+        description: 'Additional options to pass to `run`'
+      python_version:
+        description: 'Python version to use (use https://github.com/actions/setup-python#supported-version-syntax)'
+        default: '3.10'
 
 jobs:
   benchmark:
@@ -23,8 +27,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python_version || '3.10' }}
+
       - name: Install dependencies
         run: |
+          python --version
           python -m pip install --upgrade pip
           python -m pip install --upgrade pipenv
           pipenv install --system
@@ -37,7 +47,7 @@ jobs:
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
         run: |
-          scripts/perfbench/perfbench run --repeats $REPEATS ${{ github.event.inputs.run_options }}
+          scripts/perfbench/perfbench run --repeats $REPEATS ${{ inputs.run_options }}
 
       - name: Generate report
         run: |

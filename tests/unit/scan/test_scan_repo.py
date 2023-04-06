@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ggshield.scan import Commit, File, Result, Results
+from ggshield.scan import Commit, Result, Results, StringScannable
 from ggshield.scan.repo import get_commits_by_batch, scan_commits_content
 from ggshield.scan.scannable import CommitInformation
 from tests.unit.conftest import TWO_POLICY_BREAKS
@@ -56,9 +56,9 @@ def test_get_commits_content_by_batch(
         commit = Commit(sha=f"some_sha_{commit_nb}")
         commit.get_files = MagicMock(
             return_value=[
-                File(
-                    document=f"some content {file_nb}",
-                    filename=f"some_filename_{file_nb}.py",
+                StringScannable(
+                    content=f"some content {file_nb}",
+                    url=f"some_filename_{file_nb}.py",
                 )
                 for file_nb in range(size)
             ]
@@ -79,11 +79,11 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     """
     commit_info = CommitInformation("unknown", "", "")
     commit_1 = Commit(sha="some_sha_1")
-    commit_1._files = [File(document="document", filename="filename")]
+    commit_1._files = [StringScannable(content="document", url="filename")]
     commit_1._info = commit_info
 
     commit_2 = Commit(sha="some_sha_2")
-    commit_2._files = [File(document="document", filename="filename")]
+    commit_2._files = [StringScannable(content="document", url="filename")]
     commit_2._info = commit_info
 
     secret_scanner_mock.return_value.scan.return_value = Results(
@@ -127,15 +127,15 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
     commit_info = CommitInformation("unknown", "", "")
     commit_1 = Commit(sha="some_sha_1")
 
-    file1_1 = File(document="document1", filename="filename1")
-    file1_2 = File(document="document2", filename="filename2")
-    file1_3 = File(document="document3", filename="filename3")
+    file1_1 = StringScannable(content="document1", url="filename1")
+    file1_2 = StringScannable(content="document2", url="filename2")
+    file1_3 = StringScannable(content="document3", url="filename3")
 
     commit_1._files = [file1_1, file1_2, file1_3]
     commit_1._info = commit_info
 
-    file2_1 = File(document="document2", filename="filename2")
-    file2_2 = File(document="document3", filename="filename3")
+    file2_1 = StringScannable(content="document2", url="filename2")
+    file2_2 = StringScannable(content="document3", url="filename3")
 
     commit_2 = Commit(sha="some_sha_2")
     commit_2._files = [file2_1, file2_2]

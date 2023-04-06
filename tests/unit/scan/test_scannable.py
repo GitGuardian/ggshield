@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Tuple
 
 import click
@@ -7,7 +8,7 @@ from pygitguardian.models import Detail
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import Filemode
-from ggshield.scan import Commit, File, Files
+from ggshield.scan import Commit, Files, StringScannable
 from ggshield.scan.scannable import _parse_patch_header_line
 from ggshield.scan.scanner import handle_scan_chunk_error
 from tests.unit.conftest import DATA_PATH
@@ -117,9 +118,9 @@ def test_patch_separation():
     assert c.info.date == "Fri Oct 18 13:20:00 2012 +0100"
 
     assert len(files) == len(EXPECTED_PATCH_CONTENT)
-    for file_, (name, document) in zip(files, EXPECTED_PATCH_CONTENT):
+    for file_, (name, content) in zip(files, EXPECTED_PATCH_CONTENT):
         assert file_.filename == name
-        assert file_.document == document
+        assert file_.content == content
 
 
 def test_patch_separation_ignore():
@@ -151,8 +152,8 @@ CHECK_ENVIRONMENT=true
 
 
 def test_apply_filter():
-    file1 = File("", "file1")
-    file2 = File("", "file2")
+    file1 = StringScannable(content="", url="file1")
+    file2 = StringScannable(content="", url="file2")
     files = Files([file1, file2])
 
     filtered_files = files.apply_filter(lambda file: file.filename == "file1")
@@ -173,7 +174,7 @@ def test_handle_scan_error_api_key():
         pytest.param(
             Detail("Too many documents to scan"),
             400,
-            [File("", "/example") for _ in range(21)],
+            [StringScannable(content="", url="/example") for _ in range(21)],
             id="too many documents",
         ),
         pytest.param(
@@ -182,13 +183,12 @@ def test_handle_scan_error_api_key():
             ),
             400,
             [
-                File(
-                    "still valid",
-                    "/home/user/too/long/file/name",
+                StringScannable(
+                    content="still valid", url="/home/user/too/long/file/name"
                 ),
-                File("", "valid"),
-                File("", "valid"),
-                File("", "valid"),
+                StringScannable(content="", url="valid"),
+                StringScannable(content="", url="valid"),
+                StringScannable(content="", url="valid"),
             ],
             id="single file exception",
         ),
@@ -320,3 +320,13 @@ def test_get_files(
 
     names_and_modes = [(x.filename, x.filemode) for x in files]
     assert names_and_modes == expected_names_and_modes
+
+
+def test_string_scannable_path():
+    """
+    GIVEN a StringScannable instance
+    WHEN path() is called
+    THEN it returns the right value
+    """
+    scannable = StringScannable(url="custom:/some/path", content="")
+    assert scannable.path == Path("/some/path")

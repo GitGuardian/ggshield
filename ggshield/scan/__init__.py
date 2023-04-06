@@ -1,11 +1,12 @@
 from .scan_context import ScanContext
 from .scan_mode import ScanMode
-from .scannable import Commit, File, Files
+from .scannable import Commit, DecodeError, File, Files, Scannable, StringScannable
 from .scanner import Result, Results, ScanCollection, SecretScanner
 
 
 __all__ = [
     "Commit",
+    "DecodeError",
     "File",
     "Files",
     "Result",
@@ -14,4 +15,6 @@ __all__ = [
     "ScanCollection",
     "ScanContext",
     "ScanMode",
+    "Scannable",
+    "StringScannable",
 ]

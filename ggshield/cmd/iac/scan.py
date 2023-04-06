@@ -128,7 +128,7 @@ def update_context(
 
 
 def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
-    files = get_iac_files_from_paths(
+    paths = get_iac_files_from_paths(
         path=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
         verbose=ctx.obj["config"].verbose,
@@ -145,7 +145,7 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
 
     scan = client.iac_directory_scan(
         directory,
-        files.filenames,
+        paths,
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,

@@ -1,10 +1,18 @@
 from collections import namedtuple
+from unittest.mock import Mock
 
 import pytest
 
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import Filemode
-from ggshield.scan import Commit, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import (
+    Commit,
+    DecodeError,
+    ScanContext,
+    ScanMode,
+    Scannable,
+    SecretScanner,
+)
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -94,3 +102,43 @@ def test_scan_patch(client, cache, name, input_patch, expected):
                 assert result.content == expected.want["content"]
                 assert result.filename == expected.want["filename"]
                 assert result.filemode == expected.want["filemode"]
+
+
+@pytest.mark.parametrize(
+    "unscannable_type",
+    [
+        "EMPTY",
+        "TOO_BIG",
+        "BINARY",
+    ],
+)
+def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: str):
+    """
+    GIVEN a Scannable which is not scannable
+    WHEN Scanner.scan() is called on it
+    THEN it skips it
+    AND the progress callback is called
+    """
+    mock = Mock(spec=Scannable)
+    if unscannable_type == "EMPTY":
+        mock.is_longer_than.return_value = False
+        mock.content = ""
+    elif unscannable_type == "TOO_BIG":
+        mock.is_longer_than.return_value = True
+    elif unscannable_type == "BINARY":
+        mock.is_longer_than.side_effect = DecodeError
+
+    progress = Mock()
+
+    scanner = SecretScanner(
+        client=client,
+        cache=cache,
+        scan_context=ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="external",
+        ),
+        check_api_key=False,
+    )
+    scanner.scan([mock], progress_callback=progress)
+
+    progress.assert_called_once_with(advance=1)

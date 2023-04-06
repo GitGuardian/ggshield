@@ -20,7 +20,14 @@ from ggshield.core.utils import (
     get_lines_from_content,
     load_dot_env,
 )
-from ggshield.scan import Commit, File, Files, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import (
+    Commit,
+    Files,
+    ScanContext,
+    ScanMode,
+    SecretScanner,
+    StringScannable,
+)
 from ggshield.scan.repo import cd
 from ggshield.scan.scan_context import parse_os_release
 from tests.unit.conftest import (
@@ -85,7 +92,7 @@ def test_make_indices_patch(
         o = Commit()
         o._patch = content
     else:
-        o = Files([File(content, "test_file")])
+        o = Files([StringScannable(content=content, url="test_file")])
     with my_vcr.use_cassette(name):
         scanner = SecretScanner(
             client=client,

@@ -1,11 +1,13 @@
 import codecs
 import logging
 import re
+import urllib.parse
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 import charset_normalizer
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
+from charset_normalizer import CharsetMatch
 
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git
@@ -91,67 +93,193 @@ class PatchParseError(Exception):
     pass
 
 
-class File:
-    """Class representing a simple file."""
+class DecodeError(Exception):
+    """
+    Raised when a Scannable cannot determine the encoding of its content.
 
-    def __init__(
-        self, document: Optional[str], filename: str, filemode: Filemode = Filemode.FILE
-    ):
-        self._document = document
-        self.filename = filename
+    Similar to UnicodeDecodeError, but easier to instantiate.
+    """
+
+    pass
+
+
+class Scannable(ABC):
+    """Base class for content that can be scanned by GGShield"""
+
+    def __init__(self, filemode: Filemode = Filemode.FILE):
         self.filemode = filemode
 
-    def relative_to(self, root_path: Path) -> "File":
-        return File(self._document, str(Path(self.filename).relative_to(root_path)))
+    @property
+    @abstractmethod
+    def url(self) -> str:
+        """Act as a unique identifier for the Scannable. May use custom protocols if
+        required."""
+        raise NotImplementedError
 
     @property
-    def document(self) -> str:
-        self.prepare()
-        assert self._document is not None
-        return self._document
+    @abstractmethod
+    def filename(self) -> str:
+        """To avoid breakage with the rest of the code base, implementations currently
+        return the URL or path of the instance for now, but it should really return
+        just the filename, or be removed."""
+        # TODO: make this really return the filename, or remove it
+        raise NotImplementedError
 
-    def prepare(self) -> None:
-        """Ensures self._document has been decoded"""
-        if self._document is not None:
+    @property
+    @abstractmethod
+    def path(self) -> Path:
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_longer_than(self, size: int) -> bool:
+        """Return true if the length of the *decoded* content is greater than `size`.
+        When possible, implementations must try to answer this without reading all
+        content.
+        Raise `DecodeError` if the content cannot be decoded.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def content(self) -> str:
+        """Return the decoded content of the scannable"""
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} url={self.url} filemode={self.filemode}>"
+
+
+class File(Scannable):
+    """Implementation of Scannable for files from the disk."""
+
+    def __init__(self, path: str):
+        super().__init__()
+        self._path = Path(path)
+        self._content: Optional[str] = None
+
+    @property
+    def url(self) -> str:
+        return f"file://{self._path.absolute().as_posix()}"
+
+    @property
+    def filename(self) -> str:
+        return str(self._path)
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def is_longer_than(self, size: int) -> bool:
+        if self._content:
+            # We already have the content, easy
+            return len(self._content) > size
+
+        byte_size = self.path.stat().st_size
+        if byte_size < size:
+            # Shortcut: if the byte size is smaller than `size`, we can be sure the
+            # decoded size will be smaller
+            return False
+
+        # We need to decode at least the beginning of the file to determine if it's
+        # small enough
+        byte_content = b""
+        str_content = ""
+        with self.path.open("rb") as fp:
+            charset_matches = charset_normalizer.from_fp(fp)
+            charset_match = charset_matches.best()
+            if charset_match is None:
+                raise DecodeError
+            fp.seek(0)
+            while True:
+                # Try to read more than the requested size:
+                # - If the file is smaller, that changes nothing
+                # - if the file is bigger, we potentially avoid a second read
+                byte_chunk = fp.read(size * 2)
+                if byte_chunk:
+                    byte_content += byte_chunk
+                    # Note: we decode `byte_content` and not `byte_chunk`: we can't
+                    # decode just the chunk because we have no way to know if it starts
+                    # and ends at complete code-point boundaries
+                    str_content = File._decode_bytes(byte_content, charset_match)
+                    if len(str_content) > size:
+                        return True
+                else:
+                    # We read the whole file, keep it
+                    self._content = str_content
+                    return False
+
+    @property
+    def content(self) -> str:
+        self._prepare()
+        assert self._content is not None
+        return self._content
+
+    def _prepare(self) -> None:
+        """Ensures file content has been read and decoded"""
+        if self._content is not None:
             return
-        with open(self.filename, "rb") as f:
-            self._document = File._decode_bytes(f.read(), self.filename)
+        with self.path.open("rb") as f:
+            self._content = File._decode_bytes(f.read())
 
     @staticmethod
-    def from_bytes(raw_document: bytes, filename: str) -> "File":
-        """Creates a File instance for a raw document. Document is decoded immediately."""
-        document = File._decode_bytes(raw_document, filename)
-        return File(document, filename)
+    def _decode_bytes(
+        raw_document: bytes, charset_match: Optional[CharsetMatch] = None
+    ) -> str:
+        """Low level function to decode bytes using `charset_match`. If `charset_match`
+        is not provided, tries to determine it itself.
 
-    @staticmethod
-    def from_path(filename: str) -> "File":
-        """Creates a File instance for a file. Content is *not* read immediately."""
-        return File(None, filename)
-
-    @staticmethod
-    def _decode_bytes(raw_document: bytes, filename: str) -> str:
-        """Low level function to decode bytes, tries hard to find the correct encoding.
-        For now it returns an empty string if the document could not be decoded"""
-        result = charset_normalizer.from_bytes(raw_document).best()
-        if result is None:
-            # This means we were not able to detect the encoding. Report it using logging for now
-            # TODO: we should report this in the output
-            logger.warning("Skipping %s, can't detect encoding", filename)
-            return ""
+        Raises DecodeError if the document cannot be decoded."""
+        if charset_match is None:
+            charset_match = charset_normalizer.from_bytes(raw_document).best()
+            if charset_match is None:
+                # This means we were not able to detect the encoding
+                raise DecodeError
 
         # Special case for utf_8 + BOM: `bytes.decode()` does not skip the BOM, so do it
         # ourselves
-        if result.encoding == "utf_8" and raw_document.startswith(codecs.BOM_UTF8):
+        if charset_match.encoding == "utf_8" and raw_document.startswith(
+            codecs.BOM_UTF8
+        ):
             raw_document = raw_document[len(codecs.BOM_UTF8) :]
-        return raw_document.decode(result.encoding, errors="replace")
+        return raw_document.decode(charset_match.encoding, errors="replace")
 
-    def __repr__(self) -> str:
-        return f"<File filename={self.filename} filemode={self.filemode}>"
 
-    def has_extensions(self, extensions: Set[str]) -> bool:
-        """Returns True iff the file has one of the given extensions."""
-        file_extensions = Path(self.filename).suffixes
-        return any(ext in extensions for ext in file_extensions)
+class StringScannable(Scannable):
+    """Implementation of Scannable for content already loaded in memory"""
+
+    def __init__(self, url: str, content: str, filemode: Filemode = Filemode.FILE):
+        super().__init__(filemode)
+        self._url = url
+        self._path: Optional[Path] = None
+        self._content = content
+
+    @staticmethod
+    def from_bytes(
+        url: str, content: bytes, filemode: Filemode = Filemode.FILE
+    ) -> "StringScannable":
+        return StringScannable(url, File._decode_bytes(content), filemode)
+
+    @property
+    def url(self) -> str:
+        return self._url
+
+    @property
+    def filename(self) -> str:
+        return str(self._url)
+
+    @property
+    def path(self) -> Path:
+        if self._path is None:
+            result = urllib.parse.urlparse(self._url)
+            self._path = Path(result.path)
+        return self._path
+
+    def is_longer_than(self, size: int) -> bool:
+        return len(self._content) > size
+
+    @property
+    def content(self) -> str:
+        return self._content
 
 
 class Files:
@@ -159,28 +287,25 @@ class Files:
     Files is a list of files. Useful for directory scanning.
     """
 
-    def __init__(self, files: List[File]):
+    def __init__(self, files: List[Scannable]):
         self._files = files
 
     @property
-    def files(self) -> List[File]:
+    def files(self) -> List[Scannable]:
         """The list of files owned by this instance. The same filename can appear twice,
         in case of a merge commit."""
         return self._files
 
     @property
-    def filenames(self) -> List[str]:
-        """Convenience property to list filenames in the same order as files"""
-        return [x.filename for x in self.files]
+    def paths(self) -> List[Path]:
+        """Convenience property to list paths in the same order as files"""
+        return [x.path for x in self.files]
 
     def __repr__(self) -> str:
         return f"<Files files={self.files}>"
 
-    def apply_filter(self, filter_func: Callable[[File], bool]) -> "Files":
+    def apply_filter(self, filter_func: Callable[[Scannable], bool]) -> "Files":
         return Files([file for file in self.files if filter_func(file)])
-
-    def relative_to(self, root_path: Path) -> "Files":
-        return Files([file.relative_to(root_path) for file in self.files])
 
 
 class CommitInformation(NamedTuple):
@@ -189,7 +314,7 @@ class CommitInformation(NamedTuple):
     date: str
 
 
-def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[File]:
+def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[Scannable]:
     """
     Parse the patch generated with `git show` (or `git diff`)
 
@@ -220,14 +345,9 @@ def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[Fil
                 # No content
                 continue
             # +1 because we searched for the '\n'
-            document = diff[end_of_headers + 1 :]
+            content = diff[end_of_headers + 1 :]
 
-            file_size = len(document.encode("utf-8"))
-            if file_size > DOCUMENT_SIZE_THRESHOLD_BYTES * 0.90:
-                continue
-
-            if document:
-                yield File(document, filename, filemode)
+            yield StringScannable(filename, content, filemode=filemode)
 
 
 class Commit(Files):
@@ -285,13 +405,13 @@ class Commit(Files):
         return self._patch
 
     @property
-    def files(self) -> List[File]:
+    def files(self) -> List[Scannable]:
         if not self._files:
             self._files = list(self.get_files())
 
         return self._files
 
-    def get_files(self) -> Iterable[File]:
+    def get_files(self) -> Iterable[Scannable]:
         """
         Parse the patch into files and extract the changes for each one of them.
 

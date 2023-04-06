@@ -8,8 +8,12 @@ import pytest
 GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
 
 
+def is_windows():
+    return platform.system() == "Windows"
+
+
 skipwindows = pytest.mark.skipif(
-    platform.system() == "Windows" and not os.environ.get("DISABLE_SKIPWINDOWS"),
+    is_windows() and not os.environ.get("DISABLE_SKIPWINDOWS"),
     reason="Skipped on Windows for now, define DISABLE_SKIPWINDOWS environment variable to unskip",
 )
 
