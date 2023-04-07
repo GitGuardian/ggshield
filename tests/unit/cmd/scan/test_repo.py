@@ -11,7 +11,7 @@ class TestScanRepo:
         THEN a validation error proposing error correction should be shown
         """
         result = cli_fs_runner.invoke(
-            cli, ["scan", "repo", "https://github.com/gitguardian/ggshield"]
+            cli, ["secret", "scan", "repo", "https://github.com/gitguardian/ggshield"]
         )
         assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert (
@@ -27,7 +27,8 @@ class TestScanRepo:
         THEN a validation error should be shown
         """
         result = cli_fs_runner.invoke(
-            cli, ["scan", "repo", "trial.gitguardian.com/gitguardian/ggshield"]
+            cli,
+            ["secret", "scan", "repo", "trial.gitguardian.com/gitguardian/ggshield"],
         )
         assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert (
