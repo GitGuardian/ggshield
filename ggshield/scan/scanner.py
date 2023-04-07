@@ -259,7 +259,7 @@ class SecretScanner:
                     continue
                 content = scannable.content
             except DecodeError:
-                click.echo(f"Can't decode {scannable.path}, skipping")
+                click.echo(f"Can't decode {scannable.path}, skipping", err=True)
                 skipped_chunks_count += 1
                 continue
 

@@ -10,7 +10,6 @@ from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
 from click import UsageError
 from pygitguardian import GGClient
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.cache import Cache
 from ggshield.core.errors import UnexpectedError
@@ -18,7 +17,6 @@ from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.scan import (
-    DecodeError,
     Files,
     ScanCollection,
     ScanContext,
@@ -56,20 +54,89 @@ class InvalidDockerArchiveException(Exception):
     pass
 
 
+class DockerContentScannable(Scannable):
+    """
+    A Scannable for a file inside a Docker image
+    """
+
+    def __init__(
+        self, layer_filename: str, tar_file: tarfile.TarFile, tar_info: tarfile.TarInfo
+    ):
+        super().__init__()
+        self._layer_filename = layer_filename
+        self._tar_file = tar_file
+        self._tar_info = tar_info
+        self._content: Optional[str] = None
+
+    @property
+    def url(self) -> str:
+        # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
+        layer_name = os.path.dirname(self._layer_filename)
+        return f"{layer_name}:/{self._tar_info.name}"
+
+    @property
+    def filename(self) -> str:
+        return self.url
+
+    @property
+    def path(self) -> Path:
+        return Path(self._tar_info.name)
+
+    def is_longer_than(self, size: int) -> bool:
+        if self._content:
+            # We already have the content, easy
+            return len(self._content) > size
+
+        if self._tar_info.size < size:
+            # Shortcut: if the byte size is smaller than `size`, we can be sure the
+            # decoded size will be smaller
+            return False
+
+        # We need to decode at least the beginning of the file to determine if it's
+        # small enough
+        fp = self._tar_file.extractfile(self._tar_info)
+        assert fp is not None
+        with fp:
+            result, self._content = Scannable._is_file_longer_than(
+                fp, size  # type:ignore
+            )
+            # mypy complains that fp is IO[bytes] but _is_file_longer_than() expects
+            # BinaryIO. They are compatible, ignore the error.
+        return result
+
+    @property
+    def content(self) -> str:
+        if self._content is None:
+            file = self._tar_file.extractfile(self._tar_info)
+            assert file is not None
+            byte_content = file.read()
+            self._content = Scannable._decode_bytes(byte_content)
+        return self._content
+
+
+class DockerFiles(Files):
+    """A Files instance which keeps a reference to the TarFile storing the image
+    content, so that we can continue to access it"""
+
+    def __init__(self, tar_file: tarfile.TarFile):
+        self.tar_file = tar_file
+        manifest, config, config_file_to_scan = _get_config(self.tar_file)
+
+        layer_files_to_scan = _get_layers_files(
+            self.tar_file,
+            filter(_should_scan_layer, _get_layer_infos(manifest, config)),
+        )
+
+        super().__init__(list(chain((config_file_to_scan,), layer_files_to_scan)))
+
+
 def get_files_from_docker_archive(archive_path: Path) -> Files:
     """
     Extracts files to scan from a Docker image archive.
     Only the configuration and the layers generated with a `COPY` and `ADD`
     command are scanned.
     """
-    with tarfile.open(archive_path) as archive:
-        manifest, config, config_file_to_scan = _get_config(archive)
-
-        layer_files_to_scan = _get_layers_files(
-            archive, filter(_should_scan_layer, _get_layer_infos(manifest, config))
-        )
-
-        return Files(list(chain((config_file_to_scan,), layer_files_to_scan)))
+    return DockerFiles(tarfile.open(archive_path))
 
 
 def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
@@ -173,9 +240,6 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Sca
         if not file_info.isfile():
             continue
 
-        if file_info.size > DOCUMENT_SIZE_THRESHOLD_BYTES * 0.95:
-            continue
-
         if file_info.size == 0:
             continue
 
@@ -184,22 +248,7 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Sca
         ):
             continue
 
-        file = layer_archive.extractfile(file_info)
-        if file is None:
-            continue
-
-        file_content = file.read()
-
-        # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
-        layer_name = os.path.dirname(layer_filename)
-
-        try:
-            yield StringScannable.from_bytes(
-                url=f"{layer_name}:/{file_info.name}",
-                content=file_content,
-            )
-        except DecodeError:
-            pass
+        yield DockerContentScannable(layer_filename, layer_archive, file_info)
 
 
 def docker_pull_image(image_name: str, timeout: int) -> None:

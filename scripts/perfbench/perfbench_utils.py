@@ -14,7 +14,7 @@ class RawReportEntry:
     """Represent the fields stored in the benchmark.jsonl file"""
 
     version: str
-    repository: str
+    dataset: str
     command: str
     duration: float
 
