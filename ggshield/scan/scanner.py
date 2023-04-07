@@ -1,9 +1,11 @@
 import concurrent.futures
 import logging
+import sys
+from abc import ABC, abstractmethod
 from ast import literal_eval
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
+from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 import click
 from pygitguardian import GGClient
@@ -164,6 +166,39 @@ class ScanCollection:
                     yield from scan.results.results
 
 
+class SecretScannerUI(ABC):
+    """
+    An abstract class used by SecretScanner to notify callers about progress or events
+    during a scan
+    """
+
+    @abstractmethod
+    def on_scanned(self, scannables: Sequence[Scannable]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def on_skipped(self, scannable: Scannable, reason: str) -> None:
+        """
+        Called when a scannable was skipped, `reason` explains why. If `reason` is empty
+        then the user should not be notified of the skipped scannable (this happens for
+        example when skipping empty files)
+        """
+        raise NotImplementedError
+
+
+class DefaultSecretScannerUI(SecretScannerUI):
+    """
+    Default implementation of SecretScannerUI. Does not show progress.
+    """
+
+    def on_scanned(self, scannables: Sequence[Scannable]) -> None:
+        pass
+
+    def on_skipped(self, scannable: Scannable, reason: str) -> None:
+        if reason:
+            print(f"Skipped {scannable.url}: {reason}", file=sys.stderr)
+
+
 class SecretScanner:
     """
     A SecretScanner scans a list of File, using multiple threads
@@ -193,16 +228,13 @@ class SecretScanner:
     def scan(
         self,
         files: Iterable[Scannable],
-        progress_callback: Callable[..., None] = lambda advance: None,
+        scanner_ui: SecretScannerUI = DefaultSecretScannerUI(),
         scan_threads: int = 4,
     ) -> Results:
         """
         Starts the scan, using at most scan_threads.
-        Reports progress using progress_callback if set.
+        Reports progress through `scanner_ui`.
         Returns a Results instance.
-
-        progress_callback must take an `advance: int` keyword argument: the number of
-        scanned files.
         """
         logger.debug("files=%s command_id=%s", self, self.command_id)
 
@@ -212,7 +244,7 @@ class SecretScanner:
             chunks_for_futures = self._start_scans(
                 executor,
                 files,
-                progress_callback,
+                scanner_ui,
             )
 
             return self._collect_results(chunks_for_futures)
@@ -240,7 +272,7 @@ class SecretScanner:
         self,
         executor: concurrent.futures.ThreadPoolExecutor,
         scannables: Iterable[Scannable],
-        progress_callback: Callable[..., None],
+        scanner_ui: SecretScannerUI,
     ) -> Dict[Future, List[Scannable]]:
         """
         Start all scans, return a tuple containing:
@@ -248,39 +280,34 @@ class SecretScanner:
         - a list of files which we did not send to scan because we could not decode them
         """
         chunks_for_futures = {}
-        skipped_chunks_count = 0
 
         chunk: List[Scannable] = []
         for scannable in scannables:
             try:
                 if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES):
-                    click.echo(
-                        f"ignoring file over {DOCUMENT_SIZE_THRESHOLD_BYTES // 1024 // 1024} MB:"
-                        f" {scannable.path}",
-                        err=True,
+                    max_size_mb = DOCUMENT_SIZE_THRESHOLD_BYTES // 1024 // 1024
+                    scanner_ui.on_skipped(
+                        scannable, f"content is over {max_size_mb} MB"
                     )
-                    skipped_chunks_count += 1
                     continue
                 content = scannable.content
             except DecodeError:
-                click.echo(f"Can't decode {scannable.path}, skipping", err=True)
-                skipped_chunks_count += 1
+                scanner_ui.on_skipped(scannable, "can't detect encoding")
                 continue
 
             if content:
                 chunk.append(scannable)
                 if len(chunk) == MULTI_DOCUMENT_LIMIT:
                     future = self._scan_chunk(executor, chunk)
-                    progress_callback(advance=len(chunk))
+                    scanner_ui.on_scanned(chunk)
                     chunks_for_futures[future] = chunk
                     chunk = []
             else:
-                skipped_chunks_count += 1
+                scanner_ui.on_skipped(scannable, "")
         if chunk:
             future = self._scan_chunk(executor, chunk)
-            progress_callback(advance=len(chunk))
+            scanner_ui.on_scanned(chunk)
             chunks_for_futures[future] = chunk
-        progress_callback(advance=skipped_chunks_count)
         return chunks_for_futures
 
     def _collect_results(

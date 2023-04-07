@@ -3,7 +3,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
@@ -16,8 +15,14 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.text_utils import create_progress_bar
-from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import (
+    Files,
+    RichSecretScannerUI,
+    ScanCollection,
+    ScanContext,
+    ScanMode,
+    SecretScanner,
+)
 from ggshield.scan.file import get_files_from_paths
 
 
@@ -108,8 +113,7 @@ def pypi_cmd(
             verbose=config.verbose,
         )
 
-        with create_progress_bar(doc_type="files") as progress:
-
+        with RichSecretScannerUI(len(files.files), dataset_type="PyPI Package") as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.PYPI,
                 command_path=ctx.command_path,
@@ -123,12 +127,9 @@ def pypi_cmd(
                 ignored_detectors=config.secret.ignored_detectors,
                 ignore_known_secrets=config.ignore_known_secrets,
             )
-            task_scan = progress.add_task(
-                "[green]Scanning PyPI Package...", total=len(files.files)
-            )
             results = scanner.scan(
                 files.files,
-                progress_callback=partial(progress.update, task_scan),
+                scanner_ui=ui,
                 scan_threads=MAX_WORKERS,
             )
         scan = ScanCollection(id=package_name, type="path_scan", results=results)

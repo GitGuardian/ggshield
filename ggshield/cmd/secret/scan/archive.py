@@ -1,6 +1,5 @@
 import shutil
 import tempfile
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -12,8 +11,14 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.text_utils import create_progress_bar
-from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import (
+    Files,
+    RichSecretScannerUI,
+    ScanCollection,
+    ScanContext,
+    ScanMode,
+    SecretScanner,
+)
 from ggshield.scan.file import get_files_from_paths
 
 
@@ -47,8 +52,7 @@ def archive_cmd(
             ignore_git=True,
         )
 
-        with create_progress_bar(doc_type="files") as progress:
-
+        with RichSecretScannerUI(len(files.files), dataset_type="Archive") as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,
@@ -62,13 +66,7 @@ def archive_cmd(
                 ignored_detectors=config.secret.ignored_detectors,
                 ignore_known_secrets=config.ignore_known_secrets,
             )
-            task_scan = progress.add_task(
-                "[green]Scanning Archive...", total=len(files.files)
-            )
-            results = scanner.scan(
-                files.files,
-                progress_callback=partial(progress.update, task_scan),
-            )
+            results = scanner.scan(files.files, scanner_ui=ui)
 
         scan = ScanCollection(id=path, type="archive_scan", results=results)
 

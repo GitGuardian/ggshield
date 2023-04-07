@@ -4,7 +4,6 @@ import re
 import subprocess
 import tarfile
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
@@ -14,10 +13,11 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
-from ggshield.core.text_utils import create_progress_bar, display_info
+from ggshield.core.text_utils import display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.scan import (
     Files,
+    RichSecretScannerUI,
     ScanCollection,
     ScanContext,
     Scannable,
@@ -326,23 +326,20 @@ def docker_scan_archive(
             ignored_detectors=ignored_detectors,
             ignore_known_secrets=ignore_known_secrets,
         )
-        with create_progress_bar(doc_type="files") as progress:
-            task_scan = progress.add_task("[green]Scanning Docker config...", total=1)
+        display_info("Scanning Docker config...")
+        with RichSecretScannerUI(1) as ui:
             results = scanner.scan(
                 [docker_image.config_scannable],
-                progress_callback=partial(progress.update, task_scan),
+                scanner_ui=ui,
             )
 
         for info, files in docker_image.get_layers():
-            display_info(f"Scanning layer {info.command}")
-            with create_progress_bar(doc_type="files") as progress:
-                task_scan = progress.add_task(
-                    "[green]Scanning...", total=len(files.files)
-                )
+            display_info(f"Scanning layer {info.get_id()}...")
+            with RichSecretScannerUI(len(files.files)) as ui:
                 results.extend(
                     scanner.scan(
                         files.files,
-                        progress_callback=partial(progress.update, task_scan),
+                        scanner_ui=ui,
                     )
                 )
 

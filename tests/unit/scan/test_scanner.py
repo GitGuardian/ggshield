@@ -12,6 +12,7 @@ from ggshield.scan import (
     ScanMode,
     Scannable,
     SecretScanner,
+    SecretScannerUI,
 )
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
@@ -128,7 +129,7 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
     elif unscannable_type == "BINARY":
         mock.is_longer_than.side_effect = DecodeError
 
-    progress = Mock()
+    scanner_ui = Mock(spec=SecretScannerUI)
 
     scanner = SecretScanner(
         client=client,
@@ -139,6 +140,6 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
         ),
         check_api_key=False,
     )
-    scanner.scan([mock], progress_callback=progress)
+    scanner.scan([mock], scanner_ui=scanner_ui)
 
-    progress.assert_called_once_with(advance=1)
+    scanner_ui.on_skipped.assert_called_once()
