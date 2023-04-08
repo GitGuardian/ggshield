@@ -1,6 +1,7 @@
+from .commit import Commit
 from .scan_context import ScanContext
 from .scan_mode import ScanMode
-from .scannable import Commit, DecodeError, File, Files, Scannable, StringScannable
+from .scannable import DecodeError, File, Files, Scannable, StringScannable
 from .scanner import Result, Results, ScanCollection, SecretScanner
 
 
