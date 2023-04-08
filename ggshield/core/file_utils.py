@@ -1,51 +1,13 @@
 import os
 import re
 from pathlib import Path
-from typing import Iterable, Iterator, List, Set, Union
+from typing import List, Set, Union
 
 import click
 
 from ggshield.core.binary_extensions import BINARY_EXTENSIONS
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git_ls, is_git_dir
-from ggshield.scan import File, Files, Scannable
-
-
-def get_files_from_paths(
-    paths: List[str],
-    exclusion_regexes: Set[re.Pattern],
-    recursive: bool,
-    yes: bool,
-    verbose: bool,
-    ignore_git: bool = False,
-) -> Files:
-    """
-    Create a scan object from files content.
-
-    :param paths: List of file/dir paths from the command
-    :param recursive: Recursive option
-    :param yes: Skip confirmation option
-    :param verbose: Option that displays filepaths as they are scanned
-    :param ignore_git: Ignore that the folder is a git repository
-    """
-    filepaths = get_filepaths(
-        paths, exclusion_regexes, recursive, ignore_git=ignore_git
-    )
-    files = list(generate_files_from_paths(filepaths, verbose))
-
-    if verbose:
-        for f in files:
-            click.echo(f"- {click.format_filename(f.filename)}", err=True)
-
-    size = len(files)
-    if size > 1 and not yes:
-        click.confirm(
-            f"{size} files will be scanned. Do you want to continue?",
-            abort=True,
-            err=True,
-        )
-
-    return Files(files)
 
 
 def get_filepaths(
@@ -88,22 +50,3 @@ def is_path_binary(path: str) -> bool:
     _, ext = os.path.splitext(path)
     # `[1:]` because `ext` starts with a "." but extensions in `BINARY_EXTENSIONS` do not
     return ext[1:] in BINARY_EXTENSIONS
-
-
-def generate_files_from_paths(
-    paths: Iterable[str], verbose: bool
-) -> Iterator[Scannable]:
-    """Loop on filepaths and return an iterator on scannable files."""
-    for path in paths:
-        if os.path.isdir(path) or not os.path.exists(path):
-            continue
-
-        if is_path_binary(path):
-            if verbose:
-                click.echo(
-                    f"ignoring binary file: {path}",
-                    err=True,
-                )
-            continue
-
-        yield File(path)

@@ -127,48 +127,6 @@ class Scannable(ABC):
                 return False, str_content
 
 
-class File(Scannable):
-    """Implementation of Scannable for files from the disk."""
-
-    def __init__(self, path: str):
-        super().__init__()
-        self._path = Path(path)
-        self._content: Optional[str] = None
-
-    @property
-    def url(self) -> str:
-        return f"file://{self._path.absolute().as_posix()}"
-
-    @property
-    def filename(self) -> str:
-        return str(self._path)
-
-    @property
-    def path(self) -> Path:
-        return self._path
-
-    def is_longer_than(self, size: int) -> bool:
-        if self._content:
-            # We already have the content, easy
-            return len(self._content) > size
-
-        if self.path.stat().st_size < size:
-            # Shortcut: if the byte size is smaller than `size`, we can be sure the
-            # decoded size will be smaller
-            return False
-
-        with self.path.open("rb") as fp:
-            result, self._content = Scannable._is_file_longer_than(fp, size)
-        return result
-
-    @property
-    def content(self) -> str:
-        if self._content is None:
-            with self.path.open("rb") as f:
-                self._content = Scannable._decode_bytes(f.read())
-        return self._content
-
-
 class StringScannable(Scannable):
     """Implementation of Scannable for content already loaded in memory"""
 
@@ -204,6 +162,9 @@ class StringScannable(Scannable):
 class Files:
     """
     Files is a list of files. Useful for directory scanning.
+
+    TODO: Rename to something like ScannableCollection: this class is no longer limited
+    to holding File instances.
     """
 
     def __init__(self, files: List[Scannable]):
