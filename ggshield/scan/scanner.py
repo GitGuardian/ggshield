@@ -247,7 +247,7 @@ class SecretScanner:
                 scanner_ui,
             )
 
-            return self._collect_results(chunks_for_futures)
+            return self._collect_results(scanner_ui, chunks_for_futures)
 
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[Scannable]
@@ -299,19 +299,18 @@ class SecretScanner:
                 chunk.append(scannable)
                 if len(chunk) == MULTI_DOCUMENT_LIMIT:
                     future = self._scan_chunk(executor, chunk)
-                    scanner_ui.on_scanned(chunk)
                     chunks_for_futures[future] = chunk
                     chunk = []
             else:
                 scanner_ui.on_skipped(scannable, "")
         if chunk:
             future = self._scan_chunk(executor, chunk)
-            scanner_ui.on_scanned(chunk)
             chunks_for_futures[future] = chunk
         return chunks_for_futures
 
     def _collect_results(
         self,
+        scanner_ui: SecretScannerUI,
         chunks_for_futures: Dict[Future, List[Scannable]],
     ) -> Results:
         """
@@ -324,6 +323,7 @@ class SecretScanner:
         errors = []
         for future in concurrent.futures.as_completed(chunks_for_futures):
             chunk = chunks_for_futures[future]
+            scanner_ui.on_scanned(chunk)
 
             exception = future.exception()
             if exception is None:
