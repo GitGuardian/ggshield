@@ -12,9 +12,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.file_utils import get_files_from_paths
 from ggshield.core.text_utils import create_progress_bar
 from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode, SecretScanner
+from ggshield.scan.file import get_files_from_paths
 
 
 @click.command()
