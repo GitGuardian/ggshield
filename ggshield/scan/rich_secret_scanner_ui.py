@@ -17,7 +17,7 @@ class RichSecretScannerUI(SecretScannerUI):
     ):
         self.progress = create_progress_bar(scannable_type)
         task_title = f"Scanning {dataset_type}..." if dataset_type else "Scanning..."
-        self.task = self.progress.add_task(f"[green]{task_title}", total=total)
+        self.task = self.progress.add_task(task_title, total=total)
 
     def __enter__(self) -> "RichSecretScannerUI":
         self.progress.__enter__()
