@@ -103,15 +103,24 @@ class TestDockerScan:
                 },
             }
 
-            image_layers = list(image.get_layers())
-            layer_ids = [layer_info.get_id() for layer_info, files in image_layers]
-            assert layer_ids == list(expected_files_for_layers)
+            # List of (LayerInfo, Files)
+            # The filter is here to remove layers with no scannables
+            infos_and_layers = list(
+                filter(
+                    lambda info_and_layer: info_and_layer[1].files,
+                    ((x, image.get_layer(x)) for x in image.layer_infos),
+                )
+            )
 
-            files = [files for layer_info, files in image_layers]
-            for files, expected_content_dict in zip(
-                files, expected_files_for_layers.values()
+            layer_ids = [x.get_id() for x, _ in infos_and_layers]
+            expected_layer_ids = list(expected_files_for_layers.keys())
+            assert layer_ids == expected_layer_ids
+
+            layers = [l for _, l in infos_and_layers]
+            for layer, expected_content_dict in zip(
+                layers, expected_files_for_layers.values()
             ):
-                content_dict = {x.path.as_posix(): x.content for x in files.files}
+                content_dict = {x.path.as_posix(): x.content for x in layer.files}
                 assert content_dict == expected_content_dict
 
 

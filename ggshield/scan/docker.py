@@ -125,15 +125,14 @@ class LayerInfo:
 class DockerImage:
     def __init__(self, tar_file: tarfile.TarFile):
         self.tar_file = tar_file
-        self.manifest, self.config, self.config_scannable = _get_config(self.tar_file)
+        manifest, config, self.config_scannable = _get_config(self.tar_file)
+        self.layer_infos = list(
+            filter(_should_scan_layer, _get_layer_infos(manifest, config))
+        )
 
-    def get_layers(self) -> Iterable[Tuple[LayerInfo, Files]]:
-        for layer_info in filter(
-            _should_scan_layer, _get_layer_infos(self.manifest, self.config)
-        ):
-            scannables = list(_get_layer_files(self.tar_file, layer_info))
-            if scannables:
-                yield (layer_info, Files(scannables))
+    def get_layer(self, layer_info: LayerInfo) -> Files:
+        scannables = list(_get_layer_files(self.tar_file, layer_info))
+        return Files(scannables)
 
 
 def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
@@ -331,13 +330,17 @@ def docker_scan_archive(
                 scanner_ui=ui,
             )
 
-        for info, files in docker_image.get_layers():
+        for info in docker_image.layer_infos:
+            layer = docker_image.get_layer(info)
+            file_count = len(layer.files)
+            if file_count == 0:
+                continue
             print()
             display_heading(f"Scanning layer {info.get_id()}")
-            with RichSecretScannerUI(len(files.files)) as ui:
+            with RichSecretScannerUI(file_count) as ui:
                 results.extend(
                     scanner.scan(
-                        files.files,
+                        layer.files,
                         scanner_ui=ui,
                     )
                 )
