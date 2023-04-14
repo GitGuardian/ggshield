@@ -126,7 +126,6 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
             matches_ignore=config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.secret.ignored_detectors,
-            ignore_known_secrets=config.ignore_known_secrets,
         )
         if return_code:
             click.echo(

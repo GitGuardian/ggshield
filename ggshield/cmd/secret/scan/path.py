@@ -61,7 +61,6 @@ def path_cmd(
                 ignored_matches=config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
-                ignore_known_secrets=config.ignore_known_secrets,
             )
             results = scanner.scan(
                 files.files,

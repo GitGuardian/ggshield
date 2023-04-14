@@ -1,6 +1,7 @@
 import json
 from collections import namedtuple
 from copy import deepcopy
+from unittest.mock import Mock
 
 import pytest
 from pytest_voluptuous import Partial, S
@@ -138,7 +139,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
 
         scan = ScanCollection(id="path", type="test", results=results)
         json_flat_results = handler._process_scan_impl(scan)
-        exit_code = OutputHandler._get_exit_code(scan)
+        exit_code = OutputHandler._get_exit_code(Mock(ignore_known_secrets=False), scan)
 
         assert exit_code == expected_exit_code
         assert SCHEMA_WITHOUT_INCIDENTS == JSONScanCollectionSchema().loads(

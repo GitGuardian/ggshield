@@ -35,10 +35,12 @@ class TextOutputHandler(OutputHandler):
         scan_buf.write(processed_scan_results)
         if not processed_scan_results:
             scan_buf.write(
-                no_new_leak_message() if scan.known_secrets_count else no_leak_message()
+                no_new_leak_message()
+                if (self.ignore_known_secrets and scan.known_secrets_count)
+                else no_leak_message()
             )
 
-        if scan.known_secrets_count > 0:
+        if self.ignore_known_secrets and scan.known_secrets_count > 0:
             scan_buf.write(
                 f"\nWarning: {scan.known_secrets_count} {pluralize('secret', scan.known_secrets_count)} ignored "
                 f"because {pluralize('it is', scan.known_secrets_count, 'they are')} already known by your "
@@ -116,8 +118,10 @@ class TextOutputHandler(OutputHandler):
         number_of_displayed_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():
             known_secret = policy_breaks[0].known_secret
-            if (not known_secret and not show_only_known_secrets) or (
-                known_secret and show_only_known_secrets
+            if (
+                (not known_secret and not show_only_known_secrets)
+                or (known_secret and show_only_known_secrets)
+                or not self.ignore_known_secrets
             ):
                 number_of_displayed_secrets += 1
 

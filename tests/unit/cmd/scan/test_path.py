@@ -68,7 +68,9 @@ class TestPathScan:
                 """>> Secret detected: GitGuardian Development Secret
    Validity: No Checker
    Occurrences: 1
-   Ignore with SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4"""
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4"""
                 in result.output
             )
 
@@ -86,7 +88,9 @@ class TestPathScan:
             """>> Secret detected: GitGuardian Test Token Checked
    Validity: Valid
    Occurrences: 1
-   Ignore with SHA: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd
 """
             in result.output
         )

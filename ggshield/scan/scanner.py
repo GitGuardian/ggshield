@@ -125,6 +125,10 @@ class ScanCollection:
         return self.new_secrets_count > 0
 
     @property
+    def has_secrets(self) -> bool:
+        return (self.new_secrets_count + self.known_secrets_count) > 0
+
+    @property
     def scans_with_results(self) -> List["ScanCollection"]:
         if self.scans:
             return [scan for scan in self.scans if scan.results]
@@ -211,7 +215,6 @@ class SecretScanner:
         scan_context: ScanContext,
         ignored_matches: Optional[Iterable[IgnoredMatch]] = None,
         ignored_detectors: Optional[Set[str]] = None,
-        ignore_known_secrets: Optional[bool] = None,
         check_api_key: Optional[bool] = True,
     ):
         if check_api_key:
@@ -223,7 +226,6 @@ class SecretScanner:
         self.ignored_detectors = ignored_detectors
         self.headers = scan_context.get_http_headers()
         self.command_id = scan_context.command_id
-        self.ignore_known_secrets = ignore_known_secrets
 
     def scan(
         self,
@@ -265,7 +267,7 @@ class SecretScanner:
             self.client.multi_content_scan,
             documents,
             self.headers,
-            ignore_known_secrets=self.ignore_known_secrets,
+            ignore_known_secrets=True,
         )
 
     def _start_scans(

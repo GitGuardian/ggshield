@@ -313,7 +313,6 @@ def docker_scan_archive(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
-    ignore_known_secrets: Optional[bool] = None,
 ) -> ScanCollection:
     with tarfile.open(archive_path) as archive:
         docker_image = DockerImage(archive)
@@ -324,7 +323,6 @@ def docker_scan_archive(
             scan_context=scan_context,
             ignored_matches=matches_ignore,
             ignored_detectors=ignored_detectors,
-            ignore_known_secrets=ignore_known_secrets,
         )
         display_heading("Scanning Docker config")
         with RichSecretScannerUI(1) as ui:

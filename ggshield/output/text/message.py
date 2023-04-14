@@ -208,19 +208,21 @@ def iac_vulnerability_location_failed(
 
 
 def policy_break_header(
-    policy_breaks: List[PolicyBreak], ignore_sha: str, known_secret: bool = False
+    policy_breaks: List[PolicyBreak],
+    ignore_sha: str,
+    known_secret: bool = False,
 ) -> str:
     """
     Build a header for the policy break.
     """
+    indent = "   "
     validity_msg = (
-        f"\n   Validity: {format_text(translate_validity(policy_breaks[0].validity), STYLE['incident_validity'])}"
+        f"\n{indent}Validity: {format_text(translate_validity(policy_breaks[0].validity), STYLE['incident_validity'])}"
         if policy_breaks[0].validity
         else ""
     )
 
     start_line = format_text(">>", STYLE["detector_line_start"])
-    policy_header = "Known secret" if known_secret else "Secret detected"
     policy_break_type = format_text(
         policy_breaks[0].break_type, STYLE["policy_break_type"]
     )
@@ -228,9 +230,11 @@ def policy_break_header(
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
     return f"""
-{start_line} {policy_header}: {policy_break_type}{validity_msg}
-   Occurrences: {number_occurrences}
-   Ignore with SHA: {ignore_sha}
+{start_line} Secret detected: {policy_break_type}{validity_msg}
+{indent}Occurrences: {number_occurrences}
+{indent}Known by GitGuardian dashboard: {"YES" if known_secret else "NO"}
+{indent}Incident URL: {policy_breaks[0].incident_url if known_secret and policy_breaks[0].incident_url else "N/A"}
+{indent}Secret SHA: {ignore_sha}
 
 """
 

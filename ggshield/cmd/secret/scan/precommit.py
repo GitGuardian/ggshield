@@ -37,7 +37,10 @@ def precommit_cmd(
     """
     config = ctx.obj["config"]
     output_handler = TextOutputHandler(
-        show_secrets=config.secret.show_secrets, verbose=config.verbose, output=None
+        show_secrets=config.secret.show_secrets,
+        verbose=config.verbose,
+        output=None,
+        ignore_known_secrets=config.ignore_known_secrets,
     )
     try:
         check_git_dir()
@@ -54,7 +57,6 @@ def precommit_cmd(
             scan_context=scan_context,
             ignored_matches=config.secret.ignored_matches,
             ignored_detectors=config.secret.ignored_detectors,
-            ignore_known_secrets=config.ignore_known_secrets,
         )
         results = scanner.scan(commit.files)
 

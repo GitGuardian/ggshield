@@ -17,10 +17,12 @@ class OutputHandler(ABC):
         show_secrets: bool,
         verbose: bool,
         output: Optional[str] = None,
+        ignore_known_secrets: bool = False,
     ):
         self.show_secrets = show_secrets
         self.verbose = verbose
         self.output = output
+        self.ignore_known_secrets = ignore_known_secrets
 
     def process_scan(self, scan: ScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`
@@ -34,7 +36,7 @@ class OutputHandler(ABC):
                 f.write(text)
         else:
             click.echo(text)
-        return OutputHandler._get_exit_code(scan)
+        return self._get_exit_code(scan)
 
     @abstractmethod
     def _process_scan_impl(self, scan: ScanCollection) -> str:
@@ -48,10 +50,12 @@ class OutputHandler(ABC):
         """
         raise NotImplementedError()
 
-    @staticmethod
-    def _get_exit_code(scan: ScanCollection) -> ExitCode:
+    def _get_exit_code(self, scan: ScanCollection) -> ExitCode:
         if scan.has_iac_result:
             return ExitCode.SCAN_FOUND_PROBLEMS
-        if scan.has_new_secrets:
+        if self.ignore_known_secrets:
+            if scan.has_new_secrets:
+                return ExitCode.SCAN_FOUND_PROBLEMS
+        elif scan.has_secrets:
             return ExitCode.SCAN_FOUND_PROBLEMS
         return ExitCode.SUCCESS

@@ -49,5 +49,5 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-Python-Version": platform.python_version(),
             "mode": "path",
         },
-        ignore_known_secrets=None,
+        ignore_known_secrets=True,
     )
