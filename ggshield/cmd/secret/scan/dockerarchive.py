@@ -38,7 +38,7 @@ def docker_archive_cmd(
 
     try:
         scan = docker_scan_archive(
-            archive=archive,
+            archive_path=archive,
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             matches_ignore=config.secret.ignored_matches,

@@ -1,5 +1,6 @@
 import re
 import subprocess
+import tarfile
 from pathlib import Path
 from typing import Dict
 from unittest.mock import patch
@@ -9,12 +10,13 @@ import pytest
 
 from ggshield.core.errors import UnexpectedError
 from ggshield.scan.docker import (
+    DockerImage,
     InvalidDockerArchiveException,
+    LayerInfo,
     _get_config,
     _should_scan_layer,
     docker_pull_image,
     docker_save_to_tmp,
-    get_files_from_docker_archive,
 )
 from tests.unit.conftest import DATA_PATH
 
@@ -59,7 +61,7 @@ class TestDockerScan:
         ],
     )
     def test_should_scan_layer(self, op: str, want: bool):
-        assert _should_scan_layer({"created_by": op}) is want
+        assert _should_scan_layer(LayerInfo(filename="dummy", command=op)) is want
 
     @pytest.mark.parametrize(
         ["members", "match"],
@@ -86,22 +88,31 @@ class TestDockerScan:
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
-    def test_get_files_from_docker_archive(self, image_path: Path):
-        scannables = get_files_from_docker_archive(image_path)
+    def test_docker_archive(self, image_path: Path):
+        with tarfile.open(image_path) as archive:
+            image = DockerImage(archive)
 
-        expected_files = {
-            "Dockerfile or build-args": None,
-            "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc:/app/file_one": "Hello, I am the first file!\n",  # noqa: E501
-            "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f:/app/file_three.sh": "echo Life is beautiful.\n",  # noqa: E501
-            "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f:/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",  # noqa: E501
-        }
+            # Format is { layer_id => { path => content }}
+            expected_files_for_layers = {
+                "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc": {
+                    "/app/file_one": "Hello, I am the first file!\n"
+                },
+                "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f": {
+                    "/app/file_three.sh": "echo Life is beautiful.\n",
+                    "/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",
+                },
+            }
 
-        assert set(x.url for x in scannables.files) == {str(x) for x in expected_files}
+            image_layers = list(image.get_layers())
+            layer_ids = [layer_info.get_id() for layer_info, files in image_layers]
+            assert layer_ids == list(expected_files_for_layers)
 
-        scannable_dict = {x.url: x for x in scannables.files}
-        for file_path, expected_content in expected_files.items():
-            scannable = scannable_dict[str(file_path)]
-            assert expected_content is None or scannable.content == expected_content
+            files = [files for layer_info, files in image_layers]
+            for files, expected_content_dict in zip(
+                files, expected_files_for_layers.values()
+            ):
+                content_dict = {x.path.as_posix(): x.content for x in files.files}
+                assert content_dict == expected_content_dict
 
 
 DOCKER_TIMEOUT = 12

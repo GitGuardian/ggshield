@@ -31,6 +31,7 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "line_count_secret": {"fg": "yellow"},
     "progress": {"fg": "bright_yellow", "bold": False},
     "warning": {"fg": "yellow"},
+    "heading": {"fg": "green"},
     "incident_validity": {"fg": "bright_yellow", "bold": True},
     "policy_break_type": {"fg": "bright_yellow", "bold": True},
     "occurrence_count": {"fg": "bright_yellow", "bold": True},
@@ -129,6 +130,10 @@ def display_warning(msg: str) -> None:
 
 def display_info(msg: str, nl: bool = True) -> None:
     click.echo(msg, nl=nl, err=True)
+
+
+def display_heading(msg: str, nl: bool = True) -> None:
+    click.echo(format_text(msg, STYLE["heading"]), nl=nl, err=True)
 
 
 _VALIDITY_TEXT_FOR_ID = {

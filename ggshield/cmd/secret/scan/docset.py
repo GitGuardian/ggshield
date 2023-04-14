@@ -47,7 +47,8 @@ def create_scans_from_docset_files(
 
         files = generate_files_from_docsets(input_file, verbose)
         results = scanner.scan(
-            files, scan_threads=MAX_WORKERS, progress_callback=lambda **x: None
+            files,
+            scan_threads=MAX_WORKERS,
         )
         scans.append(ScanCollection(id=input_file.name, type="docset", results=results))
         progress_callback(advance=1)

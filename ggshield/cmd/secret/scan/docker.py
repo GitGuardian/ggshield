@@ -52,7 +52,7 @@ def docker_name_cmd(
             )
 
             scan = docker_scan_archive(
-                archive=archive,
+                archive_path=archive,
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 scan_context=scan_context,

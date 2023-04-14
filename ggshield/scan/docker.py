@@ -3,8 +3,7 @@ import os.path
 import re
 import subprocess
 import tarfile
-from functools import partial
-from itertools import chain
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Set, Tuple
 
@@ -14,10 +13,11 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
-from ggshield.core.text_utils import create_progress_bar, display_info
+from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
 from ggshield.scan import (
     Files,
+    RichSecretScannerUI,
     ScanCollection,
     ScanContext,
     Scannable,
@@ -60,19 +60,17 @@ class DockerContentScannable(Scannable):
     """
 
     def __init__(
-        self, layer_filename: str, tar_file: tarfile.TarFile, tar_info: tarfile.TarInfo
+        self, layer_id: str, tar_file: tarfile.TarFile, tar_info: tarfile.TarInfo
     ):
         super().__init__()
-        self._layer_filename = layer_filename
+        self._layer_id = layer_id
         self._tar_file = tar_file
         self._tar_info = tar_info
         self._content: Optional[str] = None
 
     @property
     def url(self) -> str:
-        # layer_filename is "<some_uuid>/layer.tar". We only keep "<some_uuid>"
-        layer_name = os.path.dirname(self._layer_filename)
-        return f"{layer_name}:/{self._tar_info.name}"
+        return f"{self._layer_id}:/{self._tar_info.name}"
 
     @property
     def filename(self) -> str:
@@ -80,7 +78,7 @@ class DockerContentScannable(Scannable):
 
     @property
     def path(self) -> Path:
-        return Path(self._tar_info.name)
+        return Path("/", self._tar_info.name)
 
     def is_longer_than(self, size: int) -> bool:
         if self._content:
@@ -114,29 +112,28 @@ class DockerContentScannable(Scannable):
         return self._content
 
 
-class DockerFiles(Files):
-    """A Files instance which keeps a reference to the TarFile storing the image
-    content, so that we can continue to access it"""
+@dataclass
+class LayerInfo:
+    filename: str
+    command: str
 
+    def get_id(self) -> str:
+        # filename is "<layer_id>/layer.tar". We only keep "<layer_id>"
+        return self.filename.split("/", maxsplit=1)[0]
+
+
+class DockerImage:
     def __init__(self, tar_file: tarfile.TarFile):
         self.tar_file = tar_file
-        manifest, config, config_file_to_scan = _get_config(self.tar_file)
+        self.manifest, self.config, self.config_scannable = _get_config(self.tar_file)
 
-        layer_files_to_scan = _get_layers_files(
-            self.tar_file,
-            filter(_should_scan_layer, _get_layer_infos(manifest, config)),
-        )
-
-        super().__init__(list(chain((config_file_to_scan,), layer_files_to_scan)))
-
-
-def get_files_from_docker_archive(archive_path: Path) -> Files:
-    """
-    Extracts files to scan from a Docker image archive.
-    Only the configuration and the layers generated with a `COPY` and `ADD`
-    command are scanned.
-    """
-    return DockerFiles(tarfile.open(archive_path))
+    def get_layers(self) -> Iterable[Tuple[LayerInfo, Files]]:
+        for layer_info in filter(
+            _should_scan_layer, _get_layer_infos(self.manifest, self.config)
+        ):
+            scannables = list(_get_layer_files(self.tar_file, layer_info))
+            if scannables:
+                yield (layer_info, Files(scannables))
 
 
 def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
@@ -174,43 +171,45 @@ def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
 
 def _get_layer_infos(
     manifest: Dict[str, Any], config: Dict[str, Any]
-) -> Iterable[Dict[str, Dict]]:
+) -> Iterable[LayerInfo]:
     """
-    Extracts the non-empty layers information with:
-    - the filename,
-    - the command used to generate the layer,
-    - and the date and time of creation.
+    Returns LayerInfo instances for all non-empty layers
     """
+    layer_filenames = manifest["Layers"]
+
+    # config["history"] contains a list of entries like this:
+    # {
+    #   "created": ISO8601 timestamp,
+    #   "created_by": command to build the layer
+    #   "empty_layer": if present, equals true
+    # }
+    #
+    # manifest["Layers"] contains a list of non-empty layers like this:
+    #
+    #   "<layer_id>/layer.tar"
     return (
-        {
-            "filename": filename,
-            "created": info["created"],
-            "created_by": info.get("created_by"),
-        }
-        for info, filename in zip(
+        LayerInfo(filename=filename, command=layer.get("created_by", ""))
+        for filename, layer in zip(
+            layer_filenames,
             (layer for layer in config["history"] if not layer.get("empty_layer")),
-            manifest["Layers"],
         )
     )
 
 
-def _should_scan_layer(layer_info: Dict) -> bool:
+def _should_scan_layer(layer_info: LayerInfo) -> bool:
     """
     Returns True if a layer should be scanned, False otherwise.
     Only COPY and ADD layers should be scanned.
     """
-    cmd = layer_info["created_by"]
-    return LAYER_TO_SCAN_PATTERN.search(cmd) is not None if cmd else True
-
-
-def _get_layers_files(
-    archive: tarfile.TarFile, layers_info: Iterable[Dict]
-) -> Iterable[Scannable]:
-    """
-    Extracts File objects to be scanned for given layers.
-    """
-    for layer_info in layers_info:
-        yield from _get_layer_files(archive, layer_info)
+    if layer_info.command == "":
+        # Some images contain layers with no commands. Since we don't know how they have
+        # been created, we must scan them.
+        # Examples of such images from Docker Hub:
+        # - aevea/release-notary:0.9.7
+        # - redhat/ubi8:8.6-754
+        return True
+    else:
+        return LAYER_TO_SCAN_PATTERN.search(layer_info.command) is not None
 
 
 def _validate_filepath(
@@ -226,15 +225,19 @@ def _validate_filepath(
     return True
 
 
-def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Scannable]:
+def _get_layer_files(
+    archive: tarfile.TarFile, layer_info: LayerInfo
+) -> Iterable[Scannable]:
     """
     Extracts File objects to be scanned for given layer.
     """
-    layer_filename = layer_info["filename"]
+    layer_filename = layer_info.filename
     layer_archive = tarfile.TarFile(
         name=os.path.join(archive.name, layer_filename),  # type: ignore
         fileobj=archive.extractfile(layer_filename),
     )
+
+    layer_id = layer_info.get_id()
 
     for file_info in layer_archive:
         if not file_info.isfile():
@@ -243,12 +246,10 @@ def _get_layer_files(archive: tarfile.TarFile, layer_info: Dict) -> Iterable[Sca
         if file_info.size == 0:
             continue
 
-        if not _validate_filepath(
-            filepath=file_info.path,
-        ):
+        if not _validate_filepath(filepath=file_info.path):
             continue
 
-        yield DockerContentScannable(layer_filename, layer_archive, file_info)
+        yield DockerContentScannable(layer_id, layer_archive, file_info)
 
 
 def docker_pull_image(image_name: str, timeout: int) -> None:
@@ -306,7 +307,7 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
 
 
 def docker_scan_archive(
-    archive: Path,
+    archive_path: Path,
     client: GGClient,
     cache: Cache,
     matches_ignore: Iterable[IgnoredMatch],
@@ -314,9 +315,8 @@ def docker_scan_archive(
     ignored_detectors: Optional[Set[str]] = None,
     ignore_known_secrets: Optional[bool] = None,
 ) -> ScanCollection:
-    files = get_files_from_docker_archive(archive)
-
-    with create_progress_bar(doc_type="files") as progress:
+    with tarfile.open(archive_path) as archive:
+        docker_image = DockerImage(archive)
 
         scanner = SecretScanner(
             client=client,
@@ -326,12 +326,22 @@ def docker_scan_archive(
             ignored_detectors=ignored_detectors,
             ignore_known_secrets=ignore_known_secrets,
         )
-        task_scan = progress.add_task(
-            "[green]Scanning Docker Image...", total=len(files.files)
-        )
-        results = scanner.scan(
-            files.files,
-            progress_callback=partial(progress.update, task_scan),
-        )
+        display_heading("Scanning Docker config")
+        with RichSecretScannerUI(1) as ui:
+            results = scanner.scan(
+                [docker_image.config_scannable],
+                scanner_ui=ui,
+            )
+
+        for info, files in docker_image.get_layers():
+            print()
+            display_heading(f"Scanning layer {info.get_id()}")
+            with RichSecretScannerUI(len(files.files)) as ui:
+                results.extend(
+                    scanner.scan(
+                        files.files,
+                        scanner_ui=ui,
+                    )
+                )
 
     return ScanCollection(id=str(archive), type="scan_docker_archive", results=results)
