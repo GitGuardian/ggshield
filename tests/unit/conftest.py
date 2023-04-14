@@ -2,12 +2,13 @@ import os
 import platform
 from os.path import dirname, join, realpath
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 import pytest
 import vcr
 import yaml
 from click.testing import CliRunner, Result
+from pyfakefs.fake_filesystem import FakeFilesystem
 from pygitguardian import GGClient
 from pygitguardian.models import ScanResult
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
@@ -643,3 +644,13 @@ def assert_invoke_exited_with(result: Result, exit_code: int):
 
 def assert_invoke_ok(result: Result):
     assert_invoke_exited_with(result, 0)
+
+
+def make_fake_path_inaccessible(fs: FakeFilesystem, path: Union[str, Path]):
+    """
+    Make `path` inaccessible inside `fs`. This is useful to test IO permission errors.
+    """
+
+    # `force_unix_mode` is required for Windows.
+    # See <https://pytest-pyfakefs.readthedocs.io/en/latest/usage.html#set-file-as-inaccessible-under-windows>
+    fs.chmod(path, 0o0000, force_unix_mode=True)

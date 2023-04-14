@@ -11,6 +11,7 @@ from click import UsageError
 from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
+from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import display_heading, display_info
@@ -24,6 +25,7 @@ from ggshield.scan import (
     SecretScanner,
     StringScannable,
 )
+from ggshield.scan.id_cache import IDCache
 
 
 FILEPATH_BANLIST = [
@@ -251,6 +253,11 @@ def _get_layer_files(
         yield DockerContentScannable(layer_id, layer_archive, file_info)
 
 
+def _get_layer_id_cache(secrets_engine_version: str) -> IDCache:
+    cache_path = Path(get_cache_dir()) / "docker" / f"{secrets_engine_version}.json"
+    return IDCache(cache_path)
+
+
 def docker_pull_image(image_name: str, timeout: int) -> None:
     """
     Pull docker image and raise exception on timeout or failed to find image
@@ -313,16 +320,21 @@ def docker_scan_archive(
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> ScanCollection:
+
+    scanner = SecretScanner(
+        client=client,
+        cache=cache,
+        scan_context=scan_context,
+        ignored_matches=matches_ignore,
+        ignored_detectors=ignored_detectors,
+    )
+    secrets_engine_version = client.secrets_engine_version
+    assert secrets_engine_version is not None
+    layer_id_cache = _get_layer_id_cache(secrets_engine_version)
+
     with tarfile.open(archive_path) as archive:
         docker_image = DockerImage(archive)
 
-        scanner = SecretScanner(
-            client=client,
-            cache=cache,
-            scan_context=scan_context,
-            ignored_matches=matches_ignore,
-            ignored_detectors=ignored_detectors,
-        )
         display_heading("Scanning Docker config")
         with RichSecretScannerUI(1) as ui:
             results = scanner.scan(
@@ -336,13 +348,15 @@ def docker_scan_archive(
             if file_count == 0:
                 continue
             print()
-            display_heading(f"Scanning layer {info.get_id()}")
-            with RichSecretScannerUI(file_count) as ui:
-                results.extend(
-                    scanner.scan(
-                        layer.files,
-                        scanner_ui=ui,
-                    )
-                )
+            layer_id = info.get_id()
+            if layer_id in layer_id_cache:
+                display_heading(f"Skipping layer {layer_id}: already scanned")
+            else:
+                display_heading(f"Scanning layer {info.get_id()}")
+                with RichSecretScannerUI(file_count) as ui:
+                    layer_results = scanner.scan(layer.files, scanner_ui=ui)
+                if not layer_results.has_policy_breaks:
+                    layer_id_cache.add(layer_id)
+                results.extend(layer_results)
 
     return ScanCollection(id=str(archive), type="scan_docker_archive", results=results)
