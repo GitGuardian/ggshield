@@ -10,17 +10,12 @@ from ggshield.core.errors import ExitCode
 from ggshield.scan import Files, ScanCollection, StringScannable
 from ggshield.scan.docker import LayerInfo, _validate_filepath
 from tests.unit.conftest import (
-    DATA_PATH,
+    DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
+    DOCKER_EXAMPLE_PATH,
     UNCHECKED_SECRET_PATCH,
     assert_invoke_exited_with,
     assert_invoke_ok,
     my_vcr,
-)
-
-
-DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
-DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
-    DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
 )
 
 

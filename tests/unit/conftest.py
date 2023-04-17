@@ -563,6 +563,24 @@ TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
     }
 )
 
+# Docker example constants
+DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
+DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
+    DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
+)
+
+# Format is { layer_id: { path: content }}
+DOCKER_EXAMPLE_LAYER_FILES = {
+    "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc": {
+        "/app/file_one": "Hello, I am the first file!\n"
+    },
+    "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f": {
+        "/app/file_three.sh": "echo Life is beautiful.\n",
+        "/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",
+    },
+}
+
+
 my_vcr = vcr.VCR(
     cassette_library_dir=join(dirname(realpath(__file__)), "cassettes"),
     path_transformer=vcr.VCR.ensure_suffix(".yaml"),
