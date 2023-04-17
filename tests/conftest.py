@@ -25,3 +25,11 @@ def do_not_use_real_config_dir(monkeypatch, tmp_path):
     `ggshield auth` stores credentials.
     """
     monkeypatch.setenv("TEST_CONFIG_DIR", str(tmp_path))
+
+
+@pytest.fixture(autouse=True)
+def do_not_use_real_cache_dir(monkeypatch, tmp_path):
+    """
+    This fixture ensures we do not use the real cache directory.
+    """
+    monkeypatch.setenv("TEST_CACHE_DIR", str(tmp_path))

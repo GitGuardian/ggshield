@@ -16,4 +16,8 @@ def get_config_dir() -> str:
 
 
 def get_cache_dir() -> str:
-    return user_cache_dir(appname=APPNAME, appauthor=APPAUTHOR)
+    try:
+        # See tests/conftest.py for details
+        return os.environ["TEST_CACHE_DIR"]
+    except KeyError:
+        return user_cache_dir(appname=APPNAME, appauthor=APPAUTHOR)
