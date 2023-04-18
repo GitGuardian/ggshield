@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -7,6 +8,7 @@ import typing
 from dataclasses import asdict
 from pathlib import Path
 from shutil import which
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple
 
 import click
@@ -93,6 +95,7 @@ def run_benchmark_command(
     ggshield_path: Path,
     command: Tuple[str, ...],
     cwd: Optional[Path] = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> None:
     command_str = " ".join(command)
 
@@ -111,6 +114,7 @@ def run_benchmark_command(
         stderr=subprocess.STDOUT,
         text=True,
         cwd=str(cwd) if cwd else None,
+        env=env,
     )
     duration = time.time() - start
     logging.info("Command took %f seconds", duration)
@@ -151,7 +155,13 @@ def run_docker_command(
     docker_image: str,
 ) -> None:
     command = ("secret", "scan", "docker", docker_image)
-    run_benchmark_command(writer, version, docker_image, ggshield_path, command)
+    with TemporaryDirectory() as cache_dir:
+        # Set $GG_CACHE_DIR to a temporary directory so that caching does not affect
+        # benchmark results
+        env = dict(**os.environ, GG_CACHE_DIR=cache_dir)
+        run_benchmark_command(
+            writer, version, docker_image, ggshield_path, command, env=env
+        )
 
 
 def pull_docker_image(docker_image: str):
