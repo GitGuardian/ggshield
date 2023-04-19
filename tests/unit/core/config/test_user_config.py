@@ -258,3 +258,37 @@ class TestUserConfig:
         assert "Unrecognized key in config: match_invalid_key" in captured.err
         assert "Unrecognized key in config: hashed-key" in captured.err
         assert "Unrecognized key in config: nested-hashed" in captured.err
+
+    def test_can_load_ignored_known_secrets_from_root(self, local_config_path):
+        """
+        GIVEN a config file containing the `ignore_known_secrets` key in the root mapping
+        WHEN deserializing it
+        THEN UserConfig.secret.ignore_known_secrets has the correct value
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "ignore_known_secrets": True,
+            },
+        )
+        config, _ = UserConfig.load(local_config_path)
+        assert config.secret.ignore_known_secrets
+
+    def test_can_load_ignored_known_secrets_from_secret(self, local_config_path):
+        """
+        GIVEN a config file containing the `ignore_known_secrets` key in the `secret` mapping
+        WHEN deserializing it
+        THEN UserConfig.secret.ignore_known_secrets has the correct value
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "secret": {
+                    "ignore-known-secrets": True,
+                },
+            },
+        )
+        config, _ = UserConfig.load(local_config_path)
+        assert config.secret.ignore_known_secrets

@@ -40,7 +40,7 @@ def precommit_cmd(
         show_secrets=config.secret.show_secrets,
         verbose=config.verbose,
         output=None,
-        ignore_known_secrets=config.ignore_known_secrets,
+        ignore_known_secrets=config.secret.ignore_known_secrets,
     )
     try:
         check_git_dir()
