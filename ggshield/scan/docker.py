@@ -5,7 +5,7 @@ import subprocess
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, Optional, Set
 
 from click import UsageError
 from pygitguardian import GGClient
@@ -125,49 +125,58 @@ class LayerInfo:
 
 
 class DockerImage:
+    # The manifest.json file
+    manifest: Dict[str, Any]
+    # The Image JSON file
+    # (see https://github.com/moby/moby/blob/master/image/spec/v1.2.md#terminology)
+    image: Dict[str, Any]
+
     def __init__(self, tar_file: tarfile.TarFile):
         self.tar_file = tar_file
-        manifest, config, self.config_scannable = _get_config(self.tar_file)
+        self._load_manifest()
+
+        self._load_image()
+
+        self.config_scannable = StringScannable(
+            "Dockerfile or build-args", json.dumps(self.image, indent=2)
+        )
+
         self.layer_infos = list(
-            filter(_should_scan_layer, _get_layer_infos(manifest, config))
+            filter(_should_scan_layer, _get_layer_infos(self.manifest, self.image))
         )
 
     def get_layer(self, layer_info: LayerInfo) -> Files:
         scannables = list(_get_layer_files(self.tar_file, layer_info))
         return Files(scannables)
 
+    def _load_manifest(self) -> None:
+        """
+        Reads "manifest.json", stores result in self.manifest
+        """
+        manifest_file = self.tar_file.extractfile("manifest.json")
+        if manifest_file is None:
+            raise InvalidDockerArchiveException("No manifest file found.")
 
-def _get_config(archive: tarfile.TarFile) -> Tuple[Dict, Dict, Scannable]:
-    """
-    Extracts Docker image archive manifest and configuration.
-    Returns a tuple with:
-    - the deserialized manifest,
-    - the deserialized configuration,
-    - the configuration File object to scan.
-    """
-    manifest_file = archive.extractfile("manifest.json")
-    if manifest_file is None:
-        raise InvalidDockerArchiveException("No manifest file found.")
+        self.manifest = json.load(manifest_file)[0]
 
-    manifest = json.load(manifest_file)[0]
+    def _load_image(self) -> None:
+        """
+        Reads the image JSON file, stores result in self.image
+        """
+        try:
+            config_file_path = self.manifest["Config"]
+        except KeyError:
+            raise InvalidDockerArchiveException("No Config key in manifest.")
 
-    config_file_path = manifest.get("Config")
+        config_file_info = self.tar_file.getmember(config_file_path)
+        if config_file_info is None:
+            raise InvalidDockerArchiveException("No config file found.")
 
-    config_file_info = archive.getmember(config_file_path)
-    if config_file_info is None:
-        raise InvalidDockerArchiveException("No config file found.")
+        config_file = self.tar_file.extractfile(config_file_info)
+        if config_file is None:
+            raise InvalidDockerArchiveException("Config file could not be extracted.")
 
-    config_file = archive.extractfile(config_file_info)
-    if config_file is None:
-        raise InvalidDockerArchiveException("Config file could not be extracted.")
-
-    config_file_content = config_file.read().decode()
-
-    return (
-        manifest,
-        json.loads(config_file_content),
-        StringScannable("Dockerfile or build-args", config_file_content),
-    )
+        self.image = json.load(config_file)
 
 
 def _get_layer_infos(

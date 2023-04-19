@@ -13,7 +13,6 @@ from ggshield.scan.docker import (
     DockerImage,
     InvalidDockerArchiveException,
     LayerInfo,
-    _get_config,
     _should_scan_layer,
     docker_pull_image,
     docker_save_to_tmp,
@@ -81,7 +80,7 @@ class TestDockerScan:
     def test_get_config(self, members, match):
         tarfile = TarMock(members)
         with pytest.raises(InvalidDockerArchiveException, match=match):
-            _get_config(tarfile)
+            DockerImage(tarfile)
 
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
