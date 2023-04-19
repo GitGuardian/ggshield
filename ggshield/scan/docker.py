@@ -5,7 +5,7 @@ import subprocess
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from click import UsageError
 from pygitguardian import GGClient
@@ -123,13 +123,31 @@ class LayerInfo:
         # filename is "<layer_id>/layer.tar". We only keep "<layer_id>"
         return self.filename.split("/", maxsplit=1)[0]
 
+    def should_scan(self) -> bool:
+        """
+        Returns True if a layer should be scanned, False otherwise.
+        Only COPY and ADD layers should be scanned.
+        """
+        if self.command == "":
+            # Some images contain layers with no commands. Since we don't know how they have
+            # been created, we must scan them.
+            # Examples of such images from Docker Hub:
+            # - aevea/release-notary:0.9.7
+            # - redhat/ubi8:8.6-754
+            return True
+        else:
+            return LAYER_TO_SCAN_PATTERN.search(self.command) is not None
+
 
 class DockerImage:
     # The manifest.json file
     manifest: Dict[str, Any]
+
     # The Image JSON file
     # (see https://github.com/moby/moby/blob/master/image/spec/v1.2.md#terminology)
     image: Dict[str, Any]
+
+    layer_infos: List[LayerInfo]
 
     def __init__(self, tar_file: tarfile.TarFile):
         self.tar_file = tar_file
@@ -141,12 +159,10 @@ class DockerImage:
             "Dockerfile or build-args", json.dumps(self.image, indent=2)
         )
 
-        self.layer_infos = list(
-            filter(_should_scan_layer, _get_layer_infos(self.manifest, self.image))
-        )
+        self._load_layer_infos()
 
     def get_layer(self, layer_info: LayerInfo) -> Files:
-        scannables = list(_get_layer_files(self.tar_file, layer_info))
+        scannables = list(self._get_layer_scannables(layer_info))
         return Files(scannables)
 
     def _load_manifest(self) -> None:
@@ -178,48 +194,58 @@ class DockerImage:
 
         self.image = json.load(config_file)
 
+    def _load_layer_infos(self) -> None:
+        """
+        Fill self.layer_infos with LayerInfo instances for all non-empty layers
+        """
+        layer_filenames = self.manifest["Layers"]
 
-def _get_layer_infos(
-    manifest: Dict[str, Any], config: Dict[str, Any]
-) -> Iterable[LayerInfo]:
-    """
-    Returns LayerInfo instances for all non-empty layers
-    """
-    layer_filenames = manifest["Layers"]
+        # image["history"] contains a list of entries like this:
+        # {
+        #   "created": ISO8601 timestamp,
+        #   "created_by": command to build the layer
+        #   "empty_layer": if present, equals true
+        # }
+        #
+        # manifest["Layers"] contains a list of non-empty layers like this:
+        #
+        #   "<layer_id>/layer.tar"
+        layer_infos = [
+            LayerInfo(filename=filename, command=layer.get("created_by", ""))
+            for filename, layer in zip(
+                layer_filenames,
+                (
+                    layer
+                    for layer in self.image["history"]
+                    if not layer.get("empty_layer")
+                ),
+            )
+        ]
+        self.layer_infos = [x for x in layer_infos if x.should_scan()]
 
-    # config["history"] contains a list of entries like this:
-    # {
-    #   "created": ISO8601 timestamp,
-    #   "created_by": command to build the layer
-    #   "empty_layer": if present, equals true
-    # }
-    #
-    # manifest["Layers"] contains a list of non-empty layers like this:
-    #
-    #   "<layer_id>/layer.tar"
-    return (
-        LayerInfo(filename=filename, command=layer.get("created_by", ""))
-        for filename, layer in zip(
-            layer_filenames,
-            (layer for layer in config["history"] if not layer.get("empty_layer")),
+    def _get_layer_scannables(self, layer_info: LayerInfo) -> Iterable[Scannable]:
+        """
+        Extracts Scannable to be scanned for given layer.
+        """
+        layer_filename = layer_info.filename
+        layer_archive = tarfile.TarFile(
+            name=os.path.join(self.tar_file.name, layer_filename),  # type: ignore
+            fileobj=self.tar_file.extractfile(layer_filename),
         )
-    )
 
+        layer_id = layer_info.get_id()
 
-def _should_scan_layer(layer_info: LayerInfo) -> bool:
-    """
-    Returns True if a layer should be scanned, False otherwise.
-    Only COPY and ADD layers should be scanned.
-    """
-    if layer_info.command == "":
-        # Some images contain layers with no commands. Since we don't know how they have
-        # been created, we must scan them.
-        # Examples of such images from Docker Hub:
-        # - aevea/release-notary:0.9.7
-        # - redhat/ubi8:8.6-754
-        return True
-    else:
-        return LAYER_TO_SCAN_PATTERN.search(layer_info.command) is not None
+        for file_info in layer_archive:
+            if not file_info.isfile():
+                continue
+
+            if file_info.size == 0:
+                continue
+
+            if not _validate_filepath(filepath=file_info.path):
+                continue
+
+            yield DockerContentScannable(layer_id, layer_archive, file_info)
 
 
 def _validate_filepath(
@@ -233,33 +259,6 @@ def _validate_filepath(
     if is_path_binary(filepath):
         return False
     return True
-
-
-def _get_layer_files(
-    archive: tarfile.TarFile, layer_info: LayerInfo
-) -> Iterable[Scannable]:
-    """
-    Extracts File objects to be scanned for given layer.
-    """
-    layer_filename = layer_info.filename
-    layer_archive = tarfile.TarFile(
-        name=os.path.join(archive.name, layer_filename),  # type: ignore
-        fileobj=archive.extractfile(layer_filename),
-    )
-
-    layer_id = layer_info.get_id()
-
-    for file_info in layer_archive:
-        if not file_info.isfile():
-            continue
-
-        if file_info.size == 0:
-            continue
-
-        if not _validate_filepath(filepath=file_info.path):
-            continue
-
-        yield DockerContentScannable(layer_id, layer_archive, file_info)
 
 
 def _get_layer_id_cache(secrets_engine_version: str) -> IDCache:

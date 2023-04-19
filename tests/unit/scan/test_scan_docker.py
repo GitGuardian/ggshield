@@ -13,7 +13,6 @@ from ggshield.scan.docker import (
     DockerImage,
     InvalidDockerArchiveException,
     LayerInfo,
-    _should_scan_layer,
     docker_pull_image,
     docker_save_to_tmp,
 )
@@ -58,7 +57,8 @@ class TestDockerScan:
         ],
     )
     def test_should_scan_layer(self, op: str, want: bool):
-        assert _should_scan_layer(LayerInfo(filename="dummy", command=op)) is want
+        layer_info = LayerInfo(filename="dummy", command=op)
+        assert layer_info.should_scan() is want
 
     @pytest.mark.parametrize(
         ["members", "match"],
