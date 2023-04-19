@@ -29,5 +29,5 @@ types-oauthlib = "*"
 typing-extensions = "*"
 
 vcrpy = "*"
-pyfakefs = "*"
+pyfakefs = ">=5.2.0"
 scriv = { version = "*", extras = ["toml"] }

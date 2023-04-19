@@ -4,7 +4,7 @@ import sys
 from abc import ABC, abstractmethod
 from ast import literal_eval
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 import click
@@ -57,6 +57,12 @@ class Result(NamedTuple):
     def content(self) -> str:
         return self.file.content
 
+    @property
+    def has_policy_breaks(self) -> bool:
+        # Needs a `type: ignore` because py-gitguardian type hints are not complete.
+        # See https://github.com/GitGuardian/py-gitguardian/issues/49
+        return self.scan.has_policy_breaks  # type: ignore
+
 
 class Error(NamedTuple):
     files: List[Tuple[str, Filemode]]
@@ -74,8 +80,8 @@ class Results:
     Similar crash: https://github.com/python/mypy/issues/12629
     """
 
-    results: List[Result]
-    errors: List[Error]
+    results: List[Result] = field(default_factory=list)
+    errors: List[Error] = field(default_factory=list)
 
     @staticmethod
     def from_exception(exc: Exception) -> "Results":
@@ -86,6 +92,10 @@ class Results:
     def extend(self, others: "Results") -> None:
         self.results.extend(others.results)
         self.errors.extend(others.errors)
+
+    @property
+    def has_policy_breaks(self) -> bool:
+        return any(x.has_policy_breaks for x in self.results)
 
 
 class ScanCollection:

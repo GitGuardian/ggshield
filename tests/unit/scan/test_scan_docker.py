@@ -18,12 +18,10 @@ from ggshield.scan.docker import (
     docker_pull_image,
     docker_save_to_tmp,
 )
-from tests.unit.conftest import DATA_PATH
-
-
-DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
-DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
-    DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
+from tests.unit.conftest import (
+    DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
+    DOCKER_EXAMPLE_LAYER_FILES,
+    DOCKER_EXAMPLE_PATH,
 )
 
 
@@ -92,26 +90,23 @@ class TestDockerScan:
         with tarfile.open(image_path) as archive:
             image = DockerImage(archive)
 
-            # Format is { layer_id => { path => content }}
-            expected_files_for_layers = {
-                "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc": {
-                    "/app/file_one": "Hello, I am the first file!\n"
-                },
-                "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f": {
-                    "/app/file_three.sh": "echo Life is beautiful.\n",
-                    "/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",
-                },
-            }
+            # List of (LayerInfo, Files)
+            # The filter is here to remove layers with no scannables
+            infos_and_layers = list(
+                filter(
+                    lambda info_and_layer: info_and_layer[1].files,
+                    ((x, image.get_layer(x)) for x in image.layer_infos),
+                )
+            )
 
-            image_layers = list(image.get_layers())
-            layer_ids = [layer_info.get_id() for layer_info, files in image_layers]
-            assert layer_ids == list(expected_files_for_layers)
+            layer_ids = [x.get_id() for x, _ in infos_and_layers]
+            assert layer_ids == list(DOCKER_EXAMPLE_LAYER_FILES)
 
-            files = [files for layer_info, files in image_layers]
-            for files, expected_content_dict in zip(
-                files, expected_files_for_layers.values()
+            layers = [l for _, l in infos_and_layers]
+            for layer, expected_content_dict in zip(
+                layers, DOCKER_EXAMPLE_LAYER_FILES.values()
             ):
-                content_dict = {x.path.as_posix(): x.content for x in files.files}
+                content_dict = {x.path.as_posix(): x.content for x in layer.files}
                 assert content_dict == expected_content_dict
 
 

@@ -39,7 +39,9 @@ setup(
         "marshmallow>=3.18.0,<3.19.0",
         "marshmallow-dataclass>=8.5.8,<8.6.0",
         "oauthlib>=3.2.1,<3.3.0",
-        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git",  # TODO fix
+        # TODO: Make sure we release a new py-gitguardian before the next ggshield and
+        # add its version here
+        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@c6b941f8046de0188bc167d5a3d4ea7ebdd81e78",  # noqa: E501
         "python-dotenv>=0.21.0,<0.22.0",
         "pyyaml>=6.0,<6.1",
         "rich>=12.5.1,<12.6.0",
