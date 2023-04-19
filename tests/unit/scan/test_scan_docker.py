@@ -57,7 +57,7 @@ class TestDockerScan:
         ],
     )
     def test_should_scan_layer(self, op: str, want: bool):
-        layer_info = LayerInfo(filename="dummy", command=op)
+        layer_info = LayerInfo(filename="dummy", command=op, diff_id="sha256:1234")
         assert layer_info.should_scan() is want
 
     @pytest.mark.parametrize(
@@ -98,7 +98,7 @@ class TestDockerScan:
                 )
             )
 
-            layer_ids = [x.get_id() for x, _ in infos_and_layers]
+            layer_ids = [x.diff_id for x, _ in infos_and_layers]
             assert layer_ids == list(DOCKER_EXAMPLE_LAYER_FILES)
 
             layers = [l for _, l in infos_and_layers]

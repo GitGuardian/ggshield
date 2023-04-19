@@ -108,7 +108,9 @@ class TestDockerCMD:
     ):
         assert image_path.exists()
 
-        layer_info = LayerInfo(filename="12345678/layer.tar", command="COPY foo")
+        layer_info = LayerInfo(
+            filename="12345678/layer.tar", command="COPY foo", diff_id="sha256:1234"
+        )
 
         def create_docker_image() -> Mock(spec=DockerImage):
             docker_image = Mock(spec=DockerImage)

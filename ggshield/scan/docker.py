@@ -118,10 +118,7 @@ class DockerContentScannable(Scannable):
 class LayerInfo:
     filename: str
     command: str
-
-    def get_id(self) -> str:
-        # filename is "<layer_id>/layer.tar". We only keep "<layer_id>"
-        return self.filename.split("/", maxsplit=1)[0]
+    diff_id: str
 
     def should_scan(self) -> bool:
         """
@@ -198,6 +195,11 @@ class DockerImage:
         """
         Fill self.layer_infos with LayerInfo instances for all non-empty layers
         """
+
+        #
+        # manifest["Layers"] contains a list of non-empty layers like this:
+        #
+        #   "<random_id>/layer.tar"
         layer_filenames = self.manifest["Layers"]
 
         # image["history"] contains a list of entries like this:
@@ -206,19 +208,22 @@ class DockerImage:
         #   "created_by": command to build the layer
         #   "empty_layer": if present, equals true
         # }
+        non_empty_history_entries = [
+            x for x in self.image["history"] if not x.get("empty_layer")
+        ]
+
         #
-        # manifest["Layers"] contains a list of non-empty layers like this:
-        #
-        #   "<layer_id>/layer.tar"
+        # image["rootfs"]["diff_ids"] contains the list of layer IDs
+        diff_ids = self.image["rootfs"]["diff_ids"]
+
         layer_infos = [
-            LayerInfo(filename=filename, command=layer.get("created_by", ""))
-            for filename, layer in zip(
-                layer_filenames,
-                (
-                    layer
-                    for layer in self.image["history"]
-                    if not layer.get("empty_layer")
-                ),
+            LayerInfo(
+                filename=filename,
+                command=history.get("created_by", ""),
+                diff_id=diff_id,
+            )
+            for filename, history, diff_id in zip(
+                layer_filenames, non_empty_history_entries, diff_ids
             )
         ]
         self.layer_infos = [x for x in layer_infos if x.should_scan()]
@@ -233,7 +238,7 @@ class DockerImage:
             fileobj=self.tar_file.extractfile(layer_filename),
         )
 
-        layer_id = layer_info.get_id()
+        layer_id = layer_info.diff_id
 
         for file_info in layer_archive:
             if not file_info.isfile():
@@ -356,11 +361,11 @@ def docker_scan_archive(
             if file_count == 0:
                 continue
             print()
-            layer_id = info.get_id()
+            layer_id = info.diff_id
             if layer_id in layer_id_cache:
                 display_heading(f"Skipping layer {layer_id}: already scanned")
             else:
-                display_heading(f"Scanning layer {info.get_id()}")
+                display_heading(f"Scanning layer {info.diff_id}")
                 with RichSecretScannerUI(file_count) as ui:
                     layer_results = scanner.scan(layer.files, scanner_ui=ui)
                 if not layer_results.has_policy_breaks:
