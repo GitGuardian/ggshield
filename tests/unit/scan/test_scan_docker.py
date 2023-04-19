@@ -13,8 +13,6 @@ from ggshield.scan.docker import (
     DockerImage,
     InvalidDockerArchiveException,
     LayerInfo,
-    _get_config,
-    _should_scan_layer,
     docker_pull_image,
     docker_save_to_tmp,
 )
@@ -59,7 +57,8 @@ class TestDockerScan:
         ],
     )
     def test_should_scan_layer(self, op: str, want: bool):
-        assert _should_scan_layer(LayerInfo(filename="dummy", command=op)) is want
+        layer_info = LayerInfo(filename="dummy", command=op, diff_id="sha256:1234")
+        assert layer_info.should_scan() is want
 
     @pytest.mark.parametrize(
         ["members", "match"],
@@ -81,7 +80,7 @@ class TestDockerScan:
     def test_get_config(self, members, match):
         tarfile = TarMock(members)
         with pytest.raises(InvalidDockerArchiveException, match=match):
-            _get_config(tarfile)
+            DockerImage(tarfile)
 
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
@@ -99,7 +98,7 @@ class TestDockerScan:
                 )
             )
 
-            layer_ids = [x.get_id() for x, _ in infos_and_layers]
+            layer_ids = [x.diff_id for x, _ in infos_and_layers]
             assert layer_ids == list(DOCKER_EXAMPLE_LAYER_FILES)
 
             layers = [l for _, l in infos_and_layers]

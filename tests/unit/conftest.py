@@ -571,10 +571,10 @@ DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
 
 # Format is { layer_id: { path: content }}
 DOCKER_EXAMPLE_LAYER_FILES = {
-    "64a345482d74ea1c0699988da4b4fe6cda54a2b0ad5da49853a9739f7a7e5bbc": {
+    "sha256:4e850fb0fe03eae7a9a505d114b342ecdf7fd6e5a3ed2a1967e40083d63c7abe": {
         "/app/file_one": "Hello, I am the first file!\n"
     },
-    "2d185b802fb3c2e6458fe1ac98e027488cd6aedff2e3d05eb030029c1f24d60f": {
+    "sha256:f1c86b269b6a35c2158e8cd69b5e276d6c238272adcdd44efa21e5d79d099ddb": {
         "/app/file_three.sh": "echo Life is beautiful.\n",
         "/app/file_two.py": """print("Hi! I'm the second file but I'm happy.")\n""",
     },

@@ -8,7 +8,7 @@ import pytest
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.scan import Files, ScanCollection, StringScannable
-from ggshield.scan.docker import LayerInfo, _validate_filepath
+from ggshield.scan.docker import DockerImage, LayerInfo, _validate_filepath
 from tests.unit.conftest import (
     DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
     DOCKER_EXAMPLE_PATH,
@@ -94,39 +94,41 @@ class TestDockerCMD:
         assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert 'Image "ggshield-non-existant" not found' in result.output
 
-    @patch("ggshield.scan.docker._get_layer_infos")
-    @patch("ggshield.scan.docker._get_config")
-    @patch("ggshield.scan.docker.DockerImage.get_layer")
+    @patch("ggshield.scan.docker.DockerImage")
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
     @pytest.mark.parametrize("json_output", (False, True))
     def test_docker_scan_archive(
         self,
-        get_layer_mock: Mock,
-        _get_config_mock: Mock,
-        _get_layer_infos_mock: Mock,
+        _docker_image_class_mock: Mock,
         cli_fs_runner: click.testing.CliRunner,
         image_path: Path,
         json_output: bool,
     ):
         assert image_path.exists()
 
-        layer_info = LayerInfo(filename="12345678/layer.tar", command="COPY foo")
-        scannable = StringScannable(content=UNCHECKED_SECRET_PATCH, url="file_secret")
-
-        def get_layer(layer_info: LayerInfo):
-            return Files([scannable])
-
-        get_layer_mock.side_effect = get_layer
-
-        _get_config_mock.return_value = (
-            None,
-            None,
-            StringScannable(content="", url="Dockerfile or build-args"),
+        layer_info = LayerInfo(
+            filename="12345678/layer.tar", command="COPY foo", diff_id="sha256:1234"
         )
 
-        _get_layer_infos_mock.return_value = [layer_info]
+        def create_docker_image() -> Mock(spec=DockerImage):
+            docker_image = Mock(spec=DockerImage)
+            docker_image.config_scannable = StringScannable(
+                content="", url="Dockerfile or build-args"
+            )
+            docker_image.layer_infos = [layer_info]
+
+            scannable = StringScannable(
+                content=UNCHECKED_SECRET_PATCH, url="file_secret"
+            )
+            docker_image.get_layer.return_value = Files([scannable])
+
+            return docker_image
+
+        docker_image = create_docker_image()
+
+        _docker_image_class_mock.return_value = docker_image
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             json_arg = ["--json"] if json_output else []
@@ -143,8 +145,7 @@ class TestDockerCMD:
                 ],
             )
             assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
-            _get_config_mock.assert_called_once()
-            get_layer_mock.assert_called_once_with(layer_info)
+            docker_image.get_layer.assert_called_once_with(layer_info)
 
             if json_output:
                 output = json.loads(result.output)
