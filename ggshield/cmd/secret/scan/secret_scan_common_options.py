@@ -136,5 +136,5 @@ def create_output_handler(ctx: click.Context) -> OutputHandler:
         show_secrets=config.secret.show_secrets,
         verbose=config.verbose,
         output=output,
-        ignore_known_secrets=config.ignore_known_secrets,
+        ignore_known_secrets=config.secret.ignore_known_secrets,
     )

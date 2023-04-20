@@ -28,6 +28,8 @@ from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 logger = logging.getLogger(__name__)
 CURRENT_CONFIG_VERSION = 2
 
+_IGNORE_KNOWN_SECRETS_KEY = "ignore-known-secrets"
+
 
 @marshmallow_dataclass.dataclass
 class SecretConfig(FilteredConfig):
@@ -39,6 +41,7 @@ class SecretConfig(FilteredConfig):
     ignored_detectors: Set[str] = field(default_factory=set)
     ignored_matches: List[IgnoredMatch] = field(default_factory=list)
     ignored_paths: Set[str] = field(default_factory=set)
+    ignore_known_secrets: bool = False
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
         """
@@ -91,7 +94,6 @@ class UserConfig(FilteredConfig):
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
-    ignore_known_secrets: bool = False
     debug: bool = False
 
     # If we hit any deprecated syntax when loading a configuration file, we do not
@@ -160,6 +162,7 @@ class UserConfig(FilteredConfig):
             data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
             config_version = data.pop("version", 1)
             if config_version == 2:
+                _fix_ignore_known_secrets(data)
                 obj = UserConfigSchema().load(data)
             elif config_version == 1:
                 replace_in_keys(data, old_char="-", new_char="_")
@@ -182,6 +185,28 @@ class UserConfig(FilteredConfig):
 
 
 UserConfigSchema = marshmallow_dataclass.class_schema(UserConfig)
+
+
+def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
+    """Fix a mistake done when implementing ignore-known-secrets: since this is a secret
+    specific key, it should have been stored in the "secret" mapping, not in the root
+    one"""
+
+    underscore_key = _IGNORE_KNOWN_SECRETS_KEY.replace("-", "_")
+
+    for key in _IGNORE_KNOWN_SECRETS_KEY, underscore_key:
+        value = data.pop(key, None)
+        if value is not None:
+            break
+    else:
+        # No key to fix
+        return
+
+    secret_dct = data.setdefault("secret", {})
+    if _IGNORE_KNOWN_SECRETS_KEY in secret_dct or underscore_key in secret_dct:
+        # Do not override if it's already there
+        return
+    secret_dct[_IGNORE_KNOWN_SECRETS_KEY] = value
 
 
 @dataclass
