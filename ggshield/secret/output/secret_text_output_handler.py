@@ -437,16 +437,23 @@ def display_detector(detector: str, offset: int) -> str:
 def format_detector(match_type: str, index_start: int, index_end: int) -> str:
     """Return detector object to add in detector_line."""
 
-    detector_size = len(match_type)
+    # Required space on the left side to show match_type
+    left_padding = len(match_type) + 2
     secret_size = index_end - index_start
 
-    display = ""
-    if secret_size < MAX_SECRET_SIZE:
-        before = "_" * max(1, int(((secret_size - detector_size) - 1) / 2))
-        after = "_" * max(1, (secret_size - len(before) - detector_size) - 2)
-        display = f"|{before}{match_type}{after}|"
+    if secret_size > MAX_SECRET_SIZE:
+        return "\n"
 
-    return " " * index_start + format_text(display, STYLE["detector"]) + "\n"
+    if index_start < left_padding:
+        # match_type on the right
+        display = "└" + "─" * (secret_size - 2) + f"┴─ {match_type}"
+        start = index_start
+    else:
+        # match_type on the left
+        display = f"{match_type} ─┴" + "─" * (secret_size - 2) + "┘"
+        start = index_start - left_padding
+
+    return " " * start + format_text(display, STYLE["detector"]) + "\n"
 
 
 def secrets_engine_version() -> str:
