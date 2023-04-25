@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -61,6 +61,11 @@ jobs:
     needs: build_packages
     continue-on-error: true
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+
+    # This is required for `gh release create` to work
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -78,26 +83,21 @@ jobs:
         with:
           name: packages
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@master
+      - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tags.outputs.tag }}
-          release_name: ${{ steps.tags.outputs.tag }}
-          draft: true
-          prerelease: false
+        run: |
+          gh release create --draft ${{ steps.tags.outputs.tag }}
 
-      - uses: xresloader/upload-to-github-release@v1
+      - name: Upload release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: 'packages/ggshield-*.pyz;packages/ggshield_*.deb;packages/ggshield-*.rpm'
-          release_id: ${{ steps.create_release.outputs.id }}
-          overwrite: true
-          verbose: true
-          draft: true
+        run: |
+          gh release upload \
+            ${{ steps.tags.outputs.tag }} \
+            packages/ggshield-*.pyz \
+            packages/ggshield_*.deb \
+            packages/ggshield-*.rpm
 
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
@@ -139,7 +139,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Set up Python 3.9
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.9
 
