@@ -1,5 +1,23 @@
 # Changelog
 
+<a id='changelog-1.15.0'></a>
+
+## 1.15.0 — 2023-04-25
+
+### Changed
+
+- `ggshield secret scan` output now includes a link to the incident if the secret is already known on the user's GitGuardian dashboard.
+
+- `ggshield secret scan docker` no longer rescans known-clean layers, speeding up subsequent scans. This cache is tied to GitGuardian secrets engine version, so all layers are rescanned when a new version of the secrets engine is deployed.
+
+### Fixed
+
+- Fixed an issue where the progress bar for `ggshield secret scan` commands would sometimes reach 100% too early and then stayed stuck until the end of the scan.
+
+### Removed
+
+- The deprecated commands `ggshield scan` and `ggshield ignore` have been removed. Use `ggshield secret scan` and `ggshield secret ignore` instead.
+
 <a id='changelog-1.14.5'></a>
 
 ## 1.14.5 — 2023-03-29
