@@ -1,5 +1,6 @@
 import os
 import platform
+import warnings
 from os.path import dirname, join, realpath
 from pathlib import Path
 from typing import Any, Union
@@ -595,8 +596,13 @@ my_vcr = vcr.VCR(
 
 @pytest.fixture(scope="session")
 def client() -> GGClient:
-    api_key = os.getenv("TEST_GITGUARDIAN_API_KEY", "1234567890")
-    base_uri = os.getenv("TEST_GITGUARDIAN_API_URL", "https://api.gitguardian.com")
+    if "GITGUARDIAN_API_KEY" not in os.environ:
+        warnings.warn(
+            "GITGUARDIAN_API_KEY is not set, recording VCR cassettes won't work."
+        )
+        os.environ["GITGUARDIAN_API_KEY"] = "not-a-real-key"
+    api_key = os.environ["GITGUARDIAN_API_KEY"]
+    base_uri = os.getenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
     return GGClient(api_key, base_uri)
 
 
@@ -609,9 +615,6 @@ def cache() -> Cache:
 
 @pytest.fixture()
 def cli_runner():
-    os.environ["GITGUARDIAN_API_KEY"] = os.getenv(
-        "TEST_GITGUARDIAN_API_KEY", "1234567890"
-    )
     return CliRunner()
 
 

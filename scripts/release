@@ -107,15 +107,9 @@ def run_tests() -> None:
     still match production reality.
     """
 
-    # Set the TEST_GITGUARDIAN_API_KEY environment variable: some tests rely on
-    # it
-    try:
-        api_key = os.environ["GITGUARDIAN_API_KEY"]
-    except KeyError:
+    # Check we have an API key
+    if "GITGUARDIAN_API_KEY" not in os.environ:
         fail("Environment variable $GITGUARDIAN_API_KEY is not set")
-
-    env = dict(os.environ)
-    env["TEST_GITGUARDIAN_API_KEY"] = api_key
 
     # If CASSETTES_DIR does not exist, tests fail, so recreate it
     log_progress("Removing cassettes")
@@ -123,10 +117,10 @@ def run_tests() -> None:
     CASSETTES_DIR.mkdir()
 
     log_progress("Running unit tests")
-    check_run(["pytest", "tests/unit"], cwd=ROOT_DIR, env=env)
+    check_run(["pytest", "tests/unit"], cwd=ROOT_DIR)
 
     log_progress("Running functional tests")
-    check_run(["pytest", "tests/functional"], cwd=ROOT_DIR, env=env)
+    check_run(["pytest", "tests/functional"], cwd=ROOT_DIR)
 
     log_progress("Restoring cassettes")
     check_run(["git", "restore", CASSETTES_DIR], cwd=ROOT_DIR)
