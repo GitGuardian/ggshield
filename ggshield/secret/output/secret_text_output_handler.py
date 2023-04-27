@@ -11,6 +11,8 @@ from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.text_utils import (
     STYLE,
     Line,
+    clip_long_line,
+    file_info,
     format_text,
     get_offset,
     get_padding,
@@ -18,7 +20,6 @@ from ggshield.core.text_utils import (
     translate_validity,
 )
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
-from ggshield.output.text.message import clip_long_line, file_info
 from ggshield.scan import Result, ScanCollection
 
 from .secret_output_handler import SecretOutputHandler

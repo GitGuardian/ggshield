@@ -5,9 +5,16 @@ from typing import ClassVar, List
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
-from ggshield.core.text_utils import STYLE, Line, format_text, get_offset, get_padding
+from ggshield.core.text_utils import (
+    STYLE,
+    Line,
+    clip_long_line,
+    file_info,
+    format_text,
+    get_offset,
+    get_padding,
+)
 from ggshield.core.utils import Filemode, get_lines_from_content
-from ggshield.output.text.message import clip_long_line, file_info
 from ggshield.scan import File, ScanCollection
 
 from .iac_output_handler import IaCOutputHandler
