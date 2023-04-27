@@ -6,7 +6,7 @@ from pygitguardian.models import Match
 
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.core.text_utils import Line, pluralize
+from ggshield.core.text_utils import Line, get_offset, get_padding, pluralize
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
 from ggshield.output.text.message import (
     file_info,
@@ -17,7 +17,6 @@ from ggshield.output.text.message import (
     policy_break_header,
     secrets_engine_version,
 )
-from ggshield.output.text.utils import get_offset, get_padding
 from ggshield.scan import Result, ScanCollection
 
 from .output_handler import OutputHandler

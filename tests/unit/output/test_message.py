@@ -2,9 +2,8 @@ from typing import List
 
 import pytest
 
-from ggshield.core.text_utils import Line
+from ggshield.core.text_utils import Line, get_offset, get_padding
 from ggshield.output.text.message import clip_long_line, format_line_count_break
-from ggshield.output.text.utils import get_offset, get_padding
 
 
 @pytest.mark.parametrize(

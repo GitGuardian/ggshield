@@ -10,10 +10,11 @@ from ggshield.core.text_utils import (
     STYLE,
     Line,
     format_text,
+    get_offset,
+    get_padding,
     pluralize,
     translate_validity,
 )
-from ggshield.output.text.utils import get_offset, get_padding
 
 
 # MAX_SECRET_SIZE controls the max length of |-----| under a secret
