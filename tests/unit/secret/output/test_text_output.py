@@ -7,6 +7,7 @@ import pytest
 from ggshield.core.utils import Filemode
 from ggshield.scan import Result, Results, ScanCollection, StringScannable
 from ggshield.secret.output import SecretTextOutputHandler
+from ggshield.secret.output.secret_text_output_handler import format_line_count_break
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -107,7 +108,9 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # The text output includes the version of the secrets engine, but this version is
     # None until we make an API call. Since this test does not make any API call, set
     # the version to a fake value.
-    with mock.patch("ggshield.output.text.message.VERSIONS") as VERSIONS:
+    with mock.patch(
+        "ggshield.secret.output.secret_text_output_handler.VERSIONS"
+    ) as VERSIONS:
         VERSIONS.secrets_engine_version = "3.14.159"
 
         output_handler = SecretTextOutputHandler(
@@ -336,3 +339,7 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
     )
 
     assert exit_code == expected_exit_code
+
+
+def test_format_line_count_break():
+    assert format_line_count_break(5) == "\x1b[36m\x1b[22m\x1b[22m  ...\n\x1b[0m"

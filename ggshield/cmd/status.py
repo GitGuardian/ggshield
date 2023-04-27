@@ -10,7 +10,6 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.utils import json_output_option_decorator
-from ggshield.output.text.message import format_healthcheck_status
 
 
 @click.command()
@@ -40,3 +39,13 @@ def status_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
 
 
 status = json_output_option_decorator(status_cmd)
+
+
+def format_healthcheck_status(health_check: HealthCheckResponse) -> str:
+    (color, status) = (
+        ("red", f"unhealthy ({health_check.detail})")
+        if health_check.status_code != 200
+        else ("green", "healthy")
+    )
+
+    return format_text(status, {"fg": color})

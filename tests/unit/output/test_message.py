@@ -3,7 +3,7 @@ from typing import List
 import pytest
 
 from ggshield.core.text_utils import Line, get_offset, get_padding
-from ggshield.output.text.message import clip_long_line, format_line_count_break
+from ggshield.output.text.message import clip_long_line
 
 
 @pytest.mark.parametrize(
@@ -60,7 +60,3 @@ def test_get_offset(padding: int, is_patch: bool, want: int) -> None:
 )
 def test_clip_long_line(params, want):
     assert clip_long_line(*params) == want
-
-
-def test_format_line_count_break():
-    assert format_line_count_break(5) == "\x1b[36m\x1b[22m\x1b[22m  ...\n\x1b[0m"

@@ -18,9 +18,9 @@ from ggshield.core.git_shell import (
 )
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE
-from ggshield.output.text.message import remediation_message
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
+from ggshield.secret.output.messages import remediation_message
 
 
 logger = logging.getLogger(__name__)
