@@ -3,15 +3,12 @@ from io import StringIO
 from typing import Dict, List, Optional, Set, Tuple
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.iac_models import IaCVulnerability
 from pygitguardian.models import HealthCheckResponse, Match, PolicyBreak
 
 from ggshield.core.text_utils import (
     STYLE,
     Line,
     format_text,
-    get_offset,
-    get_padding,
     pluralize,
     translate_validity,
 )
@@ -174,40 +171,6 @@ def flatten_policy_breaks_by_line(
     return flat_match_dict
 
 
-def iac_vulnerability_location(
-    lines: List[Line],
-    line_start: int,
-    line_end: int,
-    nb_lines: int,
-    clip_long_lines: bool = False,
-) -> str:
-    msg = StringIO()
-    padding = get_padding(lines)
-    offset = get_offset(padding)
-    max_width = shutil.get_terminal_size()[0] - offset if clip_long_lines else 0
-    for line_nb in range(
-        max(0, line_start - nb_lines), min(len(lines) - 1, line_end + nb_lines)
-    ):
-        msg.write(
-            lines[line_nb].build_line_count(
-                padding, line_start - 1 <= line_nb <= line_end - 1
-            )
-        )
-        line_content = lines[line_nb].content
-
-        if max_width:
-            line_content = clip_long_line(line_content, max_width, after=True)
-        msg.write(f"{line_content}\n")
-    return msg.getvalue()
-
-
-def iac_vulnerability_location_failed(
-    line_start: int,
-    line_end: int,
-) -> str:
-    return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
-
-
 def policy_break_header(
     policy_breaks: List[PolicyBreak],
     ignore_sha: str,
@@ -252,43 +215,6 @@ def no_new_leak_message() -> str:
     Build a message if no new secret is found.
     """
     return format_text("\nNo new secrets have been found\n", STYLE["no_secret"])
-
-
-def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> str:
-    """
-    Build a header for the iac policy break.
-    """
-    return "\n{} Incident {} ({}): {}: {} ({})\n".format(
-        format_text(">>>", STYLE["detector_line_start"]),
-        issue_n,
-        format_text("IaC", STYLE["detector"]),
-        format_text(vulnerability.component, STYLE["detector"]),
-        format_text(vulnerability.policy, STYLE["policy"]),
-        format_text(vulnerability.policy_id, STYLE["policy"]),
-    )
-
-
-def iac_vulnerability_severity_line(severity: str) -> str:
-    """
-    Build a line to output the severity of a vulnerability
-    """
-    if severity == "CRITICAL":
-        severity_string = "Critical"
-        style = STYLE["iac_vulnerability_critical"]
-    elif severity == "HIGH":
-        severity_string = "High"
-        style = STYLE["iac_vulnerability_high"]
-    elif severity == "MEDIUM":
-        severity_string = "Medium"
-        style = STYLE["iac_vulnerability_medium"]
-    elif severity == "LOW":
-        severity_string = "Low"
-        style = STYLE["iac_vulnerability_low"]
-    else:  # In the other case, print `severity``
-        severity_string = severity
-        style = STYLE["iac_vulnerability_unknown"]
-
-    return f"Severity: {format_text(severity_string, style)}\n"
 
 
 def clip_long_line(
@@ -417,10 +343,6 @@ def secrets_engine_version() -> str:
     return f"\nsecrets-engine-version: {VERSIONS.secrets_engine_version}\n"
 
 
-def iac_engine_version(iac_engine_version: str) -> str:
-    return f"\niac-engine-version: {iac_engine_version}\n"
-
-
 def file_info(filename: str, nb_secrets: int) -> str:
     """Return the formatted file info (number of secrets + filename)."""
     return "\n{} {}: {} {} detected\n".format(
@@ -429,13 +351,6 @@ def file_info(filename: str, nb_secrets: int) -> str:
         nb_secrets,
         pluralize("incident", nb_secrets, "incidents"),
     )
-
-
-def no_iac_vulnerabilities() -> str:
-    """
-    Build a message if no IaC vulnerabilities were found.
-    """
-    return format_text("\nNo incidents have been found\n", STYLE["no_secret"])
 
 
 def get_lines_to_display(

@@ -1,20 +1,13 @@
+import shutil
 from io import StringIO
 from pathlib import Path
 from typing import ClassVar, List
 
-from pygitguardian.iac_models import IaCFileResult
+from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
-from ggshield.core.text_utils import Line
+from ggshield.core.text_utils import STYLE, Line, format_text, get_offset, get_padding
 from ggshield.core.utils import Filemode, get_lines_from_content
-from ggshield.output.text.message import (
-    file_info,
-    iac_engine_version,
-    iac_vulnerability_header,
-    iac_vulnerability_location,
-    iac_vulnerability_location_failed,
-    iac_vulnerability_severity_line,
-    no_iac_vulnerabilities,
-)
+from ggshield.output.text.message import clip_long_line, file_info
 from ggshield.scan import File, ScanCollection
 
 from .iac_output_handler import IaCOutputHandler
@@ -83,3 +76,85 @@ class IaCTextOutputHandler(IaCOutputHandler):
                 )
 
         return result_buf.getvalue()
+
+
+def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> str:
+    """
+    Build a header for the iac policy break.
+    """
+    return "\n{} Incident {} ({}): {}: {} ({})\n".format(
+        format_text(">>>", STYLE["detector_line_start"]),
+        issue_n,
+        format_text("IaC", STYLE["detector"]),
+        format_text(vulnerability.component, STYLE["detector"]),
+        format_text(vulnerability.policy, STYLE["policy"]),
+        format_text(vulnerability.policy_id, STYLE["policy"]),
+    )
+
+
+def iac_vulnerability_severity_line(severity: str) -> str:
+    """
+    Build a line to output the severity of a vulnerability
+    """
+    if severity == "CRITICAL":
+        severity_string = "Critical"
+        style = STYLE["iac_vulnerability_critical"]
+    elif severity == "HIGH":
+        severity_string = "High"
+        style = STYLE["iac_vulnerability_high"]
+    elif severity == "MEDIUM":
+        severity_string = "Medium"
+        style = STYLE["iac_vulnerability_medium"]
+    elif severity == "LOW":
+        severity_string = "Low"
+        style = STYLE["iac_vulnerability_low"]
+    else:  # In the other case, print `severity``
+        severity_string = severity
+        style = STYLE["iac_vulnerability_unknown"]
+
+    return f"Severity: {format_text(severity_string, style)}\n"
+
+
+def iac_vulnerability_location(
+    lines: List[Line],
+    line_start: int,
+    line_end: int,
+    nb_lines: int,
+    clip_long_lines: bool = False,
+) -> str:
+    msg = StringIO()
+    padding = get_padding(lines)
+    offset = get_offset(padding)
+    max_width = shutil.get_terminal_size()[0] - offset if clip_long_lines else 0
+    for line_nb in range(
+        max(0, line_start - nb_lines), min(len(lines) - 1, line_end + nb_lines)
+    ):
+        msg.write(
+            lines[line_nb].build_line_count(
+                padding, line_start - 1 <= line_nb <= line_end - 1
+            )
+        )
+        line_content = lines[line_nb].content
+
+        if max_width:
+            line_content = clip_long_line(line_content, max_width, after=True)
+        msg.write(f"{line_content}\n")
+    return msg.getvalue()
+
+
+def iac_vulnerability_location_failed(
+    line_start: int,
+    line_end: int,
+) -> str:
+    return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
+
+
+def iac_engine_version(iac_engine_version: str) -> str:
+    return f"\niac-engine-version: {iac_engine_version}\n"
+
+
+def no_iac_vulnerabilities() -> str:
+    """
+    Build a message if no IaC vulnerabilities were found.
+    """
+    return format_text("\nNo incidents have been found\n", STYLE["no_secret"])
