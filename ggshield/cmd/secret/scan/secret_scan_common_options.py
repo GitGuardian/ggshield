@@ -12,7 +12,11 @@ from ggshield.cmd.common_options import (
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
-from ggshield.secret.output import JSONOutputHandler, OutputHandler, TextOutputHandler
+from ggshield.secret.output import (
+    SecretJSONOutputHandler,
+    SecretOutputHandler,
+    SecretTextOutputHandler,
+)
 
 
 def _get_secret_config(ctx: click.Context) -> SecretConfig:
@@ -125,11 +129,13 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     return decorator
 
 
-def create_output_handler(ctx: click.Context) -> OutputHandler:
+def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     """Read objects defined in ctx.obj and create the appropriate OutputHandler
     instance"""
     use_json = ctx.obj.get("use_json", False)
-    output_handler_cls = JSONOutputHandler if use_json else TextOutputHandler
+    output_handler_cls = (
+        SecretJSONOutputHandler if use_json else SecretTextOutputHandler
+    )
     config = ctx.obj["config"].user_config
     output = ctx.obj.get("output")
     return output_handler_cls(

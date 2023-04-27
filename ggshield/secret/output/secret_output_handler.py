@@ -7,7 +7,7 @@ from ggshield.core.errors import ExitCode
 from ggshield.scan import ScanCollection
 
 
-class OutputHandler(ABC):
+class SecretOutputHandler(ABC):
     show_secrets: bool = False
     verbose: bool = False
     output: Optional[str] = None

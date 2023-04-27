@@ -19,7 +19,7 @@ from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
 from ggshield.scan import Commit, Results, ScanCollection, ScanContext, SecretScanner
-from ggshield.secret.output import OutputHandler
+from ggshield.secret.output import SecretOutputHandler
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
@@ -39,7 +39,7 @@ def cd(newdir: str) -> Iterator[None]:
 def scan_repo_path(
     client: GGClient,
     cache: Cache,
-    output_handler: OutputHandler,
+    output_handler: SecretOutputHandler,
     config: Config,
     scan_context: ScanContext,
     repo_path: str,
@@ -142,7 +142,7 @@ def scan_commit_range(
     client: GGClient,
     cache: Cache,
     commit_list: List[str],
-    output_handler: OutputHandler,
+    output_handler: SecretOutputHandler,
     exclusion_regexes: Set[re.Pattern],
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,

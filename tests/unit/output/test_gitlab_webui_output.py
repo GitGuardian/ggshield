@@ -1,6 +1,8 @@
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.secret.output.gitlab_webui_output_handler import format_policy_break
+from ggshield.secret.output.secret_gitlab_webui_output_handler import (
+    format_policy_break,
+)
 
 
 def test_format_policy_break():

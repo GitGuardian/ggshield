@@ -18,7 +18,7 @@ from ggshield.scan import (
     SecretScanner,
     StringScannable,
 )
-from ggshield.secret.output import JSONOutputHandler, OutputHandler
+from ggshield.secret.output import SecretJSONOutputHandler, SecretOutputHandler
 from ggshield.secret.output.schemas import JSONScanCollectionSchema
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
@@ -124,7 +124,7 @@ SCHEMA_WITH_INCIDENTS = S(
 def test_json_output(client, cache, name, input_patch, expected_exit_code):
     c = Commit()
     c._patch = input_patch
-    handler = JSONOutputHandler(verbose=True, show_secrets=False)
+    handler = SecretJSONOutputHandler(verbose=True, show_secrets=False)
 
     with my_vcr.use_cassette(name):
         scanner = SecretScanner(
@@ -139,7 +139,9 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
 
         scan = ScanCollection(id="path", type="test", results=results)
         json_flat_results = handler._process_scan_impl(scan)
-        exit_code = OutputHandler._get_exit_code(Mock(ignore_known_secrets=False), scan)
+        exit_code = SecretOutputHandler._get_exit_code(
+            Mock(ignore_known_secrets=False), scan
+        )
 
         assert exit_code == expected_exit_code
         assert SCHEMA_WITHOUT_INCIDENTS == JSONScanCollectionSchema().loads(
@@ -162,7 +164,7 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     WHEN generating json output
     THEN if ignore_known_secrets is used, include "known_secret" field for the known policy breaks in the json output
     """
-    output_handler = JSONOutputHandler(show_secrets=True, verbose=verbose)
+    output_handler = SecretJSONOutputHandler(show_secrets=True, verbose=verbose)
 
     result: Result = Result(
         StringScannable(

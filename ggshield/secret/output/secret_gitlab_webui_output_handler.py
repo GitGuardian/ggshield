@@ -4,7 +4,7 @@ from ggshield.core.filter import censor_match
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.scan import ScanCollection
 
-from .output_handler import OutputHandler
+from .secret_output_handler import SecretOutputHandler
 
 
 def format_policy_break(policy_break: PolicyBreak) -> str:
@@ -22,7 +22,7 @@ def format_policy_break(policy_break: PolicyBreak) -> str:
     return f"{policy_break.break_type} (Validity: {validity}, {match_str})"
 
 
-class GitLabWebUIOutputHandler(OutputHandler):
+class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
     """
     Terse OutputHandler optimized for GitLab Web UI, because GitLab Web UI only shows
     lines starting with GL-HOOK-ERR.

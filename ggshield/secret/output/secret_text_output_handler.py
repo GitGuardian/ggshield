@@ -19,10 +19,10 @@ from ggshield.output.text.message import (
 )
 from ggshield.scan import Result, ScanCollection
 
-from .output_handler import OutputHandler
+from .secret_output_handler import SecretOutputHandler
 
 
-class TextOutputHandler(OutputHandler):
+class SecretTextOutputHandler(SecretOutputHandler):
     nb_lines: ClassVar[int] = 3
 
     def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
@@ -129,7 +129,7 @@ class TextOutputHandler(OutputHandler):
                 )
 
                 for policy_break in policy_breaks:
-                    policy_break.matches = TextOutputHandler.make_matches(
+                    policy_break.matches = SecretTextOutputHandler.make_matches(
                         policy_break.matches, lines, is_patch
                     )
 
