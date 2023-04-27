@@ -13,13 +13,14 @@ from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
 from ggshield.iac.filter import get_iac_files_from_paths
+from ggshield.iac.iac_scan_collection import IaCScanCollection
 from ggshield.iac.output import (
     IaCJSONOutputHandler,
     IaCOutputHandler,
     IaCTextOutputHandler,
 )
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
-from ggshield.scan import ScanCollection, ScanContext, ScanMode
+from ggshield.scan import ScanContext, ScanMode
 
 
 def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
@@ -88,7 +89,7 @@ def scan_cmd(
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     result = iac_scan(ctx, directory)
-    scan = ScanCollection(id=str(directory), type="path_scan", iac_result=result)
+    scan = IaCScanCollection(id=str(directory), type="path_scan", iac_result=result)
 
     output_handler_cls: Type[IaCOutputHandler]
     if json:

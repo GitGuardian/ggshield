@@ -2,19 +2,19 @@ from typing import Any, Dict, cast
 
 from pygitguardian.iac_models import IaCScanResultSchema
 
+from ggshield.iac.iac_scan_collection import IaCScanCollection
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.iac.output.schemas import IaCJSONScanResultSchema
-from ggshield.scan import ScanCollection
 
 
 class IaCJSONOutputHandler(IaCOutputHandler):
-    def _process_scan_impl(self, scan: ScanCollection) -> str:
+    def _process_scan_impl(self, scan: IaCScanCollection) -> str:
         scan_dict = IaCJSONOutputHandler.create_scan_dict(scan)
         text = IaCJSONScanResultSchema().dumps(scan_dict)
         return cast(str, text)
 
     @staticmethod
-    def create_scan_dict(scan: ScanCollection) -> Dict[str, Any]:
+    def create_scan_dict(scan: IaCScanCollection) -> Dict[str, Any]:
         if scan.iac_result is None:
             return {
                 "id": scan.id,

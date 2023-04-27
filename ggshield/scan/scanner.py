@@ -10,7 +10,6 @@ from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence, Set, Tu
 import click
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
-from pygitguardian.iac_models import IaCScanResult
 from pygitguardian.models import Detail, ScanResult
 
 from ggshield.core.cache import Cache
@@ -103,7 +102,6 @@ class ScanCollection:
     type: str
     results: Optional[Results] = None
     scans: Optional[List["ScanCollection"]] = None
-    iac_result: Optional[IaCScanResult] = None
     optional_header: Optional[str] = None  # To be printed in Text Output
     extra_info: Optional[Dict[str, str]] = None  # To be included in JSON Output
 
@@ -113,7 +111,6 @@ class ScanCollection:
         type: str,
         results: Optional[Results] = None,
         scans: Optional[List["ScanCollection"]] = None,
-        iac_result: Optional[IaCScanResult] = None,
         optional_header: Optional[str] = None,
         extra_info: Optional[Dict[str, str]] = None,
     ):
@@ -121,7 +118,6 @@ class ScanCollection:
         self.type = type
         self.results = results
         self.scans = scans
-        self.iac_result = iac_result
         self.optional_header = optional_header
         self.extra_info = extra_info
 
@@ -143,10 +139,6 @@ class ScanCollection:
         if self.scans:
             return [scan for scan in self.scans if scan.results]
         return []
-
-    @property
-    def has_iac_result(self) -> bool:
-        return bool(self.iac_result and self.iac_result.entities_with_incidents)
 
     @property
     def has_results(self) -> bool:

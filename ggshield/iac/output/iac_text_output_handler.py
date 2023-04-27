@@ -15,18 +15,17 @@ from ggshield.core.text_utils import (
     get_padding,
 )
 from ggshield.core.utils import Filemode, get_lines_from_content
-from ggshield.scan import File, ScanCollection
+from ggshield.scan import File
 
+from ..iac_scan_collection import IaCScanCollection
 from .iac_output_handler import IaCOutputHandler
 
 
 class IaCTextOutputHandler(IaCOutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def _process_scan_impl(self, scan: ScanCollection) -> str:
+    def _process_scan_impl(self, scan: IaCScanCollection) -> str:
         scan_buf = StringIO()
-        if scan.optional_header and (scan.iac_result or self.verbose):
-            scan_buf.write(scan.optional_header)
 
         if scan.iac_result:
             scan_buf.write(iac_engine_version(scan.iac_result.iac_engine_version))
