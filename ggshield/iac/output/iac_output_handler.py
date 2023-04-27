@@ -46,6 +46,8 @@ class IaCOutputHandler(ABC):
         raise NotImplementedError()
 
     def _get_exit_code(self, scan: IaCScanCollection) -> ExitCode:
-        if scan.has_iac_result:
+        if scan.result is None:
+            return ExitCode.UNEXPECTED_ERROR
+        if scan.result.entities_with_incidents:
             return ExitCode.SCAN_FOUND_PROBLEMS
         return ExitCode.SUCCESS

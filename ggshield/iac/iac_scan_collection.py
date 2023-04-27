@@ -4,20 +4,18 @@ from pygitguardian.iac_models import IaCScanResult
 
 
 class IaCScanCollection:
+    # TODO: It may be possible to get rid of this class and just use IaCScanResult
     id: str
     type: str
-    iac_result: Optional[IaCScanResult] = None
+    # Can be None if the scan failed
+    result: Optional[IaCScanResult]
 
     def __init__(
         self,
         id: str,
         type: str,
-        iac_result: Optional[IaCScanResult] = None,
+        result: Optional[IaCScanResult],
     ):
         self.id = id
         self.type = type
-        self.iac_result = iac_result
-
-    @property
-    def has_iac_result(self) -> bool:
-        return bool(self.iac_result and self.iac_result.entities_with_incidents)
+        self.result = result

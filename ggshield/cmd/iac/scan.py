@@ -89,7 +89,7 @@ def scan_cmd(
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     result = iac_scan(ctx, directory)
-    scan = IaCScanCollection(id=str(directory), type="path_scan", iac_result=result)
+    scan = IaCScanCollection(id=str(directory), type="path_scan", result=result)
 
     output_handler_cls: Type[IaCOutputHandler]
     if json:

@@ -15,14 +15,14 @@ class IaCJSONOutputHandler(IaCOutputHandler):
 
     @staticmethod
     def create_scan_dict(scan: IaCScanCollection) -> Dict[str, Any]:
-        if scan.iac_result is None:
+        if scan.result is None:
             return {
                 "id": scan.id,
                 "type": scan.type,
                 "total_incidents": 0,
                 "entities_with_incidents": [],
             }
-        scan_dict: Dict[str, Any] = IaCScanResultSchema().dump(scan.iac_result)
+        scan_dict: Dict[str, Any] = IaCScanResultSchema().dump(scan.result)
         scan_dict["total_incidents"] = 0
 
         for entity in scan_dict["entities_with_incidents"]:
