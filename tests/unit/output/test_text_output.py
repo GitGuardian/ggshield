@@ -5,8 +5,8 @@ import click
 import pytest
 
 from ggshield.core.utils import Filemode
-from ggshield.output import TextOutputHandler
 from ggshield.scan import Result, Results, ScanCollection, StringScannable
+from ggshield.secret.output import TextOutputHandler
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,

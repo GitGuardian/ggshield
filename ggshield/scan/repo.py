@@ -18,8 +18,8 @@ from ggshield.core.errors import ExitCode, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
-from ggshield.output import OutputHandler
 from ggshield.scan import Commit, Results, ScanCollection, ScanContext, SecretScanner
+from ggshield.secret.output import OutputHandler
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines

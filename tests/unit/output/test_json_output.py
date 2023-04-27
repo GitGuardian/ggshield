@@ -8,8 +8,6 @@ from pytest_voluptuous import Partial, S
 from voluptuous import Optional, validators
 
 from ggshield.core.utils import Filemode
-from ggshield.output import JSONOutputHandler, OutputHandler
-from ggshield.output.json.schemas import JSONScanCollectionSchema
 from ggshield.scan import (
     Commit,
     Result,
@@ -20,6 +18,8 @@ from ggshield.scan import (
     SecretScanner,
     StringScannable,
 )
+from ggshield.secret.output import JSONOutputHandler, OutputHandler
+from ggshield.secret.output.schemas import JSONScanCollectionSchema
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,

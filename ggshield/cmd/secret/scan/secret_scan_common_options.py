@@ -12,7 +12,7 @@ from ggshield.cmd.common_options import (
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
-from ggshield.output import JSONOutputHandler, OutputHandler, TextOutputHandler
+from ggshield.secret.output import JSONOutputHandler, OutputHandler, TextOutputHandler
 
 
 def _get_secret_config(ctx: click.Context) -> SecretConfig:

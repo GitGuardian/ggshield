@@ -6,10 +6,11 @@ from pygitguardian.models import Match, PolicyBreak
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.text_utils import Line
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
-from ggshield.output.json.schemas import ExtendedMatch, JSONScanCollectionSchema
-from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result, ScanCollection
 from ggshield.scan.scanner import Error
+
+from .output_handler import OutputHandler
+from .schemas import ExtendedMatch, JSONScanCollectionSchema
 
 
 class JSONOutputHandler(OutputHandler):

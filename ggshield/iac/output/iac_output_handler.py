@@ -15,11 +15,9 @@ class IaCOutputHandler(ABC):
         self,
         verbose: bool,
         output: Optional[str] = None,
-        ignore_known_secrets: bool = False,
     ):
         self.verbose = verbose
         self.output = output
-        self.ignore_known_secrets = ignore_known_secrets
 
     def process_scan(self, scan: ScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`

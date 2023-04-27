@@ -2,8 +2,9 @@ from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import censor_match
 from ggshield.core.text_utils import pluralize, translate_validity
-from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import ScanCollection
+
+from .output_handler import OutputHandler
 
 
 def format_policy_break(policy_break: PolicyBreak) -> str:
