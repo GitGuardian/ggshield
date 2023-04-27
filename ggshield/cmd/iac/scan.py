@@ -13,10 +13,12 @@ from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.text_utils import display_error
 from ggshield.iac.filter import get_iac_files_from_paths
+from ggshield.iac.output import (
+    IaCJSONOutputHandler,
+    IaCOutputHandler,
+    IaCTextOutputHandler,
+)
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
-from ggshield.output import OutputHandler
-from ggshield.output.json.iac_json_output_handler import IaCJSONOutputHandler
-from ggshield.output.text.iac_text_output_handler import IaCTextOutputHandler
 from ggshield.scan import ScanCollection, ScanContext, ScanMode
 
 
@@ -88,15 +90,13 @@ def scan_cmd(
     result = iac_scan(ctx, directory)
     scan = ScanCollection(id=str(directory), type="path_scan", iac_result=result)
 
-    output_handler_cls: Type[OutputHandler]
+    output_handler_cls: Type[IaCOutputHandler]
     if json:
         output_handler_cls = IaCJSONOutputHandler
     else:
         output_handler_cls = IaCTextOutputHandler
     config: Config = ctx.obj["config"]
-    output_handler = output_handler_cls(
-        show_secrets=False, verbose=config.user_config.verbose
-    )
+    output_handler = output_handler_cls(verbose=config.user_config.verbose)
     return output_handler.process_scan(scan)
 
 

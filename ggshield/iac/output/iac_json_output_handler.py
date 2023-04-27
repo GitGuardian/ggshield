@@ -2,12 +2,12 @@ from typing import Any, Dict, cast
 
 from pygitguardian.iac_models import IaCScanResultSchema
 
-from ggshield.output.json.schemas import IaCJSONScanResultSchema
-from ggshield.output.output_handler import OutputHandler
+from ggshield.iac.output.iac_output_handler import IaCOutputHandler
+from ggshield.iac.output.schemas import IaCJSONScanResultSchema
 from ggshield.scan import ScanCollection
 
 
-class IaCJSONOutputHandler(OutputHandler):
+class IaCJSONOutputHandler(IaCOutputHandler):
     def _process_scan_impl(self, scan: ScanCollection) -> str:
         scan_dict = IaCJSONOutputHandler.create_scan_dict(scan)
         text = IaCJSONScanResultSchema().dumps(scan_dict)

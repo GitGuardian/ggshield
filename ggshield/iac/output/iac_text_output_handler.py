@@ -4,12 +4,9 @@ from typing import ClassVar, List
 
 from pygitguardian.iac_models import IaCFileResult
 
-from ggshield.output.output_handler import OutputHandler
-from ggshield.scan import File, ScanCollection
-
-from ...core.text_utils import Line
-from ...core.utils import Filemode, get_lines_from_content
-from .message import (
+from ggshield.core.text_utils import Line
+from ggshield.core.utils import Filemode, get_lines_from_content
+from ggshield.output.text.message import (
     file_info,
     iac_engine_version,
     iac_vulnerability_header,
@@ -18,9 +15,12 @@ from .message import (
     iac_vulnerability_severity_line,
     no_iac_vulnerabilities,
 )
+from ggshield.scan import File, ScanCollection
+
+from .iac_output_handler import IaCOutputHandler
 
 
-class IaCTextOutputHandler(OutputHandler):
+class IaCTextOutputHandler(IaCOutputHandler):
     nb_lines: ClassVar[int] = 3
 
     def _process_scan_impl(self, scan: ScanCollection) -> str:
