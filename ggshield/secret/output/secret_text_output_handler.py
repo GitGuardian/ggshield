@@ -20,8 +20,8 @@ from ggshield.core.text_utils import (
     translate_validity,
 )
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
-from ggshield.scan import Result, ScanCollection
 
+from ..secret_scan_collection import Result, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 
@@ -33,7 +33,7 @@ MAX_SECRET_SIZE = 80
 class SecretTextOutputHandler(SecretOutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def _process_scan_impl(self, scan: ScanCollection, top: bool = True) -> str:
+    def _process_scan_impl(self, scan: SecretScanCollection, top: bool = True) -> str:
         processed_scan_results = self.process_scan_results(scan)
 
         scan_buf = StringIO()
@@ -62,7 +62,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
         return scan_buf.getvalue()
 
     def process_scan_results(
-        self, scan: ScanCollection, show_only_known_secrets: bool = False
+        self, scan: SecretScanCollection, show_only_known_secrets: bool = False
     ) -> str:
         results_buf = StringIO()
         if scan.results:

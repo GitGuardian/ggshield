@@ -20,8 +20,9 @@ from ggshield.core.filter import (
 )
 from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import DecodeError, Result, Results, ScanContext, Scannable
-from ggshield.scan.scanner import Error
+from ggshield.scan import DecodeError, ScanContext, Scannable
+
+from .secret_scan_collection import Error, Result, Results
 
 
 # GitGuardian API does not accept paths longer than this

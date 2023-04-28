@@ -15,9 +15,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import UnexpectedError
-from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode
+from ggshield.scan import Files, ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
-from ggshield.secret import RichSecretScannerUI, SecretScanner
+from ggshield.secret import RichSecretScannerUI, SecretScanCollection, SecretScanner
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
@@ -125,6 +125,6 @@ def pypi_cmd(
                 scanner_ui=ui,
                 scan_threads=MAX_WORKERS,
             )
-        scan = ScanCollection(id=package_name, type="path_scan", results=results)
+        scan = SecretScanCollection(id=package_name, type="path_scan", results=results)
 
         return output_handler.process_scan(scan)

@@ -8,9 +8,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_exception
-from ggshield.scan import ScanCollection, ScanContext, ScanMode
+from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
-from ggshield.secret import RichSecretScannerUI, SecretScanner
+from ggshield.secret import RichSecretScannerUI, SecretScanCollection, SecretScanner
 
 
 @click.command()
@@ -62,7 +62,9 @@ def path_cmd(
                 scanner_ui=ui,
                 scan_threads=MAX_WORKERS,
             )
-        scan = ScanCollection(id=" ".join(paths), type="path_scan", results=results)
+        scan = SecretScanCollection(
+            id=" ".join(paths), type="path_scan", results=results
+        )
 
         return output_handler.process_scan(scan)
     except Exception as error:

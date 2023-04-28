@@ -6,7 +6,8 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
-from ggshield.scan import Result, Results, ScanCollection, StringScannable
+from ggshield.scan import StringScannable
+from ggshield.secret import Result, Results, SecretScanCollection
 from ggshield.secret.repo import cd
 from tests.repository import Repository
 from tests.unit.conftest import (
@@ -161,11 +162,11 @@ class TestPreReceive:
         # This test cannot mock scan_commit_range(): if it did that we would not get
         # the GitLab-specific output because output_handler.process_scan() would not be
         # called.
-        scan_commits_content_mock.return_value = ScanCollection(
+        scan_commits_content_mock.return_value = SecretScanCollection(
             id="some_id",
             type="commit-ranges",
             scans=[
-                ScanCollection(
+                SecretScanCollection(
                     secret_sha,
                     type="commit",
                     results=Results(

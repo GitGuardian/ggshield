@@ -7,7 +7,8 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from ggshield.scan import Files, ScanCollection, StringScannable
+from ggshield.scan import Files, StringScannable
+from ggshield.secret import SecretScanCollection
 from ggshield.secret.docker import DockerImage, LayerInfo, _validate_filepath
 from tests.unit.conftest import (
     DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
@@ -51,7 +52,7 @@ class TestDockerCMD:
     def test_docker_scan(
         self, scan_mock: Mock, save_mock, cli_fs_runner: click.testing.CliRunner
     ):
-        scan_mock.return_value = ScanCollection(
+        scan_mock.return_value = SecretScanCollection(
             id="ggshield-non-existant", type="docker", results=[]
         )
         result = cli_fs_runner.invoke(
@@ -66,7 +67,7 @@ class TestDockerCMD:
         self, scan_mock: Mock, save_mock: Mock, cli_fs_runner: click.testing.CliRunner
     ):
         save_mock.side_effect = click.exceptions.Abort()
-        scan_mock.return_value = ScanCollection(
+        scan_mock.return_value = SecretScanCollection(
             id="ggshield-non-existant", type="docker", results=[]
         )
         result = cli_fs_runner.invoke(
@@ -84,7 +85,7 @@ class TestDockerCMD:
         save_mock.side_effect = click.UsageError(
             'Image "ggshield-non-existant" not found'
         )
-        scan_mock.return_value = ScanCollection(
+        scan_mock.return_value = SecretScanCollection(
             id="ggshield-non-existant", type="docker", results=[]
         )
         result = cli_fs_runner.invoke(

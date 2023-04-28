@@ -5,8 +5,7 @@ from pygitguardian.models import ScanResult
 
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
 from ggshield.core.utils import Filemode
-
-from .scannable import Scannable
+from ggshield.scan.scannable import Scannable
 
 
 class Result(NamedTuple):
@@ -72,11 +71,11 @@ class Results:
         return any(x.has_policy_breaks for x in self.results)
 
 
-class ScanCollection:
+class SecretScanCollection:
     id: str
     type: str
     results: Optional[Results] = None
-    scans: Optional[List["ScanCollection"]] = None
+    scans: Optional[List["SecretScanCollection"]] = None
     optional_header: Optional[str] = None  # To be printed in Text Output
     extra_info: Optional[Dict[str, str]] = None  # To be included in JSON Output
 
@@ -85,7 +84,7 @@ class ScanCollection:
         id: str,
         type: str,
         results: Optional[Results] = None,
-        scans: Optional[List["ScanCollection"]] = None,
+        scans: Optional[List["SecretScanCollection"]] = None,
         optional_header: Optional[str] = None,
         extra_info: Optional[Dict[str, str]] = None,
     ):
@@ -110,7 +109,7 @@ class ScanCollection:
         return (self.new_secrets_count + self.known_secrets_count) > 0
 
     @property
-    def scans_with_results(self) -> List["ScanCollection"]:
+    def scans_with_results(self) -> List["SecretScanCollection"]:
         if self.scans:
             return [scan for scan in self.scans if scan.results]
         return []

@@ -6,22 +6,21 @@ from pygitguardian.models import Match, PolicyBreak
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.text_utils import Line
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
-from ggshield.scan import Result, ScanCollection
-from ggshield.scan.scanner import Error
 
+from ..secret_scan_collection import Error, Result, SecretScanCollection
 from .schemas import ExtendedMatch, JSONScanCollectionSchema
 from .secret_output_handler import SecretOutputHandler
 
 
 class SecretJSONOutputHandler(SecretOutputHandler):
-    def _process_scan_impl(self, scan: ScanCollection) -> str:
+    def _process_scan_impl(self, scan: SecretScanCollection) -> str:
         scan_dict = self.create_scan_dict(scan, top=True)
         text = JSONScanCollectionSchema().dumps(scan_dict)
         # dumps() return type is not defined, so cast `text`, otherwise mypy complains
         return cast(str, text)
 
     def create_scan_dict(
-        self, scan: ScanCollection, top: bool = True
+        self, scan: SecretScanCollection, top: bool = True
     ) -> Dict[str, Any]:
         scan_dict: Dict[str, Any] = {
             "id": scan.id,

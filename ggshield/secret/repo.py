@@ -18,9 +18,11 @@ from ggshield.core.errors import ExitCode, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import Commit, Results, ScanCollection, ScanContext
-from ggshield.secret import SecretScanner
-from ggshield.secret.output import SecretOutputHandler
+from ggshield.scan import Commit, ScanContext
+
+from .output import SecretOutputHandler
+from .secret_scan_collection import Results, SecretScanCollection
+from .secret_scanner import SecretScanner
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
@@ -72,7 +74,7 @@ def scan_commits_content(
     scan_context: ScanContext,
     progress_callback: Callable[..., None],
     ignored_detectors: Optional[Set[str]] = None,
-) -> ScanCollection:  # pragma: no cover
+) -> SecretScanCollection:  # pragma: no cover
     try:
         commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
 
@@ -99,7 +101,7 @@ def scan_commits_content(
             result_for_files[file] for file in commit.files if file in result_for_files
         ]
         scans.append(
-            ScanCollection(
+            SecretScanCollection(
                 commit.sha or "unknown",
                 type="commit",
                 results=Results(
@@ -111,7 +113,9 @@ def scan_commits_content(
             )
         )
 
-    return ScanCollection(id=scan_context.command_id, type="commit-ranges", scans=scans)
+    return SecretScanCollection(
+        id=scan_context.command_id, type="commit-ranges", scans=scans
+    )
 
 
 def get_commits_by_batch(
@@ -170,7 +174,7 @@ def scan_commit_range(
                 for sha in commit_list
             ),
         )
-        scans: List[ScanCollection] = []
+        scans: List[SecretScanCollection] = []
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []
@@ -198,6 +202,8 @@ def scan_commit_range(
                     scans.append(scan)
 
     return_code = output_handler.process_scan(
-        ScanCollection(id=scan_context.command_id, type="commit-range", scans=scans)
+        SecretScanCollection(
+            id=scan_context.command_id, type="commit-range", scans=scans
+        )
     )
     return return_code
