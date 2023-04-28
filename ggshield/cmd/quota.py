@@ -8,8 +8,8 @@ from pygitguardian.models import Detail, Quota, QuotaResponse
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
+from ggshield.core.text_utils import format_text
 from ggshield.core.utils import json_output_option_decorator
-from ggshield.output.text.message import format_quota_color
 
 
 @click.command()
@@ -40,3 +40,18 @@ def quota_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
     )
 
     return 0
+
+
+def format_quota_color(remaining: int, limit: int) -> str:
+    if limit == 0:
+        return format_text(str(remaining), {"fg": "white"})
+
+    available_percent = remaining / limit
+    if available_percent < 0.25:
+        color = "red"
+    elif available_percent < 0.75:
+        color = "yellow"
+    else:
+        color = "green"
+
+    return format_text(str(remaining), {"fg": color})

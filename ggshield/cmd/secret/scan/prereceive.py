@@ -17,10 +17,10 @@ from ggshield.core.errors import UnexpectedError, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import EMPTY_SHA, PRERECEIVE_TIMEOUT
-from ggshield.output import GitLabWebUIOutputHandler
-from ggshield.output.text.message import remediation_message
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.repo import scan_commit_range
+from ggshield.secret.output import SecretGitLabWebUIOutputHandler
+from ggshield.secret.output.messages import remediation_message
 
 
 logger = logging.getLogger(__name__)
@@ -153,7 +153,7 @@ def prereceive_cmd(
 
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
-        output_handler = GitLabWebUIOutputHandler(
+        output_handler = SecretGitLabWebUIOutputHandler(
             show_secrets=config.secret.show_secrets
         )
 

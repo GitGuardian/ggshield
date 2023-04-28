@@ -6,13 +6,14 @@ from pygitguardian.models import Match, PolicyBreak
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.text_utils import Line
 from ggshield.core.utils import Filemode, find_match_indices, get_lines_from_content
-from ggshield.output.json.schemas import ExtendedMatch, JSONScanCollectionSchema
-from ggshield.output.output_handler import OutputHandler
 from ggshield.scan import Result, ScanCollection
 from ggshield.scan.scanner import Error
 
+from .schemas import ExtendedMatch, JSONScanCollectionSchema
+from .secret_output_handler import SecretOutputHandler
 
-class JSONOutputHandler(OutputHandler):
+
+class SecretJSONOutputHandler(SecretOutputHandler):
     def _process_scan_impl(self, scan: ScanCollection) -> str:
         scan_dict = self.create_scan_dict(scan, top=True)
         text = JSONScanCollectionSchema().dumps(scan_dict)
@@ -121,7 +122,7 @@ class JSONOutputHandler(OutputHandler):
             flattened_dict["known_secret"] = policy_breaks[0].known_secret
 
         for policy_break in policy_breaks:
-            matches = JSONOutputHandler.make_matches(
+            matches = SecretJSONOutputHandler.make_matches(
                 policy_break.matches, lines, is_patch
             )
             flattened_dict["occurrences"].extend(matches)

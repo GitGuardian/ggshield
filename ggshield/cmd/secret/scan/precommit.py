@@ -7,9 +7,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import check_git_dir
-from ggshield.output import TextOutputHandler
-from ggshield.output.text.message import remediation_message
 from ggshield.scan import Commit, ScanCollection, ScanContext, ScanMode, SecretScanner
+from ggshield.secret.output import SecretTextOutputHandler
+from ggshield.secret.output.messages import remediation_message
 
 
 REMEDIATION_STEPS = """  Since the secret was detected before the commit was made:
@@ -36,7 +36,7 @@ def precommit_cmd(
     scan as a pre-commit git hook.
     """
     config = ctx.obj["config"]
-    output_handler = TextOutputHandler(
+    output_handler = SecretTextOutputHandler(
         show_secrets=config.secret.show_secrets,
         verbose=config.verbose,
         output=None,

@@ -7,7 +7,7 @@ from ggshield.core.errors import ExitCode
 from ggshield.scan import ScanCollection
 
 
-class OutputHandler(ABC):
+class SecretOutputHandler(ABC):
     show_secrets: bool = False
     verbose: bool = False
     output: Optional[str] = None
@@ -51,8 +51,6 @@ class OutputHandler(ABC):
         raise NotImplementedError()
 
     def _get_exit_code(self, scan: ScanCollection) -> ExitCode:
-        if scan.has_iac_result:
-            return ExitCode.SCAN_FOUND_PROBLEMS
         if self.ignore_known_secrets:
             if scan.has_new_secrets:
                 return ExitCode.SCAN_FOUND_PROBLEMS
