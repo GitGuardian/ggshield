@@ -15,9 +15,9 @@ from ggshield.scan import (
     ScanCollection,
     ScanContext,
     ScanMode,
-    SecretScanner,
     StringScannable,
 )
+from ggshield.secret import SecretScanner
 from ggshield.secret.output import SecretJSONOutputHandler, SecretOutputHandler
 from ggshield.secret.output.schemas import JSONScanCollectionSchema
 from tests.unit.conftest import (

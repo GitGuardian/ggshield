@@ -7,7 +7,8 @@ from ggshield.cmd.secret.ignore import ignore_last_found
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import Commit, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import Commit, ScanContext, ScanMode
+from ggshield.secret import SecretScanner
 from tests.unit.conftest import _MULTIPLE_SECRETS_PATCH, my_vcr
 
 

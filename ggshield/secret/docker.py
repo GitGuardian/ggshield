@@ -16,16 +16,9 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import (
-    Files,
-    RichSecretScannerUI,
-    ScanCollection,
-    ScanContext,
-    Scannable,
-    SecretScanner,
-    StringScannable,
-)
+from ggshield.scan import Files, ScanCollection, ScanContext, Scannable, StringScannable
 from ggshield.scan.id_cache import IDCache
+from ggshield.secret import RichSecretScannerUI, SecretScanner
 
 
 FILEPATH_BANLIST = [

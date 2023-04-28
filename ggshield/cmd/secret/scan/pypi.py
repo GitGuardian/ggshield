@@ -15,15 +15,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import UnexpectedError
-from ggshield.scan import (
-    Files,
-    RichSecretScannerUI,
-    ScanCollection,
-    ScanContext,
-    ScanMode,
-    SecretScanner,
-)
+from ggshield.scan import Files, ScanCollection, ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
+from ggshield.secret import RichSecretScannerUI, SecretScanner
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30

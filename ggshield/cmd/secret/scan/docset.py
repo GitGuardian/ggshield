@@ -16,9 +16,9 @@ from ggshield.scan import (
     ScanContext,
     ScanMode,
     Scannable,
-    SecretScanner,
     StringScannable,
 )
+from ggshield.secret import SecretScanner
 
 
 def generate_files_from_docsets(

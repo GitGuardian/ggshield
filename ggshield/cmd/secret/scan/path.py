@@ -8,14 +8,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_exception
-from ggshield.scan import (
-    RichSecretScannerUI,
-    ScanCollection,
-    ScanContext,
-    ScanMode,
-    SecretScanner,
-)
+from ggshield.scan import ScanCollection, ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
+from ggshield.secret import RichSecretScannerUI, SecretScanner
 
 
 @click.command()

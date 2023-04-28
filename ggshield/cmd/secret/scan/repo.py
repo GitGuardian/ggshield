@@ -15,7 +15,7 @@ from ggshield.core.config import Config
 from ggshield.core.git_shell import git
 from ggshield.core.utils import REGEX_GIT_URL
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.scan.repo import scan_repo_path
+from ggshield.secret.repo import scan_repo_path
 
 
 @click.command()

@@ -18,7 +18,8 @@ from ggshield.core.errors import ExitCode, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import Commit, Results, ScanCollection, ScanContext, SecretScanner
+from ggshield.scan import Commit, Results, ScanCollection, ScanContext
+from ggshield.secret import SecretScanner
 from ggshield.secret.output import SecretOutputHandler
 
 

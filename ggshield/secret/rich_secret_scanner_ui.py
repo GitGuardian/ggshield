@@ -1,9 +1,9 @@
 from typing import Any, Sequence
 
 from ggshield.core.text_utils import create_progress_bar
+from ggshield.scan.scannable import Scannable
 
-from .scannable import Scannable
-from .scanner import SecretScannerUI
+from .secret_scanner import SecretScannerUI
 
 
 class RichSecretScannerUI(SecretScannerUI):

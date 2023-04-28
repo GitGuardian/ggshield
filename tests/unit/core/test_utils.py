@@ -20,16 +20,10 @@ from ggshield.core.utils import (
     get_lines_from_content,
     load_dot_env,
 )
-from ggshield.scan import (
-    Commit,
-    Files,
-    ScanContext,
-    ScanMode,
-    SecretScanner,
-    StringScannable,
-)
-from ggshield.scan.repo import cd
+from ggshield.scan import Commit, Files, ScanContext, ScanMode, StringScannable
 from ggshield.scan.scan_context import parse_os_release
+from ggshield.secret import SecretScanner
+from ggshield.secret.repo import cd
 from tests.unit.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,

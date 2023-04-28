@@ -1,7 +1,9 @@
 from collections import namedtuple
 from unittest.mock import Mock
 
+import click
 import pytest
+from pygitguardian.models import Detail
 
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import Filemode
@@ -11,9 +13,10 @@ from ggshield.scan import (
     ScanContext,
     ScanMode,
     Scannable,
-    SecretScanner,
-    SecretScannerUI,
+    StringScannable,
 )
+from ggshield.secret import SecretScanner, SecretScannerUI
+from ggshield.secret.secret_scanner import handle_scan_chunk_error
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -143,3 +146,43 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
     scanner.scan([mock], scanner_ui=scanner_ui)
 
     scanner_ui.on_skipped.assert_called_once()
+
+
+def test_handle_scan_error_api_key():
+    detail = Detail("Invalid API key.")
+    detail.status_code = 401
+    with pytest.raises(click.UsageError):
+        handle_scan_chunk_error(detail, [])
+
+
+@pytest.mark.parametrize(
+    "detail, status_code, chunk",
+    [
+        pytest.param(
+            Detail("Too many documents to scan"),
+            400,
+            [StringScannable(content="", url="/example") for _ in range(21)],
+            id="too many documents",
+        ),
+        pytest.param(
+            Detail(
+                "[\"filename:: [ErrorDetail(string='Ensure this field has no more than 256 characters.', code='max_length')]\", '', '', '']"  # noqa
+            ),
+            400,
+            [
+                StringScannable(
+                    content="still valid", url="/home/user/too/long/file/name"
+                ),
+                StringScannable(content="", url="valid"),
+                StringScannable(content="", url="valid"),
+                StringScannable(content="", url="valid"),
+            ],
+            id="single file exception",
+        ),
+    ],
+)
+def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
+    detail.status_code = 400
+    handle_scan_chunk_error(detail, chunk)
+    captured = capsys.readouterr()
+    snapshot.assert_match(captured.err)
