@@ -5,7 +5,8 @@ import click
 import pytest
 
 from ggshield.core.utils import Filemode
-from ggshield.scan import Result, Results, ScanCollection, StringScannable
+from ggshield.scan import StringScannable
+from ggshield.secret import Result, Results, SecretScanCollection
 from ggshield.secret.output import SecretTextOutputHandler
 from ggshield.secret.output.secret_text_output_handler import format_line_count_break
 from tests.unit.conftest import (
@@ -117,11 +118,11 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
             show_secrets=show_secrets, verbose=verbose
         )
 
-        # _process_scan_impl() modifies its ScanCollection arg(!), so make a copy of it
+        # _process_scan_impl() modifies its SecretScanCollection arg(!), so make a copy of it
         new_result = deepcopy(result_input)
 
         output = output_handler._process_scan_impl(
-            ScanCollection(
+            SecretScanCollection(
                 id="scan",
                 type="test",
                 results=Results(results=[new_result], errors=[]),
@@ -245,12 +246,12 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
 
     # call output handler
     output = output_handler._process_scan_impl(
-        ScanCollection(
+        SecretScanCollection(
             id="outer_scan",
             type="outer_scan",
             results=Results(results=[], errors=[]),
             scans=[
-                ScanCollection(
+                SecretScanCollection(
                     id="scan",
                     type="test",
                     results=Results(
@@ -317,12 +318,12 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
 
     # call output handler
     exit_code = output_handler._get_exit_code(
-        ScanCollection(
+        SecretScanCollection(
             id="outer_scan",
             type="outer_scan",
             results=Results(results=[], errors=[]),
             scans=[
-                ScanCollection(
+                SecretScanCollection(
                     id="scan",
                     type="test",
                     results=Results(results=[result], errors=[]),

@@ -18,9 +18,9 @@ from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import EMPTY_SHA, PRERECEIVE_TIMEOUT
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.scan.repo import scan_commit_range
 from ggshield.secret.output import SecretGitLabWebUIOutputHandler
 from ggshield.secret.output.messages import remediation_message
+from ggshield.secret.repo import scan_commit_range
 
 
 logger = logging.getLogger(__name__)

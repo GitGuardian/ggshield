@@ -4,7 +4,7 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import ExitCode
-from ggshield.scan import ScanCollection
+from ggshield.iac.iac_scan_collection import IaCScanCollection
 
 
 class IaCOutputHandler(ABC):
@@ -19,7 +19,7 @@ class IaCOutputHandler(ABC):
         self.verbose = verbose
         self.output = output
 
-    def process_scan(self, scan: ScanCollection) -> ExitCode:
+    def process_scan(self, scan: IaCScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`
 
         :param scan: The scan collection to process
@@ -34,7 +34,7 @@ class IaCOutputHandler(ABC):
         return self._get_exit_code(scan)
 
     @abstractmethod
-    def _process_scan_impl(self, scan: ScanCollection) -> str:
+    def _process_scan_impl(self, scan: IaCScanCollection) -> str:
         """Implementation of scan processing,
         called by :meth:`OutputHandler.process_scan`
 
@@ -45,7 +45,9 @@ class IaCOutputHandler(ABC):
         """
         raise NotImplementedError()
 
-    def _get_exit_code(self, scan: ScanCollection) -> ExitCode:
-        if scan.has_iac_result:
+    def _get_exit_code(self, scan: IaCScanCollection) -> ExitCode:
+        if scan.result is None:
+            return ExitCode.UNEXPECTED_ERROR
+        if scan.result.entities_with_incidents:
             return ExitCode.SCAN_FOUND_PROBLEMS
         return ExitCode.SUCCESS

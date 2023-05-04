@@ -14,7 +14,7 @@ from ggshield.core.errors import UnexpectedError, handle_exception
 from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.scan.repo import scan_commit_range
+from ggshield.secret.repo import scan_commit_range
 
 
 class SupportedCI(Enum):

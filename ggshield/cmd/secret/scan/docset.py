@@ -11,14 +11,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import create_progress_bar, display_info
-from ggshield.scan import (
-    ScanCollection,
-    ScanContext,
-    ScanMode,
-    Scannable,
-    SecretScanner,
-    StringScannable,
-)
+from ggshield.scan import ScanContext, ScanMode, Scannable, StringScannable
+from ggshield.secret import SecretScanCollection, SecretScanner
 
 
 def generate_files_from_docsets(
@@ -38,8 +32,8 @@ def create_scans_from_docset_files(
     input_files: Iterable[TextIO],
     progress_callback: Callable[..., None],
     verbose: bool = False,
-) -> List[ScanCollection]:
-    scans: List[ScanCollection] = []
+) -> List[SecretScanCollection]:
+    scans: List[SecretScanCollection] = []
 
     for input_file in input_files:
         if verbose:
@@ -50,7 +44,9 @@ def create_scans_from_docset_files(
             files,
             scan_threads=MAX_WORKERS,
         )
-        scans.append(ScanCollection(id=input_file.name, type="docset", results=results))
+        scans.append(
+            SecretScanCollection(id=input_file.name, type="docset", results=results)
+        )
         progress_callback(advance=1)
 
     return scans
@@ -95,7 +91,7 @@ def docset_cmd(
             )
 
         return output_handler.process_scan(
-            ScanCollection(id=scan_context.command_id, type="docset", scans=scans)
+            SecretScanCollection(id=scan_context.command_id, type="docset", scans=scans)
         )
     except Exception as error:
         return handle_exception(error, config.verbose)

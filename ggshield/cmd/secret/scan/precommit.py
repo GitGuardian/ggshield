@@ -7,7 +7,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import check_git_dir
-from ggshield.scan import Commit, ScanCollection, ScanContext, ScanMode, SecretScanner
+from ggshield.scan import Commit, ScanContext, ScanMode
+from ggshield.secret import SecretScanCollection, SecretScanner
 from ggshield.secret.output import SecretTextOutputHandler
 from ggshield.secret.output.messages import remediation_message
 
@@ -61,7 +62,7 @@ def precommit_cmd(
         results = scanner.scan(commit.files)
 
         return_code = output_handler.process_scan(
-            ScanCollection(id="cached", type="pre-commit", results=results)
+            SecretScanCollection(id="cached", type="pre-commit", results=results)
         )
         if return_code:
             click.echo(

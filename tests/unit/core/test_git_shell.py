@@ -9,7 +9,7 @@ from ggshield.core.git_shell import (
     is_git_dir,
     is_valid_git_commit_ref,
 )
-from ggshield.scan.repo import cd
+from ggshield.secret.repo import cd
 
 
 def test_git_shell():

@@ -9,7 +9,7 @@ import click
 import pytest
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.scan.docker import (
+from ggshield.secret.docker import (
     DockerImage,
     InvalidDockerArchiveException,
     LayerInfo,

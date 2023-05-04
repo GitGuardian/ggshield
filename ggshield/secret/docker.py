@@ -16,16 +16,12 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
 from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import (
-    Files,
-    RichSecretScannerUI,
-    ScanCollection,
-    ScanContext,
-    Scannable,
-    SecretScanner,
-    StringScannable,
-)
+from ggshield.scan import Files, ScanContext, Scannable, StringScannable
 from ggshield.scan.id_cache import IDCache
+
+from .rich_secret_scanner_ui import RichSecretScannerUI
+from .secret_scan_collection import SecretScanCollection
+from .secret_scanner import SecretScanner
 
 
 FILEPATH_BANLIST = [
@@ -332,7 +328,7 @@ def docker_scan_archive(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
-) -> ScanCollection:
+) -> SecretScanCollection:
 
     scanner = SecretScanner(
         client=client,
@@ -372,4 +368,6 @@ def docker_scan_archive(
                     layer_id_cache.add(layer_id)
                 results.extend(layer_results)
 
-    return ScanCollection(id=str(archive), type="scan_docker_archive", results=results)
+    return SecretScanCollection(
+        id=str(archive), type="scan_docker_archive", results=results
+    )

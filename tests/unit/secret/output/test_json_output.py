@@ -8,16 +8,8 @@ from pytest_voluptuous import Partial, S
 from voluptuous import Optional, validators
 
 from ggshield.core.utils import Filemode
-from ggshield.scan import (
-    Commit,
-    Result,
-    Results,
-    ScanCollection,
-    ScanContext,
-    ScanMode,
-    SecretScanner,
-    StringScannable,
-)
+from ggshield.scan import Commit, ScanContext, ScanMode, StringScannable
+from ggshield.secret import Result, Results, SecretScanCollection, SecretScanner
 from ggshield.secret.output import SecretJSONOutputHandler, SecretOutputHandler
 from ggshield.secret.output.schemas import JSONScanCollectionSchema
 from tests.unit.conftest import (
@@ -137,7 +129,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
         )
         results = scanner.scan(c.files)
 
-        scan = ScanCollection(id="path", type="test", results=results)
+        scan = SecretScanCollection(id="path", type="test", results=results)
         json_flat_results = handler._process_scan_impl(scan)
         exit_code = SecretOutputHandler._get_exit_code(
             Mock(ignore_known_secrets=False), scan
@@ -195,12 +187,12 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
 
     # call output handler
     output = output_handler._process_scan_impl(
-        ScanCollection(
+        SecretScanCollection(
             id="outer_scan",
             type="outer_scan",
             results=Results(results=[], errors=[]),
             scans=[
-                ScanCollection(
+                SecretScanCollection(
                     id="scan",
                     type="test",
                     results=Results(results=[result], errors=[]),

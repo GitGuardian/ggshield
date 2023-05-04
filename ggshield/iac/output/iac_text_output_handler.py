@@ -15,28 +15,27 @@ from ggshield.core.text_utils import (
     get_padding,
 )
 from ggshield.core.utils import Filemode, get_lines_from_content
-from ggshield.scan import File, ScanCollection
+from ggshield.scan import File
 
+from ..iac_scan_collection import IaCScanCollection
 from .iac_output_handler import IaCOutputHandler
 
 
 class IaCTextOutputHandler(IaCOutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def _process_scan_impl(self, scan: ScanCollection) -> str:
+    def _process_scan_impl(self, scan: IaCScanCollection) -> str:
         scan_buf = StringIO()
-        if scan.optional_header and (scan.iac_result or self.verbose):
-            scan_buf.write(scan.optional_header)
 
-        if scan.iac_result:
-            scan_buf.write(iac_engine_version(scan.iac_result.iac_engine_version))
-            for file_result in scan.iac_result.entities_with_incidents:
+        if scan.result:
+            scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
+            for file_result in scan.result.entities_with_incidents:
                 scan_buf.write(
                     self.process_iac_file_result(
                         Path(scan.id) / file_result.filename, file_result
                     )
                 )
-            if len(scan.iac_result.entities_with_incidents) == 0:
+            if len(scan.result.entities_with_incidents) == 0:
                 scan_buf.write(no_iac_vulnerabilities())
         return scan_buf.getvalue()
 

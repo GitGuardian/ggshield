@@ -11,15 +11,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
-from ggshield.scan import (
-    Files,
-    RichSecretScannerUI,
-    ScanCollection,
-    ScanContext,
-    ScanMode,
-    SecretScanner,
-)
+from ggshield.scan import Files, ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
+from ggshield.secret import RichSecretScannerUI, SecretScanCollection, SecretScanner
 
 
 @click.command()
@@ -67,7 +61,7 @@ def archive_cmd(
             )
             results = scanner.scan(files.files, scanner_ui=ui)
 
-        scan = ScanCollection(id=path, type="archive_scan", results=results)
+        scan = SecretScanCollection(id=path, type="archive_scan", results=results)
 
         output_handler = create_output_handler(ctx)
         return output_handler.process_scan(scan)

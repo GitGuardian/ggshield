@@ -2,8 +2,8 @@ from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import censor_match
 from ggshield.core.text_utils import pluralize, translate_validity
-from ggshield.scan import ScanCollection
 
+from ..secret_scan_collection import SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 
@@ -33,7 +33,7 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
     def __init__(self, show_secrets: bool = False) -> None:
         super().__init__(show_secrets=show_secrets, verbose=False)
 
-    def _process_scan_impl(self, scan_collection: ScanCollection) -> str:
+    def _process_scan_impl(self, scan_collection: SecretScanCollection) -> str:
         results = list(scan_collection.get_all_results())
         if not results:
             return ""

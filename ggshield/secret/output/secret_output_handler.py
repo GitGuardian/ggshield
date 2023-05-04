@@ -4,7 +4,7 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import ExitCode
-from ggshield.scan import ScanCollection
+from ggshield.secret import SecretScanCollection
 
 
 class SecretOutputHandler(ABC):
@@ -24,7 +24,7 @@ class SecretOutputHandler(ABC):
         self.output = output
         self.ignore_known_secrets = ignore_known_secrets
 
-    def process_scan(self, scan: ScanCollection) -> ExitCode:
+    def process_scan(self, scan: SecretScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`
 
         :param scan: The scan collection to process
@@ -39,7 +39,7 @@ class SecretOutputHandler(ABC):
         return self._get_exit_code(scan)
 
     @abstractmethod
-    def _process_scan_impl(self, scan: ScanCollection) -> str:
+    def _process_scan_impl(self, scan: SecretScanCollection) -> str:
         """Implementation of scan processing,
         called by :meth:`OutputHandler.process_scan`
 
@@ -50,7 +50,7 @@ class SecretOutputHandler(ABC):
         """
         raise NotImplementedError()
 
-    def _get_exit_code(self, scan: ScanCollection) -> ExitCode:
+    def _get_exit_code(self, scan: SecretScanCollection) -> ExitCode:
         if self.ignore_known_secrets:
             if scan.has_new_secrets:
                 return ExitCode.SCAN_FOUND_PROBLEMS
