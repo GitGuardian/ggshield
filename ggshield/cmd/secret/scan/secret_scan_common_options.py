@@ -90,7 +90,7 @@ _ignore_known_secrets_option = click.option(
     is_flag=True,
     default=None,
     help="Ignore secrets already known by GitGuardian dashboard",
-    callback=create_config_callback("ignore_known_secrets"),
+    callback=create_config_callback("secret", "ignore_known_secrets"),
 )
 
 
