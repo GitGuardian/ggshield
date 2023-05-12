@@ -1,3 +1,7 @@
+"""
+This module centralizes GGShield error handling. For more details, have a look
+at doc/dev/error-handling.md.
+"""
 import platform
 import traceback
 from enum import IntEnum
