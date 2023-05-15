@@ -1,4 +1,4 @@
-name: Application Main Branch
+name: CI
 
 # About steps requiring the GITGUARDIAN_API_KEY:
 #
@@ -80,7 +80,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade pipenv==2022.10.4
           pipenv install --system --dev
-
+          # Hack: workaround urllib3 still being installed on windows-2022 builder
+          pip install --force-reinstall 'urllib3<2'
       - name: Install Windows dev dependencies
         if: matrix.os == 'windows-2022'
         run: |
