@@ -23,7 +23,9 @@ ACTION_PATHS = [ROOT_DIR / "actions" / x / "action.yml" for x in ["iac", "secret
 CASSETTES_DIR = ROOT_DIR / "tests" / "unit" / "cassettes"
 
 # The branch this script must be run from, except in dev mode.
-RELEASE_BRANCH = "main"
+RELEASE_BRANCHES = {"^main$", r"^\d+\.\d+\.x$"}
+
+RELEASE_BRANCHES_STR = ", ".join(f'"{x}"' for x in RELEASE_BRANCHES)
 
 
 def get_version() -> str:
@@ -57,12 +59,15 @@ def fail(message: str) -> None:
 
 
 def check_working_tree_is_on_release_branch() -> bool:
-    proc = check_run(["git", "branch"], capture_output=True)
-    lines = proc.stdout.splitlines()
-    if f"* {RELEASE_BRANCH}" not in lines:
-        log_error(f"This script must be run on the '{RELEASE_BRANCH}' branch")
-        return False
-    return True
+    proc = check_run(["git", "symbolic-ref", "--short", "HEAD"], capture_output=True)
+    branch_name = proc.stdout.strip()
+    for pattern in RELEASE_BRANCHES:
+        if re.search(pattern, branch_name):
+            return True
+    log_error(
+        f"This script must be run on a branch matching one of these patterns: {RELEASE_BRANCHES_STR}"
+    )
+    return False
 
 
 def check_working_tree_is_clean() -> bool:
@@ -78,7 +83,10 @@ def check_working_tree_is_clean() -> bool:
 @click.option(
     "--dev-mode",
     is_flag=True,
-    help=f"Do not abort if the working tree contains changes or if we are not on the '{RELEASE_BRANCH}' branch",
+    help=(
+        "Do not abort if the working tree contains changes or if we are not on a branch matching one of"
+        f" {RELEASE_BRANCHES_STR}."
+    ),
 )
 def main(dev_mode: bool) -> int:
     """Helper script to release ggshield. Commands should be run in this order:
