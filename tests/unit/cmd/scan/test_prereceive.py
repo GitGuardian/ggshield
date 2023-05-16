@@ -1,6 +1,11 @@
-import time
-from unittest.mock import ANY, Mock, patch
+import os
+import tempfile
+from functools import partial
+from pathlib import Path
+from typing import Union
+from unittest.mock import ANY, MagicMock, Mock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
@@ -16,7 +21,6 @@ from tests.unit.conftest import (
     _SIMPLE_SECRET_TOKEN,
     assert_invoke_exited_with,
     assert_invoke_ok,
-    is_macos,
 )
 
 
@@ -35,7 +39,58 @@ def create_pre_receive_repo(tmp_path) -> Repository:
     return repo
 
 
+def mock_multiprocessing_process(mock: Mock):
+    """Mock to execute the target and return the mock object"""
+
+    def mock_constructor(target, args=(), kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        target(*args, **kwargs)
+        return mock
+
+    return mock_constructor
+
+
+def write_exit_code(temp_dir: Path, exit_code: Union[int, ExitCode]):
+    (temp_dir / str(os.getpid())).write_text(str(int(exit_code)))
+
+
+def read_exit_code(temp_dir: Path) -> ExitCode:
+    tmp_file = temp_dir / str(os.getpid())
+    exit_code = int(tmp_file.read_text())
+    os.remove(tmp_file)
+    return ExitCode(exit_code)
+
+
 class TestPreReceive:
+    @pytest.fixture(autouse=True)
+    def mock_multiprocessing(self):
+        """
+        multiprocessing.Process is mocked to make everything run on the main process
+        to permit mocking of scan_commit_range
+        multiprocessing.Pipe is mocked to pass data via the FS and not a unix socket
+        which is blocked by --disable-socket
+        """
+        with patch(
+            "ggshield.cmd.secret.scan.prereceive.multiprocessing"
+        ) as multiprocessing_mock:
+            multiprocessing_mock.Process.is_alive.return_value = False
+            multiprocessing_mock.Process.exitcode = 0
+            multiprocessing_mock.Process.side_effect = mock_multiprocessing_process(
+                multiprocessing_mock.Process
+            )
+
+            receiver = MagicMock()
+            sender = MagicMock()
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                receiver.recv.side_effect = partial(read_exit_code, Path(temp_dir))
+                sender.send.side_effect = partial(write_exit_code, Path(temp_dir))
+
+                multiprocessing_mock.Pipe.return_value = (receiver, sender)
+
+                yield
+
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
         self,
@@ -338,47 +393,3 @@ class TestPreReceive:
         )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
-
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
-    def test_timeout(
-        self,
-        scan_commit_range_mock: Mock,
-        tmp_path,
-        cli_fs_runner: CliRunner,
-    ):
-        """
-        GIVEN a scan taking too long
-        WHEN ggshield hits the timeout
-        THEN it stops and return 0
-        """
-
-        scan_timeout = 0.1
-
-        def sleepy_scan(*args, **kwargs):
-            # Sleep for 5 seconds. Do not use a time.sleep(5) because our time limit is
-            # not able to interrupt it before it ends.
-            for _ in range(100):
-                time.sleep(0.05)
-
-        scan_commit_range_mock.side_effect = sleepy_scan
-        scan_commit_range_mock.return_value = ExitCode.UNEXPECTED_ERROR
-        repo = create_pre_receive_repo(tmp_path)
-        old_sha = repo.get_top_sha()
-        new_sha = repo.create_commit()
-
-        start = time.time()
-        with cd(repo.path):
-            result = cli_fs_runner.invoke(
-                cli,
-                ["-v", "secret", "scan", "pre-receive"],
-                input=f"{old_sha} {new_sha} origin/main\n",
-                env={"GITGUARDIAN_TIMEOUT": str(scan_timeout)},
-            )
-        duration = time.time() - start
-        assert_invoke_ok(result)
-
-        # This test often fails on GitHub macOS runner: duration can reach between
-        # 0.3 and 0.4. Workaround this by using a longer timeout on macOS.
-        max_duration = (6 if is_macos() else 3) * scan_timeout
-        assert duration < max_duration
-        scan_commit_range_mock.assert_called_once()

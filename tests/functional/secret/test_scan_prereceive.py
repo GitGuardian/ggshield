@@ -1,5 +1,8 @@
+import os
+import subprocess
 from pathlib import Path
 from subprocess import CalledProcessError
+from unittest.mock import patch
 
 import pytest
 
@@ -100,3 +103,44 @@ def test_scan_prereceive_push_force(tmp_path: Path) -> None:
     # THEN the push is accepted because the commit containing the secret has not been
     # scanned
     local_repo.push("--force")
+
+
+def test_scan_prereceive_timeout(tmp_path: Path, slow_gitguardian_api: str) -> None:
+    # GIVEN a remote repository
+    remote_repo = Repository.create(tmp_path / "remote", bare=True)
+
+    # AND a local clone
+    local_repo = Repository.clone(remote_repo.path, tmp_path / "local")
+
+    # AND ggshield installed as a pre-receive hook
+    hook_path = remote_repo.path / "hooks" / "pre-receive"
+    hook_path.write_text(HOOK_CONTENT)
+    hook_path.chmod(0o755)
+
+    # AND a secret committed
+    secret_file = local_repo.path / "secret.conf"
+    secret_content = f"password = {GG_VALID_TOKEN}"
+    secret_file.write_text(secret_content)
+    local_repo.add("secret.conf")
+    local_repo.create_commit()
+
+    # Prepare to mock process.run to access the stderr of the push
+    stderr = b""
+    subprocess_run = subprocess.run
+
+    def run_and_copy_stderr(*args, **kwargs):
+        process = subprocess_run(*args, **kwargs)
+        nonlocal stderr
+        stderr = process.stderr
+        return process
+
+    # WHEN I try to push
+    # THEN the hook timeouts and allows the push
+    with patch.dict(
+        os.environ, {**os.environ, "GITGUARDIAN_API_URL": slow_gitguardian_api}
+    ), patch("ggshield.core.git_shell.subprocess.run") as mock_subprocess_run:
+        mock_subprocess_run.side_effect = run_and_copy_stderr
+        local_repo.push()
+
+    # AND the error message contains timeout message
+    assert b"Pre-receive hook took too long" in stderr

@@ -1,24 +1,26 @@
-import _thread as thread
 import logging
+import multiprocessing
 import os
+import re
 import sys
-import threading
-from types import TracebackType
-from typing import Any, List, Optional, Tuple, Type
+from multiprocessing.connection import Connection
+from typing import Any, List, Optional, Set, Tuple
 
 import click
+from pygitguardian import GGClient
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
 from ggshield.core.cache import ReadOnlyCache
+from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import EMPTY_SHA, PRERECEIVE_TIMEOUT
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.secret.output import SecretGitLabWebUIOutputHandler
+from ggshield.secret.output import SecretGitLabWebUIOutputHandler, SecretOutputHandler
 from ggshield.secret.output.messages import remediation_message
 from ggshield.secret.repo import scan_commit_range
 
@@ -31,37 +33,6 @@ REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from
   2. push again."""
 
 BYPASS_MESSAGE = """\n     git push -o breakglass"""
-
-
-def quit_function() -> None:
-    display_error("\nPre-receive hook took too long")
-    thread.interrupt_main()  # raises KeyboardInterrupt
-
-
-class ExitAfter:
-    timeout_secs: float
-    timer: threading.Timer
-
-    def __init__(self, timeout_secs: float):
-        self.timeout_secs = timeout_secs
-
-    def __enter__(self) -> None:
-        if self.timeout_secs:
-            self.timer = threading.Timer(self.timeout_secs, quit_function)
-            self.timer.start()
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        if self.timeout_secs:
-            self.timer.cancel()
-        if exc_type == KeyboardInterrupt:
-            # Turn the KeyboardInterrupt raised by quit_function into a more appropriate
-            # exception
-            raise TimeoutError()
 
 
 def get_prereceive_timeout() -> float:
@@ -98,6 +69,45 @@ def find_branch_start(commit: str) -> Optional[str]:
     if ancestors:
         return ancestors[0]
     return None
+
+
+def _execute_prereceive(
+    config: Config,
+    output_handler: SecretOutputHandler,
+    commit_list: List[str],
+    command_path: str,
+    client: GGClient,
+    exclusion_regexes: Set[re.Pattern],
+    return_code_sender: Connection,
+) -> None:
+    try:
+        scan_context = ScanContext(
+            scan_mode=ScanMode.PRE_RECEIVE,
+            command_path=command_path,
+        )
+
+        return_code = scan_commit_range(
+            client=client,
+            cache=ReadOnlyCache(),
+            commit_list=commit_list,
+            output_handler=output_handler,
+            exclusion_regexes=exclusion_regexes,
+            matches_ignore=config.secret.ignored_matches,
+            scan_context=scan_context,
+            ignored_detectors=config.secret.ignored_detectors,
+        )
+        if return_code:
+            click.echo(
+                remediation_message(
+                    remediation_steps=REMEDIATION_MESSAGE,
+                    bypass_message=BYPASS_MESSAGE,
+                    rewrite_git_history=True,
+                ),
+                err=True,
+            )
+        return_code_sender.send(return_code)
+    except Exception as error:
+        return_code_sender.send(handle_exception(error, config.verbose))
 
 
 def parse_stdin() -> Optional[Tuple[str, str]]:
@@ -195,35 +205,28 @@ def prereceive_cmd(
     if config.verbose:
         click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
-    try:
-        with ExitAfter(get_prereceive_timeout()):
+    receiver, sender = multiprocessing.Pipe()
+    process = multiprocessing.Process(
+        target=_execute_prereceive,
+        args=(
+            config,
+            output_handler,
+            commit_list,
+            ctx.command_path,
+            ctx.obj["client"],
+            ctx.obj["exclusion_regexes"],
+            sender,
+        ),
+    )
 
-            scan_context = ScanContext(
-                scan_mode=ScanMode.PRE_RECEIVE,
-                command_path=ctx.command_path,
-            )
-
-            return_code = scan_commit_range(
-                client=ctx.obj["client"],
-                cache=ReadOnlyCache(),
-                commit_list=commit_list,
-                output_handler=output_handler,
-                exclusion_regexes=ctx.obj["exclusion_regexes"],
-                matches_ignore=config.secret.ignored_matches,
-                scan_context=scan_context,
-                ignored_detectors=config.secret.ignored_detectors,
-            )
-            if return_code:
-                click.echo(
-                    remediation_message(
-                        remediation_steps=REMEDIATION_MESSAGE,
-                        bypass_message=BYPASS_MESSAGE,
-                        rewrite_git_history=True,
-                    ),
-                    err=True,
-                )
-            return return_code
-    except TimeoutError:
+    process.start()
+    process.join(timeout=get_prereceive_timeout())
+    if process.is_alive() or process.exitcode is None:
+        display_error("\nPre-receive hook took too long")
+        process.kill()
         return 0
-    except Exception as error:
-        return handle_exception(error, config.verbose)
+
+    if process.exitcode == 0:
+        return_code: int = receiver.recv()
+        return return_code
+    return process.exitcode
