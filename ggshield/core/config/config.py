@@ -130,7 +130,7 @@ class Config:
     @property
     def dashboard_url(self) -> str:
         """
-        The dashboard URL to use to use the dashboard
+        The dashboard URL to use the dashboard
         It's the dashboard URL from the configured instance
         """
         # TODO change when instance_name can be a name instead of just a URL

@@ -1,0 +1,60 @@
+interactions:
+  - request:
+      body: '{"name": "ggshield-wv7vMain", "type": "AWS", "description": "description"}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '74'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.6.0 (Darwin;py3.10.4) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/honeytokens
+    response:
+      body:
+        string: '{"id":"411d33c0-7fad-4fc1-b94e-bb440c8f9c49","type":"AWS","status":"active","created_at":"2023-05-15T14:09:08.478482Z","gitguardian_url":"https://dashboard.gitguardian.com/workspace/8/honeytokens/411d33c0-7fad-4fc1-b94e-bb440c8f9c49","revoked_at":null,"triggered_at":null,"open_events_count":0,"creator_id":265476,"creator_api_token_id":"8219e02d-f44c-4802-8418-ab24c35953f1","revoker_id":null,"revoker_api_token_id":null,"token":{"access_token_id":"ABCQP22YWJJW3C5TRMP","secret_key":"9ImlMcdJrM2H1eDsYTnHM6mNC0YgLEm6tQJSF###"},"tags":[],"name":"ggshield-wv7vMain","description":"description"}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, POST, HEAD, OPTIONS
+        content-length:
+          - '594'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 15 May 2023 14:09:08 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.30.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '209'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.89.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 201
+        message: Created
+version: 1
