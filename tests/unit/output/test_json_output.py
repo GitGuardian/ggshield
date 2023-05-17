@@ -230,10 +230,9 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         ].startswith("https://dashboard.gitguardian.com/workspace/1/incidents/")
 
     for policy_break in new_policy_breaks:
-        assert (
+        assert not incident_for_policy_break_type[policy_break.break_type][
             "known_secret"
-            not in incident_for_policy_break_type[policy_break.break_type]
-        )
+        ]
         assert not incident_for_policy_break_type[policy_break.break_type][
             "incident_url"
         ]

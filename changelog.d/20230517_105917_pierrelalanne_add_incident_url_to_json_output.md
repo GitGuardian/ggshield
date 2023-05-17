@@ -13,7 +13,7 @@ Uncomment the section that is right (remove the HTML comment wrapper).
 <!--
 ### Added
 
-- The JSON output now includes an "incident_url" key for incidents. If a matching incident was found in the user's dashboard it contains the URL to the incident. Otherwise, it defaults to an empty string.
+- The JSON output now includes an "incident_url" key for incidents. If a matching incident was found in the user's dashboard it contains the URL to the incident. Otherwise, it defaults to an empty string. The "known_secret" key is now always present, it will default to False if the incident is unknown to the dashboard.
 
 -->
 <!--
