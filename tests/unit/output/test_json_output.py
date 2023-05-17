@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 from pytest_voluptuous import Partial, S
-from voluptuous import Optional, validators
+from voluptuous import Optional, Required, validators
 
 from ggshield.core.utils import Filemode
 from ggshield.output import JSONOutputHandler, OutputHandler
@@ -85,6 +85,9 @@ SCHEMA_WITH_INCIDENTS = S(
                                     "break_type": str,
                                     "policy": str,
                                     "total_occurrences": validators.All(int, min=1),
+                                    Required("incident_url"): validators.Match(
+                                        r"^($|https://)"
+                                    ),
                                 }
                             ],
                             validators.Length(min=1),
@@ -188,8 +191,11 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
             known_policy_breaks = all_policy_breaks[:1]
             new_policy_breaks = all_policy_breaks[1:]
 
-    for policy_break in known_policy_breaks:
+    for index, policy_break in enumerate(known_policy_breaks):
         policy_break.known_secret = True
+        policy_break.incident_url = (
+            f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
+        )
 
     # call output handler
     output = output_handler._process_scan_impl(
@@ -219,9 +225,14 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
 
     for policy_break in known_policy_breaks:
         assert incident_for_policy_break_type[policy_break.break_type]["known_secret"]
+        assert incident_for_policy_break_type[policy_break.break_type][
+            "incident_url"
+        ].startswith("https://dashboard.gitguardian.com/workspace/1/incidents/")
 
     for policy_break in new_policy_breaks:
-        assert (
+        assert not incident_for_policy_break_type[policy_break.break_type][
             "known_secret"
-            not in incident_for_policy_break_type[policy_break.break_type]
-        )
+        ]
+        assert not incident_for_policy_break_type[policy_break.break_type][
+            "incident_url"
+        ]
