@@ -51,7 +51,6 @@ class JSONOutputHandler(OutputHandler):
                 scan_dict.setdefault("scans", []).append(inner_scan_dict)
                 scan_dict["total_incidents"] += inner_scan_dict["total_incidents"]
                 scan_dict["total_occurrences"] += inner_scan_dict["total_occurrences"]
-
         return scan_dict
 
     def process_result(self, result: Result) -> Dict[str, Any]:
@@ -82,7 +81,6 @@ class JSONOutputHandler(OutputHandler):
             )
             result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
-
         return result_dict
 
     @staticmethod
@@ -119,6 +117,7 @@ class JSONOutputHandler(OutputHandler):
 
         if policy_breaks[0].known_secret:
             flattened_dict["known_secret"] = policy_breaks[0].known_secret
+            flattened_dict["incident_url"] = policy_breaks[0].incident_url
 
         for policy_break in policy_breaks:
             matches = JSONOutputHandler.make_matches(
