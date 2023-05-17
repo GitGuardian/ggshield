@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.15.1'></a>
+
+## 1.15.1 — 2023-05-17
+
+### Fixed
+
+- Fixed a regression introduced in 1.15.0 which caused the `--ignore-known-secrets` option to be ignored.
+
 <a id='changelog-1.15.0'></a>
 
 ## 1.15.0 — 2023-04-25
