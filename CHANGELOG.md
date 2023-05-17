@@ -4,6 +4,12 @@
 
 ## 1.15.1 — 2023-05-17
 
+### Changed
+
+- `ggshield secret scan` JSON output has been improved:
+  - It now includes an `incident_url` key for incidents. If a matching incident was found in the user's dashboard it contains the URL to the incident. Otherwise, it defaults to an empty string.
+  - The `known_secret` key is now always present and defaults to `false` if the incident is unknown to the dashboard.
+
 ### Fixed
 
 - Fixed a regression introduced in 1.15.0 which caused the `--ignore-known-secrets` option to be ignored.
