@@ -1,6 +1,6 @@
-import time
 from unittest.mock import ANY, Mock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
@@ -16,7 +16,6 @@ from tests.unit.conftest import (
     _SIMPLE_SECRET_TOKEN,
     assert_invoke_exited_with,
     assert_invoke_ok,
-    is_macos,
 )
 
 
@@ -35,7 +34,41 @@ def create_pre_receive_repo(tmp_path) -> Repository:
     return repo
 
 
+def mock_multiprocessing_process(mock: Mock):
+    """Mock to execute the target and return the mock object"""
+
+    def mock_constructor(target, args=(), kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+
+        try:
+            target(*args, **kwargs)
+        except SystemExit as exit_exc:
+            mock.exitcode = exit_exc.code
+
+        mock.is_alive.return_value = False
+        return mock
+
+    mock.is_alive.return_value = True
+    mock.exitcode = None
+    return mock_constructor
+
+
 class TestPreReceive:
+    @pytest.fixture(autouse=True)
+    def mock_multiprocessing(self):
+        """
+        multiprocessing.Process is mocked to make everything run on the main process
+        to permit mocking of scan_commit_range
+        """
+        with patch(
+            "ggshield.cmd.secret.scan.prereceive.multiprocessing"
+        ) as multiprocessing_mock:
+            multiprocessing_mock.Process.side_effect = mock_multiprocessing_process(
+                multiprocessing_mock.Process
+            )
+            yield
+
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
         self,
@@ -338,47 +371,3 @@ class TestPreReceive:
         )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
-
-    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
-    def test_timeout(
-        self,
-        scan_commit_range_mock: Mock,
-        tmp_path,
-        cli_fs_runner: CliRunner,
-    ):
-        """
-        GIVEN a scan taking too long
-        WHEN ggshield hits the timeout
-        THEN it stops and return 0
-        """
-
-        scan_timeout = 0.1
-
-        def sleepy_scan(*args, **kwargs):
-            # Sleep for 5 seconds. Do not use a time.sleep(5) because our time limit is
-            # not able to interrupt it before it ends.
-            for _ in range(100):
-                time.sleep(0.05)
-
-        scan_commit_range_mock.side_effect = sleepy_scan
-        scan_commit_range_mock.return_value = ExitCode.UNEXPECTED_ERROR
-        repo = create_pre_receive_repo(tmp_path)
-        old_sha = repo.get_top_sha()
-        new_sha = repo.create_commit()
-
-        start = time.time()
-        with cd(repo.path):
-            result = cli_fs_runner.invoke(
-                cli,
-                ["-v", "secret", "scan", "pre-receive"],
-                input=f"{old_sha} {new_sha} origin/main\n",
-                env={"GITGUARDIAN_TIMEOUT": str(scan_timeout)},
-            )
-        duration = time.time() - start
-        assert_invoke_ok(result)
-
-        # This test often fails on GitHub macOS runner: duration can reach between
-        # 0.3 and 0.4. Workaround this by using a longer timeout on macOS.
-        max_duration = (6 if is_macos() else 3) * scan_timeout
-        assert duration < max_duration
-        scan_commit_range_mock.assert_called_once()

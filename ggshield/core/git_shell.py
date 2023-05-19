@@ -80,6 +80,8 @@ def git(
             env=env,
             cwd=cwd,
         )
+        if result.stderr:
+            logger.debug("stderr=%s", result.stderr.decode("utf-8", errors="ignore"))
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
     except subprocess.CalledProcessError as e:
         if "detected dubious ownership in repository" in e.stderr.decode(
