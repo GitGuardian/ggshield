@@ -1,5 +1,5 @@
+import logging
 import os
-import subprocess
 from pathlib import Path
 from subprocess import CalledProcessError
 from unittest.mock import patch
@@ -105,7 +105,9 @@ def test_scan_prereceive_push_force(tmp_path: Path) -> None:
     local_repo.push("--force")
 
 
-def test_scan_prereceive_timeout(tmp_path: Path, slow_gitguardian_api: str) -> None:
+def test_scan_prereceive_timeout(
+    tmp_path: Path, slow_gitguardian_api: str, caplog
+) -> None:
     # GIVEN a remote repository
     remote_repo = Repository.create(tmp_path / "remote", bare=True)
 
@@ -124,23 +126,16 @@ def test_scan_prereceive_timeout(tmp_path: Path, slow_gitguardian_api: str) -> N
     local_repo.add("secret.conf")
     local_repo.create_commit()
 
-    # Prepare to mock process.run to access the stderr of the push
-    stderr = b""
-    subprocess_run = subprocess.run
-
-    def run_and_copy_stderr(*args, **kwargs):
-        process = subprocess_run(*args, **kwargs)
-        nonlocal stderr
-        stderr = process.stderr
-        return process
-
     # WHEN I try to push
     # THEN the hook timeouts and allows the push
     with patch.dict(
         os.environ, {**os.environ, "GITGUARDIAN_API_URL": slow_gitguardian_api}
-    ), patch("ggshield.core.git_shell.subprocess.run") as mock_subprocess_run:
-        mock_subprocess_run.side_effect = run_and_copy_stderr
+    ), caplog.at_level(logging.DEBUG):
         local_repo.push()
 
     # AND the error message contains timeout message
-    assert b"Pre-receive hook took too long" in stderr
+    assert any(
+        "Pre-receive hook took too long" in record.message
+        for record in caplog.records
+        if record.levelname == "DEBUG"
+    )

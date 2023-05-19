@@ -3,7 +3,6 @@ import multiprocessing
 import os
 import re
 import sys
-from multiprocessing.connection import Connection
 from typing import Any, List, Optional, Set, Tuple
 
 import click
@@ -78,7 +77,6 @@ def _execute_prereceive(
     command_path: str,
     client: GGClient,
     exclusion_regexes: Set[re.Pattern],
-    return_code_sender: Connection,
 ) -> None:
     try:
         scan_context = ScanContext(
@@ -105,9 +103,9 @@ def _execute_prereceive(
                 ),
                 err=True,
             )
-        return_code_sender.send(return_code)
+        sys.exit(return_code)
     except Exception as error:
-        return_code_sender.send(handle_exception(error, config.verbose))
+        sys.exit(handle_exception(error, config.verbose))
 
 
 def parse_stdin() -> Optional[Tuple[str, str]]:
@@ -205,7 +203,6 @@ def prereceive_cmd(
     if config.verbose:
         click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
-    receiver, sender = multiprocessing.Pipe()
     process = multiprocessing.Process(
         target=_execute_prereceive,
         args=(
@@ -215,7 +212,6 @@ def prereceive_cmd(
             ctx.command_path,
             ctx.obj["client"],
             ctx.obj["exclusion_regexes"],
-            sender,
         ),
     )
 
@@ -226,7 +222,4 @@ def prereceive_cmd(
         process.kill()
         return 0
 
-    if process.exitcode == 0:
-        return_code: int = receiver.recv()
-        return return_code
     return process.exitcode

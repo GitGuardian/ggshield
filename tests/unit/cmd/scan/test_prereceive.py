@@ -1,9 +1,4 @@
-import os
-import tempfile
-from functools import partial
-from pathlib import Path
-from typing import Union
-from unittest.mock import ANY, MagicMock, Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -45,21 +40,18 @@ def mock_multiprocessing_process(mock: Mock):
     def mock_constructor(target, args=(), kwargs=None):
         if kwargs is None:
             kwargs = {}
-        target(*args, **kwargs)
+
+        try:
+            target(*args, **kwargs)
+        except SystemExit as exit_exc:
+            mock.exitcode = exit_exc.code
+
+        mock.is_alive.return_value = False
         return mock
 
+    mock.is_alive.return_value = True
+    mock.exitcode = None
     return mock_constructor
-
-
-def write_exit_code(temp_dir: Path, exit_code: Union[int, ExitCode]):
-    (temp_dir / str(os.getpid())).write_text(str(int(exit_code)))
-
-
-def read_exit_code(temp_dir: Path) -> ExitCode:
-    tmp_file = temp_dir / str(os.getpid())
-    exit_code = int(tmp_file.read_text())
-    os.remove(tmp_file)
-    return ExitCode(exit_code)
 
 
 class TestPreReceive:
@@ -68,28 +60,14 @@ class TestPreReceive:
         """
         multiprocessing.Process is mocked to make everything run on the main process
         to permit mocking of scan_commit_range
-        multiprocessing.Pipe is mocked to pass data via the FS and not a unix socket
-        which is blocked by --disable-socket
         """
         with patch(
             "ggshield.cmd.secret.scan.prereceive.multiprocessing"
         ) as multiprocessing_mock:
-            multiprocessing_mock.Process.is_alive.return_value = False
-            multiprocessing_mock.Process.exitcode = 0
             multiprocessing_mock.Process.side_effect = mock_multiprocessing_process(
                 multiprocessing_mock.Process
             )
-
-            receiver = MagicMock()
-            sender = MagicMock()
-
-            with tempfile.TemporaryDirectory() as temp_dir:
-                receiver.recv.side_effect = partial(read_exit_code, Path(temp_dir))
-                sender.send.side_effect = partial(write_exit_code, Path(temp_dir))
-
-                multiprocessing_mock.Pipe.return_value = (receiver, sender)
-
-                yield
+            yield
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
