@@ -305,7 +305,7 @@ def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
     parsed_url = clean_url(api_url, warn=warn)
     if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
         raise UsageError(f"Invalid scheme for API URL '{api_url}', expected HTTPS")
-    if parsed_url.netloc.endswith(".gitguardian.com"):  # SaaS
+    if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
         if parsed_url.path:
             raise UsageError(
                 f"Invalid API URL '{api_url}', got an unexpected path '{parsed_url.path}'"
