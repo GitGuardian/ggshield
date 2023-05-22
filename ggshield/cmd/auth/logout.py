@@ -9,7 +9,11 @@ from ggshield.core.config import Config
 from ggshield.core.errors import AuthError, UnexpectedError
 from ggshield.core.utils import dashboard_to_api_url
 
-from .utils import CONNECTION_ERROR_MESSAGE
+
+CONNECTION_ERROR_MESSAGE = (
+    "Could not connect to GitGuardian.\n"
+    "Please check your internet connection and if the specified URL is correct."
+)
 
 
 @click.command()

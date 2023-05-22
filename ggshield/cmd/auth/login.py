@@ -3,7 +3,6 @@ from typing import Any, Optional, Tuple
 
 import click
 
-from ggshield.cmd.auth.utils import check_instance_has_enabled_flow
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
@@ -171,9 +170,6 @@ def web_login(
         config.set_cmdline_instance_name(instance)
     defined_instance = config.instance_name
     # Override instance to make sure we get a normalized instance name
-
-    check_instance_has_enabled_flow(config=config)
-
     config.auth_config.get_or_create_instance(instance_name=defined_instance)
 
     OAuthClient(config, defined_instance).oauth_process(

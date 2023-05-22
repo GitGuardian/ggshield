@@ -7,11 +7,6 @@ from unittest.mock import Mock
 
 import pytest
 
-from ggshield.cmd.auth.utils import (
-    DISABLED_FLOW_MESSAGE,
-    VERSION_TOO_LOW_MESSAGE,
-    check_instance_has_enabled_flow,
-)
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
@@ -100,12 +95,6 @@ class TestAuthLoginToken:
         elif test_case == "invalid":
             self._request_mock.add_GET(TOKEN_ENDPOINT, INVALID_TOKEN_RESPONSE)
 
-        check_instance_has_enabled_flow_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
-            check_instance_has_enabled_flow_mock,
-        )
-
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
 
         config = Config()
@@ -125,7 +114,6 @@ class TestAuthLoginToken:
             assert instance not in config_instance_urls
 
         self._request_mock.assert_all_requests_happened()
-        check_instance_has_enabled_flow_mock.assert_not_called()
 
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
         """
@@ -262,12 +250,6 @@ class TestAuthLoginWeb:
         monkeypatch.setattr(
             "ggshield.core.oauth.OAuthClient._wait_for_callback",
             self._wait_for_callback_mock,
-        )
-
-        self._check_instance_has_enabled_flow_mock = Mock()
-        monkeypatch.setattr(
-            "ggshield.cmd.auth.login.check_instance_has_enabled_flow",
-            self._check_instance_has_enabled_flow_mock,
         )
 
         self._request_mock = RequestMock()
@@ -588,7 +570,7 @@ class TestAuthLoginWeb:
                 ),
             )
 
-    def run_cmd(self, cli_fs_runner, method="web", expect_check_feature_flag=True):
+    def run_cmd(self, cli_fs_runner, method="web"):
         """
         Run the auth login method within a virtual cli.
         Make sure the original server method is not called.
@@ -608,10 +590,6 @@ class TestAuthLoginWeb:
 
         # run cli command
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
-
-        # make sure the first call to api is mocked
-        if expect_check_feature_flag:
-            self._check_instance_has_enabled_flow_mock.assert_called_once()
 
         # original method should not be called
         self._wait_for_callback_mock.assert_not_called()
@@ -740,59 +718,6 @@ class TestAuthLoginWeb:
         return FakeOAuthClient
 
     @pytest.mark.parametrize(
-        ["version", "preference_enabled", "status_code", "expected_error"],
-        [
-            ["2022.04.0", True, 200, VERSION_TOO_LOW_MESSAGE],
-            ["v1.0.0", None, 404, VERSION_TOO_LOW_MESSAGE],
-            ["v1.0.0", False, 200, DISABLED_FLOW_MESSAGE],
-            ["v1.0.0", True, 200, None],
-            [
-                "v1.0.0",
-                None,
-                200,
-                None,
-            ],  # Removing the preference is like making it on by default
-        ],
-    )
-    def test_assert_flow_enabled(
-        self,
-        monkeypatch,
-        version,
-        preference_enabled,
-        status_code,
-        expected_error,
-    ):
-        """
-        GIVEN -
-        WHEN checking the availability of the ggshield auth flow web method on a dashboard of various
-        various, with or without the flow enabled
-        THEN it succeeds if the version is high enough, and the preference is enabled
-        """
-
-        def client_get_mock(self_, url, **kwargs):
-            if url.endswith("/v1/metadata"):
-                return create_json_response(
-                    {
-                        "version": version,
-                        "preferences": {
-                            "public_api__ggshield_auth_flow_enabled": preference_enabled
-                        }
-                        if preference_enabled is not None
-                        else {},
-                    },
-                    status_code=status_code,
-                )
-            raise NotImplementedError
-
-        monkeypatch.setattr("ggshield.core.client.Session.get", client_get_mock)
-
-        if expected_error:
-            with pytest.raises(UnexpectedError, match=expected_error):
-                check_instance_has_enabled_flow(Config())
-        else:
-            check_instance_has_enabled_flow(Config())
-
-    @pytest.mark.parametrize(
         ["method", "instance_url", "sso_url", "expected_error"],
         [
             [
@@ -826,9 +751,7 @@ class TestAuthLoginWeb:
         self.prepare_mocks(monkeypatch, instance_url=instance_url, sso_url=sso_url)
         add_instance_config(instance_url=instance_url)
 
-        exit_code, output = self.run_cmd(
-            cli_fs_runner, method=method, expect_check_feature_flag=False
-        )
+        exit_code, output = self.run_cmd(cli_fs_runner, method=method)
         assert exit_code > 0, output
         self._webbrowser_open_mock.assert_not_called()
         self._assert_last_print(output, expected_error)
@@ -870,24 +793,10 @@ class TestAuthLoginWeb:
         THEN the correct instance URL is checked to see if the auth flow  is enabled
         """
         self.prepare_mocks(monkeypatch, instance_url=instance_url, sso_url=sso_url)
-        config_dashboard_url_checked = None
-
-        def setter(config):
-            nonlocal config_dashboard_url_checked
-            config_dashboard_url_checked = config.dashboard_url
-
-        # store the config dashboard URL at the time the check is done because the config
-        # object is mutable
-        self._check_instance_has_enabled_flow_mock.side_effect = setter
-
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_called()
         self._assert_open_url(host=expected_web_host)
-        self._check_instance_has_enabled_flow_mock.assert_called_once()
-        assert (
-            urlparse.urlparse(config_dashboard_url_checked).netloc == expected_web_host
-        )
 
 
 class TestLoginUtils:
