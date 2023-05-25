@@ -10,7 +10,7 @@ BENCHMARK_REPOSITORIES = [
     ("https://github.com/python-pillow/Pillow", "9.3.0"),
     ("https://github.com/docker/compose", "v2.12.2"),
     ("https://github.com/sqlite/sqlite", "version-3.39.4"),
-    ("https://github.com/ZGuardian/leaky-repo", "1.1.2"),
+    ("https://github.com/GitGuardian/sample_secrets", "ggshield-perfbench"),
 ]
 
 

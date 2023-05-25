@@ -25,7 +25,7 @@ DEFAULT_GGSHIELD_VERSIONS = ["prod", "current"]
 
 REPO_BENCHMARK_COMMANDS = [
     ("secret", "scan", "--exit-zero", "path", "-ry", "."),
-    ("secret", "scan", "--exit-zero", "commit-range", "HEAD~9.."),
+    ("secret", "scan", "--exit-zero", "commit-range", "HEAD~6.."),
     ("iac", "scan", "--exit-zero", "."),
 ]
 
