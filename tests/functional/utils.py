@@ -47,9 +47,13 @@ def assert_is_valid_json(txt: str) -> None:
         pytest.fail(f"Text is not a valid JSON document:\n---\n{txt}\n---\n{exc}")
 
 
+def recreate_censored_string(matched_string: str) -> str:
+    """Applies ggshield censoring to `matched_string`"""
+    match = Match(match=matched_string, match_type="")
+    return censor_match(match)
+
+
 def recreate_censored_content(content: str, matched_string: str) -> str:
     """Applies ggshield censoring to any occurrence of `matched_string` inside
     `content`. Returns the censored string."""
-    match = Match(match=matched_string, match_type="")
-    censored_string = censor_match(match)
-    return content.replace(matched_string, censored_string)
+    return content.replace(matched_string, recreate_censored_string(matched_string))

@@ -7,6 +7,7 @@ import pytest
 from pytest_voluptuous import Partial, S
 from voluptuous import Optional, Required, validators
 
+from ggshield.core.filter import leak_dictionary_by_ignore_sha
 from ggshield.core.utils import Filemode
 from ggshield.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.secret import Result, Results, SecretScanCollection, SecretScanner
@@ -132,7 +133,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
         )
         results = scanner.scan(c.files)
 
-        scan = SecretScanCollection(id="path", type="test", results=results)
+        scan = SecretScanCollection(id="path", type="test", results=deepcopy(results))
         json_flat_results = handler._process_scan_impl(scan)
         exit_code = SecretOutputHandler._get_exit_code(
             Mock(ignore_known_secrets=False), scan
@@ -146,6 +147,13 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
             assert SCHEMA_WITH_INCIDENTS == JSONScanCollectionSchema().loads(
                 json_flat_results
             )
+
+        # all ignore sha should be in the output
+        assert all(
+            ignore_sha in json_flat_results
+            for result in results.results
+            for ignore_sha in leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
+        )
 
 
 @pytest.mark.parametrize("verbose", [True, False])

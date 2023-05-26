@@ -6,6 +6,9 @@ import pytest
 
 # This is a test token, it is always reported as a valid secret
 GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
+GG_VALID_TOKEN_IGNORE_SHA = (
+    "56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd"
+)
 
 
 def is_windows():
