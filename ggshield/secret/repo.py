@@ -8,7 +8,6 @@ from typing import Callable, Iterable, Iterator, List, Optional, Set
 
 from click import UsageError
 from pygitguardian import GGClient
-from pygitguardian.config import MULTI_DOCUMENT_LIMIT
 
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
@@ -120,11 +119,11 @@ def scan_commits_content(
 
 def get_commits_by_batch(
     commits: Iterable[Commit],
-    batch_max_size: int = MULTI_DOCUMENT_LIMIT,
+    batch_max_size: int,
 ) -> Iterator[List[Commit]]:
     """
     Given a list of commit shas yield the commit files
-    by biggest batches possible of length at most MULTI_DOCUMENT_LIMIT
+    by biggest batches possible of length at most `batch_max_size`
     """
     current_count = 0
     batch = []
@@ -161,6 +160,7 @@ def scan_commit_range(
     :param verbose: Display successful scan's message
     """
     check_client_api_key(client)
+    max_documents = client.secret_scan_preferences.maximum_documents_per_scan
 
     with create_progress_bar(doc_type="commits") as progress:
 
@@ -173,6 +173,7 @@ def scan_commit_range(
                 Commit(sha=sha, exclusion_regexes=exclusion_regexes)
                 for sha in commit_list
             ),
+            batch_max_size=max_documents,
         )
         scans: List[SecretScanCollection] = []
 

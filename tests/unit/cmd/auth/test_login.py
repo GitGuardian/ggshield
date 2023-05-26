@@ -57,9 +57,18 @@ VALID_TOKEN_INVALID_SCOPE_RESPONSE = create_json_response(
 
 INVALID_TOKEN_RESPONSE = create_json_response({"detail": "Invalid API key."}, 401)
 
-HEALTH_ENDPOINT = "/v1/health"
+METADATA_ENDPOINT = "/v1/metadata"
 
-HEALTH_VALID_TOKEN_RESPONSE = create_json_response({"detail": "Valid API key."})
+VALID_METADATA_RESPONSE = create_json_response(
+    {
+        "version": "1.2.3",
+        "preferences": {},
+        "secret_scan_preferences": {
+            "max_document_size": 1 * 1024 * 1024,
+            "max_documents_per_scan": 20,
+        },
+    }
+)
 
 
 @pytest.fixture(autouse=True)
@@ -269,7 +278,7 @@ class TestAuthLoginWeb:
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
 
         self._instance_url = instance_url
-        self._request_mock.add_GET(HEALTH_ENDPOINT, HEALTH_VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
 
         add_instance_config(instance_url=instance_url)
 
@@ -301,7 +310,7 @@ class TestAuthLoginWeb:
         dt = datetime.strptime(f"2100-{month}-{day}T00:00:00+0000", DT_FORMAT)
 
         self._instance_url = instance_url
-        self._request_mock.add_GET(HEALTH_ENDPOINT, HEALTH_VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
 
         add_instance_config(instance_url=instance_url, expiry_date=dt)
 
@@ -325,7 +334,7 @@ class TestAuthLoginWeb:
         """
 
         # Insert the call to check the stored token
-        self._request_mock.add_GET(HEALTH_ENDPOINT, INVALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET(METADATA_ENDPOINT, INVALID_TOKEN_RESPONSE)
         self.prepare_mocks(monkeypatch)
 
         add_instance_config()

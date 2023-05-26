@@ -1,18 +1,17 @@
 interactions:
   - request:
       body: !!binary |
-        LS1lNzQ4MTk3NWE2ZjdiMjQ4MmU0ODgzNWMwNDRmYzJhYg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS00M2QzMDUzOTk5NzljNDU5M2YyZDVjMTUxM2I5YzAyNw0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        0tzgYwL/7ZjNbqMwEIA58xQWD0A85reHSnvssYfeVpVliImsGoxss0m16rvXtJtsNps2qpS26u58
-        HAwe8FwYvjHpIl18uxabKymW0kbvAn3mpZHSLP99Ps8DZcAisok+gMl5YUP66P+E1aT3qpeXUFZF
-        WdOLqk6BVlVd13GE/PMo0fJOackHw39MepBWNEorr6RLfXe++i/LpxqHqoD98bn8oYggzyoKRZkx
-        FlFGqxwiQj+y/oUWopFDJ3wvjt13Kv5Fia10ZrKtJIlYOz5Ivzb2jotWcztpmZCkEUsuN6If56uf
-        MSFyFZ5xZMsl6YR2MgRGa7xpjd4FEt+OSQh01vR8NNZvA4yFWW/25nazc9aQ3isz/FpEaG3W8zKt
-        WlreaNPebdcHlkKWQp5CkcQP+MF6Oyn6H/2P/kf/OzWswrDfA9yfqQM45X+g2YH/gVXo/8/wv9AN
-        18p5GV6CY+7fKT7I9+rm5hqti/5H/6P/ka/u/37SXo0HHcB5/gKc3v/Dgf8ZFDn6/xP872Q72dD5
-        8ZU10/jK7n8+3d+Ru9ARfE9o+nQsaHIb4g+hOYjJawle/Mfg70c59xihKZ3T/bn7/ztXyIOljCAI
-        giAIgiAIgiAIcpRHao+D4gAoAAANCi0tZTc0ODE5NzVhNmY3YjI0ODJlNDg4MzVjMDQ0ZmMyYWIt
-        LQ0K
+        GGBrZAL/7ZjNbuMgEIB99lMgHoAAtnF7iLTHHHvobbVCxCERKjYW4E2iVd99cdps05+0VdUfpTuf
+        D2DGZi4efx6TCZn8uFCbmVYL7bMPgd5wbKS0KO7m4zqjnLEMbbJPYAhR+ZQ++z/hNWqjafWUibOy
+        rs6qipOKnlMu8gz4/hjVyKWxWraDjaZPk9+D7bRXc2NNNDqQuHyP+heiHEdWV+xwvCn/VOysLAsu
+        xHiSUZ7iIkP0M+tfrVTUajh63UvxEyX3OrjBNxphtQ4y6GbwJm7lyruhxwjP1ULqjWrTk4HRnxwh
+        vUp3hN0UocYsvJxb11wFNEU/MSW7Y0LxrxS/zq/zHD2XQPph3PdxlrjtddoRm26XDufP50p5oJTf
+        BAH/g//B/+D/kF61D+y/fQf3v8b/jBb3/c/qghXg/y/wv7JzaU2IOj0ET3m59y66xtnRzbPLywuc
+        1AtFBP4H/4P/gVP2f+c+oPN/bf9fPfC/qAX4/yv83+m4dv5KqsYe7c1v/wDsmaKlskEffhzsAzg2
+        /di6L71rZe983Ac4H3t8d7D2b3XMmtJH47rbTZS1bn3/D8B+f8YJKwgrCavgSwQAAAAAAAAAAAAA
+        AOBJ/gJaaXpKACgAAA0KLS00M2QzMDUzOTk5NzljNDU5M2YyZDVjMTUxM2I5YzAyNy0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -21,11 +20,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '630'
+          - '623'
         Content-Type:
-          - multipart/form-data; boundary=e7481975a6f7b2482e48835c044fc2ab
+          - multipart/form-data; boundary=43d305399979c4593f2d5c1513b9c027
         GGShield-Command-Id:
-          - 19c59999-7621-4b1c-ae95-b8daa4e2dc34
+          - 3bc9ce4b-3dbf-41e1-a602-0c110face343
         GGShield-Command-Path:
           - cli iac scan
         GGShield-OS-Name:
@@ -35,9 +34,9 @@ interactions:
         GGShield-Python-Version:
           - 3.10.6
         GGShield-Version:
-          - 1.14.2
+          - 1.15.1
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
         mode:
           - directory
       method: POST
@@ -65,8 +64,10 @@ interactions:
           - '1557'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Mon, 06 Feb 2023 10:56:19 GMT
+          - Mon, 22 May 2023 12:29:13 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -78,17 +79,17 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.22.2
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '366'
+          - '359'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.83.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:

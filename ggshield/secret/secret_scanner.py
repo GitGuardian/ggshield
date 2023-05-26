@@ -8,7 +8,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 import click
 from pygitguardian import GGClient
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MULTI_DOCUMENT_LIMIT
 from pygitguardian.models import Detail
 
 from ggshield.core.cache import Cache
@@ -146,10 +145,14 @@ class SecretScanner:
         chunks_for_futures = {}
 
         chunk: List[Scannable] = []
+        maximum_chunk_size = self.client.secret_scan_preferences.maximum_document_size
+        maximum_documents_per_scan = (
+            self.client.secret_scan_preferences.maximum_documents_per_scan
+        )
         for scannable in scannables:
             try:
-                if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES):
-                    max_size_mb = DOCUMENT_SIZE_THRESHOLD_BYTES // 1024 // 1024
+                if scannable.is_longer_than(maximum_chunk_size):
+                    max_size_mb = maximum_chunk_size // 1024 // 1024
                     scanner_ui.on_skipped(
                         scannable, f"content is over {max_size_mb} MB"
                     )
@@ -161,7 +164,7 @@ class SecretScanner:
 
             if content:
                 chunk.append(scannable)
-                if len(chunk) == MULTI_DOCUMENT_LIMIT:
+                if len(chunk) == maximum_documents_per_scan:
                     future = self._scan_chunk(executor, chunk)
                     chunks_for_futures[future] = chunk
                     chunk = []

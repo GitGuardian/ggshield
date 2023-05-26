@@ -104,7 +104,9 @@ class RequestMock:
         request = self._requests.pop(0)
 
         # Check the current request matches the expected one
-        assert url.endswith(request.endpoint)
+        assert url.endswith(
+            request.endpoint
+        ), f"Received call to this URL: {url} but expected a call to this endpoint: {request.endpoint}"
         assert method == request.method
         if request.data_checker:
             request.data_checker(data)

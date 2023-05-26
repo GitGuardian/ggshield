@@ -73,14 +73,15 @@ def check_client_api_key(client: GGClient) -> None:
     (either it is invalid or unset). Raises UnexpectedError if the API is down.
     """
     try:
-        response = client.health_check()
+        response = client.read_metadata()
     except requests.exceptions.ConnectionError as e:
         raise UnexpectedError(
             "Failed to connect to GitGuardian server. Check your"
             f" instance URL settings.\nDetails: {e}."
         )
 
-    if response.success:
+    if response is None:
+        # None means success
         return
 
     if response.status_code == 401:

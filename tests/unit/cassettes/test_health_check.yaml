@@ -9,7 +9,7 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/health
     response:
@@ -24,8 +24,10 @@ interactions:
           - '27'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Mon, 06 Feb 2023 10:55:43 GMT
+          - Mon, 22 May 2023 12:28:47 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -35,17 +37,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.22.2
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '9'
+          - '13'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.83.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:

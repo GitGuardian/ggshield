@@ -1,10 +1,10 @@
 interactions:
   - request:
       body: !!binary |
-        LS1lZTJiYzcxOTQ5MTIyYmYxNDc4ZDY5Y2JlM2I0NGNmOQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS01YjUxYmI2OTNlNDA2NWNjNmJhMWIyYzE2ZWQ3OGMzYg0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        sdzgYwL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZWUyYmM3MTk0OTEy
-        MmJmMTQ3OGQ2OWNiZTNiNDRjZjktLQ0K
+        BGBrZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tNWI1MWJiNjkzZTQw
+        NjVjYzZiYTFiMmMxNmVkNzhjM2ItLQ0K
       headers:
         Accept:
           - '*/*'
@@ -15,9 +15,9 @@ interactions:
         Content-Length:
           - '195'
         Content-Type:
-          - multipart/form-data; boundary=ee2bc71949122bf1478d69cbe3b44cf9
+          - multipart/form-data; boundary=5b51bb693e4065cc6ba1b2c16ed78c3b
         GGShield-Command-Id:
-          - c998ce48-fffb-4a13-8642-7c3bdb4cacb6
+          - b87b2b2a-bdb2-4c77-b8f2-cfae4062a1cc
         GGShield-Command-Path:
           - cli iac scan
         GGShield-OS-Name:
@@ -27,9 +27,9 @@ interactions:
         GGShield-Python-Version:
           - 3.10.6
         GGShield-Version:
-          - 1.14.2
+          - 1.15.1
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
         mode:
           - directory
       method: POST
@@ -46,8 +46,10 @@ interactions:
           - '87'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Mon, 06 Feb 2023 10:55:46 GMT
+          - Mon, 22 May 2023 12:28:52 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -57,17 +59,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.22.2
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '186'
+          - '181'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.83.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:

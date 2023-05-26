@@ -3,7 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 import requests.exceptions
-from pygitguardian.models import HealthCheckResponse
+from pygitguardian import GGClient
+from pygitguardian.models import Detail
 
 from ggshield.core.client import check_client_api_key
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
@@ -12,21 +13,20 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 @pytest.mark.parametrize(
     ("response", "error_class"),
     (
-        (HealthCheckResponse("Guru Meditation", 500), UnexpectedError),
-        (HealthCheckResponse("Nobody here", 404), UnexpectedError),
-        (HealthCheckResponse("Unauthorized", 401), APIKeyCheckError),
+        (Detail("Guru Meditation", 500), UnexpectedError),
+        (Detail("Nobody here", 404), UnexpectedError),
+        (Detail("Unauthorized", 401), APIKeyCheckError),
     ),
 )
-def test_check_client_api_key_error(
-    response: HealthCheckResponse, error_class: Type[Exception]
-):
+def test_check_client_api_key_error(response: Detail, error_class: Type[Exception]):
     """
     GIVEN a client returning an error when its healthcheck endpoint is called
     WHEN check_client_api_key() is called
     THEN it raises the appropriate exception
     """
-    client_mock = Mock()
-    client_mock.health_check.return_value = response
+    client_mock = Mock(spec=GGClient)
+    client_mock.base_uri = "http://localhost"
+    client_mock.read_metadata.return_value = response
     with pytest.raises(error_class):
         check_client_api_key(client_mock)
 

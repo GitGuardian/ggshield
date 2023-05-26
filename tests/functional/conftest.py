@@ -5,8 +5,11 @@ import time
 from multiprocessing import Process
 from pathlib import Path
 from typing import Generator
+from urllib.parse import urlparse
 
 import pytest
+import requests
+from pygitguardian.config import DEFAULT_BASE_URI
 
 
 FUNCTESTS_DATA_PATH = Path(__file__).parent / "data"
@@ -25,15 +28,22 @@ class SlowGGAPIHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(200)
 
     def do_GET(self):
-        if "health" in self.path:
-            content = b'{"detail":"Valid API key."}'
-            self.send_response(200)
-            self.send_header("content-type", "application/json")
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
-        else:
-            self.send_response(418)
+        # Forward all GET calls to the real server
+        url = DEFAULT_BASE_URI + self.path.replace("/exposed", "")
+        headers = {
+            **self.headers,
+            "Host": urlparse(url).netloc,
+        }
+
+        response = requests.get(url, headers=headers)
+
+        self.send_response(response.status_code)
+
+        for name, value in response.headers.items():
+            self.send_header(name, value)
+        self.end_headers()
+
+        self.wfile.write(response.content)
 
     def do_POST(self):
         if "multiscan" in self.path:
@@ -48,8 +58,12 @@ class SlowGGAPIHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(418)
 
 
+class ReuseAddressServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
+
 def _start_slow_gitguardian_api(host: str, port: int):
-    with socketserver.TCPServer((host, port), SlowGGAPIHandler) as httpd:
+    with ReuseAddressServer((host, port), SlowGGAPIHandler) as httpd:
         httpd.serve_forever()
 
 

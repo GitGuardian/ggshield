@@ -1,15 +1,14 @@
 interactions:
   - request:
       body: !!binary |
-        LS04MGJhNTkyNmQwNTBhZDcwYWY1ODhmZjNkN2M1ZTY0NA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS0yZDQ4NzJhZDgxOTczZTc5ZTkwZmJjMWEwNDM0ODI0YQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        0NzgYwL/7dO7TsMwGAXgzH4Kyw+Q2knjhKESIyM7QpaTupVF0la+QCvUd8dNB5CAskAl2vNl8K84
-        9lly8kk+ub3X2zuj58Zlf4IffbdyXk7f58N7wQtRZHSbnUH0QbsUn12noqFDsIOZCVlXsuE3tcyF
-        LGUzbUgGF8/qTi1sb9QQ+2A3aXiO/co43dreBmt8Hha/0X8px46LuhIf12P9hcjEtKy5qGRZpP4X
-        hahS//k5+697rVuzWugw6K+++2n/nyLO+HV0naFMv3jlTRedDTu1dOu4YZS1eq7MVg/pz2D0lVBq
-        lumEH0dKOzt3qu3X3ZOnM/rAeD4+E84e0/6e7AmhpwKUi4d7P6eE3cakG5ldjXGMnM5KOagyAAAA
-        AAAAAAAAAAAAAAAAXKk3RwiykQAoAAANCi0tODBiYTU5MjZkMDUwYWQ3MGFmNTg4ZmYzZDdjNWU2
-        NDQtLQ0K
+        FmBrZAL/7dO7bsIwGAVgz34Kyw8QbOcCC1LHjt2ryjLBIKsJQb60oIp3rwlDK1XQpUVqOZ8H/4oT
+        nyWnmBSTuwezu7dmaT35FeLk3C5EWX3Mx+dSKKkI25ErSCEan+PJbVIz1kfX27lsZtW0ntW1KFRZ
+        iqksKYF/z5lWr1xndZ+66LZ5eEndxnqzcJ2LzoYirn6i/00zdlxOa/l5P9VfSiKrqlRNI4RqiFDH
+        RZi4Zv/N2kRr0tn3vjv/o6i3YUi+tYyb16CDbZN3ca/XfkhbzvjCLLXdmT7/GZy9UcbsOn8RxpGx
+        1i29XnRD+xzYnD1yUYxrIvhTPj/QA6XsUoD26Xjv15S439p8I3ebMY7Ty1k5B1UGAAAAAAAAAAAA
+        AAAAAACAG/UOOzvp2QAoAAANCi0tMmQ0ODcyYWQ4MTk3M2U3OWU5MGZiYzFhMDQzNDgyNGEtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -18,11 +17,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '462'
+          - '456'
         Content-Type:
-          - multipart/form-data; boundary=80ba5926d050ad70af588ff3d7c5e644
+          - multipart/form-data; boundary=2d4872ad81973e79e90fbc1a0434824a
         GGShield-Command-Id:
-          - 8c328f6e-01e2-431c-a925-7582b9c6c1a0
+          - a320dc8c-719b-405b-84d3-613efb153913
         GGShield-Command-Path:
           - cli iac scan
         GGShield-OS-Name:
@@ -32,9 +31,9 @@ interactions:
         GGShield-Python-Version:
           - 3.10.6
         GGShield-Version:
-          - 1.14.2
+          - 1.15.1
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
         mode:
           - directory
       method: POST
@@ -60,8 +59,10 @@ interactions:
           - '1167'
         content-type:
           - application/json
+        cross-origin-opener-policy:
+          - same-origin
         date:
-          - Mon, 06 Feb 2023 10:56:17 GMT
+          - Mon, 22 May 2023 12:29:11 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -73,17 +74,17 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.22.2
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '331'
+          - '363'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.83.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:

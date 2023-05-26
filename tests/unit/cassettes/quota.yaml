@@ -9,25 +9,25 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.5.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/quotas
     response:
       body:
-        string: '{"content":{"count":70097,"limit":1000000,"remaining":929903,"since":"2023-02-05"}}'
+        string: '{"content":{"count":152495,"limit":1000000,"remaining":847505,"since":"2023-04-22"}}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - GET, HEAD, OPTIONS
         content-length:
-          - '83'
+          - '84'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 07 Mar 2023 16:45:26 GMT
+          - Mon, 22 May 2023 12:28:46 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -37,17 +37,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.25.0
+          - v2.30.2
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '19'
+          - '15'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.85.0
+          - 2.89.0
         x-xss-protection:
           - 1; mode=block
       status:
