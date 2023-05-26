@@ -34,7 +34,7 @@ setup(
     entry_points={"console_scripts": ["ggshield=ggshield.cmd.main:main"]},
     install_requires=[
         "appdirs>=1.4.4,<1.5.0",
-        "charset-normalizer>=2.1.1,<2.2.0",
+        "charset-normalizer>=3.1.0,<3.2.0",
         "click>=8.1,<8.2",
         "marshmallow>=3.18.0,<3.19.0",
         "marshmallow-dataclass>=8.5.8,<8.6.0",
