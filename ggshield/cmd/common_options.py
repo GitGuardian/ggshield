@@ -84,21 +84,42 @@ _verbose_option = click.option(
 def debug_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[bool]
 ) -> Optional[bool]:
-    # The --debug option is marked as "is_eager" so that we can setup logs as soon as
-    # possible. If we don't then log commands for the creation of the Config instance
-    # are ignored
     if value is not None:
-        setup_debug_logs(value is True)
+        setup_debug_logs(filename=None)
     return value
 
 
+# The --debug option is marked as "is_eager" so that we can setup logs as soon as
+# possible. If we don't then log commands for the creation of the Config instance
+# are ignored.
 _debug_option = click.option(
     "--debug",
     is_flag=True,
     default=None,
     is_eager=True,
-    help="Show debug information.",
+    help="Send log output to stderr. Equivalent to `--log-file -`.",
     callback=debug_callback,
+)
+
+
+def log_file_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[str]
+) -> Optional[str]:
+    if value is not None:
+        setup_debug_logs(filename=None if value == "-" else value)
+    return value
+
+
+# The --log-file option is marked as "is_eager" so that we can setup logs as soon as
+# possible. If we don't then log commands for the creation of the Config instance
+# are ignored.
+_log_file_option = click.option(
+    "--log-file",
+    metavar="FILE",
+    is_eager=True,
+    help="Send log output to FILE. Use '-' to redirect to stderr.",
+    envvar="GITGUARDIAN_LOG_FILE",
+    callback=log_file_callback,
 )
 
 
@@ -123,6 +144,7 @@ def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)
         _debug_option(cmd)
+        _log_file_option(cmd)
         _allow_self_signed_option(cmd)
         _check_for_updates(cmd)
         return cmd
