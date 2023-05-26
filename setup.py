@@ -43,6 +43,7 @@ setup(
         "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@067188cc34a9a20e83ca983160152799bd3fe7d4",  # noqa: E501
         "python-dotenv>=0.21.0,<0.22.0",
         "pyyaml>=6.0,<6.1",
+        "requests>=2.31.0,<2.32.0",
         "rich>=12.5.1,<12.6.0",
     ],
     include_package_data=True,
