@@ -56,6 +56,15 @@ repos:
 
   - repo: local
     hooks:
+      - id: ggshield-local-iac
+        name: GitGuardian Shield IaC
+        entry: pipenv run ggshield iac pre-commit
+        language: system
+        types: [python]
+        stages: [commit]
+
+  - repo: local
+    hooks:
       - id: ggshield-local
         name: GitGuardian Shield
         entry: pipenv run ggshield secret scan pre-push

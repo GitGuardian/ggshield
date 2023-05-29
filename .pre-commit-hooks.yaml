@@ -30,3 +30,12 @@
   entry: -e GITGUARDIAN_API_KEY gitguardian/ggshield:latest ggshield secret scan pre-push
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks in docker images.
   pass_filenames: false
+
+- id: ggshield-iac
+  name: ggshield-iac (pre-commit)
+  entry: ggshield
+  description: Runs ggshield iac scan to detect new vulnerabilities
+  stages: [commit]
+  args: ['iac', 'pre-commit']
+  language: python
+  pass_filenames: false

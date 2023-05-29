@@ -10,7 +10,6 @@ from ggshield.cmd.auth import auth_group
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config import config_group
 from ggshield.cmd.debug_logs import setup_debug_logs
-from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
@@ -66,7 +65,6 @@ def config_path_callback(
         "quota": quota_cmd,
         "api-status": status_cmd,
         "iac": iac_group,
-        "honeytoken": honeytoken_group,
     },
 )
 @click.option(

@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 import click
 
@@ -31,7 +31,7 @@ BYPASS_MESSAGE = """  - if you use the pre-commit framework:
 @add_secret_scan_common_options()
 @click.pass_context
 def precommit_cmd(
-    ctx: click.Context, precommit_args: List[str], **kwargs: Any
+    ctx: click.Context, precommit_args: list[str], **kwargs: Any
 ) -> int:  # pragma: no cover
     """
     scan as a pre-commit git hook.
