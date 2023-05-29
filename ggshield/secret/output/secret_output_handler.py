@@ -11,6 +11,7 @@ class SecretOutputHandler(ABC):
     show_secrets: bool = False
     verbose: bool = False
     output: Optional[str] = None
+    use_stderr: bool = False
 
     def __init__(
         self,
@@ -35,7 +36,7 @@ class SecretOutputHandler(ABC):
             with open(self.output, "w+") as f:
                 f.write(text)
         else:
-            click.echo(text)
+            click.echo(text, err=self.use_stderr)
         return self._get_exit_code(scan)
 
     @abstractmethod

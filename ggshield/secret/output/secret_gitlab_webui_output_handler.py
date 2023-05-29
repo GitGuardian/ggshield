@@ -30,6 +30,8 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
     See https://docs.gitlab.com/ee/administration/server_hooks.html#custom-error-messages
     """
 
+    use_stderr = True
+
     def __init__(
         self, show_secrets: bool = False, ignore_known_secrets: bool = False
     ) -> None:
@@ -65,7 +67,6 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
         }
         break_count = len(formatted_policy_breaks)
 
-        break_count = len(formatted_policy_breaks)
         if self.ignore_known_secrets:
             summary_str = f"{break_count} new {pluralize('incident', break_count)}"
         else:
