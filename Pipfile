@@ -28,7 +28,7 @@ types-appdirs = "*"
 types-oauthlib = "*"
 typing-extensions = "*"
 
-vcrpy = "*"
+vcrpy = ">=4.3.0,!=4.3.1,<4.4.0"
 
 # Pin urllib3 until https://github.com/kevin1024/vcrpy/issues/688 is fixed
 # When you remove this, don't forget to also remove the urllib3 hack in
