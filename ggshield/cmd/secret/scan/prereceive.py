@@ -158,11 +158,11 @@ def prereceive_cmd(
     """
     config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)
-
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
         output_handler = SecretGitLabWebUIOutputHandler(
-            show_secrets=config.secret.show_secrets
+            show_secrets=config.secret.show_secrets,
+            ignore_known_secrets=config.secret.ignore_known_secrets,
         )
 
     if get_breakglass_option():
