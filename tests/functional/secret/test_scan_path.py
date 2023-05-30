@@ -1,15 +1,37 @@
+import json
 from pathlib import Path
 
-from tests.conftest import GG_VALID_TOKEN
-from tests.functional.utils import recreate_censored_content, run_ggshield_scan
+import pytest
+
+from tests.conftest import GG_VALID_TOKEN, GG_VALID_TOKEN_IGNORE_SHA
+from tests.functional.utils import (
+    assert_is_valid_json,
+    recreate_censored_content,
+    recreate_censored_string,
+    run_ggshield_scan,
+)
 
 
-def test_scan_path(tmp_path: Path) -> None:
+@pytest.mark.parametrize("show_secrets", (True, False))
+def test_scan_path(tmp_path: Path, show_secrets: bool) -> None:
+    # GIVEN a secret
     test_file = tmp_path / "config.py"
     test_file.write_text(f"SECRET='{GG_VALID_TOKEN}'")
 
-    result = run_ggshield_scan("path", str(test_file), cwd=tmp_path, expected_code=1)
+    # WHEN ggshield scans it
+    args = ["path", str(test_file)]
+    if show_secrets:
+        args.append("--show-secrets")
+    result = run_ggshield_scan(*args, cwd=tmp_path, expected_code=1)
+
+    # THEN the output contains the context and the expected ignore sha
     assert "SECRET=" in result.stdout
+    assert GG_VALID_TOKEN_IGNORE_SHA in result.stdout
+    # and the secrets shown only with --show-secrets
+    if show_secrets:
+        assert GG_VALID_TOKEN in result.stdout
+    else:
+        assert recreate_censored_string(GG_VALID_TOKEN) in result.stdout
 
 
 def test_scan_path_does_not_fail_on_long_paths(tmp_path: Path) -> None:
@@ -27,3 +49,33 @@ def test_scan_path_does_not_fail_on_long_paths(tmp_path: Path) -> None:
 
     # THEN it finds the secret in it
     assert recreate_censored_content(secret_content, GG_VALID_TOKEN) in result.stdout
+
+
+@pytest.mark.parametrize("show_secrets", (True, False))
+def test_scan_path_json_output(tmp_path: Path, show_secrets: bool) -> None:
+    # GIVEN a secret
+    test_file = tmp_path / "config.py"
+    test_file.write_text(f"SECRET='{GG_VALID_TOKEN}'")
+
+    # WHEN ggshield scans it with --json
+    args = ["path", "--json", str(test_file)]
+    if show_secrets:
+        args.append("--show-secrets")
+    result = run_ggshield_scan(*args, cwd=tmp_path, expected_code=1)
+
+    # THEN the output is a valid JSON
+    assert_is_valid_json(result.stdout)
+    parsed_result = json.loads(result.stdout)
+    # containing one incident with one occurrence
+    assert parsed_result["total_incidents"] == 1
+    assert parsed_result["total_occurrences"] == 1
+    incident = parsed_result["entities_with_incidents"][0]["incidents"][0]
+    # with the expected ignore_sha
+    assert incident["ignore_sha"] == GG_VALID_TOKEN_IGNORE_SHA
+    # and the secrets shown only with --show-secrets
+    if show_secrets:
+        assert incident["occurrences"][0]["match"] == GG_VALID_TOKEN
+    else:
+        assert incident["occurrences"][0]["match"] == recreate_censored_string(
+            GG_VALID_TOKEN
+        )

@@ -63,14 +63,12 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         content = result.content
         is_patch = result.filemode != Filemode.FILE
+        sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
+        result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
             content = censor_content(result.content, result.scan.policy_breaks)
-
         lines = get_lines_from_content(content, result.filemode, is_patch)
-        sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
-
-        result_dict["total_incidents"] = len(sha_dict)
 
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(
