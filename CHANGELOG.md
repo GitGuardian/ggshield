@@ -1,5 +1,26 @@
 # Changelog
 
+<a id='changelog-1.16.0'></a>
+
+## 1.16.0 — 2023-05-30
+
+### Added
+
+- Add a new `ggshield honeytoken create` command to let you create honeytokens if enabled in your workspace.
+  Learn more about honeytokens at https://www.gitguardian.com/honeytoken
+
+### Changed
+
+- `ggshield secret scan` commands can now use server-side configuration for the maximum document size and maximum document count per scan.
+
+### Fixed
+
+- Accurately enforce the timeout of the pre-receive secret scan command (#417)
+
+- Correctly compute the secret ignore sha in the json output.
+
+- GitLab WebUI Output Handler now behaves correctly when using the `ignore-known-secrets` flag, it also no longer displays empty messages in the UI.
+
 <a id='changelog-1.15.1'></a>
 
 ## 1.15.1 — 2023-05-17
