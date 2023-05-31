@@ -210,12 +210,15 @@ def prepare(version: str) -> None:
 
 @main.command()
 def tag() -> None:
-    """Create the tag for the version, push the main branch and the tag."""
+    """Create the tag for the version, push the release branch and the tag."""
     version = get_version()
     tag = get_tag(version)
     message = f"Releasing {version}"
     check_run(["git", "tag", "--annotate", tag, "--message", message])
-    check_run(["git", "push", "origin", "main:main", f"{tag}:{tag}"])
+    # Push the tag
+    check_run(["git", "push", "origin", f"{tag}:{tag}"])
+    # Push the release branch
+    check_run(["git", "push"])
 
 
 def get_release_notes(version: str) -> str:
