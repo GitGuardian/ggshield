@@ -15,6 +15,7 @@ The [doc/dev](doc/dev) directory contains high-level documentation to help you g
 - [architecture.md](doc/dev/architecture.md): high-level overview of the code base.
 - [getting-started.md](doc/dev/getting-started.md): how to set up your environment.
 - [dependencies.md](doc/dev/dependencies.md): how to update dependencies, in particular how to use unreleased versions of py-gitguardian.
+- [error-handling.md](doc/dev/error-handling.md): how to report errors.
 
 If you notice any outdated or unclear information, please file an issue or a pull request!
 

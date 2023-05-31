@@ -22,7 +22,7 @@ def get_filepaths(
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
     :param ignore_git: Ignore that the folder is a git repository
-    :raise: click.FileError if directory is given without --recursive option
+    :raise: click.UsageError if directory is given without --recursive option
     """
     targets = set()
     for path in paths:
@@ -30,8 +30,8 @@ def get_filepaths(
             targets.add(path)
         elif os.path.isdir(path):
             if not recursive:
-                raise click.FileError(
-                    click.format_filename(path), "Use --recursive to scan directories."
+                raise click.UsageError(
+                    f"{click.format_filename(path)} is a directory. Use --recursive to scan directories."
                 )
             top_dir = Path(path)
 
