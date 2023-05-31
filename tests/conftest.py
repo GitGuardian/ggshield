@@ -10,6 +10,12 @@ GG_VALID_TOKEN_IGNORE_SHA = (
     "56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd"
 )
 
+# This secret must be a secret known by the dashboard running functional tests
+KNOWN_SECRET = os.environ.get("TEST_KNOWN_SECRET", "")
+
+# This secret must not be not known by the dashboard running our tests
+UNKNOWN_SECRET = os.environ.get("TEST_UNKNOWN_SECRET", "ggtt-v-0frijgo789")  # ggignore
+
 
 def is_windows():
     return platform.system() == "Windows"

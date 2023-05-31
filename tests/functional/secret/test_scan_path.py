@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import GG_VALID_TOKEN, GG_VALID_TOKEN_IGNORE_SHA
+from tests.conftest import (
+    GG_VALID_TOKEN,
+    GG_VALID_TOKEN_IGNORE_SHA,
+    KNOWN_SECRET,
+    UNKNOWN_SECRET,
+)
 from tests.functional.utils import (
     assert_is_valid_json,
     recreate_censored_content,
@@ -79,3 +84,38 @@ def test_scan_path_json_output(tmp_path: Path, show_secrets: bool) -> None:
         assert incident["occurrences"][0]["match"] == recreate_censored_string(
             GG_VALID_TOKEN
         )
+
+
+def test_scan_path_ignore_known_secrets(tmp_path: Path) -> None:
+    if not KNOWN_SECRET:
+        pytest.fail(
+            "You must define $TEST_KNOWN_SECRET to run this test,"
+            " see .env.example for details"
+        )
+
+    # GIVEN a document containing 2 secrets, one known and one unknown
+    test_file = tmp_path / "config.py"
+    test_file.write_text(
+        f"""
+KNOWN_SECRET='{KNOWN_SECRET}'
+
+# Extra lines to ensure the line containing the known secret is not included when
+# ggshield shows the lines around the unknown secret.
+
+UNKNOWN_SECRET='{UNKNOWN_SECRET}'
+"""
+    )
+
+    # WHEN ggshield scans it with --ignore-known-secrets
+    result = run_ggshield_scan(
+        "path",
+        str(test_file),
+        "--ignore-known-secrets",
+        "--show-secrets",
+        cwd=tmp_path,
+        expected_code=1,
+    )
+
+    # THEN only the unknown secret is reported
+    assert f"KNOWN_SECRET='{KNOWN_SECRET}'" not in result.stdout
+    assert f"UNKNOWN_SECRET='{UNKNOWN_SECRET}'" in result.stdout

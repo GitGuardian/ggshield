@@ -124,7 +124,11 @@ jobs:
         if: ${{ !github.event.pull_request.head.repo.fork }}
         shell: bash
         run: |
-          make functest GITGUARDIAN_API_KEY=${{ secrets.GITGUARDIAN_API_KEY }} GITGUARDIAN_API_URL=${{ secrets.GITGUARDIAN_API_URL }}
+          make functest
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
+          TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
 
   build_packages:
     # This job ensures the build-packages script is tested on each build, not only at release time
