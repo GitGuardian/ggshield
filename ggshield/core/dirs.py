@@ -10,7 +10,7 @@ APPAUTHOR = "GitGuardian"
 def get_config_dir() -> str:
     try:
         # See tests/conftest.py for details
-        return os.environ["GG_CONFIG_DIR"]
+        return str(os.environ["GG_CONFIG_DIR"])
     except KeyError:
         return user_config_dir(appname=APPNAME, appauthor=APPAUTHOR)
 
@@ -18,6 +18,6 @@ def get_config_dir() -> str:
 def get_cache_dir() -> str:
     try:
         # See tests/conftest.py for details
-        return os.environ["GG_CACHE_DIR"]
+        return str(os.environ["GG_CACHE_DIR"])
     except KeyError:
         return user_cache_dir(appname=APPNAME, appauthor=APPAUTHOR)

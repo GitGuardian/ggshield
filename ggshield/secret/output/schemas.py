@@ -75,8 +75,8 @@ class FlattenedPolicyBreak(BaseSchema):
     validity = fields.String(required=False, allow_none=True)
     ignore_sha = fields.String(required=True)
     total_occurrences = fields.Integer(required=True)
-    incident_url = fields.String(required=True, default="")
-    known_secret = fields.Bool(required=True, default=False)
+    incident_url = fields.String(required=True, dump_default="")
+    known_secret = fields.Bool(required=True, dump_default=False)
 
 
 class JSONResultSchema(BaseSchema):

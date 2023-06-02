@@ -1,11 +1,10 @@
 import functools
-import os
 import subprocess
 from typing import Any
 
 import pytest
 
-from tests.conftest import skipwindows
+from tests.conftest import ROOT_DIR, skipwindows
 from tests.functional.conftest import REPO_PATH, requires_docker
 
 
@@ -44,16 +43,15 @@ def test_docker_image_scan_from_volume(docker_image, mount_dir, set_work_dir) ->
     GIVEN gitguardian/ggshield Docker image
     AND a git working tree mounted in `mount_dir`
     WHEN running a `ggshield secret scan` command which uses git on `mount_dir`
-    THEN the scan succeeds without no `dubious directory` errors
+    THEN the scan succeeds without `dubious directory` errors
     """
-    src_dir = os.getcwd()
     extra_args = ["-w", mount_dir] if set_work_dir else []
 
     docker_run(
         "-e",
         "GITGUARDIAN_API_KEY",
         "-v",
-        f"{src_dir}:{mount_dir}",
+        f"{ROOT_DIR}:{mount_dir}",
         *extra_args,
         docker_image,
         *GGSHIELD_SCAN_CMD,
@@ -64,7 +62,7 @@ def test_docker_image_scan_gitlab_style(docker_image) -> None:
     """
     GIVEN a Docker container setup like GitLab
     WHEN running a `ggshield secret scan` command in the container
-    THEN the scan succeeds without no `dubious directory` errors
+    THEN the scan succeeds without `dubious directory` errors
     """
     container_name = "ggshield_func_test_container"
 
