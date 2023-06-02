@@ -1,8 +1,12 @@
 import os
 import platform
+from pathlib import Path
 
 import pytest
 
+
+# The directory holding ggshield repository checkout
+ROOT_DIR = Path(__file__).parent.parent
 
 # This is a test token, it is always reported as a valid secret
 GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
