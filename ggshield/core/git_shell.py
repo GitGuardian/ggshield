@@ -1,12 +1,16 @@
 import logging
 import os
 import subprocess
+import tarfile
 from functools import lru_cache
+from io import BytesIO
 from shutil import which
 from typing import List, Optional
 
 import click
 from click import UsageError
+from pygitguardian import ContentTooLarge
+from pygitguardian.client import MAX_TAR_CONTENT_SIZE
 
 from ggshield.core.errors import UnexpectedError
 
@@ -103,19 +107,32 @@ def git_ls(wd: Optional[str] = None) -> List[str]:
     return git(cmd, timeout=600, cwd=wd).split("\n")
 
 
-def is_valid_git_commit_ref(ref: str) -> bool:
+def is_valid_git_commit_ref(ref: str, wd: Optional[str] = None) -> bool:
     """
     Check if a reference is valid and can be resolved to a commit
     """
+    if not wd:
+        wd = os.getcwd()
+
     ref += "^{commit}"
     cmd = ["cat-file", "-e", ref]
 
     try:
-        git(cmd)
+        git(cmd, cwd=wd)
     except subprocess.CalledProcessError:
         return False
 
     return True
+
+
+def check_git_ref(wd: Optional[str] = None, ref: Optional[str] = None) -> None:
+    """Check if folder is a git repository and ref is a git reference."""
+    if wd is None:
+        wd = os.getcwd()
+    check_git_dir(wd)
+
+    if not ref or not is_valid_git_commit_ref(ref=ref, wd=wd):
+        raise UsageError("Not a git reference.")
 
 
 def get_list_commit_SHA(
@@ -154,3 +171,60 @@ def get_list_commit_SHA(
         # but returns an empty range, example git rev-list HEAD...
 
     return commit_list
+
+
+def get_filepaths_from_ref(wd: Optional[str], ref: str) -> List[str]:
+    """
+    Fetches a list of all file paths indexed at a given reference in a git repository.
+    :param wd: string path to the git repository. Defaults to current directory
+    :param ref: git reference, like a commit SHA, a relative reference like HEAD~1, ...
+    """
+    if not wd:
+        wd = os.getcwd()
+
+    check_git_ref(wd, ref)
+
+    filepaths = git(["ls-tree", "--name-only", "-r", ref], cwd=wd).splitlines()
+    return filepaths
+
+
+def tar_from_ref_and_filepaths(
+    wd: Optional[str], ref: str, filepaths: List[str]
+) -> bytes:
+    """
+    Builds a gzipped archive from a given git reference, and selected filepaths.
+    The filepaths are typically obtained via `get_all_filepaths_from_reference`
+    before being filtered.
+    The archive is returned as raw bytes.
+    :param wd: string path to the git repository. Defaults to current directory
+    :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,
+    or any argument accepted as <ref> by git show <ref>:<filepath>
+    :param filepaths: string paths to selected files
+    """
+    if not wd:
+        wd = os.getcwd()
+
+    check_git_ref(wd, ref)
+
+    tar_stream = BytesIO()
+    total_tar_size = 0
+
+    with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
+        for path in filepaths:
+            raw_file_content = git(["show", f"{ref}:{path}"], cwd=wd)
+
+            data = BytesIO(raw_file_content.encode())
+
+            tarinfo = tarfile.TarInfo(path)
+            tarinfo.size = len(data.getbuffer())
+            total_tar_size += tarinfo.size
+
+            if total_tar_size > MAX_TAR_CONTENT_SIZE:
+                raise ContentTooLarge(
+                    f"The total size of the files processed exceeds {MAX_TAR_CONTENT_SIZE / (1024 * 1024):.0f}MB, "
+                    f"please try again with less files"
+                )
+
+            tar.addfile(tarinfo, fileobj=data)
+
+    return tar_stream.getvalue()
