@@ -31,6 +31,8 @@ The `GITGUARDIAN_API_KEY` environment variable must be defined to run functional
 
 If you want to run tests against another GitGuardian instance, define the `GITGUARDIAN_API_URL` environment variable.
 
+The `TEST_KNOWN_SECRET` environment variable must also be defined to run functional tests. It must point to a single-match secret known on the dashboard linked to `GITGUARDIAN_API_KEY`.
+
 ### Running unit tests
 
 You can run unit tests with `make unittest`.
