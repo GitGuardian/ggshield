@@ -6,7 +6,6 @@ from enum import Enum
 from typing import Iterable, List, NamedTuple, Optional
 from urllib.parse import ParseResult, urlparse
 
-import click
 from click import UsageError
 from dotenv import load_dotenv
 from pygitguardian.models import Match
@@ -207,16 +206,6 @@ def find_match_indices(match: Match, lines: List[Line], is_patch: bool) -> Match
         index_start,
         index_end,
     )
-
-
-json_output_option_decorator = click.option(
-    "--json",
-    "json_output",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="JSON output results",
-)
 
 
 def _find_dot_env() -> Optional[str]:

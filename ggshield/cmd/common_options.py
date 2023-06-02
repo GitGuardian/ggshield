@@ -128,3 +128,18 @@ def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
         return cmd
 
     return decorator
+
+
+json_option = click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=None,
+    help="Use JSON output.",
+    callback=create_ctx_callback("use_json"),
+)
+
+
+def use_json(ctx: click.Context) -> bool:
+    """Tells whether --json has been set"""
+    return bool(ctx.obj.get("use_json", False))
