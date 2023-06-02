@@ -44,7 +44,7 @@ def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[s
     "--minimum-severity",
     "minimum_severity",
     type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL")),
-    help="Minimum severity of the policies",
+    help="Minimum severity of the policies.",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose display mode.")
 @click.option(

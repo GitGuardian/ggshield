@@ -31,18 +31,18 @@ fi
     "--mode",
     "-m",
     type=click.Choice(["local", "global"]),
-    help="Hook installation mode",
+    help="Hook installation mode.",
     required=True,
 )
 @click.option(
     "--hook-type",
     "-t",
     type=click.Choice(["pre-commit", "pre-push"]),
-    help="Type of hook to install",
+    help="Type of hook to install.",
     default="pre-commit",
 )
-@click.option("--force", "-f", is_flag=True, help="Force override")
-@click.option("--append", "-a", is_flag=True, help="Append to existing script")
+@click.option("--force", "-f", is_flag=True, help="Force override.")
+@click.option("--append", "-a", is_flag=True, help="Append to existing script.")
 @add_common_options()
 def install_cmd(
     mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any

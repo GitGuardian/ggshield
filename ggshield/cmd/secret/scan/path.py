@@ -17,8 +17,8 @@ from ggshield.secret import RichSecretScannerUI, SecretScanCollection, SecretSca
 @click.argument(
     "paths", nargs=-1, type=click.Path(exists=True, resolve_path=True), required=True
 )
-@click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively")
-@click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan")
+@click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
+@click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan.")
 @add_secret_scan_common_options()
 @click.pass_context
 def path_cmd(
