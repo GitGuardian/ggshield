@@ -12,7 +12,7 @@ from ggshield.core.text_utils import pluralize
 @click.option(
     "--last-found",
     is_flag=True,
-    help="Ignore secrets found in the last ggshield secret scan run",
+    help="Ignore secrets found in the last ggshield secret scan run.",
 )
 @add_common_options()
 @click.pass_context

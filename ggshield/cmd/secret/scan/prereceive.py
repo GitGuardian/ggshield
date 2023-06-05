@@ -145,7 +145,7 @@ def parse_stdin() -> Optional[Tuple[str, str]]:
     "--web",
     is_flag=True,
     default=None,
-    help="Deprecated",
+    help="Deprecated.",
     hidden=True,
 )
 @add_secret_scan_common_options()
