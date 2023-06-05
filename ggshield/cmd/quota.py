@@ -5,18 +5,17 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, Quota, QuotaResponse
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.common_options import add_common_options, json_option, use_json
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import format_text
-from ggshield.core.utils import json_output_option_decorator
 
 
 @click.command()
-@json_output_option_decorator
+@json_option
 @add_common_options()
 @click.pass_context
-def quota_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
+def quota_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """Show quotas overview."""
     client: GGClient = create_client_from_config(ctx.obj["config"])
     response: Union[Detail, QuotaResponse] = client.quota_overview()
@@ -31,7 +30,7 @@ def quota_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
 
     click.echo(
         quota.to_json()
-        if json_output
+        if use_json(ctx)
         else (
             f"Quota available: {format_quota_color(quota.remaining, quota.limit)}\n"
             f"Quota used in the last 30 days: {quota.count}\n"

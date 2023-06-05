@@ -6,7 +6,7 @@ from pygitguardian import GGClient
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 from pygitguardian.models import Detail
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.common_options import add_common_options, json_option, use_json
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError
@@ -64,7 +64,7 @@ def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[s
     multiple=True,
     help="Do not scan the specified paths.",
 )
-@click.option("--json", is_flag=True, help="JSON output.")
+@json_option
 @click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
@@ -78,7 +78,6 @@ def scan_cmd(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
-    json: bool,
     directory: Optional[Path],
     **kwargs: Any,
 ) -> int:
@@ -92,7 +91,7 @@ def scan_cmd(
     scan = IaCScanCollection(id=str(directory), type="path_scan", result=result)
 
     output_handler_cls: Type[IaCOutputHandler]
-    if json:
+    if use_json(ctx):
         output_handler_cls = IaCJSONOutputHandler
     else:
         output_handler_cls = IaCTextOutputHandler

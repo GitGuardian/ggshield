@@ -5,17 +5,17 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import HealthCheckResponse
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.common_options import add_common_options, json_option, use_json
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import STYLE, format_text
-from ggshield.core.utils import json_output_option_decorator
 
 
 @click.command()
+@json_option
 @add_common_options()
 @click.pass_context
-def status_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
+def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """Show API status."""
     client: GGClient = create_client_from_config(ctx.obj["config"])
     response: HealthCheckResponse = client.health_check()
@@ -25,7 +25,7 @@ def status_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
 
     click.echo(
         response.to_json()
-        if json_output
+        if use_json(ctx)
         else (
             f"{format_text('API URL:', STYLE['key'])} {client.base_uri}\n"
             f"{format_text('Status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
@@ -36,9 +36,6 @@ def status_cmd(ctx: click.Context, json_output: bool, **kwargs: Any) -> int:
     )
 
     return 0
-
-
-status = json_output_option_decorator(status_cmd)
 
 
 def format_healthcheck_status(health_check: HealthCheckResponse) -> str:
