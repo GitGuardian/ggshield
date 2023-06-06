@@ -96,7 +96,7 @@ def cli(
     elif config.debug:
         # if --debug is not set but `debug` is set in the configuration file, then
         # we must setup logs now.
-        setup_debug_logs(True)
+        setup_debug_logs(filename=None)
 
 
 def _display_deprecation_message(cfg: Config) -> None:

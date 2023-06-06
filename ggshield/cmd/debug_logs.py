@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import Optional
 
 import pygitguardian
 
@@ -9,14 +10,10 @@ LOG_FORMAT = "%(asctime)s %(levelname)s %(process)x:%(thread)x %(name)s:%(funcNa
 logger = logging.getLogger(__name__)
 
 
-def setup_debug_logs(debug: bool) -> None:
-    """Configure Python logger. Disable messages up to logging.ERROR level by default.
-
-    The reason we disable error messages is that we call logging.error() in addition to
-    showing user-friendly error messages, but we don't want the error logs to show up
-    with the user-friendly error messages, unless --debug has been set.
+def setup_debug_logs(*, filename: Optional[str]) -> None:
+    """Configure Python logger to log to stderr if filename is None, or to filename if
+    it's set.
     """
-    level = logging.DEBUG if debug else logging.CRITICAL
 
     if sys.version_info[:2] < (3, 8):
         # Simulate logging.basicConfig() `force` argument, introduced in Python 3.8
@@ -24,13 +21,14 @@ def setup_debug_logs(debug: bool) -> None:
         for handler in root.handlers[:]:
             root.removeHandler(handler)
             handler.close()
-        logging.basicConfig(filename=None, level=level, format=LOG_FORMAT)
+        logging.basicConfig(filename=filename, level=logging.DEBUG, format=LOG_FORMAT)
     else:
-        logging.basicConfig(filename=None, level=level, format=LOG_FORMAT, force=True)
+        logging.basicConfig(
+            filename=filename, level=logging.DEBUG, format=LOG_FORMAT, force=True
+        )
 
-    if debug:
-        # Silence charset_normalizer, its debug output does not bring much
-        logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
+    # Silence charset_normalizer, its debug output does not bring much
+    logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
 
     logger.debug("args=%s", sys.argv)
     logger.debug("py-gitguardian=%s", pygitguardian.__version__)
