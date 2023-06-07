@@ -9,7 +9,7 @@ import click
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config import config_group
-from ggshield.cmd.debug_logs import setup_debug_logs
+from ggshield.cmd.debug_logs import disable_logs, setup_debug_logs
 from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
@@ -82,20 +82,13 @@ def config_path_callback(
 @click.pass_context
 def cli(
     ctx: click.Context,
-    debug: Optional[bool],
     **kwargs: Any,
 ) -> None:
     load_dot_env()
 
     config = ctx.obj["config"]
-    if debug:
-        # --debug was set. Update the config to reflect this. Unlike other options, this
-        # can't be done in the debug_callback() because --debug is eager, so its
-        # callback can be called *before* the configuration has been loaded.
-        config.debug = True
-    elif config.debug:
-        # if --debug is not set but `debug` is set in the configuration file, then
-        # we must setup logs now.
+    if config.debug:
+        # if `debug` is set in the configuration file, then setup logs now.
         setup_debug_logs(filename=None)
 
 
@@ -136,6 +129,7 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     `args` is only used by unit-tests.
     """
+    disable_logs()
     show_crash_log = os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
 
