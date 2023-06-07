@@ -134,7 +134,7 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
     )
     click.echo()
 
-    display_error(f"ERROR: {exc}")
+    display_error(f"Error: {exc}")
     if isinstance(exc, UnicodeEncodeError) and platform.system() == "Windows":
         display_error(
             "\n"
