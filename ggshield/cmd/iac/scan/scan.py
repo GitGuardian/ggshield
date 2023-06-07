@@ -6,71 +6,38 @@ from pygitguardian import GGClient
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 from pygitguardian.models import Detail
 
-from ggshield.cmd.common_options import add_common_options, json_option, use_json
+from ggshield.cmd.common_options import use_json
+from ggshield.cmd.iac.scan.iac_scan_common_options import add_iac_scan_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.git_shell import (
+    INDEX_REF,
+    get_filepaths_from_ref,
+    get_staged_filepaths,
+    tar_from_ref_and_filepaths,
+)
 from ggshield.core.text_utils import display_error
-from ggshield.iac.filter import get_iac_files_from_paths
-from ggshield.iac.iac_scan_collection import IaCScanCollection
+from ggshield.iac.filter import get_iac_files_from_paths, is_file_content_iac_file
+from ggshield.iac.iac_scan_collection import IaCPathScanCollection
+from ggshield.iac.iac_scan_models import IaCDiffScanResult, mock_api_iac_diff_scan
 from ggshield.iac.output import (
     IaCJSONOutputHandler,
     IaCOutputHandler,
     IaCTextOutputHandler,
 )
-from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 from ggshield.scan import ScanContext, ScanMode
 
 
-def validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
-    invalid_excluded_policies = [
-        policy_id for policy_id in value if not validate_policy_id(policy_id)
-    ]
-    if len(invalid_excluded_policies) > 0:
-        raise ValueError(
-            f"The policies {invalid_excluded_policies} do not match the pattern '{POLICY_ID_PATTERN.pattern}'"
-        )
-    return value
-
-
 @click.command()
+@click.option("--since", type=click.STRING, help="A git reference.")
 @click.option(
-    "--exit-zero",
+    "--staged",
     is_flag=True,
-    help="Always return 0 (non-error) status code.",
+    help="Include staged changes into the scan. Ignored if `--since` is not provided",
 )
-@click.option(
-    "--minimum-severity",
-    "minimum_severity",
-    type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL")),
-    help="Minimum severity of the policies.",
-)
-@click.option("--verbose", "-v", is_flag=True, help="Verbose display mode.")
-@click.option(
-    "--ignore-policy",
-    "--ipo",
-    "ignore_policies",
-    multiple=True,
-    help="Policies to exclude from the results.",
-    callback=validate_exclude,
-)
-@click.option(
-    "--ignore-path",
-    "--ipa",
-    "ignore_paths",
-    default=None,
-    type=click.Path(),
-    multiple=True,
-    help="Do not scan the specified paths.",
-)
-@json_option
-@click.argument(
-    "directory",
-    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
-    required=False,
-)
-@add_common_options()
+@add_iac_scan_common_options()
 @click.pass_context
 def scan_cmd(
     ctx: click.Context,
@@ -78,6 +45,8 @@ def scan_cmd(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
+    since: Optional[str],
+    staged: bool,
     directory: Optional[Path],
     **kwargs: Any,
 ) -> int:
@@ -87,9 +56,20 @@ def scan_cmd(
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-    result = iac_scan(ctx, directory)
-    scan = IaCScanCollection(id=str(directory), type="path_scan", result=result)
+    result = (
+        iac_scan(ctx, directory)
+        if since is None
+        else iac_diff_scan(ctx, directory, since, staged)
+    )
 
+    # TODO: remove
+    if since is not None:
+        print("Diff scan ended. Display is WIP")
+        return 0
+
+    scan = IaCPathScanCollection(id=str(directory), result=result)
+
+    # TODO: display
     output_handler_cls: Type[IaCOutputHandler]
     if use_json(ctx):
         output_handler_cls = IaCJSONOutputHandler
@@ -154,6 +134,48 @@ def iac_scan(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
     )
 
     if not scan.success or not isinstance(scan, IaCScanResult):
+        handle_scan_error(client, scan)
+        return None
+    return scan
+
+
+def get_iac_tar(directory: Path, ref: str) -> bytes:
+    filepaths = (
+        get_staged_filepaths(str(directory))
+        if ref == INDEX_REF
+        else get_filepaths_from_ref(str(directory), ref)
+    )
+    return tar_from_ref_and_filepaths(
+        str(directory), ref, filepaths, is_file_content_iac_file
+    )
+
+
+def iac_diff_scan(
+    ctx: click.Context, directory: Path, since: str, include_staged: bool
+) -> Optional[IaCDiffScanResult]:
+    config = ctx.obj["config"]
+    client = ctx.obj["client"]
+
+    reference_tar = get_iac_tar(directory, since)
+    current_ref = INDEX_REF if include_staged else "HEAD"
+    current_tar = get_iac_tar(directory, current_ref)
+
+    scan_parameters = IaCScanParameters(
+        config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
+    )
+
+    scan = mock_api_iac_diff_scan(
+        client,
+        reference_tar,
+        current_tar,
+        scan_parameters,
+        ScanContext(
+            command_path=ctx.command_path,
+            scan_mode=ScanMode.IAC_DIRECTORY,
+        ).get_http_headers(),
+    )
+
+    if not scan.success or not isinstance(scan, IaCDiffScanResult):
         handle_scan_error(client, scan)
         return None
     return scan
