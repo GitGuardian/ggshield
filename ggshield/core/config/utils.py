@@ -48,9 +48,7 @@ def save_yaml_dict(data: Dict[str, Any], path: str) -> None:
             stream = yaml.dump(data, indent=2, default_flow_style=False)
             f.write(stream)
         except Exception as e:
-            raise UnexpectedError(
-                f"Error while saving config in {path}:\n{str(e)}"
-            ) from e
+            raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
 
 
 def get_auth_config_filepath() -> str:

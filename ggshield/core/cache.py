@@ -75,7 +75,7 @@ class Cache:
                 json.dump(self.to_dict(), f)
             except Exception as e:
                 raise UnexpectedError(
-                    f"Error while saving cache in {self.cache_filename}:\n{str(e)}"
+                    f"Failed to save cache in {self.cache_filename}:\n{str(e)}"
                 )
 
     def purge(self) -> None:

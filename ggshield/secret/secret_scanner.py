@@ -232,11 +232,11 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
     if detail.status_code is None:
-        raise UnexpectedError(f"Error scanning: {detail.detail}")
+        raise UnexpectedError(f"Scanning failed: {detail.detail}")
 
     details = None
 
-    display_error("\nError scanning. Results may be incomplete.")
+    display_error("\nScanning failed. Results may be incomplete.")
     try:
         # try to load as list of dicts to get per file details
         details = literal_eval(detail.detail)
