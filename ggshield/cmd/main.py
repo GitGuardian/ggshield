@@ -12,7 +12,7 @@ from ggshield.cmd.config import config_group
 from ggshield.cmd.debug_logs import disable_logs, setup_debug_logs
 from ggshield.cmd.hmsl import hmsl_group
 from ggshield.cmd.honeytoken import honeytoken_group
-from ggshield.cmd.iac import iac_group
+from ggshield.cmd.iac.scan import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.secret import secret_group

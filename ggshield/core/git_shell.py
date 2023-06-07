@@ -5,7 +5,7 @@ import tarfile
 from functools import lru_cache
 from io import BytesIO
 from shutil import which
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import click
 from click import UsageError
@@ -16,6 +16,7 @@ from ggshield.core.errors import UnexpectedError
 
 
 COMMAND_TIMEOUT = 45
+INDEX_REF = ""
 
 logger = logging.getLogger(__name__)
 
@@ -188,8 +189,23 @@ def get_filepaths_from_ref(wd: Optional[str], ref: str) -> List[str]:
     return filepaths
 
 
+def get_staged_filepaths(wd: Optional[str]) -> List[str]:
+    """
+    Fetches a list of all file paths at the index in a git repository.
+    :param wd: string path to the git repository. Defaults to current directory
+    """
+    if not wd:
+        wd = os.getcwd()
+
+    filepaths = git(["ls-files", "-c"], cwd=wd).splitlines()
+    return filepaths
+
+
 def tar_from_ref_and_filepaths(
-    wd: Optional[str], ref: str, filepaths: List[str]
+    wd: Optional[str],
+    ref: str,
+    filepaths: List[str],
+    acceptation_func: Optional[Callable[[str, str], bool]] = None,
 ) -> bytes:
     """
     Builds a gzipped archive from a given git reference, and selected filepaths.
@@ -204,7 +220,9 @@ def tar_from_ref_and_filepaths(
     if not wd:
         wd = os.getcwd()
 
-    check_git_ref(wd, ref)
+    # Empty string as ref makes the path valid for index
+    if ref != INDEX_REF:
+        check_git_ref(wd, ref)
 
     tar_stream = BytesIO()
     total_tar_size = 0
@@ -212,6 +230,11 @@ def tar_from_ref_and_filepaths(
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
         for path in filepaths:
             raw_file_content = git(["show", f"{ref}:{path}"], cwd=wd)
+
+            if acceptation_func is not None and not (
+                acceptation_func(path, raw_file_content)
+            ):
+                continue
 
             data = BytesIO(raw_file_content.encode())
 
