@@ -3,12 +3,13 @@ from typing import Any, Dict, Optional
 
 import marshmallow_dataclass
 from marshmallow.decorators import pre_load
+from pygitguardian.models import FromDictMixin, ToDictMixin
 
 from ggshield.core.text_utils import display_warning
 
 
 @marshmallow_dataclass.dataclass
-class FilteredConfig:
+class FilteredConfig(FromDictMixin, ToDictMixin):
     @classmethod
     @pre_load(pass_many=False)
     def filter_fields(cls, data: Dict, **kwargs: Any) -> Dict:
@@ -29,7 +30,6 @@ class FilteredConfig:
 
 @marshmallow_dataclass.dataclass
 class IgnoredMatch(FilteredConfig):
-
     match: str
     name: Optional[str] = None
 
@@ -38,4 +38,4 @@ class IgnoredMatch(FilteredConfig):
             self.name = ""
 
 
-IgnoredMatchSchema = marshmallow_dataclass.class_schema(IgnoredMatch)
+IgnoredMatch.SCHEMA = marshmallow_dataclass.class_schema(IgnoredMatch)()

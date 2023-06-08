@@ -1,7 +1,5 @@
 from typing import Any, Dict, cast
 
-from pygitguardian.iac_models import IaCScanResultSchema
-
 from ggshield.iac.iac_scan_collection import IaCScanCollection
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.iac.output.schemas import IaCJSONScanResultSchema
@@ -22,7 +20,7 @@ class IaCJSONOutputHandler(IaCOutputHandler):
                 "total_incidents": 0,
                 "entities_with_incidents": [],
             }
-        scan_dict: Dict[str, Any] = IaCScanResultSchema().dump(scan.result)
+        scan_dict = scan.result.to_dict()
         scan_dict["total_incidents"] = 0
 
         for entity in scan_dict["entities_with_incidents"]:

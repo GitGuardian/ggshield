@@ -8,17 +8,16 @@ from ggshield.core.constants import CACHE_FILENAME
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import get_ignore_sha
 from ggshield.core.text_utils import display_warning
-from ggshield.core.types import IgnoredMatch, IgnoredMatchSchema
+from ggshield.core.types import IgnoredMatch
 
 
 SECRETS_CACHE_KEY = "last_found_secrets"
 
 
 class Cache:
-    last_found_secrets: List[IgnoredMatch]
-
     def __init__(self, cache_filename: str = CACHE_FILENAME) -> None:
         self.cache_filename = cache_filename
+        self.last_found_secrets: List[IgnoredMatch] = []
         self.purge()
         self.load_cache()
 
@@ -45,20 +44,17 @@ class Cache:
 
     def update_cache(self, **kwargs: Any) -> None:
         if SECRETS_CACHE_KEY in kwargs:
-            schema = IgnoredMatchSchema()
             self.last_found_secrets = [
-                schema.load(data=secret) for secret in kwargs.pop(SECRETS_CACHE_KEY)
+                IgnoredMatch.from_dict(secret)
+                for secret in kwargs.pop(SECRETS_CACHE_KEY)
             ]
         if kwargs:
             for key in kwargs.keys():
                 display_warning(f'Unrecognized key in cache "{key}"')
 
     def to_dict(self) -> Dict[str, Any]:
-        schema = IgnoredMatchSchema()
         return {
-            SECRETS_CACHE_KEY: [
-                schema.dump(secret) for secret in self.last_found_secrets
-            ]
+            SECRETS_CACHE_KEY: [secret.to_dict() for secret in self.last_found_secrets]
         }
 
     def save(self) -> None:

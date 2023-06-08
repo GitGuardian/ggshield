@@ -412,7 +412,9 @@ class RequestHandlerWrapper:
     @property
     def request_handler(self) -> Type[BaseHTTPRequestHandler]:
         class RequestHandler(BaseHTTPRequestHandler):
-            def do_GET(self_) -> None:
+            def do_GET(
+                self_,  # type:ignore
+            ) -> None:
                 """
                 This function process every GET request received by the server.
                 Non-root request are skipped.
@@ -449,7 +451,9 @@ class RequestHandlerWrapper:
                     self_._end_request(404)
 
             def _end_request(
-                self_, status_code: int, redirect_url: Optional[str] = None
+                self_,  # type:ignore
+                status_code: int,
+                redirect_url: Optional[str] = None,
             ) -> None:
                 """
                 End the current request. If a redirect url is provided,

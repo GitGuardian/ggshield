@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 import yaml
+import yaml.parser
+import yaml.scanner
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME
 from ggshield.core.dirs import get_config_dir
