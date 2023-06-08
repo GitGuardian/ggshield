@@ -1,6 +1,9 @@
 from typing import Optional
 
-from ggshield.iac.collection.iac_scan_collection import IaCScanCollection
+from ggshield.iac.collection.iac_scan_collection import (
+    CollectionType,
+    IaCScanCollection,
+)
 from ggshield.iac.iac_scan_models import IaCDiffScanResult
 
 
@@ -11,7 +14,7 @@ class IaCDiffScanCollection(IaCScanCollection):
         result: Optional[IaCDiffScanResult],
     ):
         super().__init__(id, result)
-        self.type = "diff_scan"
+        self.type = CollectionType.DiffScan
 
     @property
     def has_results(self) -> bool:

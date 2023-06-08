@@ -40,6 +40,7 @@ def test_display_single_vulnerabilities(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
@@ -62,6 +63,7 @@ def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
@@ -82,6 +84,7 @@ def test_display_no_vulnerability(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
@@ -106,6 +109,7 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],

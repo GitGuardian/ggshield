@@ -6,7 +6,10 @@ import click
 from ggshield.core.errors import ExitCode
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.collection.iac_scan_collection import IaCScanCollection
+from ggshield.iac.collection.iac_scan_collection import (
+    CollectionType,
+    IaCScanCollection,
+)
 
 
 class IaCOutputHandler(ABC):
@@ -64,7 +67,7 @@ class IaCOutputHandler(ABC):
         raise NotImplementedError()
 
     def _get_exit_code(self, scan: IaCScanCollection) -> ExitCode:
-        if scan.result is None or scan.type == "unknown":
+        if scan.result is None or scan.type == CollectionType.Unknown:
             return ExitCode.UNEXPECTED_ERROR
         if scan.has_results:
             return ExitCode.SCAN_FOUND_PROBLEMS
