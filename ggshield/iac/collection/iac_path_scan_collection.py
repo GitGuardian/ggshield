@@ -2,7 +2,10 @@ from typing import Optional
 
 from pygitguardian.iac_models import IaCScanResult
 
-from ggshield.iac.collection.iac_scan_collection import IaCScanCollection
+from ggshield.iac.collection.iac_scan_collection import (
+    CollectionType,
+    IaCScanCollection,
+)
 
 
 class IaCPathScanCollection(IaCScanCollection):
@@ -12,7 +15,7 @@ class IaCPathScanCollection(IaCScanCollection):
         result: Optional[IaCScanResult],
     ):
         super().__init__(id, result)
-        self.type = "path_scan"
+        self.type = CollectionType.PathScan
 
     @property
     def has_results(self) -> bool:

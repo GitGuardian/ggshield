@@ -15,6 +15,9 @@ from typing import Any, Callable, Sequence
 import click
 
 from ggshield.cmd.common_options import add_common_options, json_option
+from ggshield.core.client import create_client_from_config
+from ggshield.core.config.config import Config
+from ggshield.core.filter import init_exclusion_regexes
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
 
@@ -64,7 +67,7 @@ _ignore_path_option = click.option(
     help="Do not scan the specified paths.",
 )
 
-_directory_argument = click.argument(
+directory_argument = click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
     required=False,
@@ -78,8 +81,34 @@ def add_iac_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _minimum_severity_option(cmd)
         _ignore_policy_option(cmd)
         _ignore_path_option(cmd)
-        _directory_argument(cmd)
         json_option(cmd)
         return cmd
 
     return decorator
+
+
+def update_context(
+    ctx: click.Context,
+    exit_zero: bool,
+    minimum_severity: str,
+    ignore_policies: Sequence[str],
+    ignore_paths: Sequence[str],
+) -> None:
+    config: Config = ctx.obj["config"]
+    ctx.obj["client"] = create_client_from_config(config)
+
+    if ignore_paths is not None:
+        config.user_config.iac.ignored_paths.update(ignore_paths)
+
+    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(
+        config.user_config.iac.ignored_paths
+    )
+
+    if ignore_policies is not None:
+        config.user_config.iac.ignored_policies.update(ignore_policies)
+
+    if exit_zero is not None:
+        config.user_config.exit_zero = exit_zero
+
+    if minimum_severity is not None:
+        config.user_config.iac.minimum_severity = minimum_severity

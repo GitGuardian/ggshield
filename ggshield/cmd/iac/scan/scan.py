@@ -2,33 +2,33 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import click
+from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 
-from ggshield.cmd.iac.scan.iac_scan_common_options import add_iac_scan_common_options
-from ggshield.core.client import create_client_from_config
-from ggshield.core.config import Config
-from ggshield.core.filter import init_exclusion_regexes
-from ggshield.iac.scan.iac_diff_scan import execute_iac_diff_scan
-from ggshield.iac.scan.iac_path_scan import execute_iac_scan
+from ggshield.cmd.iac.scan.iac_scan_common_options import (
+    add_iac_scan_common_options,
+    directory_argument,
+    update_context,
+)
+from ggshield.cmd.iac.scan.iac_scan_utils import (
+    create_output_handler,
+    handle_scan_error,
+)
+from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
+from ggshield.iac.filter import get_iac_files_from_paths
+from ggshield.scan import ScanContext, ScanMode
 
 
 @click.command()
-@click.option("--since", type=click.STRING, help="A git reference.")
-@click.option(
-    "--staged",
-    is_flag=True,
-    help="Include staged changes into the scan. Ignored if `--since` is not provided",
-)
 @add_iac_scan_common_options()
+@directory_argument
 @click.pass_context
-def scan_cmd(
+def scan_all_cmd(
     ctx: click.Context,
     exit_zero: bool,
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
-    since: Optional[str],
-    staged: bool,
-    directory: Optional[Path],
+    directory: Optional[Path] = None,
     **kwargs: Any,
 ) -> int:
     """
@@ -38,34 +38,39 @@ def scan_cmd(
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    if since is None:
-        return execute_iac_scan(ctx, directory)
-    else:
-        return execute_iac_diff_scan(ctx, directory, since, staged)
+    result = iac_scan_all(ctx, directory)
+    scan = IaCPathScanCollection(id=str(directory), result=result)
+    output_handler = create_output_handler(ctx)
+    return output_handler.process_scan(scan)
 
 
-def update_context(
-    ctx: click.Context,
-    exit_zero: bool,
-    minimum_severity: str,
-    ignore_policies: Sequence[str],
-    ignore_paths: Sequence[str],
-) -> None:
-    config: Config = ctx.obj["config"]
-    ctx.obj["client"] = create_client_from_config(config)
-
-    if ignore_paths is not None:
-        config.user_config.iac.ignored_paths.update(ignore_paths)
-
-    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(
-        config.user_config.iac.ignored_paths
+def iac_scan_all(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
+    paths = get_iac_files_from_paths(
+        path=directory,
+        exclusion_regexes=ctx.obj["exclusion_regexes"],
+        verbose=ctx.obj["config"].verbose,
+        # If the repository is a git repository, ignore untracked files
+        ignore_git=False,
     )
 
-    if ignore_policies is not None:
-        config.user_config.iac.ignored_policies.update(ignore_policies)
+    config = ctx.obj["config"]
+    client = ctx.obj["client"]
 
-    if exit_zero is not None:
-        config.user_config.exit_zero = exit_zero
+    scan_parameters = IaCScanParameters(
+        config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
+    )
 
-    if minimum_severity is not None:
-        config.user_config.iac.minimum_severity = minimum_severity
+    scan = client.iac_directory_scan(
+        directory,
+        paths,
+        scan_parameters,
+        ScanContext(
+            command_path=ctx.command_path,
+            scan_mode=ScanMode.IAC_DIRECTORY,
+        ).get_http_headers(),
+    )
+
+    if not scan.success or not isinstance(scan, IaCScanResult):
+        handle_scan_error(client, scan)
+        return None
+    return scan
