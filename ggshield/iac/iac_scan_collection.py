@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import Literal, Optional, Union
+from enum import Enum
+from typing import Optional, Union
 
 from pygitguardian.iac_models import IaCScanResult
 
@@ -7,7 +8,12 @@ from ggshield.iac.iac_scan_models import IaCDiffScanResult
 
 
 IaCResult = Union[IaCScanResult, IaCDiffScanResult]
-CollectionType = Literal["unknown", "path_scan", "diff_scan"]
+
+
+class CollectionType(Enum):
+    Unknown = "unknown"
+    PathScan = "path_scan"
+    DiffScan = "diff_scan"
 
 
 class IaCScanCollection(ABC):
@@ -23,7 +29,7 @@ class IaCScanCollection(ABC):
         result: Optional[IaCResult],
     ):
         self.id = id
-        self.type = "unknown"
+        self.type = CollectionType.Unknown
         self.result = result
 
 
@@ -34,7 +40,7 @@ class IaCPathScanCollection(IaCScanCollection):
         result: Optional[IaCScanResult],
     ):
         super().__init__(id, result)
-        self.type = "path_scan"
+        self.type = CollectionType.PathScan
 
 
 class IaCDiffScanCollection(IaCScanCollection):
@@ -44,4 +50,4 @@ class IaCDiffScanCollection(IaCScanCollection):
         result: Optional[IaCDiffScanResult],
     ):
         super().__init__(id, result)
-        self.type = "diff_scan"
+        self.type = CollectionType.DiffScan
