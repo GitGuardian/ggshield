@@ -18,7 +18,7 @@ class IaCJSONOutputHandler(IaCOutputHandler):
         if scan.result is None:
             return {
                 "id": scan.id,
-                "type": scan.type,
+                "type": scan.type.value,
                 "total_incidents": 0,
                 "entities_with_incidents": [],
             }
