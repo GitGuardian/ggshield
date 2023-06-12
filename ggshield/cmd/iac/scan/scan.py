@@ -143,10 +143,10 @@ def get_iac_tar(directory: Path, ref: str) -> bytes:
     filepaths = (
         get_staged_filepaths(str(directory))
         if ref == INDEX_REF
-        else get_filepaths_from_ref(str(directory), ref)
+        else get_filepaths_from_ref(ref, str(directory))
     )
     return tar_from_ref_and_filepaths(
-        str(directory), ref, filepaths, is_file_content_iac_file
+        ref, filepaths, is_file_content_iac_file, str(directory)
     )
 
 
