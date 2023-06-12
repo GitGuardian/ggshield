@@ -235,7 +235,7 @@ def tar_from_ref_and_filepaths(
             raw_file_content = git(["show", f"{ref}:{path}"], cwd=wd)
 
             if acceptation_func is not None and not (
-                acceptation_func(str(path), raw_file_content)
+                acceptation_func(path, raw_file_content)
             ):
                 continue
 
