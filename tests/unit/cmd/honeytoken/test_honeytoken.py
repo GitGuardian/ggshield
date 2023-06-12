@@ -60,3 +60,28 @@ def test_honeytoken_create_ok(cli_fs_runner: CliRunner) -> None:
         ],
     )
     assert_invoke_ok(result)
+
+
+@my_vcr.use_cassette("test_honeytoken_create_error_403")
+def test_honeytoken_create_error_403(cli_fs_runner: CliRunner) -> None:
+    """
+    GIVEN a token without honeytoken scope
+    WHEN running the honeytoken command with all needed arguments
+    THEN the return code is 1 and the error message match the needed message
+    """
+
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "honeytoken",
+            "create",
+            "--description",
+            "description",
+            "--type",
+            "AWS",
+            "--name",
+            "test_honey_token_error_403",
+        ],
+    )
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert "ggshield does not have permissions to create honeytokens" in result.stdout
