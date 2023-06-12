@@ -55,6 +55,6 @@ def is_file_iac_file(scannable: Scannable) -> bool:
     return any(keyword in name for keyword in IAC_FILENAME_KEYWORDS)
 
 
-def is_file_content_iac_file(path: str, content: str) -> bool:
-    scannable = StringScannable(path, content)
+def is_file_content_iac_file(path: Path, content: str) -> bool:
+    scannable = StringScannable(str(path), content)
     return is_file_iac_file(scannable)

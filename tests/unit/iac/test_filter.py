@@ -85,5 +85,5 @@ def test_get_iac_files_from_paths_ignore_git(tmp_path, ignore_git):
 
 
 def test_is_file_content_iac_file(tmp_path):
-    assert is_file_content_iac_file("file1.json", "")
-    assert not is_file_content_iac_file("file1.jpg", "")
+    assert is_file_content_iac_file(tmp_path / "file1.json", "")
+    assert not is_file_content_iac_file(tmp_path / "file1.jpg", "")

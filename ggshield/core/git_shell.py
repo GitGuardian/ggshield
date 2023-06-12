@@ -4,8 +4,9 @@ import subprocess
 import tarfile
 from functools import lru_cache
 from io import BytesIO
+from pathlib import Path
 from shutil import which
-from typing import Callable, List, Optional
+from typing import Callable, Iterable, List, Optional
 
 import click
 from click import UsageError
@@ -126,14 +127,14 @@ def is_valid_git_commit_ref(ref: str, wd: Optional[str] = None) -> bool:
     return True
 
 
-def check_git_ref(wd: Optional[str] = None, ref: Optional[str] = None) -> None:
+def check_git_ref(ref: str, wd: Optional[str] = None) -> None:
     """Check if folder is a git repository and ref is a git reference."""
     if wd is None:
         wd = os.getcwd()
     check_git_dir(wd)
 
-    if not ref or not is_valid_git_commit_ref(ref=ref, wd=wd):
-        raise UsageError("Not a git reference.")
+    if not is_valid_git_commit_ref(ref=ref, wd=wd):
+        raise UsageError(f"Not a git reference: {ref}.")
 
 
 def get_list_commit_SHA(
@@ -174,22 +175,22 @@ def get_list_commit_SHA(
     return commit_list
 
 
-def get_filepaths_from_ref(wd: Optional[str], ref: str) -> List[str]:
+def get_filepaths_from_ref(ref: str, wd: Optional[str] = None) -> List[Path]:
     """
     Fetches a list of all file paths indexed at a given reference in a git repository.
-    :param wd: string path to the git repository. Defaults to current directory
     :param ref: git reference, like a commit SHA, a relative reference like HEAD~1, ...
+    :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
         wd = os.getcwd()
 
-    check_git_ref(wd, ref)
+    check_git_ref(ref, wd)
 
     filepaths = git(["ls-tree", "--name-only", "-r", ref], cwd=wd).splitlines()
-    return filepaths
+    return [Path(path_str) for path_str in filepaths]
 
 
-def get_staged_filepaths(wd: Optional[str]) -> List[str]:
+def get_staged_filepaths(wd: Optional[str] = None) -> List[Path]:
     """
     Fetches a list of all file paths at the index in a git repository.
     :param wd: string path to the git repository. Defaults to current directory
@@ -198,31 +199,33 @@ def get_staged_filepaths(wd: Optional[str]) -> List[str]:
         wd = os.getcwd()
 
     filepaths = git(["ls-files", "-c"], cwd=wd).splitlines()
-    return filepaths
+    return [Path(path_str) for path_str in filepaths]
 
 
 def tar_from_ref_and_filepaths(
-    wd: Optional[str],
     ref: str,
-    filepaths: List[str],
-    acceptation_func: Optional[Callable[[str, str], bool]] = None,
+    filepaths: Iterable[Path],
+    acceptation_func: Optional[Callable[[Path, str], bool]] = None,
+    wd: Optional[str] = None,
 ) -> bytes:
     """
     Builds a gzipped archive from a given git reference, and selected filepaths.
-    The filepaths are typically obtained via `get_all_filepaths_from_reference`
+    The filepaths are typically obtained via `get_filepaths_from_ref` or `get_staged_filepaths`
     before being filtered.
     The archive is returned as raw bytes.
-    :param wd: string path to the git repository. Defaults to current directory
-    :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,
-    or any argument accepted as <ref> by git show <ref>:<filepath>
+    :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,\
+        or any argument accepted as <ref> by git show <ref>:<filepath>
     :param filepaths: string paths to selected files
+    :param acceptation_func: provided a filepath and its raw content, \
+        returns whether the file should be included in the archive
+    :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
         wd = os.getcwd()
 
     # Empty string as ref makes the path valid for index
     if ref != INDEX_REF:
-        check_git_ref(wd, ref)
+        check_git_ref(ref, wd)
 
     tar_stream = BytesIO()
     total_tar_size = 0
@@ -238,7 +241,7 @@ def tar_from_ref_and_filepaths(
 
             data = BytesIO(raw_file_content.encode())
 
-            tarinfo = tarfile.TarInfo(path)
+            tarinfo = tarfile.TarInfo(str(path))
             tarinfo.size = len(data.getbuffer())
             total_tar_size += tarinfo.size
 
