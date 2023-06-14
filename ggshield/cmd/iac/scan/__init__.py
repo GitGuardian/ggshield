@@ -1,5 +1,4 @@
-import os
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -11,8 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 from ggshield.cmd.iac.scan.scan import scan_all_cmd
 from ggshield.core.clickutils.default_command_group import DefaultCommandGroup
 from ggshield.core.client import create_client_from_config
-from ggshield.core.config import Config
-from ggshield.core.text_utils import display_error, display_warning
+from ggshield.core.text_utils import display_warning
 
 
 @click.group(
@@ -53,27 +51,5 @@ def scan_group_impl(ctx: click.Context) -> int:
         scan_all_cmd.invoke(ctx)
 
     ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
-    return_code = 0
 
-    config: Config = ctx.obj["config"]
-
-    max_commits = get_max_commits_for_hook()
-    if max_commits:
-        config.max_commits_for_hook = max_commits
-
-    return return_code
-
-
-def get_max_commits_for_hook() -> Optional[int]:
-    """
-    Get the maximum number of commits that should be processed for a hook.
-    """
-    try:
-        max_commits = os.getenv("GITGUARDIAN_MAX_COMMITS_FOR_HOOK", None)
-        if max_commits is not None:
-            return int(max_commits)
-    except BaseException as e:
-        display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
-        return None
-
-    return None
+    return 0
