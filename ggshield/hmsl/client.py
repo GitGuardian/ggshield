@@ -3,7 +3,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, Iterator, List, Optional, cast, overload
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Union, cast, overload
 
 import requests
 
@@ -92,7 +92,7 @@ class HMSLClient:
         ...
 
     @overload
-    def check(self, hashes: Iterable[str], *, full_hashes: bool) -> Iterator[Match]:
+    def check(self, hashes: Iterable[str], *, full_hashes: bool) -> Iterator[Secret]:
         ...
 
     @overload
@@ -131,7 +131,9 @@ class HMSLClient:
         if len(batch) > 0:
             yield from self._check_batch(batch, full_hashes, decrypt)
 
-    def _check_batch(self, batch: List[str], full_hashes: bool, decrypt: bool):
+    def _check_batch(
+        self, batch: List[str], full_hashes: bool, decrypt: bool = True
+    ) -> Iterator[Union[Secret, Match]]:
         if full_hashes:
             yield from self.check_hashes(batch).secrets
             return

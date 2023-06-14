@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Iterator, List, TextIO, cast
+from typing import Any, Dict, Iterable, Iterator, TextIO, cast
 
 import click
 
@@ -49,10 +49,10 @@ def decrypt_cmd(path: str, mapping_file: TextIO, json_output: bool, **_: Any) ->
     # Decrypt the secrets thanks to the hashes contained in mapping
     try:
         secrets = decrypt(input, mapping)
-        show_results(list(secrets), mapping, json_output)
+        # Display the secrets
+        show_results(secrets, mapping, json_output)
     except (json.JSONDecodeError, TypeError):
         raise ParseError("Invalid format in input file.")
-    # Display the secrets
 
     return 0
 
@@ -70,7 +70,7 @@ def load_mapping(mapping_file: TextIO) -> Dict[str, str]:
         if line == "":
             # Skip empty lines
             continue
-        hash, _, name = line.partition(":")
+        hash, name = line.split(":", maxsplit=1)
         mapping[hash] = name
     return mapping
 
@@ -96,11 +96,12 @@ def decrypt(input: TextIO, mapping: Dict[str, str]) -> Iterator[Secret]:
 
 
 def show_results(
-    secrets: List[Secret], names: Dict[str, str], json_output: bool
+    secrets: Iterable[Secret], names: Dict[str, str], json_output: bool
 ) -> None:
     """
     Display the secrets.
     """
+    secrets = list(secrets)
     display_info(f"Found {len(secrets)} leaked {pluralize('secret', len(secrets))}.")
     data = [
         {
@@ -112,7 +113,7 @@ def show_results(
         for secret in secrets
     ]
     if json_output:
-        click.echo(json.dumps(data, indent=4))
+        click.echo(json.dumps(data))
     else:
         for i, secret in enumerate(data):
             click.echo(TEMPLATE.format(number=i + 1, **secret))

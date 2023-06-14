@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from re import S
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, TextIO, cast
+from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Set, TextIO, cast
 
 import click
 
@@ -64,7 +63,7 @@ naming_strategy_option = click.option(
     default="key",
     show_default=True,
     help="""Strategy to generate the hints.
-            With "censored", only the firsts and last characters are displayed.
+            With "censored", only the first and last characters are displayed.
             With "cleartext", the full secret is used as a hint (Not recommended!).
             With "none", no hint is generated.
             With "key", the key name is selected if available (e.g. in .env files), otherwise censored is used.""",
@@ -80,7 +79,7 @@ full_hashes_option = click.option(
 )
 
 
-def validate_prefix(prefix: str):
+def validate_prefix(prefix: str) -> str:
     if prefix != "" and not prefix.endswith("-"):
         prefix = prefix + "-"
     return prefix
@@ -135,7 +134,7 @@ def collect(
 
 
 def prepare(
-    secrets: List[SecretWithKey],
+    secrets: Iterable[SecretWithKey],
     naming_strategy: NamingStrategy,
     *,
     full_hashes: bool = False,

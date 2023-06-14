@@ -17,7 +17,7 @@ def hmsl_no_env_vars(monkeypatch):
 
 
 @pytest.fixture
-def gim(monkeypatch):
+def create_jwt_mock(monkeypatch):
     mock = MagicMock(return_value=JWTResponse(token="dummy_token"))
     monkeypatch.setenv("GITGUARDIAN_SAAS_API_KEY", "dummy_api_key")
     monkeypatch.setattr(GGClient, "create_jwt", mock)
@@ -47,7 +47,7 @@ def test_no_token(isolated_fs, hmsl_no_env_vars):
     assert token is None
 
 
-def test_get_token(isolated_fs, gim: MagicMock):
+def test_get_token(isolated_fs, create_jwt_mock: MagicMock):
     """
     GIVEN a logged in session to GIM
     WHEN requesting a token
@@ -56,5 +56,5 @@ def test_get_token(isolated_fs, gim: MagicMock):
     config = Config()
     assert load_token_from_disk() is None
     token = get_token(config)
-    assert gim.assert_called_once
+    create_jwt_mock.assert_called_once()
     assert token == "dummy_token"

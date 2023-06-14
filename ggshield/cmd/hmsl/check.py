@@ -58,9 +58,7 @@ def check_cmd(
     found: List[Secret] = []
     error: Optional[Exception] = None
     try:
-        for secret in client.check(
-            prepared_data.payload, full_hashes=full_hashes, decrypt=True
-        ):
+        for secret in client.check(prepared_data.payload, full_hashes=full_hashes):
             found.append(secret)
     except (ValueError, HTTPError) as exception:
         error = exception
