@@ -3,17 +3,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    cast,
-    overload,
-)
+from typing import Any, Dict, Iterable, Iterator, List, Optional, cast, overload
 
 import requests
 
@@ -94,25 +84,20 @@ class HMSLClient:
         except requests.exceptions.RequestException:
             return False
 
+    # Note: these overloads don't perfectly match the implementation,
+    # especially since we don't have Literal annotations in Python 3.7.
+    # But it's good enough for our usage in ggshield.
     @overload
     def check(self, hashes: Iterable[str]) -> Iterator[Secret]:
         ...
 
     @overload
-    def check(
-        self, hashes: Iterable[str], *, full_hashes: Literal[True], decrypt: bool = True
-    ) -> Iterator[Secret]:
+    def check(self, hashes: Iterable[str], *, full_hashes: bool) -> Iterator[Match]:
         ...
 
     @overload
     def check(
-        self, hashes: Iterable[str], *, full_hashes: bool, decrypt: Literal[True]
-    ) -> Iterator[Secret]:
-        ...
-
-    @overload
-    def check(
-        self, hashes: Iterable[str], *, full_hashes: bool, decrypt: Literal[False]
+        self, hashes: Iterable[str], *, full_hashes: bool, decrypt: bool
     ) -> Iterator[Match]:
         ...
 

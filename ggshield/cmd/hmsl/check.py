@@ -45,7 +45,7 @@ def check_cmd(
     # Collect secrets
     display_info("Collecting secrets...")
     input = cast(TextIO, click.open_file(path, "r"))
-    secrets = list(collect(input, "file"))
+    secrets = list(collect(input))
     # full_hashes is True because we need the hashes to decrypt the secrets.
     # They will correctly be truncated by our client later.
     prepared_data = prepare(secrets, naming_strategy, full_hashes=True)

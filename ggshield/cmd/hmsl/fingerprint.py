@@ -1,16 +1,7 @@
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Set,
-    TextIO,
-    cast,
-)
+from enum import Enum, auto
+from re import S
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, TextIO, cast
 
 import click
 
@@ -24,7 +15,8 @@ from ggshield.hmsl.crypto import hash_string
 # Types and constants
 
 
-SourceType = Literal["file"]
+class SourceType(Enum):
+    FILE = auto()
 
 
 @dataclass
@@ -116,7 +108,7 @@ def fingerprint_cmd(
     input = cast(TextIO, click.open_file(path, "r"))
 
     # Prepare and write the output files
-    secrets = list(collect(input, "file"))
+    secrets = list(collect(input))
     result = prepare(secrets, naming_strategy, full_hashes=full_hashes)
     write_outputs(result, prefix)
 
@@ -127,7 +119,9 @@ def fingerprint_cmd(
 # Helper methods
 
 
-def collect(input: TextIO, source: SourceType = "file") -> Iterator[SecretWithKey]:
+def collect(
+    input: TextIO, source: SourceType = SourceType.FILE
+) -> Iterator[SecretWithKey]:
     """
     Collect the secrets from the source
     """
@@ -136,7 +130,7 @@ def collect(input: TextIO, source: SourceType = "file") -> Iterator[SecretWithKe
         if secret == "":
             # Skip empty lines
             continue
-        if source == "file":
+        if source == SourceType.FILE:
             yield SecretWithKey(value=secret, key=None)
 
 
