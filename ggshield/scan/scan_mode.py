@@ -13,4 +13,5 @@ class ScanMode(Enum):
     PYPI = "pypi"
     ARCHIVE = "archive"
     IAC_DIRECTORY = "directory"
+    IAC_DIFF = "diff"
     DOCSET = "docset"

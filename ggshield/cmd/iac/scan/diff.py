@@ -126,7 +126,7 @@ def iac_scan_diff(
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.IAC_DIRECTORY,
+            scan_mode=ScanMode.IAC_DIFF,
         ).get_http_headers(),
     )
 
