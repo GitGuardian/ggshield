@@ -17,10 +17,6 @@ class IaCJSONOutputHandler(IaCOutputHandler):
         text = IaCJSONScanDiffResultSchema().dumps(scan_dict)
         return cast(str, text)
 
-    # TODO: Determine a design & implement
-    def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
-        return "WIP: this will be the JSON output for diff scan."
-
     @staticmethod
     def create_scan_dict(scan: IaCPathScanCollection) -> Dict[str, Any]:
         if scan.result is None:
