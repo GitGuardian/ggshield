@@ -27,28 +27,8 @@ show_missing = true
 source = ["."]
 omit = [".venv/*"]
 
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-follow_imports = "silent"
-ignore_missing_imports = true
-no_implicit_optional = true
-strict_equality = true
-strict_optional = true
-warn_incomplete_stub = true
-warn_redundant_casts = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
-plugins = ["marshmallow_dataclass.mypy"]
-files = "ggshield"
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-ignore_errors = true
+[tool.pyright]
+include = ["ggshield"]
 
 [tool.scriv]
 version = "literal: ggshield/__init__.py: __version__"

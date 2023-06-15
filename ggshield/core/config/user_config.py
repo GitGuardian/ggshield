@@ -5,6 +5,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import marshmallow_dataclass
 from marshmallow import ValidationError
+from pygitguardian.models import FromDictMixin
 
 from ggshield.core.config.utils import (
     get_global_path,
@@ -20,7 +21,7 @@ from ggshield.core.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
-from ggshield.core.types import FilteredConfig, IgnoredMatch, IgnoredMatchSchema
+from ggshield.core.types import FilteredConfig, IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
@@ -108,9 +109,8 @@ class UserConfig(FilteredConfig):
         """
         Save config to config_path
         """
-        schema = UserConfigSchema(exclude=("deprecation_messages",))
-        dct = schema.dump(self)
-        default_dct = schema.dump(schema.load({}))
+        dct = self.to_dict()
+        default_dct = UserConfig.from_dict({}).to_dict()
 
         dct = remove_common_dict_items(dct, default_dct)
 
@@ -157,13 +157,12 @@ class UserConfig(FilteredConfig):
         return user_config, config_path
 
     def _update_from_file(self, config_path: str) -> None:
-
         try:
             data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
             config_version = data.pop("version", 1)
             if config_version == 2:
                 _fix_ignore_known_secrets(data)
-                obj = UserConfigSchema().load(data)
+                obj = UserConfig.from_dict(data)
             elif config_version == 1:
                 replace_in_keys(data, old_char="-", new_char="_")
                 self.deprecation_messages.append(
@@ -184,7 +183,9 @@ class UserConfig(FilteredConfig):
         update_from_other_instance(self, obj)
 
 
-UserConfigSchema = marshmallow_dataclass.class_schema(UserConfig)
+UserConfig.SCHEMA = marshmallow_dataclass.class_schema(UserConfig)(
+    exclude=("deprecation_messages",)
+)
 
 
 def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
@@ -210,7 +211,7 @@ def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
 
 
 @dataclass
-class UserV1Config:
+class UserV1Config(FromDictMixin):
     """
     Can load a v1 .gitguardian.yaml file
     """
@@ -244,7 +245,7 @@ class UserV1Config:
 
         UserV1Config.matches_ignore_to_dict(data)
 
-        v1config = UserV1ConfigSchema().load(data)
+        v1config = UserV1Config.from_dict(data)
 
         deprecation_messages = []
 
@@ -258,9 +259,8 @@ class UserV1Config:
                 "The `ignore_default_exclude` option has been deprecated and is now ignored."
             )
 
-        ignored_match_schema = IgnoredMatchSchema()
         ignored_matches = [
-            ignored_match_schema.load(secret) for secret in v1config.matches_ignore
+            IgnoredMatch.from_dict(secret) for secret in v1config.matches_ignore
         ]
         secret = SecretConfig(
             show_secrets=v1config.show_secrets,
@@ -294,4 +294,4 @@ class UserV1Config:
                 matches_ignore[idx] = {"name": "", "match": match}
 
 
-UserV1ConfigSchema = marshmallow_dataclass.class_schema(UserV1Config)
+UserV1Config.SCHEMA = marshmallow_dataclass.class_schema(UserV1Config)()

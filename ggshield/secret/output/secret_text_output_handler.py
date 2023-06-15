@@ -300,6 +300,8 @@ def flatten_policy_breaks_by_line(
     flat_match_dict: Dict[int, List[Match]] = dict()
     for policy_break in policy_breaks:
         for match in policy_break.matches:
+            assert match.line_start is not None
+            assert match.line_end is not None
             flat_match_list = flat_match_dict.get(match.line_start)
             if flat_match_list and not any(
                 match.index_start == flat_match.index_start
@@ -461,6 +463,8 @@ def get_lines_to_display(
 
     for line in sorted(flat_matches_dict):
         for match in flat_matches_dict[line]:
+            assert match.line_start is not None
+            assert match.line_end is not None
             lines_to_display.update(
                 range(max(match.line_start - nb_lines + 1, 0), match.line_start + 1)
             )
