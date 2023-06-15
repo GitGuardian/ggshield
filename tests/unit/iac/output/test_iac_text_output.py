@@ -26,6 +26,7 @@ def test_display_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             str(tmp_path),
         ],
     )
@@ -43,6 +44,7 @@ def test_exit_zero_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--exit-zero",
             str(tmp_path),
         ],
@@ -61,6 +63,7 @@ def test_display_multiple_vulnerabilities(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             str(tmp_path),
         ],
     )
@@ -79,6 +82,7 @@ def test_display_no_vulnerability(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             str(tmp_path),
         ],
     )
@@ -103,6 +107,7 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "tmp",
         ],
     )

@@ -15,16 +15,17 @@ from ggshield.core.text_utils import (
     get_padding,
 )
 from ggshield.core.utils import Filemode, get_lines_from_content
+from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
+from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.scan import File
 
-from ..iac_scan_collection import IaCScanCollection
 from .iac_output_handler import IaCOutputHandler
 
 
 class IaCTextOutputHandler(IaCOutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def _process_scan_impl(self, scan: IaCScanCollection) -> str:
+    def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
         if scan.result:
@@ -38,6 +39,10 @@ class IaCTextOutputHandler(IaCOutputHandler):
             if len(scan.result.entities_with_incidents) == 0:
                 scan_buf.write(no_iac_vulnerabilities())
         return scan_buf.getvalue()
+
+    # TODO: Determine a design & implement
+    def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
+        return "WIP: this will be the text output for diff scan."
 
     def process_iac_file_result(
         self, file_path: Path, file_result: IaCFileResult

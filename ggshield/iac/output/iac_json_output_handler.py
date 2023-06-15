@@ -2,19 +2,24 @@ from typing import Any, Dict, cast
 
 from pygitguardian.iac_models import IaCScanResultSchema
 
-from ggshield.iac.iac_scan_collection import IaCScanCollection
+from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
+from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.iac.output.schemas import IaCJSONScanResultSchema
 
 
 class IaCJSONOutputHandler(IaCOutputHandler):
-    def _process_scan_impl(self, scan: IaCScanCollection) -> str:
+    def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_dict = IaCJSONOutputHandler.create_scan_dict(scan)
         text = IaCJSONScanResultSchema().dumps(scan_dict)
         return cast(str, text)
 
+    # TODO: Determine a design & implement
+    def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
+        return "WIP: this will be the JSON output for diff scan."
+
     @staticmethod
-    def create_scan_dict(scan: IaCScanCollection) -> Dict[str, Any]:
+    def create_scan_dict(scan: IaCPathScanCollection) -> Dict[str, Any]:
         if scan.result is None:
             return {
                 "id": scan.id,
