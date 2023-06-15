@@ -3,10 +3,61 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from ggshield.cmd.hmsl.decrypt import load_mapping
 from ggshield.cmd.main import cli
 from ggshield.hmsl.client import PREFIX_LENGTH
 from ggshield.hmsl.crypto import hash_string
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
+
+
+ENV_FILE = r"""
+FOO=bar
+PASSWORD=1234
+# Don't take "export" into account
+export SECRET=foo
+
+this line does not contain a secret
+
+# Commented secrets should be detected
+# BAR=prod123
+# But comments should be ignored
+BAZ=spam # eggs
+# All at once
+   # FOOBAR=toto42 # a super secret
+
+# Quotes should be ignored
+PASSWORD2="123v4@!,asTd"  # ggignore
+export PASSWORD3="P@ssw0rd3"  # ggignore
+export PASSWORD4="secret with spaces"
+export PASSWORD5="escaped \" quote"
+PASSWORD6="another escaped \" quote" # and "quotes" in comments afterwards
+# Empty secret
+PASSWORD7=""
+
+# Ignored common values
+KEY1=1
+KEY2=0
+KEY3=true
+KEY4=false
+KEY5=on
+KEY6=off
+KEY7=yes
+KEY8=no
+KEY9=enabled
+KEY10=disabled
+KEY11=none
+KEY12=null
+
+# Ignored keys
+HOST=123.4.56.7
+PORT=8080
+
+# Be permissive on case and spaces
+ a_secret = its_value
+
+# A last one just in case
+LAST=aBcD1234!@#$
+"""
 
 
 @pytest.fixture
@@ -22,6 +73,25 @@ def secrets_path(secrets, tmp_path: Path):
     lines = secrets[:2] + [""] + secrets[2:]
     secrets_path.write_text("\n".join(lines))
     return secrets_path
+
+
+@pytest.fixture
+def expected_from_env_file(cli_fs_runner):
+    with open(".env", "w") as f:
+        f.write(ENV_FILE)
+    return {
+        "FOO": "bar",
+        "PASSWORD": "1234",
+        "SECRET": "foo",
+        "BAZ": "spam",
+        "PASSWORD2": "123v4@!,asTd",  # ggignore
+        "PASSWORD3": "P@ssw0rd3",  # ggignore
+        "PASSWORD4": "secret with spaces",
+        "PASSWORD5": 'escaped " quote',
+        "PASSWORD6": 'another escaped " quote',
+        "a_secret": "its_value",
+        "LAST": "aBcD1234!@#$",
+    }
 
 
 def test_hmsl_fingerprint_no_file(cli_fs_runner: CliRunner) -> None:
@@ -131,3 +201,39 @@ def test_hmsl_fingerprint_prefix(
     )
     assert_invoke_ok(result)
     assert Path(f"{expected}payload.txt").exists()
+
+
+def test_hmsl_fingerprint_env_file(
+    cli_fs_runner: CliRunner, expected_from_env_file
+) -> None:
+    """
+    GIVEN a .env file
+    WHEN running the fingerprint command on it
+    THEN the keys and secrets are properly parsed
+    """
+    result = cli_fs_runner.invoke(
+        cli, ["hmsl", "fingerprint", "-f", "-t", "env", ".env"]
+    )
+    assert_invoke_ok(result)
+    expected_mapping = {hash_string(v): k for k, v in expected_from_env_file.items()}
+    mapping = load_mapping(open("mapping.txt"))
+    assert mapping == expected_mapping
+
+
+def test_hmsl_fingerprint_env_file_cleartext(
+    cli_fs_runner: CliRunner, expected_from_env_file
+) -> None:
+    """
+    GIVEN a .env file
+    WHEN using a different naming strategy
+    THEN the mapping is written as expected
+    """
+    result = cli_fs_runner.invoke(
+        cli, ["hmsl", "fingerprint", "-f", "-t", "env", "-n", "cleartext", ".env"]
+    )
+    assert_invoke_ok(result)
+    expected_mapping = {
+        hash_string(secret): secret for secret in expected_from_env_file.values()
+    }
+    mapping = load_mapping(open("mapping.txt"))
+    assert mapping == expected_mapping

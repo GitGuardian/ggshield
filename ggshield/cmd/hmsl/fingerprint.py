@@ -3,19 +3,20 @@ from enum import Enum, auto
 from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Set, TextIO, cast
 
 import click
+from dotenv import dotenv_values
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.filter import censor_string
 from ggshield.core.text_utils import display_info
 from ggshield.hmsl.client import PREFIX_LENGTH
 from ggshield.hmsl.crypto import hash_string
+from ggshield.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES
 
 
 # Types and constants
-
-
-class SourceType(Enum):
+class InputType(Enum):
     FILE = auto()
+    ENV = auto()
 
 
 @dataclass
@@ -70,6 +71,19 @@ naming_strategy_option = click.option(
     callback=lambda _, __, value: NAMING_STRATEGIES[value],
 )
 
+input_type_option = click.option(
+    "--type",
+    "-t",
+    "input_type",
+    type=click.Choice(["file", "env"]),
+    default="file",
+    show_default=True,
+    help="""Type of input to process.
+            With "file", the input is a simple file containing secrets.
+            With "env", the input is a file containing environment variables.""",
+    callback=lambda _, __, value: InputType[value.upper()],
+)
+
 full_hashes_option = click.option(
     "-f",
     "--full-hashes",
@@ -96,9 +110,15 @@ def validate_prefix(prefix: str) -> str:
 )
 @full_hashes_option
 @naming_strategy_option
+@input_type_option
 @input_arg
 def fingerprint_cmd(
-    path: str, prefix: str, naming_strategy: NamingStrategy, full_hashes: bool, **_: Any
+    path: str,
+    prefix: str,
+    naming_strategy: NamingStrategy,
+    full_hashes: bool,
+    input_type: InputType,
+    **_: Any,
 ) -> int:
     """
     Collect secrets and prepare them to be queried.
@@ -107,7 +127,7 @@ def fingerprint_cmd(
     input = cast(TextIO, click.open_file(path, "r"))
 
     # Prepare and write the output files
-    secrets = list(collect(input))
+    secrets = list(collect(input, input_type))
     result = prepare(secrets, naming_strategy, full_hashes=full_hashes)
     write_outputs(result, prefix)
 
@@ -119,17 +139,26 @@ def fingerprint_cmd(
 
 
 def collect(
-    input: TextIO, source: SourceType = SourceType.FILE
+    input: TextIO, input_type: InputType = InputType.FILE
 ) -> Iterator[SecretWithKey]:
     """
-    Collect the secrets from the source
+    Collect the secrets
     """
-    for line in input:
-        secret = line.strip()
-        if secret == "":
-            # Skip empty lines
-            continue
-        if source == SourceType.FILE:
+    if input_type == InputType.ENV:
+        config = dotenv_values(stream=input)
+        for key, value in config.items():
+            # filter our excluded keys and values
+            if not key or not value:
+                continue
+            if key.upper() in EXCLUDED_KEYS or value.lower() in EXCLUDED_VALUES:
+                continue
+            yield SecretWithKey(value=value, key=key)
+    else:
+        for line in input:
+            secret = line.strip()
+            if secret == "":
+                # Skip empty lines
+                continue
             yield SecretWithKey(value=secret, key=None)
 
 
