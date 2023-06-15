@@ -75,6 +75,8 @@ class OAuthClient:
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
+        # If the PAT expiration date has been enforced to respect the workspace policy
+        self._expire_at_downsized: bool = False
         self._port = USABLE_PORT_RANGE[0]
         self.server: Optional[HTTPServer] = None
 
@@ -247,6 +249,10 @@ class OAuthClient:
         if response.ok:
             try:
                 response_json = response.json()
+                self._expire_at_downsized = response_json.get(
+                    "expire_at_downsized",
+                    False,
+                )
                 self._access_token = response_json["key"]
             except (json.decoder.JSONDecodeError, ValueError):
                 raise_error = True
@@ -358,11 +364,20 @@ class OAuthClient:
         else:
             str_date = "never"
 
+        expiration_warning = ""
+        if self._expire_at_downsized:
+            expiration_warning = (
+                " Warning: the expiration date has been adjusted to comply with your workspace's"
+                " setting for the maximum lifetime of personal access tokens.\n"
+            )
+
         message = (
             "Success! You are now authenticated.\n"
             "The personal access token has been created and stored in your ggshield config.\n\n"
             f"token name: {self._token_name}\n"
-            f"token expiration date: {str_date}\n\n"
+            f"token expiration date: {str_date}\n"
+            f"{expiration_warning}"
+            "\n"
             'You do not need to run "ggshield auth login" again. Future requests will automatically use the token.'
         )
 

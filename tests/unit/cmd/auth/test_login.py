@@ -437,8 +437,10 @@ class TestAuthLoginWeb:
     @pytest.mark.parametrize("used_port_count", [0, 1, 10])
     @pytest.mark.parametrize("existing_expired_token", [False, True])
     @pytest.mark.parametrize("existing_unrelated_token", [False, True])
+    @pytest.mark.parametrize("downsized_token", [False, True, None])
     def test_valid_process(
         self,
+        downsized_token,
         existing_unrelated_token,
         existing_expired_token,
         used_port_count,
@@ -452,6 +454,7 @@ class TestAuthLoginWeb:
             token_name=token_name,
             lifetime=lifetime,
             used_port_count=used_port_count,
+            downsized_token=downsized_token,
         )
 
         if existing_expired_token:
@@ -477,11 +480,20 @@ class TestAuthLoginWeb:
         else:
             str_date = get_pretty_date(self._get_expiry_date())
 
+        warning_message = ""
+        if downsized_token:
+            warning_message = (
+                " Warning: the expiration date has been adjusted to comply with your workspace's"
+                " setting for the maximum lifetime of personal access tokens.\n"
+            )
+
         message = (
             "Success! You are now authenticated.\n"
             "The personal access token has been created and stored in your ggshield config.\n\n"
             f"token name: {self._generated_token_name}\n"
-            f"token expiration date: {str_date}\n\n"
+            f"token expiration date: {str_date}\n"
+            f"{warning_message}"
+            "\n"
             'You do not need to run "ggshield auth login" again. Future requests will automatically use the token.\n'
         )
 
@@ -498,6 +510,7 @@ class TestAuthLoginWeb:
         used_port_count=0,
         login_result: LoginResult = LoginResult.SUCCESS,
         sso_url=None,
+        downsized_token: Optional[bool] = False,
     ):
         """
         Configure self._request_mock to emulate HTTP requests
@@ -559,6 +572,8 @@ class TestAuthLoginWeb:
             response = create_json_response({}, status_code=400)
         else:
             token_response_payload = VALID_TOKEN_RESPONSE.json().copy()
+            if downsized_token is not None:
+                token_response_payload["expire_at_downsized"] = downsized_token
             if lifetime is not None:
                 expire_at = self._get_expiry_date().isoformat()
                 token_response_payload["expire_at"] = expire_at
