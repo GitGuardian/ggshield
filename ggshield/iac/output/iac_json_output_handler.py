@@ -3,7 +3,10 @@ from typing import Any, Dict, cast
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
-from ggshield.iac.output.schemas import IaCJSONScanResultSchema, IaCJSONScanDiffResultSchema
+from ggshield.iac.output.schemas import (
+    IaCJSONScanDiffResultSchema,
+    IaCJSONScanResultSchema,
+)
 
 
 class IaCJSONOutputHandler(IaCOutputHandler):
@@ -11,8 +14,8 @@ class IaCJSONOutputHandler(IaCOutputHandler):
         scan_dict = IaCJSONOutputHandler.create_scan_dict(scan)
         text = IaCJSONScanResultSchema().dumps(scan_dict)
         return cast(str, text)
-    
-    def _process_diff_scan_impl(self, scan: IaCDiffScanCollection):
+
+    def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
         scan_dict = IaCJSONOutputHandler.create_diff_scan_dict(scan)
         text = IaCJSONScanDiffResultSchema().dumps(scan_dict)
         return cast(str, text)
@@ -37,8 +40,8 @@ class IaCJSONOutputHandler(IaCOutputHandler):
         return scan_dict
 
     @staticmethod
-    def create_diff_scan_dict(scan: IaCDiffScanCollection):
-        ret = {
+    def create_diff_scan_dict(scan: IaCDiffScanCollection) -> Dict[str, Any]:
+        ret: Dict[str, Any] = {
             "added_vulns": [],
             "persisting_vulns": [],
             "removed_vulns": [],

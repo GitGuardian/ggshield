@@ -221,18 +221,26 @@ def file_info(filename: str, incident_count: int) -> str:
         pluralize("incident", incident_count, "incidents"),
     )
 
-def file_diff_info(filename: str, new_incident_count: int, persisting_incident_count: int, deleted_incident_count: int) -> str:
+
+def file_diff_info(
+    filename: str,
+    new_incident_count: int,
+    persisting_incident_count: Optional[int],
+    deleted_incident_count: Optional[int],
+) -> str:
     """Return the formatted file info (number of incidents + filename)."""
     incidents_count = [
         f"{new_incident_count} new {pluralize('incident', new_incident_count, 'incidents')} detected",
     ]
     if deleted_incident_count or persisting_incident_count:
-        incidents_count.extend([
-            f"{deleted_incident_count} deleted",
-            f"{persisting_incident_count} remaining"
-        ])
+        incidents_count.extend(
+            [
+                f"{deleted_incident_count} deleted",
+                f"{persisting_incident_count} remaining",
+            ]
+        )
     return "\n{} {}: {}\n".format(
         format_text(">", STYLE["detector_line_start"]),
         format_text(filename, STYLE["filename"]),
-        ', '.join(incidents_count),
+        ", ".join(incidents_count),
     )
