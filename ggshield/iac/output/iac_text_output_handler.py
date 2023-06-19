@@ -2,27 +2,27 @@ import shutil
 from collections import namedtuple
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, Generator, List, Optional
+from typing import ClassVar, Dict, Generator, List, Optional
 
-from pygitguardian.iac_models import IaCFileResult, IaCVulnerability, IaCScanResult
+from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
 from ggshield.core.text_utils import (
     STYLE,
     Line,
     clip_long_line,
-    file_info,
     file_diff_info,
+    file_info,
     format_text,
     get_offset,
     get_padding,
+    pluralize,
 )
 from ggshield.core.utils import Filemode, get_lines_from_content
-from ggshield.core.text_utils import pluralize
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.scan import File
-from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.iac.iac_scan_models import IaCDiffScanEntities
+from ggshield.iac.output.iac_output_handler import IaCOutputHandler
+from ggshield.scan import File
 
 
 GroupedIncidents = namedtuple(
@@ -35,7 +35,7 @@ def group_incidents_by_filename(
 ) -> Generator[GroupedIncidents, None, None]:
     keys = []
     attrs = ["new", "unchanged", "deleted"]
-    attrs_val = dict()
+    attrs_val: Dict[str, dict] = dict()
     for attr in attrs:
         attrs_val[attr] = dict()
         for entry in getattr(incidents, attr):
@@ -348,12 +348,12 @@ def no_iac_vulnerabilities() -> str:
 
 
 def diff_scan_summary(
-    new: list[IaCFileResult],
-    unchanged: list[IaCFileResult],
-    deleted: list[IaCFileResult],
+    new: List[IaCFileResult],
+    unchanged: List[IaCFileResult],
+    deleted: List[IaCFileResult],
 ) -> str:
-    def diff_scan_summary_detail(entries: list[IaCFileResult]):
-        count = dict()
+    def detail(entries: List[IaCFileResult]) -> str:
+        count: Dict[str, int] = dict()
         for entry in entries:
             for incident in entry.incidents:
                 count.setdefault(incident.severity, 0)
@@ -366,12 +366,12 @@ def diff_scan_summary(
     buf = StringIO()
     buf.write("\nSummary of changes:\n")
     buf.write(
-        f'[-] {len(deleted)} {pluralize("incident", len(deleted), "incidents")} deleted{diff_scan_summary_detail(deleted)}\n'
+        f'[-] {len(deleted)} {pluralize("incident", len(deleted), "incidents")} deleted{detail(deleted)}\n'
     )
     buf.write(
-        f'[~] {len(unchanged)} {pluralize("incident", len(unchanged), "incidents")} remaining{diff_scan_summary_detail(unchanged)}\n'
+        f'[~] {len(unchanged)} {pluralize("incident", len(unchanged), "incidents")} remaining{detail(unchanged)}\n'
     )
     buf.write(
-        f'[+] {len(new)} new {pluralize("incident", len(new), "incidents")} detected{diff_scan_summary_detail(new)}\n'
+        f'[+] {len(new)} new {pluralize("incident", len(new), "incidents")} detected{detail(new)}\n'
     )
     return buf.getvalue()

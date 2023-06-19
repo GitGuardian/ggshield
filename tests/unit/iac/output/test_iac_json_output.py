@@ -15,6 +15,7 @@ from tests.unit.conftest import (
     my_vcr,
 )
 
+
 INCIDENT_SCHEMA = validators.Schema(
     {
         "policy": str,
