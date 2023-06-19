@@ -15,6 +15,7 @@ from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
+from ggshield.cmd.sca import sca_group
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
@@ -69,6 +70,7 @@ def config_path_callback(
         "iac": iac_group,
         "honeytoken": honeytoken_group,
         "hmsl": hmsl_group,
+        "sca": sca_group,
     },
 )
 @click.option(
