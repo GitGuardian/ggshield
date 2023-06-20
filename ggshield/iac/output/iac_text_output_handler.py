@@ -116,19 +116,30 @@ class IaCTextOutputHandler(IaCOutputHandler):
             # Add iac version on output
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # Show no incidents if none
-            total_vulns_count = (
-                len(scan.result.entities_with_incidents.new)
-                + len(scan.result.entities_with_incidents.unchanged)
-                + len(scan.result.entities_with_incidents.deleted)
+            num_new = sum(
+                [len(e.incidents) for e in scan.result.entities_with_incidents.new]
             )
+            num_unchanged = sum(
+                [
+                    len(e.incidents)
+                    for e in scan.result.entities_with_incidents.unchanged
+                ]
+            )
+            num_deleted = sum(
+                [len(e.incidents) for e in scan.result.entities_with_incidents.deleted]
+            )
+            total_vulns_count = num_new + num_unchanged + num_deleted
             if total_vulns_count == 0:
                 scan_buf.write(no_iac_vulnerabilities())
             else:
                 for filename, new, unchanged, deleted in group_incidents_by_filename(
                     scan.result.entities_with_incidents
                 ):
+                    num_new = sum([len(e.incidents) for e in new])
+                    num_unchanged = sum([len(e.incidents) for e in unchanged])
+                    num_deleted = sum([len(e.incidents) for e in deleted])
                     scan_buf.write(
-                        file_diff_info(filename, len(new), len(unchanged), len(deleted))
+                        file_diff_info(filename, num_new, num_unchanged, num_deleted)
                     )
 
                     # List deleted incidents if any
