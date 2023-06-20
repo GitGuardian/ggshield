@@ -363,15 +363,19 @@ def diff_scan_summary(
             return ""
         return f" ({', '.join(formatted_count)})"
 
+    num_deleted = sum([len(entry.incidents) for entry in deleted])
+    num_unchanged = sum([len(entry.incidents) for entry in unchanged])
+    num_new = sum([len(entry.incidents) for entry in new])
+
     buf = StringIO()
     buf.write("\nSummary of changes:\n")
     buf.write(
-        f'[-] {len(deleted)} {pluralize("incident", len(deleted), "incidents")} deleted{detail(deleted)}\n'
+        f'[-] {num_deleted} {pluralize("incident", num_deleted, "incidents")} deleted{detail(deleted)}\n'
     )
     buf.write(
-        f'[~] {len(unchanged)} {pluralize("incident", len(unchanged), "incidents")} remaining{detail(unchanged)}\n'
+        f'[~] {num_unchanged} {pluralize("incident", num_unchanged, "incidents")} remaining{detail(unchanged)}\n'
     )
     buf.write(
-        f'[+] {len(new)} new {pluralize("incident", len(new), "incidents")} detected{detail(new)}\n'
+        f'[+] {num_new} new {pluralize("incident", num_new, "incidents")} detected{detail(new)}\n'
     )
     return buf.getvalue()
