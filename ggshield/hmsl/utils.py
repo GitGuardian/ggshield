@@ -1,5 +1,5 @@
 import logging
-from time import time
+import time
 from typing import Optional
 
 import jwt
@@ -81,7 +81,7 @@ def is_token_valid(token: Optional[str], audience: str) -> bool:
         if decoded["aud"] != audience:
             return False
         # Keep one minute of leeway
-        return int(decoded["exp"]) > time() + 60
+        return int(decoded["exp"]) > time.time() + 60
     except Exception:
         pass
     return False

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
 
@@ -39,27 +41,31 @@ RESULTS_CLEARTEXT_CONTENT = (
 
 
 @pytest.fixture
-def mapping(cli_fs_runner):
+def mapping_path(cli_fs_runner, tmp_path: Path):
     """Prepare a mapping file"""
+    mapping_path = tmp_path / "mapping.txt"
     secrets = ["foo", "bar", "password", "1234"]
     mapping = {hash_string(secret): secret for secret in secrets}
-    with open("mapping.txt", "w") as f:
-        f.write("\n".join(f"{key}:{value}" for key, value in mapping.items()))
-    return mapping
+    mapping_path.write_text(
+        "\n".join(f"{key}:{value}" for key, value in mapping.items())
+    )
+    return mapping_path
 
 
 @pytest.fixture
-def results(mapping):
+def results_path(mapping_path: Path):
     """Prepare a results file"""
-    with open("results.txt", "w") as f:
-        f.write(RESULTS_CONTENT)
+    results_path = mapping_path.parent / "results.txt"
+    results_path.write_text(RESULTS_CONTENT)
+    return results_path
 
 
 @pytest.fixture
-def full_hash_result(mapping):
+def full_hash_result(mapping_path: Path):
     """Prepare a results file"""
-    with open("results.txt", "w") as f:
-        f.write(RESULTS_CLEARTEXT_CONTENT)
+    results_path = mapping_path.parent / "results.txt"
+    results_path.write_text(RESULTS_CLEARTEXT_CONTENT)
+    return results_path
 
 
 @pytest.mark.parametrize(
@@ -81,54 +87,33 @@ def test_hmsl_decrypt_no_files(cli_fs_runner: CliRunner, command) -> None:
     assert_invoke_exited_with(result, 2)
 
 
-@pytest.mark.parametrize(
-    "command",
-    [
-        ["hmsl", "decrypt", "none.txt"],
-        ["hmsl", "decrypt", "-m", "none.txt", "results.txt"],
-    ],
-)
-def test_hmsl_decrypt_no_files2(
-    cli_fs_runner: CliRunner, command, mapping, results
+def test_hmsl_decrypt_default_behavior(
+    cli_fs_runner: CliRunner, mapping_path, results_path: Path
 ) -> None:
-    """
-    Same as above but with some files created
-    """
-    result = cli_fs_runner.invoke(cli, command)
-    assert_invoke_exited_with(result, 2)
-
-
-def test_hmsl_decrypt(cli_fs_runner: CliRunner, mapping, results) -> None:
-    """
-    GIVEN some secrets
-    WHEN running the decrypt command with an non-existing file
-    THEN the return code is 2
-    """
-    result = cli_fs_runner.invoke(cli, ["hmsl", "decrypt"])
-    assert_invoke_exited_with(result, 2)
-
-
-def test_hmsl_decrypt_default_behavior(cli_fs_runner: CliRunner, results) -> None:
     """
     GIVEN some secrets
     WHEN running the decrypt command on a file
     THEN the secrets are correctly decrypted
     """
-    result = cli_fs_runner.invoke(cli, ["hmsl", "decrypt", "results.txt"])
+    result = cli_fs_runner.invoke(
+        cli, ["hmsl", "decrypt", "-m", str(mapping_path), str(results_path)]
+    )
     assert_invoke_ok(result)
     assert result.output.count("> Secret ") == 1
     assert 'Secret name: "foo"' in result.output
 
 
 def test_hmsl_decrypt_full_hashes_behavior(
-    cli_fs_runner: CliRunner, full_hash_result
+    cli_fs_runner: CliRunner, mapping_path, full_hash_result: Path
 ) -> None:
     """
     GIVEN a some full hashes response
     WHEN running the decrypt command on a file
     THEN the command accepts the decrypted payloads seamlessly
     """
-    result = cli_fs_runner.invoke(cli, ["hmsl", "decrypt", "results.txt"])
+    result = cli_fs_runner.invoke(
+        cli, ["hmsl", "decrypt", "-m", str(mapping_path), str(full_hash_result)]
+    )
     assert_invoke_ok(result)
     assert result.output.count("> Secret ") == 1
     assert 'Secret name: "password"' in result.output

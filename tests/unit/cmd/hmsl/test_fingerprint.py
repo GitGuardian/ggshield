@@ -10,12 +10,18 @@ from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
 @pytest.fixture
-def secrets(cli_fs_runner):
+def secrets():
     """Prepare a file with some secrets"""
-    secrets = ["foo", "bar", "password", "1234"]
-    with open("secrets.txt", "w") as f:
-        f.write("\n".join(secrets))
-    return secrets
+    return ["foo", "bar", "password", "1234"]
+
+
+@pytest.fixture
+def secrets_path(secrets, tmp_path: Path):
+    secrets_path = tmp_path / "secrets.txt"
+    # add an empty line
+    lines = secrets[:2] + [""] + secrets[2:]
+    secrets_path.write_text("\n".join(lines))
+    return secrets_path
 
 
 def test_hmsl_fingerprint_no_file(cli_fs_runner: CliRunner) -> None:
@@ -38,13 +44,15 @@ def test_hmsl_fingerprint_no_file_2(cli_fs_runner: CliRunner) -> None:
     assert_invoke_exited_with(result, 2)
 
 
-def test_hmsl_fingerprint_default_behavior(cli_fs_runner: CliRunner, secrets) -> None:
+def test_hmsl_fingerprint_default_behavior(
+    cli_fs_runner: CliRunner, secrets, secrets_path
+) -> None:
     """
     GIVEN some secrets
     WHEN running the fingerprint command on a file
     THEN the secrets are correctly prepared
     """
-    result = cli_fs_runner.invoke(cli, ["hmsl", "fingerprint", "secrets.txt"])
+    result = cli_fs_runner.invoke(cli, ["hmsl", "fingerprint", str(secrets_path)])
     assert_invoke_ok(result)
     # Payload is a set of prefixes
     prepared = set(open("payload.txt").read().split("\n")) - {""}
@@ -56,21 +64,25 @@ def test_hmsl_fingerprint_default_behavior(cli_fs_runner: CliRunner, secrets) ->
     assert all("*" in name for name in mapping.values())
 
 
-def test_hmsl_fingerprint_full_hashes(cli_fs_runner: CliRunner, secrets) -> None:
+def test_hmsl_fingerprint_full_hashes(
+    cli_fs_runner: CliRunner, secrets, secrets_path
+) -> None:
     """
     GIVEN some secrets
     WHEN running the fingerprint command on a file
          with the --full-hashes flag
     THEN the payload contains hashes
     """
-    result = cli_fs_runner.invoke(cli, ["hmsl", "fingerprint", "-f", "secrets.txt"])
+    result = cli_fs_runner.invoke(cli, ["hmsl", "fingerprint", "-f", str(secrets_path)])
     assert_invoke_ok(result)
     # Payload is a set of prefixes
     prepared = set(open("payload.txt").read().split("\n")) - {""}
     assert {hash_string(secret) for secret in secrets} == prepared
 
 
-def test_hmsl_fingerprint_cleartext(cli_fs_runner: CliRunner, secrets) -> None:
+def test_hmsl_fingerprint_cleartext(
+    cli_fs_runner: CliRunner, secrets, secrets_path
+) -> None:
     """
     GIVEN some secrets
     WHEN running the fingerprint command on a file
@@ -78,7 +90,7 @@ def test_hmsl_fingerprint_cleartext(cli_fs_runner: CliRunner, secrets) -> None:
     THEN the mapping contains the secrets
     """
     result = cli_fs_runner.invoke(
-        cli, ["hmsl", "fingerprint", "-n", "cleartext", "secrets.txt"]
+        cli, ["hmsl", "fingerprint", "-n", "cleartext", str(secrets_path)]
     )
     assert_invoke_ok(result)
     # Payload is a set of prefixes
@@ -87,7 +99,7 @@ def test_hmsl_fingerprint_cleartext(cli_fs_runner: CliRunner, secrets) -> None:
     assert names == set(secrets)
 
 
-def test_hmsl_fingerprint_none(cli_fs_runner: CliRunner, secrets) -> None:
+def test_hmsl_fingerprint_none(cli_fs_runner: CliRunner, secrets, secrets_path) -> None:
     """
     GIVEN some secrets
     WHEN running the fingerprint command on a file
@@ -95,7 +107,7 @@ def test_hmsl_fingerprint_none(cli_fs_runner: CliRunner, secrets) -> None:
     THEN the mapping only contains hashes
     """
     result = cli_fs_runner.invoke(
-        cli, ["hmsl", "fingerprint", "-n", "none", "secrets.txt"]
+        cli, ["hmsl", "fingerprint", "-n", "none", str(secrets_path)]
     )
     assert_invoke_ok(result)
     # Payload is a set of prefixes
@@ -106,7 +118,7 @@ def test_hmsl_fingerprint_none(cli_fs_runner: CliRunner, secrets) -> None:
     "prefix, expected", [("toto", "toto-"), ("toto-", "toto-"), ("", "")]
 )
 def test_hmsl_fingerprint_prefix(
-    cli_fs_runner: CliRunner, secrets, prefix, expected
+    cli_fs_runner: CliRunner, secrets_path, prefix, expected
 ) -> None:
     """
     GIVEN some secrets
@@ -115,7 +127,7 @@ def test_hmsl_fingerprint_prefix(
     THEN the output files have the proper name
     """
     result = cli_fs_runner.invoke(
-        cli, ["hmsl", "fingerprint", "-p", prefix, "secrets.txt"]
+        cli, ["hmsl", "fingerprint", "-p", prefix, str(secrets_path)]
     )
     assert_invoke_ok(result)
     assert Path(f"{expected}payload.txt").exists()

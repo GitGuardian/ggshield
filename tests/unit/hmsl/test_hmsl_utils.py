@@ -1,3 +1,4 @@
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -5,7 +6,7 @@ from pygitguardian.client import GGClient
 from pygitguardian.models import JWTResponse
 
 from ggshield.core.config.config import Config
-from ggshield.hmsl.utils import get_token, load_token_from_disk
+from ggshield.hmsl.utils import get_token, is_token_valid, load_token_from_disk
 
 
 @pytest.fixture
@@ -58,3 +59,59 @@ def test_get_token(isolated_fs, create_jwt_mock: MagicMock):
     token = get_token(config)
     create_jwt_mock.assert_called_once()
     assert token == "dummy_token"
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "foo",
+        (
+            "eyJhbGciOiJSUzI1NiIsImtpZCI6Im1haW5fa2V5IiwidHlwIjoiSldUIn0.eyJzdWIiOjEsInRva2VuX2lkIjoi"
+            "ZWFkNDg0MGMtN2FkNC00MTdmLWE3ZjItZGY3ZjY1YjQzMDI5IiwiYXVkIjoiaHR0cHM6Ly9oYXNteXNlY3JldGxl"
+            "YWtlZDIuZ2l0Z3VhcmRpYW4uY29tIiwiaXNzIjoiaHR0cHM6Ly9kYXNoYm9hcmQuZ2l0Z3VhcmRpYW4uY29tIiwi"
+            "aWF0IjoxNjgwMDAwMDAwLCJleHAiOjE2ODAwMDAxMDAsImhtc2xfcXVvdGEiOjEwMDAwMDAwLCJtZW1iZXJfaWQi"
+            "OjQyfQ.BYkiuwBVUBjdma3fYfh4c6KKpbkxHc33nUbXrzT4AzETn5hyHMdns5QFyAYKUBPn0A9e4uEuPG59s0xa_"
+            "TbfA_xzgCNeRtVtHR8Z464zLXlG6xtYMjsIi22P_NJSCEAzYRg3f1grWARwPUh6_DPLvNnpwL_2loFM89DdD-RQh"
+            "hxAloJ5dQs9XEBH3pMku7Z81nlF45kaVOPm_vDsBAvFXETjxpgBRbNPbqoday6MmfueOE1IlGmgso61ObaNTPNt4"
+            "tq_t3Wj3V1JL5hBayYQJVJRE3HzDASZ6qPpgy74vwMLBbgSVFsfuimT0ouWlhhkQXhXVaretWByNCtIyIx6vA"
+        ),
+        (
+            "eyJhbGciOiJSUzI1NiIsImtpZCI6Im1haW5fa2V5IiwidHlwIjoiSldUIn0.eyJzdWIiOjEsInRva2VuX2lkIjoiZWF"
+            "kNDg0MGMtN2FkNC00MTdmLWE3ZjItZGY3ZjY1YjQzMDI5IiwiYXVkIjoiaHR0cHM6Ly9oYXNteXNlY3JldGxlYWtlZC"
+            "5naXRndWFyZGlhbi5jb20iLCJpc3MiOiJodHRwczovL2Rhc2hib2FyZC5naXRndWFyZGlhbi5jb20iLCJpYXQiOjE2N"
+            "zAwMDAwMDAsImV4cCI6MTY3NTAwMDAwMCwiaG1zbF9xdW90YSI6MTAwMDAwMDAsIm1lbWJlcl9pZCI6NDJ9.imU1m_z"
+            "Ddx8x50KwAKDfvyYke8avWUimairYnzMCT3CsaoYrgrBJt5vsYTkHkm7feLBwgC8rzjoHL_4j8TiqJJ1TF5x1ryxoBY"
+            "wPlqnhAVYVWggvRooAmZg7eLYtnygFdrhc4M20bbJM_MB54kPbrqVRcfx3TQjga8IQX4Mb2irjafXXnga_ji5yPtRiA"
+            "u7_kn5XtxypoKoUOT9o_E2sBchnmXkrYOV8zXozWfbrbiHymNzSsJM_8uuK9DHGlkUzTo7G3Ek8iRvyd7qdDU1mBEuG"
+            "M9f1jAJ_j6jwiEZuT5tCWq7MtA8DZVIDB4wKn2fyZkGbuyhZLpUtg5brpPP1Vg"
+        ),
+    ],
+)
+def test_bad_token_validation(token, monkeypatch):
+    """
+    GIVEN an invalid token
+    WHEN validating it
+    THEN we receive False
+    """
+    monkeypatch.setattr(time, "time", lambda: 1680000001)
+    assert is_token_valid(token, "https://hasmysecretleaked.gitguardian.com") is False
+
+
+def test_good_token_validation(monkeypatch):
+    """
+    GIVEN a valid token
+    WHEN validating it
+    THEN we receive True
+    """
+    token = (
+        "eyJhbGciOiJSUzI1NiIsImtpZCI6Im1haW5fa2V5IiwidHlwIjoiSldUIn0.eyJzdWIiOjEsInRva2VuX2lkIjoiZWFk"
+        "NDg0MGMtN2FkNC00MTdmLWE3ZjItZGY3ZjY1YjQzMDI5IiwiYXVkIjoiaHR0cHM6Ly9oYXNteXNlY3JldGxlYWtlZC5n"
+        "aXRndWFyZGlhbi5jb20iLCJpc3MiOiJodHRwczovL2Rhc2hib2FyZC5naXRndWFyZGlhbi5jb20iLCJpYXQiOjE2ODAw"
+        "MDAwMDAsImV4cCI6MTY4MDAwMTAwMCwiaG1zbF9xdW90YSI6MTAwMDAwMDAsIm1lbWJlcl9pZCI6NDJ9.bJT7gxGtL2r"
+        "mENKSFk7AxyFPesZpo4hIIkyTf30n88BxtPEhPPoX6xZZTBnSGAMjbye4hZ8L0_-7A7hcQAL-0qPv4F6NBB39MiaKG_l"
+        "aURz15qG70hwfaeANM-IQILrkK1qr1Ir4hV8EVqXsLWFFKocWnq-fTkBqF2Qq9MkXjKxPv9Yq2nfRMCBPkVmENkP5VfJ"
+        "MhiHiVIaDo3Fb9CuQ_BYkU5h5iG8QQWdI2aiM_86mTqpS3PFaJCQY6R2cxVGFEBm7TsxT3RjQ8afWteNs5zXaKz5y7U0"
+        "xYC6_0VRyN66IxCL88NM6HeFO3tjHjD9roql853f8StxbcfbUSdCiXg"
+    )
+    monkeypatch.setattr(time, "time", lambda: 1680000001)
+    assert is_token_valid(token, "https://hasmysecretleaked.gitguardian.com")
