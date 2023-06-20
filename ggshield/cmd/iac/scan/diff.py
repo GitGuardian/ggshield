@@ -17,6 +17,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 from ggshield.core.clickutils.option_group import OptionGroup
 from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF
+from ggshield.core.text_utils import display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.iac_scan_models import (
     IaCDiffScanResult,
@@ -82,6 +83,10 @@ def scan_diff_cmd(
     """
     Scan all changes made since the provided Git ref for IaC vulnerabilities.
     """
+    display_warning(
+        "This feature is still in beta, its behavior may change in future versions."
+    )
+
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
