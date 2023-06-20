@@ -1,10 +1,14 @@
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import marshmallow_dataclass
+import requests
 from pygitguardian import GGClient
-from pygitguardian.iac_models import IaCFileResult, IaCScanParameters
+from pygitguardian.iac_models import (
+    IaCFileResult,
+    IaCScanParameters,
+    IaCScanParametersSchema,
+)
 from pygitguardian.models import Base, BaseSchema, Detail
 
 from ggshield.core.client import create_session
@@ -47,21 +51,27 @@ class MockClient(GGClient):
         scan_parameters: IaCScanParameters,
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> Union[Detail, IaCDiffScanResult]:
-        scan = self.iac_directory_scan(
-            Path("."),
-            [],
-            scan_parameters,
-            extra_headers,
-        )
-        if isinstance(scan, Detail):
-            return scan
-        result = IaCDiffScanResult(
-            scan.id,
-            scan.type,
-            scan.iac_engine_version,
-            entities_with_incidents=IaCDiffScanEntities([], [], []),
-        )
-        result.status_code = 200
+        result: Union[Detail, IaCDiffScanResult]
+
+        try:
+            resp = self.post(
+                endpoint="iac_diff_scan",
+                extra_headers=extra_headers,
+                files={
+                    "reference": reference,
+                    "current": current,
+                },
+                data={
+                    "scan_parameters": IaCScanParametersSchema().dumps(scan_parameters),
+                },
+            )
+        except requests.exceptions.ReadTimeout:
+            result = Detail("The request timed out.")
+            result.status_code = 504
+        else:
+            result = IaCDiffScanResultSchema().load(resp.json())
+            result.status_code = resp.status_code
+
         return result
 
 
