@@ -1,5 +1,7 @@
 from typing import Any, Dict, cast
 
+from pygitguardian.iac_models import IaCFileResult
+
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
@@ -47,11 +49,18 @@ class IaCJSONOutputHandler(IaCOutputHandler):
             "removed_vulns": [],
         }
 
+        def file_result_transform(file_result: IaCFileResult) -> Dict[str, Any]:
+            return dict(
+                filename=file_result.filename,
+                incidents=file_result.incidents,
+                total_incidents=len(file_result.incidents),
+            )
+
         if scan.result is not None:
-            for incident in scan.result.entities_with_incidents.new:
-                ret["added_vulns"].append(incident)
-            for incident in scan.result.entities_with_incidents.unchanged:
-                ret["persisting_vulns"].append(incident)
-            for incident in scan.result.entities_with_incidents.deleted:
-                ret["removed_vulns"].append(incident)
+            for file_result in scan.result.entities_with_incidents.new:
+                ret["added_vulns"].append(file_result_transform(file_result))
+            for file_result in scan.result.entities_with_incidents.unchanged:
+                ret["persisting_vulns"].append(file_result_transform(file_result))
+            for file_result in scan.result.entities_with_incidents.deleted:
+                ret["removed_vulns"].append(file_result_transform(file_result))
         return ret
