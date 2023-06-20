@@ -9,7 +9,7 @@ from tests.repository import Repository
 from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
 
 
-@my_vcr.use_cassette("test_iac_scan_no_argument")
+@my_vcr.use_cassette("test_iac_scan_diff_no_argument")
 def test_scan_diff_no_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
     """
     GIVEN a repository
@@ -27,7 +27,7 @@ def test_scan_diff_no_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
         assert result.exit_code == ExitCode.SUCCESS
 
 
-@my_vcr.use_cassette("test_iac_scan_no_argument")
+@my_vcr.use_cassette("test_iac_scan_diff_valid_args")
 def test_scan_diff_valid_args(tmp_path, cli_fs_runner: CliRunner) -> None:
     """
     GIVEN a repository and valid arguments to the iac scan diff command
