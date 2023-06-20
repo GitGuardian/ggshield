@@ -19,7 +19,8 @@ from ggshield.cmd.hmsl.quota import quota_cmd
         "query": query_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
-    }
+    },
+    hidden=True,
 )
 @add_common_options()
 def hmsl_group(**kwargs: Any) -> None:
