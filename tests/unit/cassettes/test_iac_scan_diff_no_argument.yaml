@@ -1,0 +1,73 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS1kMmVlMWFiOTA2NDVlYjExMWJlM2JkMDA0ZDcwYjg4Yw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
+        oa+RZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZDJlZTFhYjkwNjQ1
+        ZWIxMTFiZTNiZDAwNGQ3MGI4OGMNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAoa+RZAL/7cEBDQAAAMKg909t
+        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZDJlZTFhYjkwNjQ1ZWIxMTFiZTNiZDAwNGQ3MGI4
+        OGMtLQ0K
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '348'
+        Content-Type:
+          - multipart/form-data; boundary=d2ee1ab90645eb111be3bd004d70b88c
+        GGShield-Command-Id:
+          - 0eebf2f4-c1c4-4c06-9b93-8cd1b2ec6648
+        GGShield-Command-Path:
+          - cli iac scan diff
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '20.04'
+        GGShield-Python-Version:
+          - 3.10.11
+        GGShield-Version:
+          - 1.16.0
+        User-Agent:
+          - pygitguardian/1.7.0 (Linux;py3.10.11) ggshield
+        mode:
+          - diff
+      method: POST
+      uri: https://api.gitguardian.com/v1/iac_diff_scan
+    response:
+      body:
+        string: '{"id":"4c844d6c-64d8-4715-bbc1-28ca30d7fff4","iac_engine_version":"1.8.0","type":"diff_scan","entities_with_incidents":{"unchanged":[],"deleted":[],"new":[]}}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Content-Length:
+          - '158'
+        Content-Type:
+          - application/json
+        Cross-Origin-Opener-Policy:
+          - same-origin
+        Date:
+          - Tue, 20 Jun 2023 13:54:43 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - WSGIServer/0.2 CPython/3.10.12
+        Vary:
+          - Cookie
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-Secrets-Engine-Version:
+          - 2.91.0
+      status:
+        code: 200
+        message: OK
+version: 1
