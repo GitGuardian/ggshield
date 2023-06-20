@@ -117,7 +117,3 @@ def show_results(
     else:
         for i, secret in enumerate(data):
             click.echo(TEMPLATE.format(number=i + 1, **secret))
-    # safe = len(names) - len(secrets)
-    # display_info(
-    #     f"{safe} {pluralize('secret', safe)} have not been found in public repositories."
-    # )

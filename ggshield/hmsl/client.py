@@ -3,9 +3,11 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Union, cast, overload
+from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import requests
+
+from ggshield.core.utils import batched
 
 from .crypto import decrypt, make_hint
 
@@ -84,69 +86,39 @@ class HMSLClient:
         except requests.exceptions.RequestException:
             return False
 
-    # Note: these overloads don't perfectly match the implementation,
-    # especially since we don't have Literal annotations in Python 3.7.
-    # But it's good enough for our usage in ggshield.
-    @overload
-    def check(self, hashes: Iterable[str]) -> Iterator[Secret]:
-        ...
-
-    @overload
-    def check(self, hashes: Iterable[str], *, full_hashes: bool) -> Iterator[Secret]:
-        ...
-
-    @overload
     def check(
-        self, hashes: Iterable[str], *, full_hashes: bool, decrypt: bool
-    ) -> Iterator[Match]:
-        ...
-
-    def check(  # type: ignore
-        self, hashes: Iterable[str], *, full_hashes: bool = False, decrypt: bool = True
-    ):
+        self, hashes: Iterable[str], *, full_hashes: bool = False
+    ) -> Iterable[Secret]:
         """Check a batch of hashes.
         Supports prefix or full hashes mode.
-        In case of prefix mode, the results are decrypted by default,
-        but the raw results are returned if `decrypt` is set to False.
-        (this is useful to support the fingerprint/check/decrypt workflow)
-
-        In the case where decrypt is set to False,
-        `hashes` can in fact be prefixes by convenience.
-        Hashes (or prefixes) are truncated to the prefix length anyway
-        so that we never send more data than expected to our servers.
 
         Raises a ValueError if a hash is invalid.
         """
         batch_size = HASHES_BATCH_SIZE if full_hashes else PREFIXES_BATCH_SIZE
-        batch: List[str] = []
-        for hash in hashes:
-            # Validation
-            if not HASH_REGEX.match(hash):
-                if full_hashes or decrypt or not PREFIX_REGEX.match(hash):
-                    raise ValueError(f"Invalid hash: {hash}")
-            batch.append(hash)
-            if len(batch) >= batch_size:
-                yield from self._check_batch(batch, full_hashes, decrypt)
-                batch = []
-        if len(batch) > 0:
-            yield from self._check_batch(batch, full_hashes, decrypt)
+        for batch in batched(hashes, batch_size):
+            if full_hashes:
+                yield from self.check_hashes(batch).secrets
+            else:
+                hints = {make_hint(hash): hash for hash in batch}
+                for match in self.check_prefixes(batch).matches:
+                    if match.hint in hints:
+                        hash = hints[match.hint]
+                        yield match.decrypt(hash)
 
-    def _check_batch(
-        self, batch: List[str], full_hashes: bool, decrypt: bool = True
-    ) -> Iterator[Union[Secret, Match]]:
-        if full_hashes:
-            yield from self.check_hashes(batch).secrets
-            return
-        response = self.check_prefixes(batch)
-        if decrypt:
-            # Compute hints and decrypt secrets
-            hints = {make_hint(hash): hash for hash in batch}
-            for match in response.matches:
-                if match.hint in hints:
-                    hash = hints[match.hint]
-                    yield match.decrypt(hash)
-        else:
-            yield from response.matches
+    def query(
+        self, hashes: Iterable[str], *, full_hashes: bool = False
+    ) -> Iterable[Union[Secret, Match]]:
+        """Check a batch of hashes.
+        Don't decrypt payloads, return them as is.
+        This is mostly useful for the `hmsl query` command,
+        clients should use check() instead.
+        """
+        batch_size = HASHES_BATCH_SIZE if full_hashes else PREFIXES_BATCH_SIZE
+        for batch in batched(hashes, batch_size):
+            if full_hashes:
+                yield from self.check_hashes(batch).secrets
+            else:
+                yield from self.check_prefixes(batch).matches
 
     def check_hashes(self, hashes: List[str]) -> SecretsResponse:
         """Audit a batch of full hashes."""

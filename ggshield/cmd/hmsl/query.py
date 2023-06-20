@@ -40,7 +40,7 @@ def query_cmd(
 
     # Send the hashes to the API
     try:
-        for result in client.check(payload, full_hashes=full_hashes, decrypt=False):
+        for result in client.query(payload, full_hashes=full_hashes):
             line = json.dumps(asdict(result))
             click.echo(line)
     except (ValueError, HTTPError) as error:

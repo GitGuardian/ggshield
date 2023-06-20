@@ -3,7 +3,8 @@ import os
 import re
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional
+from itertools import islice
+from typing import Iterable, List, NamedTuple, Optional, TypeVar
 from urllib.parse import ParseResult, urlparse
 
 from click import UsageError
@@ -338,3 +339,16 @@ def datetime_from_isoformat(text: str) -> datetime:
     if text.endswith("Z"):
         text = text[:-1] + "+00:00"
     return datetime.fromisoformat(text)
+
+
+T = TypeVar("T")
+
+
+def batched(iterable: Iterable[T], batch_size: int) -> Iterable[List[T]]:
+    it = iter(iterable)
+    while True:
+        batch = list(islice(it, batch_size))
+        if batch:
+            yield batch
+        else:
+            return

@@ -47,7 +47,7 @@ def get_token(config: Config) -> Optional[str]:
         )
         audience = config.hmsl_audience
     except (MissingTokenError, AuthExpiredError):
-        logger.debug("No API key found, using HMSL anonymously")
+        logger.debug("No API key found, using HMSL anonymously.")
         return None
     except UnknownInstanceError as e:
         logger.warning(f"Unknown instance {e.instance}, using HMSL anonymously.")

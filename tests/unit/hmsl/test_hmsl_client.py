@@ -96,12 +96,10 @@ def test_hmsl_client_decode_response(hmsl_client: HMSLClient):
     """
     GIVEN a HMSL client
     WHEN a response is received
-    THEN the response is decoded
+    THEN the response is properly decrypted
     """
     with mock.patch("ggshield.hmsl.HMSLClient._query", return_value=SAMPLE_RESPONSE):
-        response = list(
-            hmsl_client.check(SAMPLE_QUERY, full_hashes=False, decrypt=True)
-        )
+        response = list(hmsl_client.check(SAMPLE_QUERY, full_hashes=False))
     assert len(response) == 1
     secret = response[0]
     assert secret.count == 42
