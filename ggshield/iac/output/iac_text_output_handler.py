@@ -1,4 +1,5 @@
 import shutil
+from collections import defaultdict
 from io import StringIO
 from pathlib import Path
 from typing import ClassVar, Dict, Generator, List, NamedTuple, Optional
@@ -35,7 +36,11 @@ def group_incidents_by_filename(
     incidents: IaCDiffScanEntities,
 ) -> Generator[GroupedIncidents, None, None]:
     filenames = []
-    statuses: Dict[str, dict] = {"new": {}, "unchanged": {}, "deleted": {}}
+    statuses: Dict[str, dict] = {
+        "new": defaultdict(list),
+        "unchanged": defaultdict(list),
+        "deleted": defaultdict(list),
+    }
     for status in statuses.keys():
         for entry in getattr(incidents, status):
             filename = entry.filename
