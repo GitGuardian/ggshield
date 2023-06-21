@@ -1,8 +1,8 @@
 import shutil
-from collections import namedtuple
+from collections import defaultdict
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, Dict, Generator, List, Optional
+from typing import ClassVar, Dict, Generator, List, NamedTuple, Optional
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
@@ -25,30 +25,34 @@ from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.scan import File
 
 
-GroupedIncidents = namedtuple(
-    "GroupedIncidents", ["name", "new", "unchanged", "deleted"]
-)
+class GroupedIncidents(NamedTuple):
+    name: str
+    new: List[IaCFileResult]
+    unchanged: List[IaCFileResult]
+    deleted: List[IaCFileResult]
 
 
 def group_incidents_by_filename(
     incidents: IaCDiffScanEntities,
 ) -> Generator[GroupedIncidents, None, None]:
-    keys = []
-    attrs = ["new", "unchanged", "deleted"]
-    attrs_val: Dict[str, dict] = dict()
-    for attr in attrs:
-        attrs_val[attr] = dict()
-        for entry in getattr(incidents, attr):
-            key = entry.filename
-            if key not in keys:
-                keys.append(key)
-            attrs_val[attr].setdefault(key, [])
-            attrs_val[attr][key].append(entry)
-    for key in keys:
-        new = attrs_val.get("new", {}).get(key, [])
-        unchanged = attrs_val.get("unchanged", {}).get(key, [])
-        deleted = attrs_val.get("deleted", {}).get(key, [])
-        yield GroupedIncidents(key, new, unchanged, deleted)
+    filenames = []
+    statuses: Dict[str, dict] = {
+        "new": defaultdict(list),
+        "unchanged": defaultdict(list),
+        "deleted": defaultdict(list),
+    }
+    for status in statuses.keys():
+        for entry in getattr(incidents, status):
+            filename = entry.filename
+            if filename not in filenames:
+                filenames.append(filename)
+            statuses[status].setdefault(filename, [])
+            statuses[status][filename].append(entry)
+    for filename in filenames:
+        new = statuses.get("new", {}).get(filename, [])
+        unchanged = statuses.get("unchanged", {}).get(filename, [])
+        deleted = statuses.get("deleted", {}).get(filename, [])
+        yield GroupedIncidents(filename, new, unchanged, deleted)
 
 
 class IaCTextOutputHandler(IaCOutputHandler):
@@ -374,6 +378,9 @@ def diff_scan_summary(
             return ""
         return f" ({', '.join(formatted_count)})"
 
+    def label_incident(n: int) -> str:
+        return pluralize("incident", n, "incidents")
+
     num_deleted = sum([len(entry.incidents) for entry in deleted])
     num_unchanged = sum([len(entry.incidents) for entry in unchanged])
     num_new = sum([len(entry.incidents) for entry in new])
@@ -381,12 +388,12 @@ def diff_scan_summary(
     buf = StringIO()
     buf.write("\nSummary of changes:\n")
     buf.write(
-        f'[-] {num_deleted} {pluralize("incident", num_deleted, "incidents")} deleted{detail(deleted)}\n'
+        f"[-] {num_deleted} {label_incident(num_deleted)} deleted{detail(deleted)}\n"
     )
     buf.write(
-        f'[~] {num_unchanged} {pluralize("incident", num_unchanged, "incidents")} remaining{detail(unchanged)}\n'
+        f"[~] {num_unchanged} {label_incident(num_unchanged)} remaining{detail(unchanged)}\n"
     )
     buf.write(
-        f'[+] {num_new} new {pluralize("incident", num_new, "incidents")} detected{detail(new)}\n'
+        f"[+] {num_new} new {label_incident(num_new)} detected{detail(new)}\n"
     )
     return buf.getvalue()
