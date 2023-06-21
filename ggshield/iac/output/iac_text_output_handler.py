@@ -2,7 +2,7 @@ import shutil
 from collections import defaultdict
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, Dict, DefaultDict, Generator, List, NamedTuple, Optional
+from typing import ClassVar, DefaultDict, Dict, Generator, List, NamedTuple, Optional
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
