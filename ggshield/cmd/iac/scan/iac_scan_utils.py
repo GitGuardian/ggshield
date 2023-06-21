@@ -14,6 +14,7 @@ from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,
     get_staged_filepaths,
+    git,
     tar_from_ref_and_filepaths,
 )
 from ggshield.core.text_utils import display_error
@@ -50,6 +51,20 @@ def get_iac_filepaths(directory: Path, ref: str) -> Iterable[Path]:
         if ref == INDEX_REF
         else get_filepaths_from_ref(ref, str(directory))
     )
+
+
+def filter_iac_filepaths(
+    directory: Path,
+    ref: str,
+    filepaths: Iterable[Path],
+) -> Iterable[Path]:
+    filtered_filepaths = []
+
+    for filepath in filepaths:
+        filepath_content = git(["show", f"{ref}:{filepath}"], cwd=str(directory))
+        if is_file_content_iac_file(filepath, filepath_content):
+            filtered_filepaths.append(filepath)
+    return filtered_filepaths
 
 
 def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
