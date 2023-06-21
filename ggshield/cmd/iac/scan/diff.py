@@ -11,8 +11,8 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
-    get_iac_tar,
     get_iac_filepaths,
+    get_iac_tar,
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
@@ -129,9 +129,9 @@ def iac_scan_diff(
     current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
-            click.echo(f"> Scanned files in current state (staged)")
+            click.echo("> Scanned files in current state (staged)")
         else:
-            click.echo(f"> Scanned files in current state")
+            click.echo("> Scanned files in current state")
         for filepath in get_iac_filepaths(directory, current_ref):
             click.echo(f"- {click.format_filename(filepath)}", err=True)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
