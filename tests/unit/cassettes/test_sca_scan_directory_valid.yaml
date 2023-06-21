@@ -1,0 +1,82 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS1mOGI3YTIzZTM2ZWU2Y2E3ZGI4ZjUxMTRkZjE5YTg1OQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnt9DQotLWY4YjdhMjNlMzZlZTZj
+        YTdkYjhmNTExNGRmMTlhODU5DQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9
+        ImRpcmVjdG9yeSI7IGZpbGVuYW1lPSJkaXJlY3RvcnkiDQoNCh+LCAB/JaRkAv/tlc1unDAQgDnv
+        U6y45JKCjX+ASFv12GPuVbQy9jigwEJtEyWq8u6F3ShZkq3aS1K1me+AxzNje2bsEUmapF8u1d1X
+        UAZc9CaQA78aCWH8WZ71lGQ0i9Z30Tsw+qDcdHz0McmKdReaDjZUFgXPS0J4MklUUL6KkP+euu8g
+        vVO3DbiqVTtd9yG9vt6Gvm/9JPi6gdakAXzw6bhrQmpUUOllM9imhaTt9c2f9b+U+x6nuaDHI9nL
+        VEaUczG1fcaZiAgjImfRmrxn/y9r8Nrvd/Z/lB+r9US87SCo+GJ9mO5VtfL1QrPX+lplQk76mJBK
+        2DxnuRLl9DWiBA5G8bwyUoGtKiiEEEZkzFACuQHDKyYKbYCTiqsqftr44fz51OHwsj75AfR0ijwy
+        Ofg+Ng78HNTxEt+PTu/V3xaxLiPfu+5UB3Psw/3QxOev7aNrZ3MdwuAv0nR2S3p3nfqmG1o4teIW
+        XGPvt97PC4MbYeHy8DS7Wh1lGhuwamzDsuAaXGhs87rm802cyO/oPi6IJUZIo4WSahLsVGvFJC+4
+        kVqzubeAail4oSU1SplCs4xQWdqSgjE6P5Xa49Za6gzKwgqdF7IEqxW1RUmlBZNlhTElFWzax9KK
+        c64Z5ZpIAEuysiB6au14sfPV8qC4U+4GnD9cSqj73XaqqG/63frzZn3GEnn2IrT40T6v2GwykrFE
+        JPnpx3R7P4D7O/V8y6RJkiWUHKV8eFurB/xjIwiCIAiCIAiCIAiCIAiCIAiCIAiCfFh+Aq1o+bsA
+        KAAADQotLWY4YjdhMjNlMzZlZTZjYTdkYjhmNTExNGRmMTlhODU5LS0NCg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '841'
+        Content-Type:
+          - multipart/form-data; boundary=f8b7a23e36ee6ca7db8f5114df19a859
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.6)
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
+    response:
+      body:
+        string:
+          '{"scanned_files":["home/xavierblanchot/gg_tools/ggshield/tests/unit/data/Pipfile.lock"],"found_package_vulns":[{"location":"home/xavierblanchot/gg_tools/ggshield/tests/unit/data/Pipfile.lock","package_vulns":[{"package_full_name":"vyper","version":"0.2.10","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2021-41121"],"severity":"high","created_at":"2021-10-12T15:59:29Z","fixed_version":"0.3.0","summary":"Memory
+          corruption when returning a literal struct with a private call inside of it"},{"cve_ids":["CVE-2023-30837"],"severity":"high","created_at":"2023-05-05T22:22:23Z","fixed_version":"0.3.8","summary":"vyper
+          vulnerable to storage allocator overflow"},{"cve_ids":["CVE-2023-32675"],"severity":"low","created_at":"2023-05-22T20:35:46Z","fixed_version":"0.3.8","summary":"Vyper''s
+          nonpayable default functions are sometimes payable"},{"cve_ids":["CVE-2022-24788"],"severity":"high","created_at":"2022-04-20T20:31:44Z","fixed_version":"0.3.2","summary":"Buffer
+          Overflow in vyper"},{"cve_ids":["CVE-2023-32058"],"severity":"high","created_at":"2023-05-12T20:21:35Z","fixed_version":"0.3.8","summary":"Vyper
+          vulnerable to integer overflow in loop"},{"cve_ids":["CVE-2023-32059"],"severity":"high","created_at":"2023-05-12T20:21:00Z","fixed_version":"0.3.8","summary":"Vyper
+          vulnerable to incorrect ordering of arguments for kwargs passed to internal
+          calls"},{"cve_ids":["CVE-2021-41122"],"severity":"medium","created_at":"2021-10-06T17:48:46Z","fixed_version":"0.3.0","summary":"missing
+          clamps for decimal args in external functions"},{"cve_ids":[],"severity":"high","created_at":"2022-04-04T21:40:45Z","fixed_version":"0.3.2","summary":"Incorrect
+          Comparison in Vyper"},{"cve_ids":["CVE-2022-29255"],"severity":"high","created_at":"2022-06-06T21:23:58Z","fixed_version":"0.3.4","summary":"Multiple
+          evaluation of contract address in call in vyper"},{"cve_ids":["CVE-2023-31146"],"severity":"high","created_at":"2023-05-12T20:21:54Z","fixed_version":"0.3.8","summary":"Vyper
+          vulnerable to OOB DynArray access when array is on both LHS and RHS of an
+          assignment"},{"cve_ids":[],"severity":"medium","created_at":"2021-04-19T15:12:05Z","fixed_version":"0.2.12","summary":"VVE-2021-0001:
+          Memory corruption using function calls within arrays"},{"cve_ids":["CVE-2022-24845"],"severity":"high","created_at":"2022-04-22T20:24:13Z","fixed_version":"0.3.2","summary":"Integer
+          bounds error in Vyper"}]}]}]}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Content-Length:
+          - '2422'
+        Content-Type:
+          - application/json
+        Cross-Origin-Opener-Policy:
+          - same-origin
+        Date:
+          - Tue, 04 Jul 2023 13:58:23 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - WSGIServer/0.2 CPython/3.10.11
+        Vary:
+          - Cookie
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-Secrets-Engine-Version:
+          - 2.93.0
+      status:
+        code: 200
+        message: OK
+version: 1
