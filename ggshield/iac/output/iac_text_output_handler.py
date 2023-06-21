@@ -393,7 +393,5 @@ def diff_scan_summary(
     buf.write(
         f"[~] {num_unchanged} {label_incident(num_unchanged)} remaining{detail(unchanged)}\n"
     )
-    buf.write(
-        f"[+] {num_new} new {label_incident(num_new)} detected{detail(new)}\n"
-    )
+    buf.write(f"[+] {num_new} new {label_incident(num_new)} detected{detail(new)}\n")
     return buf.getvalue()
