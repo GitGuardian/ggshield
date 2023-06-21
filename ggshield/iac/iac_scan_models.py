@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import marshmallow_dataclass
 import requests
@@ -10,6 +10,7 @@ from pygitguardian.iac_models import (
     IaCScanParametersSchema,
 )
 from pygitguardian.models import Base, BaseSchema, Detail
+from requests import Response
 
 from ggshield.core.client import create_session
 from ggshield.core.config.config import Config
@@ -43,6 +44,21 @@ IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
 
 
 class MockClient(GGClient):
+    def mock_post(
+        self,
+        endpoint: str,
+        json: Optional[Dict[str, Any]] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
+    ) -> Response:
+        return self.request(
+            "post",
+            endpoint=endpoint,
+            json=json,
+            extra_headers=extra_headers,
+            **kwargs,
+        )
+
     # TODO: move this into GGClient
     def mock_api_iac_diff_scan(
         self,
@@ -54,7 +70,7 @@ class MockClient(GGClient):
         result: Union[Detail, IaCDiffScanResult]
 
         try:
-            resp = self.post(
+            resp = self.mock_post(
                 endpoint="iac_diff_scan",
                 extra_headers=extra_headers,
                 files={
