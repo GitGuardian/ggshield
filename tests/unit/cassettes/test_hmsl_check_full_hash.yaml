@@ -1,0 +1,42 @@
+interactions:
+  - request:
+      body: '{"hashes": ["743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '80'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - python-requests/2.31.0
+      method: POST
+      uri: https://hasmysecretleaked.staging.gitguardian.tech/v1/hashes
+    response:
+      body:
+        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":14,"location":{"u":"https://github.com/edly-io/devstack/commit/ccfc9c2d63c2917be60a9fd2a4c36ff3a8b9bb8c#diff-e45e45baeda1c1e73482975a664062aa56f20c03dd9d64a827aba57775bed0d3L158"}}]}'
+      headers:
+        content-length:
+          - '277'
+        content-type:
+          - application/json
+        date:
+          - Wed, 14 Jun 2023 13:16:46 GMT
+        ratelimit-limit:
+          - '500'
+        ratelimit-remaining:
+          - '478'
+        ratelimit-reset:
+          - '38592'
+        server:
+          - istio-envoy
+        x-envoy-upstream-service-time:
+          - '31'
+      status:
+        code: 200
+        message: OK
+version: 1

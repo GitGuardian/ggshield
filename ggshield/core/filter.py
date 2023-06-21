@@ -176,24 +176,28 @@ def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> b
     return any(r.search(str(PurePosixPath(Path(filepath)))) for r in exclusion_regexes)
 
 
-def censor_match(match: Match) -> str:
+def censor_string(text: str) -> str:
     """
-    censored_match censors a match value revealing only the first and last
+    Censor a string (usually a secret), revealing only the first and last
     1/6th of the match up to a maximum of MAXIMUM_CENSOR_LENGTH.
 
-    :return: match value censored
+    :return: the text censored
     """
-    len_match = len(match.match)
+    len_match = len(text)
     start_privy_len = min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
     end_privy_len = len_match - min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
 
-    censored = REGEX_MATCH_HIDE.sub("*", match.match)
+    censored = REGEX_MATCH_HIDE.sub("*", text)
 
     return str(
-        match.match[:start_privy_len]
+        text[:start_privy_len]
         + censored[start_privy_len:end_privy_len]
-        + match.match[end_privy_len:]
+        + text[end_privy_len:]
     )
+
+
+def censor_match(match: Match) -> str:
+    return censor_string(match.match)
 
 
 def censor_content(content: str, policy_breaks: List[PolicyBreak]) -> str:

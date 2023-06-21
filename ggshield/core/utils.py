@@ -3,7 +3,8 @@ import os
 import re
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, List, NamedTuple, Optional
+from itertools import islice
+from typing import Iterable, List, NamedTuple, Optional, TypeVar
 from urllib.parse import ParseResult, urlparse
 
 from click import UsageError
@@ -296,7 +297,9 @@ def api_to_dashboard_url(api_url: str, warn: bool = False) -> str:
     parsed_url = clean_url(api_url, warn=warn)
     if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
         raise UsageError(f"Invalid scheme for API URL '{api_url}', expected HTTPS")
-    if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
+    if any(
+        parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS
+    ):  # SaaS
         if parsed_url.path:
             raise UsageError(
                 f"Invalid API URL '{api_url}', got an unexpected path '{parsed_url.path}'"
@@ -336,3 +339,16 @@ def datetime_from_isoformat(text: str) -> datetime:
     if text.endswith("Z"):
         text = text[:-1] + "+00:00"
     return datetime.fromisoformat(text)
+
+
+T = TypeVar("T")
+
+
+def batched(iterable: Iterable[T], batch_size: int) -> Iterable[List[T]]:
+    it = iter(iterable)
+    while True:
+        batch = list(islice(it, batch_size))
+        if batch:
+            yield batch
+        else:
+            return

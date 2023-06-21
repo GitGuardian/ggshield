@@ -7,7 +7,7 @@ import click
 from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import get_attr_mapping, remove_url_trailing_slash
-from ggshield.core.constants import DEFAULT_INSTANCE_URL
+from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
 from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
 
@@ -153,3 +153,62 @@ class Config:
 
     def add_ignored_match(self, *args: Any, **kwargs: Any) -> None:
         return self.user_config.secret.add_ignored_match(*args, **kwargs)
+
+    @property
+    def saas_api_url(self) -> str:
+        """
+        The GIM SaaS instance (used to get JWT tokens).
+        It is not configurable, but can be overridden with the
+        GITGUARDIAN_SAAS_URL environment variable for tests.
+        """
+        return os.environ.get(
+            "GITGUARDIAN_SAAS_URL",
+            self.hmsl_url.replace("hasmysecretleaked", "api"),
+        )
+
+    @property
+    def saas_api_key(self) -> str:
+        """
+        The API key associated with the SaaS GIM instance.
+        For testing purposes, it can be overridden with the
+        GITGUARDIAN_SAAS_API_KEY environment variable.
+        """
+        try:
+            key = os.environ["GITGUARDIAN_SAAS_API_KEY"]
+            logger.debug("Using API key from $GITGUARDIAN_SAAS_API_KEY")
+        except KeyError:
+            pass
+        else:
+            return key
+        logger.debug("Using API key for SaaS instancefrom config")
+        dashboard_url = api_to_dashboard_url(self.saas_api_url)
+        return self.auth_config.get_instance_token(dashboard_url)
+
+    # Properties for HasMySecretLeaked
+    # We can't rely on the instance selected by the user,
+    # as JWT creation is only available in SaaS.
+    @property
+    def hmsl_url(self) -> str:
+        """
+        The url of the HasMySecretLeaked service
+        """
+        try:
+            url = os.environ["GITGUARDIAN_HMSL_URL"]
+            logger.debug("Using HasMySecretLeaked URL from $GITGUARDIAN_HMSL_URL")
+        except KeyError:
+            url = DEFAULT_HMSL_URL
+            logger.debug("Using default HasMySecretLeaked URL")
+        return remove_url_trailing_slash(url)
+
+    @property
+    def hmsl_audience(self) -> str:
+        """
+        The audience of our JWT tokens for HasMySecretLeaked.
+        """
+        try:
+            audience = os.environ["GITGUARDIAN_HMSL_AUDIENCE"]
+            logger.debug("Using audience from rom $GITGUARDIAN_HMSL_AUDIENCE")
+        except KeyError:
+            audience = self.hmsl_url
+            logger.debug("Using HasMySecretLeaked URL as audience")
+        return audience

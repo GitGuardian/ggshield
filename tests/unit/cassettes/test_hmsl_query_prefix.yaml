@@ -1,0 +1,42 @@
+interactions:
+  - request:
+      body: '{"prefixes": ["743d9"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '23'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - python-requests/2.31.0
+      method: POST
+      uri: https://hasmysecretleaked.staging.gitguardian.tech/v1/prefixes
+    response:
+      body:
+        string: '{"matches":[{"hint":"66395cbd35d62e8731610d5b77da9a30d200f05349e8edaf6bf34f8bc8760da3","payload":"I+apVGcgycCP+GhPFLsUfTpOdxaoRnmC54PYA4k/hziZy/AQFjpxdvfmZM3UMZ+B5UDDXhU2HAZW7O92bQ2qiew+V2H71fjP+J/tMqzKiv0V9QU5imHpDvHOEXTHak1Ssy2IOLVpDDX3uAVVuplIOV+lzmkflVCuAV58sTiQN8b29nyeVaMJPNDmwrGuvWkrt5wqD9WpOiNPYOINQwB15eCGn6Q2QtVDuK6jKrafXl8nisX85PMXSSNlKA+pTCIoniWjs7XZ41aZT8c9Q3jYoQEp"}]}'
+      headers:
+        content-length:
+          - '382'
+        content-type:
+          - application/json
+        date:
+          - Wed, 14 Jun 2023 13:14:54 GMT
+        ratelimit-limit:
+          - '500'
+        ratelimit-remaining:
+          - '489'
+        ratelimit-reset:
+          - '38705'
+        server:
+          - istio-envoy
+        x-envoy-upstream-service-time:
+          - '10'
+      status:
+        code: 200
+        message: OK
+version: 1
