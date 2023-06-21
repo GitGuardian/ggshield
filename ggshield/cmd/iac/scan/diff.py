@@ -112,9 +112,10 @@ def iac_scan_diff(
     config = ctx.obj["config"]
     client = ctx.obj["client"]
 
-    reference_tar = get_iac_tar(directory, ref)
+    exclusion_regexes = ctx.obj["exclusion_regexes"]
+    reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_ref = INDEX_REF if include_staged else "HEAD"
-    current_tar = get_iac_tar(directory, current_ref)
+    current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity

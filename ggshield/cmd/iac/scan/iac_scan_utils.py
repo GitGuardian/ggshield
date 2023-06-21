@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Type
+from re import Pattern
+from typing import Set, Type
 
 import click
 from pygitguardian import GGClient
@@ -8,6 +9,7 @@ from pygitguardian.models import Detail
 from ggshield.cmd.common_options import use_json
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError
+from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,
@@ -42,12 +44,16 @@ def handle_scan_error(client: GGClient, detail: Detail) -> None:
     display_error(str(detail))
 
 
-def get_iac_tar(directory: Path, ref: str) -> bytes:
+def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
     filepaths = (
         get_staged_filepaths(str(directory))
         if ref == INDEX_REF
         else get_filepaths_from_ref(ref, str(directory))
     )
-    return tar_from_ref_and_filepaths(
-        ref, filepaths, is_file_content_iac_file, str(directory)
-    )
+
+    def _accept_file(path: Path, content: str) -> bool:
+        return is_file_content_iac_file(path, content) and not is_filepath_excluded(
+            str(directory / path), exclusion_regexes
+        )
+
+    return tar_from_ref_and_filepaths(ref, filepaths, _accept_file, str(directory))
