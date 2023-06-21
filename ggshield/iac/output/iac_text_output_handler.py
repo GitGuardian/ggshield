@@ -33,22 +33,22 @@ GroupedIncidents = namedtuple(
 def group_incidents_by_filename(
     incidents: IaCDiffScanEntities,
 ) -> Generator[GroupedIncidents, None, None]:
-    keys = []
-    attrs = ["new", "unchanged", "deleted"]
-    attrs_val: Dict[str, dict] = dict()
-    for attr in attrs:
-        attrs_val[attr] = dict()
-        for entry in getattr(incidents, attr):
-            key = entry.filename
-            if key not in keys:
-                keys.append(key)
-            attrs_val[attr].setdefault(key, [])
-            attrs_val[attr][key].append(entry)
-    for key in keys:
-        new = attrs_val.get("new", {}).get(key, [])
-        unchanged = attrs_val.get("unchanged", {}).get(key, [])
-        deleted = attrs_val.get("deleted", {}).get(key, [])
-        yield GroupedIncidents(key, new, unchanged, deleted)
+    filenames = []
+    statuses = ["new", "unchanged", "deleted"]
+    statuses_val: Dict[str, dict] = dict()
+    for status in statuses:
+        statuses_val[status] = dict()
+        for entry in getattr(incidents, status):
+            filename = entry.filename
+            if filename not in filenames:
+                filenames.append(filename)
+            statuses_val[status].setdefault(filename, [])
+            statuses_val[status][filename].append(entry)
+    for filename in filenames:
+        new = statuses_val.get("new", {}).get(filename, [])
+        unchanged = statuses_val.get("unchanged", {}).get(filename, [])
+        deleted = statuses_val.get("deleted", {}).get(filename, [])
+        yield GroupedIncidents(filename, new, unchanged, deleted)
 
 
 class IaCTextOutputHandler(IaCOutputHandler):
