@@ -1,11 +1,23 @@
 import tarfile
 from io import BytesIO
+from pathlib import Path
 from typing import List, Tuple
 
 from pygitguardian import GGClient
+from pygitguardian.client import _create_tar
+from pygitguardian.models import Detail
 
-from ggshield.sca.client import ComputeSCAFilesResult, SCAClient, SCAScanDiffResult
+from ggshield.sca.client import SCAClient
+from ggshield.sca.sca_scan_models import (
+    ComputeSCAFilesResult,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAScanParameters,
+)
 from tests.unit.conftest import my_vcr
+
+
+current_dir = Path(__file__).parent
 
 
 PIPFILE_LOCK1 = """
@@ -77,6 +89,46 @@ class TestSCAClient:
         assert result.sca_files == ["Pipfile"]
         assert result.potential_siblings == ["Pipfile.lock"]
 
+    @my_vcr.use_cassette("test_sca_scan_directory_valid.yaml", ignore_localhost=False)
+    def test_sca_scan_directory(self, client: GGClient):
+        """
+        GIVEN a directory with a Pipfile.lock containing vulnerabilities
+        WHEN calling sca_scan_directory on this directory
+        THEN we get the expected vulnerabilities
+        """
+        sca_client = SCAClient(client)
+
+        piplock_filepath = Path(current_dir / "../data/Pipfile.lock")
+
+        tar = _create_tar(".", [piplock_filepath])
+        scan_params = SCAScanParameters()
+
+        response = sca_client.sca_scan_directory(tar, scan_params)
+        assert isinstance(response, SCAScanAllOutput)
+        assert response.status_code == 200
+        assert len(response.scanned_files) == 1
+
+        vuln_pkg = response.found_package_vulns[0].package_vulns[0]
+        assert vuln_pkg.package_full_name == "vyper"
+        assert len(vuln_pkg.vulns) == 12
+
+    @my_vcr.use_cassette(
+        "test_sca_scan_directory_invalid_tar.yaml", ignore_localhost=False
+    )
+    def test_sca_scan_directory_tar_not_valid(self, client: GGClient):
+        """
+        GIVEN an invalid tar argument
+        WHEN calling sca_scan_directory
+        THEN we get a 400 status code
+        """
+        sca_client = SCAClient(client)
+        tar = ""
+        scan_params = SCAScanParameters()
+
+        response = sca_client.sca_scan_directory(tar, scan_params)
+        assert isinstance(response, Detail)
+        assert response.status_code == 400
+
     @my_vcr.use_cassette
     def test_scan_diff(self, client: GGClient):
         sca_client = SCAClient(client)
@@ -84,5 +136,5 @@ class TestSCAClient:
             reference=make_tar_bytes(reference_files),
             current=make_tar_bytes(current_files),
         )
-        assert isinstance(result, SCAScanDiffResult), result.content
+        assert isinstance(result, SCAScanDiffOutput), result.content
         assert result.scanned_files == ["Pipfile", "Pipfile.lock"]
