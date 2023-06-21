@@ -1,6 +1,6 @@
 from pathlib import Path
 from re import Pattern
-from typing import Set, Type
+from typing import Iterable, Set, Type
 
 import click
 from pygitguardian import GGClient
@@ -44,7 +44,7 @@ def handle_scan_error(client: GGClient, detail: Detail) -> None:
     display_error(str(detail))
 
 
-def get_iac_filepaths(directory: Path, ref: str) -> bytes:
+def get_iac_filepaths(directory: Path, ref: str) -> Iterable[Path]:
     return (
         get_staged_filepaths(str(directory))
         if ref == INDEX_REF
