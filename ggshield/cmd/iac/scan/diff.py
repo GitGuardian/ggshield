@@ -128,7 +128,10 @@ def iac_scan_diff(
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
-        click.echo(f"> Scanned files in current state")
+        if include_staged:
+            click.echo(f"> Scanned files in current state (staged)")
+        else:
+            click.echo(f"> Scanned files in current state")
         for filepath in get_iac_filepaths(directory, current_ref):
             click.echo(f"- {click.format_filename(filepath)}", err=True)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
