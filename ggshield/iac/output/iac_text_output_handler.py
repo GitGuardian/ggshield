@@ -35,20 +35,18 @@ def group_incidents_by_filename(
     incidents: IaCDiffScanEntities,
 ) -> Generator[GroupedIncidents, None, None]:
     filenames = []
-    statuses = ["new", "unchanged", "deleted"]
-    statuses_val: Dict[str, dict] = dict()
-    for status in statuses:
-        statuses_val[status] = dict()
+    statuses: Dict[str, dict] = {"new": {}, "unchanged": {}, "deleted": {}}
+    for status in statuses.keys():
         for entry in getattr(incidents, status):
             filename = entry.filename
             if filename not in filenames:
                 filenames.append(filename)
-            statuses_val[status].setdefault(filename, [])
-            statuses_val[status][filename].append(entry)
+            statuses[status].setdefault(filename, [])
+            statuses[status][filename].append(entry)
     for filename in filenames:
-        new = statuses_val.get("new", {}).get(filename, [])
-        unchanged = statuses_val.get("unchanged", {}).get(filename, [])
-        deleted = statuses_val.get("deleted", {}).get(filename, [])
+        new = statuses.get("new", {}).get(filename, [])
+        unchanged = statuses.get("unchanged", {}).get(filename, [])
+        deleted = statuses.get("deleted", {}).get(filename, [])
         yield GroupedIncidents(filename, new, unchanged, deleted)
 
 
