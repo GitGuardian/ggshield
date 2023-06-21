@@ -140,6 +140,17 @@ _check_for_updates = click.option(
 )
 
 
+exit_zero_option = click.option(
+    "--exit-zero",
+    is_flag=True,
+    default=None,
+    envvar="GITGUARDIAN_EXIT_ZERO",
+    help="Always return a 0 (non-error) status code, even if incidents are found."
+    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
+    callback=create_config_callback("exit_zero"),
+)
+
+
 def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)

@@ -1,0 +1,86 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS0zOWI2NzA5Mjg2ZTJmODFjY2NkNjliN2YxYThhYzlhNg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
+        Id+aZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tMzliNjcwOTI4NmUy
+        ZjgxY2NjZDY5YjdmMWE4YWM5YTYNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAId+aZAL/7c2xCsIwGMTxzH2K
+        jzyApKXo5O7o0L2kNYVCNCVJURDf3aLg4K4O/n/LHbfcMHq3yoP6JLNY1/UjF+9pSlO9+nPfVKVR
+        YtQXzCnbuFyq/1REl8IceyfanlNrfdf6MWV3clGL7uyhdRd7nLzTci1Ephhy6IOXrehd0+x1cVMA
+        AAAAAAAAAAAAAAAAgB+4AzC8zAUAKAAADQotLTM5YjY3MDkyODZlMmY4MWNjY2Q2OWI3ZjFhOGFj
+        OWE2LS0NCg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '463'
+        Content-Type:
+          - multipart/form-data; boundary=39b6709286e2f81cccd69b7f1a8ac9a6
+        GGShield-Command-Id:
+          - ac56e0e5-6f1b-4872-b732-04bfae3d0233
+        GGShield-Command-Path:
+          - cli iac scan diff
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '20.04'
+        GGShield-Python-Version:
+          - 3.10.11
+        GGShield-Version:
+          - 1.16.0
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.11) ggshield
+        mode:
+          - diff
+      method: POST
+      uri: https://api.gitguardian.com/v1/iac_diff_scan
+    response:
+      body:
+        string:
+          '{"id":"2bb3badd-82f5-46d9-acd9-64aa92d0c714","iac_engine_version":"1.8.0","type":"diff_scan","entities_with_incidents":{"unchanged":[],"deleted":[],"new":[{"filename":"file.tf","incidents":[{"policy":"Plain
+          HTTP is used","policy_id":"GG_IAC_0001","severity":"HIGH","component":"aws_alb_listener.bad_example","line_end":3,"line_start":3,"description":"Plain
+          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0001"}]}]}}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '522'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Tue, 27 Jun 2023 13:07:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.33.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '2066'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.92.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

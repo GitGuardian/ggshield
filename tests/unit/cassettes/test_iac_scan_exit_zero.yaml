@@ -1,0 +1,87 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS0zMzNhNTg1NTVlMzEzZjg1MmVhNjcyNzY0MzJjM2ZmNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS0zMzNhNTg1NTVlMzEzZjg1MmVhNjcy
+        NzY0MzJjM2ZmNA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
+        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAGt+aZAL/7dSxasMwEAZgzX4KoQdwJFmW
+        vAQyZsyQ3cjJBQxybCSbGkrePU46tENLp6S0/b/lxN3BTb/yVb7a7Py8JX+kyB5CvvmqSlmY9/et
+        r6RWmvGZPcGURh+X8+x/0hXvxrajtbKVq5zSpcudqbRzOmPw553aQPl4euiNW6itvWdcuVJ9rHdK
+        FkwZY2xZOlPoJf+FsUv+5TPzP/gpNJRCe/5877v5L5VFSv0UD8SFf0m1D00d2jTSmaLgovHHmmbf
+        DYEEf804H2I/9oc+8DUX2/1+J7ILvgkAAAAAAAAAAAAAAAAAAACAn3QFrANbdAAoAAANCi0tMzMz
+        YTU4NTU1ZTMxM2Y4NTJlYTY3Mjc2NDMyYzNmZjQtLQ0K
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '546'
+        Content-Type:
+          - multipart/form-data; boundary=333a58555e313f852ea67276432c3ff4
+        GGShield-Command-Id:
+          - 39e51dad-d309-48d0-8f23-47dfbbbb6dd7
+        GGShield-Command-Path:
+          - cli iac scan <>
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '20.04'
+        GGShield-Python-Version:
+          - 3.10.11
+        GGShield-Version:
+          - 1.16.0
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.11) ggshield
+        mode:
+          - directory
+      method: POST
+      uri: https://api.gitguardian.com/v1/iac_scan
+    response:
+      body:
+        string:
+          '{"id":"b5d256d9-5cbe-4efa-8bf9-f9bf7d2a48e3","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[{"filename":"file.tf","incidents":[{"policy":"Plain
+          HTTP is used","policy_id":"GG_IAC_0001","severity":"HIGH","component":"aws_alb_listener.bad_example","line_end":3,"line_start":3,"description":"Plain
+          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0001"}]}]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '486'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Tue, 27 Jun 2023 13:07:40 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.33.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '1624'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.92.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
