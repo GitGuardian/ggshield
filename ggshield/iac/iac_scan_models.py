@@ -1,3 +1,5 @@
+import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
@@ -19,6 +21,7 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInsta
 
 
 # TODO: move these dataclasses into pygitguardian
+DEFAULT_API_VERSION = "v1"
 
 
 @dataclass
@@ -42,6 +45,8 @@ IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
     IaCDiffScanResult, BaseSchema
 )
 
+logger = logging.getLogger(__name__)
+
 
 class MockClient(GGClient):
     def mock_post(
@@ -51,13 +56,50 @@ class MockClient(GGClient):
         extra_headers: Optional[Dict[str, str]] = None,
         **kwargs: Any,
     ) -> Response:
-        return self.request(
+        return self.mock_request(
             "post",
             endpoint=endpoint,
             json=json,
             extra_headers=extra_headers,
             **kwargs,
         )
+
+    def mock_request(
+        self,
+        method: str,
+        endpoint: str,
+        version: Optional[str] = DEFAULT_API_VERSION,
+        extra_headers: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
+    ) -> Response:
+        url = self._url_from_endpoint(endpoint, version)
+
+        headers = (
+            {**self.session.headers, **extra_headers}
+            if extra_headers
+            else self.session.headers
+        )
+        start = time.time()
+        response: Response = self.session.request(
+            method=method, url=url, timeout=self.timeout, headers=headers, **kwargs
+        )
+        duration = time.time() - start
+        logger.debug(
+            "method=%s endpoint=%s status_code=%s duration=%f",
+            method,
+            endpoint,
+            response.status_code,
+            duration,
+        )
+
+        self.app_version: Optional[str] = response.headers.get(
+            "X-App-Version", self.app_version
+        )
+        self.secrets_engine_version: Optional[str] = response.headers.get(
+            "X-Secrets-Engine-Version", self.secrets_engine_version
+        )
+
+        return response
 
     # TODO: move this into GGClient
     def mock_api_iac_diff_scan(
