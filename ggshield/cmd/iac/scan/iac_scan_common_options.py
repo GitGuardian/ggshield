@@ -14,7 +14,11 @@ from typing import Any, Callable, Sequence
 
 import click
 
-from ggshield.cmd.common_options import add_common_options, json_option
+from ggshield.cmd.common_options import (
+    add_common_options,
+    exit_zero_option,
+    json_option,
+)
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.config import Config
 from ggshield.core.filter import init_exclusion_regexes
@@ -22,12 +26,6 @@ from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
 
 AnyFunction = Callable[..., Any]
-
-_exit_zero_option = click.option(
-    "--exit-zero",
-    is_flag=True,
-    help="Always return 0 (non-error) status code.",
-)
 
 _minimum_severity_option = click.option(
     "--minimum-severity",
@@ -77,7 +75,7 @@ directory_argument = click.argument(
 def add_iac_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
-        _exit_zero_option(cmd)
+        exit_zero_option(cmd)
         _minimum_severity_option(cmd)
         _ignore_policy_option(cmd)
         _ignore_path_option(cmd)
