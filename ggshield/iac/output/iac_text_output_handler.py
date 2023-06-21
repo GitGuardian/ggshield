@@ -1,8 +1,7 @@
 import shutil
-from collections import namedtuple
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, Dict, Generator, List, Optional
+from typing import ClassVar, Dict, Generator, List, NamedTuple, Optional
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
@@ -25,9 +24,11 @@ from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.scan import File
 
 
-GroupedIncidents = namedtuple(
-    "GroupedIncidents", ["name", "new", "unchanged", "deleted"]
-)
+class GroupedIncidents(NamedTuple):
+    name: str
+    new: List[IaCFileResult]
+    unchanged: List[IaCFileResult]
+    deleted: List[IaCFileResult]
 
 
 def group_incidents_by_filename(
