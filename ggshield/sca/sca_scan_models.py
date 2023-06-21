@@ -8,6 +8,29 @@ from typing_extensions import Literal
 
 
 @dataclass
+class SCAScanParameters(Base, FromDictMixin):
+    pass
+
+
+SCAScanParameters.SCHEMA = cast(
+    BaseSchema,
+    marshmallow_dataclass.class_schema(SCAScanParameters, base_schema=BaseSchema)(),
+)
+
+
+@dataclass
+class ComputeSCAFilesResult(Base, FromDictMixin):
+    sca_files: List[str]
+    potential_siblings: List[str]
+
+
+ComputeSCAFilesResult.SCHEMA = cast(
+    BaseSchema,
+    marshmallow_dataclass.class_schema(ComputeSCAFilesResult, base_schema=BaseSchema)(),
+)
+
+
+@dataclass
 class SCAVulnerability(Base, FromDictMixin):
     severity: str
     summary: str

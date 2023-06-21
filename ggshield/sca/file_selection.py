@@ -1,4 +1,6 @@
+import re
 from pathlib import Path
+from typing import List, Set
 
 from pygitguardian.models import Detail
 
@@ -10,6 +12,60 @@ from ggshield.core.git_shell import (
     tar_from_ref_and_filepaths,
 )
 from ggshield.sca.client import SCAClient
+from ggshield.scan import Scannable
+from ggshield.scan.file import get_files_from_paths
+
+
+# List of filepaths to ignore for SCA scans
+
+SCA_IGNORE_LIST = (
+    "__pycache__",
+    ".git",
+    ".hg",
+    ".svn",
+    ".tox",
+    ".venv",
+    "site-packages",
+    ".idea",
+    "node_modules",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".hypothesis",
+)
+
+
+def get_all_files_from_sca_paths(
+    path: Path,
+    exclusion_regexes: Set[re.Pattern],
+    verbose: bool,
+    ignore_git: bool = False,
+) -> List[str]:
+    """
+    Create a Files object from a path, recursively, ignoring non SCA files
+
+    :param path: path to scan
+    :param exclusion_regexes: list of regexes, used to exclude some filepaths
+    :param verbose: Option that displays filepaths as they are scanned
+    :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
+    """
+    files = get_files_from_paths(
+        paths=[str(path)],
+        exclusion_regexes=exclusion_regexes,
+        recursive=True,
+        yes=True,
+        verbose=verbose,
+        ignore_git=ignore_git,
+    ).apply_filter(is_not_excluded_from_sca)
+
+    return [str(x.relative_to(path)) for x in files.paths]
+
+
+def is_not_excluded_from_sca(scannable: Scannable) -> bool:
+    """
+    Returns True if file is in an SCA accepted path, which means that none of
+    the directories of the path appear in SCA_IGNORE_LIST
+    """
+    return not any(part in SCA_IGNORE_LIST for part in scannable.path.parts)
 
 
 def tar_sca_files_from_git_repo(directory: Path, ref: str, client: SCAClient) -> bytes:

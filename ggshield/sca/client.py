@@ -1,82 +1,24 @@
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Union
 
-import marshmallow_dataclass
+import requests
 from pygitguardian.client import GGClient, is_ok, load_detail
-from pygitguardian.models import Base, BaseSchema, Detail, FromDictMixin
+from pygitguardian.models import Detail
 
-
-@dataclass
-class ComputeSCAFilesResult(Base, FromDictMixin):
-    sca_files: List[str]
-    potential_siblings: List[str]
-
-
-ComputeSCAFilesResult.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(ComputeSCAFilesResult, base_schema=BaseSchema)(),
-)
-
-
-@dataclass
-class ExposedVulnerability(Base, FromDictMixin):
-    cve_ids: List[str]
-    severity: str
-    created_at: Optional[datetime]
-    fixed_version: Optional[str]
-    summary: str
-
-
-ExposedVulnerability.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(ExposedVulnerability, base_schema=BaseSchema)(),
-)
-
-
-@dataclass
-class PackageVulnerability(Base, FromDictMixin):
-    package_full_name: str
-    version: str
-    ecosystem: str
-    dependency_type: Optional[str]
-    vulns: List[ExposedVulnerability]
-
-
-PackageVulnerability.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(PackageVulnerability, base_schema=BaseSchema)(),
-)
-
-
-@dataclass
-class LocationOutput(Base, FromDictMixin):
-    location: str
-    package_vulns: List[PackageVulnerability]
-
-
-LocationOutput.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(LocationOutput, base_schema=BaseSchema)(),
-)
-
-
-@dataclass
-class SCAScanDiffResult(Base, FromDictMixin):
-    scanned_files: List[str]
-    added_vulns: List[LocationOutput]
-    removed_vulns: List[LocationOutput]
-
-
-SCAScanDiffResult.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(SCAScanDiffResult, base_schema=BaseSchema)(),
+from ggshield.sca.sca_scan_models import (
+    ComputeSCAFilesResult,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAScanParameters,
 )
 
 
 class SCAClient:
     def __init__(self, client: GGClient):
         self._client = client
+
+    @property
+    def base_uri(self):
+        return self._client.base_uri
 
     def compute_sca_files(
         self,
@@ -97,18 +39,55 @@ class SCAClient:
         result.status_code = response.status_code
         return result
 
+    def sca_scan_directory(
+        self,
+        tar_file: bytes,
+        scan_parameters: SCAScanParameters,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Detail, SCAScanAllOutput]:
+        """
+        Generates tar archive associated with filenames and launches
+        SCA scan via SCA public API.
+        """
+
+        result: Union[Detail, SCAScanAllOutput]
+
+        try:
+            # bypass self.post because data argument is needed in self.request and self.post use it as json
+            response = self._client.request(
+                "post",
+                endpoint="sca/sca_scan_all/",
+                files={"directory": tar_file},
+                data={
+                    "scan_parameters": SCAScanParameters.SCHEMA.dumps(scan_parameters)
+                },
+                extra_headers=extra_headers,
+            )
+        except requests.exceptions.ReadTimeout:
+            result = Detail("The request timed out.")
+            result.status_code = 504
+        else:
+            if is_ok(response):
+                result = SCAScanAllOutput.from_dict(response.json())
+            else:
+                result = load_detail(response)
+
+            result.status_code = response.status_code
+
+        return result
+
     def scan_diff(
         self,
         reference: bytes,
         current: bytes,
-    ) -> Union[Detail, SCAScanDiffResult]:
+    ) -> Union[Detail, SCAScanDiffOutput]:
         response = self._client.post(
             endpoint="sca/sca_scan_diff/",
             files={"reference": reference, "current": current},
         )
-        result: Union[Detail, SCAScanDiffResult]
+        result: Union[Detail, SCAScanDiffOutput]
         if is_ok(response):
-            result = SCAScanDiffResult.from_dict(response.json())
+            result = SCAScanDiffOutput.from_dict(response.json())
         else:
             result = load_detail(response)
 

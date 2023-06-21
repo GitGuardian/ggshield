@@ -15,3 +15,4 @@ class ScanMode(Enum):
     IAC_DIRECTORY = "directory"
     IAC_DIFF = "diff"
     DOCSET = "docset"
+    SCA_DIRECTORY = "sca_directory"
