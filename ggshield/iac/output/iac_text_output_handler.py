@@ -2,7 +2,7 @@ import shutil
 from collections import defaultdict
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, Dict, Generator, List, NamedTuple, Optional
+from typing import ClassVar, Dict, DefaultDict, Generator, List, NamedTuple, Optional
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
@@ -36,7 +36,7 @@ def group_incidents_by_filename(
     incidents: IaCDiffScanEntities,
 ) -> Generator[GroupedIncidents, None, None]:
     filenames = []
-    statuses: Dict[str, dict] = {
+    statuses: Dict[str, DefaultDict] = {
         "new": defaultdict(list),
         "unchanged": defaultdict(list),
         "deleted": defaultdict(list),
@@ -49,9 +49,9 @@ def group_incidents_by_filename(
             statuses[status].setdefault(filename, [])
             statuses[status][filename].append(entry)
     for filename in filenames:
-        new = statuses.get("new", {}).get(filename, [])
-        unchanged = statuses.get("unchanged", {}).get(filename, [])
-        deleted = statuses.get("deleted", {}).get(filename, [])
+        new: List[IaCFileResult] = statuses.get("new", {}).get(filename, [])
+        unchanged: List[IaCFileResult] = statuses.get("unchanged", {}).get(filename, [])
+        deleted: List[IaCFileResult] = statuses.get("deleted", {}).get(filename, [])
         yield GroupedIncidents(filename, new, unchanged, deleted)
 
 
