@@ -12,6 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     get_iac_tar,
+    get_iac_filepaths,
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
@@ -116,10 +117,20 @@ def iac_scan_diff(
 ) -> Optional[IaCDiffScanResult]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
-
     exclusion_regexes = ctx.obj["exclusion_regexes"]
+
+    verbose = config.user_config.verbose if config and config.user_config else False
+    if verbose:
+        click.echo(f"> Scanned files in reference {ref}")
+        for filepath in get_iac_filepaths(directory, ref):
+            click.echo(f"- {click.format_filename(filepath)}", err=True)
+        click.echo("")
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_ref = INDEX_REF if include_staged else "HEAD"
+    if verbose:
+        click.echo(f"> Scanned files in current state")
+        for filepath in get_iac_filepaths(directory, current_ref):
+            click.echo(f"- {click.format_filename(filepath)}", err=True)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(

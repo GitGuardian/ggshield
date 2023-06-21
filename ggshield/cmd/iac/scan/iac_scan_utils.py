@@ -44,12 +44,16 @@ def handle_scan_error(client: GGClient, detail: Detail) -> None:
     display_error(str(detail))
 
 
-def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
-    filepaths = (
+def get_iac_filepaths(directory: Path, ref: str) -> bytes:
+    return (
         get_staged_filepaths(str(directory))
         if ref == INDEX_REF
         else get_filepaths_from_ref(ref, str(directory))
     )
+
+
+def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
+    filepaths = get_iac_filepaths(directory, ref)
 
     def _accept_file(path: Path, content: str) -> bool:
         return is_file_content_iac_file(path, content) and not is_filepath_excluded(
