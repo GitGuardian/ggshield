@@ -161,9 +161,13 @@ class Config:
         It is not configurable, but can be overridden with the
         GITGUARDIAN_SAAS_URL environment variable for tests.
         """
+        if "api" in self.hmsl_url:  # case https://api.hasmysecretleaked.[...]
+            default_value = self.hmsl_url.replace("hasmysecretleaked.", "")
+        else:  # case https://hasmysecretleaked.[...]
+            default_value = self.hmsl_url.replace("hasmysecretleaked", "api")
         return os.environ.get(
             "GITGUARDIAN_SAAS_URL",
-            self.hmsl_url.replace("hasmysecretleaked", "api"),
+            default_value,
         )
 
     @property
@@ -207,7 +211,7 @@ class Config:
         """
         try:
             audience = os.environ["GITGUARDIAN_HMSL_AUDIENCE"]
-            logger.debug("Using audience from rom $GITGUARDIAN_HMSL_AUDIENCE")
+            logger.debug("Using audience from $GITGUARDIAN_HMSL_AUDIENCE")
         except KeyError:
             audience = self.hmsl_url
             logger.debug("Using HasMySecretLeaked URL as audience")
