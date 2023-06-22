@@ -147,7 +147,7 @@ def iac_scan_diff(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
     )
 
-    scan = client.mock_api_iac_diff_scan(
+    scan = client.api_iac_diff_scan(
         reference_tar,
         current_tar,
         scan_parameters,

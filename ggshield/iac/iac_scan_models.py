@@ -48,15 +48,17 @@ IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
 logger = logging.getLogger(__name__)
 
 
-class MockClient(GGClient):
-    def mock_post(
+class TmpGGClient(GGClient):
+    """Temporary class used until api_iac_diff_scan can be moved to Ggclient."""
+
+    def post(
         self,
         endpoint: str,
         json: Optional[Dict[str, Any]] = None,
         extra_headers: Optional[Dict[str, str]] = None,
         **kwargs: Any,
     ) -> Response:
-        return self.mock_request(
+        return self.request(
             "post",
             endpoint=endpoint,
             json=json,
@@ -64,7 +66,7 @@ class MockClient(GGClient):
             **kwargs,
         )
 
-    def mock_request(
+    def request(
         self,
         method: str,
         endpoint: str,
@@ -98,11 +100,10 @@ class MockClient(GGClient):
         self.secrets_engine_version: Optional[str] = response.headers.get(
             "X-Secrets-Engine-Version", self.secrets_engine_version
         )
-
         return response
 
-    # TODO: move this into GGClient
-    def mock_api_iac_diff_scan(
+    # TODO: Move this method into GGClient.
+    def api_iac_diff_scan(
         self,
         reference: bytes,
         current: bytes,
@@ -110,9 +111,8 @@ class MockClient(GGClient):
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> Union[Detail, IaCDiffScanResult]:
         result: Union[Detail, IaCDiffScanResult]
-
         try:
-            resp = self.mock_post(
+            resp = self.post(
                 endpoint="iac_diff_scan",
                 extra_headers=extra_headers,
                 files={
@@ -129,12 +129,11 @@ class MockClient(GGClient):
         else:
             result = IaCDiffScanResultSchema().load(resp.json())
             result.status_code = resp.status_code
-
         return result
 
 
 # TODO: remove this once api_iac_diff_scan is moved into GGClient
-def create_mock_client_from_config(config: Config) -> MockClient:
+def create_mock_client_from_config(config: Config) -> TmpGGClient:
     try:
         api_key = config.api_key
         api_url = config.api_url
@@ -149,7 +148,7 @@ def create_mock_client_from_config(config: Config) -> MockClient:
 
     session = create_session(allow_self_signed=config.allow_self_signed)
     try:
-        return MockClient(
+        return TmpGGClient(
             api_key=api_key,
             base_uri=api_url,
             user_agent="ggshield",
