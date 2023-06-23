@@ -32,8 +32,8 @@ def test_hmsl_default_config_values(isolated_fs, hmsl_no_env_vars):
     THEN the values are correctly set
     """
     config = Config()
-    assert config.hmsl_url == "https://api.hasmysecretleaked.gitguardian.com"
-    assert config.hmsl_audience == "https://api.hasmysecretleaked.gitguardian.com"
+    assert config.hmsl_url == "https://api.hasmysecretleaked.com"
+    assert config.hmsl_audience == "https://api.hasmysecretleaked.com"
     assert config.saas_api_url == "https://api.gitguardian.com"
 
 

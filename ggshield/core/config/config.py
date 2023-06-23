@@ -162,7 +162,7 @@ class Config:
         GITGUARDIAN_SAAS_URL environment variable for tests.
         """
         if "api" in self.hmsl_url:  # case https://api.hasmysecretleaked.[...]
-            default_value = self.hmsl_url.replace("hasmysecretleaked.", "")
+            default_value = self.hmsl_url.replace("hasmysecretleaked", "gitguardian")
         else:  # case https://hasmysecretleaked.[...]
             default_value = self.hmsl_url.replace("hasmysecretleaked", "api")
         return os.environ.get(
