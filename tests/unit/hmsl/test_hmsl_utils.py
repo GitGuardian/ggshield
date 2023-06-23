@@ -25,16 +25,31 @@ def create_jwt_mock(monkeypatch):
     return mock
 
 
-def test_hmsl_config_values(isolated_fs, hmsl_no_env_vars):
+def test_hmsl_default_config_values(isolated_fs, hmsl_no_env_vars):
     """
     GIVEN the default config
     WHEN getting HasMySecretLeaked config values
     THEN the values are correctly set
     """
     config = Config()
-    assert config.hmsl_url == "https://hasmysecretleaked.gitguardian.com"
-    assert config.hmsl_audience == "https://hasmysecretleaked.gitguardian.com"
+    assert config.hmsl_url == "https://api.hasmysecretleaked.com"
+    assert config.hmsl_audience == "https://api.hasmysecretleaked.com"
     assert config.saas_api_url == "https://api.gitguardian.com"
+
+
+def test_hmsl_other_env_config_values(isolated_fs, hmsl_no_env_vars, monkeypatch):
+    """
+    GIVEN a specific environment
+    WHEN getting HasMySecretLeaked config values
+    THEN the values are correctly set
+    """
+    monkeypatch.setenv(
+        "GITGUARDIAN_HMSL_URL", "https://hasmysecretleaked.secretdomain.net"
+    )
+    config = Config()
+    assert config.hmsl_url == "https://hasmysecretleaked.secretdomain.net"
+    assert config.hmsl_audience == "https://hasmysecretleaked.secretdomain.net"
+    assert config.saas_api_url == "https://api.secretdomain.net"
 
 
 def test_no_token(isolated_fs, hmsl_no_env_vars):

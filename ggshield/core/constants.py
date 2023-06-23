@@ -15,6 +15,6 @@ GLOBAL_CONFIG_FILENAMES = [".gitguardian", ".gitguardian.yml", ".gitguardian.yam
 LOCAL_CONFIG_PATHS = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
 DEFAULT_LOCAL_CONFIG_PATH = "./.gitguardian.yaml"
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
-DEFAULT_HMSL_URL = "https://hasmysecretleaked.gitguardian.com"
+DEFAULT_HMSL_URL = "https://api.hasmysecretleaked.com"
 AUTH_CONFIG_FILENAME = "auth_config.yaml"
 ON_PREMISE_API_URL_PATH_PREFIX = "/exposed"
