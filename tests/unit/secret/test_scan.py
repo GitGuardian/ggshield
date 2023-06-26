@@ -3,6 +3,7 @@ import platform
 from unittest.mock import ANY, Mock, patch
 
 from click import Command, Context, Group
+from pygitguardian.models import MultiScanResult, ScanResult
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
@@ -23,8 +24,19 @@ def test_cd_context_manager(tmpdir):
 
 @patch("pygitguardian.GGClient.multi_content_scan")
 def test_request_headers(scan_mock: Mock, client):
+    """
+    GIVEN a commit to scan
+    WHEN SecretScanner.scan() is called on it
+    THEN GGClient.multi_content_scan() is called with the correct values for
+    `extra_headers`
+    """
     c = Commit()
     c._patch = UNCHECKED_SECRET_PATCH
+
+    scan_result = ScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+    multi_scan_result = MultiScanResult([scan_result])
+    multi_scan_result.status_code = 200
+    scan_mock.return_value = multi_scan_result
 
     with Context(Command("bar"), info_name="bar") as ctx:
         os_name, os_version = get_os_info()

@@ -1,0 +1,32 @@
+interactions:
+  - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - python-requests/2.31.0
+      method: GET
+      uri: https://hasmysecretleaked.staging.gitguardian.tech/healthz
+    response:
+      body:
+        string: '{"msg":"ok"}'
+      headers:
+        content-length:
+          - '12'
+        content-type:
+          - application/json
+        date:
+          - Tue, 20 Jun 2023 11:48:34 GMT
+        server:
+          - istio-envoy
+        x-envoy-upstream-service-time:
+          - '2'
+      status:
+        code: 200
+        message: OK
+version: 1

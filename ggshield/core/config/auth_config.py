@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, cast
 
 import marshmallow_dataclass
+from pygitguardian.models import FromDictMixin, ToDictMixin
 
 from ggshield.core.config.utils import (
     ensure_path_exists,
@@ -108,7 +109,7 @@ def prepare_auth_config_dict_for_save(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @dataclass
-class AuthConfig:
+class AuthConfig(FromDictMixin, ToDictMixin):
     """
     Holds all declared GitGuardian instances and their tokens.
     Knows how to load and save them from the YAML file at get_auth_config_filepath().
@@ -125,14 +126,13 @@ class AuthConfig:
         data = load_yaml_dict(config_path)
         if data:
             data = prepare_auth_config_dict_for_parse(data)
-            return AuthConfigSchema().load(data)  # type: ignore
+            return cls.from_dict(data)
         return cls()
 
     def save(self) -> None:
         config_path = get_auth_config_filepath()
         ensure_path_exists(get_config_dir())
-        data = AuthConfigSchema().dump(self)
-        data = prepare_auth_config_dict_for_save(data)
+        data = prepare_auth_config_dict_for_save(self.to_dict())
         save_yaml_dict(data, config_path)
 
     def get_instance(self, instance_name: str) -> InstanceConfig:
@@ -175,4 +175,4 @@ class AuthConfig:
         return instance.account.token
 
 
-AuthConfigSchema = marshmallow_dataclass.class_schema(AuthConfig)
+AuthConfig.SCHEMA = marshmallow_dataclass.class_schema(AuthConfig)()

@@ -1,5 +1,5 @@
 SHELL :=/bin/bash
-.PHONY: all test unittest functest coverage black flake8 lint update-pipfile-lock
+.PHONY: all test unittest functest coverage black flake8 isort lint update-pipfile-lock
 .SILENT:
 
 all:
