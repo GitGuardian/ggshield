@@ -61,10 +61,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
-        if scan.result is not None and isinstance(
-            scan.result.entities_with_incidents, List
-        ):
-            # Add iac version on output
+        if scan.result and isinstance(scan.result.entities_with_incidents, List):
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # List incidents if any
             for file_result in scan.result.entities_with_incidents:
