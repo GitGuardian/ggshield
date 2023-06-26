@@ -28,7 +28,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
-        if scan.result:
+        if scan.result and isinstance(scan.result.entities_with_incidents, List):
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             for file_result in scan.result.entities_with_incidents:
                 scan_buf.write(
