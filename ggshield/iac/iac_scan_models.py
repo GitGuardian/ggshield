@@ -1,7 +1,6 @@
 import logging
-import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Union, cast
 
 import marshmallow_dataclass
 import requests
@@ -85,59 +84,6 @@ def load_detail(resp: Response) -> Detail:
 # TODO: delete this class after updating pygitguardian
 class TmpGGClient(GGClient):
     """Temporary class used until iac_diff_scan can be moved to Ggclient."""
-
-    # TODO: delete this after updating pygitguardian
-    def post(
-        self,
-        endpoint: str,
-        json: Optional[Dict[str, Any]] = None,
-        extra_headers: Optional[Dict[str, str]] = None,
-        **kwargs: Any,
-    ) -> Response:
-        return self.request(
-            "post",
-            endpoint=endpoint,
-            json=json,
-            extra_headers=extra_headers,
-            **kwargs,
-        )
-
-    # TODO: delete this after updating pygitguardian
-    def request(
-        self,
-        method: str,
-        endpoint: str,
-        version: Optional[str] = DEFAULT_API_VERSION,
-        extra_headers: Optional[Dict[str, str]] = None,
-        **kwargs: Any,
-    ) -> Response:
-        url = self._url_from_endpoint(endpoint, version)
-
-        headers = (
-            {**self.session.headers, **extra_headers}
-            if extra_headers
-            else self.session.headers
-        )
-        start = time.time()
-        response: Response = self.session.request(
-            method=method, url=url, timeout=self.timeout, headers=headers, **kwargs
-        )
-        duration = time.time() - start
-        logger.debug(
-            "method=%s endpoint=%s status_code=%s duration=%f",
-            method,
-            endpoint,
-            response.status_code,
-            duration,
-        )
-
-        self.app_version: Optional[str] = response.headers.get(
-            "X-App-Version", self.app_version
-        )
-        self.secrets_engine_version: Optional[str] = response.headers.get(
-            "X-Secrets-Engine-Version", self.secrets_engine_version
-        )
-        return response
 
     # TODO: Move this method into GGClient.
     def iac_diff_scan(
