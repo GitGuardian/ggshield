@@ -87,6 +87,8 @@ Alternatively, you can create your personal access token manually and you can st
 
 # Getting started
 
+## Secrets 
+
 You can now use `ggshield` to search for secrets:
 
 - in files: `ggshield secret scan path -r .`
@@ -95,11 +97,21 @@ You can now use `ggshield` to search for secrets:
 - in Pypi packages: `ggshield secret scan pypi flask`
 - and more, have a look at `ggshield secret scan --help` output for details.
 
+## Infrastructure-as-Code (IaC)
+
 You can also search for vulnerabilities in your IaC files using the following command:
 
 ```
-ggshield iac scan .
+ggshield iac scan all .
 ```
+
+However, if you are only interested in *new* potential IaC vulnerabilities, you can run:
+
+```
+ggshield iac scan diff --ref=HEAD~1 .
+```
+
+Have a look at `ggshield iac scan --help` for more details.
 
 # Integrations
 
