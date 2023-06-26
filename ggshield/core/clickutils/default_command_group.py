@@ -8,6 +8,7 @@ import click
 
 class DefaultCommandGroup(click.Group):
     """allow a default command for a group"""
+
     default_command: Optional[str] = None
 
     def command(self, *args: Any, **kwargs: Any) -> Any:
