@@ -4,6 +4,7 @@ from pygitguardian.iac_models import IaCFileResult
 
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
+from ggshield.iac.iac_scan_models import IaCDiffScanEntities
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.iac.output.schemas import (
     IaCJSONScanDiffResultSchema,
@@ -56,7 +57,9 @@ class IaCJSONOutputHandler(IaCOutputHandler):
                 total_incidents=len(file_result.incidents),
             )
 
-        if scan.result is not None:
+        if scan.result is not None and isinstance(
+            scan.result.entities_with_incidents, IaCDiffScanEntities
+        ):
             for file_result in scan.result.entities_with_incidents.new:
                 ret["added_vulns"].append(file_result_transform(file_result))
             for file_result in scan.result.entities_with_incidents.unchanged:

@@ -4,7 +4,7 @@ from ggshield.iac.collection.iac_scan_collection import (
     CollectionType,
     IaCScanCollection,
 )
-from ggshield.iac.iac_scan_models import IaCDiffScanResult, IaCDiffScanEntities
+from ggshield.iac.iac_scan_models import IaCDiffScanEntities, IaCDiffScanResult
 
 
 class IaCDiffScanCollection(IaCScanCollection):

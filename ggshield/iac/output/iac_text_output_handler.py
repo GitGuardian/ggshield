@@ -61,7 +61,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
-        if scan.result is not None:
+        if scan.result is not None and isinstance(
+            scan.result.entities_with_incidents, List
+        ):
             # Add iac version on output
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # List incidents if any
@@ -79,7 +81,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
     def _process_diff_scan_impl_not_verbose(self, scan: IaCDiffScanCollection) -> str:
         scan_buf = StringIO()
 
-        if scan.result is not None:
+        if scan.result is not None and isinstance(
+            scan.result.entities_with_incidents, IaCDiffScanEntities
+        ):
             # Add iac version on output
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # Show no incidents if none
@@ -114,7 +118,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
         return scan_buf.getvalue()
 
     def _process_diff_scan_impl_verbose(self, scan: IaCDiffScanCollection) -> str:
-        if scan.result is None:
+        if scan.result is None or not isinstance(
+            scan.result.entities_with_incidents, IaCDiffScanEntities
+        ):
             return ""
 
         scan_buf = StringIO()
