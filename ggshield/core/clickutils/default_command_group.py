@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 import click
 
@@ -8,7 +8,7 @@ import click
 
 class DefaultCommandGroup(click.Group):
     """allow a default command for a group"""
-    default_command: str | None = None
+    default_command: Optional[str] = None
 
     def command(self, *args: Any, **kwargs: Any) -> Any:
         default_command: bool = kwargs.pop("default_command", False)
