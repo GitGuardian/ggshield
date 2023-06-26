@@ -1,17 +1,17 @@
 interactions:
   - request:
       body: !!binary |
-        LS00M2QzMDUzOTk5NzljNDU5M2YyZDVjMTUxM2I5YzAyNw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS05YjkyZDIyZTU0MTA2Y2ZkNmUzNTZkYTI3Y2RhZmU5Nw0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        GGBrZAL/7ZjNbuMgEIB99lMgHoAAtnF7iLTHHHvobbVCxCERKjYW4E2iVd99cdps05+0VdUfpTuf
-        D2DGZi4efx6TCZn8uFCbmVYL7bMPgd5wbKS0KO7m4zqjnLEMbbJPYAhR+ZQ++z/hNWqjafWUibOy
-        rs6qipOKnlMu8gz4/hjVyKWxWraDjaZPk9+D7bRXc2NNNDqQuHyP+heiHEdWV+xwvCn/VOysLAsu
-        xHiSUZ7iIkP0M+tfrVTUajh63UvxEyX3OrjBNxphtQ4y6GbwJm7lyruhxwjP1ULqjWrTk4HRnxwh
-        vUp3hN0UocYsvJxb11wFNEU/MSW7Y0LxrxS/zq/zHD2XQPph3PdxlrjtddoRm26XDufP50p5oJTf
-        BAH/g//B/+D/kF61D+y/fQf3v8b/jBb3/c/qghXg/y/wv7JzaU2IOj0ET3m59y66xtnRzbPLywuc
-        1AtFBP4H/4P/gVP2f+c+oPN/bf9fPfC/qAX4/yv83+m4dv5KqsYe7c1v/wDsmaKlskEffhzsAzg2
-        /di6L71rZe983Ac4H3t8d7D2b3XMmtJH47rbTZS1bn3/D8B+f8YJKwgrCavgSwQAAAAAAAAAAAAA
-        AOBJ/gJaaXpKACgAAA0KLS00M2QzMDUzOTk5NzljNDU5M2YyZDVjMTUxM2I5YzAyNy0tDQo=
+        9YuZZAL/7ZhPb9sgGId99qdAfAACGNvZIVKPPfbQ21Qh7JAIFRsL8JKq6ncvTpsty9J2mvpHXd/H
+        BxDYvBfj54fJjMzOLtT2XKul9tmbQB94qqW0EL/60zijnPEMbbN3YAxR+VQ++5rwOeqi6fSCVfO6
+        ngtR1IR/Y/OyEHkG/PcY1cqVsVoG069T82O0vfaqMdbEGxJXr7X/q2q3x1ldssN2B6NFxoQQVUHL
+        uiozymnFaIboe+7/QY220cGa/vR9L81/UnKvgxt9qxFWmyCVbaQ1Ier0EmCEG7WUequ6wWqMbnOE
+        Bu+ia51FC4TPLy8vcH4Hn4nPDAH/g//B/+D/brTRDEcJwOjwChngJf8XjB35n4m6AP9/gP+Dbkef
+        kp9cezcOpxKAXqcnwq6LUGuWXjbWtdchJYLvmJLdNaP4Ks3fpXCQo+cKSD9O6/5ZJd4MesoYKZRO
+        5XD+fK1UB7Yy+B/8D/4H/s3/vXsD8/+t/8vj8z+v4Pz/Ef7vddw4fy1Va59082MC2LNAK2WDPvw5
+        sJ/AsR0mda+86+TgfNxPcD453h2M/Rydqqby0bj+cRFlrdv8ngD26zNOWEGYIKyEPxEAAAAAAAAA
+        AAAAAAAnuQeURaTmACgAAA0KLS05YjkyZDIyZTU0MTA2Y2ZkNmUzNTZkYTI3Y2RhZmU5Ny0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -20,23 +20,23 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '623'
+          - '626'
         Content-Type:
-          - multipart/form-data; boundary=43d305399979c4593f2d5c1513b9c027
+          - multipart/form-data; boundary=9b92d22e54106cfd6e356da27cdafe97
         GGShield-Command-Id:
-          - 3bc9ce4b-3dbf-41e1-a602-0c110face343
+          - 57cc3032-42f5-4110-bbfe-9f972bffec0a
         GGShield-Command-Path:
-          - cli iac scan
+          - cli iac scan all
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.6
+          - 3.10.11
         GGShield-Version:
-          - 1.15.1
+          - 1.16.0
         User-Agent:
-          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.7.0 (Linux;py3.10.11) ggshield
         mode:
           - directory
       method: POST
@@ -44,7 +44,7 @@ interactions:
     response:
       body:
         string:
-          '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
+          '{"id":"402bc71d-07a1-47aa-8723-ea96c0cf922c","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
           egress traffic might lead to remote code execution","policy_id":"GG_IAC_0002","severity":"HIGH","component":"aws_security_group.bad_example","line_end":4,"line_start":4,"description":"Open
           egress means that the asset can download data from the whole web.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0002"},{"policy":"Unrestricted
           ingress traffic leaves assets exposed to remote attacks","policy_id":"GG_IAC_0003","severity":"HIGH","component":"aws_security_group_rule.bad_example","line_end":10,"line_start":10,"description":"A
@@ -61,13 +61,13 @@ interactions:
         allow:
           - POST, OPTIONS
         content-length:
-          - '1557'
+          - '1592'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 22 May 2023 12:29:13 GMT
+          - Mon, 26 Jun 2023 13:00:39 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -79,17 +79,17 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.30.2
+          - v2.33.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '359'
+          - '1549'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.89.0
+          - 2.92.0
         x-xss-protection:
           - 1; mode=block
       status:
