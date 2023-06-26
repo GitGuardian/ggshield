@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 class TmpGGClient(GGClient):
-    """Temporary class used until api_iac_diff_scan can be moved to Ggclient."""
+    """Temporary class used until iac_diff_scan can be moved to Ggclient."""
 
     def post(
         self,
@@ -103,7 +103,7 @@ class TmpGGClient(GGClient):
         return response
 
     # TODO: Move this method into GGClient.
-    def api_iac_diff_scan(
+    def iac_diff_scan(
         self,
         reference: bytes,
         current: bytes,
@@ -127,12 +127,12 @@ class TmpGGClient(GGClient):
             result = Detail("The request timed out.")
             result.status_code = 504
         else:
-            result = IaCDiffScanResultSchema().load(resp.json())
+            result = IaCDiffScanResultSchema().from_dict(resp.json())
             result.status_code = resp.status_code
         return result
 
 
-# TODO: remove this once api_iac_diff_scan is moved into GGClient
+# TODO: remove this once iac_diff_scan is moved into GGClient
 def create_mock_client_from_config(config: Config) -> TmpGGClient:
     try:
         api_key = config.api_key
