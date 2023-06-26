@@ -30,6 +30,8 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [Updating](#updating)
 - [Initial setup](#initial-setup)
 - [Getting started](#getting-started)
+  - [Secrets](#secrets)
+  - [Infrastructure-as-Code (IaC)](#infrastructure-as-code-iac)
 - [Integrations](#integrations)
 - [Learn more](#learn-more)
 - [Output](#output)
@@ -87,7 +89,7 @@ Alternatively, you can create your personal access token manually and you can st
 
 # Getting started
 
-## Secrets 
+## Secrets
 
 You can now use `ggshield` to search for secrets:
 
@@ -105,7 +107,7 @@ You can also search for vulnerabilities in your IaC files using the following co
 ggshield iac scan all .
 ```
 
-However, if you are only interested in *new* potential IaC vulnerabilities, you can run:
+However, if you are only interested in _new_ potential IaC vulnerabilities, you can run:
 
 ```
 ggshield iac scan diff --ref=HEAD~1 .
