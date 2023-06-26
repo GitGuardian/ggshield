@@ -121,17 +121,12 @@ class IaCTextOutputHandler(IaCOutputHandler):
         # Add iac version on output
         scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
         # Show no incidents if none
-        num_new = sum(
-            [len(e.incidents) for e in scan.result.entities_with_incidents.new]
-        )
+        num_new = sum(len(e.incidents) for e in scan.result.entities_with_incidents.new)
         num_unchanged = sum(
-            [
-                len(e.incidents)
-                for e in scan.result.entities_with_incidents.unchanged
-            ]
+            len(e.incidents) for e in scan.result.entities_with_incidents.unchanged
         )
         num_deleted = sum(
-            [len(e.incidents) for e in scan.result.entities_with_incidents.deleted]
+            len(e.incidents) for e in scan.result.entities_with_incidents.deleted
         )
         total_vulns_count = num_new + num_unchanged + num_deleted
         if total_vulns_count == 0:
