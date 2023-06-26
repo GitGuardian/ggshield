@@ -3,6 +3,22 @@ from typing import Any, Optional
 
 import click
 
+from ggshield.core.text_utils import display_warning
+
+
+def display_sca_beta_warning(func):
+    """
+    Displays warning about SCA commands being in beta.
+    """
+
+    def func_with_beta_warning(*args, **kwargs):
+        display_warning(
+            "This feature is still in beta, its behavior may change in future versions."
+        )
+        return func(*args, **kwargs)
+
+    return func_with_beta_warning
+
 
 @click.group()
 @click.pass_context
@@ -27,6 +43,7 @@ def scan_group(*args, **kwargs: Any) -> None:
     help="Compare staged state instead of working state.",
 )
 @click.pass_context
+@display_sca_beta_warning
 def scan_diff_cmd(
     ctx: click.Context,
     directory: Optional[Path],
@@ -41,6 +58,7 @@ def scan_diff_cmd(
 
 @scan_group.command(name="all")
 @click.pass_context
+@display_sca_beta_warning
 def scan_all_cmd(
     ctx: click.Context,
     directory: Optional[Path],
