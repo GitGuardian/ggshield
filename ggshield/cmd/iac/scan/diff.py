@@ -17,7 +17,6 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
-from ggshield.core.client import check_client_api_key
 from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_info, display_warning
@@ -120,8 +119,6 @@ def iac_scan_diff(
     config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
-
-    check_client_api_key(client)
 
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:

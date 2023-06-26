@@ -1,14 +1,15 @@
 interactions:
   - request:
       body: !!binary |
-        LS0yZDQ4NzJhZDgxOTczZTc5ZTkwZmJjMWEwNDM0ODI0YQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1jZTg2YTQ0M2MzZDZjMjFjNjU2MDU4ODNhNzFhYWNhZg0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        FmBrZAL/7dO7bsIwGAVgz34Kyw8QbOcCC1LHjt2ryjLBIKsJQb60oIp3rwlDK1XQpUVqOZ8H/4oT
-        nyWnmBSTuwezu7dmaT35FeLk3C5EWX3Mx+dSKKkI25ErSCEan+PJbVIz1kfX27lsZtW0ntW1KFRZ
-        iqksKYF/z5lWr1xndZ+66LZ5eEndxnqzcJ2LzoYirn6i/00zdlxOa/l5P9VfSiKrqlRNI4RqiFDH
-        RZi4Zv/N2kRr0tn3vjv/o6i3YUi+tYyb16CDbZN3ca/XfkhbzvjCLLXdmT7/GZy9UcbsOn8RxpGx
-        1i29XnRD+xzYnD1yUYxrIvhTPj/QA6XsUoD26Xjv15S439p8I3ebMY7Ty1k5B1UGAAAAAAAAAAAA
-        AAAAAACAG/UOOzvp2QAoAAANCi0tMmQ0ODcyYWQ4MTk3M2U3OWU5MGZiYzFhMDQzNDgyNGEtLQ0K
+        8YuZZAL/7dPBTsMgHAZwzjwF4QE6aFm7HZZ49OjdGEI7thDbrYGiW8zeXdYdNFHnRZfovl8P/AMt
+        36VfNskmN3dmd2vN0nryK8TJV6sQhXqbj/tS5DInbEcuIIbB+BRPrlM+Y93gOruQ5ayqZkoVRSbn
+        03mezymBf8+ZRq9ca3UX28H1aXiK7cZ6U7vWDc6GbFj9RP/Lcuy4rKby/Xqqv5REKqXKQkyrMu3n
+        UpUVYeKS/e9NbGsbWrf5/L3vzv8o6m3YRt9Yxs1z0ME20bthr9d+G3vOeG2W2u5Ml/4Mzl4oY3ad
+        vgjjyFjjll7X7bZ5DGzB7rnIxmci+EM6P9ADpexcgPbxeO/HlGHf23Qjd5sxjtPzWSkHVQYAAAAA
+        AAAAAAAAAAAAAIAr9QpDQWOiACgAAA0KLS1jZTg2YTQ0M2MzZDZjMjFjNjU2MDU4ODNhNzFhYWNh
+        Zi0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -17,23 +18,23 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '456'
+          - '461'
         Content-Type:
-          - multipart/form-data; boundary=2d4872ad81973e79e90fbc1a0434824a
+          - multipart/form-data; boundary=ce86a443c3d6c21c65605883a71aacaf
         GGShield-Command-Id:
-          - a320dc8c-719b-405b-84d3-613efb153913
+          - cbaeed8a-0ca1-44b0-baf3-1009bf5b77fb
         GGShield-Command-Path:
-          - cli iac scan
+          - cli iac scan all
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.6
+          - 3.10.11
         GGShield-Version:
-          - 1.15.1
+          - 1.16.0
         User-Agent:
-          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.7.0 (Linux;py3.10.11) ggshield
         mode:
           - directory
       method: POST
@@ -41,7 +42,7 @@ interactions:
     response:
       body:
         string:
-          '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
+          '{"id":"60c5188f-16b9-4124-b88a-1a19c01f6022","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
           egress traffic might lead to remote code execution","policy_id":"GG_IAC_0002","severity":"HIGH","component":"aws_security_group.bad_example","line_end":4,"line_start":4,"description":"Open
           egress means that the asset can download data from the whole web.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0002"},{"policy":"Unrestricted
           ingress traffic leaves assets exposed to remote attacks","policy_id":"GG_IAC_0003","severity":"HIGH","component":"aws_security_group_rule.bad_example","line_end":10,"line_start":10,"description":"A
@@ -56,13 +57,13 @@ interactions:
         allow:
           - POST, OPTIONS
         content-length:
-          - '1167'
+          - '1202'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 22 May 2023 12:29:11 GMT
+          - Mon, 26 Jun 2023 13:00:35 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -74,17 +75,17 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.30.2
+          - v2.33.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '363'
+          - '1315'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.89.0
+          - 2.92.0
         x-xss-protection:
           - 1; mode=block
       status:

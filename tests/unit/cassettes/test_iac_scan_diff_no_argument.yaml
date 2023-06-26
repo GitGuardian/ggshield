@@ -1,13 +1,15 @@
 interactions:
   - request:
       body: !!binary |
-        LS1kMmVlMWFiOTA2NDVlYjExMWJlM2JkMDA0ZDcwYjg4Yw0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        oa+RZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZDJlZTFhYjkwNjQ1
-        ZWIxMTFiZTNiZDAwNGQ3MGI4OGMNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAoa+RZAL/7cEBDQAAAMKg909t
-        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZDJlZTFhYjkwNjQ1ZWIxMTFiZTNiZDAwNGQ3MGI4
-        OGMtLQ0K
+        LS04MWViZjIyMDhlZmQ2ZDZjMTFjYmJjYzMzNjk2MTAyZQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS04MWViZjIyMDhlZmQ2ZDZjMTFjYmJj
+        YzMzNjk2MTAyZQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVu
+        Y2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgAuIuZZAL/7cEBDQAAAMKg909tDjegAAAA
+        AAAAAAAAgDcDmt4dJwAoAAANCi0tODFlYmYyMjA4ZWZkNmQ2YzExY2JiY2MzMzY5NjEwMmUNCkNv
+        bnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iY3VycmVudCI7IGZpbGVuYW1lPSJj
+        dXJyZW50Ig0KDQofiwgAuIuZZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAAN
+        Ci0tODFlYmYyMjA4ZWZkNmQ2YzExY2JiY2MzMzY5NjEwMmUtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -16,17 +18,17 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '348'
+          - '495'
         Content-Type:
-          - multipart/form-data; boundary=d2ee1ab90645eb111be3bd004d70b88c
+          - multipart/form-data; boundary=81ebf2208efd6d6c11cbbcc33696102e
         GGShield-Command-Id:
-          - 0eebf2f4-c1c4-4c06-9b93-8cd1b2ec6648
+          - e86393e5-7565-4b97-911c-cf0c846db0c3
         GGShield-Command-Path:
           - cli iac scan diff
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
-          - '20.04'
+          - '22.04'
         GGShield-Python-Version:
           - 3.10.11
         GGShield-Version:
@@ -39,34 +41,42 @@ interactions:
       uri: https://api.gitguardian.com/v1/iac_diff_scan
     response:
       body:
-        string: '{"id":"4c844d6c-64d8-4715-bbc1-28ca30d7fff4","iac_engine_version":"1.8.0","type":"diff_scan","entities_with_incidents":{"unchanged":[],"deleted":[],"new":[]}}'
+        string: '{"id":"d71bf2c9-1055-4c93-9571-c8d01d62422d","iac_engine_version":"1.8.0","type":"diff_scan","entities_with_incidents":{"unchanged":[],"deleted":[],"new":[]}}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '158'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Tue, 20 Jun 2023 13:54:43 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.12
-        Vary:
+        date:
+          - Mon, 26 Jun 2023 12:59:39 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.33.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '2110'
+        x-frame-options:
           - DENY
-        X-Secrets-Engine-Version:
-          - 2.91.0
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.92.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK
