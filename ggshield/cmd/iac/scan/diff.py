@@ -16,6 +16,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     get_iac_tar,
     handle_scan_error,
 )
+from ggshield.core.text_utils import display_info
 from ggshield.core.clickutils.option_group import OptionGroup
 from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF
@@ -122,32 +123,32 @@ def iac_scan_diff(
 
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:
-        click.echo(f"> Scanned files in reference {ref}", err=True)
+        display_info(f"> Scanned files in reference {ref}")
         filepaths = filter_iac_filepaths(
             directory, ref, get_iac_filepaths(directory, ref)
         )
         for filepath in filepaths:
-            click.echo(f"- {click.format_filename(filepath)}", err=True)
-        click.echo("", err=True)
+            display_info(f"- {click.format_filename(filepath)}")
+        display_info("")
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
-            click.echo("> Scanned files in current state (staged)", err=True)
+            display_info("> Scanned files in current state (staged)")
         else:
-            click.echo("> Scanned files in current state", err=True)
+            display_info("> Scanned files in current state")
         filepaths = filter_iac_filepaths(
             directory, current_ref, get_iac_filepaths(directory, current_ref)
         )
         for filepath in filepaths:
-            click.echo(f"- {click.format_filename(filepath)}", err=True)
+            display_info(f"- {click.format_filename(filepath)}")
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
     )
 
-    scan = client.api_iac_diff_scan(
+    scan = client.iac_diff_scan(
         reference_tar,
         current_tar,
         scan_parameters,
