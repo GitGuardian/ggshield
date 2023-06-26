@@ -1,7 +1,7 @@
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import marshmallow_dataclass
 import requests
@@ -20,10 +20,12 @@ from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
 
 
-# TODO: move these dataclasses into pygitguardian
+# TODO: this file contains elements that are or should be part of pygitguardian
+
 DEFAULT_API_VERSION = "v1"
 
 
+# TODO: move this dataclass into pygitguardian
 @dataclass
 class IaCDiffScanEntities(Base):
     unchanged: List[IaCFileResult] = field(default_factory=list)
@@ -31,6 +33,7 @@ class IaCDiffScanEntities(Base):
     deleted: List[IaCFileResult] = field(default_factory=list)
 
 
+# TODO: move this dataclass into pygitguardian
 @dataclass
 class IaCDiffScanResult(Base):
     id: str = ""
@@ -41,6 +44,7 @@ class IaCDiffScanResult(Base):
     )
 
 
+# TODO: move this schema into pygitguardian
 IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
     IaCDiffScanResult, BaseSchema
 )
@@ -48,9 +52,41 @@ IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
 logger = logging.getLogger(__name__)
 
 
+# TODO: Delete this after moving iac_diff_scan into pygitguardian
+def is_ok(resp: Response) -> bool:
+    """
+    is_ok returns True is the API responded with 200
+    and the content type is JSON.
+    """
+    return (
+        resp.headers["content-type"] == "application/json" and resp.status_code == 200
+    )
+
+
+# TODO: Delete this after moving iac_diff_scan into pygitguardian
+def load_detail(resp: Response) -> Detail:
+    """
+    load_detail loads a Detail from a response
+    be it JSON or html.
+
+    :param resp: API response
+    :type resp: Response
+    :return: detail object of response
+    :rtype: Detail
+    """
+    if resp.headers["content-type"] == "application/json":
+        data = resp.json()
+    else:
+        data = {"detail": resp.text}
+
+    return cast(Detail, Detail.SCHEMA.load(data))
+
+
+# TODO: delete this class after updating pygitguardian
 class TmpGGClient(GGClient):
     """Temporary class used until iac_diff_scan can be moved to Ggclient."""
 
+    # TODO: delete this after updating pygitguardian
     def post(
         self,
         endpoint: str,
@@ -66,6 +102,7 @@ class TmpGGClient(GGClient):
             **kwargs,
         )
 
+    # TODO: delete this after updating pygitguardian
     def request(
         self,
         method: str,
@@ -127,7 +164,13 @@ class TmpGGClient(GGClient):
             result = Detail("The request timed out.")
             result.status_code = 504
         else:
-            result = IaCDiffScanResultSchema().from_dict(resp.json())
+            if is_ok(resp):
+                # IaCDiffScanResultSchema.from_dict(resp.json()) does not work for now
+                # TODO: replace load with from_dict once this is moved into pygitguardian
+                result = IaCDiffScanResultSchema().load(resp.json())
+            else:
+                result = load_detail(resp)
+
             result.status_code = resp.status_code
         return result
 

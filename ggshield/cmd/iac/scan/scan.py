@@ -13,6 +13,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     handle_scan_error,
 )
+from ggshield.core.client import check_client_api_key
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.filter import get_iac_files_from_paths
 from ggshield.scan import ScanContext, ScanMode
@@ -55,6 +56,8 @@ def iac_scan_all(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]
 
     config = ctx.obj["config"]
     client = ctx.obj["client"]
+
+    check_client_api_key(client)
 
     scan_parameters = IaCScanParameters(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
