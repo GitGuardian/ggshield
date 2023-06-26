@@ -41,7 +41,7 @@ def group_incidents_by_filename(
         "unchanged": defaultdict(list),
         "deleted": defaultdict(list),
     }
-    for status in statuses.keys():
+    for status in statuses:
         for entry in getattr(incidents, status):
             filename = entry.filename
             if filename not in filenames:
@@ -93,7 +93,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                 for filename, new, _, _ in group_incidents_by_filename(
                     scan.result.entities_with_incidents
                 ):
-                    if len(new) == 0:
+                    if not new:
                         continue
                     scan_buf.write(file_diff_info(filename, len(new), None, None))
                     # List new incidents if any
@@ -114,71 +114,72 @@ class IaCTextOutputHandler(IaCOutputHandler):
         return scan_buf.getvalue()
 
     def _process_diff_scan_impl_verbose(self, scan: IaCDiffScanCollection) -> str:
+        if scan.result is None:
+            return ""
+
         scan_buf = StringIO()
-
-        if scan.result is not None:
-            # Add iac version on output
-            scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
-            # Show no incidents if none
-            num_new = sum(
-                [len(e.incidents) for e in scan.result.entities_with_incidents.new]
-            )
-            num_unchanged = sum(
-                [
-                    len(e.incidents)
-                    for e in scan.result.entities_with_incidents.unchanged
-                ]
-            )
-            num_deleted = sum(
-                [len(e.incidents) for e in scan.result.entities_with_incidents.deleted]
-            )
-            total_vulns_count = num_new + num_unchanged + num_deleted
-            if total_vulns_count == 0:
-                scan_buf.write(no_iac_vulnerabilities())
-            else:
-                for filename, new, unchanged, deleted in group_incidents_by_filename(
-                    scan.result.entities_with_incidents
-                ):
-                    num_new = sum([len(e.incidents) for e in new])
-                    num_unchanged = sum([len(e.incidents) for e in unchanged])
-                    num_deleted = sum([len(e.incidents) for e in deleted])
-                    scan_buf.write(
-                        file_diff_info(filename, num_new, num_unchanged, num_deleted)
-                    )
-
-                    # List deleted incidents if any
-                    for file_result in deleted:
-                        scan_buf.write(
-                            self.process_iac_diff_result(
-                                Path(scan.id) / file_result.filename,
-                                file_result,
-                                "REMOVED",
-                            )
-                        )
-                    # List unchagned incidents if any
-                    for file_result in unchanged:
-                        scan_buf.write(
-                            self.process_iac_diff_result(
-                                Path(scan.id) / file_result.filename,
-                                file_result,
-                                "PERSISTING",
-                            )
-                        )
-                    # List new incidents if any
-                    for file_result in new:
-                        scan_buf.write(
-                            self.process_iac_diff_result(
-                                Path(scan.id) / file_result.filename, file_result, "NEW"
-                            )
-                        )
-            # Show summary
-            scan_buf.write(
-                diff_scan_summary(
-                    scan.result.entities_with_incidents.new,
-                    scan.result.entities_with_incidents.unchanged,
-                    scan.result.entities_with_incidents.deleted,
+        # Add iac version on output
+        scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
+        # Show no incidents if none
+        num_new = sum(
+            [len(e.incidents) for e in scan.result.entities_with_incidents.new]
+        )
+        num_unchanged = sum(
+            [
+                len(e.incidents)
+                for e in scan.result.entities_with_incidents.unchanged
+            ]
+        )
+        num_deleted = sum(
+            [len(e.incidents) for e in scan.result.entities_with_incidents.deleted]
+        )
+        total_vulns_count = num_new + num_unchanged + num_deleted
+        if total_vulns_count == 0:
+            scan_buf.write(no_iac_vulnerabilities())
+        else:
+            for filename, new, unchanged, deleted in group_incidents_by_filename(
+                scan.result.entities_with_incidents
+            ):
+                num_new = sum(len(e.incidents) for e in new)
+                num_unchanged = sum(len(e.incidents) for e in unchanged)
+                num_deleted = sum(len(e.incidents) for e in deleted)
+                scan_buf.write(
+                    file_diff_info(filename, num_new, num_unchanged, num_deleted)
                 )
+
+                # List deleted incidents if any
+                for file_result in deleted:
+                    scan_buf.write(
+                        self.process_iac_diff_result(
+                            Path(scan.id) / file_result.filename,
+                            file_result,
+                            "REMOVED",
+                        )
+                    )
+                # List unchagned incidents if any
+                for file_result in unchanged:
+                    scan_buf.write(
+                        self.process_iac_diff_result(
+                            Path(scan.id) / file_result.filename,
+                            file_result,
+                            "PERSISTING",
+                        )
+                    )
+                # List new incidents if any
+                for file_result in new:
+                    scan_buf.write(
+                        self.process_iac_diff_result(
+                            Path(scan.id) / file_result.filename, file_result, "NEW"
+                        )
+                    )
+        # Show summary
+        scan_buf.write(
+            diff_scan_summary(
+                scan.result.entities_with_incidents.new,
+                scan.result.entities_with_incidents.unchanged,
+                scan.result.entities_with_incidents.deleted,
             )
+        )
         return scan_buf.getvalue()
 
     def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
@@ -381,9 +382,9 @@ def diff_scan_summary(
     def label_incident(n: int) -> str:
         return pluralize("incident", n, "incidents")
 
-    num_deleted = sum([len(entry.incidents) for entry in deleted])
-    num_unchanged = sum([len(entry.incidents) for entry in unchanged])
-    num_new = sum([len(entry.incidents) for entry in new])
+    num_deleted = sum(len(entry.incidents) for entry in deleted)
+    num_unchanged = sum(len(entry.incidents) for entry in unchanged)
+    num_new = sum(len(entry.incidents) for entry in new)
 
     buf = StringIO()
     buf.write("\nSummary of changes:\n")
