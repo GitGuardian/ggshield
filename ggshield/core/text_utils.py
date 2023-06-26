@@ -107,7 +107,7 @@ def format_text(text: str, style: Dict[str, Any]) -> str:
 
 
 def pluralize(name: str, nb: int, plural: Union[str, None] = None) -> str:
-    if nb <= 1:
+    if nb == 1:
         return name
     return plural or (name + "s")
 
