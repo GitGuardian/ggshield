@@ -113,7 +113,7 @@ class TmpGGClient(GGClient):
             if is_ok(resp):
                 # IaCDiffScanResultSchema.from_dict(resp.json()) does not work for now
                 # TODO: replace load with from_dict once this is moved into pygitguardian
-                result = IaCDiffScanResultSchema().load(resp.json())
+                result = IaCDiffScanResultSchema().load(resp.json())  # type: ignore
             else:
                 result = load_detail(resp)
 
