@@ -3,6 +3,8 @@ from typing import Any, Optional
 
 import click
 
+from ggshield.sca.client import SCAClient
+
 
 @click.group()
 @click.pass_context
@@ -36,8 +38,22 @@ def scan_diff_cmd(
     """
     Find SCA vulnerabilities in a git working directory, compared to git history.
     """
+    if directory is None:
+        directory = Path().resolve()
+    # Adds client and required parameters to the context
+    # TODO: rebase when update_context is merged
+    update_context(ctx)
+    client = SCAClient(ctx.obj["client"])
+    # Determine current and reference
+    ref = None
+    current_ref = None
+    # Call compute SCA files API for cur and ref
+    # Build the tar including SCA files in cur and ref
+    ref_tar = get_sca_tar(directory, ref)
+    current_tar = get_sca_tar(directory, current_ref)
+    # Call scan diff API
+    client.scan_diff(current=current_tar, reference=ref_tar)
     return 0
-
 
 @scan_group.command(name="all")
 @click.pass_context
