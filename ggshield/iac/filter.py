@@ -12,7 +12,6 @@ IAC_EXTENSIONS = {
     ".yml",
     ".yaml",
     ".jinja",
-    ".py",
     ".py.schema",
     ".jinja.schema",
     ".tf",
@@ -50,6 +49,8 @@ def get_iac_files_from_paths(
 
 def is_file_iac_file(scannable: Scannable) -> bool:
     if any(ext in IAC_EXTENSIONS for ext in scannable.path.suffixes):
+        return True
+    if any(scannable.path.name.endswith(iac_ext) for iac_ext in IAC_EXTENSIONS):
         return True
     name = scannable.path.name.lower()
     return any(keyword in name for keyword in IAC_FILENAME_KEYWORDS)
