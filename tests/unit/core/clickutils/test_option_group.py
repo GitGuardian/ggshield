@@ -38,8 +38,7 @@ def cli():
 def exclusive_options_cmd(
     **kwargs: Any,
 ) -> int:
-    click.echo("Yes")
-    print("YESS")
+    click.echo("Successfully called the test function")
     return ExitCode.SUCCESS
 
 
