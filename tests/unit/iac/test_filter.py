@@ -34,7 +34,7 @@ def test_get_iac_files_from_paths(tmp_path):
 
     files = get_iac_files_from_paths(tmp_path, set(), True)
     print(files)
-    assert len(files) == 9 
+    assert len(files) == 9
     assert "file1.txt" not in files
     assert "file2.json" in files
 
