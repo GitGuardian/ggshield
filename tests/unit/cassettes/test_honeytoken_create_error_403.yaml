@@ -1,0 +1,59 @@
+interactions:
+  - request:
+      body: '{"name": "test_honey_token_error_403", "type": "AWS", "description": "description"}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '83'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.7.0 (Darwin;py3.10.4) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/honeytokens
+    response:
+      body:
+        string: '{"detail":"Token is missing the following scope: honeytokens:read"}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, POST, HEAD, OPTIONS
+        content-length:
+          - '67'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 14 Jun 2023 07:52:01 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.32.1
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '16'
+        x-frame-options:
+          - DENY
+        x-secrets-engine-version:
+          - 2.91.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 403
+        message: Forbidden
+version: 1

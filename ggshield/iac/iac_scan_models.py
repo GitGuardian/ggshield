@@ -53,6 +53,8 @@ class MockClient(GGClient):
             scan_parameters,
             extra_headers,
         )
+        if isinstance(scan, Detail):
+            return scan
         result = IaCDiffScanResult(
             scan.id,
             scan.type,

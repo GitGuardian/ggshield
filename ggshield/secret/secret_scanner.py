@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 import click
 from pygitguardian import GGClient
-from pygitguardian.models import Detail
+from pygitguardian.models import Detail, MultiScanResult
 
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
@@ -208,6 +208,7 @@ class SecretScanner:
                 handle_scan_chunk_error(scan, chunk)
                 continue
 
+            assert isinstance(scan, MultiScanResult)
             for file, scanned in zip(chunk, scan.scan_results):
                 remove_ignored_from_result(scanned, self.ignored_matches)
                 remove_results_from_ignore_detectors(scanned, self.ignored_detectors)

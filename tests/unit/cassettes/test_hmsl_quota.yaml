@@ -1,0 +1,42 @@
+interactions:
+  - request:
+      body: '{"prefixes": []}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '16'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - python-requests/2.31.0
+      method: POST
+      uri: https://hasmysecretleaked.staging.gitguardian.tech/v1/prefixes
+    response:
+      body:
+        string: '{"matches":[]}'
+      headers:
+        content-length:
+          - '14'
+        content-type:
+          - application/json
+        date:
+          - Tue, 20 Jun 2023 11:48:57 GMT
+        ratelimit-limit:
+          - '500'
+        ratelimit-remaining:
+          - '500'
+        ratelimit-reset:
+          - '43861'
+        server:
+          - istio-envoy
+        x-envoy-upstream-service-time:
+          - '6'
+      status:
+        code: 200
+        message: OK
+version: 1
