@@ -1,7 +1,8 @@
 import shutil
+from collections import defaultdict
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, List
+from typing import ClassVar, DefaultDict, Dict, Generator, List, NamedTuple, Optional
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
@@ -9,17 +10,49 @@ from ggshield.core.text_utils import (
     STYLE,
     Line,
     clip_long_line,
+    file_diff_info,
     file_info,
     format_text,
     get_offset,
     get_padding,
+    pluralize,
 )
 from ggshield.core.utils import Filemode, get_lines_from_content
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
+from ggshield.iac.iac_scan_models import IaCDiffScanEntities
+from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.scan import File
 
-from .iac_output_handler import IaCOutputHandler
+
+class GroupedIncidents(NamedTuple):
+    name: str
+    new: List[IaCFileResult]
+    unchanged: List[IaCFileResult]
+    deleted: List[IaCFileResult]
+
+
+def group_incidents_by_filename(
+    incidents: IaCDiffScanEntities,
+) -> Generator[GroupedIncidents, None, None]:
+    filenames = []
+    statuses: Dict[str, DefaultDict] = {
+        "new": defaultdict(list),
+        "unchanged": defaultdict(list),
+        "deleted": defaultdict(list),
+    }
+    for status in statuses:
+        for entry in getattr(incidents, status):
+            filename = entry.filename
+            if filename not in filenames:
+                filenames.append(filename)
+            statuses[status].setdefault(filename, [])
+            statuses[status][filename].append(entry)
+    for filename in filenames:
+        new: List[IaCFileResult] = statuses.get("new", {}).get(filename, [])
+        unchanged: List[IaCFileResult] = statuses.get("unchanged", {}).get(filename, [])
+        deleted: List[IaCFileResult] = statuses.get("deleted", {}).get(filename, [])
+        yield GroupedIncidents(filename, new, unchanged, deleted)
 
 
 class IaCTextOutputHandler(IaCOutputHandler):
@@ -28,24 +61,135 @@ class IaCTextOutputHandler(IaCOutputHandler):
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
-        if scan.result and isinstance(scan.result.entities_with_incidents, List):
+        if scan.result is not None and isinstance(
+            scan.result.entities_with_incidents, List
+        ):
+            # Add iac version on output
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
+            # List incidents if any
             for file_result in scan.result.entities_with_incidents:
                 scan_buf.write(
                     self.process_iac_file_result(
                         Path(scan.id) / file_result.filename, file_result
                     )
                 )
+            # Show no incidents if none
             if len(scan.result.entities_with_incidents) == 0:
                 scan_buf.write(no_iac_vulnerabilities())
         return scan_buf.getvalue()
 
-    # TODO: Determine a design & implement
+    def _process_diff_scan_impl_not_verbose(self, scan: IaCDiffScanCollection) -> str:
+        scan_buf = StringIO()
+
+        if scan.result is not None and isinstance(
+            scan.result.entities_with_incidents, IaCDiffScanEntities
+        ):
+            # Add iac version on output
+            scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
+            # Show no incidents if none
+            if len(scan.result.entities_with_incidents.new) == 0:
+                scan_buf.write(
+                    format_text(
+                        "\nNo new incidents have been found\n", STYLE["no_secret"]
+                    )
+                )
+            else:
+                for filename, new, _, _ in group_incidents_by_filename(
+                    scan.result.entities_with_incidents
+                ):
+                    if not new:
+                        continue
+                    scan_buf.write(file_diff_info(filename, len(new), None, None))
+                    # List new incidents if any
+                    for file_result in new:
+                        scan_buf.write(
+                            self.process_iac_diff_result(
+                                Path(scan.id) / file_result.filename, file_result
+                            )
+                        )
+            # Show summary
+            scan_buf.write(
+                diff_scan_summary(
+                    scan.result.entities_with_incidents.new,
+                    scan.result.entities_with_incidents.unchanged,
+                    scan.result.entities_with_incidents.deleted,
+                )
+            )
+        return scan_buf.getvalue()
+
+    def _process_diff_scan_impl_verbose(self, scan: IaCDiffScanCollection) -> str:
+        if scan.result is None or not isinstance(
+            scan.result.entities_with_incidents, IaCDiffScanEntities
+        ):
+            return ""
+
+        scan_buf = StringIO()
+        # Add iac version on output
+        scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
+        # Show no incidents if none
+        num_new = sum(len(e.incidents) for e in scan.result.entities_with_incidents.new)
+        num_unchanged = sum(
+            len(e.incidents) for e in scan.result.entities_with_incidents.unchanged
+        )
+        num_deleted = sum(
+            len(e.incidents) for e in scan.result.entities_with_incidents.deleted
+        )
+        total_vulns_count = num_new + num_unchanged + num_deleted
+        if total_vulns_count == 0:
+            scan_buf.write(no_iac_vulnerabilities())
+        else:
+            for filename, new, unchanged, deleted in group_incidents_by_filename(
+                scan.result.entities_with_incidents
+            ):
+                num_new = sum(len(e.incidents) for e in new)
+                num_unchanged = sum(len(e.incidents) for e in unchanged)
+                num_deleted = sum(len(e.incidents) for e in deleted)
+                scan_buf.write(
+                    file_diff_info(filename, num_new, num_unchanged, num_deleted)
+                )
+
+                # List deleted incidents if any
+                for file_result in deleted:
+                    scan_buf.write(
+                        self.process_iac_diff_result(
+                            Path(scan.id) / file_result.filename,
+                            file_result,
+                            "REMOVED",
+                        )
+                    )
+                # List unchagned incidents if any
+                for file_result in unchanged:
+                    scan_buf.write(
+                        self.process_iac_diff_result(
+                            Path(scan.id) / file_result.filename,
+                            file_result,
+                            "PERSISTING",
+                        )
+                    )
+                # List new incidents if any
+                for file_result in new:
+                    scan_buf.write(
+                        self.process_iac_diff_result(
+                            Path(scan.id) / file_result.filename, file_result, "NEW"
+                        )
+                    )
+        # Show summary
+        scan_buf.write(
+            diff_scan_summary(
+                scan.result.entities_with_incidents.new,
+                scan.result.entities_with_incidents.unchanged,
+                scan.result.entities_with_incidents.deleted,
+            )
+        )
+        return scan_buf.getvalue()
+
     def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
-        return "WIP: this will be the text output for diff scan."
+        if self.verbose:
+            return self._process_diff_scan_impl_verbose(scan)
+        return self._process_diff_scan_impl_not_verbose(scan)
 
     def process_iac_file_result(
-        self, file_path: Path, file_result: IaCFileResult
+        self, file_path: Path, file_result: IaCFileResult, prefix: Optional[str] = None
     ) -> str:
         """
         Build readable message on the found incidents for a specific file
@@ -67,7 +211,53 @@ class IaCTextOutputHandler(IaCOutputHandler):
             lines = []
 
         for issue_n, vulnerability in enumerate(file_result.incidents, 1):
-            result_buf.write(iac_vulnerability_header(issue_n, vulnerability))
+            result_buf.write(
+                iac_vulnerability_header(issue_n, vulnerability, prefix=prefix)
+            )
+            result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
+            if len(lines) == 0:
+                result_buf.write(
+                    iac_vulnerability_location_failed(
+                        vulnerability.line_start, vulnerability.line_end
+                    )
+                )
+            else:
+                result_buf.write(
+                    iac_vulnerability_location(
+                        lines,
+                        vulnerability.line_start,
+                        vulnerability.line_end,
+                        self.nb_lines,
+                        clip_long_lines=not self.verbose,
+                    )
+                )
+
+        return result_buf.getvalue()
+
+    def process_iac_diff_result(
+        self, file_path: Path, file_result: IaCFileResult, prefix: Optional[str] = None
+    ) -> str:
+        """
+        Build readable message on the found incidents for a specific file
+
+        :param file_path: The full path to the file, used to read the content of the file
+        :param file_result: The file results from the IaC scanning API
+        :return: The formatted message to display
+        """
+        result_buf = StringIO()
+
+        try:
+            file = File(str(file_path))
+            lines: List[Line] = get_lines_from_content(
+                file.content, Filemode.FILE, False
+            )
+        except Exception:
+            lines = []
+
+        for issue_n, vulnerability in enumerate(file_result.incidents, 1):
+            result_buf.write(
+                iac_vulnerability_header(issue_n, vulnerability, prefix=prefix)
+            )
             result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
             if len(lines) == 0:
                 result_buf.write(
@@ -89,12 +279,15 @@ class IaCTextOutputHandler(IaCOutputHandler):
         return result_buf.getvalue()
 
 
-def iac_vulnerability_header(issue_n: int, vulnerability: IaCVulnerability) -> str:
+def iac_vulnerability_header(
+    issue_n: int, vulnerability: IaCVulnerability, prefix: Optional[str] = None
+) -> str:
     """
     Build a header for the iac policy break.
     """
-    return "\n{} Incident {} ({}): {}: {} ({})\n".format(
+    return "\n{}{} Incident {} ({}): {}: {} ({})\n".format(
         format_text(">>>", STYLE["detector_line_start"]),
+        "" if prefix is None else f" {prefix}:",
         issue_n,
         format_text("IaC", STYLE["detector"]),
         format_text(vulnerability.component, STYLE["detector"]),
@@ -169,3 +362,38 @@ def no_iac_vulnerabilities() -> str:
     Build a message if no IaC vulnerabilities were found.
     """
     return format_text("\nNo incidents have been found\n", STYLE["no_secret"])
+
+
+def diff_scan_summary(
+    new: List[IaCFileResult],
+    unchanged: List[IaCFileResult],
+    deleted: List[IaCFileResult],
+) -> str:
+    def detail(entries: List[IaCFileResult]) -> str:
+        count: Dict[str, int] = dict()
+        for entry in entries:
+            for incident in entry.incidents:
+                count.setdefault(incident.severity, 0)
+                count[incident.severity] += 1
+        formatted_count = [f"{key}: {val}" for key, val in count.items()]
+        if len(formatted_count) == 0:
+            return ""
+        return f" ({', '.join(formatted_count)})"
+
+    def label_incident(n: int) -> str:
+        return pluralize("incident", n, "incidents")
+
+    num_deleted = sum(len(entry.incidents) for entry in deleted)
+    num_unchanged = sum(len(entry.incidents) for entry in unchanged)
+    num_new = sum(len(entry.incidents) for entry in new)
+
+    buf = StringIO()
+    buf.write("\nSummary of changes:\n")
+    buf.write(
+        f"[-] {num_deleted} {label_incident(num_deleted)} deleted{detail(deleted)}\n"
+    )
+    buf.write(
+        f"[~] {num_unchanged} {label_incident(num_unchanged)} remaining{detail(unchanged)}\n"
+    )
+    buf.write(f"[+] {num_new} new {label_incident(num_new)} detected{detail(new)}\n")
+    return buf.getvalue()

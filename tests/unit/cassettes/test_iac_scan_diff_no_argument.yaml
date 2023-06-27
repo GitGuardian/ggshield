@@ -1,10 +1,15 @@
 interactions:
   - request:
       body: !!binary |
-        LS03ZTliM2Q2NjE4YmMzODQ0OGY4Y2M0YTFiMDYzMTc1Mg0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        tYuZZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tN2U5YjNkNjYxOGJj
-        Mzg0NDhmOGNjNGExYjA2MzE3NTItLQ0K
+        LS04MWViZjIyMDhlZmQ2ZDZjMTFjYmJjYzMzNjk2MTAyZQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS04MWViZjIyMDhlZmQ2ZDZjMTFjYmJj
+        YzMzNjk2MTAyZQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVu
+        Y2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgAuIuZZAL/7cEBDQAAAMKg909tDjegAAAA
+        AAAAAAAAgDcDmt4dJwAoAAANCi0tODFlYmYyMjA4ZWZkNmQ2YzExY2JiY2MzMzY5NjEwMmUNCkNv
+        bnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iY3VycmVudCI7IGZpbGVuYW1lPSJj
+        dXJyZW50Ig0KDQofiwgAuIuZZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAAN
+        Ci0tODFlYmYyMjA4ZWZkNmQ2YzExY2JiY2MzMzY5NjEwMmUtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -13,13 +18,13 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '195'
+          - '495'
         Content-Type:
-          - multipart/form-data; boundary=7e9b3d6618bc38448f8cc4a1b0631752
+          - multipart/form-data; boundary=81ebf2208efd6d6c11cbbcc33696102e
         GGShield-Command-Id:
-          - a54ba758-9cd5-4afb-b338-0bad81c304c8
+          - e86393e5-7565-4b97-911c-cf0c846db0c3
         GGShield-Command-Path:
-          - cli iac scan
+          - cli iac scan diff
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
@@ -31,25 +36,25 @@ interactions:
         User-Agent:
           - pygitguardian/1.7.0 (Linux;py3.10.11) ggshield
         mode:
-          - directory
+          - diff
       method: POST
-      uri: https://api.gitguardian.com/v1/iac_scan
+      uri: https://api.gitguardian.com/v1/iac_diff_scan
     response:
       body:
-        string: '{"id":"0c1d9cab-a126-406b-af6d-197a3aa58ceb","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[]}'
+        string: '{"id":"d71bf2c9-1055-4c93-9571-c8d01d62422d","iac_engine_version":"1.8.0","type":"diff_scan","entities_with_incidents":{"unchanged":[],"deleted":[],"new":[]}}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '122'
+          - '158'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 26 Jun 2023 12:59:34 GMT
+          - Mon, 26 Jun 2023 12:59:39 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -64,7 +69,7 @@ interactions:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '841'
+          - '2110'
         x-frame-options:
           - DENY
           - SAMEORIGIN

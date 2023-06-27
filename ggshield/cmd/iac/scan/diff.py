@@ -11,18 +11,17 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
+    filter_iac_filepaths,
+    get_iac_filepaths,
     get_iac_tar,
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
 from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF
-from ggshield.core.text_utils import display_warning
+from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.iac_scan_models import (
-    IaCDiffScanResult,
-    create_mock_client_from_config,
-)
+from ggshield.iac.iac_scan_models import IaCDiffScanResult, create_client_from_config
 from ggshield.scan import ScanContext, ScanMode
 
 
@@ -93,7 +92,7 @@ def scan_diff_cmd(
 
     # TODO: remove this once the GGClient is updated with the new diff function
     config: Config = ctx.obj["config"]
-    ctx.obj["client"] = create_mock_client_from_config(config)
+    ctx.obj["client"] = create_client_from_config(config)
 
     if pre_commit:
         ref = "HEAD"
@@ -116,17 +115,36 @@ def iac_scan_diff(
 ) -> Optional[IaCDiffScanResult]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
-
     exclusion_regexes = ctx.obj["exclusion_regexes"]
+
+    verbose = config.user_config.verbose if config and config.user_config else False
+    if verbose:
+        display_info(f"> Scanned files in reference {ref}")
+        filepaths = filter_iac_filepaths(
+            directory, ref, get_iac_filepaths(directory, ref)
+        )
+        for filepath in filepaths:
+            display_info(f"- {click.format_filename(filepath)}")
+        display_info("")
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_ref = INDEX_REF if include_staged else "HEAD"
+    if verbose:
+        if include_staged:
+            display_info("> Scanned files in current state (staged)")
+        else:
+            display_info("> Scanned files in current state")
+        filepaths = filter_iac_filepaths(
+            directory, current_ref, get_iac_filepaths(directory, current_ref)
+        )
+        for filepath in filepaths:
+            display_info(f"- {click.format_filename(filepath)}")
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
     )
 
-    scan = client.mock_api_iac_diff_scan(
+    scan = client.iac_diff_scan(
         reference_tar,
         current_tar,
         scan_parameters,
