@@ -21,10 +21,7 @@ from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.iac_scan_models import (
-    IaCDiffScanResult,
-    create_mock_client_from_config,
-)
+from ggshield.iac.iac_scan_models import IaCDiffScanResult, create_client_from_config
 from ggshield.scan import ScanContext, ScanMode
 
 
@@ -95,7 +92,7 @@ def scan_diff_cmd(
 
     # TODO: remove this once the GGClient is updated with the new diff function
     config: Config = ctx.obj["config"]
-    ctx.obj["client"] = create_mock_client_from_config(config)
+    ctx.obj["client"] = create_client_from_config(config)
 
     if pre_commit:
         ref = "HEAD"
