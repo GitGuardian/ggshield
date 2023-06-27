@@ -1,17 +1,17 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Union
 
 import marshmallow_dataclass
 import requests
 from pygitguardian import GGClient
+from pygitguardian.client import is_ok, load_detail
 from pygitguardian.iac_models import (
     IaCFileResult,
     IaCScanParameters,
     IaCScanParametersSchema,
 )
 from pygitguardian.models import Base, BaseSchema, Detail
-from requests import Response
 
 from ggshield.core.client import create_session
 from ggshield.core.config.config import Config
@@ -20,8 +20,6 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInsta
 
 
 # TODO: this file contains elements that are or should be part of pygitguardian
-
-DEFAULT_API_VERSION = "v1"
 
 
 # TODO: move this dataclass into pygitguardian
@@ -49,36 +47,6 @@ IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
 )
 
 logger = logging.getLogger(__name__)
-
-
-# TODO: Delete this after moving iac_diff_scan into pygitguardian
-def is_ok(resp: Response) -> bool:
-    """
-    is_ok returns True is the API responded with 200
-    and the content type is JSON.
-    """
-    return (
-        resp.headers["content-type"] == "application/json" and resp.status_code == 200
-    )
-
-
-# TODO: Delete this after moving iac_diff_scan into pygitguardian
-def load_detail(resp: Response) -> Detail:
-    """
-    load_detail loads a Detail from a response
-    be it JSON or html.
-
-    :param resp: API response
-    :type resp: Response
-    :return: detail object of response
-    :rtype: Detail
-    """
-    if resp.headers["content-type"] == "application/json":
-        data = resp.json()
-    else:
-        data = {"detail": resp.text}
-
-    return cast(Detail, Detail.SCHEMA.load(data))
 
 
 # TODO: delete this class after updating pygitguardian
@@ -122,7 +90,7 @@ class TmpGGClient(GGClient):
 
 
 # TODO: remove this once iac_diff_scan is moved into GGClient
-def create_mock_client_from_config(config: Config) -> TmpGGClient:
+def create_client_from_config(config: Config) -> TmpGGClient:
     try:
         api_key = config.api_key
         api_url = config.api_url
