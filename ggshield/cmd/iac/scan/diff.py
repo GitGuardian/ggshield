@@ -18,9 +18,10 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 )
 from ggshield.core.clickutils.option_group import OptionGroup
 from ggshield.core.config.config import Config
-from ggshield.core.git_shell import INDEX_REF
+from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
+from ggshield.iac.filter import is_file_path_iac_file_path
 from ggshield.iac.iac_scan_models import IaCDiffScanResult, create_client_from_config
 from ggshield.scan import ScanContext, ScanMode
 
@@ -126,7 +127,7 @@ def iac_scan_diff(
         for filepath in filepaths:
             display_info(f"- {click.format_filename(filepath)}")
         display_info("")
-    reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
+
     current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
@@ -138,6 +139,24 @@ def iac_scan_diff(
         )
         for filepath in filepaths:
             display_info(f"- {click.format_filename(filepath)}")
+
+    # Check if IaC files were created, deleted or modified
+    files_status = get_diff_files_status(
+        wd=str(directory), ref=ref, staged=include_staged, similarity=100
+    )
+    modified_modes = [Filemode.NEW, Filemode.DELETE, Filemode.MODIFY]
+    modified_iac_files = [
+        file
+        for file, mode in files_status.items()
+        if is_file_path_iac_file_path(file) and mode in modified_modes
+    ]
+
+    if not modified_iac_files:
+        scan = IaCDiffScanResult()
+        scan.status_code = 200
+        return scan
+
+    reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(

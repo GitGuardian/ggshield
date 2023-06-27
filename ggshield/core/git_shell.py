@@ -2,11 +2,12 @@ import logging
 import os
 import subprocess
 import tarfile
+from enum import Enum
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from shutil import which
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 import click
 from click import UsageError
@@ -20,6 +21,19 @@ COMMAND_TIMEOUT = 45
 INDEX_REF = ""
 
 logger = logging.getLogger(__name__)
+
+
+class Filemode(Enum):
+    """
+    Enum class for git filemode.
+    """
+
+    MODIFY = "modified file"
+    DELETE = "deleted file"
+    NEW = "new file"
+    RENAME = "renamed file"
+    FILE = "file"
+    UNKNOWN = "unknown"
 
 
 @lru_cache(None)
@@ -200,6 +214,55 @@ def get_staged_filepaths(wd: Optional[str] = None) -> List[Path]:
 
     filepaths = git(["ls-files", "-c"], cwd=wd).splitlines()
     return [Path(path_str) for path_str in filepaths]
+
+
+def get_diff_files_status(
+    wd: Optional[str], ref: str, staged: bool = False, similarity: int = 100
+) -> Dict[Path, Filemode]:
+    """
+    Fecthes the statuses of modified files since a given ref.
+    """
+
+    def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
+
+        m = {
+            "A": Filemode.NEW,
+            "D": Filemode.DELETE,
+            "M": Filemode.MODIFY,
+            "T": Filemode.MODIFY,
+            "R": Filemode.RENAME,
+        }
+
+        p = patch.split("\0")
+        chunks = (p[i : i + 2] for i in range(0, len(p) - 2, 2))
+
+        return {Path(path): m.get(mode, Filemode.UNKNOWN) for mode, path in chunks}
+
+    if not wd:
+        wd = os.getcwd()
+
+    check_git_ref(wd=wd, ref=ref)
+
+    assert 0 <= similarity <= 100
+
+    cmd = [
+        "diff",
+        f"-M{similarity}%",
+        "--name-status",
+        "--raw",
+        "-z",
+        "--patch",
+        "--diff-filter=ADMTR",
+    ]
+
+    if staged:
+        cmd.append("--staged")
+
+    cmd.append(ref)
+
+    patch = git(cmd, cwd=wd)
+
+    return parse_name_status_patch(patch)
 
 
 def tar_from_ref_and_filepaths(
