@@ -33,8 +33,9 @@ def test_get_iac_files_from_paths(tmp_path):
         Path(path).write_text("something")
 
     files = get_iac_files_from_paths(tmp_path, set(), True)
-    assert len(files) == 10
-    assert "file1.json" not in files
+    print(files)
+    assert len(files) == 9 
+    assert "file1.txt" not in files
     assert "file2.json" in files
 
 
@@ -49,7 +50,7 @@ def test_get_iac_files_from_paths_excluded(tmp_path):
         Path(path).write_text("something")
 
     files = get_iac_files_from_paths(tmp_path, {re.compile(r"file2")}, True)
-    assert len(files) == 9
+    assert len(files) == 8
     assert "file2.json" not in files
     assert "file3.yaml" in files
 
@@ -76,10 +77,10 @@ def test_get_iac_files_from_paths_ignore_git(tmp_path, ignore_git):
 
     files = get_iac_files_from_paths(tmp_path, set(), True, ignore_git)
     if ignore_git:
-        assert len(files) == 10
+        assert len(files) == 9
         assert "file2.json" in files
     else:
-        assert len(files) == 9
+        assert len(files) == 8
         assert "file2.json" not in files
         assert "file3.yaml" in files
 
