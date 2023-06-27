@@ -4,8 +4,8 @@ from pathlib import Path
 
 from ggshield.cmd.iac.scan.iac_scan_utils import get_iac_tar
 from ggshield.core.filter import init_exclusion_regexes
+from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
-from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY
 
 
 def test_get_iac_tar(tmp_path: Path) -> None:

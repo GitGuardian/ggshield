@@ -5,8 +5,9 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.secret.repo import cd
+from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
-from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
+from tests.unit.conftest import my_vcr
 
 
 @my_vcr.use_cassette("test_iac_scan_diff_no_argument")
