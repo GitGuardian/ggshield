@@ -5,8 +5,9 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
+from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
-from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY, my_vcr
+from tests.unit.conftest import my_vcr
 
 
 _SCAN_COMMAND = ["scan"]
