@@ -232,7 +232,7 @@ def tar_from_ref_and_filepaths(
 
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
         for path in filepaths:
-            raw_file_content = git(["show", f"{ref}:{path}"], cwd=wd)
+            raw_file_content = git(["show", f"{ref}:./{path}"], cwd=wd)
 
             if acceptation_func is not None and not (
                 acceptation_func(path, raw_file_content)
