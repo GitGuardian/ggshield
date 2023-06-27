@@ -3,9 +3,9 @@ from typing import List
 
 import pytest
 
+from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
-from tests.unit.conftest import _IAC_SINGLE_VULNERABILITY
 
 
 def test_iac_scan_all(tmp_path: Path) -> None:
