@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Union
 
 import click
 from pygitguardian.iac_models import IaCScanParameters
@@ -21,8 +21,12 @@ from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.filter import is_file_path_iac_file_path
-from ggshield.iac.iac_scan_models import IaCDiffScanResult, create_client_from_config
+from ggshield.iac.filter import is_iac_file_path
+from ggshield.iac.iac_scan_models import (
+    IaCDiffScanResult,
+    IaCSkipDiffScanResult,
+    create_client_from_config,
+)
 from ggshield.scan import ScanContext, ScanMode
 
 
@@ -106,14 +110,16 @@ def scan_diff_cmd(
         staged = False
 
     result = iac_scan_diff(ctx, directory, ref, staged)
-    scan = IaCDiffScanCollection(id=str(directory), result=result)
     output_handler = create_output_handler(ctx)
+    if isinstance(result, IaCSkipDiffScanResult):
+        return output_handler.process_skip_diff_scan()
+    scan = IaCDiffScanCollection(id=str(directory), result=result)
     return output_handler.process_diff_scan(scan)
 
 
 def iac_scan_diff(
     ctx: click.Context, directory: Path, ref: str, include_staged: bool
-) -> Optional[IaCDiffScanResult]:
+) -> Optional[Union[IaCDiffScanResult, IaCSkipDiffScanResult]]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
@@ -148,13 +154,11 @@ def iac_scan_diff(
     modified_iac_files = [
         file
         for file, mode in files_status.items()
-        if is_file_path_iac_file_path(file) and mode in modified_modes
+        if is_iac_file_path(file) and mode in modified_modes
     ]
 
-    if not modified_iac_files:
-        scan = IaCDiffScanResult()
-        scan.status_code = 200
-        return scan
+    if len(modified_iac_files) == 0:
+        return IaCSkipDiffScanResult()
 
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)

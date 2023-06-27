@@ -18,7 +18,7 @@ from ggshield.core.git_shell import (
     tar_from_ref_and_filepaths,
 )
 from ggshield.core.text_utils import display_error
-from ggshield.iac.filter import is_file_content_iac_file
+from ggshield.iac.filter import is_iac_file_content
 from ggshield.iac.output import (
     IaCJSONOutputHandler,
     IaCOutputHandler,
@@ -61,8 +61,8 @@ def filter_iac_filepaths(
     filtered_filepaths = []
 
     for filepath in filepaths:
-        filepath_content = git(["show", f"{ref}:./{filepath}"], cwd=str(directory))
-        if is_file_content_iac_file(filepath, filepath_content):
+        filepath_content = git(["show", f"{ref}:{filepath}"], cwd=str(directory))
+        if is_iac_file_content(filepath, filepath_content):
             filtered_filepaths.append(filepath)
     return filtered_filepaths
 
@@ -71,7 +71,7 @@ def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> b
     filepaths = get_iac_filepaths(directory, ref)
 
     def _accept_file(path: Path, content: str) -> bool:
-        return is_file_content_iac_file(path, content) and not is_filepath_excluded(
+        return is_iac_file_content(path, content) and not is_filepath_excluded(
             str(directory / path), exclusion_regexes
         )
 

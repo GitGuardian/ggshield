@@ -41,6 +41,11 @@ class IaCDiffScanResult(Base):
     )
 
 
+@dataclass
+class IaCSkipDiffScanResult:
+    id: str = ""
+
+
 # TODO: move this schema into pygitguardian
 IaCDiffScanResultSchema = marshmallow_dataclass.class_schema(
     IaCDiffScanResult, BaseSchema

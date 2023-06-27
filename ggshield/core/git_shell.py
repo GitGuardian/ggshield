@@ -220,12 +220,23 @@ def get_diff_files_status(
     wd: Optional[str], ref: str, staged: bool = False, similarity: int = 100
 ) -> Dict[Path, Filemode]:
     """
-    Fecthes the statuses of modified files since a given ref.
+    Fetches the statuses of modified files since a given ref.
+    For more details on file statuses, see:
+    https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203
     """
+
+    # Input validation
+
+    assert 0 <= similarity <= 100
+
+    if not wd:
+        wd = os.getcwd()
+
+    check_git_ref(wd=wd, ref=ref)
 
     def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
 
-        m = {
+        status_to_filemode = {
             "A": Filemode.NEW,
             "D": Filemode.DELETE,
             "M": Filemode.MODIFY,
@@ -233,17 +244,13 @@ def get_diff_files_status(
             "R": Filemode.RENAME,
         }
 
-        p = patch.split("\0")
-        chunks = (p[i : i + 2] for i in range(0, len(p) - 2, 2))
+        split_patch = patch.split("\0")
+        chunks = (split_patch[i : i + 2] for i in range(0, len(split_patch) - 2, 2))
 
-        return {Path(path): m.get(mode, Filemode.UNKNOWN) for mode, path in chunks}
-
-    if not wd:
-        wd = os.getcwd()
-
-    check_git_ref(wd=wd, ref=ref)
-
-    assert 0 <= similarity <= 100
+        return {
+            Path(path): status_to_filemode.get(mode, Filemode.UNKNOWN)
+            for mode, path in chunks
+        }
 
     cmd = [
         "diff",
