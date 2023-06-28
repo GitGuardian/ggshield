@@ -1,5 +1,38 @@
 # Changelog
 
+<a id='changelog-1.17.0'></a>
+
+## 1.17.0 — 2023-06-28
+
+### Added
+
+- New command: `ggshield iac scan all`. This command replaces the now-deprecated `ggshield iac scan`. It scans a directory for IaC vulnerabilities.
+
+- New command: `ggshield iac scan diff`. This command scans a Git repository and inspects changes in IaC vulnerabilities between two points in the history.
+
+  - All options from `ggshield iac scan all` are supported: `--ignore-policy`, `--minimum-severity`, `--ignore-path` etc. Execute `ggshield iac scan diff -h` for more details.
+  - Two new options allow to choose which state to select for the difference: `--ref <GIT-REFERENCE>` and `--staged`.
+  - The command can be integrated in Git hooks using the `--pre-commit`, `--pre-push`, `--pre-receive` options.
+  - The command output list vulnerabilities as `unchanged`, `new` and `deleted`.
+
+- Added a `--log-file FILE` option to redirect all logging output to a file. The option can also be set using the `$GITGUARDIAN_LOG_FILE` environment variable.
+
+### Changed
+
+- Improved `secret scan path` speed by updating charset-normalizer to 3.1.
+
+- Errors are no longer reported twice: first using human-friendly message and then using log output. Log output is now off by default, unless `--debug` or `--log-file` is set (#213).
+
+- The help messages for the `honeytoken` commands have been updated.
+
+- `ggshield honeytoken create` now displays an easier-to-understand error message when the user does not have the necessary permissions to create an honeytoken.
+
+- `ggshield auth login` now displays a warning message if the token expiration date has been adjusted to comply with the personal access token maximum lifetime setting of the user's workspace.
+
+### Deprecated
+
+- `ggshield iac scan` is now replaced by the new `ggshield iac scan all`, which supports the same options and arguments.
+
 <a id='changelog-1.16.0'></a>
 
 ## 1.16.0 — 2023-05-30
