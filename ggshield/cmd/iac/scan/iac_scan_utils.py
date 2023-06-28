@@ -61,7 +61,7 @@ def filter_iac_filepaths(
     filtered_filepaths = []
 
     for filepath in filepaths:
-        filepath_content = git(["show", f"{ref}:{filepath}"], cwd=str(directory))
+        filepath_content = git(["show", f"{ref}:./{filepath}"], cwd=str(directory))
         if is_file_content_iac_file(filepath, filepath_content):
             filtered_filepaths.append(filepath)
     return filtered_filepaths
