@@ -1,8 +1,8 @@
 # Changelog
 
-<a id='changelog-1.17.0'></a>
+<a id='changelog-1.17.1'></a>
 
-## 1.17.0 — 2023-06-28
+## 1.17.1 — 2023-06-28
 
 ### Added
 
