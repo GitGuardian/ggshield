@@ -1,10 +1,10 @@
 interactions:
   - request:
       body: !!binary |
-        LS01YjUxYmI2OTNlNDA2NWNjNmJhMWIyYzE2ZWQ3OGMzYg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS04NDAxMjdmOWZkMTdjOGUxZTM0NzdmMzc3MDExNWFiZQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        BGBrZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tNWI1MWJiNjkzZTQw
-        NjVjYzZiYTFiMmMxNmVkNzhjM2ItLQ0K
+        touZZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tODQwMTI3ZjlmZDE3
+        YzhlMWUzNDc3ZjM3NzAxMTVhYmUtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -15,41 +15,41 @@ interactions:
         Content-Length:
           - '195'
         Content-Type:
-          - multipart/form-data; boundary=5b51bb693e4065cc6ba1b2c16ed78c3b
+          - multipart/form-data; boundary=840127f9fd17c8e1e3477f3770115abe
         GGShield-Command-Id:
-          - b87b2b2a-bdb2-4c77-b8f2-cfae4062a1cc
+          - 64a348a2-bb4b-4ee8-a8d4-4d8b60a92c78
         GGShield-Command-Path:
-          - cli iac scan
+          - cli iac scan <>
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.6
+          - 3.10.11
         GGShield-Version:
-          - 1.15.1
+          - 1.16.0
         User-Agent:
-          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.7.0 (Linux;py3.10.11) ggshield
         mode:
           - directory
       method: POST
       uri: https://api.gitguardian.com/v1/iac_scan
     response:
       body:
-        string: '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[]}'
+        string: '{"id":"b2d9ee2d-d3ba-41e2-b886-d35ff76c28e1","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '87'
+          - '122'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 22 May 2023 12:28:52 GMT
+          - Mon, 26 Jun 2023 12:59:36 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -59,17 +59,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.30.2
+          - v2.33.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '181'
+          - '893'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.89.0
+          - 2.92.0
         x-xss-protection:
           - 1; mode=block
       status:

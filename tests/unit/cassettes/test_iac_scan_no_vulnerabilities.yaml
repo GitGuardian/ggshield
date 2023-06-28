@@ -1,15 +1,15 @@
 interactions:
   - request:
       body: !!binary |
-        LS00NTQ3NzVmZjIzMTNlOWM2ZjU3YzlkNzY2YjlkNTJiNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS0yZTBmZDdiNTY4NmEyZTJhZGUyZDcxMTczODk0NDUwYw0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA
-        F2BrZAL/7dSxboMwEAZgZp7C4gGI7WCTDpE6duwbWA4xkRWDkTElUtV3LzRNmiXq0kZq83+L4Q7f
-        TT/5Il88PuvDk9FbE5JfQY+unZQui6/nuc4oZzwhh+QGhj7qMK1P7hNfkSbaxqyZXBWlWAnBci4f
-        qKAyTeDfs7pStXVGtV69DK41QW+ss9GaPo/1z+Vfyo+Ms1Kwy/MYfyYSVhRLLiWlvJzyL8uSJoTe
-        Mv96p6PRw9Xvvuv/UWkwvR9CZUimx161Jo4+7JWunAqDMxnJNnqrzEE33fz2mhJidtOdnpysSa1d
-        b6ZGF3z0lXfnRharLpsadfCN6nyIpwbnUzX6i9q5Om+d1kfr288h2jk/zmMquw1q43y1P81nPGfL
-        nBU5E1n6hh8WAAAAAAAAAAAAAAAAAAAA3KN30RaWOQAoAAANCi0tNDU0Nzc1ZmYyMzEzZTljNmY1
-        N2M5ZDc2NmI5ZDUyYjQtLQ0K
+        84uZZAL/7dRNboMwEAVgrzmFxQGIbX43kbrssjewDDGVFYORMSVS1bsXmibNolU3baQ279sY5uGZ
+        1ZBsks3dgzrca7XTnvwKdvTVyViafTyvdc4EF4QeyBVMY1B+GU9uk6hoF0ynt7yoyrLKsjRPRM6r
+        qqwiAv+eUY1sjdWyd/Jpsr32qjbWBKPHJLQ/t/9F8bbjvMz55Xlcf54TnmVZkbK8LFLCBBN5QSi7
+        5v4ParK1Hq3pP//uu/yPirwe3eQbTWM1j7LXYXZ+L1VjpZ+sjmlcq53UB9UN69tzRKl+XO6M9GRL
+        W2VHvQSDd8E1zp6DODRDvAStd50cnA+nQIilGtxF7Vxdpy7jg3H9exNlrZvXNo3ZeVlb1+xP/blI
+        eJrwLOF5HL3ghwUAAAAAAAAAAAAAAAAAAAC36BWqQotAACgAAA0KLS0yZTBmZDdiNTY4NmEyZTJh
+        ZGUyZDcxMTczODk0NDUwYy0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -18,43 +18,43 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '474'
+          - '476'
         Content-Type:
-          - multipart/form-data; boundary=454775ff2313e9c6f57c9d766b9d52b4
+          - multipart/form-data; boundary=2e0fd7b5686a2e2ade2d71173894450c
         GGShield-Command-Id:
-          - 6a68619d-9bbf-4639-8846-e6a522dd3e05
+          - b5751676-bed1-4758-b9c8-93fc46de0424
         GGShield-Command-Path:
-          - cli iac scan
+          - cli iac scan all
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.6
+          - 3.10.11
         GGShield-Version:
-          - 1.15.1
+          - 1.16.0
         User-Agent:
-          - pygitguardian/1.6.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.7.0 (Linux;py3.10.11) ggshield
         mode:
           - directory
       method: POST
       uri: https://api.gitguardian.com/v1/iac_scan
     response:
       body:
-        string: '{"id":"0","type":"path_scan","iac_engine_version":"1.7.0","entities_with_incidents":[]}'
+        string: '{"id":"f12b24d9-cf9e-4888-9f52-d0560d4dac33","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '87'
+          - '122'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 22 May 2023 12:29:12 GMT
+          - Mon, 26 Jun 2023 13:00:37 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -64,17 +64,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.30.2
+          - v2.33.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '348'
+          - '1376'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.89.0
+          - 2.92.0
         x-xss-protection:
           - 1; mode=block
       status:

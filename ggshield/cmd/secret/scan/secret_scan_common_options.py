@@ -7,6 +7,7 @@ from ggshield.cmd.common_options import (
     add_common_options,
     create_config_callback,
     create_ctx_callback,
+    exit_zero_option,
     get_config_from_context,
     json_option,
     use_json,
@@ -41,17 +42,6 @@ _show_secrets_option = click.option(
     default=None,
     help="Show secrets in plaintext instead of hiding them.",
     callback=create_config_callback("secret", "show_secrets"),
-)
-
-
-_exit_zero_option = click.option(
-    "--exit-zero",
-    is_flag=True,
-    default=None,
-    envvar="GITGUARDIAN_EXIT_ZERO",
-    help="Always return a 0 (non-error) status code, even if incidents are found."
-    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
-    callback=create_config_callback("exit_zero"),
 )
 
 
@@ -112,7 +102,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         json_option(cmd)
         _output_option(cmd)
         _show_secrets_option(cmd)
-        _exit_zero_option(cmd)
+        exit_zero_option(cmd)
         _exclude_option(cmd)
         _ignore_known_secrets_option(cmd)
         _banlist_detectors_option(cmd)

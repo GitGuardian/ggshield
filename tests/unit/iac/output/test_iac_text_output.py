@@ -5,14 +5,12 @@ from click.testing import CliRunner, Result
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from tests.unit.conftest import (
+from tests.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,
     _IAC_NO_VULNERABILITIES,
     _IAC_SINGLE_VULNERABILITY,
-    assert_invoke_exited_with,
-    assert_invoke_ok,
-    my_vcr,
 )
+from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
 
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
@@ -26,6 +24,7 @@ def test_display_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             str(tmp_path),
         ],
     )
@@ -43,6 +42,7 @@ def test_exit_zero_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--exit-zero",
             str(tmp_path),
         ],
@@ -61,6 +61,7 @@ def test_display_multiple_vulnerabilities(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             str(tmp_path),
         ],
     )
@@ -79,6 +80,7 @@ def test_display_no_vulnerability(tmp_path, cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             str(tmp_path),
         ],
     )
@@ -103,6 +105,7 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "tmp",
         ],
     )

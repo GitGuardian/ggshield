@@ -8,12 +8,12 @@ from click.testing import CliRunner, Result
 from pytest_voluptuous import S
 
 from ggshield.cmd.main import cli
-from tests.unit.conftest import (
+from tests.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,
     _IAC_NO_VULNERABILITIES,
     _IAC_SINGLE_VULNERABILITY,
-    my_vcr,
 )
+from tests.unit.conftest import my_vcr
 
 
 INCIDENT_SCHEMA = validators.Schema(
@@ -40,6 +40,7 @@ def test_display_single_vulnerabilities(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
@@ -62,6 +63,7 @@ def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
@@ -82,6 +84,7 @@ def test_display_no_vulnerability(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
@@ -106,6 +109,7 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
         [
             "iac",
             "scan",
+            "all",
             "--json",
             "tmp",
         ],
