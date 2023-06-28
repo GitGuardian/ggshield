@@ -5,7 +5,7 @@ verify_ssl = true
 
 [packages]
 # Do not add dependencies here, but list them in the setup.py instead
-ggshield = { editable = true, path = "." }
+ggshield = { editable = true, extras = ["all"], path = "." }
 
 [dev-packages]
 black = "==22.3.0"

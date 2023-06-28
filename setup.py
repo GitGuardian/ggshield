@@ -20,6 +20,16 @@ def get_version() -> str:
     return VERSION_RE.search(init).group(1)  # type: ignore
 
 
+extras_require = {
+    "hmsl": [
+        "cryptography>=41.0.0,<42.0.0",
+    ]
+}
+extras_require["all"] = list(
+    {value for values in extras_require.values() for value in values}
+)
+
+
 setup(
     name="ggshield",
     version=get_version(),
@@ -36,7 +46,6 @@ setup(
         "appdirs>=1.4.4,<1.5.0",
         "charset-normalizer>=3.1.0,<3.2.0",
         "click>=8.1,<8.2",
-        "cryptography>=41.0.0,<42.0.0",
         "marshmallow>=3.18.0,<3.19.0",
         "marshmallow-dataclass>=8.5.8,<8.6.0",
         "oauthlib>=3.2.1,<3.3.0",
@@ -47,6 +56,7 @@ setup(
         "requests>=2.31.0,<2.32.0",
         "rich>=12.5.1,<12.6.0",
     ],
+    extras_require=extras_require,
     include_package_data=True,
     zip_safe=True,
     license="MIT",
