@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.17.2'></a>
+
+## 1.17.2 — 2023-06-28
+
+### Fixed
+
+- Fixed ggshield not installing properly when installing with Brew on macOS.
+
 <a id='changelog-1.17.1'></a>
 
 ## 1.17.1 — 2023-06-28
