@@ -119,7 +119,7 @@ def scan_diff_cmd(
 
 def iac_scan_diff(
     ctx: click.Context, directory: Path, ref: str, include_staged: bool
-) -> Optional[Union[IaCDiffScanResult, IaCSkipDiffScanResult]]:
+) -> Union[IaCDiffScanResult, IaCSkipDiffScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]

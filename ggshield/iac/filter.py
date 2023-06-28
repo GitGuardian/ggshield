@@ -4,7 +4,6 @@ from typing import List, Set
 
 from ggshield.scan import Scannable
 from ggshield.scan.file import get_files_from_paths
-from ggshield.scan.scannable import StringScannable
 
 
 IAC_EXTENSIONS = {
@@ -58,8 +57,3 @@ def is_iac_file_path(path: Path) -> bool:
 
 def is_iac_file(scannable: Scannable) -> bool:
     return is_iac_file_path(scannable.path)
-
-
-def is_iac_file_content(path: Path, content: str) -> bool:
-    scannable = StringScannable(str(path), content)
-    return is_iac_file(scannable)

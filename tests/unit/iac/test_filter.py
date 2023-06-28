@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ggshield.iac.filter import get_iac_files_from_paths, is_iac_file_content
+from ggshield.iac.filter import get_iac_files_from_paths, is_iac_file_path
 
 
 FILE_NAMES = [
@@ -84,6 +84,6 @@ def test_get_iac_files_from_paths_ignore_git(tmp_path, ignore_git):
         assert "file3.yaml" in files
 
 
-def test_is_iac_file_content(tmp_path):
-    assert is_iac_file_content(tmp_path / "file1.json", "")
-    assert not is_iac_file_content(tmp_path / "file1.jpg", "")
+def test_is_iac_file_path(tmp_path):
+    assert is_iac_file_path(tmp_path / "file1.json")
+    assert not is_iac_file_path(tmp_path / "file1.jpg")
