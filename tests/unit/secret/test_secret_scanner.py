@@ -6,7 +6,7 @@ import pytest
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import ExitCode
-from ggshield.core.utils import Filemode
+from ggshield.core.git_shell import Filemode
 from ggshield.scan import (
     Commit,
     DecodeError,

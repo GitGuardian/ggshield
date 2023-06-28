@@ -4,7 +4,7 @@ from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple
 from pygitguardian.models import ScanResult
 
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
-from ggshield.core.utils import Filemode
+from ggshield.core.git_shell import Filemode
 from ggshield.scan.scannable import Scannable
 
 

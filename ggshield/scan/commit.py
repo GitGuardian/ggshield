@@ -2,9 +2,9 @@ import re
 from typing import Iterable, List, NamedTuple, Optional, Set, Tuple
 
 from ggshield.core.filter import is_filepath_excluded
-from ggshield.core.git_shell import git
+from ggshield.core.git_shell import Filemode, git
 from ggshield.core.text_utils import STYLE, format_text
-from ggshield.core.utils import REGEX_HEADER_INFO, Filemode
+from ggshield.core.utils import REGEX_HEADER_INFO
 
 from .scannable import Files, Scannable, StringScannable
 
