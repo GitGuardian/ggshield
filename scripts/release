@@ -2,6 +2,7 @@
 """
 A multi-command tool to automate steps of the release process
 """
+import json
 import os
 import re
 import shutil
@@ -79,6 +80,39 @@ def check_working_tree_is_clean() -> bool:
     return True
 
 
+def check_dependencies() -> bool:
+    with (ROOT_DIR / "Pipfile.lock").open() as fp:
+        dct = json.load(fp)
+
+    # The structure of a Pipfile.lock looks like this:
+    # {
+    #   "default": {
+    #     "$pkg1": {
+    #       $pkg_version_info
+    #     },
+    #     ...
+    #   },
+    #   "develop": {
+    #     ...
+    #   }
+    # }
+    #
+    # We want to check we only depend on released versions of our dependencies, so we
+    # check the content of each $pkg_version_info
+    default_packages = dct["default"]
+    for package, version_info in default_packages.items():
+        if package == "ggshield":
+            # 'ggshield' itself is listed here, without version, ignore this
+            continue
+        if "version" not in version_info:
+            log_error(
+                f"Pipfile.lock contains a dependency on an unreleased version of {package}"
+            )
+            return False
+
+    return True
+
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--dev-mode",
@@ -97,7 +131,11 @@ def main(dev_mode: bool) -> int:
     3. tag
     4. publish-gh-release
     """
-    checks = (check_working_tree_is_on_release_branch, check_working_tree_is_clean)
+    checks = (
+        check_working_tree_is_on_release_branch,
+        check_working_tree_is_clean,
+        check_dependencies,
+    )
     if not all(x() for x in checks):
         if dev_mode:
             log_progress("Ignoring errors because --dev-mode is set")
