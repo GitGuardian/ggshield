@@ -50,10 +50,11 @@ def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
     # WHEN scanning the diff between current and HEAD~1
     # (meaning reference should be one commit behind)
     args = ["diff", "--ref", "HEAD~1", str(tmp_path)]
+    # THEN exit code is 1 (new vuln detected)
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
 
     print(result.stdout)
-    # THEN vulnerability of file1.tf shows as unchanged
+    # AND vulnerability of file1.tf shows as unchanged
     # AND vulnerability of file2.tf shows as new
     assert "0 incidents deleted" in result.stdout
     assert "1 incident remaining" in result.stdout
@@ -85,9 +86,10 @@ def test_iac_scan_diff_removed_vuln(tmp_path: Path) -> None:
     # WHEN scanning the diff between current and HEAD~1
     # (meaning reference should be one commit behind)
     args = ["diff", "--ref", "HEAD~1", str(tmp_path)]
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    # THEN exit code is 0 (no new vuln)
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
 
-    # THEN the output contains the vulnerability of file2.tf as unchanged
+    # AND the output contains the vulnerability of file2.tf as unchanged
     # AND the output contains the vulnerability of file1.tf as deleted
     assert "1 incident deleted" in result.stdout
     assert "1 incident remaining" in result.stdout
@@ -144,7 +146,7 @@ def test_iac_scan_diff_staged(tmp_path: Path, staged: bool) -> None:
     args = ["diff", "--ref", "HEAD", str(tmp_path)]
     if staged:
         args.append("--staged")
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=bool(staged))
 
     # THEN the staged file only appears with --staged flag enabled
     assert "0 incidents deleted" in result.stdout

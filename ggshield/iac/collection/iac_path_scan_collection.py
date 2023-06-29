@@ -9,6 +9,8 @@ from ggshield.iac.collection.iac_scan_collection import (
 
 
 class IaCPathScanCollection(IaCScanCollection):
+    result: Optional[IaCScanResult]
+
     def __init__(
         self,
         id: str,
