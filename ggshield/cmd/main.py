@@ -28,7 +28,7 @@ from ggshield.core import check_updates
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
-from ggshield.core.text_utils import display_warning
+from ggshield.core.text_utils import display_warning, setup_rich_console
 from ggshield.core.utils import load_dot_env
 
 
@@ -97,6 +97,7 @@ def cli(
     ctx: click.Context,
     **kwargs: Any,
 ) -> None:
+    setup_rich_console()
     load_dot_env()
 
     config = ctx.obj["config"]

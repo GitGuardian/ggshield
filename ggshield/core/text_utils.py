@@ -3,7 +3,7 @@ from enum import Enum, auto
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 import click
-from rich.console import Console
+import rich
 from rich.progress import (
     BarColumn,
     Progress,
@@ -106,6 +106,14 @@ class Line(NamedTuple):
         )
 
 
+def setup_rich_console():
+    """
+    Configure the default Console instance of rich to print on stderr, so that progress
+    display is not mixed with JSON output.
+    """
+    rich.reconfigure(file=sys.stderr)
+
+
 def format_text(text: str, style: Dict[str, Any]) -> str:
     """Return the formatted text with the given style."""
     return click.style(
@@ -170,7 +178,6 @@ def create_progress_bar(doc_type: str) -> Progress:
         TaskProgressColumn(),
         TextColumn(f"{{task.completed}} {doc_type} scanned out of {{task.total}}"),
         TimeRemainingColumn(),
-        console=Console(file=sys.stderr),
     )
 
 
