@@ -136,7 +136,8 @@ def main(dev_mode: bool) -> int:
         check_working_tree_is_clean,
         check_dependencies,
     )
-    if not all(x() for x in checks):
+    fails = sum(1 for check in checks if not check())
+    if fails > 0:
         if dev_mode:
             log_progress("Ignoring errors because --dev-mode is set")
         else:
