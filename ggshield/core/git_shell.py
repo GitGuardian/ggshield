@@ -289,7 +289,8 @@ def tar_from_ref_and_filepaths(
     The archive is returned as raw bytes.
     :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,\
         or any argument accepted as <ref> by git show <ref>:<filepath>
-    :param filepaths: string paths to selected files
+        An empty string denotes the git "index", aka staging area.
+    :param filepaths: paths to selected files
     :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
