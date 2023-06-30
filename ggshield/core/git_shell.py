@@ -217,7 +217,7 @@ def get_staged_filepaths(wd: Optional[str] = None) -> List[Path]:
 
 
 def get_diff_files_status(
-    wd: Optional[str], ref: str, staged: bool = False, similarity: int = 100
+    ref: str, staged: bool = False, similarity: int = 100, wd: Optional[str] = None
 ) -> Dict[Path, Filemode]:
     """
     Fetches the statuses of modified files since a given ref.
