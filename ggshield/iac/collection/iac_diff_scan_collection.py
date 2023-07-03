@@ -8,15 +8,8 @@ from ggshield.iac.iac_scan_models import IaCDiffScanResult
 
 
 class IaCDiffScanCollection(IaCScanCollection):
+    type = CollectionType.DiffScan
     result: Optional[IaCDiffScanResult]
-
-    def __init__(
-        self,
-        id: str,
-        result: Optional[IaCDiffScanResult],
-    ):
-        super().__init__(id, result)
-        self.type = CollectionType.DiffScan
 
     @property
     def has_results(self) -> bool:

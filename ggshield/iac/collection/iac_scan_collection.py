@@ -17,8 +17,8 @@ class CollectionType(Enum):
 
 
 class IaCScanCollection(ABC):
+    type = CollectionType.Unknown
     id: str
-    type: CollectionType
     # Can be None if the scan failed
     result: Optional[IaCResult]
 
@@ -28,7 +28,6 @@ class IaCScanCollection(ABC):
         result: Optional[IaCResult],
     ):
         self.id = id
-        self.type = CollectionType.Unknown
         self.result = result
 
     @abstractproperty

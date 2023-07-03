@@ -53,7 +53,6 @@ def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
     # THEN exit code is 1 (new vuln detected)
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
 
-    print(result.stdout)
     # AND vulnerability of file1.tf shows as unchanged
     # AND vulnerability of file2.tf shows as new
     assert "0 incidents deleted" in result.stdout
