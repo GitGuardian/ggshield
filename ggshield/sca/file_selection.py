@@ -22,9 +22,7 @@ def tar_sca_files_from_git_repo(directory: Path, ref: str, client: SCAClient) ->
     else:
         all_files = get_filepaths_from_ref(ref, wd=str(directory))
 
-    sca_files_result = client.compute_sca_files(
-        touched_files=[str(path) for path in all_files]
-    )
+    sca_files_result = client.compute_sca_files(files=[str(path) for path in all_files])
     if isinstance(sca_files_result, Detail):
         raise UnexpectedError("Failed to select SCA files")
 

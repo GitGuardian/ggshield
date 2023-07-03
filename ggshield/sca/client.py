@@ -80,12 +80,12 @@ class SCAClient:
 
     def compute_sca_files(
         self,
-        touched_files: List[str],
+        files: List[str],
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> Union[Detail, ComputeSCAFilesResult]:
         response = self._client.post(
             endpoint="sca/compute_sca_files/",
-            data={"touched_files": touched_files},
+            data={"files": files},
             extra_headers=extra_headers,
         )
         result: Union[Detail, ComputeSCAFilesResult]
