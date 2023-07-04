@@ -6,6 +6,7 @@ from typing import ClassVar, DefaultDict, Dict, Generator, List, NamedTuple, Opt
 
 from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
 
+from ggshield.core.git_shell import Filemode
 from ggshield.core.text_utils import (
     STYLE,
     Line,
@@ -17,7 +18,7 @@ from ggshield.core.text_utils import (
     get_padding,
     pluralize,
 )
-from ggshield.core.utils import Filemode, get_lines_from_content
+from ggshield.core.utils import get_lines_from_content
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.iac_scan_models import IaCDiffScanEntities
@@ -184,6 +185,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
         if self.verbose:
             return self._process_diff_scan_impl_verbose(scan)
         return self._process_diff_scan_impl_not_verbose(scan)
+
+    def _process_skip_diff_scan_impl(self) -> str:
+        return "> No IaC files changed. Skipping."
 
     def process_iac_file_result(
         self, file_path: Path, file_result: IaCFileResult, prefix: Optional[str] = None

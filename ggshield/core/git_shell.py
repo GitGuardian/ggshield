@@ -2,11 +2,12 @@ import logging
 import os
 import subprocess
 import tarfile
+from enum import Enum
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from shutil import which
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 import click
 from click import UsageError
@@ -20,6 +21,19 @@ COMMAND_TIMEOUT = 45
 INDEX_REF = ""
 
 logger = logging.getLogger(__name__)
+
+
+class Filemode(Enum):
+    """
+    Enum class for git filemode.
+    """
+
+    MODIFY = "modified file"
+    DELETE = "deleted file"
+    NEW = "new file"
+    RENAME = "renamed file"
+    FILE = "file"
+    UNKNOWN = "unknown"
 
 
 @lru_cache(None)
@@ -200,6 +214,62 @@ def get_staged_filepaths(wd: Optional[str] = None) -> List[Path]:
 
     filepaths = git(["ls-files", "-c"], cwd=wd).splitlines()
     return [Path(path_str) for path_str in filepaths]
+
+
+def get_diff_files_status(
+    ref: str, staged: bool = False, similarity: int = 100, wd: Optional[str] = None
+) -> Dict[Path, Filemode]:
+    """
+    Fetches the statuses of modified files since a given ref.
+    For more details on file statuses, see:
+    https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203
+    """
+
+    # Input validation
+
+    assert 0 <= similarity <= 100
+
+    if not wd:
+        wd = os.getcwd()
+
+    check_git_ref(wd=wd, ref=ref)
+
+    def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
+
+        status_to_filemode = {
+            "A": Filemode.NEW,
+            "D": Filemode.DELETE,
+            "M": Filemode.MODIFY,
+            "T": Filemode.MODIFY,
+            "R": Filemode.RENAME,
+        }
+
+        split_patch = patch.split("\0")
+        chunks = (split_patch[i : i + 2] for i in range(0, len(split_patch) - 2, 2))
+
+        return {
+            Path(path): status_to_filemode.get(mode, Filemode.UNKNOWN)
+            for mode, path in chunks
+        }
+
+    cmd = [
+        "diff",
+        f"-M{similarity}%",
+        "--name-status",
+        "--raw",
+        "-z",
+        "--patch",
+        "--diff-filter=ADMTR",
+    ]
+
+    if staged:
+        cmd.append("--staged")
+
+    cmd.append(ref)
+
+    patch = git(cmd, cwd=wd)
+
+    return parse_name_status_patch(patch)
 
 
 def tar_from_ref_and_filepaths(

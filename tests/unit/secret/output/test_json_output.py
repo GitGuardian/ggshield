@@ -8,7 +8,7 @@ from pytest_voluptuous import Partial, S
 from voluptuous import Optional, Required, validators
 
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
-from ggshield.core.utils import Filemode
+from ggshield.core.git_shell import Filemode
 from ggshield.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.secret import Result, Results, SecretScanCollection, SecretScanner
 from ggshield.secret.output import SecretJSONOutputHandler, SecretOutputHandler

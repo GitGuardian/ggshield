@@ -2,7 +2,6 @@ import logging
 import os
 import re
 from datetime import datetime
-from enum import Enum
 from itertools import islice
 from typing import Iterable, List, NamedTuple, Optional, TypeVar
 from urllib.parse import ParseResult, urlparse
@@ -13,7 +12,7 @@ from pygitguardian.models import Match
 
 from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
 
-from .git_shell import get_git_root, is_git_dir
+from .git_shell import Filemode, get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error, display_warning
 
 
@@ -58,18 +57,6 @@ IGNORED_DEFAULT_WILDCARDS = [
 ]
 
 GITGUARDIAN_DOMAINS = ["gitguardian.com", "gitguardian.tech"]
-
-
-class Filemode(Enum):
-    """
-    Enum class for git filemode.
-    """
-
-    MODIFY = "modified file"
-    DELETE = "deleted file"
-    NEW = "new file"
-    RENAME = "renamed file"
-    FILE = "file"
 
 
 def get_lines_from_content(

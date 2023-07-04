@@ -24,12 +24,10 @@ def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
     # WHEN scanning the diff between current and HEAD
     # (meaning both states should be the same)
     args = ["diff", "--ref", "HEAD", str(tmp_path)]
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
 
-    # THEN the output shows two unchanged vulnerabilities
-    assert "0 incidents deleted" in result.stdout
-    assert "2 incidents remaining" in result.stdout
-    assert "0 new incidents detected" in result.stdout
+    # THEN the output shows no vulnerabilities
+    assert "No IaC files changed" in result.stdout
 
 
 def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
@@ -120,12 +118,10 @@ def test_iac_scan_diff_only_tracked_iac(tmp_path: Path) -> None:
 
     # WHEN scanning it
     args = ["diff", "--ref", "HEAD", "--ignore-path", "ignored_file.tf", str(tmp_path)]
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
 
-    # THEN only the tracked file appears in the output
-    assert "0 incidents deleted" in result.stdout
-    assert "1 incident remaining" in result.stdout
-    assert "0 new incidents detected" in result.stdout
+    # THEN the scan is skipped, since no tracked IaC file changed
+    assert "No IaC files changed" in result.stdout
 
 
 @pytest.mark.parametrize("staged", (True, False))
