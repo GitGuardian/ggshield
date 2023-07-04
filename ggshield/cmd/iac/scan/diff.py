@@ -103,7 +103,7 @@ def scan_diff_cmd(
     result = iac_scan_diff(ctx, directory, ref, staged)
     output_handler = create_output_handler(ctx)
     if isinstance(result, IaCSkipScanResult):
-        return output_handler.process_skip_scan()
+        return output_handler.process_skip_diff_scan()
     scan = IaCDiffScanCollection(id=str(directory), result=result)
     return output_handler.process_diff_scan(scan)
 

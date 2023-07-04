@@ -38,7 +38,7 @@ def test_iac_scan_all_empty(tmp_path: Path) -> None:
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
 
     # THEN the scan was skipped
-    assert "Skipping" in result.stdout
+    assert "> No IaC files detected. Skipping." in result.stdout
 
 
 def test_iac_scan_all_ignore_all(tmp_path: Path) -> None:
@@ -62,7 +62,7 @@ def test_iac_scan_all_ignore_all(tmp_path: Path) -> None:
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
 
     # THEN the scan was skipped
-    assert "Skipping" in result.stdout
+    assert "> No IaC files detected. Skipping." in result.stdout
 
 
 def test_iac_scan_all_only_tracked_iac(tmp_path: Path) -> None:

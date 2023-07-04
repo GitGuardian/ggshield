@@ -20,6 +20,9 @@ class IaCJSONOutputHandler(IaCOutputHandler):
     def _process_skip_scan_impl(self) -> str:
         return "{}"
 
+    def _process_skip_diff_scan_impl(self) -> str:
+        return "{}"
+
     def _process_diff_scan_impl(self, scan: IaCDiffScanCollection) -> str:
         scan_dict = IaCJSONOutputHandler.create_diff_scan_dict(scan)
         text = IaCJSONScanDiffResultSchema().dumps(scan_dict)
