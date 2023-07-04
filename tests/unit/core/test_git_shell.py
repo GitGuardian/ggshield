@@ -162,16 +162,12 @@ def test_tar_from_ref_and_filepaths(tmp_path):
     repo.add(second_file_name)
     repo.create_commit()
 
-    # AND a filter function
-    def filter(path, content):
-        return "ignored" not in str(path)
-
     # AND a list of filepaths
-    filepaths = [first_file_name, first_ignored_file_name]
+    filepaths = [first_file_name]
 
     # WHEN creating a tar
     tarbytes = tar_from_ref_and_filepaths(
-        "HEAD~1", [Path(path_str) for path_str in filepaths], filter, tmp_path
+        "HEAD~1", [Path(path_str) for path_str in filepaths], wd=tmp_path
     )
 
     tar_stream = BytesIO(tarbytes)
