@@ -23,6 +23,48 @@ def test_iac_scan_all(tmp_path: Path) -> None:
     assert "vulnerability.tf" in result.stdout
 
 
+def test_iac_scan_all_empty(tmp_path: Path) -> None:
+    # GIVEN an git repository with no IaC file
+    repo = Repository.create(tmp_path)
+
+    tracked_file = tmp_path / "not_an_iac_file.md"
+    tracked_file.write_text("Nothing to see here...")
+    repo.add(tracked_file)
+
+    repo.create_commit()
+
+    # WHEN scanning it
+    args = ["all", str(tmp_path)]
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
+
+    # THEN the scan was skipped
+    assert "Skipping" in result.stdout
+
+
+def test_iac_scan_all_ignore_all(tmp_path: Path) -> None:
+    # GIVEN an git repository with a single ignored IaC file
+    repo = Repository.create(tmp_path)
+
+    not_iac_file = tmp_path / "not_an_iac_file.md"
+    not_iac_file.write_text("Nothing to see here...")
+    repo.add(not_iac_file)
+
+    iac_file_name = "should_not_appear.tf"
+
+    tracked_file = tmp_path / iac_file_name
+    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(tracked_file)
+
+    repo.create_commit()
+
+    # WHEN scanning it
+    args = ["all", "--ignore-path", iac_file_name, str(tmp_path)]
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
+
+    # THEN the scan was skipped
+    assert "Skipping" in result.stdout
+
+
 def test_iac_scan_all_only_tracked_iac(tmp_path: Path) -> None:
     # GIVEN a git repository with vulnerabilities
     # - in a tracked file

@@ -8,8 +8,29 @@ from pytest_mock import MockerFixture
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.repository import Repository
 from tests.unit.conftest import my_vcr
 from tests.unit.request_mock import create_json_response
+
+
+def _setup_single_iac_vuln_repo() -> str:
+    """
+    Sets up a local repo with a single vulnerable IaC file.
+    :returns: a string representing the path to the file
+
+    """
+    tmp_path = Path(".")
+
+    repo = Repository.create(tmp_path)
+
+    iac_file_name = "iac_file_single_vulnerability.tf"
+
+    tracked_file = tmp_path / iac_file_name
+    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(tracked_file)
+
+    repo.create_commit()
+    return str(tracked_file)
 
 
 @my_vcr.use_cassette("test_iac_scan_no_argument")
@@ -84,18 +105,18 @@ def test_invalid_policy_id(cli_fs_runner: CliRunner) -> None:
 
 
 def test_iac_scan_all_file_error_response(cli_fs_runner: CliRunner) -> None:
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_single_vulnerability.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+    with cli_fs_runner.isolated_filesystem():
+        iac_file_path = _setup_single_iac_vuln_repo()
 
-    result = cli_fs_runner.invoke(
-        cli,
-        [
-            "iac",
-            "scan",
-            "all",
-            "tmp/iac_file_single_vulnerability.tf",
-        ],
-    )
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "iac",
+                "scan",
+                "all",
+                iac_file_path,
+            ],
+        )
     assert result.exit_code == ExitCode.USAGE_ERROR
     assert "Error: Invalid value for '[DIRECTORY]'" in result.stdout
 
@@ -107,15 +128,18 @@ def test_iac_scan_all_error_response(
         "ggshield.core.client.GGClient.request",
         return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
-    result = cli_fs_runner.invoke(
-        cli,
-        [
-            "iac",
-            "scan",
-            "all",
-            ".",
-        ],
-    )
+    with cli_fs_runner.isolated_filesystem():
+        _setup_single_iac_vuln_repo()
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "iac",
+                "scan",
+                "all",
+                ".",
+            ],
+        )
     assert "Error scanning." in result.stdout
     assert "The following chunk is affected" not in result.stdout
     assert "404:Not found (404)" in result.stdout
@@ -129,16 +153,20 @@ def test_iac_scan_all_json_error_response(
         return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
     cli_fs_runner.mix_stderr = False
-    result = cli_fs_runner.invoke(
-        cli,
-        [
-            "iac",
-            "scan",
-            "all",
-            "--json",
-            ".",
-        ],
-    )
+    with cli_fs_runner.isolated_filesystem():
+
+        _setup_single_iac_vuln_repo()
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "iac",
+                "scan",
+                "all",
+                "--json",
+                ".",
+            ],
+        )
     assert "Error scanning." in result.stderr
     assert "404:Not found (404)" in result.stderr
     assert json.loads(result.stdout) == {
@@ -157,10 +185,15 @@ def test_iac_scan_all_unknown_error_response(
         "ggshield.core.client.GGClient.request",
         return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
-    result = cli_fs_runner.invoke(
-        cli,
-        ["iac", "scan", "all", "."],
-    )
+
+    with cli_fs_runner.isolated_filesystem():
+
+        _setup_single_iac_vuln_repo()
+
+        result = cli_fs_runner.invoke(
+            cli,
+            ["iac", "scan", "all", "."],
+        )
     assert "Error scanning." in result.stdout
     assert "404:Not found (404)" in result.stdout
 
@@ -172,9 +205,12 @@ def test_iac_scan_all_error_response_read_timeout(
         "ggshield.core.client.GGClient.request",
         side_effect=requests.exceptions.ReadTimeout("Timeout error"),
     )
-    result = cli_fs_runner.invoke(
-        cli,
-        ["iac", "scan", "all", "."],
-    )
+    with cli_fs_runner.isolated_filesystem():
+        _setup_single_iac_vuln_repo()
+
+        result = cli_fs_runner.invoke(
+            cli,
+            ["iac", "scan", "all", "."],
+        )
     assert "Error scanning." in result.stdout
     assert "504:The request timed out." in result.stdout
