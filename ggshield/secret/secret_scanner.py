@@ -131,12 +131,15 @@ class SecretScanner:
             for x in chunk
         ]
 
-        return executor.submit(
+        future = executor.submit(
             self.client.multi_content_scan,
             documents,
             self.headers,
             ignore_known_secrets=True,
         )
+        # Force blocking
+        concurrent.futures.wait([future])
+        return future
 
     def _start_scans(
         self,
