@@ -1,5 +1,6 @@
 import concurrent.futures
 import logging
+import os
 import sys
 from abc import ABC, abstractmethod
 from ast import literal_eval
@@ -149,16 +150,25 @@ class SecretScanner:
         chunks_for_futures = {}
 
         chunk: List[Scannable] = []
-        maximum_chunk_size = self.client.secret_scan_preferences.maximum_document_size
-        maximum_documents_per_scan = (
-            self.client.secret_scan_preferences.maximum_documents_per_scan
+        maximum_document_size = int(
+            os.getenv(
+                "GG_MAX_DOC_SIZE",
+                self.client.secret_scan_preferences.maximum_document_size,
+            )
         )
+        maximum_documents_per_scan = int(
+            os.getenv(
+                "GG_MAX_DOCS",
+                self.client.secret_scan_preferences.maximum_documents_per_scan,
+            )
+        )
+        logging.debug("max_doc_size=%d", maximum_document_size)
+        logging.debug("max_docs=%d", maximum_documents_per_scan)
         for scannable in scannables:
             try:
-                if scannable.is_longer_than(maximum_chunk_size):
-                    max_size_mb = maximum_chunk_size // 1024 // 1024
+                if scannable.is_longer_than(maximum_document_size):
                     scanner_ui.on_skipped(
-                        scannable, f"content is over {max_size_mb} MB"
+                        scannable, f"content is over {maximum_document_size:,} bytes"
                     )
                     continue
                 content = scannable.content
