@@ -1,6 +1,6 @@
 interactions:
   - request:
-      body: '{"touched_files": ["dummy_file.py"]}'
+      body: '{"files": ["dummy_file.py"]}'
       headers:
         Accept:
           - '*/*'
