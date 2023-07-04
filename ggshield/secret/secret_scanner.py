@@ -1,5 +1,6 @@
 import concurrent.futures
 import logging
+import os
 import sys
 from abc import ABC, abstractmethod
 from ast import literal_eval
@@ -122,6 +123,8 @@ class SecretScanner:
         """
         Sends a chunk of files to scan to the API
         """
+        for doc in chunk:
+            logger.debug("filename=%s len=%d", doc.filename, len(doc.content))
         # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
         documents = [
             {"document": x.content, "filename": x.filename[-_API_PATH_MAX_LENGTH:]}
@@ -150,9 +153,13 @@ class SecretScanner:
 
         chunk: List[Scannable] = []
         maximum_chunk_size = self.client.secret_scan_preferences.maximum_document_size
-        maximum_documents_per_scan = (
-            self.client.secret_scan_preferences.maximum_documents_per_scan
+        maximum_documents_per_scan = int(
+            os.getenv(
+                "GG_MAX_DOCS",
+                self.client.secret_scan_preferences.maximum_documents_per_scan,
+            )
         )
+        logging.debug("max_docs=%d", maximum_documents_per_scan)
         for scannable in scannables:
             try:
                 if scannable.is_longer_than(maximum_chunk_size):
