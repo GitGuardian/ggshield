@@ -18,6 +18,8 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
+from ggshield.core.config.config import Config
+from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
@@ -143,7 +145,9 @@ def iac_scan_diff(
     modified_iac_files = [
         file
         for file, mode in files_status.items()
-        if is_iac_file_path(file) and mode in modified_modes
+        if mode in modified_modes
+        and not is_filepath_excluded(str(file), exclusion_regexes)
+        and is_iac_file_path(file)
     ]
 
     if len(modified_iac_files) == 0:

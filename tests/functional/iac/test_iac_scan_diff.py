@@ -150,6 +150,36 @@ def test_iac_scan_diff_only_tracked_iac(tmp_path: Path) -> None:
     assert "No IaC files changed" in result.stdout
 
 
+def test_iac_scan_diff_only_tracked_iac_with_ignore(tmp_path: Path) -> None:
+    # GIVEN a git repository with vulnerabilities
+    # - in a tracked file
+    # - in an untracked file
+    # - in an ignored file staged for commit
+    repo = Repository.create(tmp_path)
+
+    tracked_file = tmp_path / "tracked_file.tf"
+    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(tracked_file)
+
+    untracked_file = tmp_path / "untracked_file.tf"
+    untracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    # Do NOT add this file to git
+    # repo.add(untracked_file)
+
+    repo.create_commit()
+
+    ignored_file = tmp_path / "ignored_file.tf"
+    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(ignored_file)
+
+    # WHEN scanning it
+    args = ["diff", "--ref", "HEAD", "--ignore-path", "ignored_file.tf", str(tmp_path)]
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
+
+    # THEN the scan is skipped, since no tracked IaC file changed
+    assert "No IaC files changed" in result.stdout
+
+
 @pytest.mark.parametrize("staged", (True, False))
 def test_iac_scan_diff_staged(tmp_path: Path, staged: bool) -> None:
     # GIVEN a git repository
