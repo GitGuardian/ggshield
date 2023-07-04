@@ -99,7 +99,7 @@ class SecretScanner:
         Reports progress through `scanner_ui`.
         Returns a Results instance.
         """
-        logger.debug("files=%s command_id=%s", self, self.command_id)
+        logger.debug("command_id=%s scan_threads=%d", self.command_id, scan_threads)
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=scan_threads, thread_name_prefix="content_scan"
