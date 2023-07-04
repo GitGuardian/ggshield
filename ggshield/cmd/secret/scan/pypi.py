@@ -13,7 +13,6 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.core.config import Config
-from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import UnexpectedError
 from ggshield.scan import Files, ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
@@ -120,11 +119,7 @@ def pypi_cmd(
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
             )
-            results = scanner.scan(
-                files.files,
-                scanner_ui=ui,
-                scan_threads=MAX_WORKERS,
-            )
+            results = scanner.scan(files.files, scanner_ui=ui)
         scan = SecretScanCollection(id=package_name, type="path_scan", results=results)
 
         return output_handler.process_scan(scan)

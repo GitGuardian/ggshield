@@ -6,7 +6,6 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
-from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_exception
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
@@ -57,11 +56,7 @@ def path_cmd(
                 scan_context=scan_context,
                 ignored_detectors=config.secret.ignored_detectors,
             )
-            results = scanner.scan(
-                files.files,
-                scanner_ui=ui,
-                scan_threads=MAX_WORKERS,
-            )
+            results = scanner.scan(files.files, scanner_ui=ui)
         scan = SecretScanCollection(
             id=" ".join(paths), type="path_scan", results=results
         )
