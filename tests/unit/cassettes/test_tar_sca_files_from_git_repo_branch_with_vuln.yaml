@@ -1,6 +1,6 @@
 interactions:
   - request:
-      body: '{"touched_files": ["Pipfile", "Pipfile.lock", "dummy_file.py"]}'
+      body: '{"files": ["Pipfile", "Pipfile.lock", "dummy_file.py"]}'
       headers:
         Accept:
           - '*/*'
