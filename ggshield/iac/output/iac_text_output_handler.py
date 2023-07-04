@@ -189,7 +189,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
             return self._process_diff_scan_impl_verbose(scan)
         return self._process_diff_scan_impl_not_verbose(scan)
 
-    def _process_skip_diff_scan_impl(self) -> str:
+    def _process_skip_scan_impl(self) -> str:
         return "> No IaC files changed. Skipping."
 
     def process_iac_file_result(

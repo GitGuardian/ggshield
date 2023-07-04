@@ -27,7 +27,7 @@ from ggshield.iac.output import (
 
 
 @dataclass
-class IaCSkipDiffScanResult:
+class IaCSkipScanResult:
     id: str = ""
 
 

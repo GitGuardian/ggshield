@@ -10,7 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
-    IaCSkipDiffScanResult,
+    IaCSkipScanResult,
     create_output_handler,
     filter_iac_filepaths,
     get_git_filepaths,
@@ -102,15 +102,15 @@ def scan_diff_cmd(
 
     result = iac_scan_diff(ctx, directory, ref, staged)
     output_handler = create_output_handler(ctx)
-    if isinstance(result, IaCSkipDiffScanResult):
-        return output_handler.process_skip_diff_scan()
+    if isinstance(result, IaCSkipScanResult):
+        return output_handler.process_skip_scan()
     scan = IaCDiffScanCollection(id=str(directory), result=result)
     return output_handler.process_diff_scan(scan)
 
 
 def iac_scan_diff(
     ctx: click.Context, directory: Path, ref: str, include_staged: bool
-) -> Union[IaCDiffScanResult, IaCSkipDiffScanResult, None]:
+) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
@@ -147,7 +147,7 @@ def iac_scan_diff(
     ]
 
     if len(modified_iac_files) == 0:
-        return IaCSkipDiffScanResult()
+        return IaCSkipScanResult()
 
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
