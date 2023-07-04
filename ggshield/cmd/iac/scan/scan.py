@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Union
 
 import click
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
@@ -14,7 +14,8 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.filter import get_iac_files_from_paths
+from ggshield.iac.filter import get_iac_files_from_path
+from ggshield.iac.iac_scan_models import IaCSkipScanResult
 from ggshield.scan import ScanContext, ScanMode
 
 
@@ -39,19 +40,29 @@ def scan_all_cmd(
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     result = iac_scan_all(ctx, directory)
-    scan = IaCPathScanCollection(id=str(directory), result=result)
+
     output_handler = create_output_handler(ctx)
+
+    if isinstance(result, IaCSkipScanResult):
+        return output_handler.process_skip_scan()
+
+    scan = IaCPathScanCollection(id=str(directory), result=result)
     return output_handler.process_scan(scan)
 
 
-def iac_scan_all(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
-    paths = get_iac_files_from_paths(
+def iac_scan_all(
+    ctx: click.Context, directory: Path
+) -> Union[IaCScanResult, IaCSkipScanResult, None]:
+    paths = get_iac_files_from_path(
         path=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
         verbose=ctx.obj["config"].verbose,
         # If the repository is a git repository, ignore untracked files
         ignore_git=False,
     )
+
+    if not paths:
+        return IaCSkipScanResult()
 
     config = ctx.obj["config"]
     client = ctx.obj["client"]
