@@ -1,0 +1,54 @@
+interactions:
+  - request:
+      body:
+        "--b23eccf3dc78718360e8b44bce086c5d\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{}\r\n--b23eccf3dc78718360e8b44bce086c5d\r\nContent-Disposition:
+        form-data; name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--b23eccf3dc78718360e8b44bce086c5d--\r\n"
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '248'
+        Content-Type:
+          - multipart/form-data; boundary=b23eccf3dc78718360e8b44bce086c5d
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.6)
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
+    response:
+      body:
+        string: '{"detail":"Directory is not a valid tarfile"}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Content-Length:
+          - '45'
+        Content-Type:
+          - application/json
+        Cross-Origin-Opener-Policy:
+          - same-origin
+        Date:
+          - Thu, 29 Jun 2023 09:55:14 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - WSGIServer/0.2 CPython/3.10.11
+        Vary:
+          - Cookie
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-Secrets-Engine-Version:
+          - 2.92.0
+      status:
+        code: 400
+        message: Bad Request
+version: 1
