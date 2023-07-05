@@ -19,7 +19,7 @@ class OptionGroup(click.Option):
             + ", ".join(self.not_required_if)
             + "."
         ).strip()
-        super(OptionGroup, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def handle_parse_result(
         self, ctx: click.Context, opts: Mapping[str, Any], args: List[str]
@@ -47,4 +47,4 @@ class OptionGroup(click.Option):
             raise click.UsageError(
                 "One of the following options must be used: " + ", ".join(group)
             )
-        return super(OptionGroup, self).handle_parse_result(ctx, opts, args)
+        return super().handle_parse_result(ctx, opts, args)
