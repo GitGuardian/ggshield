@@ -26,17 +26,9 @@ def setup_debug_logs(*, filename: Optional[str]) -> None:
     # Re-enable logging, reverting the call to disable_logs()
     logging.disable(logging.NOTSET)
 
-    if sys.version_info[:2] < (3, 8):
-        # Simulate logging.basicConfig() `force` argument, introduced in Python 3.8
-        root = logging.getLogger()
-        for handler in root.handlers[:]:
-            root.removeHandler(handler)
-            handler.close()
-        logging.basicConfig(filename=filename, level=logging.DEBUG, format=LOG_FORMAT)
-    else:
-        logging.basicConfig(
-            filename=filename, level=logging.DEBUG, format=LOG_FORMAT, force=True
-        )
+    logging.basicConfig(
+        filename=filename, level=logging.DEBUG, format=LOG_FORMAT, force=True
+    )
 
     # Silence charset_normalizer, its debug output does not bring much
     logging.getLogger("charset_normalizer").setLevel(logging.WARNING)
