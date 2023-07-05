@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import requests
 from click.testing import CliRunner
 from pytest_mock import MockerFixture
@@ -13,13 +14,17 @@ from tests.unit.conftest import my_vcr
 from tests.unit.request_mock import create_json_response
 
 
-def _setup_single_iac_vuln_repo() -> str:
-    """
-    Sets up a local repo with a single vulnerable IaC file.
-    :returns: a string representing the path to the file
+# `iac scan` is set for deprecation, but should behave exactly as `iac scan all` in the meantime
+pytestmark = pytest.mark.parametrize(
+    "cli_command", [["iac", "scan", "all"], ["iac", "scan"]]
+)
 
+
+def setup_single_iac_vuln_repo(tmp_path: Path) -> str:
     """
-    tmp_path = Path(".")
+    Sets up a local repo with a single vulnerable IaC file from a given tmp_path.
+    :returns: a string representing the path to the file
+    """
 
     repo = Repository.create(tmp_path)
 
@@ -34,7 +39,7 @@ def _setup_single_iac_vuln_repo() -> str:
 
 
 @my_vcr.use_cassette("test_iac_scan_no_argument")
-def test_scan_all_no_arg(cli_fs_runner: CliRunner) -> None:
+def test_scan_all_no_arg(cli_fs_runner: CliRunner, cli_command) -> None:
     """
     GIVEN -
     WHEN running the iac scan command with no argument
@@ -42,17 +47,13 @@ def test_scan_all_no_arg(cli_fs_runner: CliRunner) -> None:
     """
     result = cli_fs_runner.invoke(
         cli,
-        [
-            "iac",
-            "scan",
-            "all",
-        ],
+        cli_command,
     )
     assert result.exit_code == ExitCode.SUCCESS
 
 
 @my_vcr.use_cassette("test_iac_scan_empty_directory")
-def test_scan_all_valid_args(cli_fs_runner: CliRunner) -> None:
+def test_scan_all_valid_args(cli_fs_runner: CliRunner, cli_command) -> None:
     """
     GIVEN valid arguments to the iac scan command
     WHEN running the iac scan command with those arguments
@@ -60,10 +61,8 @@ def test_scan_all_valid_args(cli_fs_runner: CliRunner) -> None:
     """
     result = cli_fs_runner.invoke(
         cli,
-        [
-            "iac",
-            "scan",
-            "all",
+        cli_command
+        + [
             "--minimum-severity",
             "MEDIUM",
             "--ignore-policy",
@@ -78,7 +77,7 @@ def test_scan_all_valid_args(cli_fs_runner: CliRunner) -> None:
     assert result.exit_code == ExitCode.SUCCESS
 
 
-def test_invalid_policy_id(cli_fs_runner: CliRunner) -> None:
+def test_invalid_policy_id(cli_fs_runner: CliRunner, cli_command) -> None:
     """
     GIVEN arguments to the iac scan command with non-correct policy id to ignore
     WHEN running the iac scan command with those arguments
@@ -86,10 +85,8 @@ def test_invalid_policy_id(cli_fs_runner: CliRunner) -> None:
     """
     result = cli_fs_runner.invoke(
         cli,
-        [
-            "iac",
-            "scan",
-            "all",
+        cli_command
+        + [
             "--ignore-policy",
             "GG_IAC_0001",
             "--ignore-policy",
@@ -104,16 +101,16 @@ def test_invalid_policy_id(cli_fs_runner: CliRunner) -> None:
     )
 
 
-def test_iac_scan_all_file_error_response(cli_fs_runner: CliRunner) -> None:
+def test_iac_scan_all_file_error_response(
+    cli_fs_runner: CliRunner, cli_command
+) -> None:
     with cli_fs_runner.isolated_filesystem():
-        iac_file_path = _setup_single_iac_vuln_repo()
+        iac_file_path = setup_single_iac_vuln_repo(Path("."))
 
         result = cli_fs_runner.invoke(
             cli,
-            [
-                "iac",
-                "scan",
-                "all",
+            cli_command
+            + [
                 iac_file_path,
             ],
         )
@@ -122,21 +119,19 @@ def test_iac_scan_all_file_error_response(cli_fs_runner: CliRunner) -> None:
 
 
 def test_iac_scan_all_error_response(
-    cli_fs_runner: CliRunner, mocker: MockerFixture
+    cli_fs_runner: CliRunner, mocker: MockerFixture, cli_command
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
         return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
     with cli_fs_runner.isolated_filesystem():
-        _setup_single_iac_vuln_repo()
+        setup_single_iac_vuln_repo(Path("."))
 
         result = cli_fs_runner.invoke(
             cli,
-            [
-                "iac",
-                "scan",
-                "all",
+            cli_command
+            + [
                 ".",
             ],
         )
@@ -146,7 +141,7 @@ def test_iac_scan_all_error_response(
 
 
 def test_iac_scan_all_json_error_response(
-    cli_fs_runner: CliRunner, mocker: MockerFixture
+    cli_fs_runner: CliRunner, mocker: MockerFixture, cli_command
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
@@ -155,14 +150,12 @@ def test_iac_scan_all_json_error_response(
     cli_fs_runner.mix_stderr = False
     with cli_fs_runner.isolated_filesystem():
 
-        _setup_single_iac_vuln_repo()
+        setup_single_iac_vuln_repo(Path("."))
 
         result = cli_fs_runner.invoke(
             cli,
-            [
-                "iac",
-                "scan",
-                "all",
+            cli_command
+            + [
                 "--json",
                 ".",
             ],
@@ -179,7 +172,7 @@ def test_iac_scan_all_json_error_response(
 
 
 def test_iac_scan_all_unknown_error_response(
-    cli_fs_runner: CliRunner, mocker: MockerFixture
+    cli_fs_runner: CliRunner, mocker: MockerFixture, cli_command
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
@@ -188,29 +181,29 @@ def test_iac_scan_all_unknown_error_response(
 
     with cli_fs_runner.isolated_filesystem():
 
-        _setup_single_iac_vuln_repo()
+        setup_single_iac_vuln_repo(Path("."))
 
         result = cli_fs_runner.invoke(
             cli,
-            ["iac", "scan", "all", "."],
+            cli_command + ["."],
         )
     assert "Error scanning." in result.stdout
     assert "404:Not found (404)" in result.stdout
 
 
 def test_iac_scan_all_error_response_read_timeout(
-    cli_fs_runner: CliRunner, mocker: MockerFixture
+    cli_fs_runner: CliRunner, mocker: MockerFixture, cli_command
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
         side_effect=requests.exceptions.ReadTimeout("Timeout error"),
     )
     with cli_fs_runner.isolated_filesystem():
-        _setup_single_iac_vuln_repo()
+        setup_single_iac_vuln_repo(Path("."))
 
         result = cli_fs_runner.invoke(
             cli,
-            ["iac", "scan", "all", "."],
+            cli_command + ["."],
         )
     assert "Error scanning." in result.stdout
     assert "504:The request timed out." in result.stdout
