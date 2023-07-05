@@ -5,7 +5,7 @@ import click
 import pytest
 from pygitguardian.models import Detail
 
-from ggshield.core.errors import ExitCode
+from ggshield.core.errors import ExitCode, QuotaLimitReachedError
 from ggshield.core.git_shell import Filemode
 from ggshield.scan import (
     Commit,
@@ -186,3 +186,9 @@ def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
     handle_scan_chunk_error(detail, chunk)
     captured = capsys.readouterr()
     snapshot.assert_match(captured.err)
+
+
+def test_handle_scan_quota_limit_reached():
+    detail = Detail(detail="Quota limit reached.", status_code=403)
+    with pytest.raises(QuotaLimitReachedError):
+        handle_scan_chunk_error(detail, Mock())

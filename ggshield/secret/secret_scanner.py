@@ -13,7 +13,7 @@ from pygitguardian.models import Detail, MultiScanResult
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
 from ggshield.core.constants import MAX_WORKERS
-from ggshield.core.errors import UnexpectedError
+from ggshield.core.errors import QuotaLimitReachedError, UnexpectedError
 from ggshield.core.filter import (
     remove_ignored_from_result,
     remove_results_from_ignore_detectors,
@@ -238,6 +238,8 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
         raise click.UsageError(detail.detail)
     if detail.status_code is None:
         raise UnexpectedError(f"Scanning failed: {detail.detail}")
+    if detail.status_code == 403 and detail.detail == "Quota limit reached.":
+        raise QuotaLimitReachedError()
 
     details = None
 

@@ -66,6 +66,14 @@ class AuthError(_ExitError):
         self.instance = instance
 
 
+class QuotaLimitReachedError(_ExitError):
+    def __init__(self):
+        super().__init__(
+            ExitCode.UNEXPECTED_ERROR,
+            "Could not perform the requested action: no more API calls available.",
+        )
+
+
 class UnknownInstanceError(AuthError):
     """
     Raised when the requested instance does not exist
