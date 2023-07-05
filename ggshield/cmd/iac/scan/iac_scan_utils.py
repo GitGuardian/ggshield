@@ -1,6 +1,6 @@
 from pathlib import Path
 from re import Pattern
-from typing import Callable, Iterable, Set, Type
+from typing import Iterable, Optional, Set, Type
 
 import click
 from pygitguardian import GGClient
@@ -44,7 +44,7 @@ def handle_scan_error(client: GGClient, detail: Detail) -> None:
     display_error(str(detail))
 
 
-def get_iac_filepaths(directory: Path, ref: str) -> Iterable[Path]:
+def get_git_filepaths(directory: Path, ref: str) -> Iterable[Path]:
     return (
         get_staged_filepaths(str(directory))
         if ref == INDEX_REF
@@ -52,21 +52,37 @@ def get_iac_filepaths(directory: Path, ref: str) -> Iterable[Path]:
     )
 
 
+def _accept_iac_file_on_path(
+    path: Path, directory: Path, exclusion_regexes: Optional[Set[Pattern]] = None
+) -> bool:
+    return is_iac_file_path(path) and (
+        exclusion_regexes is None
+        or not is_filepath_excluded(str(directory / path), exclusion_regexes)
+    )
+
+
 def filter_iac_filepaths(
     directory: Path,
-    ref: str,
     filepaths: Iterable[Path],
+    exclusion_regexes: Optional[Set[Pattern]] = None,
 ) -> Iterable[Path]:
-
-    return filter(is_iac_file_path, filepaths)
+    # You can filter based on file's content here
+    # using read_git_file (result will be cached)
+    return [
+        path
+        for path in filepaths
+        if _accept_iac_file_on_path(
+            path, directory, exclusion_regexes=exclusion_regexes
+        )
+    ]
 
 
 def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
-    filepaths = get_iac_filepaths(directory, ref)
+    filepaths = get_git_filepaths(directory, ref)
+    filtered_paths = filter_iac_filepaths(
+        directory=directory,
+        filepaths=filepaths,
+        exclusion_regexes=exclusion_regexes,
+    )
 
-    def _accept_file(path: Path, open_file: Callable[[], str]) -> bool:
-        return is_iac_file_path(path) and not is_filepath_excluded(
-            str(directory / path), exclusion_regexes
-        )
-
-    return tar_from_ref_and_filepaths(ref, filepaths, _accept_file, str(directory))
+    return tar_from_ref_and_filepaths(ref, filtered_paths, wd=str(directory))
