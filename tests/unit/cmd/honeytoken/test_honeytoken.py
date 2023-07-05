@@ -1,8 +1,11 @@
+from typing import Any, Dict, List, Union
+
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
+from tests.unit.request_mock import RequestMock, create_json_response
 
 
 @my_vcr.use_cassette("test_honeytoken_create_no_argument")
@@ -62,26 +65,36 @@ def test_honeytoken_create_ok(cli_fs_runner: CliRunner) -> None:
     assert_invoke_ok(result)
 
 
-@my_vcr.use_cassette("test_honeytoken_create_error_403")
-def test_honeytoken_create_error_403(cli_fs_runner: CliRunner) -> None:
+def test_honeytoken_create_error_403(cli_fs_runner: CliRunner, monkeypatch) -> None:
     """
     GIVEN a token without honeytoken scope
     WHEN running the honeytoken command with all needed arguments
-    THEN the return code is 1 and the error message match the needed message
+    THEN the return code is UNEXPECTED_ERROR and the error message match the needed message
     """
+
+    mock = RequestMock()
+    monkeypatch.setattr("ggshield.core.client.Session.request", mock)
+
+    def payload_checker(body: Union[List[str], Dict[str, Any]]) -> None:
+        assert body["type"] == "AWS"
+
+    mock.add_POST(
+        "/honeytokens",
+        create_json_response(
+            {"detail": "Token is missing the following scope: honeytokens:read"}, 403
+        ),
+        json_checker=payload_checker,
+    )
 
     result = cli_fs_runner.invoke(
         cli,
         [
             "honeytoken",
             "create",
-            "--description",
-            "description",
             "--type",
             "AWS",
-            "--name",
-            "test_honey_token_error_403",
         ],
     )
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    mock.assert_all_requests_happened()
     assert "ggshield does not have permissions to create honeytokens" in result.stdout
