@@ -280,7 +280,7 @@ def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
 def tar_from_ref_and_filepaths(
     ref: str,
     filepaths: Iterable[Path],
-    acceptation_func: Optional[Callable[[Path, Callable[[], str]], bool]] = None,
+    acceptation_func: Optional[Callable[[Path, str], bool]] = None,
     wd: Optional[str] = None,
 ) -> bytes:
     """
@@ -288,12 +288,13 @@ def tar_from_ref_and_filepaths(
     The filepaths are typically obtained via `get_filepaths_from_ref` or `get_staged_filepaths`
     before being filtered.
     The archive is returned as raw bytes.
+    For better performance, pre-filter the provided filepaths, or use the `acceptation_func`
+    argument if you need to filter based on file content.
     :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,\
         or any argument accepted as <ref> by git show <ref>:<filepath>
     :param filepaths: string paths to selected files
-    :param acceptation_func: provided a file path and a function to read\
-        its raw content, returns whether the file should be included\
-        in the archive
+    :param acceptation_func: provided a file path and its raw content,\
+        returns whether the file should be included in the archive.
     :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
@@ -308,15 +309,12 @@ def tar_from_ref_and_filepaths(
 
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
         for path in filepaths:
+            content = read_git_file(ref, path, wd)
 
-            def _readfile() -> str:
-                return read_git_file(ref, path, wd)
-
-            if acceptation_func is not None and not acceptation_func(path, _readfile):
+            if acceptation_func is not None and not acceptation_func(path, content):
                 continue
 
-            raw_file_content = _readfile()
-            data = BytesIO(raw_file_content.encode())
+            data = BytesIO(content.encode())
 
             tarinfo = tarfile.TarInfo(str(path))
             tarinfo.size = len(data.getbuffer())
