@@ -7,7 +7,7 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from shutil import which
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import click
 from click import UsageError
@@ -272,10 +272,14 @@ def get_diff_files_status(
     return parse_name_status_patch(patch)
 
 
+@lru_cache(None)
+def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
+    return git(["show", f"{ref}:./{path}"], cwd=wd)
+
+
 def tar_from_ref_and_filepaths(
     ref: str,
     filepaths: Iterable[Path],
-    acceptation_func: Optional[Callable[[Path, str], bool]] = None,
     wd: Optional[str] = None,
 ) -> bytes:
     """
@@ -286,8 +290,6 @@ def tar_from_ref_and_filepaths(
     :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,\
         or any argument accepted as <ref> by git show <ref>:<filepath>
     :param filepaths: string paths to selected files
-    :param acceptation_func: provided a filepath and its raw content, \
-        returns whether the file should be included in the archive
     :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
@@ -302,13 +304,7 @@ def tar_from_ref_and_filepaths(
 
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
         for path in filepaths:
-            raw_file_content = git(["show", f"{ref}:./{path}"], cwd=wd)
-
-            if acceptation_func is not None and not (
-                acceptation_func(path, raw_file_content)
-            ):
-                continue
-
+            raw_file_content = read_git_file(ref, path, wd)
             data = BytesIO(raw_file_content.encode())
 
             tarinfo = tarfile.TarInfo(str(path))

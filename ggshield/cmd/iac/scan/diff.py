@@ -12,7 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     filter_iac_filepaths,
-    get_iac_filepaths,
+    get_git_filepaths,
     get_iac_tar,
     handle_scan_error,
 )
@@ -127,9 +127,7 @@ def iac_scan_diff(
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:
         display_info(f"> Scanned files in reference {ref}")
-        filepaths = filter_iac_filepaths(
-            directory, ref, get_iac_filepaths(directory, ref)
-        )
+        filepaths = filter_iac_filepaths(directory, get_git_filepaths(directory, ref))
         for filepath in filepaths:
             display_info(f"- {click.format_filename(filepath)}")
         display_info("")
@@ -141,7 +139,7 @@ def iac_scan_diff(
         else:
             display_info("> Scanned files in current state")
         filepaths = filter_iac_filepaths(
-            directory, current_ref, get_iac_filepaths(directory, current_ref)
+            directory, get_git_filepaths(directory, current_ref)
         )
         for filepath in filepaths:
             display_info(f"- {click.format_filename(filepath)}")
