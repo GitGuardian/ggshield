@@ -257,7 +257,10 @@ def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     handles the SaaS edge case where the host changes instead of the path
     """
     parsed_url = clean_url(dashboard_url, warn=warn)
-    if parsed_url.scheme != "https" and not parsed_url.netloc.startswith("localhost"):
+    if parsed_url.scheme != "https" and not (
+        parsed_url.netloc.startswith("localhost")
+        or parsed_url.netloc.startswith("127.0.0.1")
+    ):
         raise UsageError(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
         )
