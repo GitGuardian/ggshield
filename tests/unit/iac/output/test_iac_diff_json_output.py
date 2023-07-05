@@ -1,9 +1,13 @@
 import json
 
-from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
+from pygitguardian.iac_models import (
+    IaCDiffScanEntities,
+    IaCDiffScanResult,
+    IaCFileResult,
+    IaCVulnerability,
+)
 
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.iac_scan_models import IaCDiffScanEntities, IaCDiffScanResult
 from ggshield.iac.output import IaCJSONOutputHandler
 
 

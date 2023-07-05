@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
 import click
-from pygitguardian.iac_models import IaCScanParameters
+from pygitguardian.iac_models import IaCDiffScanResult, IaCScanParameters
 
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
@@ -10,6 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
+    IaCSkipDiffScanResult,
     create_output_handler,
     filter_iac_filepaths,
     get_git_filepaths,
@@ -17,16 +18,10 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
-from ggshield.core.config.config import Config
 from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.filter import is_iac_file_path
-from ggshield.iac.iac_scan_models import (
-    IaCDiffScanResult,
-    IaCSkipDiffScanResult,
-    create_client_from_config,
-)
 from ggshield.scan import ScanContext, ScanMode
 
 
@@ -94,10 +89,6 @@ def scan_diff_cmd(
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-
-    # TODO: remove this once the GGClient is updated with the new diff function
-    config: Config = ctx.obj["config"]
-    ctx.obj["client"] = create_client_from_config(config)
 
     if pre_commit:
         ref = "HEAD"

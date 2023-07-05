@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from re import Pattern
 from typing import Iterable, Optional, Set, Type
@@ -23,6 +24,11 @@ from ggshield.iac.output import (
     IaCOutputHandler,
     IaCTextOutputHandler,
 )
+
+
+@dataclass
+class IaCSkipDiffScanResult:
+    id: str = ""
 
 
 def create_output_handler(ctx: click.Context) -> IaCOutputHandler:
