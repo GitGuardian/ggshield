@@ -7,7 +7,7 @@ from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
 
 
-def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
+def test_iac_scan_diff_no_change(tmp_path: Path) -> None:
     # GIVEN a git repository
     repo = Repository.create(tmp_path)
     repo.create_commit()
@@ -16,9 +16,6 @@ def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
     file1 = tmp_path / "file1.tf"
     file1.write_text(_IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
-    file2 = tmp_path / "file2.tf"
-    file2.write_text(_IAC_SINGLE_VULNERABILITY)
-    repo.add(file2)
     repo.create_commit()
 
     # WHEN scanning the diff between current and HEAD
@@ -28,6 +25,34 @@ def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
 
     # THEN the output shows no vulnerabilities
     assert "No IaC files changed" in result.stdout
+
+
+def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND a first commit with vulnerabilities
+    file1 = tmp_path / "file1.tf"
+    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file1)
+    repo.create_commit()
+
+    # AND a second commit with changes to IaC files
+    # but introducing no changes to vulnerabilities
+    file2 = tmp_path / "file2.tf"
+    file2.write_text("")
+    repo.add(file2)
+    repo.create_commit()
+
+    # WHEN scanning the diff in this second commit
+    args = ["diff", "--ref", "HEAD~1", str(tmp_path)]
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
+
+    # THEN the output shows one unchanged vulnerability
+    assert "0 incidents deleted" in result.stdout
+    assert "1 incident remaining" in result.stdout
+    assert "0 new incidents detected" in result.stdout
 
 
 def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
@@ -50,10 +75,10 @@ def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
     # WHEN scanning the diff between current and HEAD~1
     # (meaning reference should be one commit behind)
     args = ["diff", "--ref", "HEAD~1", str(tmp_path)]
+    # THEN exit code is 1 (new vuln detected)
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
 
-    print(result.stdout)
-    # THEN vulnerability of file1.tf shows as unchanged
+    # AND vulnerability of file1.tf shows as unchanged
     # AND vulnerability of file2.tf shows as new
     assert "0 incidents deleted" in result.stdout
     assert "1 incident remaining" in result.stdout
@@ -85,9 +110,10 @@ def test_iac_scan_diff_removed_vuln(tmp_path: Path) -> None:
     # WHEN scanning the diff between current and HEAD~1
     # (meaning reference should be one commit behind)
     args = ["diff", "--ref", "HEAD~1", str(tmp_path)]
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    # THEN exit code is 0 (no new vuln)
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
 
-    # THEN the output contains the vulnerability of file2.tf as unchanged
+    # AND the output contains the vulnerability of file2.tf as unchanged
     # AND the output contains the vulnerability of file1.tf as deleted
     assert "1 incident deleted" in result.stdout
     assert "1 incident remaining" in result.stdout
@@ -144,7 +170,7 @@ def test_iac_scan_diff_staged(tmp_path: Path, staged: bool) -> None:
     args = ["diff", "--ref", "HEAD", str(tmp_path)]
     if staged:
         args.append("--staged")
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=bool(staged))
 
     # THEN the staged file only appears with --staged flag enabled
     assert "0 incidents deleted" in result.stdout

@@ -9,13 +9,8 @@ from ggshield.iac.collection.iac_scan_collection import (
 
 
 class IaCPathScanCollection(IaCScanCollection):
-    def __init__(
-        self,
-        id: str,
-        result: Optional[IaCScanResult],
-    ):
-        super().__init__(id, result)
-        self.type = CollectionType.PathScan
+    type = CollectionType.PathScan
+    result: Optional[IaCScanResult]
 
     @property
     def has_results(self) -> bool:

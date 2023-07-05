@@ -45,7 +45,6 @@ def test_iac_scan_all_only_tracked_iac(tmp_path: Path) -> None:
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
 
     # THEN only the tracked file appears in the output
-    print(result.stdout)
     assert "should_appear.tf" in result.stdout
     assert "should_not_appear.tf" not in result.stdout
 
