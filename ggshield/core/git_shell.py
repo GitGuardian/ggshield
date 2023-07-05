@@ -280,7 +280,8 @@ def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
 def tar_from_ref_and_filepaths(
     ref: str,
     filepaths: Iterable[Path],
-    acceptation_func: Optional[Callable[[Path, Callable[[], str]], bool]] = None,
+    accept_path: Optional[Callable[[Path], bool]] = None,
+    accept_content: Optional[Callable[[str, Path], bool]] = None,
     wd: Optional[str] = None,
 ) -> bytes:
     """
@@ -291,9 +292,12 @@ def tar_from_ref_and_filepaths(
     :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,\
         or any argument accepted as <ref> by git show <ref>:<filepath>
     :param filepaths: string paths to selected files
-    :param acceptation_func: provided a file path and a function to read\
-        its raw content, returns whether the file should be included\
-        in the archive
+    :param accept_path: provided a file path, returns whether the file should be\
+        included in the archive. This does not open the file.
+    :param accept_content: provided a file raw content and its path,\
+        returns whether the file should be included in the archive.\
+        If you do not need the file content to accept,\
+        please use `accept_path` instead.
     :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
@@ -308,15 +312,15 @@ def tar_from_ref_and_filepaths(
 
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
         for path in filepaths:
-
-            def _readfile() -> str:
-                return read_git_file(ref, path, wd)
-
-            if acceptation_func is not None and not acceptation_func(path, _readfile):
+            if accept_path is not None and not accept_path(path):
                 continue
 
-            raw_file_content = _readfile()
-            data = BytesIO(raw_file_content.encode())
+            content = read_git_file(ref, path, wd)
+
+            if accept_content is not None and not accept_content(content, path):
+                continue
+
+            data = BytesIO(content.encode())
 
             tarinfo = tarfile.TarInfo(str(path))
             tarinfo.size = len(data.getbuffer())

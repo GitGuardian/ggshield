@@ -1,6 +1,6 @@
 from pathlib import Path
 from re import Pattern
-from typing import Callable, Iterable, Set, Type
+from typing import Iterable, Set, Type
 
 import click
 from pygitguardian import GGClient
@@ -64,9 +64,11 @@ def filter_iac_filepaths(
 def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
     filepaths = get_iac_filepaths(directory, ref)
 
-    def _accept_file(path: Path, open_file: Callable[[], str]) -> bool:
+    def _accept_path(path: Path) -> bool:
         return is_iac_file_path(path) and not is_filepath_excluded(
             str(directory / path), exclusion_regexes
         )
 
-    return tar_from_ref_and_filepaths(ref, filepaths, _accept_file, str(directory))
+    return tar_from_ref_and_filepaths(
+        ref, filepaths, accept_path=_accept_path, wd=str(directory)
+    )

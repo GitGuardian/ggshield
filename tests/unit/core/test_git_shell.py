@@ -163,7 +163,7 @@ def test_tar_from_ref_and_filepaths(tmp_path):
     repo.create_commit()
 
     # AND a filter function
-    def filter(path, content):
+    def filter(path):
         return "ignored" not in str(path)
 
     # AND a list of filepaths
@@ -171,7 +171,10 @@ def test_tar_from_ref_and_filepaths(tmp_path):
 
     # WHEN creating a tar
     tarbytes = tar_from_ref_and_filepaths(
-        "HEAD~1", [Path(path_str) for path_str in filepaths], filter, tmp_path
+        "HEAD~1",
+        [Path(path_str) for path_str in filepaths],
+        accept_path=filter,
+        wd=tmp_path,
     )
 
     tar_stream = BytesIO(tarbytes)
