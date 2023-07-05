@@ -15,7 +15,7 @@ flake8-isort = "*"
 flake8-quotes = "*"
 ipdb = "*"
 pre-commit = "*"
-pytest = "7.2.1" # pinning because of conflicting dependencies with exceptiongroup 
+pytest = "==7.2.1" # pinning because of conflicting dependencies with exceptiongroup
 pytest-mock = "*"
 pytest-socket = "*"
 pytest-voluptuous = "*"
