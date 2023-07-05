@@ -12,6 +12,7 @@ from pygitguardian.models import Detail, MultiScanResult
 
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
+from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import (
     remove_ignored_from_result,
@@ -92,14 +93,17 @@ class SecretScanner:
         self,
         files: Iterable[Scannable],
         scanner_ui: SecretScannerUI = DefaultSecretScannerUI(),
-        scan_threads: int = 4,
+        scan_threads: Optional[int] = None,
     ) -> Results:
         """
-        Starts the scan, using at most scan_threads.
+        Starts the scan, using at most `scan_threads`. If `scan_threads` is not set,
+        defaults to MAX_WORKERS.
         Reports progress through `scanner_ui`.
         Returns a Results instance.
         """
-        logger.debug("files=%s command_id=%s", self, self.command_id)
+        if scan_threads is None:
+            scan_threads = MAX_WORKERS
+        logger.debug("command_id=%s scan_threads=%d", self.command_id, scan_threads)
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=scan_threads, thread_name_prefix="content_scan"

@@ -346,10 +346,7 @@ def docker_scan_archive(
 
         display_heading("Scanning Docker config")
         with RichSecretScannerUI(1) as ui:
-            results = scanner.scan(
-                [docker_image.config_scannable],
-                scanner_ui=ui,
-            )
+            results = scanner.scan([docker_image.config_scannable], scanner_ui=ui)
 
         for info in docker_image.layer_infos:
             layer = docker_image.get_layer(info)

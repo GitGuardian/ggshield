@@ -8,7 +8,6 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
-from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.scan import ScanContext, ScanMode, Scannable, StringScannable
@@ -40,10 +39,7 @@ def create_scans_from_docset_files(
             display_info(f"- {click.format_filename(input_file.name)}")
 
         files = generate_files_from_docsets(input_file, verbose)
-        results = scanner.scan(
-            files,
-            scan_threads=MAX_WORKERS,
-        )
+        results = scanner.scan(files)
         scans.append(
             SecretScanCollection(id=input_file.name, type="docset", results=results)
         )
