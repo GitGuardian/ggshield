@@ -1,7 +1,7 @@
 interactions:
   - request:
       body:
-        '{"touched_files": ["tests/unit/cmd/iac/test_scan_diff.py", "build/lib/ggshield/cmd/__init__.py",
+        '{"files": ["tests/unit/cmd/iac/test_scan_diff.py", "build/lib/ggshield/cmd/__init__.py",
         "tests/unit/data/patches/chmod.patch", "tests/unit/cassettes/test_files_verbose.yaml",
         "ggshield/core/clickutils/default_command_group.py", "tests/unit/cmd/test_status.py",
         "build/lib/ggshield/cmd/config/config_get.py", "ggshield/iac/__init__.py", "build/lib/tests/unit/output/test_message.py",
