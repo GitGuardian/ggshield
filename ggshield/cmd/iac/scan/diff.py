@@ -17,7 +17,6 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     get_iac_tar,
     handle_scan_error,
 )
-from ggshield.core.clickutils.option_group import OptionGroup
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
@@ -30,34 +29,9 @@ from ggshield.scan import ScanContext, ScanMode
 @add_iac_scan_common_options()
 @click.option(
     "--ref",
+    required=True,
     type=click.STRING,
-    cls=OptionGroup,
-    not_required_if=["pre-commit", "pre-push", "pre-receive"],
     help="A git reference.",
-)
-@click.option(
-    "--pre-commit",
-    is_flag=True,
-    type=click.STRING,
-    cls=OptionGroup,
-    not_required_if=["ref", "pre-push", "pre-receive"],
-    help="This is an alias for `ggshield iac scan --ref=HEAD --staged`, intended to be used in a pre-commit hook.",
-)
-@click.option(
-    "--pre-push",
-    is_flag=True,
-    type=click.STRING,
-    cls=OptionGroup,
-    not_required_if=["ref", "pre-commit", "pre-receive"],
-    help="This is an alias for `ggshield iac scan --ref=@{upstream}`, intended to be used in a pre-push hook.",
-)
-@click.option(
-    "--pre-receive",
-    is_flag=True,
-    type=click.STRING,
-    cls=OptionGroup,
-    not_required_if=["ref", "pre-commit", "pre-push"],
-    help="This is an alias for `ggshield iac scan --ref=HEAD`, intended to be used in a pre-receive hook.",
 )
 @click.option(
     "--staged",
@@ -73,9 +47,6 @@ def scan_diff_cmd(
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
     ref: str,
-    pre_commit: bool,
-    pre_push: bool,
-    pre_receive: bool,
     staged: bool,
     directory: Optional[Path],
     **kwargs: Any,
@@ -90,16 +61,6 @@ def scan_diff_cmd(
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-
-    if pre_commit:
-        ref = "HEAD"
-        staged = True
-    elif pre_push:
-        ref = "@{upstream}"
-        staged = False
-    elif pre_receive:
-        ref = "HEAD"
-        staged = False
 
     result = iac_scan_diff(ctx, directory, ref, staged)
     output_handler = create_output_handler(ctx)

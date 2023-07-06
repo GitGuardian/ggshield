@@ -2,12 +2,15 @@ from typing import Any
 
 import click
 
+from ggshield.cmd.iac.scan.all import scan_all_cmd
 from ggshield.cmd.iac.scan.diff import scan_diff_cmd
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     directory_argument,
 )
-from ggshield.cmd.iac.scan.scan import scan_all_cmd
+from ggshield.cmd.iac.scan.precommit import scan_pre_commit_cmd
+from ggshield.cmd.iac.scan.prepush import scan_pre_push_cmd
+from ggshield.cmd.iac.scan.prereceive import scan_pre_receive_cmd
 from ggshield.core.clickutils.default_command_group import DefaultCommandGroup
 from ggshield.core.client import create_client_from_config
 from ggshield.core.text_utils import display_warning
@@ -18,6 +21,9 @@ from ggshield.core.text_utils import display_warning
     commands={
         "all": scan_all_cmd,
         "diff": scan_diff_cmd,
+        "pre-commit": scan_pre_commit_cmd,
+        "pre-push": scan_pre_push_cmd,
+        "pre-receive": scan_pre_receive_cmd,
     },
     invoke_without_command=True,
 )
@@ -33,6 +39,7 @@ def iac_scan_group(
 
 # Alias to "ggshield iac scan all"
 # Kept for compatibility
+# Changes to arguments must be propagated to scan_all_cmd
 @iac_scan_group.command(default_command=True)
 @add_iac_scan_common_options()
 @directory_argument

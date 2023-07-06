@@ -65,6 +65,13 @@ _ignore_path_option = click.option(
     help="Do not scan the specified paths.",
 )
 
+all_option = click.option(
+    "--all",
+    is_flag=True,
+    default=None,
+    help="Raise all vulnerabilities in the final state.",
+)
+
 directory_argument = click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
