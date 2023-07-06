@@ -1,10 +1,8 @@
 import io
 import os
-import sys
 import tarfile
 import tempfile
 from pathlib import Path
-from typing import Union
 
 import pytest
 
@@ -112,26 +110,6 @@ def clean_directory(path: Path):
             os.remove(filepath)
 
 
-def fix_py37_win_tempdir_permissions(dirpath: Union[str, Path]) -> None:
-    """Work around a `tempfile` clean-up issue on Windows with Python 3.7
-    Call this before exiting a ``with TemporaryDirectory():`` block or in teardown for
-    a Pytest fixture which creates a temporary directory.
-    See discussion in https://github.com/akaihola/darker/pull/393
-    Solution borrowed from https://github.com/python/cpython/pull/10320
-    :param dirpath: The root path of the temporary directory
-    """
-    if not sys.platform.startswith("win") or sys.version_info >= (3, 8):
-        return
-    for root, dirs, files in os.walk(dirpath):
-        for name in dirs + files:
-            path = os.path.join(root, name)
-            try:
-                os.chflags(path, 0)  # type: ignore[attr-defined]
-            except AttributeError:
-                pass
-            os.chmod(path, 0o700)
-
-
 def make_dummy_sca_repo():
     """Function to create a dummy SCA repo as a tarfile"""
     result_buffer = io.BytesIO()
@@ -170,7 +148,6 @@ def make_dummy_sca_repo():
 
         result_tar = tarfile.TarFile(fileobj=result_buffer, mode="w")
         result_tar.add(tmp_path_str, arcname="sca_repo")
-        fix_py37_win_tempdir_permissions(tmp_path_str)
     result_buffer.seek(0)
     return tarfile.TarFile(fileobj=result_buffer, mode="r")
 

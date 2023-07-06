@@ -171,7 +171,7 @@ def get_sca_scan_all_filepaths(
     )
 
     # API Call to filter SCA files
-    response = client.compute_sca_files(touched_files=all_filepaths)
+    response = client.compute_sca_files(files=all_filepaths)
 
     if not isinstance(response, ComputeSCAFilesResult):
         if response.status_code == 401:
