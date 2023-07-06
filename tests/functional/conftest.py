@@ -1,3 +1,4 @@
+import abc
 import http.server
 import shutil
 import socketserver
@@ -23,7 +24,7 @@ HAS_DOCKER = shutil.which("docker") is not None
 requires_docker = pytest.mark.skipif(not HAS_DOCKER, reason="This test requires Docker")
 
 
-class SlowGGAPIHandler(http.server.BaseHTTPRequestHandler):
+class AbstractGGAPIHandler(http.server.BaseHTTPRequestHandler, metaclass=abc.ABCMeta):
     def do_HEAD(self):
         self.send_response(200)
 
@@ -45,6 +46,12 @@ class SlowGGAPIHandler(http.server.BaseHTTPRequestHandler):
 
         self.wfile.write(response.content)
 
+    @abc.abstractmethod
+    def do_POST(self):
+        raise NotImplementedError()
+
+
+class SlowGGAPIHandler(AbstractGGAPIHandler):
     def do_POST(self):
         if "multiscan" in self.path:
             content = b'{"detail":"Sorry, I overslept!"}'
@@ -58,6 +65,16 @@ class SlowGGAPIHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(418)
 
 
+class NoQuotaGGAPIHandler(AbstractGGAPIHandler):
+    def do_POST(self):
+        content = b'{"detail":"Quota limit reached."}'
+        self.send_response(403)
+        self.send_header("content-type", "application/json")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+
 class ReuseAddressServer(socketserver.TCPServer):
     allow_reuse_address = True
 
@@ -67,11 +84,29 @@ def _start_slow_gitguardian_api(host: str, port: int):
         httpd.serve_forever()
 
 
+def _start_no_quota_gitguardian_api(host: str, port: int):
+    with ReuseAddressServer((host, port), NoQuotaGGAPIHandler) as httpd:
+        httpd.serve_forever()
+
+
 @pytest.fixture
 @pytest.mark.allow_hosts(["localhost"])
 def slow_gitguardian_api() -> Generator[str, None, None]:
     host, port = "localhost", 8123
     server_process = Process(target=_start_slow_gitguardian_api, args=(host, port))
+    server_process.start()
+    try:
+        yield f"http://{host}:{port}"
+    finally:
+        server_process.kill()
+        server_process.join()
+
+
+@pytest.fixture
+@pytest.mark.allow_hosts(["localhost"])
+def no_quota_gitguardian_api() -> Generator[str, None, None]:
+    host, port = "localhost", 8124
+    server_process = Process(target=_start_no_quota_gitguardian_api, args=(host, port))
     server_process.start()
     try:
         yield f"http://{host}:{port}"

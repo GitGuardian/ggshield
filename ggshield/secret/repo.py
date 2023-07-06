@@ -13,7 +13,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
-from ggshield.core.errors import ExitCode, handle_exception
+from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
@@ -90,6 +90,8 @@ def scan_commits_content(
             commit_files,
             scan_threads=SCAN_THREADS,
         )
+    except QuotaLimitReachedError:
+        raise
     except Exception as exc:
         results = Results.from_exception(exc)
 
@@ -163,7 +165,6 @@ def scan_commit_range(
     max_documents = client.secret_scan_preferences.maximum_documents_per_scan
 
     with create_progress_bar(doc_type="commits") as progress:
-
         task_scan = progress.add_task(
             "[green]Scanning Commits...", total=len(commit_list)
         )
@@ -192,6 +193,11 @@ def scan_commit_range(
                         ignored_detectors,
                     )
                 )
+                # Stop now if an exception has been raised by a future
+                for future in futures:
+                    exception = future.exception()
+                    if exception is not None:
+                        raise exception
 
             for future in as_completed(futures):
                 scan_collection = future.result()
