@@ -19,6 +19,7 @@ from ggshield.iac.filter import get_iac_files_from_path
 from ggshield.scan import ScanContext, ScanMode
 
 
+# Changes to arguments must be propagated to default_command
 @click.command()
 @add_iac_scan_common_options()
 @directory_argument
@@ -33,7 +34,7 @@ def scan_all_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan a directory for IaC vulnerabilities.
+    Scan a directory for all IaC vulnerabilities in the current state.
     """
     if directory is None:
         directory = Path().resolve()
