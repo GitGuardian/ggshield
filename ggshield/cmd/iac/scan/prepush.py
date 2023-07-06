@@ -37,7 +37,7 @@ def scan_pre_push_cmd(
 
     if directory is None:
         directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
+    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     result = iac_scan_diff(ctx, directory, "@{upstream}", include_staged=False)
     return display_iac_scan_diff_result(ctx, directory, result)
