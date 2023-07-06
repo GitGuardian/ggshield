@@ -28,11 +28,9 @@ def status_cmd(
     client = get_client(config)
 
     click.echo(
-        (
-            f"{format_text('API URL:', STYLE['key'])} {client.url}\n"
-            f"{format_text('Authenticated:', STYLE['key'])} {str(client.jwt is not None).lower()}\n"
-            f"{format_text('Status:', STYLE['key'])} {format_status(client.status)}\n"
-        )
+        f"{format_text('API URL:', STYLE['key'])} {client.url}\n"
+        f"{format_text('Authenticated:', STYLE['key'])} {str(client.jwt is not None).lower()}\n"
+        f"{format_text('Status:', STYLE['key'])} {format_status(client.status)}\n"
     )
 
     return 0

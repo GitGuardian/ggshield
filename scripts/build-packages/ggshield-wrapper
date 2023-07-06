@@ -8,7 +8,7 @@ set -euo pipefail
 
 # The minimum Python version we need
 MAJOR=3
-MINOR=7
+MINOR=8
 
 GGSHIELD_PYZ=/usr/lib/ggshield/ggshield.pyz
 
@@ -17,7 +17,6 @@ POSSIBLE_PYTHONS=\
 python310 python3.10
 python39 python3.9
 python38 python3.8
-python37 python3.7
 python3
 python
 "

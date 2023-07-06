@@ -28,11 +28,9 @@ def quota_cmd(
     client = get_client(config)
 
     click.echo(
-        (
-            f"Quota limit: {client.quota.limit}\n"
-            f"Quota available: {format_quota_color(client.quota.remaining, client.quota.limit)}\n"
-            f"Quota reset: {client.quota.reset.isoformat()}\n"
-        )
+        f"Quota limit: {client.quota.limit}\n"
+        f"Quota available: {format_quota_color(client.quota.remaining, client.quota.limit)}\n"
+        f"Quota reset: {client.quota.reset.isoformat()}\n"
     )
 
     return 0
