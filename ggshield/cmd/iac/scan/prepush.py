@@ -11,6 +11,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.text_utils import display_warning
+from ggshield.core.utils import EMPTY_SHA
 
 
 @click.command()
@@ -38,11 +39,11 @@ def scan_pre_push_cmd(
     _, remote_commit = collect_commits_refs(prepush_args)
 
     # Will happen if this is the first push on the branch
-    if "~1" in remote_commit:
+    if "~1" in remote_commit or remote_commit == EMPTY_SHA:
         remote_commit = None
 
     directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    result = iac_scan_diff(ctx, directory, "@{upstream}", include_staged=False)
+    result = iac_scan_diff(ctx, directory, remote_commit, include_staged=False)
     return display_iac_scan_diff_result(ctx, directory, result)

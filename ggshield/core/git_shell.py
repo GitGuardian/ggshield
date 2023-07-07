@@ -321,6 +321,7 @@ def tar_from_ref_and_filepaths(
     return tar_stream.getvalue()
 
 
+@lru_cache(None)
 def get_empty_tar() -> bytes:
     bytes = BytesIO()
     file = tarfile.open(fileobj=bytes, mode="w:gz")
