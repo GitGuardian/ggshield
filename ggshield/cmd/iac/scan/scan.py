@@ -10,12 +10,12 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
+    IaCSkipScanResult,
     create_output_handler,
     handle_scan_error,
 )
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.filter import get_iac_files_from_path
-from ggshield.iac.iac_scan_models import IaCSkipScanResult
 from ggshield.scan import ScanContext, ScanMode
 
 

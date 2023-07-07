@@ -18,7 +18,6 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
-from ggshield.core.config.config import Config
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
