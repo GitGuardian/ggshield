@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5ec1db68730e3cda22d3b52f02a81d55e718ab1e98549bdf4150594fe141b93e"
+            "sha256": "12b3ddffa6eb5dfb81bfe851b5df635e17a92a0873514b27bfaab9bfd5809f35"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -282,11 +282,8 @@
             "version": "==2.21"
         },
         "pygitguardian": {
-            "hashes": [
-                "sha256:2b9a45b080d3efd7e3d3b9b2e76b3ade1b3437e1d6107ba956258fb7172f5d9c",
-                "sha256:53b00e517fde7aab987503099ff95d388d45df6ddfbee754dfcf1f23283a9ce3"
-            ],
-            "version": "==1.8.0"
+            "git": "https://github.com/GitGuardian/py-gitguardian.git",
+            "ref": "da5d95daf4d0a9697214b91e5acebd1934a11614"
         },
         "pygments": {
             "hashes": [
@@ -379,7 +376,7 @@
                 "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36",
                 "sha256:b75ddc264f0ba5615db7ba217daeb99701ad295353c45f9e95963337ceeeffb2"
             ],
-            "markers": "python_version < '3.11' and python_version >= '3.7'",
+            "markers": "python_version >= '3.7'",
             "version": "==4.7.1"
         },
         "typing-inspect": {
@@ -1232,7 +1229,7 @@
                 "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36",
                 "sha256:b75ddc264f0ba5615db7ba217daeb99701ad295353c45f9e95963337ceeeffb2"
             ],
-            "markers": "python_version < '3.11' and python_version >= '3.7'",
+            "markers": "python_version >= '3.7'",
             "version": "==4.7.1"
         },
         "urllib3": {

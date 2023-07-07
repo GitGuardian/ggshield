@@ -2,9 +2,7 @@ from abc import ABC, abstractproperty
 from enum import Enum
 from typing import Optional, Union
 
-from pygitguardian.iac_models import IaCScanResult
-
-from ggshield.iac.iac_scan_models import IaCDiffScanResult
+from pygitguardian.iac_models import IaCDiffScanResult, IaCScanResult
 
 
 IaCResult = Union[IaCScanResult, IaCDiffScanResult]

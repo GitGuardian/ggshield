@@ -4,7 +4,11 @@ from io import StringIO
 from pathlib import Path
 from typing import ClassVar, DefaultDict, Dict, Generator, List, NamedTuple, Optional
 
-from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
+from pygitguardian.iac_models import (
+    IaCDiffScanEntities,
+    IaCFileResult,
+    IaCVulnerability,
+)
 
 from ggshield.core.git_shell import Filemode
 from ggshield.core.text_utils import (
@@ -21,7 +25,6 @@ from ggshield.core.text_utils import (
 from ggshield.core.utils import get_lines_from_content
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.iac_scan_models import IaCDiffScanEntities
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.scan import File
 
