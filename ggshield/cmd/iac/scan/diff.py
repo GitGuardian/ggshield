@@ -18,7 +18,12 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.filter import is_filepath_excluded
-from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
+from ggshield.core.git_shell import (
+    INDEX_REF,
+    Filemode,
+    get_diff_files_status,
+    get_empty_tar,
+)
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.filter import is_iac_file_path
@@ -67,7 +72,7 @@ def scan_diff_cmd(
 
 
 def iac_scan_diff(
-    ctx: click.Context, directory: Path, ref: str, include_staged: bool
+    ctx: click.Context, directory: Path, ref: Optional[str], include_staged: bool
 ) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
@@ -75,11 +80,18 @@ def iac_scan_diff(
 
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:
-        display_info(f"> Scanned files in reference {ref}")
-        filepaths = filter_iac_filepaths(directory, get_git_filepaths(directory, ref))
-        for filepath in filepaths:
-            display_info(f"- {click.format_filename(filepath)}")
-        display_info("")
+        if ref is None:
+            display_info(
+                "> No file to scan in reference. This might be a new repository."
+            )
+        else:
+            display_info(f"> Scanned files in reference {ref}")
+            filepaths = filter_iac_filepaths(
+                directory, get_git_filepaths(directory, ref)
+            )
+            for filepath in filepaths:
+                display_info(f"- {click.format_filename(filepath)}")
+            display_info("")
 
     current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
@@ -94,22 +106,32 @@ def iac_scan_diff(
             display_info(f"- {click.format_filename(filepath)}")
 
     # Check if IaC files were created, deleted or modified
-    files_status = get_diff_files_status(
-        wd=str(directory), ref=ref, staged=include_staged, similarity=100
+    if ref is None:
+        # This means we are scanning all commits up to now.
+        # TODO: We might want to check that some changes exist
+        # to prevent from scanning a new and empty git repository
+        pass
+    else:
+        files_status = get_diff_files_status(
+            wd=str(directory), ref=ref, staged=include_staged, similarity=100
+        )
+        modified_modes = [Filemode.NEW, Filemode.DELETE, Filemode.MODIFY]
+        modified_iac_files = [
+            file
+            for file, mode in files_status.items()
+            if mode in modified_modes
+            and not is_filepath_excluded(str(file), exclusion_regexes)
+            and is_iac_file_path(file)
+        ]
+
+        if len(modified_iac_files) == 0:
+            return IaCSkipScanResult()
+
+    reference_tar = (
+        get_iac_tar(directory, ref, exclusion_regexes)
+        if ref is not None
+        else get_empty_tar()
     )
-    modified_modes = [Filemode.NEW, Filemode.DELETE, Filemode.MODIFY]
-    modified_iac_files = [
-        file
-        for file, mode in files_status.items()
-        if mode in modified_modes
-        and not is_filepath_excluded(str(file), exclusion_regexes)
-        and is_iac_file_path(file)
-    ]
-
-    if len(modified_iac_files) == 0:
-        return IaCSkipScanResult()
-
-    reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(

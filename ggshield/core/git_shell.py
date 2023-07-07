@@ -235,7 +235,6 @@ def get_diff_files_status(
     check_git_ref(wd=wd, ref=ref)
 
     def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
-
         status_to_filemode = {
             "A": Filemode.NEW,
             "D": Filemode.DELETE,
@@ -320,3 +319,10 @@ def tar_from_ref_and_filepaths(
             tar.addfile(tarinfo, fileobj=data)
 
     return tar_stream.getvalue()
+
+
+def get_empty_tar() -> bytes:
+    bytes = BytesIO()
+    file = tarfile.open(fileobj=bytes, mode="w:gz")
+    file.close()
+    return bytes.getvalue()

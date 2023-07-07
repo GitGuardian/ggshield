@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, List, Sequence
 
 import click
 
@@ -7,25 +7,25 @@ from ggshield.cmd.iac.scan.diff import display_iac_scan_diff_result, iac_scan_di
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     all_option,
-    directory_argument,
     update_context,
 )
+from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.text_utils import display_warning
 
 
 @click.command()
+@click.argument("prepush_args", nargs=-1, type=click.UNPROCESSED)
 @add_iac_scan_common_options()
 @all_option
-@directory_argument
 @click.pass_context
 def scan_pre_push_cmd(
     ctx: click.Context,
+    prepush_args: List[str],
     exit_zero: bool,
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
     all: bool,
-    directory: Optional[Path] = None,
     **kwargs: Any,
 ) -> int:
     """
@@ -35,8 +35,13 @@ def scan_pre_push_cmd(
         "This feature is still in beta, its behavior may change in future versions."
     )
 
-    if directory is None:
-        directory = Path().resolve()
+    _, remote_commit = collect_commits_refs(prepush_args)
+
+    # Will happen if this is the first push on the branch
+    if "~1" in remote_commit:
+        remote_commit = None
+
+    directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     result = iac_scan_diff(ctx, directory, "@{upstream}", include_staged=False)
