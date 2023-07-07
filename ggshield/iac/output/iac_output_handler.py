@@ -42,6 +42,15 @@ class IaCOutputHandler(ABC):
         text = self._process_diff_scan_impl(scan)
         return self._handle_process_scan_result(scan, text)
 
+    def process_skip_scan(self) -> ExitCode:
+        """Process the case where we skip the scan,
+        write the report to :attr:`self.output`
+
+        :return: The exit code
+        """
+        text = self._process_skip_scan_impl()
+        return self._handle_process_skip_scan(text)
+
     def process_skip_diff_scan(self) -> ExitCode:
         """Process the case where we skip the scan,
         write the report to :attr:`self.output`
@@ -52,8 +61,19 @@ class IaCOutputHandler(ABC):
         return self._handle_process_skip_scan(text)
 
     @abstractmethod
-    def _process_skip_diff_scan_impl(self) -> str:
+    def _process_skip_scan_impl(self) -> str:
         """Implementation of displaying a skipped scan,
+        called by :meth:`OutputHandler.process_skip_scan`
+
+        Must return a string for the report.
+
+        :return: The content
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _process_skip_diff_scan_impl(self) -> str:
+        """Implementation of displaying a skipped diff scan,
         called by :meth:`OutputHandler.process_skip_diff_scan`
 
         Must return a string for the report.

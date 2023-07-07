@@ -17,6 +17,9 @@ class IaCJSONOutputHandler(IaCOutputHandler):
         text = IaCJSONScanResultSchema().dumps(scan_dict)
         return cast(str, text)
 
+    def _process_skip_scan_impl(self) -> str:
+        return "{}"
+
     def _process_skip_diff_scan_impl(self) -> str:
         return "{}"
 

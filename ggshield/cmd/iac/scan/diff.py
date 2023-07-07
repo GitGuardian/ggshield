@@ -10,7 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
-    IaCSkipDiffScanResult,
+    IaCSkipScanResult,
     create_output_handler,
     filter_iac_filepaths,
     get_git_filepaths,
@@ -18,6 +18,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.clickutils.option_group import OptionGroup
+from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import INDEX_REF, Filemode, get_diff_files_status
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
@@ -102,7 +103,7 @@ def scan_diff_cmd(
 
     result = iac_scan_diff(ctx, directory, ref, staged)
     output_handler = create_output_handler(ctx)
-    if isinstance(result, IaCSkipDiffScanResult):
+    if isinstance(result, IaCSkipScanResult):
         return output_handler.process_skip_diff_scan()
     scan = IaCDiffScanCollection(id=str(directory), result=result)
     return output_handler.process_diff_scan(scan)
@@ -110,7 +111,7 @@ def scan_diff_cmd(
 
 def iac_scan_diff(
     ctx: click.Context, directory: Path, ref: str, include_staged: bool
-) -> Union[IaCDiffScanResult, IaCSkipDiffScanResult, None]:
+) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
@@ -143,11 +144,13 @@ def iac_scan_diff(
     modified_iac_files = [
         file
         for file, mode in files_status.items()
-        if is_iac_file_path(file) and mode in modified_modes
+        if mode in modified_modes
+        and not is_filepath_excluded(str(file), exclusion_regexes)
+        and is_iac_file_path(file)
     ]
 
     if len(modified_iac_files) == 0:
-        return IaCSkipDiffScanResult()
+        return IaCSkipScanResult()
 
     reference_tar = get_iac_tar(directory, ref, exclusion_regexes)
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
