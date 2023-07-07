@@ -8,10 +8,18 @@ from pygitguardian.client import _create_tar
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
 from ggshield.sca.client import ComputeSCAFilesResult, SCAClient
-from ggshield.sca.file_selection import get_all_files_from_sca_paths
-from ggshield.sca.sca_scan_models import SCAScanAllOutput, SCAScanParameters
+from ggshield.sca.file_selection import (
+    get_all_files_from_sca_paths,
+    tar_sca_files_from_git_repo,
+)
+from ggshield.sca.sca_scan_models import (
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAScanParameters,
+)
 from ggshield.scan import ScanContext, ScanMode
 
 
@@ -46,23 +54,29 @@ def scan_group(*args, **kwargs: Any) -> None:
     metavar="REF",
     help="Git reference to compare working directory to.",
 )
-@click.option(
-    "--staged",
-    is_flag=True,
-    help="Compare staged state instead of working state.",
-)
 @click.pass_context
 @display_sca_beta_warning
-def scan_diff_cmd(
+def scan_pre_commit_cmd(
     ctx: click.Context,
     directory: Optional[Path],
     ref: str,
     **kwargs: Any,
-) -> int:
+) -> SCAScanDiffOutput:
     """
-    Find SCA vulnerabilities in a git working directory, compared to git history.
+    Find SCA vulnerabilities in a git working directory, compared to HEAD.
     """
-    return 0
+    if directory is None:
+        directory = Path().resolve()
+
+    # Adds client and required parameters to the context
+    update_context(ctx)
+
+    result = sca_scan_diff(
+        ctx=ctx, directory=directory, ref="HEAD", include_staged=True
+    )
+
+    # TODO, should be handled by an output_handler in the future
+    return result
 
 
 @scan_group.command(name="all")
@@ -183,3 +197,28 @@ def get_sca_scan_all_filepaths(
     # Only sca_files field is useful in the case of a full_scan,
     # all the potential files already exist in `all_filepaths`
     return response.sca_files
+
+
+def sca_scan_diff(
+    ctx: click.Context,
+    directory: Path,
+    ref: str,
+    include_staged: bool,
+) -> SCAScanDiffOutput:
+    client = SCAClient(ctx.obj["client"])
+    current_ref = INDEX_REF if include_staged else "HEAD"
+    if current_ref == ref:
+        display_info("SCA scan diff comparing identical versions, scan skipped.")
+        return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
+    ref_tar = tar_sca_files_from_git_repo(directory, ref, client)
+    current_tar = tar_sca_files_from_git_repo(directory, current_ref, client)
+    response = client.scan_diff(reference=ref_tar, current=current_tar)
+
+    if not isinstance(response, SCAScanDiffOutput):
+        if response.status_code == 401:
+            raise APIKeyCheckError(client.base_uri, "Invalid API key.")
+        display_error("Error while scanning diff.")
+        display_error(str(response))
+        raise UnexpectedError("Unexpected error while scanning diff.")
+
+    return response

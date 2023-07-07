@@ -81,15 +81,19 @@ class SCAClient:
         reference: bytes,
         current: bytes,
     ) -> Union[Detail, SCAScanDiffOutput]:
-        response = self._client.post(
-            endpoint="sca/sca_scan_diff/",
-            files={"reference": reference, "current": current},
-        )
         result: Union[Detail, SCAScanDiffOutput]
-        if is_ok(response):
-            result = SCAScanDiffOutput.from_dict(response.json())
+        try:
+            response = self._client.post(
+                endpoint="sca/sca_scan_diff/",
+                files={"reference": reference, "current": current},
+            )
+        except requests.exceptions.ReadTimeout:
+            result = Detail("The request timed out.")
+            result.status_code = 504
         else:
-            result = load_detail(response)
-
-        result.status_code = response.status_code
+            if is_ok(response):
+                result = SCAScanDiffOutput.from_dict(response.json())
+            else:
+                result = load_detail(response)
+            result.status_code = response.status_code
         return result
