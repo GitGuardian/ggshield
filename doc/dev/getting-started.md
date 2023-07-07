@@ -37,6 +37,16 @@ The `TEST_KNOWN_SECRET` environment variable must also be defined to run functio
 
 You can run unit tests with `make unittest`.
 
+#### About cassettes
+
+Many ggshield unit-tests uses cassettes recorded using [VCR.py](https://github.com/kevin1024/vcrpy) to replay network interactions.
+
+If you add a test which uses a cassette, your test _must_ pass without the cassette too. This ensures the calls recorded in the cassettes still reflect the reality of how the servers we communicate with respond.
+
+This is checked at each release: ggshield release process starts with removing all cassettes and then running unit-tests.
+
+If your test cannot run without a cassette, then you have to mock the network calls.
+
 ### Verifying code coverage
 
 Run `make coverage`. This runs the unit tests through [coverage](https://pypi.org/project/coverage/) and generates an HTML report in `htmlcov/index.html`.
