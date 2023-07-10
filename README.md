@@ -31,7 +31,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
 - [Initial setup](#initial-setup)
 - [Getting started](#getting-started)
   - [Secrets](#secrets)
-  - [Infrastructure-as-Code (IaC)](#infrastructure-as-code-iac)
+  - [Infra as Code Security (IaC)](#infra-as-code-security-iac)
 - [Integrations](#integrations)
 - [Learn more](#learn-more)
 - [Output](#output)
@@ -99,7 +99,7 @@ You can now use `ggshield` to search for secrets:
 - in Pypi packages: `ggshield secret scan pypi flask`
 - and more, have a look at `ggshield secret scan --help` output for details.
 
-## Infrastructure-as-Code (IaC)
+## Infra as Code Security (IaC)
 
 You can also search for vulnerabilities in your IaC files using the following command:
 
