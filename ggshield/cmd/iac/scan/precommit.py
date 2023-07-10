@@ -3,8 +3,8 @@ from typing import Any, Optional, Sequence
 
 import click
 
-from ggshield.cmd.iac.scan.diff import display_iac_scan_diff_result, iac_scan_diff
 from ggshield.cmd.iac.scan.all import display_iac_scan_all_result, iac_scan_all
+from ggshield.cmd.iac.scan.diff import display_iac_scan_diff_result, iac_scan_diff
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     all_option,
@@ -38,5 +38,8 @@ def scan_pre_commit_cmd(
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    if all:
+        result = iac_scan_all(ctx, directory)
+        return display_iac_scan_all_result(ctx, directory, result)
     result = iac_scan_diff(ctx, directory, "HEAD", include_staged=True)
     return display_iac_scan_diff_result(ctx, directory, result)
