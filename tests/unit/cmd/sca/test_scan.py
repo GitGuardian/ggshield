@@ -1,14 +1,17 @@
 from pathlib import Path
 
 import click
+from click.testing import CliRunner
 from pygitguardian import GGClient
 
+from ggshield.cmd.main import cli
 from ggshield.cmd.sca.scan import (
     get_sca_scan_all_filepaths,
     sca_scan_all,
     sca_scan_diff,
 )
 from ggshield.core.config import Config
+from ggshield.core.errors import ExitCode
 from ggshield.sca.client import SCAClient
 from ggshield.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
 from tests.repository import Repository
@@ -51,7 +54,7 @@ def test_get_sca_scan_all_filepaths(client: GGClient, tmp_path) -> None:
         client=sca_client,
     )
 
-    assert result == ["Pipfile"]
+    assert result == (["Pipfile"], 200)
 
 
 @my_vcr.use_cassette("test_sca_scan_all_valid.yaml", ignore_localhost=False)
@@ -113,3 +116,59 @@ def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
     assert result.scanned_files == []
     assert result.added_vulns == []
     assert result.removed_vulns == []
+
+
+@my_vcr.use_cassette("test_sca_scan_all_no_file.yaml", ignore_localhost=False)
+def test_sca_scan_all_cmd_no_sca_file(cli_fs_runner: CliRunner, tmp_path) -> None:
+    """
+    GIVEN a directory with no sca files in it
+    WHEN running the sca scan all command
+    THEN command returns the expected output
+    """
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == ExitCode.SUCCESS
+    assert "No file to scan." in result.stdout
+    assert "No SCA vulnerability has been found" in result.stdout
+
+
+@my_vcr.use_cassette(ignore_localhost=False)
+def test_sca_scan_all_cmd(
+    cli_fs_runner: CliRunner, tmp_path, pipfile_lock_with_vuln
+) -> None:
+    """
+    GIVEN a directory with SCA incidents
+    WHEN running the sca scan all command
+    THEN command returns the expected output
+    """
+
+    Path(tmp_path / "Pipfile.lock").write_text(pipfile_lock_with_vuln)
+
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+    assert "> Pipfile.lock: 1 incident detected" in result.stdout
+    assert (
+        """
+Severity: Medium
+Summary: sqlparse contains a regular expression that is vulnerable to Regular Expression Denial of Service
+A fix is available at version 0.4.4
+CVE IDs: CVE-2023-30608"""
+        in result.stdout
+    )
