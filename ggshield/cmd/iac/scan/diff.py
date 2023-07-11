@@ -80,7 +80,7 @@ def iac_scan_diff(
         display_info("")
 
     current_ref = current
-    if current_ref:
+    if current_ref is None:
         current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
