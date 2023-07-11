@@ -70,7 +70,9 @@ def iac_scan_all(
     scan_parameters = IaCScanParameters(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
     )
-
+    # If paths are not sorted, the tar bytes order will be different when calling the function twice
+    # Different bytes order will cause different tarfile hash_key resulting in a GIM cache bypass.
+    paths.sort()
     scan = client.iac_directory_scan(
         directory,
         paths,
