@@ -4,7 +4,7 @@ from typing import List, Set
 
 from pygitguardian.models import Detail
 
-from ggshield.core.errors import UnexpectedError
+from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,
@@ -80,6 +80,8 @@ def tar_sca_files_from_git_repo(directory: Path, ref: str, client: SCAClient) ->
 
     sca_files_result = client.compute_sca_files(files=[str(path) for path in all_files])
     if isinstance(sca_files_result, Detail):
+        if sca_files_result.status_code == 401:
+            raise APIKeyCheckError(client.base_uri, "Invalid API key.")
         raise UnexpectedError("Failed to select SCA files")
 
     return tar_from_ref_and_filepaths(

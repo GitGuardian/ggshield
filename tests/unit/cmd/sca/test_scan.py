@@ -3,10 +3,15 @@ from pathlib import Path
 import click
 from pygitguardian import GGClient
 
-from ggshield.cmd.sca.scan import get_sca_scan_all_filepaths, sca_scan_all
+from ggshield.cmd.sca.scan import (
+    get_sca_scan_all_filepaths,
+    sca_scan_all,
+    sca_scan_diff,
+)
 from ggshield.core.config import Config
 from ggshield.sca.client import SCAClient
-from ggshield.sca.sca_scan_models import SCAScanAllOutput
+from ggshield.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
+from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 
 
@@ -65,7 +70,7 @@ def test_sca_scan_all_valid(client: GGClient) -> None:
 
 
 @my_vcr.use_cassette("test_sca_scan_all_no_file.yaml", ignore_localhost=False)
-def test_sca_scan_all_no_sca_file(client: GGClient, tmp_path) -> None:
+def test_sca_scan_all_no_sca_file(client: GGClient, tmp_path: Path) -> None:
     """
     GIVEN a valid click context
     WHEN calling sca_scan_all on a directory with no sca files in it
@@ -77,3 +82,34 @@ def test_sca_scan_all_no_sca_file(client: GGClient, tmp_path) -> None:
         result = sca_scan_all(ctx, tmp_path)
 
     assert result == SCAScanAllOutput()
+
+
+@my_vcr.use_cassette("test_sca_scan_diff.yaml", ignore_localhost=False)
+def test_sca_scan_diff(client: GGClient, dummy_sca_repo: Repository):
+    ctx = get_valid_ctx(client)
+    with ctx:
+        result = sca_scan_diff(
+            ctx=ctx,
+            directory=dummy_sca_repo.path,
+            ref="branch_with_vuln",
+            include_staged=False,
+        )
+    assert isinstance(result, SCAScanDiffOutput)
+    assert result.scanned_files == ["Pipfile", "Pipfile.lock"]
+    assert result.added_vulns == []
+    assert len(result.removed_vulns) == 1
+
+
+def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
+    ctx = get_valid_ctx(client)
+    with ctx:
+        result = sca_scan_diff(
+            ctx=ctx,
+            directory=dummy_sca_repo.path,
+            ref="HEAD",
+            include_staged=False,
+        )
+    assert isinstance(result, SCAScanDiffOutput)
+    assert result.scanned_files == []
+    assert result.added_vulns == []
+    assert result.removed_vulns == []
