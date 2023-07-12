@@ -2,11 +2,22 @@ import codecs
 from pathlib import Path
 from random import randrange
 
+import charset_normalizer
 import pytest
 
 from ggshield.scan import DecodeError, File
 from ggshield.scan.file import generate_files_from_paths
 from tests.conftest import is_windows
+
+
+UNICODE_TEST_CONTENT = "Ascii 123, accents: éèà, hiragana: ぁ, emoji: 🛡️"
+
+
+def get_charset_normalizer_encoding(path: Path) -> str:
+    """Returns the encoding that charset_normalizer would detect for `path`"""
+    charset_match = charset_normalizer.from_path(path)
+    assert charset_match
+    return charset_match.best().encoding
 
 
 @pytest.mark.parametrize(
@@ -31,11 +42,10 @@ def test_file_decode_content(tmp_path, encoding: str, bom: bytes):
     THEN it succeeds
     """
     path = tmp_path / "test.conf"
-    content = "Ascii 123, accents: éèà, hiragana: ぁ, emoji: 🛡️"
-    raw_content = bom + content.encode(encoding)
+    raw_content = bom + UNICODE_TEST_CONTENT.encode(encoding)
     path.write_bytes(raw_content)
     file = File(str(path))
-    assert file.content == content
+    assert file.content == UNICODE_TEST_CONTENT
 
 
 def test_file_does_not_decode_binary(tmp_path):
@@ -68,23 +78,38 @@ def test_file_is_longer_does_not_decode_binary(tmp_path):
         file.is_longer_than(1000)
 
 
-@pytest.mark.parametrize("size", [1, 100])
-def test_file_is_longer_than_does_not_read_file(tmp_path, size):
+def test_file_is_longer_than_does_not_read_large_files(tmp_path):
     """
-    GIVEN a File instance
+    GIVEN a File instance on a large file
     WHEN is_longer_than() is called on it
     THEN it returns the right value
     AND the content is not read
     """
     path = tmp_path / "test.conf"
-    path.write_text("x" * size)
+    path.write_text(UNICODE_TEST_CONTENT * 1000, encoding="utf-8")
 
     file = File(str(path))
-    assert file.is_longer_than(50) == (size > 50)
+    assert file.is_longer_than(50)
     assert file._content is None
 
 
-def test_file_is_longer_when_file_has_been_read(tmp_path):
+def test_file_is_longer_than_does_not_read_utf8_file(tmp_path):
+    """
+    GIVEN a File instance on either a small utf8 file
+    WHEN is_longer_than() is called on it
+    THEN it returns False
+    AND the content is not read
+    """
+    path = tmp_path / "test.conf"
+    path.write_text(UNICODE_TEST_CONTENT, encoding="utf-8")
+    assert get_charset_normalizer_encoding(path) == "utf_8"
+
+    file = File(str(path))
+    assert not file.is_longer_than(1000)
+    assert file._content is None
+
+
+def test_file_is_longer_than_if_file_has_been_read(tmp_path):
     """
     GIVEN a File instance
     AND it has already read its file
@@ -92,20 +117,28 @@ def test_file_is_longer_when_file_has_been_read(tmp_path):
     THEN it returns the right value
     """
     path = tmp_path / "test.conf"
-    content = "x" * 100
-    path.write_text(content)
+    content = "Mangé"
+    path.write_text(content, encoding="utf-8")
 
     file = File(str(path))
+    byte_content = path.stat().st_size
+
+    # byte_content should be greater than len(content) because the *utf-8 encoded*
+    # content is longer than the str content
+    assert byte_content > len(content)
+
     # Force reading
     assert file.content == content
 
-    assert file.is_longer_than(50)
+    assert file.is_longer_than(len(content))
+
+    assert not file.is_longer_than(byte_content)
 
 
-def test_file_is_longer_use_decoded_size(tmp_path):
+def test_file_is_longer_utf32(tmp_path):
     """
-    GIVEN a file encoded in utf32, whose byte size is greater than N but whose string
-    size is smaller than N
+    GIVEN a file encoded in utf32, whose byte size is greater than N but whose utf8
+    size is less than N
     WHEN is_longer_than(N) is called on it
     THEN it returns False
     AND the content is available because is_longer_than() read all the file
@@ -113,17 +146,40 @@ def test_file_is_longer_use_decoded_size(tmp_path):
     path = tmp_path / "test.conf"
     str_size = 200
     str_content = "x" * str_size
+
     byte_content = str_content.encode("utf32")
     path.write_bytes(byte_content)
+    assert get_charset_normalizer_encoding(path) == "utf_32"
 
-    # byte_content should be longer than max_str_size because utf32 uses 4 bytes per
-    # code-point
-    max_str_size = str_size + 10
-    assert max_str_size < len(byte_content)
+    # byte_content is longer than str_size because utf32 uses 4 bytes per code-point
+    assert len(byte_content) > str_size
 
     file = File(str(path))
-    assert not file.is_longer_than(max_str_size)
+    assert not file.is_longer_than(len(byte_content))
     assert file._content == str_content
+
+
+def test_file_is_longer_using_8bit_codec(tmp_path):
+    """
+    GIVEN a file encoded using an 8bit codec, whose byte size is less than N but whose
+    utf8 size is greater than N
+    WHEN is_longer_than(N) is called on it
+    THEN it returns True
+    """
+    path = tmp_path / "test.conf"
+    # Use characters that require more than one byte in utf8
+    str_content = "écrit en français€"
+
+    byte_content = str_content.encode("cp1250")
+    path.write_bytes(byte_content)
+    assert get_charset_normalizer_encoding(path) == "cp1250"
+
+    # byte_content is shorter than str_content encoded as utf8 because cp1250 uses only
+    # 1 byte per character
+    assert len(byte_content) < len(str_content.encode())
+
+    file = File(str(path))
+    assert file.is_longer_than(len(byte_content))
 
 
 def test_file_repr():

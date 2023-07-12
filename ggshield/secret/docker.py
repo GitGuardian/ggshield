@@ -65,6 +65,7 @@ class DockerContentScannable(Scannable):
         self._tar_file = tar_file
         self._tar_info = tar_info
         self._content: Optional[str] = None
+        self._utf8_encoded_size: Optional[int] = None
 
     @property
     def url(self) -> str:
@@ -78,23 +79,22 @@ class DockerContentScannable(Scannable):
     def path(self) -> Path:
         return Path("/", self._tar_info.name)
 
-    def is_longer_than(self, size: int) -> bool:
-        if self._content:
-            # We already have the content, easy
-            return len(self._content) > size
-
-        if self._tar_info.size < size:
-            # Shortcut: if the byte size is smaller than `size`, we can be sure the
-            # decoded size will be smaller
-            return False
+    def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
+        if self._utf8_encoded_size is not None:
+            # We already have the encoded size, easy
+            return self._utf8_encoded_size > max_utf8_encoded_size
 
         # We need to decode at least the beginning of the file to determine if it's
         # small enough
         fp = self._tar_file.extractfile(self._tar_info)
         assert fp is not None
         with fp:
-            result, self._content = Scannable._is_file_longer_than(
-                fp, size  # type:ignore
+            (
+                result,
+                self._content,
+                self._utf8_encoded_size,
+            ) = Scannable._is_file_longer_than(
+                fp, max_utf8_encoded_size  # type:ignore
             )
             # mypy complains that fp is IO[bytes] but _is_file_longer_than() expects
             # BinaryIO. They are compatible, ignore the error.
@@ -106,7 +106,9 @@ class DockerContentScannable(Scannable):
             file = self._tar_file.extractfile(self._tar_info)
             assert file is not None
             byte_content = file.read()
-            self._content = Scannable._decode_bytes(byte_content)
+            self._content, self._utf8_encoded_size = Scannable._decode_bytes(
+                byte_content
+            )
         return self._content
 
 
@@ -329,7 +331,6 @@ def docker_scan_archive(
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
 ) -> SecretScanCollection:
-
     scanner = SecretScanner(
         client=client,
         cache=cache,
