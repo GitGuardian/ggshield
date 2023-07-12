@@ -1,9 +1,0 @@
-# Required, otherwise ggshield considers the file to use the deprecated v1 format
-version: 2
-
-iac:
-  # IaC vulnerabilities to ignore
-  # We don't want to fix this vulnerability because many CI systems (including GitHub action and Azure pipelines)
-  # expect the user inside the container to be root.
-  ignored-policies:
-    - GG_IAC_0079
