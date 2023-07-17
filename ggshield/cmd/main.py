@@ -100,6 +100,13 @@ def cli(
     load_dot_env()
 
     config = ctx.obj["config"]
+
+    if os.getenv("NO_COLOR"):
+        ctx.color = False
+    else:
+        if os.getenv("GL_USERNAME"):
+            ctx.color = True
+
     if config.debug:
         # if `debug` is set in the configuration file, then setup logs now.
         setup_debug_logs(filename=None)
