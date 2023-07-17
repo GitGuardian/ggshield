@@ -1,8 +1,4 @@
-import os
 from pathlib import Path
-from typing import List, Optional
-
-import pytest
 
 from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import run_ggshield_iac_scan
@@ -26,6 +22,7 @@ def test_ci_diff_no_vuln(tmp_path: Path) -> None:
     # THEN no vulnerability should be found
     assert "> No IaC files changed. Skipping." in result.stdout
 
+
 def test_ci_diff_vuln(tmp_path: Path) -> None:
     # GIVEN a repository
     repository = Repository.create(tmp_path)
@@ -44,6 +41,7 @@ def test_ci_diff_vuln(tmp_path: Path) -> None:
     # THEN a new vulnerability should be found
     assert "[+] 1 new incident detected (HIGH: 1)" in result.stdout
 
+
 def test_ci_all_no_vuln(tmp_path: Path) -> None:
     # GIVEN a repository
     repository = Repository.create(tmp_path)
@@ -57,6 +55,7 @@ def test_ci_all_no_vuln(tmp_path: Path) -> None:
     result = run_ggshield_iac_scan(*["ci", "--all"], cwd=tmp_path, expected_code=0)
     # THEN no vulnerability should be found
     assert "No incidents have been found" in result.stdout
+
 
 def test_ci_all_vuln(tmp_path: Path) -> None:
     # GIVEN a repository

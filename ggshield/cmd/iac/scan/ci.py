@@ -1,10 +1,9 @@
+import os
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import click
-import os
 
-from ggshield.core.text_utils import display_warning
 from ggshield.cmd.iac.scan.all import display_iac_scan_all_result, iac_scan_all
 from ggshield.cmd.iac.scan.diff import display_iac_scan_diff_result, iac_scan_diff
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
@@ -13,6 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     directory_argument,
     update_context,
 )
+from ggshield.core.text_utils import display_warning
 
 
 @click.command()

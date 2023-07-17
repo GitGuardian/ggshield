@@ -14,12 +14,22 @@ PathLike = Union[Path, str]
 
 
 def run_ggshield(
-    *args: str, expected_code: int = 0, cwd: Optional[PathLike] = None, env: Optional[Dict] = None
+    *args: str,
+    expected_code: int = 0,
+    cwd: Optional[PathLike] = None,
+    env: Optional[Dict] = None,
 ) -> subprocess.CompletedProcess:
     env = env or dict()
     cmd = ("ggshield", *args)
     cwd = None if cwd is None else str(cwd)
-    result = subprocess.run(cmd, check=False, text=True, capture_output=True, cwd=cwd, env={ **os.environ, **env })
+    result = subprocess.run(
+        cmd,
+        check=False,
+        text=True,
+        capture_output=True,
+        cwd=cwd,
+        env={**os.environ, **env},
+    )
     assert (
         result.returncode == expected_code
     ), f"""Expected returncode {expected_code}, got {result.returncode}
@@ -36,7 +46,10 @@ def run_ggshield(
 
 
 def run_ggshield_scan(
-    *args: str, expected_code: int = 0, cwd: Optional[PathLike] = None, env: Optional[Dict] = None
+    *args: str,
+    expected_code: int = 0,
+    cwd: Optional[PathLike] = None,
+    env: Optional[Dict] = None,
 ) -> subprocess.CompletedProcess:
     env = env or dict()
     args = ("secret", "scan", *args)
@@ -44,7 +57,10 @@ def run_ggshield_scan(
 
 
 def run_ggshield_iac_scan(
-    *args: str, expected_code: int = 0, cwd: Optional[PathLike] = None, env: Optional[Dict] = None
+    *args: str,
+    expected_code: int = 0,
+    cwd: Optional[PathLike] = None,
+    env: Optional[Dict] = None,
 ) -> subprocess.CompletedProcess:
     env = env or dict()
     args = ("iac", "scan", *args)

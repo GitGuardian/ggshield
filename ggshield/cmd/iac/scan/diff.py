@@ -65,7 +65,11 @@ def scan_diff_cmd(
 
 
 def iac_scan_diff(
-    ctx: click.Context, directory: Path, ref: str, include_staged: bool = False, current: str = None
+    ctx: click.Context,
+    directory: Path,
+    ref: str,
+    include_staged: bool = False,
+    current: str = None,
 ) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
