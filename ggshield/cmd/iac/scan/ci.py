@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import click
+import os
 
 from ggshield.core.text_utils import display_warning
 from ggshield.cmd.iac.scan.all import display_iac_scan_all_result, iac_scan_all
@@ -35,12 +36,17 @@ def scan_ci_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
+    directory = os.getenv("GITGUARDIAN_IAC_SCAN_DIRECTORY", directory)
+    reference = os.getenv("GITGUARDIAN_IAC_SCAN_TO_REF", "HEAD")
+    current = os.getenv("GITGUARDIAN_IAC_SCAN_FROM_REF", None)
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-
     if all:
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
-    result = iac_scan_diff(ctx, directory, "HEAD", include_staged=True)
+    if current:
+        result = iac_scan_diff(ctx, directory, reference, current=current)
+    else:
+        result = iac_scan_diff(ctx, directory, reference, include_staged=True)
     return display_iac_scan_diff_result(ctx, directory, result)
