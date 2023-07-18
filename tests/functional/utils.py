@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import pytest
 from pygitguardian.models import Match
@@ -70,14 +70,15 @@ def recreate_censored_content(content: str, matched_string: str) -> str:
 # Use this in iac tests until iac hooks are added to the install command
 # Meaning they are added to install.py
 def create_local_hook(
-    hook_dir_path: Path,
-    hook_type: str,
+    hook_dir_path: Path, hook_type: str, args: Optional[List[str]] = None
 ) -> None:
     """Create hook directory (if needed) and pre-commit/pre-push file."""
     hook_dir_path.mkdir(parents=True, exist_ok=True)
     hook_path = hook_dir_path / hook_type
 
+    args = args or []
+
     with hook_path.open("w") as f:
         f.write("#!/usr/bin/env sh\n")
-        f.write(f'ggshield iac scan {hook_type} "$@"\n')
+        f.write(f'ggshield iac scan {hook_type} {" ".join(args)} "$@"\n')
         os.chmod(hook_path, 0o700)

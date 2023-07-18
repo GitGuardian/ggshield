@@ -3,6 +3,7 @@ from typing import Any, List, Sequence
 
 import click
 
+from ggshield.cmd.iac.scan.all import display_iac_scan_all_result, iac_scan_all
 from ggshield.cmd.iac.scan.diff import display_iac_scan_diff_result, iac_scan_diff
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
@@ -36,14 +37,18 @@ def scan_pre_push_cmd(
         "This feature is still in beta, its behavior may change in future versions."
     )
 
-    _, remote_commit = collect_commits_refs(prepush_args)
-
-    # Will happen if this is the first push on the branch
-    if "~1" in remote_commit or remote_commit == EMPTY_SHA:
-        remote_commit = None
-
     directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    result = iac_scan_diff(ctx, directory, remote_commit, include_staged=False)
-    return display_iac_scan_diff_result(ctx, directory, result)
+    if all:
+        result = iac_scan_all(ctx, directory)
+        return display_iac_scan_all_result(ctx, directory, result)
+    else:
+        _, remote_commit = collect_commits_refs(prepush_args)
+
+        # Will happen if this is the first push on the branch
+        if "~1" in remote_commit or remote_commit == EMPTY_SHA:
+            remote_commit = None
+
+        result = iac_scan_diff(ctx, directory, remote_commit, include_staged=False)
+        return display_iac_scan_diff_result(ctx, directory, result)
