@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -12,6 +11,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     directory_argument,
     update_context,
 )
+from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.text_utils import display_warning
 
 
@@ -36,16 +36,17 @@ def scan_ci_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
-    directory = os.getenv("GITGUARDIAN_IAC_SCAN_DIRECTORY", directory)
-    reference = os.getenv("GITGUARDIAN_IAC_SCAN_TO_REF", "HEAD")
-    current = os.getenv("GITGUARDIAN_IAC_SCAN_FROM_REF", None)
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     if all:
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
-    if current:
+
+    config = ctx.obj["config"]
+    commit_list, _ = collect_commit_range_from_ci_env(config.verbose)
+    reference, current = commit_list[0], commit_list[-1]
+    if current and len(commit_list) >= 2:
         result = iac_scan_diff(ctx, directory, reference, current=current)
     else:
         result = iac_scan_diff(ctx, directory, reference, include_staged=True)

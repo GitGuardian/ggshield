@@ -69,7 +69,7 @@ def iac_scan_diff(
     directory: Path,
     ref: str,
     include_staged: bool = False,
-    current: str = None,
+    current: Optional[str] = None,
 ) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
