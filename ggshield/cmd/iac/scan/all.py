@@ -19,6 +19,7 @@ from ggshield.iac.filter import get_iac_files_from_path
 from ggshield.scan import ScanContext, ScanMode
 
 
+# Changes to arguments must be propagated to default_command
 @click.command()
 @add_iac_scan_common_options()
 @directory_argument
@@ -33,21 +34,14 @@ def scan_all_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan a directory for IaC vulnerabilities.
+    Scan a directory for all IaC vulnerabilities in the current state.
     """
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     result = iac_scan_all(ctx, directory)
-
-    output_handler = create_output_handler(ctx)
-
-    if isinstance(result, IaCSkipScanResult):
-        return output_handler.process_skip_scan()
-
-    scan = IaCPathScanCollection(id=str(directory), result=result)
-    return output_handler.process_scan(scan)
+    return display_iac_scan_all_result(ctx, directory, result)
 
 
 def iac_scan_all(
@@ -87,3 +81,17 @@ def iac_scan_all(
         handle_scan_error(client, scan)
         return None
     return scan
+
+
+def display_iac_scan_all_result(
+    ctx: click.Context,
+    directory: Path,
+    result: Union[IaCScanResult, IaCSkipScanResult, None],
+) -> int:
+    output_handler = create_output_handler(ctx)
+
+    if isinstance(result, IaCSkipScanResult):
+        return output_handler.process_skip_scan()
+
+    scan = IaCPathScanCollection(id=str(directory), result=result)
+    return output_handler.process_scan(scan)

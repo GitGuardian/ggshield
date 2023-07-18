@@ -120,8 +120,7 @@ def test_iac_scan_diff_no_ref_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
     """
     GIVEN a repository
     WHEN running the iac scan diff command with no ref argument
-    nor any of its replacements (--pre-commit, --pre-push, --pre-receive)
-    THEN the return code is 1
+    THEN the return code is 2
     """
     repo = Repository.create(tmp_path)
     repo.create_commit()
@@ -136,29 +135,7 @@ def test_iac_scan_diff_no_ref_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
             ],
         )
         assert result.exit_code == ExitCode.USAGE_ERROR
-        assert "One of the following options must be used" in result.stdout
-        assert "ref" in result.stdout
-        assert "pre-commit" in result.stdout
-        assert "pre-push" in result.stdout
-        assert "pre-receive" in result.stdout
-
-
-def test_iac_scan_diff_too_many_ref_args(tmp_path, cli_fs_runner: CliRunner) -> None:
-    """
-    GIVEN a repository
-    WHEN running the iac scan diff command with multiple options
-    that are mutually exclusive (--ref, --pre-commit, --pre-push, --pre-receive)
-    THEN the return code is 1
-    """
-    repo = Repository.create(tmp_path)
-    repo.create_commit()
-
-    with cd(str(tmp_path)):
-        result1 = cli_fs_runner.invoke(
-            cli,
-            ["iac", "scan", "diff", "--pre-commit", "--ref", "HEAD"],
-        )
-        assert result1.exit_code == ExitCode.USAGE_ERROR
+        assert "Error: Missing option '--ref'" in result.stdout
 
 
 def test_iac_scan_diff_invalid_reference(tmp_path, cli_fs_runner: CliRunner) -> None:
