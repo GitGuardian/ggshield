@@ -4,6 +4,7 @@ from ggshield.core.config import Config
 from ggshield.core.config.user_config import (
     CURRENT_CONFIG_VERSION,
     IaCConfig,
+    SCAConfig,
     UserConfig,
 )
 from ggshield.core.errors import ParseError, UnexpectedError
@@ -223,6 +224,60 @@ class TestUserConfig:
         assert config.iac.ignored_paths == {"myglobalpath", "mypath"}
         assert config.iac.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
         assert config.iac.minimum_severity == "myseverity"
+
+    def test_sca_config(self, local_config_path):
+        """
+        GIVEN a local config file with sca configs
+        WHEN deserializing it
+        THEN we get the right values
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_paths": ["mypath"],
+                    "minimum_severity": "myseverity",
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.sca, SCAConfig)
+        assert config.sca.ignored_paths == {"mypath"}
+        assert config.sca.minimum_severity == "myseverity"
+
+    def test_sca_config_options_inheritance(
+        self, local_config_path, global_config_path
+    ):
+        """
+        GIVEN two config files (global and local) with sca configs
+        WHEN deserializing them
+        THEN the inheritance is respected
+        """
+        write_yaml(
+            global_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_paths": ["myglobalpath"],
+                    "minimum_severity": "myglobalseverity",
+                },
+            },
+        )
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_paths": ["mypath"],
+                    "minimum_severity": "myseverity",
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.sca, SCAConfig)
+        assert config.sca.ignored_paths == {"myglobalpath", "mypath"}
+        assert config.sca.minimum_severity == "myseverity"
 
     def test_user_config_unknown_keys(self, local_config_path, capsys):
         """

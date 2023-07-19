@@ -129,10 +129,18 @@ class TestSCAClient:
 
     @my_vcr.use_cassette
     def test_scan_diff(self, client: GGClient):
+        """
+        GIVEN a directory in two different states
+        WHEN calling scan_diff on it
+        THEN the scan succeeds
+        """
         sca_client = SCAClient(client)
+        scan_params = SCAScanParameters()
+
         result = sca_client.scan_diff(
             reference=make_tar_bytes(reference_files),
             current=make_tar_bytes(current_files),
+            scan_parameters=scan_params,
         )
         assert isinstance(result, SCAScanDiffOutput), result.content
         assert result.scanned_files == ["Pipfile", "Pipfile.lock"]

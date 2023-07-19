@@ -6,33 +6,25 @@ To use it:
     calls of the command function.
 - Add a `**kwargs: Any` argument to the command function.
 
-The `kwargs` argument is required because due to the way click works,
+The `kwargs` argument is required due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
-from pathlib import Path
 from typing import Any, Callable, Sequence
 
 import click
 
 from ggshield.cmd.common_options import (
+    AnyFunction,
     add_common_options,
     exit_zero_option,
+    ignore_path_option,
     json_option,
+    minimum_severity_option,
 )
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.config import Config
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
-
-
-AnyFunction = Callable[..., Any]
-
-_minimum_severity_option = click.option(
-    "--minimum-severity",
-    "minimum_severity",
-    type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL")),
-    help="Minimum severity of the policies.",
-)
 
 
 def _validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
@@ -55,30 +47,14 @@ _ignore_policy_option = click.option(
     callback=_validate_exclude,
 )
 
-_ignore_path_option = click.option(
-    "--ignore-path",
-    "--ipa",
-    "ignore_paths",
-    default=None,
-    type=click.Path(),
-    multiple=True,
-    help="Do not scan the specified paths.",
-)
-
-directory_argument = click.argument(
-    "directory",
-    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
-    required=False,
-)
-
 
 def add_iac_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
         exit_zero_option(cmd)
-        _minimum_severity_option(cmd)
+        minimum_severity_option(cmd)
         _ignore_policy_option(cmd)
-        _ignore_path_option(cmd)
+        ignore_path_option(cmd)
         json_option(cmd)
         return cmd
 

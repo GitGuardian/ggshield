@@ -10,6 +10,7 @@ To use it:
 The `kwargs` argument is required because due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
+from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar, cast
 
 import click
@@ -151,6 +152,24 @@ exit_zero_option = click.option(
 )
 
 
+minimum_severity_option = click.option(
+    "--minimum-severity",
+    "minimum_severity",
+    type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL")),
+    help="Minimum severity of the policies.",
+)
+
+ignore_path_option = click.option(
+    "--ignore-path",
+    "--ipa",
+    "ignore_paths",
+    default=None,
+    type=click.Path(),
+    multiple=True,
+    help="Do not scan the specified paths.",
+)
+
+
 def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)
@@ -176,3 +195,10 @@ json_option = click.option(
 def use_json(ctx: click.Context) -> bool:
     """Tells whether --json has been set"""
     return bool(ctx.obj.get("use_json", False))
+
+
+directory_argument = click.argument(
+    "directory",
+    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
+    required=False,
+)

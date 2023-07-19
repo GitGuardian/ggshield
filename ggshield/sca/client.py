@@ -80,12 +80,16 @@ class SCAClient:
         self,
         reference: bytes,
         current: bytes,
+        scan_parameters: SCAScanParameters,
     ) -> Union[Detail, SCAScanDiffOutput]:
         result: Union[Detail, SCAScanDiffOutput]
         try:
             response = self._client.post(
                 endpoint="sca/sca_scan_diff/",
                 files={"reference": reference, "current": current},
+                data={
+                    "scan_parameters": SCAScanParameters.SCHEMA.dumps(scan_parameters)
+                },
             )
         except requests.exceptions.ReadTimeout:
             result = Detail("The request timed out.")
