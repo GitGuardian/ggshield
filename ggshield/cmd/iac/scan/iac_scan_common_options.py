@@ -62,7 +62,9 @@ _ignore_path_option = click.option(
     default=None,
     type=click.Path(),
     multiple=True,
-    help="Do not scan the specified paths.",
+    help="""
+    Do not scan paths that match the specified glob-like patterns.
+    """,
 )
 
 all_option = click.option(
