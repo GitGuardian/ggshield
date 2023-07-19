@@ -1,16 +1,18 @@
 import re
 from pathlib import Path
-from typing import Any, List, Optional, Set
+from typing import Any, List, Optional, Set, Tuple
 
 import click
 from pygitguardian.client import _create_tar
 
+from ggshield.cmd.sca.scan_utils import create_output_handler
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
 from ggshield.sca.client import ComputeSCAFilesResult, SCAClient
+from ggshield.sca.collection import SCAScanAllVulnerabilityCollection
 from ggshield.sca.file_selection import (
     get_all_files_from_sca_paths,
     tar_sca_files_from_git_repo,
@@ -91,7 +93,7 @@ def scan_all_cmd(
     ctx: click.Context,
     directory: Optional[Path],
     **kwargs: Any,
-) -> SCAScanAllOutput:
+) -> int:
     """
     Scan a directory for SCA vulnerabilities.
     """
@@ -102,9 +104,9 @@ def scan_all_cmd(
     update_context(ctx)
 
     result = sca_scan_all(ctx, directory)
-
-    # TODO, should be handled by an output_handler in the future
-    return result
+    scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
+    output_handler = create_output_handler(ctx)
+    return output_handler.process_scan_all_result(scan)
 
 
 def update_context(ctx: click.Context) -> None:
@@ -128,7 +130,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
     """
     client = SCAClient(ctx.obj["client"])
 
-    sca_filepaths = get_sca_scan_all_filepaths(
+    sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
         directory=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
         verbose=ctx.obj["config"].verbose,
@@ -138,7 +140,10 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
     if len(sca_filepaths) == 0:
         display_info("No file to scan.")
         # Not an error, return an empty SCAScanAllOutput
-        return SCAScanAllOutput()
+        # with the status code returned by first call
+        empty_output = SCAScanAllOutput()
+        empty_output.status_code = sca_filter_status_code
+        return empty_output
 
     # empty for now
     scan_parameters = SCAScanParameters()
@@ -170,7 +175,7 @@ def get_sca_scan_all_filepaths(
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
     client: SCAClient,
-) -> List[str]:
+) -> Tuple[List[str], int]:
     """
     Retrieve SCA related files of a directory.
     First get all filenames that are not in blacklisted directories, then calls SCA compute files
@@ -187,7 +192,8 @@ def get_sca_scan_all_filepaths(
     # API Call to filter SCA files
     response = client.compute_sca_files(files=all_filepaths)
 
-    if not isinstance(response, ComputeSCAFilesResult):
+    # First check is required by pyright to know that status_code cannot be None
+    if response.status_code is None or not isinstance(response, ComputeSCAFilesResult):
         if response.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
         display_error("Error while filtering SCA related files.")
@@ -196,7 +202,8 @@ def get_sca_scan_all_filepaths(
 
     # Only sca_files field is useful in the case of a full_scan,
     # all the potential files already exist in `all_filepaths`
-    return response.sca_files
+
+    return response.sca_files, response.status_code
 
 
 def sca_scan_diff(

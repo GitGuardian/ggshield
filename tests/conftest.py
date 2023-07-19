@@ -181,6 +181,11 @@ PIPFILE_LOCK_NO_VULN = """
 """
 
 
+@pytest.fixture
+def pipfile_lock_with_vuln() -> str:
+    return PIPFILE_LOCK_WITH_VULN
+
+
 def clean_directory(path: Path):
     for filepath in path.iterdir():
         if filepath.is_file():

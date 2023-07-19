@@ -41,6 +41,12 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "iac_vulnerability_medium": {"fg": "bright_yellow", "bold": True},
     "iac_vulnerability_low": {"fg": (146, 146, 146), "bold": True},  # light-grey
     "iac_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
+    # SCA related styles
+    "sca_vulnerability_critical": {"fg": (255, 0, 0), "bold": True},  # red
+    "sca_vulnerability_high": {"fg": (255, 128, 0), "bold": True},  # orange
+    "sca_vulnerability_medium": {"fg": "bright_yellow", "bold": True},
+    "sca_vulnerability_low": {"fg": (146, 146, 146), "bold": True},  # light-grey
+    "sca_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
 }
 
 
