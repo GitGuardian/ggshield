@@ -17,6 +17,7 @@ class File(Scannable):
         super().__init__()
         self._path = Path(path)
         self._content: Optional[str] = None
+        self._utf8_encoded_size: Optional[int] = None
 
     @property
     def url(self) -> str:
@@ -30,25 +31,26 @@ class File(Scannable):
     def path(self) -> Path:
         return self._path
 
-    def is_longer_than(self, size: int) -> bool:
-        if self._content:
-            # We already have the content, easy
-            return len(self._content) > size
-
-        if self.path.stat().st_size < size:
-            # Shortcut: if the byte size is smaller than `size`, we can be sure the
-            # decoded size will be smaller
-            return False
+    def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
+        if self._utf8_encoded_size is not None:
+            # We already have the encoded size, easy
+            return self._utf8_encoded_size > max_utf8_encoded_size
 
         with self.path.open("rb") as fp:
-            result, self._content = Scannable._is_file_longer_than(fp, size)
+            (
+                result,
+                self._content,
+                self._utf8_encoded_size,
+            ) = Scannable._is_file_longer_than(fp, max_utf8_encoded_size)
         return result
 
     @property
     def content(self) -> str:
         if self._content is None:
             with self.path.open("rb") as f:
-                self._content = Scannable._decode_bytes(f.read())
+                self._content, self._utf8_encoded_size = Scannable._decode_bytes(
+                    f.read()
+                )
         return self._content
 
 

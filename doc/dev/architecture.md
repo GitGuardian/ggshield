@@ -16,7 +16,7 @@ This document provides an high-level overview of GGShield code base.
 - ggshield
   - cmd: Implementation of the commands. Python modules in this directory provide commands in the form of `<command_name>_cmd` functions.
   - scan: Scan-specific modules. To be refactored to hold only secret specific modules.
-  - iac: Infrastructure-as-Code specific modules.
+  - iac: Infra as Code Security specific modules.
   - core: Basic modules used by others.
 
 `cmd` modules can depend on all others.

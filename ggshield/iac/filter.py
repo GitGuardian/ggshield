@@ -18,19 +18,17 @@ IAC_EXTENSIONS = {
 IAC_FILENAME_KEYWORDS = {"tfvars", "dockerfile"}
 
 
-def get_iac_files_from_paths(
+def get_iac_files_from_path(
     path: Path,
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
     ignore_git: bool = False,
 ) -> List[str]:
     """
-    Create a Files object from paths, ignoring non IAC files
+    Returns IaC file paths found recursively in a given directory.
 
-    :param paths: List of file/dir paths from the command
+    :param path: root directory
     :param exclusion_regexes: Patterns to exclude from the files
-    :param recursive: Recursive option
-    :param yes: Skip confirmation option
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """

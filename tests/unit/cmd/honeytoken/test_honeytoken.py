@@ -1,8 +1,12 @@
+from typing import Any, Dict, List, Union
+
 from click.testing import CliRunner
+from pytest_voluptuous import S
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
+from tests.unit.request_mock import RequestMock, create_json_response
 
 
 @my_vcr.use_cassette("test_honeytoken_create_no_argument")
@@ -38,13 +42,58 @@ def test_honeytoken_create_ok_no_name(cli_fs_runner: CliRunner) -> None:
     assert_invoke_ok(result)
 
 
-@my_vcr.use_cassette("test_honeytoken_create_ok")
-def test_honeytoken_create_ok(cli_fs_runner: CliRunner) -> None:
+def test_honeytoken_create_ok(cli_fs_runner: CliRunner, monkeypatch) -> None:
     """
     GIVEN -
     WHEN running the honeytoken command with all needed arguments
     THEN the return code is 0
     """
+    type_ = "AWS"
+    name = "test_honey_token"
+    description = "description"
+    mock = RequestMock()
+    monkeypatch.setattr("ggshield.core.client.Session.request", mock)
+
+    def payload_checker(body: Union[List[str], Dict[str, Any]]) -> None:
+        assert (
+            S(
+                {
+                    "type": type_,
+                    "description": description,
+                    "name": name,
+                }
+            )
+            == body
+        )
+
+    mock.add_POST(
+        "/honeytokens",
+        create_json_response(
+            {
+                "id": "858a3a76-f6f2-4c2e-b0bc-123456789012",
+                "type": type_,
+                "status": "active",
+                "created_at": "2023-05-15T14:09:09.210845Z",
+                "gitguardian_url": "https://dashboard.gitguardian.com/workspace/1/honeytokens/858a3a76-f6f2-4c2e-b0bc-123456789012",  # noqa: E501
+                "revoked_at": None,
+                "triggered_at": None,
+                "open_events_count": 0,
+                "creator_id": 265476,
+                "creator_api_token_id": "8219e02d-f44c-4802-8418-210987654321",
+                "revoker_id": None,
+                "revoker_api_token_id": None,
+                "token": {
+                    "access_token_id": "ABCQFRJEIGOERJ5TRMP",
+                    "secret_key": "9ImlMcdJrfjkriegj3454566C0YgLEgregerZEaa",  # ggignore
+                },
+                "tags": [],
+                "name": name,
+                "description": description,
+            },
+            201,
+        ),
+        json_checker=payload_checker,
+    )
 
     result = cli_fs_runner.invoke(
         cli,
@@ -52,36 +101,46 @@ def test_honeytoken_create_ok(cli_fs_runner: CliRunner) -> None:
             "honeytoken",
             "create",
             "--description",
-            "description",
+            description,
             "--type",
-            "AWS",
+            type_,
             "--name",
-            "test_honey_token",
+            name,
         ],
     )
     assert_invoke_ok(result)
 
 
-@my_vcr.use_cassette("test_honeytoken_create_error_403")
-def test_honeytoken_create_error_403(cli_fs_runner: CliRunner) -> None:
+def test_honeytoken_create_error_403(cli_fs_runner: CliRunner, monkeypatch) -> None:
     """
     GIVEN a token without honeytoken scope
     WHEN running the honeytoken command with all needed arguments
-    THEN the return code is 1 and the error message match the needed message
+    THEN the return code is UNEXPECTED_ERROR and the error message match the needed message
     """
+
+    mock = RequestMock()
+    monkeypatch.setattr("ggshield.core.client.Session.request", mock)
+
+    def payload_checker(body: Union[List[str], Dict[str, Any]]) -> None:
+        assert body["type"] == "AWS"
+
+    mock.add_POST(
+        "/honeytokens",
+        create_json_response(
+            {"detail": "Token is missing the following scope: honeytokens:read"}, 403
+        ),
+        json_checker=payload_checker,
+    )
 
     result = cli_fs_runner.invoke(
         cli,
         [
             "honeytoken",
             "create",
-            "--description",
-            "description",
             "--type",
             "AWS",
-            "--name",
-            "test_honey_token_error_403",
         ],
     )
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    mock.assert_all_requests_happened()
     assert "ggshield does not have permissions to create honeytokens" in result.stdout

@@ -18,6 +18,7 @@ class ExitCode(IntEnum):
     Define constant exit codes based on their type
     """
 
+    # Everything went well
     SUCCESS = 0
     # Scan was successful, and found problems (leaked secrets, IAC security issues...)
     SCAN_FOUND_PROBLEMS = 1
@@ -25,6 +26,9 @@ class ExitCode(IntEnum):
     USAGE_ERROR = 2
     # auth subcommand failed
     AUTHENTICATION_ERROR = 3
+
+    # Add new exit codes here.
+    # If you add a new exit code, make sure you also add it to the documentation.
 
     # Catch all for other failures
     UNEXPECTED_ERROR = 128

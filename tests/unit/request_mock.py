@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import pytest
 from requests import Response
@@ -21,6 +21,7 @@ def create_json_response(json_data: Dict[str, Any], status_code: int = 200) -> R
 
 # See ExpectedRequest.data_checker
 DataChecker = Callable[[Any], None]
+JSONChecker = Callable[[Union[List[str], Dict[str, Any]]], None]
 
 
 @dataclass
@@ -34,6 +35,10 @@ class ExpectedRequest:
     # If defined, RequestMock will call this function with the value of the `data` field
     # it receives. It can be used to check the payload is as expected.
     data_checker: Optional[DataChecker] = None
+
+    # If defined, RequestMock will call this function with the value of the `json` field
+    # it receives. It can be used to check the payload is as expected.
+    json_checker: Optional[JSONChecker] = None
 
 
 class RequestMock:
@@ -51,9 +56,9 @@ class RequestMock:
     monkeypatch.setattr("ggshield.core.client.Session.request", mock)
 
     # Add expected requests
-    mock.add_GET("/foo1", JSONResponse({"a": 12}))
-    mock.add_POST("/login", JSONResponse({"a": 12}))
-    mock.add_GET("/not_found", JSONResponse({"msg": "no-such-page"}, 400))
+    mock.add_GET("/foo1", create_json_response({"a": 12}))
+    mock.add_POST("/login", create_json_response({"a": 12}))
+    mock.add_GET("/not_found", create_json_response({"msg": "no-such-page"}, 400))
 
     # Execute the code expected to send requests
     # If a request does not match the expected requests, an assert will raise
@@ -71,17 +76,19 @@ class RequestMock:
         self,
         endpoint: str,
         response: Response,
-        data_checker: Optional[DataChecker] = None,
     ):
-        self.add_request(ExpectedRequest("GET", endpoint, response, data_checker))
+        self.add_request(ExpectedRequest("GET", endpoint, response))
 
     def add_POST(
         self,
         endpoint: str,
         response: Response,
         data_checker: Optional[DataChecker] = None,
+        json_checker: Optional[JSONChecker] = None,
     ):
-        self.add_request(ExpectedRequest("POST", endpoint, response, data_checker))
+        self.add_request(
+            ExpectedRequest("POST", endpoint, response, data_checker, json_checker)
+        )
 
     def add_request(self, request: ExpectedRequest) -> None:
         """Low-level method to add a request, it's simpler to use add_GET or add_POST
@@ -110,5 +117,7 @@ class RequestMock:
         assert method == request.method
         if request.data_checker:
             request.data_checker(data)
+        if request.json_checker:
+            request.json_checker(kwargs["json"])
 
         return request.response
