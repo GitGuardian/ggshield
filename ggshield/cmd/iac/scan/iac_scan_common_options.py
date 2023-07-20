@@ -71,7 +71,7 @@ all_option = click.option(
     "--all",
     is_flag=True,
     default=None,
-    help="Report all vulnerabilities in the final state.",
+    help="Raise all vulnerabilities in the final state.",
 )
 
 directory_argument = click.argument(
