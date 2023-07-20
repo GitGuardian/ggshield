@@ -6,7 +6,7 @@ import click
 from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.fingerprint import input_arg
 from ggshield.core.errors import ParseError
-from ggshield.core.text_utils import display_info, pluralize
+from ggshield.core.text_utils import display_heading, display_warning, pluralize
 from ggshield.hmsl import Match, Secret
 from ggshield.hmsl.crypto import make_hint
 
@@ -102,18 +102,27 @@ def show_results(
     Display the secrets.
     """
     secrets = list(secrets)
-    display_info(f"Found {len(secrets)} leaked {pluralize('secret', len(secrets))}.")
-    data = [
-        {
-            "name": names.get(secret.hash) or secret.hash,
-            "hash": secret.hash,
-            "count": secret.count,
-            "url": secret.url,
-        }
-        for secret in secrets
-    ]
+    if secrets:
+        display_warning(
+            f"Found {len(secrets)} leaked {pluralize('secret', len(secrets))}."
+        )
+    else:
+        display_heading("All right! No leaked secret has been found.")
+
+    data = {
+        "leaks_count": len(secrets),
+        "leaks": [
+            {
+                "name": names.get(secret.hash) or secret.hash,
+                "hash": secret.hash,
+                "count": secret.count,
+                "url": secret.url,
+            }
+            for secret in secrets
+        ],
+    }
     if json_output:
         click.echo(json.dumps(data))
     else:
-        for i, secret in enumerate(data):
+        for i, secret in enumerate(data["leaks"]):
             click.echo(TEMPLATE.format(number=i + 1, **secret))

@@ -4,7 +4,11 @@ from io import StringIO
 from pathlib import Path
 from typing import ClassVar, DefaultDict, Dict, Generator, List, NamedTuple, Optional
 
-from pygitguardian.iac_models import IaCFileResult, IaCVulnerability
+from pygitguardian.iac_models import (
+    IaCDiffScanEntities,
+    IaCFileResult,
+    IaCVulnerability,
+)
 
 from ggshield.core.git_shell import Filemode
 from ggshield.core.text_utils import (
@@ -21,7 +25,6 @@ from ggshield.core.text_utils import (
 from ggshield.core.utils import get_lines_from_content
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.iac_scan_models import IaCDiffScanEntities
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.scan import File
 
@@ -186,6 +189,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
             return self._process_diff_scan_impl_verbose(scan)
         return self._process_diff_scan_impl_not_verbose(scan)
 
+    def _process_skip_scan_impl(self) -> str:
+        return "> No IaC files detected. Skipping."
+
     def _process_skip_diff_scan_impl(self) -> str:
         return "> No IaC files changed. Skipping."
 
@@ -214,6 +220,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
         for issue_n, vulnerability in enumerate(file_result.incidents, 1):
             result_buf.write(
                 iac_vulnerability_header(issue_n, vulnerability, prefix=prefix)
+            )
+            result_buf.write(
+                iac_vulnerability_documentation(vulnerability.documentation_url)
             )
             result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
             if len(lines) == 0:
@@ -259,6 +268,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
             result_buf.write(
                 iac_vulnerability_header(issue_n, vulnerability, prefix=prefix)
             )
+            result_buf.write(
+                iac_vulnerability_documentation(vulnerability.documentation_url)
+            )
             result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
             if len(lines) == 0:
                 result_buf.write(
@@ -295,6 +307,10 @@ def iac_vulnerability_header(
         format_text(vulnerability.policy, STYLE["policy"]),
         format_text(vulnerability.policy_id, STYLE["policy"]),
     )
+
+
+def iac_vulnerability_documentation(doc_url: str) -> str:
+    return f"More at {doc_url}\n"
 
 
 def iac_vulnerability_severity_line(severity: str) -> str:

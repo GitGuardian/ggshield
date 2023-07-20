@@ -47,6 +47,13 @@ _ignore_policy_option = click.option(
     callback=_validate_exclude,
 )
 
+all_option = click.option(
+    "--all",
+    is_flag=True,
+    default=None,
+    help="Report all vulnerabilities in the final state.",
+)
+
 
 def add_iac_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:

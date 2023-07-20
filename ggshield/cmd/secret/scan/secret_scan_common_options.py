@@ -61,7 +61,9 @@ _exclude_option = click.option(
     "--exclude",
     default=None,
     type=click.Path(),
-    help="Do not scan the specified path.",
+    help="""
+    Do not scan paths that match the specified glob-like patterns.
+    """,
     multiple=True,
     callback=_exclude_callback,
 )

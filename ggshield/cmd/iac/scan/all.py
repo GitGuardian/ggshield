@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Union
 
 import click
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
@@ -10,14 +10,16 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
+    IaCSkipScanResult,
     create_output_handler,
     handle_scan_error,
 )
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.filter import get_iac_files_from_paths
+from ggshield.iac.filter import get_iac_files_from_path
 from ggshield.scan import ScanContext, ScanMode
 
 
+# Changes to arguments must be propagated to default_command
 @click.command()
 @add_iac_scan_common_options()
 @directory_argument
@@ -32,20 +34,20 @@ def scan_all_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan a directory for IaC vulnerabilities.
+    Scan a directory for all IaC vulnerabilities in the current state.
     """
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     result = iac_scan_all(ctx, directory)
-    scan = IaCPathScanCollection(id=str(directory), result=result)
-    output_handler = create_output_handler(ctx)
-    return output_handler.process_scan(scan)
+    return display_iac_scan_all_result(ctx, directory, result)
 
 
-def iac_scan_all(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]:
-    paths = get_iac_files_from_paths(
+def iac_scan_all(
+    ctx: click.Context, directory: Path
+) -> Union[IaCScanResult, IaCSkipScanResult, None]:
+    paths = get_iac_files_from_path(
         path=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
         verbose=ctx.obj["config"].verbose,
@@ -53,13 +55,18 @@ def iac_scan_all(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]
         ignore_git=False,
     )
 
+    if not paths:
+        return IaCSkipScanResult()
+
     config = ctx.obj["config"]
     client = ctx.obj["client"]
 
     scan_parameters = IaCScanParameters(
         config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
     )
-
+    # If paths are not sorted, the tar bytes order will be different when calling the function twice
+    # Different bytes order will cause different tarfile hash_key resulting in a GIM cache bypass.
+    paths.sort()
     scan = client.iac_directory_scan(
         directory,
         paths,
@@ -74,3 +81,17 @@ def iac_scan_all(ctx: click.Context, directory: Path) -> Optional[IaCScanResult]
         handle_scan_error(client, scan)
         return None
     return scan
+
+
+def display_iac_scan_all_result(
+    ctx: click.Context,
+    directory: Path,
+    result: Union[IaCScanResult, IaCSkipScanResult, None],
+) -> int:
+    output_handler = create_output_handler(ctx)
+
+    if isinstance(result, IaCSkipScanResult):
+        return output_handler.process_skip_scan()
+
+    scan = IaCPathScanCollection(id=str(directory), result=result)
+    return output_handler.process_scan(scan)

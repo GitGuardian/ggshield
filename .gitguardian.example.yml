@@ -36,3 +36,18 @@ secret:
   # Detectors to ignore.
   ignored-detectors: # default: []
     - Generic Password
+
+iac:
+  # Exclude files and paths by globbing
+  ignored-paths:
+    - '**/README.md'
+    - 'doc/*'
+    - 'LICENSE'
+
+  # IaC vulnerabilities to ignore
+  ignored-policies:
+    - GG_IAC_0000
+    - GG_IAC_0005
+
+  # Minimum severity of the policies
+  minimum-severity: HIGH

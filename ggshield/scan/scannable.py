@@ -2,6 +2,7 @@ import codecs
 import logging
 import urllib.parse
 from abc import ABC, abstractmethod
+from io import SEEK_END, SEEK_SET
 from pathlib import Path
 from typing import BinaryIO, Callable, List, Optional, Tuple
 
@@ -12,6 +13,12 @@ from ggshield.core.git_shell import Filemode
 
 
 logger = logging.getLogger(__name__)
+
+
+# Our worse encoding (UTF-32) would take 4 bytes to encode ASCII, where UTF-8 would take
+# only 1. If the file is longer than byte_size / UTF8_TO_WORSE_OTHER_ENCODING_RATIO, no
+# need to look into it: it's too big.
+UTF8_TO_WORSE_OTHER_ENCODING_RATIO = 4
 
 
 class DecodeError(Exception):
@@ -52,8 +59,9 @@ class Scannable(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def is_longer_than(self, size: int) -> bool:
-        """Return true if the length of the *decoded* content is greater than `size`.
+    def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
+        """Return true if the length of the *utf-8 encoded* content is greater than
+        `max_utf8_encoded_size`.
         When possible, implementations must try to answer this without reading all
         content.
         Raise `DecodeError` if the content cannot be decoded.
@@ -72,9 +80,11 @@ class Scannable(ABC):
     @staticmethod
     def _decode_bytes(
         raw_document: bytes, charset_match: Optional[CharsetMatch] = None
-    ) -> str:
+    ) -> Tuple[str, int]:
         """Low level helper function to decode bytes using `charset_match`. If
         `charset_match` is not provided, tries to determine it itself.
+
+        Returns a tuple of (decoded_content, utf8_encoded_size).
 
         Raises DecodeError if the document cannot be decoded."""
         if charset_match is None:
@@ -89,42 +99,60 @@ class Scannable(ABC):
             codecs.BOM_UTF8
         ):
             raw_document = raw_document[len(codecs.BOM_UTF8) :]
-        return raw_document.decode(charset_match.encoding, errors="replace")
+        content = raw_document.decode(charset_match.encoding, errors="replace")
+
+        if charset_match.encoding in {"utf_8", "ascii"}:
+            # The document is already in UTF-8, no need to encode it as UTF-8 to
+            # determine UTF-8 encoded size.
+            utf8_encoded_size = len(raw_document)
+        else:
+            utf8_encoded_size = len(content.encode(errors="replace"))
+
+        return content, utf8_encoded_size
 
     @staticmethod
-    def _is_file_longer_than(fp: BinaryIO, size: int) -> Tuple[bool, Optional[str]]:
+    def _is_file_longer_than(
+        fp: BinaryIO, max_utf8_encoded_size: int
+    ) -> Tuple[bool, Optional[str], Optional[int]]:
         """Helper function to implement is_longer_than() for file-based Scannable classes.
 
         Returns a tuple of:
         - True if file is longer than `size`, False otherwise
-        - The decoded content as a string, if it has been fully read, None otherwise
+        - The decoded content as a string if the file has been fully read, None otherwise
+        - The utf8-encoded size if we know it, None otherwise
 
         Raises DecodeError if the file cannot be decoded.
         """
-        byte_content = b""
-        str_content = ""
+        # Get the byte size
+        assert fp.seekable()
+        byte_size = fp.seek(0, SEEK_END)
 
+        if byte_size > max_utf8_encoded_size * UTF8_TO_WORSE_OTHER_ENCODING_RATIO:
+            # Even if the file used the worst encoding (UTF-32), encoding the content of
+            # this file as UTF-8 would produce a file longer than
+            # `max_utf8_encoded_size`, so bail out
+            return True, None, None
+
+        # Determine the encoding
+        fp.seek(0, SEEK_SET)
         charset_matches = charset_normalizer.from_fp(fp)
         charset_match = charset_matches.best()
         if charset_match is None:
             raise DecodeError
-        fp.seek(0)
-        while True:
-            # Try to read more than the requested size:
-            # - If the file is smaller, that changes nothing
-            # - if the file is bigger, we potentially avoid a second read
-            byte_chunk = fp.read(size * 2)
-            if byte_chunk:
-                byte_content += byte_chunk
-                # Note: we decode `byte_content` and not `byte_chunk`: we can't
-                # decode just the chunk because we have no way to know if it starts
-                # and ends at complete code-point boundaries
-                str_content = Scannable._decode_bytes(byte_content, charset_match)
-                if len(str_content) > size:
-                    return True, None
-            else:
-                # We read the whole file, keep it
-                return False, str_content
+
+        if charset_match.encoding in {"utf_8", "ascii"}:
+            # Shortcut: the content is already in UTF-8 (or ASCII, which is a subset of
+            # utf-8), no need to decode anything
+            return byte_size > max_utf8_encoded_size, None, byte_size
+
+        # We can't know if the file is longer without reading its content, do it now
+        fp.seek(0, SEEK_SET)
+        content, utf8_encoded_size = Scannable._decode_bytes(fp.read(), charset_match)
+        if utf8_encoded_size > max_utf8_encoded_size:
+            return True, None, utf8_encoded_size
+        else:
+            # We read the whole file, keep it
+            return False, content, utf8_encoded_size
 
 
 class StringScannable(Scannable):
@@ -135,6 +163,7 @@ class StringScannable(Scannable):
         self._url = url
         self._path: Optional[Path] = None
         self._content = content
+        self._utf8_encoded_size = None
 
     @property
     def url(self) -> str:
@@ -151,8 +180,10 @@ class StringScannable(Scannable):
             self._path = Path(result.path)
         return self._path
 
-    def is_longer_than(self, size: int) -> bool:
-        return len(self._content) > size
+    def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
+        if self._utf8_encoded_size is None:
+            self._utf8_encoded_size = len(self._content.encode(errors="replace"))
+        return self._utf8_encoded_size > max_utf8_encoded_size
 
     @property
     def content(self) -> str:

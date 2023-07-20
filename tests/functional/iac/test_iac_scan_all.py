@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pytest
 
@@ -8,22 +8,85 @@ from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
 
 
-def test_iac_scan_all(tmp_path: Path) -> None:
+# `iac scan` is set for deprecation, but should behave exactly as `iac scan all` in the meantime
+pytestmark = pytest.mark.parametrize("scan_arg", ["all", None])
+
+
+def _run_scan_iac(
+    args: List[str], scan_arg: Optional[str], cwd: str, expected_code: int
+):
+    """
+    Helper function to handle whether or not we are using the `all` subcommand.
+    """
+    if scan_arg is not None:
+        args.insert(0, scan_arg)
+    return run_ggshield_iac_scan(*args, cwd=cwd, expected_code=expected_code)
+
+
+def test_iac_scan_all(tmp_path: Path, scan_arg) -> None:
     # GIVEN a folder containing a file with vulnerabilities
     test_file = tmp_path / "vulnerability.tf"
     test_file.write_text(_IAC_SINGLE_VULNERABILITY)
 
     # WHEN scanning it
     # THEN vulnerabilities are found
-    args = ["all", str(tmp_path)]
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    result = _run_scan_iac(
+        args=[str(tmp_path)], scan_arg=scan_arg, cwd=tmp_path, expected_code=1
+    )
 
     # AND the output contains context about the vulnerable resource
     assert "aws_alb_listener" in result.stdout
     assert "vulnerability.tf" in result.stdout
 
 
-def test_iac_scan_all_only_tracked_iac(tmp_path: Path) -> None:
+def test_iac_scan_all_empty(tmp_path: Path, scan_arg) -> None:
+    # GIVEN an git repository with no IaC file
+    repo = Repository.create(tmp_path)
+
+    tracked_file = tmp_path / "not_an_iac_file.md"
+    tracked_file.write_text("Nothing to see here...")
+    repo.add(tracked_file)
+
+    repo.create_commit()
+
+    # WHEN scanning it
+    result = _run_scan_iac(
+        args=[str(tmp_path)], scan_arg=scan_arg, cwd=tmp_path, expected_code=0
+    )
+
+    # THEN the scan was skipped
+    assert "Skipping" in result.stdout
+
+
+def test_iac_scan_all_ignore_all(tmp_path: Path, scan_arg) -> None:
+    # GIVEN an git repository with a single ignored IaC file
+    repo = Repository.create(tmp_path)
+
+    not_iac_file = tmp_path / "not_an_iac_file.md"
+    not_iac_file.write_text("Nothing to see here...")
+    repo.add(not_iac_file)
+
+    iac_file_name = "should_not_appear.tf"
+
+    tracked_file = tmp_path / iac_file_name
+    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(tracked_file)
+
+    repo.create_commit()
+
+    # WHEN scanning it
+    result = _run_scan_iac(
+        args=["--ignore-path", iac_file_name],
+        scan_arg=scan_arg,
+        cwd=tmp_path,
+        expected_code=0,
+    )
+
+    # THEN the scan was skipped
+    assert "> No IaC files detected. Skipping." in result.stdout
+
+
+def test_iac_scan_all_only_tracked_iac(tmp_path: Path, scan_arg) -> None:
     # GIVEN a git repository with vulnerabilities
     # - in a tracked file
     # - in an untracked file
@@ -41,8 +104,9 @@ def test_iac_scan_all_only_tracked_iac(tmp_path: Path) -> None:
     repo.create_commit()
 
     # WHEN scanning it
-    args = ["all", str(tmp_path)]
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+    result = _run_scan_iac(
+        args=[str(tmp_path)], scan_arg=scan_arg, cwd=tmp_path, expected_code=1
+    )
 
     # THEN only the tracked file appears in the output
     assert "should_appear.tf" in result.stdout
@@ -50,7 +114,9 @@ def test_iac_scan_all_only_tracked_iac(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("ignored_paths", (["file1.tf"], ["file1.tf", "file2.tf"]))
-def test_iac_scan_all_ignore_path(tmp_path: Path, ignored_paths: List[str]) -> None:
+def test_iac_scan_all_ignore_path(
+    tmp_path: Path, ignored_paths: List[str], scan_arg
+) -> None:
     # GIVEN a git repository with vulnerabilities in 3 files
     repo = Repository.create(tmp_path)
     all_files = ["file1.tf", "file2.tf", "file3.tf"]
@@ -61,11 +127,12 @@ def test_iac_scan_all_ignore_path(tmp_path: Path, ignored_paths: List[str]) -> N
         repo.add(file)
 
     # WHEN scanning with --ignore-path option
-    args: List[str] = ["all", str(tmp_path)]
+    args = [str(tmp_path)]
     for path in ignored_paths:
         args.append("--ignore-path")
         args.append(path)
-    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=1)
+
+    result = _run_scan_iac(args=args, scan_arg=scan_arg, cwd=tmp_path, expected_code=1)
 
     # THEN ignored files do not appear in result
     for filename in all_files:

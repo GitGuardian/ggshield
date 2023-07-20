@@ -1,10 +1,9 @@
 from typing import Any, Dict, cast
 
-from pygitguardian.iac_models import IaCFileResult
+from pygitguardian.iac_models import IaCDiffScanEntities, IaCFileResult
 
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.iac_scan_models import IaCDiffScanEntities
 from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.iac.output.schemas import (
     IaCJSONScanDiffResultSchema,
@@ -17,6 +16,9 @@ class IaCJSONOutputHandler(IaCOutputHandler):
         scan_dict = IaCJSONOutputHandler.create_scan_dict(scan)
         text = IaCJSONScanResultSchema().dumps(scan_dict)
         return cast(str, text)
+
+    def _process_skip_scan_impl(self) -> str:
+        return "{}"
 
     def _process_skip_diff_scan_impl(self) -> str:
         return "{}"

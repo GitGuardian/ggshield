@@ -1,5 +1,11 @@
 import pytest
-from pygitguardian.iac_models import IaCFileResult, IaCScanResult, IaCVulnerability
+from pygitguardian.iac_models import (
+    IaCDiffScanEntities,
+    IaCDiffScanResult,
+    IaCFileResult,
+    IaCScanResult,
+    IaCVulnerability,
+)
 
 from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
@@ -7,7 +13,6 @@ from ggshield.iac.collection.iac_scan_collection import (
     CollectionType,
     IaCScanCollection,
 )
-from ggshield.iac.iac_scan_models import IaCDiffScanEntities, IaCDiffScanResult
 
 
 def _generate_empty_path_collection() -> IaCPathScanCollection:

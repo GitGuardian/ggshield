@@ -1,10 +1,11 @@
 from typing import Optional
 
+from pygitguardian.iac_models import IaCDiffScanResult
+
 from ggshield.iac.collection.iac_scan_collection import (
     CollectionType,
     IaCScanCollection,
 )
-from ggshield.iac.iac_scan_models import IaCDiffScanResult
 
 
 class IaCDiffScanCollection(IaCScanCollection):

@@ -41,3 +41,10 @@ secret:
     - .gitignore
     - .env
     - 'tests/cassettes/*'
+
+iac:
+  ignored-policies:
+    # We don't want to fix this vulnerability because many CI systems
+    # (including GitHub action and Azure pipelines) expect the user inside the
+    # container to be root.
+    - GG_IAC_0079
