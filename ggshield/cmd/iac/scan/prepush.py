@@ -40,15 +40,15 @@ def scan_pre_push_cmd(
     directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    if all:
+    _, remote_commit = collect_commits_refs(prepush_args)
+    # Will happen if this is the first push on the branch
+    has_no_remote_commit = (
+        remote_commit is None or "~1" in remote_commit or remote_commit == EMPTY_SHA
+    )
+
+    if all or has_no_remote_commit:
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
     else:
-        _, remote_commit = collect_commits_refs(prepush_args)
-
-        # Will happen if this is the first push on the branch
-        if "~1" in remote_commit or remote_commit == EMPTY_SHA:
-            remote_commit = None
-
         result = iac_scan_diff(ctx, directory, remote_commit, include_staged=False)
         return display_iac_scan_diff_result(ctx, directory, result)
