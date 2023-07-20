@@ -29,7 +29,7 @@ def test_hmsl_check_random_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> N
 
     result = cli_fs_runner.invoke(cli, ["hmsl", "check", str(secrets_path)])
     assert_invoke_ok(result)
-    assert "Found 0 leaked secrets" in result.output
+    assert "All right! No leaked secret has been found." in result.output
 
 
 @my_vcr.use_cassette

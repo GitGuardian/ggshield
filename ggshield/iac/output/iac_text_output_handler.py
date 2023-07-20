@@ -221,6 +221,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
             result_buf.write(
                 iac_vulnerability_header(issue_n, vulnerability, prefix=prefix)
             )
+            result_buf.write(
+                iac_vulnerability_documentation(vulnerability.documentation_url)
+            )
             result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
             if len(lines) == 0:
                 result_buf.write(
@@ -265,6 +268,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
             result_buf.write(
                 iac_vulnerability_header(issue_n, vulnerability, prefix=prefix)
             )
+            result_buf.write(
+                iac_vulnerability_documentation(vulnerability.documentation_url)
+            )
             result_buf.write(iac_vulnerability_severity_line(vulnerability.severity))
             if len(lines) == 0:
                 result_buf.write(
@@ -301,6 +307,10 @@ def iac_vulnerability_header(
         format_text(vulnerability.policy, STYLE["policy"]),
         format_text(vulnerability.policy_id, STYLE["policy"]),
     )
+
+
+def iac_vulnerability_documentation(doc_url: str) -> str:
+    return f"More at {doc_url}\n"
 
 
 def iac_vulnerability_severity_line(severity: str) -> str:

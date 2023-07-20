@@ -62,14 +62,16 @@ _ignore_path_option = click.option(
     default=None,
     type=click.Path(),
     multiple=True,
-    help="Do not scan the specified paths.",
+    help="""
+    Do not scan paths that match the specified glob-like patterns.
+    """,
 )
 
 all_option = click.option(
     "--all",
     is_flag=True,
     default=None,
-    help="Report all vulnerabilities in the final state.",
+    help="Raise all vulnerabilities in the final state.",
 )
 
 directory_argument = click.argument(
