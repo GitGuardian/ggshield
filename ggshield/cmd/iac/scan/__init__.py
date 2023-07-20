@@ -2,11 +2,9 @@ from typing import Any
 
 import click
 
+from ggshield.cmd.common_options import directory_argument
 from ggshield.cmd.iac.scan.diff import scan_diff_cmd
-from ggshield.cmd.iac.scan.iac_scan_common_options import (
-    add_iac_scan_common_options,
-    directory_argument,
-)
+from ggshield.cmd.iac.scan.iac_scan_common_options import add_iac_scan_common_options
 from ggshield.cmd.iac.scan.scan import scan_all_cmd
 from ggshield.core.clickutils.default_command_group import DefaultCommandGroup
 from ggshield.core.client import create_client_from_config

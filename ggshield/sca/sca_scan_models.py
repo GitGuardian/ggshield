@@ -9,7 +9,7 @@ from typing_extensions import Literal
 
 @dataclass
 class SCAScanParameters(Base, FromDictMixin):
-    pass
+    minimum_severity: Optional[str] = None
 
 
 SCAScanParameters.SCHEMA = cast(

@@ -1,13 +1,16 @@
 import re
 from pathlib import Path
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any, List, Optional, Sequence, Set, Tuple
 
 import click
 from pygitguardian.client import _create_tar
 
+from ggshield.cmd.common_options import directory_argument
+from ggshield.cmd.sca.scan_common_options import (
+    add_sca_scan_common_options,
+    update_context,
+)
 from ggshield.cmd.sca.scan_utils import create_output_handler
-from ggshield.core.client import create_client_from_config
-from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
@@ -46,11 +49,8 @@ def scan_group(*args, **kwargs: Any) -> None:
 
 
 @scan_group.command(name="diff")
-@click.argument(
-    "directory",
-    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
-    required=False,
-)
+@add_sca_scan_common_options()
+@directory_argument
 @click.option(
     "--ref",
     metavar="REF",
@@ -60,6 +60,9 @@ def scan_group(*args, **kwargs: Any) -> None:
 @display_sca_beta_warning
 def scan_pre_commit_cmd(
     ctx: click.Context,
+    exit_zero: bool,
+    minimum_severity: str,
+    ignore_paths: Sequence[str],
     directory: Optional[Path],
     ref: str,
     **kwargs: Any,
@@ -71,7 +74,7 @@ def scan_pre_commit_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx)
+    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
 
     result = sca_scan_diff(
         ctx=ctx, directory=directory, ref="HEAD", include_staged=True
@@ -82,15 +85,15 @@ def scan_pre_commit_cmd(
 
 
 @scan_group.command(name="all")
-@click.argument(
-    "directory",
-    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
-    required=False,
-)
+@add_sca_scan_common_options()
+@directory_argument
 @click.pass_context
 @display_sca_beta_warning
 def scan_all_cmd(
     ctx: click.Context,
+    exit_zero: bool,
+    minimum_severity: str,
+    ignore_paths: Sequence[str],
     directory: Optional[Path],
     **kwargs: Any,
 ) -> int:
@@ -101,23 +104,12 @@ def scan_all_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx)
+    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
 
     result = sca_scan_all(ctx, directory)
     scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
     output_handler = create_output_handler(ctx)
     return output_handler.process_scan_all_result(scan)
-
-
-def update_context(ctx: click.Context) -> None:
-    """
-    Basic implementation, should be populated with required parameters later.
-    """
-    config: Config = ctx.obj["config"]
-    ctx.obj["client"] = create_client_from_config(config)
-
-    # Empty for now
-    ctx.obj["exclusion_regexes"] = set()
 
 
 def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
@@ -128,6 +120,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
     - Create a tar archive with the required files contents
     - Launches the scan with a call to SCA public API
     """
+    config = ctx.obj["config"]
     client = SCAClient(ctx.obj["client"])
 
     sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
@@ -145,8 +138,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         empty_output.status_code = sca_filter_status_code
         return empty_output
 
-    # empty for now
-    scan_parameters = SCAScanParameters()
+    scan_parameters = SCAScanParameters(config.user_config.sca.minimum_severity)
 
     tar = _create_tar(directory, sca_filepaths)
 
@@ -212,14 +204,21 @@ def sca_scan_diff(
     ref: str,
     include_staged: bool,
 ) -> SCAScanDiffOutput:
+    config = ctx.obj["config"]
     client = SCAClient(ctx.obj["client"])
+
     current_ref = INDEX_REF if include_staged else "HEAD"
     if current_ref == ref:
         display_info("SCA scan diff comparing identical versions, scan skipped.")
         return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
     ref_tar = tar_sca_files_from_git_repo(directory, ref, client)
     current_tar = tar_sca_files_from_git_repo(directory, current_ref, client)
-    response = client.scan_diff(reference=ref_tar, current=current_tar)
+
+    scan_parameters = SCAScanParameters(config.user_config.sca.minimum_severity)
+
+    response = client.scan_diff(
+        reference=ref_tar, current=current_tar, scan_parameters=scan_parameters
+    )
 
     if not isinstance(response, SCAScanDiffOutput):
         if response.status_code == 401:

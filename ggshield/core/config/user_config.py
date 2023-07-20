@@ -82,6 +82,17 @@ class IaCConfig(FilteredConfig):
 
 
 @marshmallow_dataclass.dataclass
+class SCAConfig(FilteredConfig):
+    """
+    Holds the sca config as defined .gitguardian.yaml files
+    (local and global).
+    """
+
+    ignored_paths: Set[str] = field(default_factory=set)
+    minimum_severity: str = "LOW"
+
+
+@marshmallow_dataclass.dataclass
 class UserConfig(FilteredConfig):
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
@@ -94,6 +105,7 @@ class UserConfig(FilteredConfig):
     verbose: bool = False
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
+    sca: SCAConfig = field(default_factory=SCAConfig)
     secret: SecretConfig = field(default_factory=SecretConfig)
     debug: bool = False
 
