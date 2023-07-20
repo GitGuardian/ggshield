@@ -1,8 +1,9 @@
 interactions:
   - request:
       body:
-        "--b23eccf3dc78718360e8b44bce086c5d\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{}\r\n--b23eccf3dc78718360e8b44bce086c5d\r\nContent-Disposition:
-        form-data; name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--b23eccf3dc78718360e8b44bce086c5d--\r\n"
+        "--cbd3f8ff279d2f5d465518d8d97360af\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{\"minimum_severity\":
+        null}\r\n--cbd3f8ff279d2f5d465518d8d97360af\r\nContent-Disposition: form-data;
+        name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--cbd3f8ff279d2f5d465518d8d97360af--\r\n"
       headers:
         Accept:
           - '*/*'
@@ -11,9 +12,9 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '248'
+          - '272'
         Content-Type:
-          - multipart/form-data; boundary=b23eccf3dc78718360e8b44bce086c5d
+          - multipart/form-data; boundary=cbd3f8ff279d2f5d465518d8d97360af
         User-Agent:
           - pygitguardian/1.8.0 (Linux;py3.10.6)
       method: POST
@@ -22,32 +23,41 @@ interactions:
       body:
         string: '{"detail":"Directory is not a valid tarfile"}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '45'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Thu, 29 Jun 2023 09:55:14 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
+        date:
+          - Mon, 24 Jul 2023 14:26:27 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.35.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '33'
+        x-frame-options:
           - DENY
-        X-Secrets-Engine-Version:
-          - 2.92.0
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 400
         message: Bad Request

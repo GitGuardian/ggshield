@@ -96,7 +96,7 @@ class TestSCAClient:
         """
         sca_client = SCAClient(client)
 
-        piplock_filepath = Path(current_dir / "../data/Pipfile.lock")
+        piplock_filepath = Path(current_dir / "../data/Pipfile.lock").resolve()
 
         tar = _create_tar(".", [piplock_filepath])
         scan_params = SCAScanParameters()

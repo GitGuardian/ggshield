@@ -1,21 +1,22 @@
 interactions:
   - request:
       body: !!binary |
-        LS0zMjUwYTY1ZDlhMzNhNWM1NWUyOGQ2NTI1NjQ1YzMxMg0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnt9DQotLTMyNTBhNjVkOWEzM2E1
-        YzU1ZTI4ZDY1MjU2NDVjMzEyDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9
-        ImRpcmVjdG9yeSI7IGZpbGVuYW1lPSJkaXJlY3RvcnkiDQoNCh+LCAACVZ1kAv/tlUtP3DAQgPe8
-        v2KVCxea+J0Eaasee+ReoZVjj0lEskljLwJV/Pc6uwg2sBUnqFrmO8T2jD0ve5Q0S7Nvl/ruO2gL
-        4+JdIAf+NBLCxfN8klPCKFus7hYfwM4HPUb3i88JK1ZdaDpYU1UUhElB8zRneckFXS6Q/5667yC7
-        07cNjFWrt6buQ3Z9vQl93/o48XUDrc0C+OCz3bYJmTc6S9PM6qCzy2ZwTQtp25ubN/pfqX2P01zS
-        45Hs51QtqBAiZ1zI2PiEU6li/5OP7P95DV7ve0v/j/JruYokmw6CTi5Wh+VeVGtfzyR7qa81kyrK
-        E0Iq6fKc51qW8WtlCQKsFnlllQZXVVBIKa1k3FICuQUrKi4LY0GQSugqeTL8cP7sdTg8qS9+ABO9
-        qCPVCD93zQh+Cur4iO93o9mLf8xinUe+37rVHUyxD/dDk5y/1u/GdlLXIQz+IsumbWk/Xme+6YYW
-        Tp24hbFx9xvvp4Nh3MFsy8PT6mp5lGliweldG+YFNzCGxjWvaz7dxIn8ju7jgjhipbJGaqXjxMVa
-        a65EIawyhovYVkCNkqIwilqtbWE4I1SVrqRgrclPpfZo2ijDoCycNHmhSnBGU1eUVDmwjBXWllTy
-        aMfRKraw4VQYogAcYWVBTGztZGb5au4o6fR4A6M/XEqo++0mVtQ3/Xb1db0646k6exFa8qifTqzX
-        jDCeyjQ//Zhu7wcY/0493zNpkrKUkqOUD29r+YB/bARBEARBEARBEARBEARBEARBEARBkE/Lb5TX
-        BCgAKAAADQotLTMyNTBhNjVkOWEzM2E1YzU1ZTI4ZDY1MjU2NDVjMzEyLS0NCg==
+        LS03OGRlZmRmMTQ4NjgxM2Y3MmVkYzZiOWY4YjcwYmZlNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
+        IG51bGx9DQotLTc4ZGVmZGYxNDg2ODEzZjcyZWRjNmI5ZjhiNzBiZmU0DQpDb250ZW50LURpc3Bv
+        c2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImRpcmVjdG9yeSI7IGZpbGVuYW1lPSJkaXJlY3Rvcnki
+        DQoNCh+LCACyjb5kAv/tlUtvnDAQgDnvr1hxySUFGz+ASFv12GPuVbQy9jigwEJtEyWq8t8Lu1Gy
+        JFu1l6RqM98B2zP2vOwRSZqkXy7V3VdQBlz0JpADvxoJYex5PsspySiN1nfROzD6oNzkPvqYZPm6
+        C00HGyqLsuSc0jIpKcmZXEXI/0/dd5DeqdsGXNWqna77kF5fb0Pft36a+LqB1qQBfPDpuGtCalRQ
+        6WUz2KaFpO31zZ/1v5R8Hmku6PFI9nMqI8q5kGJa5VP/MyJyHq3Je/b/sgav9/1O/4/yY7WeiLcd
+        BBVfrA/LvahWvl5I9lJfq0zISR4TUgmb5yxXopy+RpTAwSieV0YqsFUFhRDCiIwZSiA3YHjFRKEN
+        cFJxVcVPhh/On70Oh5f1yQ+gJy/ySOXg+9g48HNQx0d8Pzq9F39bxLqMfL91pzqYYx/uhyY+f60f
+        XTur6xAGf5Gm87akd9epb7qhhVMnbsE19n7r/XwwuBEWWx6eVlero0xjA1aNbVgWXIMLjW1e13y+
+        iRP5Hd3HBbHECGm0UFJNEzvVWjHJC26k1mzqLQpUS8ELLalRyhSaZYTK0pYUjNH5qdQeTWupMygL
+        K3ReyBKsVtQWJZUWTJYVxpRUsMmOpRXnXDPKNZEAlmRlQfTU2vHC8tXSUdwpdwPOHy4l1P1uO1XU
+        N/1u/XmzPmOJPHsRWvyon09sNhnJWCKS/PRjur0fwP2der5l0iTJEkqOUj68rdUD/rIRBEEQBEEQ
+        BEEQBEEQBEEQBEEQBEE+LD8BUEocyQAoAAANCi0tNzhkZWZkZjE0ODY4MTNmNzJlZGM2YjlmOGI3
+        MGJmZTQtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -24,9 +25,9 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '844'
+          - '864'
         Content-Type:
-          - multipart/form-data; boundary=3250a65d9a33a5c55e28d6525645c312
+          - multipart/form-data; boundary=78defdf1486813f72edc6b9f8b70bfe4
         User-Agent:
           - pygitguardian/1.8.0 (Linux;py3.10.6)
       method: POST
@@ -34,48 +35,60 @@ interactions:
     response:
       body:
         string:
-          '{"scanned_files":["home/xavierblanchot/gg_tools/ggshield/tests/unit/sca/../data/Pipfile.lock"],"found_package_vulns":[{"location":"home/xavierblanchot/gg_tools/ggshield/tests/unit/data/Pipfile.lock","package_vulns":[{"package_full_name":"vyper","version":"0.2.10","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2021-41121"],"severity":"high","created_at":"2021-10-12T15:59:29Z","fixed_version":"0.3.0","summary":"Memory
-          corruption when returning a literal struct with a private call inside of it"},{"cve_ids":["CVE-2023-30837"],"severity":"high","created_at":"2023-05-05T22:22:23Z","fixed_version":"0.3.8","summary":"vyper
-          vulnerable to storage allocator overflow"},{"cve_ids":["CVE-2023-32675"],"severity":"low","created_at":"2023-05-22T20:35:46Z","fixed_version":"0.3.8","summary":"Vyper''s
-          nonpayable default functions are sometimes payable"},{"cve_ids":["CVE-2022-24788"],"severity":"high","created_at":"2022-04-20T20:31:44Z","fixed_version":"0.3.2","summary":"Buffer
-          Overflow in vyper"},{"cve_ids":["CVE-2023-32058"],"severity":"high","created_at":"2023-05-12T20:21:35Z","fixed_version":"0.3.8","summary":"Vyper
-          vulnerable to integer overflow in loop"},{"cve_ids":["CVE-2023-32059"],"severity":"high","created_at":"2023-05-12T20:21:00Z","fixed_version":"0.3.8","summary":"Vyper
-          vulnerable to incorrect ordering of arguments for kwargs passed to internal
-          calls"},{"cve_ids":["CVE-2021-41122"],"severity":"medium","created_at":"2021-10-06T17:48:46Z","fixed_version":"0.3.0","summary":"missing
-          clamps for decimal args in external functions"},{"cve_ids":[],"severity":"high","created_at":"2022-04-04T21:40:45Z","fixed_version":"0.3.2","summary":"Incorrect
-          Comparison in Vyper"},{"cve_ids":["CVE-2022-29255"],"severity":"high","created_at":"2022-06-06T21:23:58Z","fixed_version":"0.3.4","summary":"Multiple
-          evaluation of contract address in call in vyper"},{"cve_ids":["CVE-2023-31146"],"severity":"high","created_at":"2023-05-12T20:21:54Z","fixed_version":"0.3.8","summary":"Vyper
+          '{"scanned_files":["home/xavierblanchot/gg_tools/ggshield/tests/unit/data/Pipfile.lock"],"found_package_vulns":[{"location":"home/xavierblanchot/gg_tools/ggshield/tests/unit/data/Pipfile.lock","package_vulns":[{"package_full_name":"vyper","version":"0.2.10","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2022-24788"],"ghsa_id":"GHSA-4mrx-6fxm-8jpg","severity":"high","created_at":"2022-04-20T20:31:44Z","fixed_version":"0.3.2","summary":"Buffer
+          Overflow in vyper"},{"cve_ids":["CVE-2021-41121"],"ghsa_id":"GHSA-xv8x-pr4h-73jv","severity":"high","created_at":"2021-10-12T15:59:29Z","fixed_version":"0.3.0","summary":"Memory
+          corruption when returning a literal struct with a private call inside of it"},{"cve_ids":[],"ghsa_id":"GHSA-7vrm-3jc8-5wwm","severity":"high","created_at":"2022-04-04T21:40:45Z","fixed_version":"0.3.2","summary":"Incorrect
+          Comparison in Vyper"},{"cve_ids":["CVE-2023-31146"],"ghsa_id":"GHSA-3p37-3636-q8wv","severity":"high","created_at":"2023-05-12T20:21:54Z","fixed_version":"0.3.8","summary":"Vyper
           vulnerable to OOB DynArray access when array is on both LHS and RHS of an
-          assignment"},{"cve_ids":[],"severity":"medium","created_at":"2021-04-19T15:12:05Z","fixed_version":"0.2.12","summary":"VVE-2021-0001:
-          Memory corruption using function calls within arrays"},{"cve_ids":["CVE-2022-24845"],"severity":"high","created_at":"2022-04-22T20:24:13Z","fixed_version":"0.3.2","summary":"Integer
+          assignment"},{"cve_ids":["CVE-2023-30837"],"ghsa_id":"GHSA-mgv8-gggw-mrg6","severity":"high","created_at":"2023-05-05T22:22:23Z","fixed_version":"0.3.8","summary":"vyper
+          vulnerable to storage allocator overflow"},{"cve_ids":["CVE-2023-32058"],"ghsa_id":"GHSA-6r8q-pfpv-7cgj","severity":"high","created_at":"2023-05-12T20:21:35Z","fixed_version":"0.3.8","summary":"Vyper
+          vulnerable to integer overflow in loop"},{"cve_ids":["CVE-2023-32059"],"ghsa_id":"GHSA-ph9x-4vc9-m39g","severity":"high","created_at":"2023-05-12T20:21:00Z","fixed_version":"0.3.8","summary":"Vyper
+          vulnerable to incorrect ordering of arguments for kwargs passed to internal
+          calls"},{"cve_ids":["CVE-2023-32675"],"ghsa_id":"GHSA-vxmm-cwh2-q762","severity":"low","created_at":"2023-05-22T20:35:46Z","fixed_version":"0.3.8","summary":"Vyper''s
+          nonpayable default functions are sometimes payable"},{"cve_ids":["CVE-2022-29255"],"ghsa_id":"GHSA-4v9q-cgpw-cf38","severity":"high","created_at":"2022-06-06T21:23:58Z","fixed_version":"0.3.4","summary":"Multiple
+          evaluation of contract address in call in vyper"},{"cve_ids":["CVE-2021-41122"],"ghsa_id":"GHSA-c7pr-343r-5c46","severity":"medium","created_at":"2021-10-06T17:48:46Z","fixed_version":"0.3.0","summary":"missing
+          clamps for decimal args in external functions"},{"cve_ids":[],"ghsa_id":"GHSA-22wc-c9wj-6q2v","severity":"medium","created_at":"2021-04-19T15:12:05Z","fixed_version":"0.2.12","summary":"VVE-2021-0001:
+          Memory corruption using function calls within arrays"},{"cve_ids":["CVE-2022-24845"],"ghsa_id":"GHSA-j2x6-9323-fp7h","severity":"high","created_at":"2022-04-22T20:24:13Z","fixed_version":"0.3.2","summary":"Integer
           bounds error in Vyper"}]}]}]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
-          - '2429'
-        Content-Type:
+        content-length:
+          - '2806'
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Thu, 29 Jun 2023 09:55:14 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
-          - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        date:
+          - Mon, 24 Jul 2023 14:41:56 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        transfer-encoding:
+          - chunked
+        vary:
+          - Accept-Encoding,Cookie
+        x-app-version:
+          - cca33f88
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '198'
+        x-frame-options:
           - DENY
-        X-Secrets-Engine-Version:
-          - 2.92.0
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK

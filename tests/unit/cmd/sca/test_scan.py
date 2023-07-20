@@ -202,7 +202,6 @@ def test_sca_scan_pre_commit_no_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
         assert "No SCA vulnerability has been added." in result.stdout
 
 
-# @my_vcr.use_cassette("test_sca_scan_pre_commit_with_added_vulns.yaml")
 @patch("ggshield.sca.client.SCAClient.compute_sca_files")
 @patch("ggshield.sca.client.SCAClient.scan_diff")
 def test_sca_scan_pre_commit_with_added_vulns(
@@ -226,7 +225,6 @@ def test_sca_scan_pre_commit_with_added_vulns(
         ComputeSCAFilesResult(sca_files=["Pipfile.lock"], potential_siblings=[]),
     ]
 
-    # TODO add ghsa_id in the patch when available
     patch_scan_diff.return_value = SCAScanDiffOutput(
         scanned_files=["Pipfile.lock"],
         added_vulns=[
@@ -242,6 +240,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
                                 severity="critical",
                                 summary="a vuln",
                                 cve_ids=["CVE-2023"],
+                                ghsa_id="GHSA-abcd-1234-xxxx",
                             )
                         ],
                     )
@@ -261,6 +260,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
                                 severity="low",
                                 summary="another vuln",
                                 cve_ids=["CVE-2023-bis"],
+                                ghsa_id="GHSA-efgh-5678-xxxx",
                             )
                         ],
                     )
