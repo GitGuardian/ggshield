@@ -15,7 +15,10 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
 from ggshield.sca.client import ComputeSCAFilesResult, SCAClient
-from ggshield.sca.collection import SCAScanAllVulnerabilityCollection
+from ggshield.sca.collection import (
+    SCAScanAllVulnerabilityCollection,
+    SCAScanDiffVulnerabilityCollection,
+)
 from ggshield.sca.file_selection import (
     get_all_files_from_sca_paths,
     tar_sca_files_from_git_repo,
@@ -48,14 +51,9 @@ def scan_group(*args, **kwargs: Any) -> None:
     """Perform a SCA scan."""
 
 
-@scan_group.command(name="diff")
+@scan_group.command(name="pre-commit")
 @add_sca_scan_common_options()
 @directory_argument
-@click.option(
-    "--ref",
-    metavar="REF",
-    help="Git reference to compare working directory to.",
-)
 @click.pass_context
 @display_sca_beta_warning
 def scan_pre_commit_cmd(
@@ -64,9 +62,8 @@ def scan_pre_commit_cmd(
     minimum_severity: str,
     ignore_paths: Sequence[str],
     directory: Optional[Path],
-    ref: str,
     **kwargs: Any,
-) -> SCAScanDiffOutput:
+) -> int:
     """
     Find SCA vulnerabilities in a git working directory, compared to HEAD.
     """
@@ -80,8 +77,9 @@ def scan_pre_commit_cmd(
         ctx=ctx, directory=directory, ref="HEAD", include_staged=True
     )
 
-    # TODO, should be handled by an output_handler in the future
-    return result
+    scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
+    output_handler = create_output_handler(ctx)
+    return output_handler.process_scan_diff_result(scan)
 
 
 @scan_group.command(name="all")

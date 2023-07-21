@@ -1,0 +1,199 @@
+interactions:
+  - request:
+      body: '{"files": []}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '13'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
+      method: POST
+      uri: https://api.staging.gitguardian.tech/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":[],"potential_siblings":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '40'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Fri, 21 Jul 2023 13:39:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - 9a04feeb
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '47'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: '{"files": ["Pipfile.lock"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '27'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
+      method: POST
+      uri: https://api.staging.gitguardian.tech/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile.lock"],"potential_siblings":["Pipfile"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '63'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Fri, 21 Jul 2023 13:39:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - 9a04feeb
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '45'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: !!binary |
+        LS05MTUxMTJkZGNkNzk2N2Q2NzFjM2MxODg4MDVlOWJiMA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
+        o4q6ZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOTE1MTEyZGRjZDc5
+        NjdkNjcxYzNjMTg4ODA1ZTliYjANCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgApIq6ZAL/7dPNjpswEABgznmK
+        iPOW+A9jIu077H21ivwzLqgksBhWjaq8ew1pt7BJj61Udb4LMDYzxmOe6s7XDWRNa78kfwiJpBDz
+        Nfp4pYLkP++vcUoYKZItSf6CMQy6j+WT/9Pm22YbpYcjDDrdb6+Pc6jSoVpF5mioNMtljKfMeCoL
+        L3XBtNbEC+VzVchS5J5pXqhCeO4pFU67HMqcWVc4XzoPypWOKZq+J748/KraXQ/kp9CBjVXkYqiH
+        17HuIdwuqjsPVXs6vEEf6vY0LY5nlNwvENqxt3OS51WSdcp56kkfYUrWnbs6fbgdH/tmGq6GoQv7
+        3W6alrX9512oj10D996IK6z9+RDC9OLQj7Cacnl/etkslp068HpshnV7wmvT6T7A7W5MjbvzgYv2
+        7Qln3BKwrLQuZ8aCNpYaERuTFyVwSj0HUUpqSuVoIRihLpeMacaNyoGLe9/2I7UsrVZEKCGNmbrP
+        wHJFQHBJtNJcEGcU98Raz7W3ACb+/8J5wuLxKZhU6Srzy7pQWp8cfP1NT9JF/x8fSSYyvjgCH3b0
+        DZq2m/busrkkCCGEEEIIIYQQQgghhBBCCCGEEEII/Zu+A4UAibsAKAAADQotLTkxNTExMmRkY2Q3
+        OTY3ZDY3MWMzYzE4ODgwNWU5YmIwLS0NCg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '766'
+        Content-Type:
+          - multipart/form-data; boundary=915112ddcd7967d671c3c188805e9bb0
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
+      method: POST
+      uri: https://api.staging.gitguardian.tech/v1/sca/sca_scan_diff/
+    response:
+      body:
+        string:
+          '{"scanned_files":["Pipfile.lock"],"added_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
+          contains a regular expression that is vulnerable to Regular Expression Denial
+          of Service"}]}]}],"removed_vulns":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '447'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Fri, 21 Jul 2023 13:39:48 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - 9a04feeb
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '334'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

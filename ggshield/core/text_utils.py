@@ -12,6 +12,8 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from .constants import IncidentStatus
+
 
 LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
@@ -218,13 +220,18 @@ def clip_long_line(
     return content
 
 
-def file_info(filename: str, incident_count: int) -> str:
+def file_info(
+    filename: str,
+    incident_count: int,
+    incident_status: IncidentStatus = IncidentStatus.DETECTED,
+) -> str:
     """Return the formatted file info (number of incidents + filename)."""
-    return "\n{} {}: {} {} detected\n".format(
+    return "\n{} {}: {} {} {}\n".format(
         format_text(">", STYLE["detector_line_start"]),
         format_text(filename, STYLE["filename"]),
         incident_count,
         pluralize("incident", incident_count, "incidents"),
+        incident_status.value,
     )
 
 
