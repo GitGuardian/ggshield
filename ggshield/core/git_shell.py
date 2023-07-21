@@ -235,7 +235,6 @@ def get_diff_files_status(
     check_git_ref(wd=wd, ref=ref)
 
     def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
-
         status_to_filemode = {
             "A": Filemode.NEW,
             "D": Filemode.DELETE,
