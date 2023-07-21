@@ -6,7 +6,7 @@ from click.testing import CliRunner
 from pygitguardian import GGClient
 
 from ggshield.cmd.main import cli
-from ggshield.cmd.sca.scan import (
+from ggshield.cmd.sca.scan.sca_scan_utils import (
     get_sca_scan_all_filepaths,
     sca_scan_all,
     sca_scan_diff,
@@ -170,7 +170,6 @@ def test_sca_scan_all_cmd(
             str(tmp_path),
         ],
     )
-
     assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
     assert "> Pipfile.lock: 1 incident detected" in result.stdout
     assert (

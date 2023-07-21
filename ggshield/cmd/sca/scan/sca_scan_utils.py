@@ -1,34 +1,30 @@
 import re
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Set, Tuple
+from typing import List, Set, Tuple, Type
 
 import click
 from pygitguardian.client import _create_tar
 
-from ggshield.cmd.common_options import directory_argument
-from ggshield.cmd.sca.scan_common_options import (
-    add_sca_scan_common_options,
-    update_context,
-)
-from ggshield.cmd.sca.scan_utils import create_output_handler
+from ggshield.cmd.common_options import use_json
+from ggshield.core.config.config import Config
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
-from ggshield.sca.client import ComputeSCAFilesResult, SCAClient
-from ggshield.sca.collection import (
-    SCAScanAllVulnerabilityCollection,
-    SCAScanDiffVulnerabilityCollection,
-)
+from ggshield.sca.client import SCAClient
 from ggshield.sca.file_selection import (
     get_all_files_from_sca_paths,
     tar_sca_files_from_git_repo,
 )
+from ggshield.sca.output.handler import SCAOutputHandler
+from ggshield.sca.output.text_handler import SCATextOutputHandler
 from ggshield.sca.sca_scan_models import (
+    ComputeSCAFilesResult,
     SCAScanAllOutput,
     SCAScanDiffOutput,
     SCAScanParameters,
 )
-from ggshield.scan import ScanContext, ScanMode
+from ggshield.scan.scan_context import ScanContext
+from ggshield.scan.scan_mode import ScanMode
 
 
 def display_sca_beta_warning(func):
@@ -43,71 +39,6 @@ def display_sca_beta_warning(func):
         return func(*args, **kwargs)
 
     return func_with_beta_warning
-
-
-@click.group()
-@click.pass_context
-def scan_group(*args, **kwargs: Any) -> None:
-    """Perform a SCA scan."""
-
-
-@scan_group.command(name="pre-commit")
-@add_sca_scan_common_options()
-@directory_argument
-@click.pass_context
-@display_sca_beta_warning
-def scan_pre_commit_cmd(
-    ctx: click.Context,
-    exit_zero: bool,
-    minimum_severity: str,
-    ignore_paths: Sequence[str],
-    directory: Optional[Path],
-    **kwargs: Any,
-) -> int:
-    """
-    Find SCA vulnerabilities in a git working directory, compared to HEAD.
-    """
-    if directory is None:
-        directory = Path().resolve()
-
-    # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
-
-    result = sca_scan_diff(
-        ctx=ctx, directory=directory, ref="HEAD", include_staged=True
-    )
-
-    scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
-    output_handler = create_output_handler(ctx)
-    return output_handler.process_scan_diff_result(scan)
-
-
-@scan_group.command(name="all")
-@add_sca_scan_common_options()
-@directory_argument
-@click.pass_context
-@display_sca_beta_warning
-def scan_all_cmd(
-    ctx: click.Context,
-    exit_zero: bool,
-    minimum_severity: str,
-    ignore_paths: Sequence[str],
-    directory: Optional[Path],
-    **kwargs: Any,
-) -> int:
-    """
-    Scan a directory for SCA vulnerabilities.
-    """
-    if directory is None:
-        directory = Path().resolve()
-
-    # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
-
-    result = sca_scan_all(ctx, directory)
-    scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
-    output_handler = create_output_handler(ctx)
-    return output_handler.process_scan_all_result(scan)
 
 
 def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
@@ -194,6 +125,20 @@ def get_sca_scan_all_filepaths(
     # all the potential files already exist in `all_filepaths`
 
     return response.sca_files, response.status_code
+
+
+def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
+    """Read objects defined in ctx.obj and create the appropriate OutputHandler
+    instance"""
+    output_handler_cls: Type[SCAOutputHandler]
+    if use_json(ctx):
+        raise NotImplementedError(
+            "JSON output is not currently supported for SCA scan."
+        )
+    else:
+        output_handler_cls = SCATextOutputHandler
+    config: Config = ctx.obj["config"]
+    return output_handler_cls(verbose=config.user_config.verbose)
 
 
 def sca_scan_diff(
