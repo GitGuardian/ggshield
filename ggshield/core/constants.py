@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 
 
 CPU_COUNT = os.cpu_count() or 1
@@ -18,3 +19,8 @@ DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 DEFAULT_HMSL_URL = "https://api.hasmysecretleaked.com"
 AUTH_CONFIG_FILENAME = "auth_config.yaml"
 ON_PREMISE_API_URL_PATH_PREFIX = "/exposed"
+
+
+class IncidentStatus(str, Enum):
+    DETECTED = "detected"
+    REMOVED = "removed"

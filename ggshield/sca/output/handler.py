@@ -6,6 +6,7 @@ import click
 from ggshield.core.errors import ExitCode
 from ggshield.sca.collection import (
     SCAScanAllVulnerabilityCollection,
+    SCAScanDiffVulnerabilityCollection,
     SCAScanVulnerabilityCollection,
     SCAVulnerabilityCollectionType,
 )
@@ -34,8 +35,31 @@ class SCAOutputHandler(ABC):
         text = self._process_scan_all_impl(scan)
         return self._handle_process_scan_result(scan, text)
 
+    def process_scan_diff_result(
+        self, scan: SCAScanDiffVulnerabilityCollection
+    ) -> ExitCode:
+        """Process a scan collection, write the report to :attr:`self.output`
+
+        :param scan: The scan collection to process
+        :return: The exit code
+        """
+        text = self._process_scan_diff_impl(scan)
+        return self._handle_process_scan_result(scan, text)
+
     @abstractmethod
     def _process_scan_all_impl(self, scan: SCAScanAllVulnerabilityCollection) -> str:
+        """Implementation of scan processing,
+        called by :meth:`OutputHandler.process_scan`
+
+        Must return a string for the report.
+
+        :param scan: The scan collection to process
+        :return: The content
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _process_scan_diff_impl(self, scan: SCAScanDiffVulnerabilityCollection) -> str:
         """Implementation of scan processing,
         called by :meth:`OutputHandler.process_scan`
 
