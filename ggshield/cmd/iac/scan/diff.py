@@ -57,11 +57,9 @@ def scan_diff_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
-
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-
     result = iac_scan_diff(ctx, directory, ref, staged)
     return display_iac_scan_diff_result(ctx, directory, result)
 

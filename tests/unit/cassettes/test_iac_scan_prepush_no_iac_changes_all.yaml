@@ -1,0 +1,85 @@
+interactions:
+  - request:
+      body: !!binary |
+        LS1iZmM0NTQ1NTM0ZGI0ZDljNTcwZDdmNzk5YzRkOWYyNQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsiaWdub3JlZF9wb2xpY2llcyI6
+        IFtdLCAibWluaW11bV9zZXZlcml0eSI6ICJMT1cifQ0KLS1iZmM0NTQ1NTM0ZGI0ZDljNTcwZDdm
+        Nzk5YzRkOWYyNQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3Rv
+        cnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAa4K2ZAL/7dSxboMwEAZgZp7C4gEINtgh
+        Q6SOHfsGlnFMi2JiZIwSqeq71zRNmqFVp0Rq83+L4Q7fTT/5Il88PKnDo1Eb45OrKI5+OouirL6e
+        5zotGGUJOSQ3MI1B+bg+uU+sJn3oerOmol6JmvGyzpdLKpjgaQL/Xqe0bEzrvJEvzm3z0F4n/0J8
+        ZJwuOb08j/GnPKFVxTkvKOVlzD8XZZmQ4pb5H9RkGzPabvf9d7/1/6jUm9FNXhuSqf0odybsnd9K
+        pa30kzUZyRq1keag+mF+e00JMc/xzkhO1qRVdjSxMXgXnHb23MiCHrLYaL3r5eB8ODUYi9XgLmrn
+        6rw1rg+d230OUda6/TxGdxsvG+v09jSfspyWOa1yyrP0DT8sAAAAAAAAAAAAAAAAAAAAuEfvYZie
+        hwAoAAANCi0tYmZjNDU0NTUzNGRiNGQ5YzU3MGQ3Zjc5OWM0ZDlmMjUtLQ0K
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '615'
+        Content-Type:
+          - multipart/form-data; boundary=bfc4545534db4d9c570d7f799c4d9f25
+        GGShield-Command-Id:
+          - d3c05eec-7daa-40ee-9b89-fb73709e5085
+        GGShield-Command-Path:
+          - cli iac scan pre-push
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '20.04'
+        GGShield-Python-Version:
+          - 3.10.4
+        GGShield-Version:
+          - 1.17.2
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.4) ggshield
+        mode:
+          - directory
+      method: POST
+      uri: https://api.gitguardian.com/v1/iac_scan
+    response:
+      body:
+        string: '{"id":"8c6248ed-8ba1-45d7-953b-0392f6f392f6","iac_engine_version":"1.10.2","type":"path_scan","entities_with_incidents":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '123'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Tue, 18 Jul 2023 12:15:41 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.34.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '1522'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.93.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
