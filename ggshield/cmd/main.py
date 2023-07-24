@@ -100,9 +100,38 @@ def cli(
     load_dot_env()
 
     config = ctx.obj["config"]
+
+    _set_color(ctx)
+
     if config.debug:
         # if `debug` is set in the configuration file, then setup logs now.
         setup_debug_logs(filename=None)
+
+
+def _set_color(ctx: click.Context):
+    """
+    Helper function to override the default click default output color setting.
+        If NO_COLOR is set, we disable color output (see https://no-color.org/).
+    If we are in a CI environment, certain variables are set, and we enable colors for
+    the logs.
+    """
+    ci_env_vars = [
+        "CI",  # Often set to indicate a generic CI environment
+        "GITLAB_CI",
+        "GITHUB_ACTIONS",
+        "TRAVIS",
+        "JENKINS_HOME",
+        "JENKINS_URL",
+        "CIRCLECI",
+        "BITBUCKET_COMMIT",
+        "DRONE",
+        "BUILD_BUILDID",  # Azure Pipelines
+    ]
+
+    if os.getenv("NO_COLOR"):
+        ctx.color = False
+    elif any(os.getenv(env) for env in ci_env_vars):
+        ctx.color = True
 
 
 def _display_deprecation_message(cfg: Config) -> None:

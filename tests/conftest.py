@@ -79,3 +79,11 @@ def do_not_use_real_cache_dir(monkeypatch, tmp_path):
     This fixture ensures we do not use the real cache directory.
     """
     monkeypatch.setenv("GG_CACHE_DIR", str(tmp_path))
+
+
+@pytest.fixture(autouse=True)
+def do_not_use_colors(monkeypatch):
+    """
+    This fixture ensures we do not print colors for easier testing.
+    """
+    monkeypatch.setenv("NO_COLOR", "1")
