@@ -82,7 +82,7 @@ def do_not_use_real_cache_dir(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def do_not_use_colors(monkeypatch, tmp_path):
+def do_not_use_colors(monkeypatch):
     """
     This fixture ensures we do not print colors for easier testing.
     """
