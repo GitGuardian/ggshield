@@ -239,7 +239,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
                                 severity="critical",
                                 summary="a vuln",
                                 cve_ids=["CVE-2023"],
-                                ghsa_id="GHSA-abcd-1234-xxxx",
+                                identifier="GHSA-abcd-1234-xxxx",
                             )
                         ],
                     )
@@ -259,7 +259,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
                                 severity="low",
                                 summary="another vuln",
                                 cve_ids=["CVE-2023-bis"],
-                                ghsa_id="GHSA-efgh-5678-xxxx",
+                                identifier="GHSA-efgh-5678-xxxx",
                             )
                         ],
                     )

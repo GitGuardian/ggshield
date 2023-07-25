@@ -241,7 +241,7 @@ class TestUserConfig:
                     "minimum_severity": "myseverity",
                     "ignored_vulnerabilities": [
                         {
-                            "ghsa_id": "GHSA-aaaa-bbbb-cccc",
+                            "identifier": "GHSA-aaaa-bbbb-cccc",
                             "path": "Pipfile",
                             "comment": "Not my prob",
                         }
@@ -255,7 +255,7 @@ class TestUserConfig:
         assert config.sca.minimum_severity == "myseverity"
         assert len(config.sca.ignored_vulnerabilities) == 1
         assert config.sca.ignored_vulnerabilities[0] == SCAIgnoredVulnerability(
-            ghsa_id="GHSA-aaaa-bbbb-cccc",
+            identifier="GHSA-aaaa-bbbb-cccc",
             path="Pipfile",
             comment="Not my prob",
             until=None,
@@ -294,9 +294,9 @@ class TestUserConfig:
         assert config.sca.ignored_paths == {"myglobalpath", "mypath"}
         assert config.sca.minimum_severity == "myseverity"
 
-    def test_sca_config_invalid_ghsa(self, local_config_path, capsys):
+    def test_sca_config_invalid_identifier(self, local_config_path, capsys):
         """
-        GIVEN a local config file with an invalid ghsa id in sca config
+        GIVEN a local config file with an invalid identifier in sca config
         WHEN deserializing it
         THEN we get the expected error
         """
@@ -308,7 +308,7 @@ class TestUserConfig:
                     "ignored_vulnerabilities": [
                         {
                             # Invalid id
-                            "ghsa_id": "ABCD-bbbb",
+                            "identifier": "ABCD-bbbb",
                             "path": "Pipfile",
                         }
                     ],

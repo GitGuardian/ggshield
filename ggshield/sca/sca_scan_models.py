@@ -34,7 +34,8 @@ ComputeSCAFilesResult.SCHEMA = cast(
 class SCAVulnerability(Base, FromDictMixin):
     severity: str
     summary: str
-    ghsa_id: Optional[str] = None
+    # TODO Remove Optional clause when identifier field is in production on backend side
+    identifier: Optional[str] = None
     cve_ids: List[str] = field(default_factory=list)
     created_at: Optional[datetime] = None
     fixed_version: Optional[str] = None
