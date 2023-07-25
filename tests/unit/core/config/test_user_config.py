@@ -5,6 +5,7 @@ from ggshield.core.config.user_config import (
     CURRENT_CONFIG_VERSION,
     IaCConfig,
     SCAConfig,
+    SCAIgnoredVulnerability,
     UserConfig,
 )
 from ggshield.core.errors import ParseError, UnexpectedError
@@ -238,6 +239,13 @@ class TestUserConfig:
                 "sca": {
                     "ignored_paths": ["mypath"],
                     "minimum_severity": "myseverity",
+                    "ignored_vulnerabilities": [
+                        {
+                            "ghsa_id": "GHSA-aaaa-bbbb-cccc",
+                            "path": "Pipfile",
+                            "comment": "Not my prob",
+                        }
+                    ],
                 },
             },
         )
@@ -245,6 +253,13 @@ class TestUserConfig:
         assert isinstance(config.sca, SCAConfig)
         assert config.sca.ignored_paths == {"mypath"}
         assert config.sca.minimum_severity == "myseverity"
+        assert len(config.sca.ignored_vulnerabilities) == 1
+        assert config.sca.ignored_vulnerabilities[0] == SCAIgnoredVulnerability(
+            ghsa_id="GHSA-aaaa-bbbb-cccc",
+            path="Pipfile",
+            comment="Not my prob",
+            until=None,
+        )
 
     def test_sca_config_options_inheritance(
         self, local_config_path, global_config_path
@@ -278,6 +293,31 @@ class TestUserConfig:
         assert isinstance(config.sca, SCAConfig)
         assert config.sca.ignored_paths == {"myglobalpath", "mypath"}
         assert config.sca.minimum_severity == "myseverity"
+
+    def test_sca_config_invalid_ghsa(self, local_config_path, capsys):
+        """
+        GIVEN a local config file with an invalid ghsa id in sca config
+        WHEN deserializing it
+        THEN we get the expected error
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_vulnerabilities": [
+                        {
+                            # Invalid id
+                            "ghsa_id": "ABCD-bbbb",
+                            "path": "Pipfile",
+                        }
+                    ],
+                },
+            },
+        )
+
+        with pytest.raises(ParseError):
+            UserConfig.load(local_config_path)
 
     def test_user_config_unknown_keys(self, local_config_path, capsys):
         """

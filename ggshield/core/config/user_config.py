@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import marshmallow_dataclass
@@ -24,6 +25,7 @@ from ggshield.core.errors import ParseError, UnexpectedError, format_validation_
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
+from ggshield.sca.ghsa_id import GHSA_ID_PATTERN, is_ghsa_valid
 
 
 logger = logging.getLogger(__name__)
@@ -81,6 +83,30 @@ class IaCConfig(FilteredConfig):
     minimum_severity: str = "LOW"
 
 
+def validate_ghsa_id(value: str):
+    if not is_ghsa_valid(value):
+        raise ValidationError(
+            f"The given GHSA id '{value}' do not match the pattern '{GHSA_ID_PATTERN.pattern}'"
+        )
+
+
+@marshmallow_dataclass.dataclass
+class SCAIgnoredVulnerability(FilteredConfig):
+    """
+    A model of an ignored vulnerability for SCA. This allows to ignore all occurrences
+    of a given vulnerability in a given dependency file.
+    - ghsa_id: The GHSA id of the vulnerability to ignore
+    - path: the path to the file in which ignore the vulnerability
+    - comment: The ignored reason
+    - until: A datetime until which the vulnerability is ignored
+    """
+
+    ghsa_id: str = field(metadata={"validate": validate_ghsa_id})
+    path: str
+    comment: Optional[str]
+    until: Optional[datetime]
+
+
 @marshmallow_dataclass.dataclass
 class SCAConfig(FilteredConfig):
     """
@@ -90,6 +116,7 @@ class SCAConfig(FilteredConfig):
 
     ignored_paths: Set[str] = field(default_factory=set)
     minimum_severity: str = "LOW"
+    ignored_vulnerabilities: List[SCAIgnoredVulnerability] = field(default_factory=list)
 
 
 @marshmallow_dataclass.dataclass

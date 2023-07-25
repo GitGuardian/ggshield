@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 10 Jul 2023 16:15:12 GMT
+          - Mon, 24 Jul 2023 14:22:04 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,17 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - 1be77d5d
+          - cca33f88
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '52'
+          - '38'
         x-frame-options:
           - DENY
           - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
         x-secrets-engine-version:
-          - 2.93.0
+          - 2.94.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -59,20 +61,21 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1hMzBmZTlmYWU1ZmUwYzg3YzcyZWQxZjE0YWFhODgyNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnt9DQotLWEzMGZlOWZhZTVmZTBj
-        ODdjNzJlZDFmMTRhYWE4ODI0DQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9
-        ImRpcmVjdG9yeSI7IGZpbGVuYW1lPSJkaXJlY3RvcnkiDQoNCh+LCACQLqxkAv/t1U9vmzAUAHDO
-        +RQR5474v02kSDvu2PtURcZ+HmgkUEyiRFO++yCd2rCk6qmVur3fBbDNe8bPFtkiW3y9t4dvYD10
-        ybsgT167EsLFy/3YTgmjLJkfkg+wi73thvTJ/4mZ+aavNrCiyuSESE1ZRrhUkupZgv5591Ubqhqy
-        unE/3yvHeKiVOp9xqiW9vI6oICqhQkhOmGZsPP+KapLMyUee/4PdV9AVtd26sumvx73V/0nNfs3m
-        g3S9gd6my/nT47mptLGctJxbY2mZVEN7yopAlQ7KamatJUGYII1WuZCBWa6NFoEHSoW3XkIumfPa
-        h9wHMD73zND0OfDp7iVr+7Qhv8QW3JBFXXR18LirOojXk2qPfdls13voYtVsx8nxjJLbCWKz69w5
-        yPdJkGnI89Ct3cAYrD22VXp33b/r6rG77Ps2LheLcVjWdD8Wsdq0Ndx6Y5hhFY7rGMcX+24HkyGn
-        56eH2cW0Uw/B7up+Wp74WLe2i3C9GmPhbnzgRfmWhDPuCDiWOy9Z4cAWjhZiKIzUOXBKAweRK1rk
-        xlMtGKFeKsYs44WRwMWtb/sTWuXOGiKMUEUxVp+B44aA4IpYY7kgvjA8EOcCt8EBFMP5Fz4QNmwf
-        zZRJJ5EfponSauvh8EpN0ov6r1YkExm/2AJ/rege6qYd1+40O+GfDiGEEEIIIYQQQgghhBBCCCGE
-        0Cf3G4Pq9FcAKAAADQotLWEzMGZlOWZhZTVmZTBjODdjNzJlZDFmMTRhYWE4ODI0LS0NCg==
+        LS0xNDI0YWRjY2Q5M2Y4OGNjN2MyNjgwNjVhZjMzMWFiMQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
+        ICJMT1cifQ0KLS0xNDI0YWRjY2Q5M2Y4OGNjN2MyNjgwNjVhZjMzMWFiMQ0KQ29udGVudC1EaXNw
+        b3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5
+        Ig0KDQofiwgADIm+ZAL/7dVPb5swFABwzvkUEeeO+D8mUqQdd+x9qiJjPw80EiiGKNGU7z5IpxaW
+        VD21Urf3uwC2ec/42SJZJauv9+b4DYyDNnoX5MlrV0K4eLkf2ylhlEXLY/QB+tCZdkgf/Z+YXu66
+        cgcbqjLCiJaMJ6ngmjG1iNA/775sfFlBUtX253vlGA+1UpczTlNJp9cRFURFVAiZSiIEHcZRxQiN
+        luQjz//RHEpo88rsbVF31+Pe6v+kFr8Wy0G83UFn4vXy6fHSVJhQzFouraEwTKqhPWa5pyr1yqTM
+        GEO80F7qVGVCemZ4qlPhuadUOOMkZJJZlzqfOQ/aZY5pGj8HPt+9ZG2eNuSX0IAdsqhJVwuPfdlC
+        uJ5Uc+qKer89QBvKej9OjieU3E4Q6r61lyDfZ0HmIS9D92YHY7Dm1JTx3XV/31Zjd9F1TVivVuOw
+        pG5/rEK5ayq49cYww9KftiGML3ZtD7Mh5+enh8Vk2rEDb/qqm5cnPFaNaQNcr8ZYuBsfOCnfmnDG
+        LQHLMuskyy2Y3NJcDIWRaQacUs9BZIrmmXY0FcNxdFIxZhjPtQQubn3bn9Aqs0YToYXK87H6DCzX
+        BARXxGjDBXG55p5Y67nxFiAfzr9wnrBh+6RM6XgW+WGeKC73Do6v1CSe1H+zIYlI+GQL/LWiB6jq
+        Zly78+KMfzqEEEIIIYQQQgghhBBCCCGEEEKf3G+O9vxyACgAAA0KLS0xNDI0YWRjY2Q5M2Y4OGNj
+        N2MyNjgwNjVhZjMzMWFiMS0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -81,11 +84,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '793'
+          - '818'
         Content-Type:
-          - multipart/form-data; boundary=a30fe9fae5fe0c87c72ed1f14aaa8824
+          - multipart/form-data; boundary=1424adccd93f88cc7c268065af331ab1
         GGShield-Command-Id:
-          - dab07801-4dc4-4b7b-a1b7-9d7b183aaebd
+          - e0fd35ee-623e-4fa5-973f-6f7e993cde04
         GGShield-Command-Path:
           - cli sca scan all
         GGShield-OS-Name:
@@ -105,7 +108,7 @@ interactions:
     response:
       body:
         string:
-          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
+          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"ghsa_id":"GHSA-rrm6-wvj7-cwh2","severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
           contains a regular expression that is vulnerable to Regular Expression Denial
           of Service"}]}]}]}'
       headers:
@@ -114,13 +117,13 @@ interactions:
         allow:
           - POST, OPTIONS
         content-length:
-          - '436'
+          - '468'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 10 Jul 2023 16:15:13 GMT
+          - Mon, 24 Jul 2023 14:22:05 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -130,17 +133,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - 1be77d5d
+          - cca33f88
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '202'
+          - '157'
         x-frame-options:
           - DENY
           - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
         x-secrets-engine-version:
-          - 2.93.0
+          - 2.94.0
         x-xss-protection:
           - 1; mode=block
       status:
