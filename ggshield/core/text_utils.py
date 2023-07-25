@@ -15,6 +15,9 @@ from rich.progress import (
 
 LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
+LIGHT_GREY = (146, 146, 146)
+ORANGE = (255, 128, 80)
+
 STYLE: Dict[str, Dict[str, Any]] = {
     "nb_secrets": {"fg": "bright_blue", "bold": True},
     "filename": {"fg": "bright_yellow", "bold": True},
@@ -36,11 +39,15 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "policy_break_type": {"fg": "bright_yellow", "bold": True},
     "occurrence_count": {"fg": "bright_yellow", "bold": True},
     "ignore_sha": {"fg": "bright_yellow", "bold": True},
-    "iac_vulnerability_critical": {"fg": (255, 0, 0), "bold": True},  # red
-    "iac_vulnerability_high": {"fg": (255, 128, 0), "bold": True},  # orange
+    "iac_vulnerability_critical": {"fg": "red", "bold": True},
+    "iac_vulnerability_high": {"fg": ORANGE, "bold": True},
     "iac_vulnerability_medium": {"fg": "bright_yellow", "bold": True},
-    "iac_vulnerability_low": {"fg": (146, 146, 146), "bold": True},  # light-grey
+    "iac_vulnerability_low": {"fg": LIGHT_GREY, "bold": True},
     "iac_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
+    "iac_deleted_vulnerability": {"fg": "green", "bold": True},
+    "iac_remaining_vulnerability": {"fg": "yellow", "bold": True},
+    "iac_new_vulnerability": {"fg": "bright_red", "bold": True},
+    "iac_dim_summary": {"fg": LIGHT_GREY, "dim": True},
 }
 
 
