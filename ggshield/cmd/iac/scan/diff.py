@@ -65,7 +65,11 @@ def scan_diff_cmd(
 
 
 def iac_scan_diff(
-    ctx: click.Context, directory: Path, ref: str, include_staged: bool
+    ctx: click.Context,
+    directory: Path,
+    ref: str,
+    include_staged: bool = False,
+    current: Optional[str] = None,
 ) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
@@ -79,7 +83,9 @@ def iac_scan_diff(
             display_info(f"- {click.format_filename(filepath)}")
         display_info("")
 
-    current_ref = INDEX_REF if include_staged else "HEAD"
+    current_ref = current
+    if current_ref is None:
+        current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
             display_info("> Scanned files in current state (staged)")
