@@ -14,8 +14,8 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
-from ggshield.cmd.utils.ci import get_ci_commits
 from ggshield.core.errors import handle_exception
+from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -54,7 +54,7 @@ def scan_ci_cmd(
             scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
             return output_handler.process_scan_all_result(scan)
 
-        commit_count = len(get_ci_commits(config)[0])
+        commit_count = len(collect_commit_range_from_ci_env(config.verbose)[0])
 
         if config.verbose:
             click.echo(f"Commits to scan: {commit_count}", err=True)

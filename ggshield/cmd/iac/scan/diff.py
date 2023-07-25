@@ -57,17 +57,19 @@ def scan_diff_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
-
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-
     result = iac_scan_diff(ctx, directory, ref, staged)
     return display_iac_scan_diff_result(ctx, directory, result)
 
 
 def iac_scan_diff(
-    ctx: click.Context, directory: Path, ref: str, include_staged: bool
+    ctx: click.Context,
+    directory: Path,
+    ref: str,
+    include_staged: bool = False,
+    current: Optional[str] = None,
 ) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     config = ctx.obj["config"]
     client = ctx.obj["client"]
@@ -81,7 +83,9 @@ def iac_scan_diff(
             display_info(f"- {click.format_filename(filepath)}")
         display_info("")
 
-    current_ref = INDEX_REF if include_staged else "HEAD"
+    current_ref = current
+    if current_ref is None:
+        current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
             display_info("> Scanned files in current state (staged)")

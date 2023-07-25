@@ -1,12 +1,11 @@
 import os
 from enum import Enum
-from typing import List
+from typing import List, Tuple
 
 import click
-from click import UsageError
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
+from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA
 
 
@@ -19,6 +18,41 @@ class SupportedCI(Enum):
     BITBUCKET = "BITBUCKET PIPELINES"
     DRONE = "DRONE"
     AZURE = "AZURE PIPELINES"
+
+
+def collect_commit_range_from_ci_env(
+    verbose: bool,
+) -> Tuple[List[str], SupportedCI]:
+    if os.getenv("GITLAB_CI"):
+        commit_list = gitlab_ci_range(verbose)
+        ci_mode = SupportedCI.GITLAB
+    elif os.getenv("GITHUB_ACTIONS"):
+        commit_list = github_actions_range(verbose)
+        ci_mode = SupportedCI.GITHUB
+    elif os.getenv("TRAVIS"):
+        commit_list = travis_range(verbose)
+        ci_mode = SupportedCI.TRAVIS
+    elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
+        commit_list = jenkins_range(verbose)
+        ci_mode = SupportedCI.JENKINS
+    elif os.getenv("CIRCLECI"):
+        commit_list = circle_ci_range(verbose)
+        ci_mode = SupportedCI.CIRCLECI
+    elif os.getenv("BITBUCKET_COMMIT"):
+        commit_list = bitbucket_pipelines_range(verbose)
+        ci_mode = SupportedCI.BITBUCKET
+    elif os.getenv("DRONE"):
+        commit_list = drone_range(verbose)
+        ci_mode = SupportedCI.DRONE
+    elif os.getenv("BUILD_BUILDID"):
+        commit_list = azure_range(verbose)
+        ci_mode = SupportedCI.AZURE
+    else:
+        raise UnexpectedError(
+            f"Current CI is not detected or supported."
+            f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
+        )
+    return (commit_list, ci_mode)
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
@@ -249,46 +283,3 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
         "  Repository URL: <Fill if public>\n"
         f"  BUILD_SOURCEVERSION: {head_commit}"
     )
-
-
-def get_ci_commits(config):
-    """
-    Extracts the sha of the commits included in this pipeline,
-    and the type of CI environment.
-    """
-
-    check_git_dir()
-    if not (os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")):
-        raise UsageError("`scan ci` should only be used in a CI environment.")
-
-    if os.getenv("GITLAB_CI"):
-        commit_list = gitlab_ci_range(config.verbose)
-        ci_mode = SupportedCI.GITLAB
-    elif os.getenv("GITHUB_ACTIONS"):
-        commit_list = github_actions_range(config.verbose)
-        ci_mode = SupportedCI.GITHUB
-    elif os.getenv("TRAVIS"):
-        commit_list = travis_range(config.verbose)
-        ci_mode = SupportedCI.TRAVIS
-    elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
-        commit_list = jenkins_range(config.verbose)
-        ci_mode = SupportedCI.JENKINS
-    elif os.getenv("CIRCLECI"):
-        commit_list = circle_ci_range(config.verbose)
-        ci_mode = SupportedCI.CIRCLECI
-    elif os.getenv("BITBUCKET_COMMIT"):
-        commit_list = bitbucket_pipelines_range(config.verbose)
-        ci_mode = SupportedCI.BITBUCKET
-    elif os.getenv("DRONE"):
-        commit_list = drone_range(config.verbose)
-        ci_mode = SupportedCI.DRONE
-    elif os.getenv("BUILD_BUILDID"):
-        commit_list = azure_range(config.verbose)
-        ci_mode = SupportedCI.AZURE
-    else:
-        raise UnexpectedError(
-            f"Current CI is not detected or supported."
-            f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
-        )
-
-    return commit_list, ci_mode

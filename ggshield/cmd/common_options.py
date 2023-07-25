@@ -166,7 +166,7 @@ ignore_path_option = click.option(
     default=None,
     type=click.Path(),
     multiple=True,
-    help="Do not scan the specified paths.",
+    help="Do not scan paths that match the specified glob-like patterns.",
 )
 
 
@@ -201,11 +201,12 @@ directory_argument = click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
     required=False,
+    # using a default value here makes the deprecated `iac scan` fail
 )
 
 all_option = click.option(
     "--all",
     is_flag=True,
     default=None,
-    help="Report all vulnerabilities in the final state.",
+    help="Raise all vulnerabilities in the final state.",
 )

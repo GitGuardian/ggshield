@@ -10,6 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     update_context,
 )
+from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.text_utils import display_warning
 
 
@@ -18,7 +19,7 @@ from ggshield.core.text_utils import display_warning
 @all_option
 @directory_argument
 @click.pass_context
-def scan_pre_commit_cmd(
+def scan_ci_cmd(
     ctx: click.Context,
     exit_zero: bool,
     minimum_severity: str,
@@ -29,7 +30,7 @@ def scan_pre_commit_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan as pre-commit for IaC vulnerabilities. By default, it will return vulnerabilities added in the commit.
+    Scan in CI for IaC vulnerabilities. By default, it will return vulnerabilities added in the new commits.
     """
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
@@ -40,5 +41,12 @@ def scan_pre_commit_cmd(
     if all:
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
-    result = iac_scan_diff(ctx, directory, "HEAD", include_staged=True)
+
+    config = ctx.obj["config"]
+    commit_list, _ = collect_commit_range_from_ci_env(config.verbose)
+    reference, current = commit_list[0], commit_list[-1]
+    if current and len(commit_list) >= 2:
+        result = iac_scan_diff(ctx, directory, reference, current=current)
+    else:
+        result = iac_scan_diff(ctx, directory, reference, include_staged=True)
     return display_iac_scan_diff_result(ctx, directory, result)

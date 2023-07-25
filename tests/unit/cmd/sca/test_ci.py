@@ -7,9 +7,9 @@ from ggshield.core.errors import ExitCode
 
 
 @patch("ggshield.sca.client.SCAClient.scan_diff")
-@patch("ggshield.cmd.sca.scan.ci.get_ci_commits")
+@patch("ggshield.cmd.sca.scan.ci.collect_commit_range_from_ci_env")
 def test_sca_scan_ci_no_commit(
-    get_ci_commits_mock: Mock,
+    collect_commit_range_from_ci_env_mock: Mock,
     scan_diff_mock: Mock,
     cli_fs_runner: click.testing.CliRunner,
 ):
@@ -18,7 +18,7 @@ def test_sca_scan_ci_no_commit(
     WHEN `secret scan ci` is called without --all
     THEN no scan has been triggered and the scan is successful
     """
-    get_ci_commits_mock.return_value = ([], "")
+    collect_commit_range_from_ci_env_mock.return_value = ([], "")
 
     result = cli_fs_runner.invoke(cli, ["sca", "scan", "ci"])
 
