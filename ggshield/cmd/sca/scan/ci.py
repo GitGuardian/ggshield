@@ -1,7 +1,9 @@
+import os
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import click
+from click import UsageError
 
 from ggshield.cmd.common_options import all_option, directory_argument
 from ggshield.cmd.sca.scan.sca_scan_utils import (
@@ -16,6 +18,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
+from ggshield.core.git_shell import check_git_dir
 from ggshield.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -48,14 +51,19 @@ def scan_ci_cmd(
 
     config = ctx.obj["config"]
     try:
+        if not (
+            os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")
+        ):
+            raise UsageError("`sca scan ci` should only be used in a CI environment.")
+
         output_handler = create_output_handler(ctx)
         if all:
             result = sca_scan_all(ctx, directory)
             scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
             return output_handler.process_scan_all_result(scan)
 
+        check_git_dir()
         commit_count = len(collect_commit_range_from_ci_env(config.verbose)[0])
-
         if config.verbose:
             click.echo(f"Commits to scan: {commit_count}", err=True)
         result = sca_scan_diff(

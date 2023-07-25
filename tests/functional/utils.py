@@ -68,10 +68,14 @@ def run_ggshield_iac_scan(
 
 
 def run_ggshield_sca_scan(
-    *args: str, expected_code: int = 0, cwd: Optional[PathLike] = None
+    *args: str,
+    expected_code: int = 0,
+    cwd: Optional[PathLike] = None,
+    env: Optional[Dict] = None,
 ) -> subprocess.CompletedProcess:
+    env = env or dict()
     args = ("sca", "scan", *args)
-    return run_ggshield(*args, expected_code=expected_code, cwd=cwd)
+    return run_ggshield(*args, expected_code=expected_code, cwd=cwd, env=env)
 
 
 def assert_is_valid_json(txt: str) -> None:

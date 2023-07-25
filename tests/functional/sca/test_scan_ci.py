@@ -15,8 +15,8 @@ def test_scan_ci_diff(tmp_path: Path, monkeypatch, pipfile_lock_with_vuln) -> No
     repo = Repository.create(tmp_path)
     repo.create_commit()
 
-    secret_file = repo.path / "Pipfile.lock"
-    secret_file.write_text(pipfile_lock_with_vuln)
+    dep_file = repo.path / "Pipfile.lock"
+    dep_file.write_text(pipfile_lock_with_vuln)
     repo.add("Pipfile.lock")
 
     for _ in range(3):
