@@ -3,11 +3,10 @@ from typing import Any, Optional, Sequence
 
 import click
 
-from ggshield.cmd.common_options import directory_argument
+from ggshield.cmd.common_options import all_option, directory_argument
 from ggshield.cmd.iac.scan.diff import display_iac_scan_diff_result, iac_scan_diff
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
-    all_option,
     update_context,
 )
 from ggshield.core.text_utils import display_warning

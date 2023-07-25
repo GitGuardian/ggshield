@@ -5,8 +5,9 @@ import click
 import pytest
 
 from ggshield.cmd.main import cli
-from ggshield.cmd.secret.scan.ci import EMPTY_SHA, gitlab_ci_range
+from ggshield.cmd.utils.ci import gitlab_ci_range
 from ggshield.core.errors import ExitCode
+from ggshield.core.utils import EMPTY_SHA
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
@@ -18,8 +19,8 @@ def clear_current_ci_envs(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
 
 
-@patch("ggshield.cmd.secret.scan.ci.get_list_commit_SHA")
-@patch("ggshield.cmd.secret.scan.ci.check_git_dir")
+@patch("ggshield.cmd.utils.ci.get_list_commit_SHA")
+@patch("ggshield.cmd.utils.ci.check_git_dir")
 @pytest.mark.parametrize(
     "env,expected_parameter",
     [
@@ -89,8 +90,8 @@ def test_gitlab_ci_range(
 
 
 @patch("ggshield.cmd.secret.scan.ci.scan_commit_range")
-@patch("ggshield.cmd.secret.scan.ci.get_list_commit_SHA")
-@patch("ggshield.cmd.secret.scan.ci.check_git_dir")
+@patch("ggshield.cmd.utils.ci.get_list_commit_SHA")
+@patch("ggshield.cmd.utils.ci.check_git_dir")
 @pytest.mark.parametrize(
     ("env", "expected_mode"),
     [
@@ -140,7 +141,7 @@ def test_ci_cmd_uses_right_mode_header(
     assert args.kwargs["scan_context"].scan_mode == expected_mode
 
 
-@patch("ggshield.cmd.secret.scan.ci.check_git_dir")
+@patch("ggshield.cmd.utils.ci.check_git_dir")
 def test_ci_cmd_does_not_work_outside_ci(_, cli_fs_runner: click.testing.CliRunner):
     # GIVEN no CI env
     # WHEN `secret scan ci` is called
@@ -153,7 +154,7 @@ def test_ci_cmd_does_not_work_outside_ci(_, cli_fs_runner: click.testing.CliRunn
     assert "only be used in a CI environment" in result.stdout
 
 
-@patch("ggshield.cmd.secret.scan.ci.check_git_dir")
+@patch("ggshield.cmd.utils.ci.check_git_dir")
 def test_ci_cmd_does_not_work_if_ci_env_is_odd(
     _, monkeypatch, cli_fs_runner: click.testing.CliRunner
 ):
