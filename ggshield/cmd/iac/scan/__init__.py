@@ -4,6 +4,7 @@ import click
 
 from ggshield.cmd.common_options import directory_argument
 from ggshield.cmd.iac.scan.all import scan_all_cmd
+from ggshield.cmd.iac.scan.ci import scan_ci_cmd
 from ggshield.cmd.iac.scan.diff import scan_diff_cmd
 from ggshield.cmd.iac.scan.iac_scan_common_options import add_iac_scan_common_options
 from ggshield.cmd.iac.scan.precommit import scan_pre_commit_cmd
@@ -18,6 +19,7 @@ from ggshield.core.text_utils import display_warning
     cls=DefaultCommandGroup,
     commands={
         "all": scan_all_cmd,
+        "ci": scan_ci_cmd,
         "diff": scan_diff_cmd,
         "pre-commit": scan_pre_commit_cmd,
         "pre-push": scan_pre_push_cmd,

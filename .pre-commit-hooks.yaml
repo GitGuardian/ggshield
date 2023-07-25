@@ -8,6 +8,15 @@
   language: python
   pass_filenames: false
 
+- id: ggshield-iac
+  name: ggshield-iac (pre-commit)
+  entry: ggshield
+  description: Runs ggshield Infra as Code Security to detect IaC vulnerabilities and policy breaks.
+  stages: [commit]
+  args: ['iac', 'scan', 'pre-commit']
+  language: python
+  pass_filenames: false
+
 - id: docker-ggshield
   name: ggshield (pre-commit,docker)
   language: docker_image
@@ -20,6 +29,15 @@
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets, security vulnerabilities and policy breaks.
   args: ['secret', 'scan', 'pre-push']
+  stages: [push]
+  language: python
+  pass_filenames: false
+
+- id: ggshield-iac-push
+  name: ggshield-iac (pre-push)
+  entry: ggshield
+  description: Runs ggshield Infra as Code Security to detect IaC vulnerabilities and policy breaks.
+  args: ['iac', 'scan', 'pre-push']
   stages: [push]
   language: python
   pass_filenames: false
