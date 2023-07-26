@@ -207,6 +207,24 @@ jobs:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
 
+  test_github_sca_scan_action:
+    name: Test GitHub action for `sca scan`
+    # See note about steps requiring the GITGUARDIAN_API at the top of this file
+    if: ${{ !github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Scan commits for SCA vulnerabilities
+        uses: ./actions-unstable/sca
+        with:
+          args: .
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
+
   dockerhub-unstable:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
