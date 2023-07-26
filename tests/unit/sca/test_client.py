@@ -127,8 +127,8 @@ class TestSCAClient:
         assert isinstance(response, Detail)
         assert response.status_code == 400
 
-    @my_vcr.use_cassette
-    def test_scan_diff(self, client: GGClient):
+    @my_vcr.use_cassette("test_sca_client_scan_diff.yaml", ignore_localhost=False)
+    def test_sca_client_scan_diff(self, client: GGClient):
         """
         GIVEN a directory in two different states
         WHEN calling scan_diff on it

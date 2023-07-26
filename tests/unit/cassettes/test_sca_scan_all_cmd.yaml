@@ -20,62 +20,54 @@ interactions:
       body:
         string: '{"sca_files":["Pipfile.lock"],"potential_siblings":["Pipfile"]}'
       headers:
-        access-control-expose-headers:
+        Access-Control-Expose-Headers:
           - X-App-Version
-        allow:
+        Allow:
           - POST, OPTIONS
-        content-length:
+        Content-Length:
           - '63'
-        content-type:
+        Content-Type:
           - application/json
-        cross-origin-opener-policy:
+        Cross-Origin-Opener-Policy:
           - same-origin
-        date:
-          - Mon, 24 Jul 2023 14:22:04 GMT
-        referrer-policy:
-          - strict-origin-when-cross-origin
-        server:
-          - istio-envoy
-        strict-transport-security:
-          - max-age=31536000; includeSubDomains
-        vary:
+        Date:
+          - Tue, 25 Jul 2023 14:42:08 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - WSGIServer/0.2 CPython/3.10.11
+        Vary:
           - Cookie
-        x-app-version:
-          - cca33f88
-        x-content-type-options:
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
           - nosniff
-          - nosniff
-        x-envoy-upstream-service-time:
-          - '38'
-        x-frame-options:
+        X-Frame-Options:
           - DENY
-          - SAMEORIGIN
-        x-sca-engine-version:
+        X-SCA-Engine-Version:
           - 1.15.0
-        x-secrets-engine-version:
+        X-Secrets-Engine-Version:
           - 2.94.0
-        x-xss-protection:
-          - 1; mode=block
       status:
         code: 200
         message: OK
   - request:
       body: !!binary |
-        LS0xNDI0YWRjY2Q5M2Y4OGNjN2MyNjgwNjVhZjMzMWFiMQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS02YjRlMTZhOWQ0YTk5NThmZjAzZDgwZTI0Yjk4N2NiZg0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
-        ICJMT1cifQ0KLS0xNDI0YWRjY2Q5M2Y4OGNjN2MyNjgwNjVhZjMzMWFiMQ0KQ29udGVudC1EaXNw
+        ICJMT1cifQ0KLS02YjRlMTZhOWQ0YTk5NThmZjAzZDgwZTI0Yjk4N2NiZg0KQ29udGVudC1EaXNw
         b3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5
-        Ig0KDQofiwgADIm+ZAL/7dVPb5swFABwzvkUEeeO+D8mUqQdd+x9qiJjPw80EiiGKNGU7z5IpxaW
-        VD21Urf3uwC2ec/42SJZJauv9+b4DYyDNnoX5MlrV0K4eLkf2ylhlEXLY/QB+tCZdkgf/Z+YXu66
-        cgcbqjLCiJaMJ6ngmjG1iNA/775sfFlBUtX253vlGA+1UpczTlNJp9cRFURFVAiZSiIEHcZRxQiN
-        luQjz//RHEpo88rsbVF31+Pe6v+kFr8Wy0G83UFn4vXy6fHSVJhQzFouraEwTKqhPWa5pyr1yqTM
-        GEO80F7qVGVCemZ4qlPhuadUOOMkZJJZlzqfOQ/aZY5pGj8HPt+9ZG2eNuSX0IAdsqhJVwuPfdlC
-        uJ5Uc+qKer89QBvKej9OjieU3E4Q6r61lyDfZ0HmIS9D92YHY7Dm1JTx3XV/31Zjd9F1TVivVuOw
-        pG5/rEK5ayq49cYww9KftiGML3ZtD7Mh5+enh8Vk2rEDb/qqm5cnPFaNaQNcr8ZYuBsfOCnfmnDG
-        LQHLMuskyy2Y3NJcDIWRaQacUs9BZIrmmXY0FcNxdFIxZhjPtQQubn3bn9Aqs0YToYXK87H6DCzX
-        BARXxGjDBXG55p5Y67nxFiAfzr9wnrBh+6RM6XgW+WGeKC73Do6v1CSe1H+zIYlI+GQL/LWiB6jq
-        Zly78+KMfzqEEEIIIYQQQgghhBBCCCGEEEKf3G+O9vxyACgAAA0KLS0xNDI0YWRjY2Q5M2Y4OGNj
-        N2MyNjgwNjVhZjMzMWFiMS0tDQo=
+        Ig0KDQofiwgAQN+/ZAL/7dVPb5swFABwzvkUEeeO+L9NpEg77tj7VEXGfh5oJFBMokRTvvsgndqw
+        pOqplbq93wWwzXvGzxbZIlt8vbeHb2A9dMm7IE9euxLCxcv92E4JoyyZH5IPsIu97Yb0yf+Jmfmm
+        rzawoionLFeUmYxxYohUswT98+6rNlQ1ZHXjfr5XjvFQK3U+41RLenkdUUFUQoWQWkstz+dfMaKT
+        OfnI83+w+wq6orZbVzb99bi3+j+p2a/ZfJCuN9DbdDl/ejw3lTaWk5Zzaywtk2poT1kRqNJBWc2s
+        tSQIE6TRKhcyMMu10SLwQKnw1kvIJXNe+5D7AMbnnhmaPgc+3b1kbZ825JfYghuyqIuuDh53VQfx
+        elLtsS+b7XoPXaya7Tg5nlFyO0Fsdp07B/k+CTINeR66tRsYg7XHtkrvrvt3XT12l33fxuViMQ7L
+        mu7HIlabtoZbbwwzrMJxHeP4Yt/tYDLk9Pz0MLuYduoh2F3dT8sTH+vWdhGuV2Ms3I0PvCjfknDG
+        HQHHcuclKxzYwtFCDIWROgdOaeAghr9BkRtPtWCEeqkYs4wXRgIXt77tT2iVO2uIMEIVxVh9Bo4b
+        AoIrYo3lgvjC8ECcC9wGB1AM51/4QNiwfTRTJp1EfpgmSquth8MrNUkv6r9akUxk/GIL/LWie6ib
+        dly70+yEfzqEEEIIIYQQQgghhBBCCCGEEEKf3G85F1xVACgAAA0KLS02YjRlMTZhOWQ0YTk5NThm
+        ZjAzZDgwZTI0Yjk4N2NiZi0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -86,9 +78,9 @@ interactions:
         Content-Length:
           - '818'
         Content-Type:
-          - multipart/form-data; boundary=1424adccd93f88cc7c268065af331ab1
+          - multipart/form-data; boundary=6b4e16a9d4a9958ff03d80e24b987cbf
         GGShield-Command-Id:
-          - e0fd35ee-623e-4fa5-973f-6f7e993cde04
+          - 5e150f06-3573-4f2f-a3e1-b7bd125374b6
         GGShield-Command-Path:
           - cli sca scan all
         GGShield-OS-Name:
@@ -108,46 +100,38 @@ interactions:
     response:
       body:
         string:
-          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"ghsa_id":"GHSA-rrm6-wvj7-cwh2","severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
+          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"identifier":"GHSA-rrm6-wvj7-cwh2","severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
           contains a regular expression that is vulnerable to Regular Expression Denial
           of Service"}]}]}]}'
       headers:
-        access-control-expose-headers:
+        Access-Control-Expose-Headers:
           - X-App-Version
-        allow:
+        Allow:
           - POST, OPTIONS
-        content-length:
-          - '468'
-        content-type:
+        Content-Length:
+          - '471'
+        Content-Type:
           - application/json
-        cross-origin-opener-policy:
+        Cross-Origin-Opener-Policy:
           - same-origin
-        date:
-          - Mon, 24 Jul 2023 14:22:05 GMT
-        referrer-policy:
-          - strict-origin-when-cross-origin
-        server:
-          - istio-envoy
-        strict-transport-security:
-          - max-age=31536000; includeSubDomains
-        vary:
+        Date:
+          - Tue, 25 Jul 2023 14:42:08 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - WSGIServer/0.2 CPython/3.10.11
+        Vary:
           - Cookie
-        x-app-version:
-          - cca33f88
-        x-content-type-options:
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
           - nosniff
-          - nosniff
-        x-envoy-upstream-service-time:
-          - '157'
-        x-frame-options:
+        X-Frame-Options:
           - DENY
-          - SAMEORIGIN
-        x-sca-engine-version:
+        X-SCA-Engine-Version:
           - 1.15.0
-        x-secrets-engine-version:
+        X-Secrets-Engine-Version:
           - 2.94.0
-        x-xss-protection:
-          - 1; mode=block
       status:
         code: 200
         message: OK
