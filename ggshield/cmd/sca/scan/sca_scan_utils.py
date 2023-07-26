@@ -154,8 +154,11 @@ def sca_scan_diff(
     if current_ref == ref:
         display_info("SCA scan diff comparing identical versions, scan skipped.")
         return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
-    ref_tar = tar_sca_files_from_git_repo(directory, ref, client)
-    current_tar = tar_sca_files_from_git_repo(directory, current_ref, client)
+    exclusion_regexes = ctx.obj["exclusion_regexes"]
+    ref_tar = tar_sca_files_from_git_repo(directory, ref, client, exclusion_regexes)
+    current_tar = tar_sca_files_from_git_repo(
+        directory, current_ref, client, exclusion_regexes
+    )
 
     scan_parameters = SCAScanParameters(config.user_config.sca.minimum_severity)
 

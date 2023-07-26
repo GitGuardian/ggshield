@@ -25,6 +25,11 @@ class SCAClient:
         files: List[str],
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> Union[Detail, ComputeSCAFilesResult]:
+        if len(files) == 0:
+            result = ComputeSCAFilesResult(sca_files=[], potential_siblings=[])
+            result.status_code = 200
+            return result
+
         response = self._client.post(
             endpoint="sca/compute_sca_files/",
             data={"files": files},
