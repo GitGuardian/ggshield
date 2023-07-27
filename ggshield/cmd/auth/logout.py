@@ -3,6 +3,7 @@ from typing import Any
 import click
 from requests.exceptions import ConnectionError
 
+import ggshield.hmsl.utils as hmsl_utils
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
@@ -59,6 +60,7 @@ def logout(config: Config, instance_url: str, revoke: bool) -> None:
     check_account_config_exists(config, instance_url)
     if revoke:
         revoke_token(config, instance_url)
+        hmsl_utils.remove_token_from_disk()
     delete_account_config(config, instance_url)
 
     click.echo(

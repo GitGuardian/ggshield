@@ -6,7 +6,12 @@ from pygitguardian.client import GGClient
 from pygitguardian.models import JWTResponse
 
 from ggshield.core.config.config import Config
-from ggshield.hmsl.utils import get_token, is_token_valid, load_token_from_disk
+from ggshield.hmsl.utils import (
+    get_token,
+    is_token_valid,
+    load_token_from_disk,
+    remove_token_from_disk,
+)
 
 
 @pytest.fixture
@@ -74,6 +79,21 @@ def test_get_token(isolated_fs, create_jwt_mock: MagicMock):
     token = get_token(config)
     create_jwt_mock.assert_called_once()
     assert token == "dummy_token"
+
+
+def test_remove_token(isolated_fs, create_jwt_mock: MagicMock):
+    """
+    GIVEN a logged in session to GIM
+    WHEN I'm calling remove_token_from_disk
+    THEN the token has been removed
+    """
+    config = Config()
+    assert load_token_from_disk() is None
+    token = get_token(config)
+    create_jwt_mock.assert_called_once()
+    assert token == "dummy_token"
+    remove_token_from_disk()
+    assert load_token_from_disk() is None
 
 
 @pytest.mark.parametrize(
