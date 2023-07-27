@@ -52,7 +52,7 @@ setup(
         "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@ccd3e47b62",
         "pyjwt>=2.6.0,<2.7.0",
         "python-dotenv>=0.21.0,<0.22.0",
-        "pyyaml>=6.0,<6.1",
+        "pyyaml>=6.0.1,<6.1",
         "requests>=2.31.0,<2.32.0",
         "rich>=12.5.1,<12.6.0",
     ],
