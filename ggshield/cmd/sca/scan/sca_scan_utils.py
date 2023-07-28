@@ -138,7 +138,9 @@ def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
     else:
         output_handler_cls = SCATextOutputHandler
     config: Config = ctx.obj["config"]
-    return output_handler_cls(verbose=config.user_config.verbose)
+    return output_handler_cls(
+        verbose=config.user_config.verbose, exit_zero=config.user_config.exit_zero
+    )
 
 
 def sca_scan_diff(

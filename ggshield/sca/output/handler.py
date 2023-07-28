@@ -14,14 +14,17 @@ from ggshield.sca.collection import (
 
 class SCAOutputHandler(ABC):
     verbose: bool
+    exit_zero: bool
     output: Optional[str]
 
     def __init__(
         self,
         verbose: bool = False,
+        exit_zero: bool = False,
         output: Optional[str] = None,
     ):
         self.verbose = verbose
+        self.exit_zero = exit_zero
         self.output = output
 
     def process_scan_all_result(
@@ -71,6 +74,8 @@ class SCAOutputHandler(ABC):
         raise NotImplementedError()
 
     def _get_exit_code(self, scan: SCAScanVulnerabilityCollection) -> ExitCode:
+        if self.exit_zero:
+            return ExitCode.SUCCESS
         if scan.result is None or scan.type == SCAVulnerabilityCollectionType.UNKNOWN:
             return ExitCode.UNEXPECTED_ERROR
         if scan.has_results:
