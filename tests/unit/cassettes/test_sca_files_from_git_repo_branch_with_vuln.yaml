@@ -1,6 +1,6 @@
 interactions:
   - request:
-      body: '{"files": ["dummy_file.py", "package.json"]}'
+      body: '{"files": ["Pipfile", "Pipfile.lock", "dummy_file.py"]}'
       headers:
         Accept:
           - '*/*'
@@ -9,7 +9,7 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '44'
+          - '55'
         Content-Type:
           - application/json
         User-Agent:
@@ -18,20 +18,20 @@ interactions:
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
       body:
-        string: '{"sca_files":["package.json"],"potential_siblings":["yarn.lock","package-lock.json"]}'
+        string: '{"sca_files":["Pipfile","Pipfile.lock"],"potential_siblings":["Pipfile.lock","Pipfile"]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '85'
+          - '88'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:41:51 GMT
+          - Tue, 08 Aug 2023 07:10:44 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -46,7 +46,7 @@ interactions:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '12'
+          - '18'
         x-frame-options:
           - DENY
           - SAMEORIGIN

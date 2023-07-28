@@ -10,7 +10,6 @@ from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,
     get_staged_filepaths,
-    tar_from_ref_and_filepaths,
 )
 from ggshield.sca.client import SCAClient
 from ggshield.scan import Scannable
@@ -69,13 +68,13 @@ def is_not_excluded_from_sca(scannable: Scannable) -> bool:
     return not any(part in SCA_IGNORE_LIST for part in scannable.path.parts)
 
 
-def tar_sca_files_from_git_repo(
+def sca_files_from_git_repo(
     directory: Path,
     ref: str,
     client: SCAClient,
     exclusion_regexes: Optional[Set[re.Pattern]] = None,
-) -> bytes:
-    """Builds a tar containing SCA files from the git repository at
+) -> Set[Path]:
+    """Returns SCA files from the git repository at
     the given directory, for the given ref. Empty string denotes selection
     from staging area."""
     exclusion_regexes = exclusion_regexes if exclusion_regexes is not None else set()
@@ -97,6 +96,4 @@ def tar_sca_files_from_git_repo(
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
         raise UnexpectedError("Failed to select SCA files")
 
-    return tar_from_ref_and_filepaths(
-        ref=ref, filepaths=map(Path, sca_files_result.sca_files), wd=str(directory)
-    )
+    return set(map(Path, sca_files_result.sca_files))

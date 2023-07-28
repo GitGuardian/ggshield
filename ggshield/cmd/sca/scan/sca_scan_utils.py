@@ -10,12 +10,12 @@ from ggshield.core.config.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.file_utils import get_empty_tar
-from ggshield.core.git_shell import INDEX_REF
+from ggshield.core.git_shell import INDEX_REF, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error, display_info, display_warning
 from ggshield.sca.client import SCAClient
 from ggshield.sca.file_selection import (
     get_all_files_from_sca_paths,
-    tar_sca_files_from_git_repo,
+    sca_files_from_git_repo,
 )
 from ggshield.sca.output.handler import SCAOutputHandler
 from ggshield.sca.output.text_handler import SCATextOutputHandler
@@ -72,7 +72,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         display_info("No file to scan.")
         # Not an error, return an empty SCAScanAllOutput
         # with the status code returned by first call
-        empty_output = SCAScanAllOutput()
+        empty_output = SCAScanAllOutput(scanned_files=[], found_package_vulns=[])
         empty_output.status_code = sca_filter_status_code
         return empty_output
 
@@ -185,19 +185,35 @@ def sca_scan_diff(
         return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
 
     if previous_ref is None:
-        ref_tar = get_empty_tar()
+        previous_files = []
     else:
-        ref_tar = tar_sca_files_from_git_repo(
+        previous_files = sca_files_from_git_repo(
             directory, previous_ref, client, exclusion_regexes
         )
-    current_tar = tar_sca_files_from_git_repo(
+
+    current_files = sca_files_from_git_repo(
         directory, current_ref, client, exclusion_regexes
+    )
+
+    if len(previous_files) == 0 and len(current_files) == 0:
+        display_info("No file to scan.")
+        return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
+
+    if previous_ref is None:
+        previous_tar = get_empty_tar()
+    else:
+        previous_tar = tar_from_ref_and_filepaths(
+            ref=previous_ref, filepaths=previous_files, wd=str(directory)
+        )
+
+    current_tar = tar_from_ref_and_filepaths(
+        ref=current_ref, filepaths=current_files, wd=str(directory)
     )
 
     scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
     response = client.scan_diff(
-        reference=ref_tar, current=current_tar, scan_parameters=scan_parameters
+        reference=previous_tar, current=current_tar, scan_parameters=scan_parameters
     )
 
     if not isinstance(response, SCAScanDiffOutput):

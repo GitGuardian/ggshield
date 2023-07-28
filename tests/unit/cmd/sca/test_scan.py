@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from unittest.mock import patch
 
 import click
 from click.testing import CliRunner
@@ -97,11 +98,11 @@ def test_sca_scan_all_ignore_path(client: GGClient, dummy_sca_repo: Repository) 
     """
     dummy_sca_repo.git("checkout", "branch_with_vuln")
     ctx = get_valid_ctx(client)
-    ctx.obj["exclusion_regexes"] = [
+    ctx.obj["exclusion_regexes"] = {
         re.compile(r"Pipfile"),
         re.compile(r"Pipfile.lock"),
         re.compile(r"dummy_file.py"),
-    ]
+    }
     with ctx:
         result = sca_scan_all(ctx, dummy_sca_repo.path)
 
@@ -148,10 +149,10 @@ def test_sca_scan_diff_ignore_path(
     """
     dummy_sca_repo.git("checkout", "branch_without_vuln")
     ctx = get_valid_ctx(client)
-    ctx.obj["exclusion_regexes"] = [
+    ctx.obj["exclusion_regexes"] = {
         re.compile(r"Pipfile"),
         re.compile(r"Pipfile.lock"),
-    ]
+    }
     with ctx:
         result = sca_scan_diff(
             ctx=ctx,
@@ -160,6 +161,28 @@ def test_sca_scan_diff_ignore_path(
         )
 
     assert result == SCAScanDiffOutput()
+
+
+@patch("ggshield.sca.client.SCAClient.scan_diff")
+def test_sca_scan_diff_no_files(
+    scan_diff_mock, client: GGClient, dummy_sca_repo: Repository
+) -> None:
+    """
+    GIVEN a repo
+    WHEN scanning the diff with all files ignored
+    THEN no scan is triggered
+    """
+    ctx = get_valid_ctx(client)
+    ctx.obj["exclusion_regexes"] = {re.compile(".*")}
+    with ctx:
+        sca_scan_diff(
+            ctx=ctx,
+            directory=dummy_sca_repo.path,
+            previous_ref="HEAD",
+            include_staged=True,
+        )
+
+    scan_diff_mock.assert_not_called()
 
 
 @my_vcr.use_cassette("test_sca_scan_all_no_file.yaml", ignore_localhost=False)

@@ -1,6 +1,4 @@
 import inspect
-import io
-import tarfile
 from pathlib import Path
 from typing import Set
 
@@ -12,7 +10,7 @@ from ggshield.sca.client import SCAClient
 from ggshield.sca.file_selection import (
     get_all_files_from_sca_paths,
     is_not_excluded_from_sca,
-    tar_sca_files_from_git_repo,
+    sca_files_from_git_repo,
 )
 from ggshield.scan import StringScannable
 from tests.repository import Repository
@@ -68,49 +66,47 @@ def test_get_all_files_from_sca_paths(tmp_path):
 @pytest.mark.parametrize(
     ("branch_name", "expected_files"),
     (
-        ("branch_with_vuln", {"Pipfile", "Pipfile.lock"}),
-        ("branch_without_lock", {"Pipfile"}),
+        ("branch_with_vuln", {Path("Pipfile"), Path("Pipfile.lock")}),
+        ("branch_without_lock", {Path("Pipfile")}),
         ("branch_without_sca", set()),
     ),
 )
-def test_tar_sca_files_from_git_repo(
+def test_sca_files_from_git_repo(
     dummy_sca_repo: Repository,
     client: GGClient,
     branch_name: str,
-    expected_files: Set[str],
+    expected_files: Set[Path],
 ):
     """
     GIVEN a git repo and a ref
-    WHEN calling tar_sca_files_from_git_repo for this repo and ref
-    THEN we have the expected filenames in the tar
+    WHEN calling sca_files_from_git_repo for this repo and ref
+    THEN we get the expected filenames
     """
 
     fun_name = inspect.currentframe().f_code.co_name
     with my_vcr.use_cassette(f"{fun_name}_{branch_name}"):
         sca_client = SCAClient(client)
-        tar_bytes = tar_sca_files_from_git_repo(
+        files = sca_files_from_git_repo(
             client=sca_client, directory=dummy_sca_repo.path, ref=branch_name
         )
-        tar_obj = tarfile.open(fileobj=io.BytesIO(tar_bytes))
-        assert set(tar_obj.getnames()) == expected_files
+        assert files == expected_files
 
 
 @my_vcr.use_cassette()
-def test_tar_sca_files_from_git_repo_with_staged_files(
+def test_sca_files_from_git_repo_with_staged_files(
     dummy_sca_repo: Repository, client: GGClient
 ):
     """
     GIVEN a git repo and a ref
-    WHEN calling tar_sca_files_from_git_repo for this repo and empty string as ref
-    THEN we have the staged files in the tar
+    WHEN calling sca_files_from_git_repo for this repo and empty string as ref
+    THEN we get the staged files
     """
 
     sca_client = SCAClient(client)
     dummy_sca_repo.git("checkout", "branch_without_sca")
     (dummy_sca_repo.path / "package.json").touch()
     dummy_sca_repo.add("package.json")
-    tar_bytes = tar_sca_files_from_git_repo(
+    files = sca_files_from_git_repo(
         client=sca_client, directory=dummy_sca_repo.path, ref=""
     )
-    tar_obj = tarfile.open(fileobj=io.BytesIO(tar_bytes))
-    assert set(tar_obj.getnames()) == {"package.json"}
+    assert files == {Path("package.json")}
