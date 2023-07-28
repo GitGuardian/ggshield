@@ -312,3 +312,25 @@ No fix is currently available.
 CVE IDs: CVE-2023-bis"""
             in result.stdout
         )
+
+
+@my_vcr.use_cassette("test_sca_scan_all_exit_zero.yaml")
+def test_sca_scan_all_exit_zero(
+    tmp_path, cli_fs_runner, pipfile_lock_with_vuln
+) -> None:
+
+    file_with_vulns = Path(tmp_path / "Pipfile.lock")
+    file_with_vulns.write_text(pipfile_lock_with_vuln)
+
+    with cd(str(tmp_path)):
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "sca",
+                "scan",
+                "all",
+                "--exit-zero",
+            ],
+        )
+
+        assert result.exit_code == ExitCode.SUCCESS
