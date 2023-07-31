@@ -60,32 +60,28 @@ def _get_git_path() -> str:
 
 
 @lru_cache(None)
+def _git_rev_parse_absolute(option: str, wd_absolute: str) -> Optional[str]:
+    """
+    Helper function for `_git_rev_parse` to only cache on absolute paths.
+    """
+    try:
+        return git(["rev-parse", option], cwd=wd_absolute)
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _git_rev_parse(option: str, wd: str) -> Optional[str]:
+    return _git_rev_parse_absolute(option=option, wd_absolute=str(Path(wd).resolve()))
+
+
 def is_git_dir(wd: str) -> bool:
-    try:
-        git(["rev-parse", "--git-dir"], cwd=wd)
-    except subprocess.CalledProcessError:
-        return False
-    return True
+    return _git_rev_parse("--git-dir", wd) is not None
 
 
-@lru_cache(None)
 def is_git_working_tree(wd: str) -> bool:
-    try:
-        git(["rev-parse", "--show-toplevel"], cwd=wd)
-    except subprocess.CalledProcessError:
-        return False
-    return True
+    return _git_rev_parse("--show-toplevel", wd) is not None
 
 
-def check_git_dir(wd: Optional[str] = None) -> None:
-    """Check if folder is git directory."""
-    if wd is None:
-        wd = os.getcwd()
-    if not is_git_dir(wd):
-        raise UsageError("Not a git directory.")
-
-
-@lru_cache(None)
 def get_git_root(wd: Optional[str] = None) -> str:
     """
     Fetches the root of the git repo.
@@ -95,10 +91,24 @@ def get_git_root(wd: Optional[str] = None) -> str:
     :param wd: working directory, defaults to None
     :return: absolute path to the git root, as a string.
     """
+    if wd is None:
+        wd = os.getcwd()
     check_git_dir(wd)
-    if is_git_working_tree(wd):
-        return git(["rev-parse", "--show-toplevel"], cwd=wd)
-    return str(Path(git(["rev-parse", "--git-dir"], cwd=wd)).resolve())
+    top_level = _git_rev_parse(option="--show-toplevel", wd=wd)
+    if top_level is not None:
+        return top_level
+    root = _git_rev_parse(option="--git-dir", wd=wd)
+    if root is None:
+        raise UsageError("Not a git directory")
+    return str(Path(root).resolve())
+
+
+def check_git_dir(wd: Optional[str] = None) -> None:
+    """Check if folder is git directory."""
+    if wd is None:
+        wd = os.getcwd()
+    if not is_git_dir(wd):
+        raise UsageError("Not a git directory.")
 
 
 def git(
