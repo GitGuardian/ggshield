@@ -7,6 +7,7 @@ from pygitguardian.client import _create_tar
 
 from ggshield.cmd.common_options import use_json
 from ggshield.core.config.config import Config
+from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
@@ -41,6 +42,13 @@ def display_sca_beta_warning(func):
     return func_with_beta_warning
 
 
+def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
+    return SCAScanParameters(
+        minimum_severity=sca_config.minimum_severity,
+        ignored_vulnerabilities=sca_config.ignored_vulnerabilities,
+    )
+
+
 def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
     """
     Scan an entire directory for SCA Vulnerabilities.
@@ -67,7 +75,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         empty_output.status_code = sca_filter_status_code
         return empty_output
 
-    scan_parameters = SCAScanParameters(config.user_config.sca.minimum_severity)
+    scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
     tar = _create_tar(directory, sca_filepaths)
 
@@ -159,7 +167,7 @@ def sca_scan_diff(
     ref_tar = tar_sca_files_from_git_repo(directory, ref, client)
     current_tar = tar_sca_files_from_git_repo(directory, current_ref, client)
 
-    scan_parameters = SCAScanParameters(config.user_config.sca.minimum_severity)
+    scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
     response = client.scan_diff(
         reference=ref_tar, current=current_tar, scan_parameters=scan_parameters

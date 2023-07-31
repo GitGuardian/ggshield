@@ -261,6 +261,32 @@ class TestUserConfig:
             until=None,
         )
 
+    def test_sca_ignore_vuln_until(self, local_config_path):
+        """
+        GIVEN a local config file with sca configs
+        WHEN setting an ignore vulnerability param with a past datetime
+        THEN it's ignored
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_vulnerabilities": [
+                        {
+                            "identifier": "GHSA-aaaa-bbbb-cccc",
+                            "path": "Pipfile",
+                            "comment": "Not my prob",
+                            "until": "2023-05-01T00:00:00",
+                        }
+                    ],
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.sca, SCAConfig)
+        assert len(config.sca.ignored_vulnerabilities) == 0
+
     def test_sca_config_options_inheritance(
         self, local_config_path, global_config_path
     ):
