@@ -1,5 +1,7 @@
 import os
 import re
+import tarfile
+from io import BytesIO
 from pathlib import Path
 from typing import List, Set, Union
 
@@ -50,3 +52,10 @@ def is_path_binary(path: str) -> bool:
     _, ext = os.path.splitext(path)
     # `[1:]` because `ext` starts with a "." but extensions in `BINARY_EXTENSIONS` do not
     return ext[1:] in BINARY_EXTENSIONS
+
+
+def get_empty_tar() -> bytes:
+    bytes = BytesIO()
+    file = tarfile.open(fileobj=bytes, mode="w:gz")
+    file.close()
+    return bytes.getvalue()

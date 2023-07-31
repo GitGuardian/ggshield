@@ -62,6 +62,15 @@ def _get_git_path() -> str:
 @lru_cache(None)
 def is_git_dir(wd: str) -> bool:
     try:
+        git(["rev-parse", "--git-dir"], cwd=wd)
+    except subprocess.CalledProcessError:
+        return False
+    return True
+
+
+@lru_cache(None)
+def is_git_working_tree(wd: str) -> bool:
+    try:
         git(["rev-parse", "--show-toplevel"], cwd=wd)
     except subprocess.CalledProcessError:
         return False
@@ -76,8 +85,20 @@ def check_git_dir(wd: Optional[str] = None) -> None:
         raise UsageError("Not a git directory.")
 
 
+@lru_cache(None)
 def get_git_root(wd: Optional[str] = None) -> str:
-    return git(["rev-parse", "--show-toplevel"], cwd=wd)
+    """
+    Fetches the root of the git repo.
+    This corresponds to the root directory in the case of a working tree,
+    or the `.git/` directory in the case of a quarantine during pre-receive.
+
+    :param wd: working directory, defaults to None
+    :return: absolute path to the git root, as a string.
+    """
+    check_git_dir(wd)
+    if is_git_working_tree(wd):
+        return git(["rev-parse", "--show-toplevel"], cwd=wd)
+    return str(Path(git(["rev-parse", "--git-dir"], cwd=wd)).resolve())
 
 
 def git(
@@ -200,7 +221,9 @@ def get_filepaths_from_ref(ref: str, wd: Optional[str] = None) -> List[Path]:
 
     check_git_ref(ref, wd)
 
-    filepaths = git(["ls-tree", "--name-only", "-r", ref], cwd=wd).splitlines()
+    filepaths = git(
+        ["ls-tree", "--name-only", "--full-name", "-r", ref], cwd=wd
+    ).splitlines()
     return [Path(path_str) for path_str in filepaths]
 
 
@@ -212,12 +235,16 @@ def get_staged_filepaths(wd: Optional[str] = None) -> List[Path]:
     if not wd:
         wd = os.getcwd()
 
-    filepaths = git(["ls-files", "-c"], cwd=wd).splitlines()
+    filepaths = git(["ls-files", "--full-name", "-c"], cwd=wd).splitlines()
     return [Path(path_str) for path_str in filepaths]
 
 
 def get_diff_files_status(
-    ref: str, staged: bool = False, similarity: int = 100, wd: Optional[str] = None
+    ref: str,
+    staged: bool = False,
+    similarity: int = 100,
+    wd: Optional[str] = None,
+    current_ref: Optional[str] = None,
 ) -> Dict[Path, Filemode]:
     """
     Fetches the statuses of modified files since a given ref.
@@ -229,10 +256,19 @@ def get_diff_files_status(
 
     assert 0 <= similarity <= 100
 
+    if current_ref is None:
+        current_ref = "HEAD"
+
     if not wd:
         wd = os.getcwd()
 
     check_git_ref(wd=wd, ref=ref)
+
+    if not staged:
+        check_git_ref(wd=wd, ref=current_ref)
+
+    if ref == "HEAD" and not staged:
+        return dict()
 
     def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
         status_to_filemode = {
@@ -251,8 +287,9 @@ def get_diff_files_status(
             for mode, path in chunks
         }
 
+    is_working_tree = is_git_working_tree(wd)
     cmd = [
-        "diff",
+        "diff" if is_working_tree else "diff-tree",
         f"-M{similarity}%",
         "--name-status",
         "--raw",
@@ -261,9 +298,11 @@ def get_diff_files_status(
         "--diff-filter=ADMTR",
     ]
 
-    if staged:
+    if staged and is_working_tree:
         cmd.append("--staged")
 
+    if not is_working_tree:
+        cmd.append(current_ref)
     cmd.append(ref)
 
     patch = git(cmd, cwd=wd)
@@ -273,7 +312,7 @@ def get_diff_files_status(
 
 @lru_cache(None)
 def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
-    return git(["show", f"{ref}:./{path}"], cwd=wd)
+    return git(["show", f"{ref}:{path}"], cwd=wd)
 
 
 def tar_from_ref_and_filepaths(
