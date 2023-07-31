@@ -11,9 +11,8 @@ def test_get_empty_tar():
     tar_stream = BytesIO(empty_tar_bytes)
 
     # THEN the file is considered as a .tar
-    version = sys.version_info
     # `tarfile.is_tarfile` won't work until Python 3.9
-    if version.major > 3 or version.major == 3 and version.minor > 8:
+    if sys.version_info >= (3, 9):
         assert tarfile.is_tarfile(tar_stream)
 
     # AND it contains no file
