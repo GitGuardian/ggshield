@@ -180,7 +180,7 @@ def test_iac_scan_diff_only_tracked_iac_with_ignore(tmp_path: Path) -> None:
     assert "No IaC files changed" in result.stdout
 
 
-@pytest.mark.parametrize("staged", (True, False))
+@pytest.mark.parametrize("staged", (False, True))
 def test_iac_scan_diff_staged(tmp_path: Path, staged: bool) -> None:
     # GIVEN a git repository
     repo = Repository.create(tmp_path)
@@ -203,10 +203,10 @@ def test_iac_scan_diff_staged(tmp_path: Path, staged: bool) -> None:
     result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=bool(staged))
 
     # THEN the staged file only appears with --staged flag enabled
-    assert "0 incidents deleted" in result.stdout
-    assert "1 incident remaining" in result.stdout
     if staged:
+        assert "0 incidents deleted" in result.stdout
+        assert "1 incident remaining" in result.stdout
         assert "1 new incident detected" in result.stdout
     else:
-        assert "0 new incidents detected" in result.stdout
+        assert "No IaC files changed" in result.stdout
     assert ("staged.tf" in result.stdout) == staged
