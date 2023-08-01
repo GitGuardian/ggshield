@@ -51,3 +51,19 @@ iac:
 
   # Minimum severity of the policies
   minimum-severity: HIGH
+
+sca:
+  # Exclude files and paths by globbing
+  ignored-paths:
+    - '**/Pipfile'
+    - '/back/**/package.json'
+
+  # SCA vulnerabilities to ignore
+  ignored-vulnerabilities:
+    - identifier: 'GHSA-0000-aaaa-ZZZZ'
+      path: 'Pipfile.lock' # Can be a regex
+      comment: 'Check vulnerability later' # Optional
+      until: '2023-05-01T00:00:00' # Optional, needs to follow ISO 8061 format 'YYYY-MM-DDTHH:MM:SS' (converted to UTC)
+
+  # Minimum severity of the policies
+  minimum-severity: HIGH

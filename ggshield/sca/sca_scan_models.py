@@ -6,10 +6,13 @@ import marshmallow_dataclass
 from pygitguardian.models import Base, BaseSchema, FromDictMixin
 from typing_extensions import Literal
 
+from ggshield.core.config.user_config import SCAIgnoredVulnerability
+
 
 @dataclass
 class SCAScanParameters(Base, FromDictMixin):
     minimum_severity: Optional[str] = None
+    ignored_vulnerabilities: List[SCAIgnoredVulnerability] = field(default_factory=list)
 
 
 SCAScanParameters.SCHEMA = cast(

@@ -1,11 +1,11 @@
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import marshmallow_dataclass
-from marshmallow import ValidationError
+from marshmallow import ValidationError, post_load
 from pygitguardian.models import FromDictMixin
 
 from ggshield.core.config.utils import (
@@ -22,6 +22,7 @@ from ggshield.core.constants import (
     LOCAL_CONFIG_PATHS,
 )
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
+from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
 from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
@@ -106,6 +107,12 @@ class SCAIgnoredVulnerability(FilteredConfig):
     comment: Optional[str]
     until: Optional[datetime]
 
+    @post_load
+    def datetime_to_utc(self, data, **kwargs):
+        if data["until"] is not None:
+            data["until"] = data["until"].astimezone(timezone.utc)
+        return data
+
 
 @marshmallow_dataclass.dataclass
 class SCAConfig(FilteredConfig):
@@ -117,6 +124,20 @@ class SCAConfig(FilteredConfig):
     ignored_paths: Set[str] = field(default_factory=set)
     minimum_severity: str = "LOW"
     ignored_vulnerabilities: List[SCAIgnoredVulnerability] = field(default_factory=list)
+
+    @post_load
+    def validate_ignored_vulns(self, data, **kwargs):
+        valid_vulnerabilities = []
+        for vuln in data["ignored_vulnerabilities"]:
+            if vuln.until is None or vuln.until > datetime.now(tz=timezone.utc):
+                valid_vulnerabilities.append(vuln)
+            else:
+                display_warning(
+                    f"Vulnerability {vuln.identifier} in {vuln.path} has an expired 'until'"
+                    f"date ({vuln.until}), please udpate your configuration file."
+                )
+        data["ignored_vulnerabilities"] = valid_vulnerabilities
+        return data
 
 
 @marshmallow_dataclass.dataclass
