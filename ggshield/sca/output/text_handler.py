@@ -193,4 +193,4 @@ def sca_incident_identifier(vulnerability: SCAVulnerability) -> str:
     # TODO Remove clause when identifier field is in production on backend side (v2.36)
     if identifier is None:
         return ""
-    return f"Identifier: {vulnerability.identifier}\n"
+    return f"Identifier: {identifier}\n"

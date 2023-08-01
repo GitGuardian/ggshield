@@ -1,12 +1,7 @@
-import pytest
-
 from tests.functional.utils import run_ggshield
 from tests.repository import Repository
 
 
-@pytest.mark.skip(
-    reason="waiting for sca scan all to be deployed, and output to be completed."
-)
 def test_sca_scan_all_with_vuln(dummy_sca_repo: Repository) -> None:
     """
     GIVEN a folder containing a file with vulnerabilities
@@ -18,13 +13,10 @@ def test_sca_scan_all_with_vuln(dummy_sca_repo: Repository) -> None:
     result = run_ggshield(
         "sca", "scan", "all", cwd=dummy_sca_repo.path, expected_code=1
     )
-    assert "Pipfile.lock" in result.stderr
-    assert "sqlparse" in result.stderr
+    assert "Pipfile.lock" in result.stdout
+    assert "sqlparse" in result.stdout
 
 
-@pytest.mark.skip(
-    reason="waiting for sca scan all to be deployed, and output to be completed."
-)
 def test_sca_scan_all_without_dependency_file(dummy_sca_repo: Repository) -> None:
     """
     GIVEN a folder containing a file with vulnerabilities
