@@ -206,6 +206,7 @@ directory_argument = click.argument(
 
 all_option = click.option(
     "--all",
+    "scan_all",
     is_flag=True,
     default=None,
     help="Raise all vulnerabilities in the final state.",

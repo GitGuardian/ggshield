@@ -27,7 +27,7 @@ def scan_pre_push_cmd(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
-    all: bool,
+    scan_all: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -46,7 +46,7 @@ def scan_pre_push_cmd(
         remote_commit is None or "~1" in remote_commit or remote_commit == EMPTY_SHA
     )
 
-    if all or has_no_remote_commit:
+    if scan_all or has_no_remote_commit:
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
     else:

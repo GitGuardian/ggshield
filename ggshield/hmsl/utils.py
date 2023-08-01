@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import Optional
 
@@ -17,6 +18,9 @@ from ggshield.hmsl.client import HMSLClient
 
 
 logger = logging.getLogger(__name__)
+
+
+TOKEN_PATH = f"{get_cache_dir()}/hmsl_token"
 
 
 def get_client(config: Config) -> HMSLClient:
@@ -89,7 +93,7 @@ def is_token_valid(token: Optional[str], audience: str) -> bool:
 
 def load_token_from_disk() -> Optional[str]:
     try:
-        return open(get_cache_dir() + "/hmsl_token").read()
+        return open(TOKEN_PATH).read()
     except FileNotFoundError:
         return None
     except Exception as e:
@@ -99,6 +103,15 @@ def load_token_from_disk() -> Optional[str]:
 
 def save_token(token: str) -> None:
     try:
-        open(get_cache_dir() + "/hmsl_token", "w").write(token)
+        open(TOKEN_PATH, "w").write(token)
     except Exception as e:
         logger.warning(f"Error while saving token: {e}")
+
+
+def remove_token_from_disk() -> None:
+    try:
+        os.remove(TOKEN_PATH)
+    except OSError:
+        pass
+    except Exception as e:
+        logger.warning(f"Error while removing token: {e}")

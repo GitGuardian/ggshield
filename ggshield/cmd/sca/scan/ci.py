@@ -37,7 +37,7 @@ def scan_ci_cmd(
     minimum_severity: str,
     ignore_paths: Sequence[str],
     directory: Optional[Path],
-    all: bool,
+    scan_all: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -57,7 +57,7 @@ def scan_ci_cmd(
             raise UsageError("`sca scan ci` should only be used in a CI environment.")
 
         output_handler = create_output_handler(ctx)
-        if all:
+        if scan_all:
             result = sca_scan_all(ctx, directory)
             scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
             return output_handler.process_scan_all_result(scan)

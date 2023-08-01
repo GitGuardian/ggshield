@@ -1,8 +1,17 @@
 import shutil
-from collections import defaultdict
+from collections import Counter, defaultdict
 from io import StringIO
 from pathlib import Path
-from typing import ClassVar, DefaultDict, Dict, Generator, List, NamedTuple, Optional
+from typing import (
+    Any,
+    ClassVar,
+    DefaultDict,
+    Dict,
+    Generator,
+    List,
+    NamedTuple,
+    Optional,
+)
 
 from pygitguardian.iac_models import (
     IaCDiffScanEntities,
@@ -367,7 +376,7 @@ def iac_vulnerability_location_failed(
     line_start: int,
     line_end: int,
 ) -> str:
-    return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
+    return f"\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
 
 
 def iac_engine_version(iac_engine_version: str) -> str:
@@ -387,12 +396,18 @@ def diff_scan_summary(
     deleted: List[IaCFileResult],
 ) -> str:
     def detail(entries: List[IaCFileResult]) -> str:
-        count: Dict[str, int] = dict()
-        for entry in entries:
-            for incident in entry.incidents:
-                count.setdefault(incident.severity, 0)
-                count[incident.severity] += 1
-        formatted_count = [f"{key}: {val}" for key, val in count.items()]
+        def _get_style(severity: str) -> Dict[str, Dict[str, Any]]:
+            return STYLE.get(
+                f"iac_vulnerability_{severity.lower()}",
+                STYLE["iac_vulnerability_unknown"],
+            )
+
+        count = Counter(
+            incident.severity for entry in entries for incident in entry.incidents
+        )
+        formatted_count = [
+            format_text(f"{key}: {val}", _get_style(key)) for key, val in count.items()
+        ]
         if len(formatted_count) == 0:
             return ""
         return f" ({', '.join(formatted_count)})"
@@ -407,10 +422,30 @@ def diff_scan_summary(
     buf = StringIO()
     buf.write("\nSummary of changes:\n")
     buf.write(
-        f"[-] {num_deleted} {label_incident(num_deleted)} deleted{detail(deleted)}\n"
+        format_text(
+            f"[-] {num_deleted} {label_incident(num_deleted)} deleted",
+            STYLE[
+                "iac_deleted_vulnerability" if num_deleted > 0 else "iac_dim_summary"
+            ],
+        )
     )
+    buf.write(f"{detail(deleted)}\n")
     buf.write(
-        f"[~] {num_unchanged} {label_incident(num_unchanged)} remaining{detail(unchanged)}\n"
+        format_text(
+            f"[~] {num_unchanged} {label_incident(num_unchanged)} remaining",
+            STYLE[
+                "iac_remaining_vulnerability"
+                if num_unchanged > 0
+                else "iac_dim_summary"
+            ],
+        )
     )
-    buf.write(f"[+] {num_new} new {label_incident(num_new)} detected{detail(new)}\n")
+    buf.write(f"{detail(unchanged)}\n")
+    buf.write(
+        format_text(
+            f"[+] {num_new} new {label_incident(num_new)} detected",
+            STYLE["iac_new_vulnerability" if num_new > 0 else "iac_dim_summary"],
+        )
+    )
+    buf.write(f"{detail(new)}\n")
     return buf.getvalue()
