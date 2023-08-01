@@ -26,7 +26,7 @@ def scan_ci_cmd(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
-    all: bool,
+    scan_all: bool,
     directory: Optional[Path] = None,
     **kwargs: Any,
 ) -> int:
@@ -39,15 +39,19 @@ def scan_ci_cmd(
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-    if all:
+    if scan_all:
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
 
     config = ctx.obj["config"]
     commit_list, _ = collect_commit_range_from_ci_env(config.verbose)
-    reference, current = commit_list[0], commit_list[-1]
-    if current and len(commit_list) >= 2:
-        result = iac_scan_diff(ctx, directory, reference, current=current)
-    else:
-        result = iac_scan_diff(ctx, directory, reference, include_staged=True)
+    reference, current_ref = commit_list[0], commit_list[-1]
+
+    # If we failed to fetch a current reference, we set it to HEAD
+    if len(commit_list) < 2 or not current_ref:
+        current_ref = "HEAD"
+
+    result = iac_scan_diff(
+        ctx, directory, reference, current_ref=current_ref, include_staged=True
+    )
     return display_iac_scan_diff_result(ctx, directory, result)

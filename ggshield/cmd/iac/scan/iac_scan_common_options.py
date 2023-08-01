@@ -69,9 +69,10 @@ _ignore_path_option = click.option(
 
 all_option = click.option(
     "--all",
+    "scan_all",
     is_flag=True,
-    default=None,
-    help="Raise all vulnerabilities in the final state.",
+    default=False,
+    help="Reports all vulnerabilities in the final state.",
 )
 
 directory_argument = click.argument(

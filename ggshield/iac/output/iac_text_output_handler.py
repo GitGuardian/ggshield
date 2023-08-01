@@ -376,7 +376,7 @@ def iac_vulnerability_location_failed(
     line_start: int,
     line_end: int,
 ) -> str:
-    return f"\nFailed to read from the original file.\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
+    return f"\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
 
 
 def iac_engine_version(iac_engine_version: str) -> str:
