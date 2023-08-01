@@ -34,7 +34,7 @@ def scan_pre_push_cmd(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
-    all: bool,
+    scan_all: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -53,7 +53,7 @@ def scan_pre_push_cmd(
     )
 
     output_handler = create_output_handler(ctx)
-    if all or has_no_remote_commit:
+    if scan_all or has_no_remote_commit:
         result = sca_scan_all(ctx, directory)
         scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_all_result(scan)

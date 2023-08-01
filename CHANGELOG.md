@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.17.3'></a>
+
+## 1.17.3 — 2023-07-27
+
+### Fixed
+
+- Pin PyYAML>=6.0.1 to fix building (see https://github.com/yaml/pyyaml/pull/702)
+
 <a id='changelog-1.17.2'></a>
 
 ## 1.17.2 — 2023-06-28
