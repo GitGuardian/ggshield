@@ -1,10 +1,11 @@
 import re
 from pathlib import Path
-from typing import List, Set
+from typing import List, Optional, Set
 
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,
@@ -68,17 +69,29 @@ def is_not_excluded_from_sca(scannable: Scannable) -> bool:
     return not any(part in SCA_IGNORE_LIST for part in scannable.path.parts)
 
 
-def tar_sca_files_from_git_repo(directory: Path, ref: str, client: SCAClient) -> bytes:
+def tar_sca_files_from_git_repo(
+    directory: Path,
+    ref: str,
+    client: SCAClient,
+    exclusion_regexes: Optional[Set[re.Pattern]] = None,
+) -> bytes:
     """Builds a tar containing SCA files from the git repository at
     the given directory, for the given ref. Empty string denotes selection
     from staging area."""
-    # TODO: add exclusion patterns
+    exclusion_regexes = exclusion_regexes if exclusion_regexes is not None else set()
+
     if ref == INDEX_REF:
         all_files = get_staged_filepaths(wd=str(directory))
     else:
         all_files = get_filepaths_from_ref(ref, wd=str(directory))
 
-    sca_files_result = client.compute_sca_files(files=[str(path) for path in all_files])
+    sca_files_result = client.compute_sca_files(
+        files=[
+            str(path)
+            for path in all_files
+            if not is_filepath_excluded(str(path), exclusion_regexes)
+        ]
+    )
     if isinstance(sca_files_result, Detail):
         if sca_files_result.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
