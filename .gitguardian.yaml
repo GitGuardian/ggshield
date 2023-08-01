@@ -48,3 +48,7 @@ iac:
     # (including GitHub action and Azure pipelines) expect the user inside the
     # container to be root.
     - GG_IAC_0079
+
+sca:
+  ignored-paths:
+    - tests/
