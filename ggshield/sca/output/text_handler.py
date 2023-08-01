@@ -104,6 +104,7 @@ class SCATextOutputHandler(SCAOutputHandler):
                 result_buf.write(sca_incident_severity_line(vulnerability))
                 result_buf.write(sca_incident_summary_line(vulnerability))
                 result_buf.write(sca_incident_fix_version_line(vulnerability))
+                result_buf.write(sca_incident_identifier(vulnerability))
                 result_buf.write(sca_incident_cve_ids(vulnerability))
 
                 incident_n += 1
@@ -185,3 +186,11 @@ def sca_incident_cve_ids(vulnerability: SCAVulnerability) -> str:
     else:
         cve_str = ", ".join(vulnerability.cve_ids)
     return f"CVE IDs: {cve_str}\n"
+
+
+def sca_incident_identifier(vulnerability: SCAVulnerability) -> str:
+    identifier = vulnerability.identifier
+    # TODO Remove clause when identifier field is in production on backend side (v2.36)
+    if identifier is None:
+        return ""
+    return f"Identifier: {vulnerability.identifier}\n"
