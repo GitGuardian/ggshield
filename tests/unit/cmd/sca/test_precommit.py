@@ -147,3 +147,25 @@ No fix is currently available.
 CVE IDs: CVE-2023-bis"""
             in result.stdout
         )
+
+
+@my_vcr.use_cassette("test_sca_scan_pre_commit_all.yaml")
+def test_pre_commit_all(dummy_sca_repo, cli_fs_runner):
+    # GIVEN a repo
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+    dummy_sca_repo.create_commit("No files on this one")
+    # With it's first commit with vulns
+    # And a second one without
+    # And a new file
+    (dummy_sca_repo.path / "package-lock.json").touch()
+    dummy_sca_repo.add()
+
+    # WHEN scanning with `all` flag
+    with cd(str(dummy_sca_repo.path)):
+        result = cli_fs_runner.invoke(
+            cli,
+            ["sca", "scan", "pre-commit", "--all"],
+        )
+        # THEN we get a vulnerability
+        assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS, result
+        assert "1 incident detected" in result.stdout
