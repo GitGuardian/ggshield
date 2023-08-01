@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -96,6 +97,25 @@ def test_sca_scan_all_no_sca_file(client: GGClient, tmp_path: Path) -> None:
     assert result == SCAScanAllOutput()
 
 
+def test_sca_scan_all_ignore_path(client: GGClient, dummy_sca_repo: Repository) -> None:
+    """
+    GIVEN a directory with sca files that are ignored
+    WHEN scanning
+    THEN no files are scanned
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+    ctx = get_valid_ctx(client)
+    ctx.obj["exclusion_regexes"] = [
+        re.compile(r"Pipfile"),
+        re.compile(r"Pipfile.lock"),
+        re.compile(r"dummy_file.py"),
+    ]
+    with ctx:
+        result = sca_scan_all(ctx, dummy_sca_repo.path)
+
+    assert result == SCAScanAllOutput()
+
+
 @my_vcr.use_cassette("test_sca_scan_diff.yaml", ignore_localhost=False)
 def test_sca_scan_diff(client: GGClient, dummy_sca_repo: Repository):
     ctx = get_valid_ctx(client)
@@ -125,6 +145,32 @@ def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
     assert result.scanned_files == []
     assert result.added_vulns == []
     assert result.removed_vulns == []
+
+
+@my_vcr.use_cassette("test_sca_scan_diff_ignore.yaml", ignore_localhost=False)
+def test_sca_scan_diff_ignore_path(
+    client: GGClient, dummy_sca_repo: Repository
+) -> None:
+    """
+    GIVEN a directory with sca files that are ignored
+    WHEN scanning
+    THEN no files are scanned
+    """
+    dummy_sca_repo.git("checkout", "branch_without_vuln")
+    ctx = get_valid_ctx(client)
+    ctx.obj["exclusion_regexes"] = [
+        re.compile(r"Pipfile"),
+        re.compile(r"Pipfile.lock"),
+    ]
+    with ctx:
+        result = sca_scan_diff(
+            ctx=ctx,
+            directory=dummy_sca_repo.path,
+            ref="branch_with_vuln",
+            include_staged=False,
+        )
+
+    assert result == SCAScanDiffOutput()
 
 
 @my_vcr.use_cassette("test_sca_scan_all_no_file.yaml", ignore_localhost=False)
