@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Tuple
 
 import click
 
@@ -18,7 +18,12 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
     config: Config = ctx.obj["config"]
     default_token_lifetime = config.auth_config.default_token_lifetime
 
-    message = ""
+    message_lines = []
+
+    def add_entries(*entries: Tuple[str, Any]):
+        for key, value in entries:
+            message_lines.append(f"{key}: {value}")
+
     for instance in config.auth_config.instances:
         instance_name = instance.name or instance.url
 
@@ -41,16 +46,16 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
             else default_token_lifetime
         )
 
-        message_lines = [
-            f"[{instance_name}]",
-            f"default_token_lifetime: {_default_token_lifetime}",
-            f"workspace_id: {workspace_id}",
-            f"url: {instance.url}",
-            f"token: {token}",
-            f"token_name: {token_name}",
-            f"expiry: {expiry}",
-        ]
-        message += ("\n".join(message_lines)) + "\n\n"
+        message_lines.append(f"[{instance_name}]")
+        add_entries(
+            ("default_token_lifetime", _default_token_lifetime),
+            ("workspace_id", workspace_id),
+            ("url", instance.url),
+            ("token", token),
+            ("token_name", token_name),
+            ("expiry", expiry),
+        )
+        message_lines.append("")
 
-    click.echo(message[:-2])
+    click.echo("\n".join(message_lines).strip())
     return 0
