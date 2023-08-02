@@ -8,7 +8,7 @@ import yaml.parser
 import yaml.scanner
 
 from ggshield.core.constants import AUTH_CONFIG_FILENAME, USER_CONFIG_FILENAMES
-from ggshield.core.dirs import get_config_dir
+from ggshield.core.dirs import get_config_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
 
 
@@ -58,7 +58,7 @@ def get_auth_config_filepath() -> str:
 
 
 def get_global_path(filename: str) -> str:
-    return os.path.join(os.path.expanduser("~"), filename)
+    return os.path.join(get_user_home_dir(), filename)
 
 
 def find_global_config_path() -> Optional[str]:

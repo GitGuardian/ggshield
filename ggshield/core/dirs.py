@@ -7,6 +7,14 @@ APPNAME = "ggshield"
 APPAUTHOR = "GitGuardian"
 
 
+def get_user_home_dir() -> str:
+    try:
+        # See tests/conftest.py for details
+        return str(os.environ["GG_USER_HOME_DIR"])
+    except KeyError:
+        return os.path.expanduser("~")
+
+
 def get_config_dir() -> str:
     try:
         # See tests/conftest.py for details
