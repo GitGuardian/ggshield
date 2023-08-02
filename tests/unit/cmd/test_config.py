@@ -38,13 +38,6 @@ expiry: not set
 """
 
 
-@pytest.fixture(autouse=True)
-def tmp_config(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "ggshield.core.config.utils.get_config_dir", lambda: str(tmp_path)
-    )
-
-
 class TestAuthConfigList:
     def test_valid_list(self, cli_fs_runner):
         """
