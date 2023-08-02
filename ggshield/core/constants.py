@@ -11,8 +11,7 @@ def _get_max_workers() -> int:
 
 MAX_WORKERS = min(CPU_COUNT, _get_max_workers())
 CACHE_FILENAME = "./.cache_ggshield"
-GLOBAL_CONFIG_FILENAMES = [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"]
-LOCAL_CONFIG_PATHS = ["./.gitguardian", "./.gitguardian.yml", "./.gitguardian.yaml"]
+USER_CONFIG_FILENAMES = [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"]
 DEFAULT_LOCAL_CONFIG_PATH = "./.gitguardian.yaml"
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 DEFAULT_HMSL_URL = "https://api.hasmysecretleaked.com"

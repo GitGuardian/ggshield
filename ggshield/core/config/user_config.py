@@ -1,5 +1,4 @@
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
@@ -8,18 +7,15 @@ from marshmallow import ValidationError
 from pygitguardian.models import FromDictMixin
 
 from ggshield.core.config.utils import (
-    get_global_path,
+    find_global_config_path,
+    find_local_config_path,
     load_yaml_dict,
     remove_common_dict_items,
     replace_in_keys,
     save_yaml_dict,
     update_from_other_instance,
 )
-from ggshield.core.constants import (
-    DEFAULT_LOCAL_CONFIG_PATH,
-    GLOBAL_CONFIG_FILENAMES,
-    LOCAL_CONFIG_PATHS,
-)
+from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
@@ -134,21 +130,18 @@ class UserConfig(FilteredConfig):
             user_config._update_from_file(config_path)
             return user_config, config_path
 
-        for global_config_filename in GLOBAL_CONFIG_FILENAMES:
-            global_config_path = get_global_path(global_config_filename)
-            if os.path.exists(global_config_path):
-                user_config._update_from_file(global_config_path)
-                logger.debug("Loaded global config from %s", global_config_path)
-                break
+        global_config_path = find_global_config_path()
+        if global_config_path:
+            user_config._update_from_file(global_config_path)
+            logger.debug("Loaded global config from %s", global_config_path)
         else:
             logger.debug("No global config")
 
-        for local_config_path in LOCAL_CONFIG_PATHS:
-            if os.path.exists(local_config_path):
-                user_config._update_from_file(local_config_path)
-                config_path = local_config_path
-                logger.debug("Loaded local config from %s", local_config_path)
-                break
+        local_config_path = find_local_config_path()
+        if local_config_path:
+            user_config._update_from_file(local_config_path)
+            config_path = local_config_path
+            logger.debug("Loaded local config from %s", local_config_path)
         else:
             logger.debug("No local config")
 

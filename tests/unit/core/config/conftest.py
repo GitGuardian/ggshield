@@ -40,7 +40,7 @@ TEST_AUTH_CONFIG = {
 
 @pytest.fixture
 def local_config_path():
-    yield "./.gitguardian"
+    yield ".gitguardian"
 
 
 @pytest.fixture()

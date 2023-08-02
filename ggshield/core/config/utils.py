@@ -7,7 +7,7 @@ import yaml
 import yaml.parser
 import yaml.scanner
 
-from ggshield.core.constants import AUTH_CONFIG_FILENAME
+from ggshield.core.constants import AUTH_CONFIG_FILENAME, USER_CONFIG_FILENAMES
 from ggshield.core.dirs import get_config_dir
 from ggshield.core.errors import UnexpectedError
 
@@ -59,6 +59,21 @@ def get_auth_config_filepath() -> str:
 
 def get_global_path(filename: str) -> str:
     return os.path.join(os.path.expanduser("~"), filename)
+
+
+def find_global_config_path() -> Optional[str]:
+    for filename in USER_CONFIG_FILENAMES:
+        path = get_global_path(filename)
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def find_local_config_path() -> Optional[str]:
+    for filename in USER_CONFIG_FILENAMES:
+        if os.path.exists(filename):
+            return filename
+    return None
 
 
 def update_from_other_instance(dst: Any, src: Any) -> None:
