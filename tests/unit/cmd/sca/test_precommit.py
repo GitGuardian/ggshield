@@ -133,6 +133,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
 Severity: Critical
 Summary: a vuln
 No fix is currently available.
+Identifier: GHSA-abcd-1234-xxxx
 CVE IDs: CVE-2023"""
             in result.stdout
         )
@@ -144,6 +145,7 @@ CVE IDs: CVE-2023"""
 Severity: Low
 Summary: another vuln
 No fix is currently available.
+Identifier: GHSA-efgh-5678-xxxx
 CVE IDs: CVE-2023-bis"""
             in result.stdout
         )
