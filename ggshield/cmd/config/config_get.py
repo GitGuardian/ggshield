@@ -20,7 +20,7 @@ from ggshield.core.errors import UnknownInstanceError
 )
 @add_common_options()
 @click.pass_context
-def config_get_command(
+def config_get_cmd(
     ctx: click.Context, field_name: str, instance_url: Optional[str], **kwargs: Any
 ) -> int:
     """

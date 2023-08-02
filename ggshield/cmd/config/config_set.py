@@ -21,7 +21,7 @@ from .constants import FIELD_OPTIONS
 )
 @add_common_options()
 @click.pass_context
-def config_set_command(
+def config_set_cmd(
     ctx: click.Context,
     field_name: str,
     value: str,
