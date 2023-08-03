@@ -211,3 +211,15 @@ all_option = click.option(
     default=None,
     help="Raise all vulnerabilities in the final state.",
 )
+
+reference_option = click.option(
+    "--ref",
+    required=True,
+    type=click.STRING,
+    help="A git reference.",
+)
+staged_option = click.option(
+    "--staged",
+    is_flag=True,
+    help="Whether staged changes should be included into the scan.",
+)

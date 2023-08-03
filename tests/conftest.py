@@ -211,6 +211,7 @@ def make_dummy_sca_repo():
 
         repo.create_branch("branch_with_vuln", orphan=True)
         clean_directory(tmp_path)
+        repo.create_commit("Empty commit to start with")
         (tmp_path / "Pipfile").write_text(PIPFILE_WITH_VULN)
         (tmp_path / "Pipfile.lock").write_text(PIPFILE_LOCK_WITH_VULN)
         (tmp_path / "dummy_file.py").touch()
@@ -240,7 +241,6 @@ def make_dummy_sca_repo():
 
         result_tar = tarfile.TarFile(fileobj=result_buffer, mode="w")
         result_tar.add(tmp_path_str, arcname="./")
-        print("TAR", result_tar.getnames())
     result_buffer.seek(0)
     return tarfile.TarFile(fileobj=result_buffer, mode="r")
 

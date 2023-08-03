@@ -1,0 +1,141 @@
+interactions:
+  - request:
+      body: '{"files": ["Pipfile", "Pipfile.lock", "dummy_file.py"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '55'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile","Pipfile.lock"],"potential_siblings":["Pipfile.lock","Pipfile"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '88'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 02 Aug 2023 14:43:27 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.35.1
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '17'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: !!binary |
+        LS0wMGFmZGQyNTk0NzY2ZGIyZGExNDdlNjQwYTA0NTk1Yw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
+        jmvKZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tMDBhZmRkMjU5NDc2
+        NmRiMmRhMTQ3ZTY0MGEwNDU5NWMNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAjmvKZAL/7ZXNbqMwEMdz5iki
+        n9vEX4CJlHfoPYoiY48bVBIohmijVd59MdkmYZMe29Vq53cBZsYzxsP8eSlqV5Qw+UpoTyLlcO35
+        80q5vN6f7SmP5WRKJ99A51vd9CUn/yfRauWrrjGwXkddU06XU7Jt29ov5vP6WBezqnmd+2JXl0Ci
+        AzSFO268D2Ft00G01zsIS0IoiaJVrc2bfgW/jvx7WevGD97lks7kTIQAC4fna1C0auC9K5pwXx/b
+        bbXf9DV8Ue3DMjFjlEyQL+XlPP+zsjJvf2n+maTxeP4Z5TTF+f+W+f8ZTXvIZgetJovp+XEwbbXf
+        jiyD1W81j5PeTnjuWJK6RKdca02dVC5WaZLJ2HEtUpVKJxxj0mobQxZzY1PrMutA2cxyxcgl8enp
+        WrU+f5DPvgbTV0luXB9icb+psXiEzQ3i8bDAWe5CktUoyTjlEBrkLSQb5O3p3t8LZnB/JpgPVlwl
+        tF84SOit+3R5Wkc32yYWnO7KdtyeD4W9P43QuAcveNO+BRVcGAqGZ8bGPDegc8Ny2TcmTjMQjDkB
+        MktYninLUskps3HCueYiVzEI+ejdfqdOMqMVlUomeR66z8EIRUGKhGqlhaQ2V8JRY5zQzgDk/fxL
+        6yjvP5+UJ4qMMq/HhUixt/Djk56Qm/5f/jnjs72e6AHKqg5nd4pO+BtAEARBEARBEARBEARBEARB
+        EARBEARB/nF+AXOIyCYAKAAADQotLTAwYWZkZDI1OTQ3NjZkYjJkYTE0N2U2NDBhMDQ1OTVjLS0N
+        Cg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '856'
+        Content-Type:
+          - multipart/form-data; boundary=00afdd2594766db2da147e640a04595c
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
+    response:
+      body:
+        string:
+          '{"scanned_files":["Pipfile","Pipfile.lock"],"added_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"direct","vulns":[{"cve_ids":["CVE-2023-30608"],"severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
+          contains a regular expression that is vulnerable to Regular Expression Denial
+          of Service"}]}]}],"removed_vulns":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '453'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 02 Aug 2023 14:43:27 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.35.1
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '241'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.15.0
+        x-secrets-engine-version:
+          - 2.94.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
