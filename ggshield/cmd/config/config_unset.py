@@ -5,11 +5,11 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
-from .constants import FIELD_OPTIONS
+from .constants import FIELD_NAMES
 
 
 @click.command()
-@click.argument("field_name", nargs=1, type=click.Choice(FIELD_OPTIONS), required=True)
+@click.argument("field_name", nargs=1, type=click.Choice(FIELD_NAMES), required=True)
 @click.option(
     "--instance",
     "instance_url",

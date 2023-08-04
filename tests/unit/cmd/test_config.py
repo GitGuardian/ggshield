@@ -5,7 +5,10 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.config.user_config import UserConfig
+from ggshield.core.config.utils import find_global_config_path
 from ggshield.core.errors import ExitCode
+from ggshield.secret.repo import cd
 
 from .utils import add_instance_config
 
@@ -162,7 +165,7 @@ class TestConfigSet:
         exit_code, output = self.run_cmd(cli_fs_runner, "wrong_value")
 
         assert exit_code == ExitCode.USAGE_ERROR, output
-        assert "Error: default_token_lifetime must be an int" in output
+        assert "Error: Invalid value: default_token_lifetime must be an int" in output
 
         config = Config()
         assert (
@@ -189,6 +192,38 @@ class TestConfigSet:
         assert (
             config.auth_config.default_token_lifetime == default_value
         ), "The instance config should remain unchanged"
+
+    def test_set_instance(self, cli_fs_runner, tmp_path):
+        """
+        GIVEN no global user config
+        AND a local user config
+        WHEN running the set command to set the instance
+        THEN the instance is stored in the global user config
+        AND the global user config contains only the instance
+        """
+        instance = "https://example.com"
+
+        assert find_global_config_path() is None
+
+        with cd(str(tmp_path)):
+            # Create a local user config file, its content should not end up in the
+            # global user config file
+            config = Config()
+            config.user_config.debug = True
+            config.save()
+
+            exit_code, output = self.run_cmd(cli_fs_runner, instance, param="instance")
+            assert exit_code == ExitCode.SUCCESS, output
+
+            # Explicitly load the global user config instead of using Config to ensure
+            # the instance is stored where we expect it to be stored.
+            config_path = find_global_config_path()
+            config, _ = UserConfig.load(config_path)
+            assert config.instance == instance
+            # Check we did not save the local config to the global one
+            assert (
+                not config.debug
+            ), "`config set` saved the local config to the global one"
 
     @staticmethod
     def run_cmd(
