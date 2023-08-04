@@ -15,7 +15,10 @@ from .utils import add_instance_config
 
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 
-EXPECTED_OUTPUT = """[https://dashboard.gitguardian.com]
+EXPECTED_OUTPUT = """instance: None
+default_token_lifetime: None
+
+[https://dashboard.gitguardian.com]
 default_token_lifetime: None
 workspace_id: 1
 url: https://dashboard.gitguardian.com

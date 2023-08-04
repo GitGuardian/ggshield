@@ -5,7 +5,7 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
-from .constants import DATETIME_FORMAT
+from .constants import DATETIME_FORMAT, FIELDS
 
 
 @click.command()
@@ -24,6 +24,14 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
         for key, value in entries:
             message_lines.append(f"{key}: {value}")
 
+    # List global values
+    for field in FIELDS.values():
+        config_obj = config.auth_config if field.auth_config else config.user_config
+        value = getattr(config_obj, field.name)
+        add_entries((field.name, value))
+    message_lines.append("")
+
+    # List instance values
     for instance in config.auth_config.instances:
         instance_name = instance.name or instance.url
 
