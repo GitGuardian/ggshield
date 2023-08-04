@@ -345,6 +345,27 @@ class TestConfigUnset:
             config.auth_config.default_token_lifetime == default_value
         ), "The instance config should remain unchanged"
 
+    def test_unset_instance(self, cli_fs_runner):
+        """
+        GIVEN a default instance previously set
+        WHEN running `ggshield config unset instance`
+        THEN the default instance is removed
+        """
+        # update global user config
+        assert find_global_config_path() is None
+        config_path = find_global_config_path(to_write=True)
+        config = UserConfig()
+        config.instance = "https://example.com"
+        config.save(config_path)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, param="instance")
+
+        assert exit_code == ExitCode.SUCCESS, output
+        assert output == ""
+
+        config, _ = UserConfig.load(config_path)
+        assert config.instance is None
+
     @staticmethod
     def run_cmd(
         cli_fs_runner, param="default_token_lifetime", instance_url=None, all_=False

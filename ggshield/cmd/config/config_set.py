@@ -8,7 +8,14 @@ from ggshield.core.config import Config
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path
 
-from .constants import FIELD_NAMES, FIELDS
+from .constants import FIELD_NAMES, FIELDS, ConfigField
+
+
+def set_user_config_field(field: ConfigField, value: Any) -> None:
+    config_path = find_global_config_path(to_write=True)
+    user_config, _ = UserConfig.load(config_path)
+    setattr(user_config, field.name, value)
+    user_config.save(config_path)
 
 
 @click.command()
@@ -55,8 +62,5 @@ def config_set_cmd(
         setattr(config.auth_config, field.name, value)
         config.auth_config.save()
     else:
-        config_path = find_global_config_path(to_write=True)
-        user_config, _ = UserConfig.load(config_path)
-        setattr(user_config, field.name, value)
-        user_config.save(config_path)
+        set_user_config_field(field, value)
     return 0
