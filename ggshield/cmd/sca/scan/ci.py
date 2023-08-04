@@ -69,8 +69,7 @@ def scan_ci_cmd(
         result = sca_scan_diff(
             ctx=ctx,
             directory=directory,
-            ref=f"HEAD~{commit_count}" if commit_count > 0 else "HEAD",
-            include_staged=False,
+            previous_ref=f"HEAD~{commit_count}" if commit_count > 0 else "HEAD",
         )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)

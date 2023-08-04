@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import List, Set, Tuple, Type
+from typing import List, Optional, Set, Tuple, Type
 
 import click
 from pygitguardian.client import _create_tar
@@ -9,6 +9,7 @@ from ggshield.cmd.common_options import use_json
 from ggshield.core.config.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.file_utils import get_empty_tar
 from ggshield.core.git_shell import INDEX_REF
 from ggshield.core.text_utils import display_error, display_info, display_warning
 from ggshield.sca.client import SCAClient
@@ -154,18 +155,41 @@ def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
 def sca_scan_diff(
     ctx: click.Context,
     directory: Path,
-    ref: str,
-    include_staged: bool,
+    previous_ref: Optional[str],
+    include_staged: bool = False,
+    current_ref: Optional[str] = None,
 ) -> SCAScanDiffOutput:
+    """
+    Performs a diff scan for SCA vulnerabilities,
+    comparing two git reference. Vulnerabilities are flagged as new, removed or
+    remaining depending on whether they appear in the `current_ref` and `previous_ref`
+    git references.
+
+    :param ctx: click.Context with CLI arguments
+    :param directory: path to the location we want to scan.
+    :param previous_ref: git reference to the state of reference for the analysis
+    :param include_staged: bool whether or not we want to consider the staged files
+    only when the current reference is set to None.
+    :param current_ref: optional git reference to the current state, defaults to None.
+    When set to None, the current state is the indexed files currently on disk.
+    :return: SCAScanDiffOutput object.
+    """
     config = ctx.obj["config"]
     client = SCAClient(ctx.obj["client"])
+    exclusion_regexes = ctx.obj["exclusion_regexes"]
 
-    current_ref = INDEX_REF if include_staged else "HEAD"
-    if current_ref == ref:
+    if current_ref is None:
+        current_ref = INDEX_REF if include_staged else "HEAD"
+    if current_ref == previous_ref:
         display_info("SCA scan diff comparing identical versions, scan skipped.")
         return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
-    exclusion_regexes = ctx.obj["exclusion_regexes"]
-    ref_tar = tar_sca_files_from_git_repo(directory, ref, client, exclusion_regexes)
+
+    if previous_ref is None:
+        ref_tar = get_empty_tar()
+    else:
+        ref_tar = tar_sca_files_from_git_repo(
+            directory, previous_ref, client, exclusion_regexes
+        )
     current_tar = tar_sca_files_from_git_repo(
         directory, current_ref, client, exclusion_regexes
     )

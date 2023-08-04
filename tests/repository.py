@@ -64,3 +64,13 @@ class Repository:
         self.git("config", "user.name", "ggshield-test")
         self.git("config", "user.email", "ggshield-test@example.com")
         self._credentials_set = True
+
+
+def create_pre_receive_repo(tmp_path) -> Repository:
+    repo = Repository.create(tmp_path)
+    repo.create_commit("initial commit")
+
+    # Detach from the current branch to simulate what happens when pre-receive
+    # is called: the new commits are not in any branch yet.
+    repo.git("checkout", "--detach")
+    return repo
