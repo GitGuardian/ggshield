@@ -24,7 +24,7 @@ from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollecti
 
 logger = logging.getLogger(__name__)
 
-REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from pushing IaC vulnerabilities.
+REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevents you from pushing IaC vulnerabilities.
 Apply the recommended remediation steps to remove the vulnerability."""
 
 

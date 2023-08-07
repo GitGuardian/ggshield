@@ -59,6 +59,6 @@ def scan_pre_push_cmd(
         return output_handler.process_scan_all_result(scan)
 
     else:
-        result = sca_scan_diff(ctx, directory, remote_commit, include_staged=False)
+        result = sca_scan_diff(ctx, directory, remote_commit)
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)

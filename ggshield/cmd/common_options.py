@@ -208,8 +208,8 @@ all_option = click.option(
     "--all",
     "scan_all",
     is_flag=True,
-    default=None,
-    help="Raise all vulnerabilities in the final state.",
+    default=False,
+    help="Reports all vulnerabilities in the final state.",
 )
 
 reference_option = click.option(

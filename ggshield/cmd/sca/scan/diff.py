@@ -48,6 +48,6 @@ def scan_diff_cmd(
 
     output_handler = create_output_handler(ctx)
 
-    result = sca_scan_diff(ctx, directory, ref=ref, include_staged=staged)
+    result = sca_scan_diff(ctx, directory, previous_ref=ref, include_staged=staged)
     scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
     return output_handler.process_scan_diff_result(scan)

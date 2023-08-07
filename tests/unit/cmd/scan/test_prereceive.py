@@ -9,7 +9,7 @@ from ggshield.core.utils import EMPTY_SHA, Filemode
 from ggshield.scan import StringScannable
 from ggshield.secret import Result, Results, SecretScanCollection
 from ggshield.secret.repo import cd
-from tests.repository import Repository
+from tests.repository import Repository, create_pre_receive_repo
 from tests.unit.conftest import (
     _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
@@ -22,16 +22,6 @@ from tests.unit.conftest import (
 def contains_secret(line: str, secret: str) -> bool:
     """Returns True if `line` contains an obfuscated version of `secret`"""
     return f'"{secret[:6]}' in line and f'{secret[-6:]}"' in line
-
-
-def create_pre_receive_repo(tmp_path) -> Repository:
-    repo = Repository.create(tmp_path)
-    repo.create_commit("initial commit")
-
-    # Detach from the current branch to simulate what happens when pre-receive
-    # is called: the new commits are not in any branch yet.
-    repo.git("checkout", "--detach")
-    return repo
 
 
 def mock_multiprocessing_process(mock: Mock):

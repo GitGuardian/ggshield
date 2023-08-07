@@ -51,7 +51,7 @@ def scan_pre_commit_cmd(
         return output_handler.process_scan_all_result(scan)
 
     result = sca_scan_diff(
-        ctx=ctx, directory=directory, ref="HEAD", include_staged=True
+        ctx=ctx, directory=directory, previous_ref="HEAD", include_staged=True
     )
 
     scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)

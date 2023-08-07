@@ -5,12 +5,14 @@ import socketserver
 import time
 from multiprocessing import Process
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Tuple
 from urllib.parse import urlparse
 
 import pytest
 import requests
 from pygitguardian.config import DEFAULT_BASE_URI
+
+from tests.repository import Repository
 
 
 FUNCTESTS_DATA_PATH = Path(__file__).parent / "data"
@@ -19,6 +21,15 @@ FUNCTESTS_DATA_PATH = Path(__file__).parent / "data"
 REPO_PATH = Path(__file__).parent.parent.parent
 
 HAS_DOCKER = shutil.which("docker") is not None
+
+HOOK_CONTENT = """#!/usr/bin/env sh
+ggshield {} scan pre-receive
+"""
+
+HOOK_CONTENT_ALL = """#!/usr/bin/env sh
+ggshield {} scan pre-receive --all
+"""
+
 
 # Use this as a decorator for tests which call the `docker` binary
 requires_docker = pytest.mark.skipif(not HAS_DOCKER, reason="This test requires Docker")
@@ -113,3 +124,49 @@ def no_quota_gitguardian_api() -> Generator[str, None, None]:
     finally:
         server_process.kill()
         server_process.join()
+
+
+def repo_with_hook_content(tmp_path: Path, hook_content: str) -> Repository:
+    """
+    Helper function that initialize a repo with a remote.
+    The remote contains the pre-receive with the corresponding hook content.
+
+    :param tmp_path: the root path
+    :param hook_content: the pre-receive hook content
+    :return: the local Repository object
+    """
+    remote_repo = Repository.create(tmp_path / "remote", bare=True)
+    local_repo = Repository.clone(remote_repo.path, tmp_path / "local")
+
+    hook_path = remote_repo.path / "hooks" / "pre-receive"
+    hook_path.write_text(hook_content)
+    hook_path.chmod(0o700)
+    return local_repo
+
+
+@pytest.fixture
+def iac_repo_with_hook(tmp_path: Path) -> Tuple[Repository, Repository]:
+    return repo_with_hook_content(
+        tmp_path=tmp_path, hook_content=HOOK_CONTENT.format("iac")
+    )
+
+
+@pytest.fixture
+def iac_repo_with_hook_all(tmp_path: Path) -> Tuple[Repository, Repository]:
+    return repo_with_hook_content(
+        tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("iac")
+    )
+
+
+@pytest.fixture
+def sca_repo_with_hook(tmp_path: Path) -> Tuple[Repository, Repository]:
+    return repo_with_hook_content(
+        tmp_path=tmp_path, hook_content=HOOK_CONTENT.format("sca")
+    )
+
+
+@pytest.fixture
+def sca_repo_with_hook_all(tmp_path: Path) -> Tuple[Repository, Repository]:
+    return repo_with_hook_content(
+        tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("sca")
+    )

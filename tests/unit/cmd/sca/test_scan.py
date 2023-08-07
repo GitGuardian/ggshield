@@ -115,8 +115,7 @@ def test_sca_scan_diff(client: GGClient, dummy_sca_repo: Repository):
         result = sca_scan_diff(
             ctx=ctx,
             directory=dummy_sca_repo.path,
-            ref="branch_with_vuln",
-            include_staged=False,
+            previous_ref="branch_with_vuln",
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == ["Pipfile", "Pipfile.lock"]
@@ -130,8 +129,7 @@ def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
         result = sca_scan_diff(
             ctx=ctx,
             directory=dummy_sca_repo.path,
-            ref="HEAD",
-            include_staged=False,
+            previous_ref="HEAD",
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == []
@@ -158,8 +156,7 @@ def test_sca_scan_diff_ignore_path(
         result = sca_scan_diff(
             ctx=ctx,
             directory=dummy_sca_repo.path,
-            ref="branch_with_vuln",
-            include_staged=False,
+            previous_ref="branch_with_vuln",
         )
 
     assert result == SCAScanDiffOutput()
