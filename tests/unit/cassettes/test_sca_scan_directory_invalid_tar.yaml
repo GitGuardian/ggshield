@@ -1,9 +1,9 @@
 interactions:
   - request:
       body:
-        "--cbd3f8ff279d2f5d465518d8d97360af\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{\"minimum_severity\":
-        null}\r\n--cbd3f8ff279d2f5d465518d8d97360af\r\nContent-Disposition: form-data;
-        name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--cbd3f8ff279d2f5d465518d8d97360af--\r\n"
+        "--4904770009c06822a8f0130dba19005f\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{\"minimum_severity\":
+        null, \"ignored_vulnerabilities\": []}\r\n--4904770009c06822a8f0130dba19005f\r\nContent-Disposition:
+        form-data; name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--4904770009c06822a8f0130dba19005f--\r\n"
       headers:
         Accept:
           - '*/*'
@@ -12,11 +12,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '272'
+          - '303'
         Content-Type:
-          - multipart/form-data; boundary=cbd3f8ff279d2f5d465518d8d97360af
+          - multipart/form-data; boundary=4904770009c06822a8f0130dba19005f
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6)
+          - pygitguardian/1.8.0 (Linux;py3.10.12)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
     response:
@@ -34,7 +34,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 24 Jul 2023 14:26:27 GMT
+          - Mon, 07 Aug 2023 15:41:47 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -44,18 +44,18 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.0
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '33'
+          - '29'
         x-frame-options:
           - DENY
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

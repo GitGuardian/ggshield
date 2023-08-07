@@ -13,41 +13,49 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6)
+          - pygitguardian/1.8.0 (Linux;py3.10.12)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
       body:
         string: '{"sca_files":["Pipfile","Pipfile.lock"],"potential_siblings":["Pipfile.lock","Pipfile"]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '88'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Tue, 25 Jul 2023 14:42:07 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
+        date:
+          - Mon, 07 Aug 2023 15:40:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '15'
+        x-frame-options:
           - DENY
-        X-SCA-Engine-Version:
-          - 1.15.0
-        X-Secrets-Engine-Version:
-          - 2.94.0
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK
@@ -65,49 +73,57 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6)
+          - pygitguardian/1.8.0 (Linux;py3.10.12)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
       body:
         string: '{"sca_files":[],"potential_siblings":[]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '40'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Tue, 25 Jul 2023 14:42:07 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
+        date:
+          - Mon, 07 Aug 2023 15:40:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '10'
+        x-frame-options:
           - DENY
-        X-SCA-Engine-Version:
-          - 1.15.0
-        X-Secrets-Engine-Version:
-          - 2.94.0
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK
   - request:
       body: !!binary |
-        LS1jMjdmYjIwOTQ3NzYyMzY2YWMxMzhmZDM2MjNkNGVkNg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1hMDYzNWE1OTRkNWM1NTZhNTIwN2M4YTBjZWY1MWJmYQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        P9+/ZAL/7ZXNbqMwEMdz5ikin9vEX4CJlHfoPYoiY48bVBIohmijVd59MdkmYZMe29Vq53cBZsYz
+        fxDRZAL/7ZXNbqMwEMdz5ikin9vEX4CJlHfoPYoiY48bVBIohmijVd59MdkmYZMe29Vq53cBZsYz
         xsP8eSlqV5Qw+UpoTyLlcO3580q5vN6f7SmP5WRKJ99A51vd9CUn/yfRauWrrjGwXkddU06XU7Jt
         29ov5vP6WBezqnmd+2JXl0CiAzSFO268D2Ft00G01zsIS0IoiaJVrc2bfgW/jvx7WevGD97lks7k
         TIQAC4fna1C0auC9K5pwXx/bbbXf9DV8Ue3DMjFjlEyQL+XlPP+zsjJvf2n+maTxeP4Z5TTF+f+W
@@ -116,10 +132,10 @@ interactions:
         LSQb5O3p3t8LZnB/JpgPVlwltF84SOit+3R5Wkc32yYWnO7KdtyeD4W9P43QuAcveNO+BRVcGAqG
         Z8bGPDegc8Ny2TcmTjMQjDkBMktYninLUskps3HCueYiVzEI+ejdfqdOMqMVlUomeR66z8EIRUGK
         hGqlhaQ2V8JRY5zQzgDk/fxL6yjvP5+UJ4qMMq/HhUixt/Djk56Qm/5f/jnjs72e6AHKqg5nd4pO
-        +BtAEARBEARBEARBEARBEARBEARBEARB/nF+AXOIyCYAKAAADQotLWMyN2ZiMjA5NDc3NjIzNjZh
-        YzEzOGZkMzYyM2Q0ZWQ2DQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImN1
-        cnJlbnQiOyBmaWxlbmFtZT0iY3VycmVudCINCg0KH4sIAD/fv2QC/+3BAQ0AAADCoPdPbQ43oAAA
-        AAAAAAAAAIA3A5reHScAKAAADQotLWMyN2ZiMjA5NDc3NjIzNjZhYzEzOGZkMzYyM2Q0ZWQ2LS0N
+        +BtAEARBEARBEARBEARBEARBEARBEARB/nF+AXOIyCYAKAAADQotLWEwNjM1YTU5NGQ1YzU1NmE1
+        MjA3YzhhMGNlZjUxYmZhDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImN1
+        cnJlbnQiOyBmaWxlbmFtZT0iY3VycmVudCINCg0KH4sIAH8Q0WQC/+3BAQ0AAADCoPdPbQ43oAAA
+        AAAAAAAAAIA3A5reHScAKAAADQotLWEwNjM1YTU5NGQ1YzU1NmE1MjA3YzhhMGNlZjUxYmZhLS0N
         Cg==
       headers:
         Accept:
@@ -131,9 +147,9 @@ interactions:
         Content-Length:
           - '856'
         Content-Type:
-          - multipart/form-data; boundary=c27fb20947762366ac138fd3623d4ed6
+          - multipart/form-data; boundary=a0635a594d5c556a5207c8a0cef51bfa
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6)
+          - pygitguardian/1.8.0 (Linux;py3.10.12)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
@@ -143,34 +159,42 @@ interactions:
           contains a regular expression that is vulnerable to Regular Expression Denial
           of Service"}]}]}]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '488'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Tue, 25 Jul 2023 14:42:08 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
+        date:
+          - Mon, 07 Aug 2023 15:40:48 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '222'
+        x-frame-options:
           - DENY
-        X-SCA-Engine-Version:
-          - 1.15.0
-        X-Secrets-Engine-Version:
-          - 2.94.0
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK

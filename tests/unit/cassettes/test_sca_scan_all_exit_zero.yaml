@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Fri, 28 Jul 2023 11:36:49 GMT
+          - Mon, 07 Aug 2023 15:40:51 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '19'
+          - '17'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -61,21 +61,21 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1kYzU5ZjUwYWUyYjkwMGNlNjU1Njc2YzI0MGRmYzU3Mg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1mNzM5NDg5N2UyYzAyOWZiODE3MTg4ZDdjNWEyMGZlOA0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
-        ICJMT1cifQ0KLS1kYzU5ZjUwYWUyYjkwMGNlNjU1Njc2YzI0MGRmYzU3Mg0KQ29udGVudC1EaXNw
-        b3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5
-        Ig0KDQofiwgAUajDZAL/7dVPb5swFABwzvkUEeeO+D8mUqQdd+x9qiJjPxc2AhRDlWjKdx+kUxuW
-        VD21Urf3uwC2ec/42SJZJauvt2b/DYyDLnoX5MlrV0I4f7mf2ilhlEbLffQBhtCbbkwf/Z9Yutz1
-        5Q42VGVECsFIljAlMikXEfr33ZatLytIqsb+fK8c06FWSkxXmkp6fp1QQVREhVAkZYKysZ0qyli0
-        JB95/n80tekLU993pfdwOe6t/k9q8WuxHMXbHfQmXi+fHk9NhQnFrOXUGgrDpBrbY5Z7qlKvTMqM
-        McQL7aVOVSakZ4anOhWee0qFM05CJpl1qfOZ86Bd5pim8XPg481L1vZpQ34JLdgxizrr6uBhKDsI
-        l5NqD33R1NtH6ELZ1NPkeELJ9QShGTp7CvJ9FmQe8jS0NjuYgrWHtoxvLvuHrpq6i75vw3q1moYl
-        TXe/CuWureDaG+MMS3/YhjC92HcDzIYcn5/uFmfTjh14M1T9vDzhoWpNF+ByNabCXfnAs/KtCWfc
-        ErAss06y3ILJLc3FWBiZZsAp9RxEpmieaUfT8a9AnVSMGcZzLYGLa9/2J7TKrNFEaKHyfKo+A8s1
-        AcEVMdpwQVyuuSfWem68BcjH8y+cJ2zcPilTOp5Fvpsnisvawf6VmsRn9d9sSCISfrYF/lrRR6ia
-        dlq74+KIvzqEEEIIIYQQQgghhBBCCCGEEEKf3G8ljTf1ACgAAA0KLS1kYzU5ZjUwYWUyYjkwMGNl
-        NjU1Njc2YzI0MGRmYzU3Mi0tDQo=
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tZjczOTQ4OTdlMmMwMjlm
+        YjgxNzE4OGQ3YzVhMjBmZTgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
+        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAIMQ0WQC/+3VT2+bMBQAcM75
+        FBHnjvg/JlKkHXfsfaoiYz8PNBIohirRlO8+SKYWlnQ7tVK397sQbPOe8eMpySpZfb43hy9gHLTR
+        myAXr10J4eLl9zhOCaMsWh6id9CHzrRD+uj/xPRy15U72FCVUcGYliRRWgvGxSJC/7z7svFlBUlV
+        2+9vlWNsaqXOPU5TSabXERVERVQIJdjQ+IQP/c+45NGSvGf/F7Bvyz+s+9v8B7X4sVgO4u0OOhOv
+        l5fb81BhQjEbOY+GwjCphvGY5Z6q1CuTMmMM8UJ7qVOVCemZ4alOheeeUuGMk5BJZl3qfOY8aJc5
+        pmn8HPh095K1uXyQn0IDdsiiJlMtPPZlC+F6U82xK+r99gnaUNb7cXM8oeR2glD3rT0H+ToLMg95
+        Xro3OxiDNcemjO+u5/u2GqeLrmvCerUalyV1+20Vyl1Twa0nhh2W/rgNYXywa3uYLTk93z0sJtuO
+        HXjTV928POGxakwb4Po0xsLdeMFJ+daEM24JWJZZJ1luweSW5mIojEwz4JR6DiJTNM+0o6lghDqp
+        GDOM51oCF7fe7VdolVmjidBC5flYfQaWawKCK2K04YK4XHNPrPXceAuQD/0vnCds+HxSpnQ8i/ww
+        TxSXeweHV2oST+q/2ZBEJHzyCfx2ok9Q1c14dqfFCf/pEEIIIYQQQgghhBBCCCGEEEIIfXA/AT8A
+        9M4AKAAADQotLWY3Mzk0ODk3ZTJjMDI5ZmI4MTcxODhkN2M1YTIwZmU4LS0NCg==
       headers:
         Accept:
           - '*/*'
@@ -84,21 +84,21 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '818'
+          - '844'
         Content-Type:
-          - multipart/form-data; boundary=dc59f50ae2b900ce655676c240dfc572
+          - multipart/form-data; boundary=f7394897e2c029fb817188d7c5a20fe8
         GGShield-Command-Id:
-          - dbc15b85-dbe0-4f45-991b-ce7ace4706fb
+          - 205186a8-57f2-4dc2-8715-51563f1bf660
         GGShield-Command-Path:
           - cli sca scan all
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
-          - '20.04'
+          - '22.04'
         GGShield-Python-Version:
           - 3.10.12
         GGShield-Version:
-          - 1.17.2
+          - 1.17.3
         User-Agent:
           - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
         mode:
@@ -108,7 +108,7 @@ interactions:
     response:
       body:
         string:
-          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
+          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"identifier":"GHSA-rrm6-wvj7-cwh2","severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
           contains a regular expression that is vulnerable to Regular Expression Denial
           of Service"}]}]}]}'
       headers:
@@ -117,13 +117,13 @@ interactions:
         allow:
           - POST, OPTIONS
         content-length:
-          - '436'
+          - '471'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Fri, 28 Jul 2023 11:36:50 GMT
+          - Mon, 07 Aug 2023 15:40:52 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -133,19 +133,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '187'
+          - '108'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

@@ -1,13 +1,13 @@
 interactions:
   - request:
       body: !!binary |
-        LS00NDgwOGVkM2I4MjE2YTRlYjc1YWEwNDZlZTU1OGIwOA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS05ZWNiYzVkOWM2Mjc5NDg4MjEwNjE4ODQ5NmQ5NzlkZQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        2LrQZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tNDQ4MDhlZDNiODIx
-        NmE0ZWI3NWFhMDQ2ZWU1NThiMDgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgA2LrQZAL/7cEBDQAAAMKg909t
-        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tNDQ4MDhlZDNiODIxNmE0ZWI3NWFhMDQ2ZWU1NThi
-        MDgtLQ0K
+        jxDRZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOWVjYmM1ZDljNjI3
+        OTQ4ODIxMDYxODg0OTZkOTc5ZGUNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAjxDRZAL/7cEBDQAAAMKg909t
+        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOWVjYmM1ZDljNjI3OTQ4ODIxMDYxODg0OTZkOTc5
+        ZGUtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -18,9 +18,9 @@ interactions:
         Content-Length:
           - '348'
         Content-Type:
-          - multipart/form-data; boundary=44808ed3b8216a4eb75aa046ee558b08
+          - multipart/form-data; boundary=9ecbc5d9c62794882106188496d979de
         User-Agent:
-          - pygitguardian/1.8.0 (Darwin;py3.11.2) ggshield
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
@@ -38,7 +38,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 09:35:20 GMT
+          - Mon, 07 Aug 2023 15:41:04 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -48,19 +48,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '192'
+          - '233'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

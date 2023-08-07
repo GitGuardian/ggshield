@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Darwin;py3.11.2) ggshield
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 09:37:14 GMT
+          - Mon, 07 Aug 2023 15:41:09 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '16'
+          - '15'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -61,13 +61,13 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS03MmJhZWRjNTZmNWNhYjM1NTJhNTNjNTIzZGVlYmU3ZA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1jNzgzYTA5Mjk5YjZkY2MwZTZjOTM3NGZhMmFiZGQ5Yg0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        SbvQZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tNzJiYWVkYzU2ZjVj
-        YWIzNTUyYTUzYzUyM2RlZWJlN2QNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgASrvQZAL/7c27CYAwAEXRjOII
+        lBDRZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tYzc4M2EwOTI5OWI2
+        ZGNjMGU2YzkzNzRmYTJhYmRkOWINCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAlBDRZAL/7c27CYAwAEXRjOII
         QUJcwxUsFAIW4md/g6XYKgjnNPd1ry/LVOYxvClWOaWr1b0Pu2tTDk0MHzi2fVjrZQAAAAAAAAAA
-        AID/OAHQQQhBACgAAA0KLS03MmJhZWRjNTZmNWNhYjM1NTJhNTNjNTIzZGVlYmU3ZC0tDQo=
+        AID/OAHQQQhBACgAAA0KLS1jNzgzYTA5Mjk5YjZkY2MwZTZjOTM3NGZhMmFiZGQ5Yi0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -78,9 +78,9 @@ interactions:
         Content-Length:
           - '395'
         Content-Type:
-          - multipart/form-data; boundary=72baedc56f5cab3552a53c523deebe7d
+          - multipart/form-data; boundary=c783a09299b6dcc0e6c9374fa2abdd9b
         User-Agent:
-          - pygitguardian/1.8.0 (Darwin;py3.11.2) ggshield
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
@@ -98,7 +98,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 09:37:14 GMT
+          - Mon, 07 Aug 2023 15:41:09 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -108,19 +108,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '227'
+          - '248'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

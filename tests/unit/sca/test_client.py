@@ -105,10 +105,16 @@ class TestSCAClient:
         assert isinstance(response, SCAScanAllOutput)
         assert response.status_code == 200
         assert len(response.scanned_files) == 1
-
-        vuln_pkg = response.found_package_vulns[0].package_vulns[0]
-        assert vuln_pkg.package_full_name == "vyper"
-        assert len(vuln_pkg.vulns) == 12
+        vuln_pkg = next(
+            (
+                package_vuln
+                for package_vuln in response.found_package_vulns[0].package_vulns
+                if package_vuln.package_full_name == "vyper"
+            ),
+            None,
+        )
+        assert vuln_pkg is not None
+        assert len(vuln_pkg.vulns) == 13
 
     @my_vcr.use_cassette(
         "test_sca_scan_directory_invalid_tar.yaml", ignore_localhost=False

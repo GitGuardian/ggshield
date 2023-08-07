@@ -58,6 +58,7 @@ def test_sca_scan_prepush_output(
 Severity: Medium
 Summary: sqlparse contains a regular expression that is vulnerable to Regular Expression Denial of Service
 A fix is available at version 0.4.4
+Identifier: GHSA-rrm6-wvj7-cwh2
 CVE IDs: CVE-2023-30608"""
             in result.stdout
         )

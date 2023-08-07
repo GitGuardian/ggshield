@@ -37,6 +37,7 @@ def test_scan_ci_diff(tmp_path: Path, monkeypatch, pipfile_lock_with_vuln) -> No
 Severity: Medium
 Summary: sqlparse contains a regular expression that is vulnerable to Regular Expression Denial of Service
 A fix is available at version 0.4.4
+Identifier: GHSA-rrm6-wvj7-cwh2
 CVE IDs: CVE-2023-30608"""
         in proc.stdout
     )
@@ -79,6 +80,7 @@ def test_scan_ci_all(tmp_path, monkeypatch, pipfile_lock_with_vuln) -> None:
 Severity: Medium
 Summary: sqlparse contains a regular expression that is vulnerable to Regular Expression Denial of Service
 A fix is available at version 0.4.4
+Identifier: GHSA-rrm6-wvj7-cwh2
 CVE IDs: CVE-2023-30608"""
         in proc.stdout
     )
