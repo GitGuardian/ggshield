@@ -14,6 +14,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     handle_scan_error,
 )
+from ggshield.core.text_utils import display_info
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.filter import get_iac_files_from_path
 from ggshield.scan import ScanContext, ScanMode
@@ -50,13 +51,20 @@ def iac_scan_all(
     paths = get_iac_files_from_path(
         path=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
-        verbose=ctx.obj["config"].verbose,
+        # bypass verbose here: we want to display only IaC files
+        verbose=False,
         # If the repository is a git repository, ignore untracked files
         ignore_git=False,
     )
 
     if not paths:
         return IaCSkipScanResult()
+
+    verbose = ctx.obj["config"].verbose
+    if verbose:
+        display_info("> Scanned files")
+        for filepath in paths:
+            display_info(f"- {click.format_filename(filepath)}")
 
     config = ctx.obj["config"]
     client = ctx.obj["client"]

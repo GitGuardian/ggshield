@@ -207,3 +207,34 @@ def test_iac_scan_all_error_response_read_timeout(
         )
     assert "Error scanning." in result.stdout
     assert "504:The request timed out." in result.stdout
+
+
+def test_iac_scan_all_verbose(cli_fs_runner: CliRunner, cli_command) -> None:
+    with cli_fs_runner.isolated_filesystem():
+        # GIVEN a repository with one IaC file and one non-IaC file
+        path = Path(".")
+        repo = Repository.create(path)
+
+        iac_file_name = "iac_file.tf"
+        non_iac_file_name = "non_iac_file.txt"
+
+        tracked_iac_file = path / iac_file_name
+        tracked_iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+        repo.add(tracked_iac_file)
+
+        tracked_non_iac_file = path / non_iac_file_name
+        tracked_non_iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+        repo.add(tracked_non_iac_file)
+
+        repo.create_commit()
+
+        # WHEN performing a scan all with the verbose option
+        result = cli_fs_runner.invoke(
+            cli,
+            cli_command + [str(path), "-v"],
+        )
+
+        # THEN the IaC file appears in the output
+        assert iac_file_name in result.stdout
+        # AND the non-IaC file does not
+        assert non_iac_file_name not in result.stdout
