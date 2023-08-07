@@ -1,133 +1,13 @@
 interactions:
   - request:
-      body: '{"files": []}'
-      headers:
-        Accept:
-          - '*/*'
-        Accept-Encoding:
-          - gzip, deflate
-        Connection:
-          - keep-alive
-        Content-Length:
-          - '13'
-        Content-Type:
-          - application/json
-        User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
-      method: POST
-      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
-    response:
-      body:
-        string: '{"sca_files":[],"potential_siblings":[]}'
-      headers:
-        access-control-expose-headers:
-          - X-App-Version
-        allow:
-          - POST, OPTIONS
-        content-length:
-          - '40'
-        content-type:
-          - application/json
-        cross-origin-opener-policy:
-          - same-origin
-        date:
-          - Mon, 24 Jul 2023 14:22:06 GMT
-        referrer-policy:
-          - strict-origin-when-cross-origin
-        server:
-          - istio-envoy
-        strict-transport-security:
-          - max-age=31536000; includeSubDomains
-        vary:
-          - Cookie
-        x-app-version:
-          - cca33f88
-        x-content-type-options:
-          - nosniff
-          - nosniff
-        x-envoy-upstream-service-time:
-          - '16'
-        x-frame-options:
-          - DENY
-          - SAMEORIGIN
-        x-sca-engine-version:
-          - 1.15.0
-        x-secrets-engine-version:
-          - 2.94.0
-        x-xss-protection:
-          - 1; mode=block
-      status:
-        code: 200
-        message: OK
-  - request:
-      body: '{"files": []}'
-      headers:
-        Accept:
-          - '*/*'
-        Accept-Encoding:
-          - gzip, deflate
-        Connection:
-          - keep-alive
-        Content-Length:
-          - '13'
-        Content-Type:
-          - application/json
-        User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
-      method: POST
-      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
-    response:
-      body:
-        string: '{"sca_files":[],"potential_siblings":[]}'
-      headers:
-        access-control-expose-headers:
-          - X-App-Version
-        allow:
-          - POST, OPTIONS
-        content-length:
-          - '40'
-        content-type:
-          - application/json
-        cross-origin-opener-policy:
-          - same-origin
-        date:
-          - Mon, 24 Jul 2023 14:22:06 GMT
-        referrer-policy:
-          - strict-origin-when-cross-origin
-        server:
-          - istio-envoy
-        strict-transport-security:
-          - max-age=31536000; includeSubDomains
-        vary:
-          - Cookie
-        x-app-version:
-          - cca33f88
-        x-content-type-options:
-          - nosniff
-          - nosniff
-        x-envoy-upstream-service-time:
-          - '41'
-        x-frame-options:
-          - DENY
-          - SAMEORIGIN
-        x-sca-engine-version:
-          - 1.15.0
-        x-secrets-engine-version:
-          - 2.94.0
-        x-xss-protection:
-          - 1; mode=block
-      status:
-        code: 200
-        message: OK
-  - request:
       body: !!binary |
-        LS1mYmY4MTkyMDc0NWE1YzFmYmUyMmMxNGFkYjBiMzBlMg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1lYmFjM2I3OTI0ZTM2ODY1Yjk1NTU2NzUwYmJhZWNlNg0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        Dom+ZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZmJmODE5MjA3NDVh
-        NWMxZmJlMjJjMTRhZGIwYjMwZTINCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgADom+ZAL/7cEBDQAAAMKg909t
-        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZmJmODE5MjA3NDVhNWMxZmJlMjJjMTRhZGIwYjMw
-        ZTItLQ0K
+        eBDRZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZWJhYzNiNzkyNGUz
+        Njg2NWI5NTU1Njc1MGJiYWVjZTYNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAeBDRZAL/7cEBDQAAAMKg909t
+        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tZWJhYzNiNzkyNGUzNjg2NWI5NTU1Njc1MGJiYWVj
+        ZTYtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -138,9 +18,9 @@ interactions:
         Content-Length:
           - '348'
         Content-Type:
-          - multipart/form-data; boundary=fbf81920745a5c1fbe22c14adb0b30e2
+          - multipart/form-data; boundary=ebac3b7924e36865b95556750bbaece6
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
@@ -158,7 +38,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 24 Jul 2023 14:22:07 GMT
+          - Mon, 07 Aug 2023 15:40:42 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -168,19 +48,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - cca33f88
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '218'
+          - '231'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

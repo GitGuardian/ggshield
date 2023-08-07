@@ -9,11 +9,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '48'
+          - '40'
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.7.0 (Linux;py3.10.6)
+          - pygitguardian/1.8.0 (Linux;py3.10.12)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 20 Jun 2023 08:41:19 GMT
+          - Mon, 07 Aug 2023 15:41:45 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,17 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - 3317468c
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '59'
+          - '14'
         x-frame-options:
           - DENY
           - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.92.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Fri, 28 Jul 2023 07:50:27 GMT
+          - Mon, 07 Aug 2023 15:40:49 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '21'
+          - '14'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -91,7 +91,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Fri, 28 Jul 2023 07:50:27 GMT
+          - Mon, 07 Aug 2023 15:40:49 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -101,19 +101,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '16'
+          - '12'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -121,13 +121,13 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS0wMzg5Mjg3NmEwNzk5NWYwYmQyZjdiODA1MmJkNDAxYQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS05MTJlYjViN2VlNGVlNDJiZDFlMDYxZDY3MWY5OTExOQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        Q3PDZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tMDM4OTI4NzZhMDc5
-        OTVmMGJkMmY3YjgwNTJiZDQwMWENCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAQ3PDZAL/7cEBDQAAAMKg909t
-        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tMDM4OTI4NzZhMDc5OTVmMGJkMmY3YjgwNTJiZDQw
-        MWEtLQ0K
+        gBDRZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOTEyZWI1YjdlZTRl
+        ZTQyYmQxZTA2MWQ2NzFmOTkxMTkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAgBDRZAL/7cEBDQAAAMKg909t
+        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOTEyZWI1YjdlZTRlZTQyYmQxZTA2MWQ2NzFmOTkx
+        MTktLQ0K
       headers:
         Accept:
           - '*/*'
@@ -138,7 +138,7 @@ interactions:
         Content-Length:
           - '348'
         Content-Type:
-          - multipart/form-data; boundary=03892876a07995f0bd2f7b8052bd401a
+          - multipart/form-data; boundary=912eb5b7ee4ee42bd1e061d671f99119
         User-Agent:
           - pygitguardian/1.8.0 (Linux;py3.10.12)
       method: POST
@@ -158,7 +158,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Fri, 28 Jul 2023 07:50:27 GMT
+          - Mon, 07 Aug 2023 15:40:49 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -168,19 +168,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.35.1
+          - v2.36.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '291'
+          - '233'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.15.0
+          - 1.16.1
         x-secrets-engine-version:
-          - 2.94.0
+          - 2.95.0
         x-xss-protection:
           - 1; mode=block
       status:

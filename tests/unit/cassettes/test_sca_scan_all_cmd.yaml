@@ -13,61 +13,69 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
       body:
         string: '{"sca_files":["Pipfile.lock"],"potential_siblings":["Pipfile"]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '63'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Tue, 25 Jul 2023 14:42:08 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
+        date:
+          - Mon, 07 Aug 2023 15:40:50 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '11'
+        x-frame-options:
           - DENY
-        X-SCA-Engine-Version:
-          - 1.15.0
-        X-Secrets-Engine-Version:
-          - 2.94.0
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK
   - request:
       body: !!binary |
-        LS02YjRlMTZhOWQ0YTk5NThmZjAzZDgwZTI0Yjk4N2NiZg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1kNGNjNjZjM2MzM2IwOWM1NDU2YjJlZjMxNmU1NzZmOA0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
-        ICJMT1cifQ0KLS02YjRlMTZhOWQ0YTk5NThmZjAzZDgwZTI0Yjk4N2NiZg0KQ29udGVudC1EaXNw
-        b3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5
-        Ig0KDQofiwgAQN+/ZAL/7dVPb5swFABwzvkUEeeO+L9NpEg77tj7VEXGfh5oJFBMokRTvvsgndqw
-        pOqplbq93wWwzXvGzxbZIlt8vbeHb2A9dMm7IE9euxLCxcv92E4JoyyZH5IPsIu97Yb0yf+Jmfmm
-        rzawoionLFeUmYxxYohUswT98+6rNlQ1ZHXjfr5XjvFQK3U+41RLenkdUUFUQoWQWkstz+dfMaKT
-        OfnI83+w+wq6orZbVzb99bi3+j+p2a/ZfJCuN9DbdDl/ejw3lTaWk5Zzaywtk2poT1kRqNJBWc2s
-        tSQIE6TRKhcyMMu10SLwQKnw1kvIJXNe+5D7AMbnnhmaPgc+3b1kbZ825JfYghuyqIuuDh53VQfx
-        elLtsS+b7XoPXaya7Tg5nlFyO0Fsdp07B/k+CTINeR66tRsYg7XHtkrvrvt3XT12l33fxuViMQ7L
-        mu7HIlabtoZbbwwzrMJxHeP4Yt/tYDLk9Pz0MLuYduoh2F3dT8sTH+vWdhGuV2Ms3I0PvCjfknDG
-        HQHHcuclKxzYwtFCDIWROgdOaeAghr9BkRtPtWCEeqkYs4wXRgIXt77tT2iVO2uIMEIVxVh9Bo4b
-        AoIrYo3lgvjC8ECcC9wGB1AM51/4QNiwfTRTJp1EfpgmSquth8MrNUkv6r9akUxk/GIL/LWie6ib
-        dly70+yEfzqEEEIIIYQQQgghhBBCCCGEEEKf3G85F1xVACgAAA0KLS02YjRlMTZhOWQ0YTk5NThm
-        ZjAzZDgwZTI0Yjk4N2NiZi0tDQo=
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tZDRjYzY2YzNjMzNiMDlj
+        NTQ1NmIyZWYzMTZlNTc2ZjgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
+        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAIIQ0WQC/+3VT2+bMBQAcM75
+        FBHnjvgfxkSKtOOOvU9VZOzngUYCxVAlmvLdZ5KphSXdTq3U7f0uDrZ5Nn5+SrJKVp/v9eELaAtd
+        9CbIxWstIZy//B77KWGURstD9A4G3+suLB/9n1i23PXVDjZU5lQwpkSeCCoFyxcR+vfdV62rakjq
+        xnx/qzXGopZSjC3NUjJtR1QQGVEhwqULhU9oqH/G01D/5D3rv4R9V/1h3t/GP6jFj8UyiLc76HW8
+        Xl4ez12l9uWs59zrS81SGfpjVjgqMyd1xrTWxAnlUpXJXKSOaZ6pTDjuKBVW2xTylBmbWZdbB8rm
+        likaPwc+3b2s2l4u5CffggmryMlQB49D1YG/3lR77Mtmv32CzlfNftwcTyi5vYBvhs6cg3ydBZmH
+        PE/d6x2MwdpjW8V31+NDV4/DZd+3fr1ajdOSpvu28tWureHWG2GHlTtuvR9f7LsBZlNOz08Pi8m2
+        YwtOD3U/T49/rFvdebg+jTFxNz5wkr414YwbAoblxqasMKALQwsREpNmOXBKHQeRS1rkytJMhKq0
+        qWRMM16oFLi49W2/QsvcaEWEErIoxuwzMFwREFwSrTQXxBaKO2KM49oZgCLUv7COsHB9MiZVPIv8
+        MF8orvYWDq/kJJ7kf7MhiUj45Ar8dqJPUDfteHanxQn/6hBCCCGEEEIIIYQQQgghhBBCCH1wPwFx
+        rhHuACgAAA0KLS1kNGNjNjZjM2MzM2IwOWM1NDU2YjJlZjMxNmU1NzZmOC0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -76,11 +84,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '818'
+          - '845'
         Content-Type:
-          - multipart/form-data; boundary=6b4e16a9d4a9958ff03d80e24b987cbf
+          - multipart/form-data; boundary=d4cc66c3c33b09c5456b2ef316e576f8
         GGShield-Command-Id:
-          - 5e150f06-3573-4f2f-a3e1-b7bd125374b6
+          - 5a077180-0f35-49b0-a938-6bb9c5593a27
         GGShield-Command-Path:
           - cli sca scan all
         GGShield-OS-Name:
@@ -88,11 +96,11 @@ interactions:
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.6
+          - 3.10.12
         GGShield-Version:
-          - 1.17.2
+          - 1.17.3
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.6) ggshield
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
         mode:
           - sca_directory
       method: POST
@@ -104,34 +112,42 @@ interactions:
           contains a regular expression that is vulnerable to Regular Expression Denial
           of Service"}]}]}]}'
       headers:
-        Access-Control-Expose-Headers:
+        access-control-expose-headers:
           - X-App-Version
-        Allow:
+        allow:
           - POST, OPTIONS
-        Content-Length:
+        content-length:
           - '471'
-        Content-Type:
+        content-type:
           - application/json
-        Cross-Origin-Opener-Policy:
+        cross-origin-opener-policy:
           - same-origin
-        Date:
-          - Tue, 25 Jul 2023 14:42:08 GMT
-        Referrer-Policy:
-          - same-origin
-        Server:
-          - WSGIServer/0.2 CPython/3.10.11
-        Vary:
+        date:
+          - Mon, 07 Aug 2023 15:40:51 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
           - Cookie
-        X-App-Version:
-          - dev
-        X-Content-Type-Options:
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
           - nosniff
-        X-Frame-Options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '124'
+        x-frame-options:
           - DENY
-        X-SCA-Engine-Version:
-          - 1.15.0
-        X-Secrets-Engine-Version:
-          - 2.94.0
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
       status:
         code: 200
         message: OK
