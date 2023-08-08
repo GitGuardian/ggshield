@@ -52,6 +52,10 @@ def scan_ci_cmd(
         current_ref = "HEAD"
 
     result = iac_scan_diff(
-        ctx, directory, reference, current_ref=current_ref, include_staged=True
+        ctx,
+        directory,
+        reference,
+        current_ref=current_ref,
+        include_staged=True,
     )
     return display_iac_scan_diff_result(ctx, directory, result)

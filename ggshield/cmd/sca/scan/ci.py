@@ -64,6 +64,11 @@ def scan_ci_cmd(
             return output_handler.process_scan_all_result(scan)
 
         check_git_dir()
+
+        click.echo("DEBUG: Commits to scan:", err=True)
+        for nbr, cmt in enumerate(collect_commit_range_from_ci_env(config.verbose)[0]):
+            click.echo(f"DEBUG:    {nbr}     {cmt}", err=True)
+
         commit_count = len(
             collect_commit_range_from_ci_env(config.user_config.verbose)[0]
         )
