@@ -11,6 +11,7 @@ from ggshield.core.config.auth_config import (
     prepare_auth_config_dict_for_save,
 )
 from ggshield.core.config.utils import get_auth_config_filepath, replace_in_keys
+from ggshield.core.errors import UnknownInstanceError
 from tests.unit.conftest import write_text, write_yaml
 from tests.unit.core.config.conftest import TEST_AUTH_CONFIG
 
@@ -98,13 +99,15 @@ class TestAuthConfig:
         THEN it's not persisted until .save() is called
         """
         config = Config()
-        config.user_config.instance = "custom"
+        config.auth_config.get_or_create_instance("custom")
 
-        assert Config().user_config.instance != "custom"
+        with pytest.raises(UnknownInstanceError):
+            Config().auth_config.get_instance("custom")
 
         config.save()
 
-        assert Config().user_config.instance == "custom"
+        instance = Config().auth_config.get_instance("custom")
+        assert instance.url == "custom"
 
     def test_load_file_not_existing(self):
         """
@@ -121,19 +124,18 @@ class TestAuthConfig:
         """
         GIVEN a config object and the auth config file not existing
         WHEN saving the config
-        THEN it works and when loading the config again it has the correct values
+        THEN it works
+        AND when loading the config again it has the correct values
         """
         config = Config()
-        try:
-            os.remove(get_auth_config_filepath())
-        except FileNotFoundError:
-            pass
+        assert not os.path.exists(get_auth_config_filepath())
 
-        config.user_config.instance = "custom"
+        config.auth_config.get_or_create_instance("custom")
         config.save()
         updated_config = Config()
 
-        assert updated_config.user_config.instance == "custom"
+        instance = updated_config.auth_config.get_instance("custom")
+        assert instance.url == "custom"
 
     def test_timezone_aware_expired(self):
         """
