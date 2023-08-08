@@ -93,10 +93,6 @@ class OAuthClient:
         - opening the user's webbrowser to GitGuardian login page
         - open a server and wait for the callback processing
         """
-        if self._check_existing_token():
-            # skip the process if a valid token is already saved
-            return
-
         # enable redirection to http://localhost
         os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = str(True)
 
@@ -321,7 +317,7 @@ class OAuthClient:
             )
         return self._state
 
-    def _check_existing_token(self) -> bool:
+    def check_existing_token(self) -> bool:
         """
         Check if the config already has a non expired token.
         If one could be found, outputs a message including the expiry date

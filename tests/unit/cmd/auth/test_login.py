@@ -129,6 +129,7 @@ class TestAuthLoginToken:
         GIVEN a valid API token
         WHEN the auth login command is called without --instance with method token
         THEN the authentication is made against the default instance
+        AND ggshield does not suggest calling `ggshield config set instance`
         """
         config = Config()
         assert len(config.auth_config.instances) == 0
@@ -150,6 +151,41 @@ class TestAuthLoginToken:
         assert (
             config.auth_config.get_instance(config.instance_name).account.token == token
         )
+        assert "ggshield config set instance" not in result.output
+        self._request_mock.assert_all_requests_happened()
+
+    @pytest.mark.parametrize(
+        ("instance", "suggests"),
+        (
+            ("", False),
+            ("https://custom.example.com", True),
+            (DEFAULT_INSTANCE_URL, False),
+        ),
+    )
+    def test_auth_login_token_suggests_set_instance(
+        self, monkeypatch, cli_fs_runner, instance: str, suggests: bool
+    ):
+        """
+        GIVEN a valid API token
+        WHEN the auth login command is called
+        THEN ggshield suggests calling `ggshield config set instance` if the instance
+             is not the default one
+        """
+        assert not Config().auth_config.instances
+
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+
+        cmd = ["auth", "login", "--method=token"]
+        if instance:
+            cmd.extend(["--instance", instance])
+
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input="a_token\n")
+        assert_invoke_ok(result)
+
+        if suggests:
+            assert "ggshield config set instance" in result.output
+        else:
+            assert "ggshield config set instance" not in result.output
         self._request_mock.assert_all_requests_happened()
 
     def test_auth_login_token_update_existing_config(self, monkeypatch, cli_fs_runner):
@@ -276,7 +312,6 @@ class TestAuthLoginWeb:
         "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
     )
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
-
         self._instance_url = instance_url
         self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
 
