@@ -22,7 +22,7 @@ def get_version() -> str:
 
 extras_require = {
     "hmsl": [
-        "cryptography>=41.0.0,<42.0.0",
+        "cryptography>=41.0.3,<42.0.0",
     ]
 }
 extras_require["all"] = list(
