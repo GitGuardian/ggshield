@@ -4,9 +4,13 @@ from typing import Any, Optional, Sequence, Union
 import click
 from pygitguardian.iac_models import IaCDiffScanResult, IaCScanParameters
 
+from ggshield.cmd.common_options import (
+    directory_argument,
+    reference_option,
+    staged_option,
+)
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
-    directory_argument,
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
@@ -33,17 +37,8 @@ from ggshield.scan import ScanContext, ScanMode
 
 @click.command()
 @add_iac_scan_common_options()
-@click.option(
-    "--ref",
-    required=True,
-    type=click.STRING,
-    help="A git reference.",
-)
-@click.option(
-    "--staged",
-    is_flag=True,
-    help="Whether staged changes should be included into the scan.",
-)
+@reference_option
+@staged_option
 @directory_argument
 @click.pass_context
 def scan_diff_cmd(

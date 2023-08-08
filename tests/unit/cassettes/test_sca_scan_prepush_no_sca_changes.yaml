@@ -1,0 +1,190 @@
+interactions:
+  - request:
+      body: '{"files": ["Pipfile", "non_sca.txt"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '37'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile"],"potential_siblings":["Pipfile.lock"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '63'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:57 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '11'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: '{"files": ["Pipfile", "non_sca.txt"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '37'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile"],"potential_siblings":["Pipfile.lock"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '63'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:57 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '10'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: !!binary |
+        LS1iY2NiNTM4NTkwMjllOWQ0YjVhODlmYjlhMjg1YjcwNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
+        iBDRZAL/7c27CYAwAEXRjOIIQUJcwxUsFAIW4md/g6XYKgjnNPd1ry/LVOYxvClWOaWr1b0Pu2tT
+        Dk0MHzi2fVjrZQAAAAAAAAAAAID/OAHQQQhBACgAAA0KLS1iY2NiNTM4NTkwMjllOWQ0YjVhODlm
+        YjlhMjg1YjcwNA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJjdXJyZW50
+        IjsgZmlsZW5hbWU9ImN1cnJlbnQiDQoNCh+LCACJENFkAv/tzbsJgDAARdGM4ghBQlzDFSwUAhbi
+        Z3+DpdgqCOc093WvL8tU5jG8KVY5pavVvQ+7a1MOTQwfOLZ9WOtlAAAAAAAAAAAAgP84AdBBCEEA
+        KAAADQotLWJjY2I1Mzg1OTAyOWU5ZDRiNWE4OWZiOWEyODViNzA0LS0NCg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '442'
+        Content-Type:
+          - multipart/form-data; boundary=bccb53859029e9d4b5a89fb9a285b704
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
+    response:
+      body:
+        string: '{"scanned_files":["Pipfile"],"added_vulns":[],"removed_vulns":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '65'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:57 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '246'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

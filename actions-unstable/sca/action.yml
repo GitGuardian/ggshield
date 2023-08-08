@@ -1,0 +1,25 @@
+name: 'ggshield sca scan'
+description: 'Scan commits for SCA vulnerabilities'
+author: GitGuardian <support@gitguardian.com>
+
+inputs:
+  args:
+    description: |
+      Arguments to be passed to ggshield sca scan
+      Options:
+        --exit-zero                     Always return a 0 (non-error) status code, even if issues
+                                        are found. The env var GITGUARDIAN_EXIT_ZERO can also be used
+                                        to set this option.
+        --minimum-severity              [LOW|MEDIUM|HIGH|CRITICAL]
+                                        Minimum severity of the policies
+        --ignore-path, --ipa PATH       Do not scan the specified paths.
+    required: false
+branding:
+  icon: 'shield'
+  color: 'blue'
+runs:
+  using: 'docker'
+  image: '../../Dockerfile'
+  entrypoint: '/app/docker/actions-sca-entrypoint.sh'
+  args:
+    - ${{ inputs.args }}

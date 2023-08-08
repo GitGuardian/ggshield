@@ -2,13 +2,11 @@ from typing import Any
 
 import click
 
+from ggshield.cmd.common_options import directory_argument
 from ggshield.cmd.iac.scan.all import scan_all_cmd
 from ggshield.cmd.iac.scan.ci import scan_ci_cmd
 from ggshield.cmd.iac.scan.diff import scan_diff_cmd
-from ggshield.cmd.iac.scan.iac_scan_common_options import (
-    add_iac_scan_common_options,
-    directory_argument,
-)
+from ggshield.cmd.iac.scan.iac_scan_common_options import add_iac_scan_common_options
 from ggshield.cmd.iac.scan.precommit import scan_pre_commit_cmd
 from ggshield.cmd.iac.scan.prepush import scan_pre_push_cmd
 from ggshield.cmd.iac.scan.prereceive import scan_pre_receive_cmd

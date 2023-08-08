@@ -1,0 +1,154 @@
+interactions:
+  - request:
+      body: '{"files": ["Pipfile.lock"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '27'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile.lock"],"potential_siblings":["Pipfile"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '63'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:50 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '11'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: !!binary |
+        LS1kNGNjNjZjM2MzM2IwOWM1NDU2YjJlZjMxNmU1NzZmOA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tZDRjYzY2YzNjMzNiMDlj
+        NTQ1NmIyZWYzMTZlNTc2ZjgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
+        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAIIQ0WQC/+3VT2+bMBQAcM75
+        FBHnjvgfxkSKtOOOvU9VZOzngUYCxVAlmvLdZ5KphSXdTq3U7f0uDrZ5Nn5+SrJKVp/v9eELaAtd
+        9CbIxWstIZy//B77KWGURstD9A4G3+suLB/9n1i23PXVDjZU5lQwpkSeCCoFyxcR+vfdV62rakjq
+        xnx/qzXGopZSjC3NUjJtR1QQGVEhwqULhU9oqH/G01D/5D3rv4R9V/1h3t/GP6jFj8UyiLc76HW8
+        Xl4ez12l9uWs59zrS81SGfpjVjgqMyd1xrTWxAnlUpXJXKSOaZ6pTDjuKBVW2xTylBmbWZdbB8rm
+        likaPwc+3b2s2l4u5CffggmryMlQB49D1YG/3lR77Mtmv32CzlfNftwcTyi5vYBvhs6cg3ydBZmH
+        PE/d6x2MwdpjW8V31+NDV4/DZd+3fr1ajdOSpvu28tWureHWG2GHlTtuvR9f7LsBZlNOz08Pi8m2
+        YwtOD3U/T49/rFvdebg+jTFxNz5wkr414YwbAoblxqasMKALQwsREpNmOXBKHQeRS1rkytJMhKq0
+        qWRMM16oFLi49W2/QsvcaEWEErIoxuwzMFwREFwSrTQXxBaKO2KM49oZgCLUv7COsHB9MiZVPIv8
+        MF8orvYWDq/kJJ7kf7MhiUj45Ar8dqJPUDfteHanxQn/6hBCCCGEEEIIIYQQQgghhBBCCH1wPwFx
+        rhHuACgAAA0KLS1kNGNjNjZjM2MzM2IwOWM1NDU2YjJlZjMxNmU1NzZmOC0tDQo=
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '845'
+        Content-Type:
+          - multipart/form-data; boundary=d4cc66c3c33b09c5456b2ef316e576f8
+        GGShield-Command-Id:
+          - 5a077180-0f35-49b0-a938-6bb9c5593a27
+        GGShield-Command-Path:
+          - cli sca scan all
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.12
+        GGShield-Version:
+          - 1.17.3
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+        mode:
+          - sca_directory
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
+    response:
+      body:
+        string:
+          '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-30608"],"identifier":"GHSA-rrm6-wvj7-cwh2","severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
+          contains a regular expression that is vulnerable to Regular Expression Denial
+          of Service"}]}]}]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '471'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:51 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '124'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

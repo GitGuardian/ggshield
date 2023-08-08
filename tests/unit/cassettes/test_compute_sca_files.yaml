@@ -1,0 +1,62 @@
+interactions:
+  - request:
+      body: '{"files": ["Pipfile", "something_else"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '40'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12)
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile"],"potential_siblings":["Pipfile.lock"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '63'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:41:45 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '14'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

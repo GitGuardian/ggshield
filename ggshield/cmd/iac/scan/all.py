@@ -4,9 +4,9 @@ from typing import Any, Optional, Sequence, Union
 import click
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 
+from ggshield.cmd.common_options import directory_argument
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
-    directory_argument,
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (

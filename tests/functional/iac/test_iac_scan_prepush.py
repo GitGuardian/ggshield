@@ -19,7 +19,7 @@ def test_iac_scan_prepush(tmp_path: Path) -> None:
     local_repo.push()
 
     # AND ggshield installed as a pre-push hook
-    create_local_hook(tmp_path / "local" / ".git" / "hooks", "pre-push")
+    create_local_hook(tmp_path / "local" / ".git" / "hooks", "iac", "pre-push")
 
     # AND a vulnerability committed
     file = local_repo.path / "vuln.tf"
@@ -51,7 +51,7 @@ def test_iac_scan_prepush_branch_without_new_commits(tmp_path: Path) -> None:
     local_repo.push()
 
     # AND ggshield installed as a pre-push hook
-    create_local_hook(tmp_path / "local" / ".git" / "hooks", "pre-push")
+    create_local_hook(tmp_path / "local" / ".git" / "hooks", "iac", "pre-push")
 
     # AND a branch without new commits
     branch_name = "topic"
@@ -78,7 +78,9 @@ def test_iac_scan_prepush_vuln_before_hook(
     local_repo.push()
 
     # AND ggshield later installed as a pre-push hook
-    create_local_hook(tmp_path / "local" / ".git" / "hooks", "pre-push", args=scan_args)
+    create_local_hook(
+        tmp_path / "local" / ".git" / "hooks", "iac", "pre-push", args=scan_args
+    )
 
     # AND changes to IaC files introducing no new vulnerability
     file = local_repo.path / "no_vuln.tf"

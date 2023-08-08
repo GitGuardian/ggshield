@@ -21,6 +21,7 @@ from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
+from ggshield.cmd.sca import sca_group
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
@@ -79,6 +80,7 @@ if hmsl_group:
         "api-status": status_cmd,
         "iac": iac_group,
         "honeytoken": honeytoken_group,
+        "sca": sca_group,
         **extra_groups,
     },
 )

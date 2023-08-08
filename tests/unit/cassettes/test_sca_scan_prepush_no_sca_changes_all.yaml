@@ -1,0 +1,145 @@
+interactions:
+  - request:
+      body: '{"files": ["Pipfile", "non_sca.txt"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '37'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile"],"potential_siblings":["Pipfile.lock"]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '63'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:59 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '13'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: !!binary |
+        LS1kNTgzOTllNDlmOTE2Njc0Y2M1ZjJjZjQ0ZTVjOTg4Zg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tZDU4Mzk5ZTQ5ZjkxNjY3
+        NGNjNWYyY2Y0NGU1Yzk4OGYNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
+        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAIsQ0WQC/+3TMQ6CMBSA4c6e
+        ghNAXykFBhNHR65AYo1NxBjEhOMrkqiLOoGJ/t/ymrbJm/44iZNVVfdrX298qyahR6+m1ql9nId7
+        0UaMino1g/Opq9vrevWfTBE1XWj8Ulwp1pgiy2NXurQ06ULh51XhuA17P+mOIWrnbo1LnunneW9e
+        rHXWjOFrESuiIj1n/zt/aMObf5/eAQAAAAAAAAAAAAAAgC+4ACjJCIMAKAAADQotLWQ1ODM5OWU0
+        OWY5MTY2NzRjYzVmMmNmNDRlNWM5ODhmLS0NCg==
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '484'
+        Content-Type:
+          - multipart/form-data; boundary=d58399e49f916674cc5f2cf44e5c988f
+        GGShield-Command-Id:
+          - 13757e5a-ea3a-409c-b5b6-60ec0ab3b968
+        GGShield-Command-Path:
+          - cli sca scan pre-push
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.12
+        GGShield-Version:
+          - 1.17.3
+        User-Agent:
+          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+        mode:
+          - sca_directory
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
+    response:
+      body:
+        string: '{"scanned_files":["Pipfile"],"found_package_vulns":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '54'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Mon, 07 Aug 2023 15:40:59 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.36.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '129'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.16.1
+        x-secrets-engine-version:
+          - 2.95.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

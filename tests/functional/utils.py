@@ -67,6 +67,17 @@ def run_ggshield_iac_scan(
     return run_ggshield(*args, expected_code=expected_code, cwd=cwd, env=env)
 
 
+def run_ggshield_sca_scan(
+    *args: str,
+    expected_code: int = 0,
+    cwd: Optional[PathLike] = None,
+    env: Optional[Dict] = None,
+) -> subprocess.CompletedProcess:
+    env = env or dict()
+    args = ("sca", "scan", *args)
+    return run_ggshield(*args, expected_code=expected_code, cwd=cwd, env=env)
+
+
 def assert_is_valid_json(txt: str) -> None:
     try:
         json.loads(txt)
@@ -86,10 +97,13 @@ def recreate_censored_content(content: str, matched_string: str) -> str:
     return content.replace(matched_string, recreate_censored_string(matched_string))
 
 
-# Use this in iac tests until iac hooks are added to the install command
+# Use this in iac/sca tests until iac/sca hooks are added to the install command
 # Meaning they are added to install.py
 def create_local_hook(
-    hook_dir_path: Path, hook_type: str, args: Optional[List[str]] = None
+    hook_dir_path: Path,
+    scan_type: str,
+    hook_type: str,
+    args: Optional[List[str]] = None,
 ) -> None:
     """Create hook directory (if needed) and pre-commit/pre-push file."""
     hook_dir_path.mkdir(parents=True, exist_ok=True)
@@ -99,5 +113,5 @@ def create_local_hook(
 
     with hook_path.open("w") as f:
         f.write("#!/usr/bin/env sh\n")
-        f.write(f'ggshield iac scan {hook_type} {" ".join(args)} "$@"\n')
+        f.write(f'ggshield {scan_type} scan {hook_type} {" ".join(args)} "$@"\n')
         os.chmod(hook_path, 0o700)

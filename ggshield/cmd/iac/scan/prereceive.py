@@ -5,10 +5,10 @@ from typing import Any, Sequence
 import click
 from pygitguardian.iac_models import IaCScanResult
 
+from ggshield.cmd.common_options import all_option
 from ggshield.cmd.iac.scan.diff import iac_scan_diff
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
-    all_option,
     update_context,
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
@@ -24,7 +24,7 @@ from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollecti
 
 logger = logging.getLogger(__name__)
 
-REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from pushing IaC vulnerabilities.
+REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevents you from pushing IaC vulnerabilities.
 Apply the recommended remediation steps to remove the vulnerability."""
 
 

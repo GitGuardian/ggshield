@@ -4,6 +4,8 @@ from ggshield.core.config import Config
 from ggshield.core.config.user_config import (
     CURRENT_CONFIG_VERSION,
     IaCConfig,
+    SCAConfig,
+    SCAIgnoredVulnerability,
     UserConfig,
 )
 from ggshield.core.errors import ParseError, UnexpectedError
@@ -223,6 +225,125 @@ class TestUserConfig:
         assert config.iac.ignored_paths == {"myglobalpath", "mypath"}
         assert config.iac.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
         assert config.iac.minimum_severity == "myseverity"
+
+    def test_sca_config(self, local_config_path):
+        """
+        GIVEN a local config file with sca configs
+        WHEN deserializing it
+        THEN we get the right values
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_paths": ["mypath"],
+                    "minimum_severity": "myseverity",
+                    "ignored_vulnerabilities": [
+                        {
+                            "identifier": "GHSA-aaaa-bbbb-cccc",
+                            "path": "Pipfile",
+                            "comment": "Not my prob",
+                        }
+                    ],
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.sca, SCAConfig)
+        assert config.sca.ignored_paths == {"mypath"}
+        assert config.sca.minimum_severity == "myseverity"
+        assert len(config.sca.ignored_vulnerabilities) == 1
+        assert config.sca.ignored_vulnerabilities[0] == SCAIgnoredVulnerability(
+            identifier="GHSA-aaaa-bbbb-cccc",
+            path="Pipfile",
+            comment="Not my prob",
+            until=None,
+        )
+
+    def test_sca_ignore_vuln_until(self, local_config_path):
+        """
+        GIVEN a local config file with sca configs
+        WHEN setting an ignore vulnerability param with a past datetime
+        THEN it's ignored
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_vulnerabilities": [
+                        {
+                            "identifier": "GHSA-aaaa-bbbb-cccc",
+                            "path": "Pipfile",
+                            "comment": "Not my prob",
+                            "until": "2023-05-01T00:00:00",
+                        }
+                    ],
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.sca, SCAConfig)
+        assert len(config.sca.ignored_vulnerabilities) == 0
+
+    def test_sca_config_options_inheritance(
+        self, local_config_path, global_config_path
+    ):
+        """
+        GIVEN two config files (global and local) with sca configs
+        WHEN deserializing them
+        THEN the inheritance is respected
+        """
+        write_yaml(
+            global_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_paths": ["myglobalpath"],
+                    "minimum_severity": "myglobalseverity",
+                },
+            },
+        )
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_paths": ["mypath"],
+                    "minimum_severity": "myseverity",
+                },
+            },
+        )
+        config = Config()
+        assert isinstance(config.sca, SCAConfig)
+        assert config.sca.ignored_paths == {"myglobalpath", "mypath"}
+        assert config.sca.minimum_severity == "myseverity"
+
+    def test_sca_config_invalid_identifier(self, local_config_path, capsys):
+        """
+        GIVEN a local config file with an invalid identifier in sca config
+        WHEN deserializing it
+        THEN we get the expected error
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "sca": {
+                    "ignored_vulnerabilities": [
+                        {
+                            # Invalid id
+                            "identifier": "ABCD-bbbb",
+                            "path": "Pipfile",
+                        }
+                    ],
+                },
+            },
+        )
+
+        with pytest.raises(ParseError):
+            UserConfig.load(local_config_path)
 
     def test_user_config_unknown_keys(self, local_config_path, capsys):
         """
