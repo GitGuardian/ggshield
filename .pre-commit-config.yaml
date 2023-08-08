@@ -68,7 +68,6 @@ repos:
         name: GitGuardian Shield
         entry: pipenv run ggshield secret scan pre-commit
         language: system
-        types: [python]
         stages: [commit]
 
   - repo: local
@@ -78,7 +77,6 @@ repos:
         entry: pipenv run ggshield secret scan pre-push
         language: system
         pass_filenames: false
-        types: [python]
         stages: [push]
 
   - repo: https://github.com/gitguardian/ggshield
