@@ -8,6 +8,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.secret.docker import docker_save_to_tmp, docker_scan_archive
@@ -39,7 +40,7 @@ def docker_name_cmd(
     """
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
-        config = ctx.obj["config"]
+        config: Config = ctx.obj["config"]
         output_handler = create_output_handler(ctx)
 
         try:
@@ -56,10 +57,10 @@ def docker_name_cmd(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 scan_context=scan_context,
-                matches_ignore=config.secret.ignored_matches,
-                ignored_detectors=config.secret.ignored_detectors,
+                matches_ignore=config.user_config.secret.ignored_matches,
+                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
 
             return output_handler.process_scan(scan)
         except Exception as error:
-            return handle_exception(error, config.verbose)
+            return handle_exception(error, config.user_config.verbose)

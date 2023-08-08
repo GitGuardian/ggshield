@@ -16,6 +16,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.git_shell import check_git_dir
@@ -49,7 +50,7 @@ def scan_ci_cmd(
     # Adds client and required parameters to the context
     update_context(ctx, exit_zero, minimum_severity, ignore_paths)
 
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     try:
         if not (
             os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")
@@ -63,8 +64,10 @@ def scan_ci_cmd(
             return output_handler.process_scan_all_result(scan)
 
         check_git_dir()
-        commit_count = len(collect_commit_range_from_ci_env(config.verbose)[0])
-        if config.verbose:
+        commit_count = len(
+            collect_commit_range_from_ci_env(config.user_config.verbose)[0]
+        )
+        if config.user_config.verbose:
             click.echo(f"Commits to scan: {commit_count}", err=True)
         result = sca_scan_diff(
             ctx=ctx,
@@ -75,4 +78,4 @@ def scan_ci_cmd(
         return output_handler.process_scan_diff_result(scan)
 
     except Exception as error:
-        return handle_exception(error, config.verbose)
+        return handle_exception(error, config.user_config.verbose)

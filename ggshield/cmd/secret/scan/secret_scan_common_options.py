@@ -12,6 +12,7 @@ from ggshield.cmd.common_options import (
     json_option,
     use_json,
 )
+from ggshield.core.config import Config
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
@@ -119,11 +120,11 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     output_handler_cls = (
         SecretJSONOutputHandler if use_json(ctx) else SecretTextOutputHandler
     )
-    config = ctx.obj["config"].user_config
+    config: Config = ctx.obj["config"]
     output = ctx.obj.get("output")
     return output_handler_cls(
-        show_secrets=config.secret.show_secrets,
-        verbose=config.verbose,
+        show_secrets=config.user_config.secret.show_secrets,
+        verbose=config.user_config.verbose,
         output=output,
-        ignore_known_secrets=config.secret.ignore_known_secrets,
+        ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
     )

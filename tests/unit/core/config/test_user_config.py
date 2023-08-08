@@ -25,8 +25,8 @@ class TestUserConfig:
         write_yaml(local_config_path, {"verbose": True, "show_secrets": True})
 
         config = Config()
-        assert config.verbose is True
-        assert config.secret.show_secrets is True
+        assert config.user_config.verbose is True
+        assert config.user_config.secret.show_secrets is True
 
     def test_unknown_option(self, local_config_path):
         write_yaml(local_config_path, {"verbosity": True})
@@ -53,15 +53,15 @@ class TestUserConfig:
         )
 
         config = Config()
-        assert config.verbose is True
-        assert config.secret.show_secrets is False
+        assert config.user_config.verbose is True
+        assert config.user_config.secret.show_secrets is False
         assert config.api_url == "https://api.gitguardian.com"
 
     def test_exclude_regex(self, local_config_path):
         write_yaml(local_config_path, {"paths-ignore": ["/tests/"]})
 
         config = Config()
-        assert r"/tests/" in config.secret.ignored_paths
+        assert r"/tests/" in config.user_config.secret.ignored_paths
 
     def test_accumulation_matches(self, local_config_path, global_config_path):
         write_yaml(
@@ -78,7 +78,7 @@ class TestUserConfig:
             {"matches_ignore": [{"name": "", "match": "three"}]},
         )
         config = Config()
-        assert config.secret.ignored_matches == [
+        assert config.user_config.secret.ignored_matches == [
             IgnoredMatch(match="three", name=""),
             IgnoredMatch(match="one", name=""),
             IgnoredMatch(match="two", name=""),
@@ -175,10 +175,11 @@ class TestUserConfig:
             },
         )
         config = Config()
-        assert isinstance(config.iac, IaCConfig)
-        assert config.iac.ignored_paths == {"mypath"}
-        assert config.iac.ignored_policies == {"GG_IAC_0001"}
-        assert config.iac.minimum_severity == "myseverity"
+        iac_config = config.user_config.iac
+        assert isinstance(iac_config, IaCConfig)
+        assert iac_config.ignored_paths == {"mypath"}
+        assert iac_config.ignored_policies == {"GG_IAC_0001"}
+        assert iac_config.minimum_severity == "myseverity"
 
     def test_iac_config_bad_policy_id(self, local_config_path):
         write_yaml(
@@ -221,10 +222,11 @@ class TestUserConfig:
             },
         )
         config = Config()
-        assert isinstance(config.iac, IaCConfig)
-        assert config.iac.ignored_paths == {"myglobalpath", "mypath"}
-        assert config.iac.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
-        assert config.iac.minimum_severity == "myseverity"
+        iac_config = config.user_config.iac
+        assert isinstance(iac_config, IaCConfig)
+        assert iac_config.ignored_paths == {"myglobalpath", "mypath"}
+        assert iac_config.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
+        assert iac_config.minimum_severity == "myseverity"
 
     def test_sca_config(self, local_config_path):
         """
@@ -250,11 +252,12 @@ class TestUserConfig:
             },
         )
         config = Config()
-        assert isinstance(config.sca, SCAConfig)
-        assert config.sca.ignored_paths == {"mypath"}
-        assert config.sca.minimum_severity == "myseverity"
-        assert len(config.sca.ignored_vulnerabilities) == 1
-        assert config.sca.ignored_vulnerabilities[0] == SCAIgnoredVulnerability(
+        sca_config = config.user_config.sca
+        assert isinstance(sca_config, SCAConfig)
+        assert sca_config.ignored_paths == {"mypath"}
+        assert sca_config.minimum_severity == "myseverity"
+        assert len(sca_config.ignored_vulnerabilities) == 1
+        assert sca_config.ignored_vulnerabilities[0] == SCAIgnoredVulnerability(
             identifier="GHSA-aaaa-bbbb-cccc",
             path="Pipfile",
             comment="Not my prob",
@@ -284,8 +287,9 @@ class TestUserConfig:
             },
         )
         config = Config()
-        assert isinstance(config.sca, SCAConfig)
-        assert len(config.sca.ignored_vulnerabilities) == 0
+        sca_config = config.user_config.sca
+        assert isinstance(sca_config, SCAConfig)
+        assert len(sca_config.ignored_vulnerabilities) == 0
 
     def test_sca_config_options_inheritance(
         self, local_config_path, global_config_path
@@ -316,9 +320,10 @@ class TestUserConfig:
             },
         )
         config = Config()
-        assert isinstance(config.sca, SCAConfig)
-        assert config.sca.ignored_paths == {"myglobalpath", "mypath"}
-        assert config.sca.minimum_severity == "myseverity"
+        sca_config = config.user_config.sca
+        assert isinstance(sca_config, SCAConfig)
+        assert sca_config.ignored_paths == {"myglobalpath", "mypath"}
+        assert sca_config.minimum_severity == "myseverity"
 
     def test_sca_config_invalid_identifier(self, local_config_path, capsys):
         """

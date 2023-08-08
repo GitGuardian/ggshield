@@ -1,12 +1,12 @@
 import logging
 import os
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 import click
 
 from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
-from ggshield.core.config.utils import get_attr_mapping, remove_url_trailing_slash
+from ggshield.core.config.utils import remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
 from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
 
@@ -17,50 +17,23 @@ logger = logging.getLogger(__name__)
 class Config:
     """
     Top-level config class. Contains an instance of UserConfig and an instance of
-    AuthConfig with some magic to make it possible to access their fields directly. For
-    example one can do:
-
-    ```
-    config = Config()
-
-    # Access config.user_config.exit_zero
-    print(config.exit_zero)
-
-    # Access config.auth_config.instances
-    print(config.instances)
-    ```
+    AuthConfig.
     """
+
+    __slots__ = ["user_config", "auth_config", "_cmdline_instance_name", "_config_path"]
 
     user_config: UserConfig
     auth_config: AuthConfig
-    _attr_mapping: Mapping[str, str] = get_attr_mapping(
-        [(UserConfig, "user_config"), (AuthConfig, "auth_config")]
-    )
 
     # The instance name, if ggshield is invoked with `--instance`
     _cmdline_instance_name: Optional[str]
+
+    _config_path: str
 
     def __init__(self, config_path: Optional[str] = None):
         self.user_config, self._config_path = UserConfig.load(config_path=config_path)
         self.auth_config = AuthConfig.load()
         self._cmdline_instance_name = None
-
-    def __getattr__(self, name: str) -> Any:
-        try:
-            subconfig_name = self._attr_mapping[name]
-        except KeyError:
-            raise AttributeError(
-                f"'{self.__class__.__name__}' has no attribute '{name}'"
-            )
-        subconfig = getattr(self, subconfig_name)
-        return getattr(subconfig, name)
-
-    def __setattr__(self, key: str, value: Any) -> None:
-        if key[0] == "_" or key in {"user_config", "auth_config"}:
-            self.__dict__[key] = value
-            return
-        subconfig = getattr(self, self._attr_mapping[key])
-        setattr(subconfig, key, value)
 
     def save(self) -> None:
         self.user_config.save(self._config_path)

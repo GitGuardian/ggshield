@@ -6,6 +6,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.scan import ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
@@ -30,7 +31,7 @@ def path_cmd(
     """
     scan files and directories.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)
     try:
         files = get_files_from_paths(
@@ -38,7 +39,7 @@ def path_cmd(
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             recursive=recursive,
             yes=yes,
-            verbose=config.verbose,
+            verbose=config.user_config.verbose,
             # when scanning a path explicitly we should not care if it is a git repository or not
             ignore_git=True,
         )
@@ -52,9 +53,9 @@ def path_cmd(
             scanner = SecretScanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                ignored_matches=config.secret.ignored_matches,
+                ignored_matches=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
-                ignored_detectors=config.secret.ignored_detectors,
+                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
             results = scanner.scan(files.files, scanner_ui=ui)
         scan = SecretScanCollection(
@@ -63,4 +64,4 @@ def path_cmd(
 
         return output_handler.process_scan(scan)
     except Exception as error:
-        return handle_exception(error, config.verbose)
+        return handle_exception(error, config.user_config.verbose)

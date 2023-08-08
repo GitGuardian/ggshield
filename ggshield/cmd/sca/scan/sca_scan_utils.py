@@ -6,7 +6,7 @@ import click
 from pygitguardian.client import _create_tar
 
 from ggshield.cmd.common_options import use_json
-from ggshield.core.config.config import Config
+from ggshield.core.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.file_utils import get_empty_tar
@@ -58,13 +58,13 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
     - Create a tar archive with the required files contents
     - Launches the scan with a call to SCA public API
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     client = SCAClient(ctx.obj["client"])
 
     sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
         directory=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
-        verbose=ctx.obj["config"].verbose,
+        verbose=config.user_config.verbose,
         client=client,
     )
 
@@ -174,7 +174,7 @@ def sca_scan_diff(
     When set to None, the current state is the indexed files currently on disk.
     :return: SCAScanDiffOutput object.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     client = SCAClient(ctx.obj["client"])
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 

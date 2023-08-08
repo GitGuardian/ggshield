@@ -103,7 +103,7 @@ def pypi_cmd(
             archive_dir=temp_dir,
             package_name=package_name,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
-            verbose=config.verbose,
+            verbose=config.user_config.verbose,
         )
 
         with RichSecretScannerUI(len(files.files), dataset_type="PyPI Package") as ui:
@@ -115,9 +115,9 @@ def pypi_cmd(
             scanner = SecretScanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                ignored_matches=config.secret.ignored_matches,
+                ignored_matches=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
-                ignored_detectors=config.secret.ignored_detectors,
+                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
             results = scanner.scan(files.files, scanner_ui=ui)
         scan = SecretScanCollection(id=package_name, type="path_scan", results=results)

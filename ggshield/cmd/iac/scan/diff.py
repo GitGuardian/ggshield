@@ -21,6 +21,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     get_iac_tar,
     handle_scan_error,
 )
+from ggshield.core.config import Config
 from ggshield.core.file_utils import get_empty_tar
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import (
@@ -90,7 +91,7 @@ def iac_scan_diff(
     :return: IacDiffScanResult if the scan was performed; IaCSkipScanResult if the scan
     was skipped (i.e. no IaC files were detected or changed between the two references)
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 
@@ -157,7 +158,8 @@ def iac_scan_diff(
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(
-        config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
+        list(config.user_config.iac.ignored_policies),
+        config.user_config.iac.minimum_severity,
     )
 
     scan = client.iac_diff_scan(

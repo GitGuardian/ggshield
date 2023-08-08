@@ -57,12 +57,12 @@ def scan_repo_path(
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
                 exclusion_regexes=set(),
-                matches_ignore=config.secret.ignored_matches,
+                matches_ignore=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
-                ignored_detectors=config.secret.ignored_detectors,
+                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
     except Exception as error:
-        return handle_exception(error, config.verbose)
+        return handle_exception(error, config.user_config.verbose)
 
 
 def scan_commits_content(

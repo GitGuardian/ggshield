@@ -32,8 +32,8 @@ class TestAuthConfig:
 
         config = Config()
 
-        assert config.instances[0].account.token_name == "my_token"
-        assert config.instances[0].default_token_lifetime == 1
+        assert config.auth_config.instances[0].account.token_name == "my_token"
+        assert config.auth_config.instances[0].default_token_lifetime == 1
         assert config.auth_config.default_token_lifetime == 2
 
         config_data = config.auth_config.to_dict()
@@ -89,7 +89,7 @@ class TestAuthConfig:
 
         config = Config()
 
-        assert config.instances[0].account.expire_at is None
+        assert config.auth_config.instances[0].account.expire_at is None
 
     def test_update(self):
         """
@@ -98,13 +98,13 @@ class TestAuthConfig:
         THEN it's not persisted until .save() is called
         """
         config = Config()
-        config.instance = "custom"
+        config.user_config.instance = "custom"
 
-        assert Config().instance != "custom"
+        assert Config().user_config.instance != "custom"
 
         config.save()
 
-        assert Config().instance == "custom"
+        assert Config().user_config.instance == "custom"
 
     def test_load_file_not_existing(self):
         """
@@ -115,7 +115,7 @@ class TestAuthConfig:
         config = Config()
 
         assert config.instance_name == "https://dashboard.gitguardian.com"
-        assert config.instances == []
+        assert config.auth_config.instances == []
 
     def test_save_file_not_existing(self):
         """
@@ -129,11 +129,11 @@ class TestAuthConfig:
         except FileNotFoundError:
             pass
 
-        config.instance = "custom"
+        config.user_config.instance = "custom"
         config.save()
         updated_config = Config()
 
-        assert updated_config.instance == "custom"
+        assert updated_config.user_config.instance == "custom"
 
     def test_timezone_aware_expired(self):
         """
@@ -143,7 +143,7 @@ class TestAuthConfig:
         """
         write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
         config = Config()
-        assert config.instances[0].account.expire_at.tzinfo is not None
+        assert config.auth_config.instances[0].account.expire_at.tzinfo is not None
 
     def test_init_instance_config_with_expiration_date(self):
         token_data = {

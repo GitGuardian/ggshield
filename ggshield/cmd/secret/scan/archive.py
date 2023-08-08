@@ -42,7 +42,7 @@ def archive_cmd(
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             recursive=True,
             yes=True,
-            verbose=config.verbose,
+            verbose=config.user_config.verbose,
             ignore_git=True,
         )
 
@@ -56,8 +56,8 @@ def archive_cmd(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
                 scan_context=scan_context,
-                ignored_matches=config.secret.ignored_matches,
-                ignored_detectors=config.secret.ignored_detectors,
+                ignored_matches=config.user_config.secret.ignored_matches,
+                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
             results = scanner.scan(files.files, scanner_ui=ui)
 

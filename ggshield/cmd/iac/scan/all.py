@@ -14,6 +14,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     handle_scan_error,
 )
+from ggshield.core.config import Config
 from ggshield.core.text_utils import display_info
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.filter import get_iac_files_from_path
@@ -48,6 +49,8 @@ def scan_all_cmd(
 def iac_scan_all(
     ctx: click.Context, directory: Path
 ) -> Union[IaCScanResult, IaCSkipScanResult, None]:
+    config: Config = ctx.obj["config"]
+
     paths = get_iac_files_from_path(
         path=directory,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
@@ -60,17 +63,16 @@ def iac_scan_all(
     if not paths:
         return IaCSkipScanResult()
 
-    verbose = ctx.obj["config"].verbose
-    if verbose:
+    if config.user_config.verbose:
         display_info("> Scanned files")
         for filepath in paths:
             display_info(f"- {click.format_filename(filepath)}")
 
-    config = ctx.obj["config"]
     client = ctx.obj["client"]
 
     scan_parameters = IaCScanParameters(
-        config.user_config.iac.ignored_policies, config.user_config.iac.minimum_severity
+        list(config.user_config.iac.ignored_policies),
+        config.user_config.iac.minimum_severity,
     )
     # If paths are not sorted, the tar bytes order will be different when calling the function twice
     # Different bytes order will cause different tarfile hash_key resulting in a GIM cache bypass.

@@ -24,7 +24,7 @@ def test_sca_scan_ci_no_commit(
     monkeypatch.setenv("CI", "1")
     collect_commit_range_from_ci_env_mock.return_value = ([], "")
 
-    result = cli_fs_runner.invoke(cli, ["sca", "scan", "ci"])
+    result = cli_fs_runner.invoke(cli, ["sca", "scan", "ci"], catch_exceptions=False)
 
     scan_diff_mock.assert_not_called()
     assert result.exit_code == ExitCode.SUCCESS

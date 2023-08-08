@@ -74,7 +74,7 @@ def scan_group_impl(ctx: click.Context) -> int:
 
     max_commits = get_max_commits_for_hook()
     if max_commits:
-        config.max_commits_for_hook = max_commits
+        config.user_config.max_commits_for_hook = max_commits
 
     return return_code
 

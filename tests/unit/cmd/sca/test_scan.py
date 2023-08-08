@@ -26,7 +26,7 @@ def get_valid_ctx(client: GGClient) -> click.Context:
     Returns a valid click.Context to run sca scan all
     """
     config = Config()
-    config.verbose = False
+    config.user_config.verbose = False
     ctx = click.Context(
         click.Command("sca scan all"),
         obj={"client": client, "exclusion_regexes": [], "config": config},

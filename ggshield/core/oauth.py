@@ -238,7 +238,7 @@ class OAuthClient:
             body=urlparse.urlencode(request_params),
         )
 
-        session = create_session(self.config.allow_self_signed)
+        session = create_session(self.config.user_config.allow_self_signed)
         response = session.post(
             urljoin(self.api_url, "/v1/oauth/token"),
             request_body,
@@ -273,7 +273,7 @@ class OAuthClient:
         response = create_client(
             self._access_token,
             self.api_url,
-            allow_self_signed=self.config.allow_self_signed,
+            allow_self_signed=self.config.user_config.allow_self_signed,
         ).get(endpoint="token")
         if not response.ok:
             raise OAuthError("The created token is invalid.")

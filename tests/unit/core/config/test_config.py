@@ -110,7 +110,7 @@ class TestConfig:
         THEN it raises
         """
         config = Config()
-        config.instance = "toto"
+        config.user_config.instance = "toto"
 
         with pytest.raises(UnknownInstanceError, match="Unknown instance: 'toto'"):
             config.api_key
