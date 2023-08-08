@@ -96,7 +96,7 @@ class TestConfig:
         )
         config = Config()
         if priority >= InstanceNamePriority.CMDLINE:
-            config.set_cmdline_instance_name(INSTANCES[InstanceNamePriority.CMDLINE])
+            config.cmdline_instance_name = INSTANCES[InstanceNamePriority.CMDLINE]
 
         expected_instance = INSTANCES[priority]
         assert config.instance_name == expected_instance
@@ -181,7 +181,7 @@ class TestConfig:
 
         config = Config()
         if cmdline_instance:
-            config.set_cmdline_instance_name(cmdline_instance)
+            config.cmdline_instance_name = cmdline_instance
         if not env_var_instance:
             config.user_config.instance = user_config_instance
 

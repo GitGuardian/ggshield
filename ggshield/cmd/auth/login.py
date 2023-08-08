@@ -125,7 +125,7 @@ def login_cmd(
 
 def token_login(config: Config, instance: Optional[str]) -> None:
     if instance:
-        config.set_cmdline_instance_name(instance)
+        config.cmdline_instance_name = instance
     instance = config.instance_name
     # Override instance to make sure we get a normalized instance name
     instance_config = config.auth_config.get_or_create_instance(instance_name=instance)
@@ -167,7 +167,7 @@ def web_login(
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
     if instance:
-        config.set_cmdline_instance_name(instance)
+        config.cmdline_instance_name = instance
     defined_instance = config.instance_name
     # Override instance to make sure we get a normalized instance name
     config.auth_config.get_or_create_instance(instance_name=defined_instance)
