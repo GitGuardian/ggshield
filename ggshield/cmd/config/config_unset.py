@@ -5,11 +5,11 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
-from .constants import FIELD_OPTIONS
+from .constants import FIELD_NAMES
 
 
 @click.command()
-@click.argument("field_name", nargs=1, type=click.Choice(FIELD_OPTIONS), required=True)
+@click.argument("field_name", nargs=1, type=click.Choice(FIELD_NAMES), required=True)
 @click.option(
     "--instance",
     "instance_url",
@@ -21,7 +21,7 @@ from .constants import FIELD_OPTIONS
 @click.option("--all", "all_", is_flag=True, help="Iterate over every instances.")
 @add_common_options()
 @click.pass_context
-def config_unset_command(
+def config_unset_cmd(
     ctx: click.Context,
     field_name: str,
     instance_url: Optional[str],

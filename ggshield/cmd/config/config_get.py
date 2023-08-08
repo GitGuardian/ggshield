@@ -3,13 +3,13 @@ from typing import Any, Optional
 import click
 
 from ggshield.cmd.common_options import add_common_options
-from ggshield.cmd.config.constants import FIELD_OPTIONS
+from ggshield.cmd.config.constants import FIELD_NAMES
 from ggshield.core.config import Config
 from ggshield.core.errors import UnknownInstanceError
 
 
 @click.command()
-@click.argument("field_name", nargs=1, type=click.Choice(FIELD_OPTIONS), required=True)
+@click.argument("field_name", nargs=1, type=click.Choice(FIELD_NAMES), required=True)
 @click.option(
     "--instance",
     "instance_url",
@@ -20,7 +20,7 @@ from ggshield.core.errors import UnknownInstanceError
 )
 @add_common_options()
 @click.pass_context
-def config_get_command(
+def config_get_cmd(
     ctx: click.Context, field_name: str, instance_url: Optional[str], **kwargs: Any
 ) -> int:
     """

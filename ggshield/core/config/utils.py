@@ -1,14 +1,29 @@
 import os
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    overload,
+)
 
 import yaml
 import yaml.parser
 import yaml.scanner
 
-from ggshield.core.constants import AUTH_CONFIG_FILENAME
-from ggshield.core.dirs import get_config_dir
+from ggshield.core.constants import (
+    AUTH_CONFIG_FILENAME,
+    DEFAULT_CONFIG_FILENAME,
+    USER_CONFIG_FILENAMES,
+)
+from ggshield.core.dirs import get_config_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
 
 
@@ -58,7 +73,41 @@ def get_auth_config_filepath() -> str:
 
 
 def get_global_path(filename: str) -> str:
-    return os.path.join(os.path.expanduser("~"), filename)
+    return os.path.join(get_user_home_dir(), filename)
+
+
+@overload
+def find_global_config_path(*, to_write: Literal[False] = False) -> Optional[str]:
+    ...
+
+
+@overload
+def find_global_config_path(*, to_write: Literal[True]) -> str:
+    ...
+
+
+def find_global_config_path(*, to_write: bool = False) -> Optional[str]:
+    """
+    Returns the path to the user global config file (the file in the user home
+    directory).
+    If there is no such file:
+    - If `to_write` is False, returns None.
+    - If `to_write` is True, returns the path to the default file.
+
+    This means the function never returns None if `to_write` is True.
+    """
+    for filename in USER_CONFIG_FILENAMES:
+        path = get_global_path(filename)
+        if os.path.exists(path):
+            return path
+    return get_global_path(DEFAULT_CONFIG_FILENAME) if to_write else None
+
+
+def find_local_config_path() -> Optional[str]:
+    for filename in USER_CONFIG_FILENAMES:
+        if os.path.exists(filename):
+            return filename
+    return None
 
 
 def update_from_other_instance(dst: Any, src: Any) -> None:

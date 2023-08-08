@@ -5,7 +5,10 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.core.config import Config
+from ggshield.core.config.user_config import UserConfig
+from ggshield.core.config.utils import find_global_config_path
 from ggshield.core.errors import ExitCode
+from ggshield.secret.repo import cd
 
 from .utils import add_instance_config
 
@@ -38,19 +41,12 @@ expiry: not set
 """
 
 
-@pytest.fixture(autouse=True)
-def tmp_config(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "ggshield.core.config.utils.get_config_dir", lambda: str(tmp_path)
-    )
-
-
-class TestAuthConfigList:
+class TestConfigList:
     def test_valid_list(self, cli_fs_runner):
         """
-        GIVEN several auth config saved
-        WHEN calling ggshield auth config list command
-        THEN all config should be listed with the correct format
+        GIVEN several config saved
+        WHEN calling `ggshield config list` command
+        THEN all configs should be listed with the correct format
         """
 
         # May 4th
@@ -80,13 +76,13 @@ class TestAuthConfigList:
         return result.exit_code, result.output
 
 
-class TestAuthConfigSet:
+class TestConfigSet:
     @pytest.mark.parametrize("value", [0, 365])
     def test_set_lifetime_default_config_value(self, value, cli_fs_runner):
         """
         GIVEN a saved protected config
         WHEN running the set command with a valid param and no instance specified
-        THEN the default config speficied field value be saved
+        THEN the default config specified field value be saved
         AND other instance configs must not be affected
         """
         unchanged_value = 42
@@ -109,7 +105,7 @@ class TestAuthConfigSet:
         """
         GIVEN a saved protected config
         WHEN running the set command with a valid param and the instance specified
-        THEN the instance's speficied field value be saved
+        THEN the instance's specified field value be saved
         AND other configs must not be affected
         """
         unchanged_value = 4
@@ -150,15 +146,7 @@ class TestAuthConfigSet:
         default_value = Config().auth_config.default_token_lifetime
 
         exit_code, output = self.run_cmd(cli_fs_runner, 0, param="invalid_field_name")
-
         assert exit_code == ExitCode.USAGE_ERROR, output
-        expected_output = (
-            "Usage: cli config set [OPTIONS] {default_token_lifetime} VALUE\n"
-            "Try 'cli config set -h' for help.\n\n"
-            "Error: Invalid value for '{default_token_lifetime}': 'invalid_field_name' "
-            "is not 'default_token_lifetime'.\n"
-        )
-        assert output == expected_output
 
         config = Config()
         assert (
@@ -177,7 +165,7 @@ class TestAuthConfigSet:
         exit_code, output = self.run_cmd(cli_fs_runner, "wrong_value")
 
         assert exit_code == ExitCode.USAGE_ERROR, output
-        assert "Error: default_token_lifetime must be an int" in output
+        assert "Error: Invalid value: default_token_lifetime must be an int" in output
 
         config = Config()
         assert (
@@ -205,6 +193,38 @@ class TestAuthConfigSet:
             config.auth_config.default_token_lifetime == default_value
         ), "The instance config should remain unchanged"
 
+    def test_set_instance(self, cli_fs_runner, tmp_path):
+        """
+        GIVEN no global user config
+        AND a local user config
+        WHEN running the set command to set the instance
+        THEN the instance is stored in the global user config
+        AND the global user config contains only the instance
+        """
+        instance = "https://example.com"
+
+        assert find_global_config_path() is None
+
+        with cd(str(tmp_path)):
+            # Create a local user config file, its content should not end up in the
+            # global user config file
+            config = Config()
+            config.user_config.debug = True
+            config.save()
+
+            exit_code, output = self.run_cmd(cli_fs_runner, instance, param="instance")
+            assert exit_code == ExitCode.SUCCESS, output
+
+            # Explicitly load the global user config instead of using Config to ensure
+            # the instance is stored where we expect it to be stored.
+            config_path = find_global_config_path()
+            config, _ = UserConfig.load(config_path)
+            assert config.instance == instance
+            # Check we did not save the local config to the global one
+            assert (
+                not config.debug
+            ), "`config set` saved the local config to the global one"
+
     @staticmethod
     def run_cmd(
         cli_fs_runner, value, param="default_token_lifetime", instance_url=None
@@ -216,12 +236,12 @@ class TestAuthConfigSet:
         return result.exit_code, result.output
 
 
-class TestAuthConfigUnset:
+class TestConfigUnset:
     def test_unset_lifetime_instance_config_value(self, cli_fs_runner):
         """
         GIVEN a saved protected config
         WHEN running the unset command with the instance specified
-        THEN the speficied field value must be erased from this config
+        THEN the specified field value must be erased from this config
         AND other configs must not be affected
         """
         unchanged_value = 42
@@ -257,7 +277,7 @@ class TestAuthConfigUnset:
         """
         GIVEN a saved protected config
         WHEN running the unset command with no instance specified
-        THEN the speficied field value must be erased from the default config
+        THEN the specified field value must be erased from the default config
         AND other configs must not be affected
         """
         unchanged_value = 42
@@ -278,7 +298,7 @@ class TestAuthConfigUnset:
         """
         GIVEN saved protected configs
         WHEN running the unset command with --all option
-        THEN the speficied field value must be erased from all configs
+        THEN the specified field value must be erased from all configs
         (per instance and default)
         """
         second_instance = "https://some-gg-instance.com"
@@ -305,7 +325,7 @@ class TestAuthConfigUnset:
         """
         GIVEN -
         WHEN running the unset command with an unknown instance
-        THEN the command shoud exit with and error
+        THEN the command should exit with and error
         AND no config must ne affected
         """
         instance_url = "https://some-invalid-gg-instance.com"
@@ -335,7 +355,7 @@ class TestAuthConfigUnset:
         return result.exit_code, result.output
 
 
-class TestAuthConfigGet:
+class TestConfigGet:
     @pytest.mark.parametrize(
         ["default_value", "instance_value", "expected_value"],
         [
@@ -412,7 +432,7 @@ class TestAuthConfigGet:
         """
         GIVEN -
         WHEN running the get command with an unknown instance
-        THEN the command shoud exit with and error
+        THEN the command should exit with and error
         """
         instance_url = "https://some-invalid-gg-instance.com"
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
@@ -420,21 +440,14 @@ class TestAuthConfigGet:
         assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
         assert output == f"Error: Unknown instance: '{instance_url}'\n"
 
-    def test_set_invalid_field_name(self, cli_fs_runner):
+    def test_get_invalid_field_name(self, cli_fs_runner):
         """
         GIVEN _
-        WHEN running the set command with an invalid field name
+        WHEN running the get command with an invalid field name
         THEN the command should exit with an error
         """
         exit_code, output = self.run_cmd(cli_fs_runner, param="invalid_field_name")
         assert exit_code == ExitCode.USAGE_ERROR, output
-        expected_output = (
-            "Usage: cli config get [OPTIONS] {default_token_lifetime}\n"
-            "Try 'cli config get -h' for help.\n\n"
-            "Error: Invalid value for '{default_token_lifetime}': 'invalid_field_name' "
-            "is not 'default_token_lifetime'.\n"
-        )
-        assert output == expected_output
 
     @staticmethod
     def run_cmd(cli_fs_runner, param="default_token_lifetime", instance_url=None):
