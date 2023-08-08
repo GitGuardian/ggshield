@@ -405,8 +405,14 @@ def diff_scan_summary(
         count = Counter(
             incident.severity for entry in entries for incident in entry.incidents
         )
+        severity_order = {
+            k: i for i, k in enumerate(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+        }
         formatted_count = [
-            format_text(f"{key}: {val}", _get_style(key)) for key, val in count.items()
+            format_text(f"{key}: {val}", _get_style(key))
+            for key, val in sorted(
+                count.items(), key=lambda x: severity_order.get(x[0], -1)
+            )
         ]
         if len(formatted_count) == 0:
             return ""
