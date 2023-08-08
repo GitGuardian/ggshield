@@ -19,7 +19,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
-from ggshield.core.git_shell import check_git_dir
+from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
 from ggshield.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -68,6 +68,24 @@ def scan_ci_cmd(
         click.echo("DEBUG: Commits to scan:", err=True)
         for nbr, cmt in enumerate(collect_commit_range_from_ci_env(config.verbose)[0]):
             click.echo(f"DEBUG:    {nbr}     {cmt}", err=True)
+
+        test_commits = get_list_commit_SHA("..HEAD~1", max_count=10)
+        click.echo("\n", err=True)
+        for cmm in test_commits:
+            click.echo(f"DEBUG:    {cmm}", err=True)
+
+        for vv, nn in os.environ.items():
+            click.echo(f"{vv}, {nn}", err=True)
+
+        mybranch_last_commit = get_list_commit_SHA(
+            os.getenv("GITHUB_HEAD_REF"), max_count=1
+        )
+        click.echo(f"DEBUG: my branch last state {mybranch_last_commit}", err=True)
+
+        mybranch_last_commit = get_list_commit_SHA(
+            os.getenv("GITHUB_BASE_REF"), max_count=1
+        )
+        click.echo(f"DEBUG: main last state {mybranch_last_commit}", err=True)
 
         commit_count = len(
             collect_commit_range_from_ci_env(config.user_config.verbose)[0]
