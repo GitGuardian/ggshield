@@ -58,9 +58,9 @@ def _execute_prereceive(
             commit_list=commit_list,
             output_handler=output_handler,
             exclusion_regexes=exclusion_regexes,
-            matches_ignore=config.secret.ignored_matches,
+            matches_ignore=config.user_config.secret.ignored_matches,
             scan_context=scan_context,
-            ignored_detectors=config.secret.ignored_detectors,
+            ignored_detectors=config.user_config.secret.ignored_detectors,
         )
         if return_code:
             click.echo(
@@ -73,7 +73,7 @@ def _execute_prereceive(
             )
         sys.exit(return_code)
     except Exception as error:
-        sys.exit(handle_exception(error, config.verbose))
+        sys.exit(handle_exception(error, config.user_config.verbose))
 
 
 @click.command()
@@ -93,13 +93,13 @@ def prereceive_cmd(
     """
     scan as a pre-receive git hook.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
         output_handler = SecretGitLabWebUIOutputHandler(
-            show_secrets=config.secret.show_secrets,
-            ignore_known_secrets=config.secret.ignore_known_secrets,
+            show_secrets=config.user_config.secret.show_secrets,
+            ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
         )
 
     if get_breakglass_option():
@@ -112,19 +112,19 @@ def prereceive_cmd(
         before, after = before_after
 
     commit_list = get_list_commit_SHA(
-        f"{before}...{after}", max_count=config.max_commits_for_hook + 1
+        f"{before}...{after}", max_count=config.user_config.max_commits_for_hook + 1
     )
 
     assert commit_list, "Commit list should not be empty at this point"
 
-    if len(commit_list) > config.max_commits_for_hook:
+    if len(commit_list) > config.user_config.max_commits_for_hook:
         click.echo(
-            f"Too many commits. Scanning last {config.max_commits_for_hook} commits\n",
+            f"Too many commits. Scanning last {config.user_config.max_commits_for_hook} commits\n",
             err=True,
         )
-        commit_list = commit_list[-config.max_commits_for_hook :]
+        commit_list = commit_list[-config.user_config.max_commits_for_hook :]
 
-    if config.verbose:
+    if config.user_config.verbose:
         click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
     process = multiprocessing.Process(

@@ -10,6 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     update_context,
 )
+from ggshield.core.config import Config
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.text_utils import display_warning
 
@@ -42,8 +43,8 @@ def scan_ci_cmd(
         result = iac_scan_all(ctx, directory)
         return display_iac_scan_all_result(ctx, directory, result)
 
-    config = ctx.obj["config"]
-    commit_list, _ = collect_commit_range_from_ci_env(config.verbose)
+    config: Config = ctx.obj["config"]
+    commit_list, _ = collect_commit_range_from_ci_env(config.user_config.verbose)
     reference, current_ref = commit_list[0], commit_list[-1]
 
     # If we failed to fetch a current reference, we set it to HEAD

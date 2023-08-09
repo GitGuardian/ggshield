@@ -44,7 +44,7 @@ def logout_cmd(
     If not specified, ggshield will logout from the default instance.
     The `--all` option can be used if you want to logout from all your GitGuardian instances.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
 
     if all_:
         for _instance in config.auth_config.instances:
@@ -90,7 +90,7 @@ def revoke_token(config: Config, instance_url: str) -> None:
     client = create_client(
         token,
         dashboard_to_api_url(instance_url),
-        allow_self_signed=config.allow_self_signed,
+        allow_self_signed=config.user_config.allow_self_signed,
     )
     try:
         response = client.post(endpoint="token/revoke")

@@ -44,7 +44,10 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     exit_code guarantees that the return value of a scan is 0
     when exit_zero is enabled
     """
-    if exit_code == ExitCode.SCAN_FOUND_PROBLEMS and ctx.obj["config"].exit_zero:
+    if (
+        exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+        and ctx.obj["config"].user_config.exit_zero
+    ):
         logger.debug("scan exit_code forced to 0")
         sys.exit(ExitCode.SUCCESS)
 
@@ -101,11 +104,11 @@ def cli(
 ) -> None:
     load_dot_env()
 
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
 
     _set_color(ctx)
 
-    if config.debug:
+    if config.user_config.debug:
         # if `debug` is set in the configuration file, then setup logs now.
         setup_debug_logs(filename=None)
 

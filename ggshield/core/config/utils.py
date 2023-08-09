@@ -1,18 +1,7 @@
 import os
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    overload,
-)
+from typing import Any, Dict, List, Literal, Optional, Union, overload
 
 import yaml
 import yaml.parser
@@ -133,20 +122,6 @@ def update_from_other_instance(dst: Any, src: Any) -> None:
 
 def ensure_path_exists(dir_path: str) -> None:
     Path(dir_path).mkdir(parents=True, exist_ok=True)
-
-
-def get_attr_mapping(classes: Iterable[Tuple[Type[Any], str]]) -> Dict[str, str]:
-    """
-    Return a mapping from a field name to the correct class
-    raise an AssertionError if there is a field name collision
-    """
-    mapping = {}
-    for klass, attr_name in classes:
-        assert is_dataclass(klass)
-        for field_ in fields(klass):
-            assert field_.name not in mapping, f"Conflict with field '{field_.name}'"
-            mapping[field_.name] = attr_name
-    return mapping
 
 
 def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:

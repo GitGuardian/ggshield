@@ -9,6 +9,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.core.cache import ReadOnlyCache
+from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.git_shell import check_git_dir
@@ -23,7 +24,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     scan in a CI environment.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     try:
         check_git_dir()
         if not (
@@ -33,10 +34,12 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
                 "`secret scan ci` should only be used in a CI environment."
             )
 
-        commit_list, ci_mode = collect_commit_range_from_ci_env(config.verbose)
+        commit_list, ci_mode = collect_commit_range_from_ci_env(
+            config.user_config.verbose
+        )
         mode_header = f"{ScanMode.CI.value}/{ci_mode.value}"
 
-        if config.verbose:
+        if config.user_config.verbose:
             click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
         scan_context = ScanContext(
@@ -51,9 +54,9 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
             commit_list=commit_list,
             output_handler=create_output_handler(ctx),
             exclusion_regexes=ctx.obj["exclusion_regexes"],
-            matches_ignore=config.secret.ignored_matches,
+            matches_ignore=config.user_config.secret.ignored_matches,
             scan_context=scan_context,
-            ignored_detectors=config.secret.ignored_detectors,
+            ignored_detectors=config.user_config.secret.ignored_detectors,
         )
     except Exception as error:
-        return handle_exception(error, config.verbose)
+        return handle_exception(error, config.user_config.verbose)

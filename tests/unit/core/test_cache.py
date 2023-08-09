@@ -85,4 +85,4 @@ class TestCache:
             file.write(yaml.dump({"max-commits-for-hook": 75}))
 
         config = Config()
-        assert config.max_commits_for_hook == 75
+        assert config.user_config.max_commits_for_hook == 75

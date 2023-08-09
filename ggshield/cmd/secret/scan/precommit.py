@@ -5,6 +5,7 @@ import click
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
 )
+from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import check_git_dir
 from ggshield.scan import Commit, ScanContext, ScanMode
@@ -36,12 +37,12 @@ def precommit_cmd(
     """
     scan as a pre-commit git hook.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     output_handler = SecretTextOutputHandler(
-        show_secrets=config.secret.show_secrets,
-        verbose=config.verbose,
+        show_secrets=config.user_config.secret.show_secrets,
+        verbose=config.user_config.verbose,
         output=None,
-        ignore_known_secrets=config.secret.ignore_known_secrets,
+        ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
     )
     try:
         check_git_dir()
@@ -56,8 +57,8 @@ def precommit_cmd(
             client=ctx.obj["client"],
             cache=ctx.obj["cache"],
             scan_context=scan_context,
-            ignored_matches=config.secret.ignored_matches,
-            ignored_detectors=config.secret.ignored_detectors,
+            ignored_matches=config.user_config.secret.ignored_matches,
+            ignored_detectors=config.user_config.secret.ignored_detectors,
         )
         results = scanner.scan(commit.files)
 
@@ -75,4 +76,4 @@ def precommit_cmd(
             )
         return return_code
     except Exception as error:
-        return handle_exception(error, config.verbose)
+        return handle_exception(error, config.user_config.verbose)

@@ -11,6 +11,7 @@ from ggshield.core.config.auth_config import (
     prepare_auth_config_dict_for_save,
 )
 from ggshield.core.config.utils import get_auth_config_filepath, replace_in_keys
+from ggshield.core.errors import UnknownInstanceError
 from tests.unit.conftest import write_text, write_yaml
 from tests.unit.core.config.conftest import TEST_AUTH_CONFIG
 
@@ -32,8 +33,8 @@ class TestAuthConfig:
 
         config = Config()
 
-        assert config.instances[0].account.token_name == "my_token"
-        assert config.instances[0].default_token_lifetime == 1
+        assert config.auth_config.instances[0].account.token_name == "my_token"
+        assert config.auth_config.instances[0].default_token_lifetime == 1
         assert config.auth_config.default_token_lifetime == 2
 
         config_data = config.auth_config.to_dict()
@@ -89,7 +90,7 @@ class TestAuthConfig:
 
         config = Config()
 
-        assert config.instances[0].account.expire_at is None
+        assert config.auth_config.instances[0].account.expire_at is None
 
     def test_update(self):
         """
@@ -98,13 +99,15 @@ class TestAuthConfig:
         THEN it's not persisted until .save() is called
         """
         config = Config()
-        config.instance = "custom"
+        config.auth_config.get_or_create_instance("custom")
 
-        assert Config().instance != "custom"
+        with pytest.raises(UnknownInstanceError):
+            Config().auth_config.get_instance("custom")
 
         config.save()
 
-        assert Config().instance == "custom"
+        instance = Config().auth_config.get_instance("custom")
+        assert instance.url == "custom"
 
     def test_load_file_not_existing(self):
         """
@@ -115,25 +118,24 @@ class TestAuthConfig:
         config = Config()
 
         assert config.instance_name == "https://dashboard.gitguardian.com"
-        assert config.instances == []
+        assert config.auth_config.instances == []
 
     def test_save_file_not_existing(self):
         """
         GIVEN a config object and the auth config file not existing
         WHEN saving the config
-        THEN it works and when loading the config again it has the correct values
+        THEN it works
+        AND when loading the config again it has the correct values
         """
         config = Config()
-        try:
-            os.remove(get_auth_config_filepath())
-        except FileNotFoundError:
-            pass
+        assert not os.path.exists(get_auth_config_filepath())
 
-        config.instance = "custom"
+        config.auth_config.get_or_create_instance("custom")
         config.save()
         updated_config = Config()
 
-        assert updated_config.instance == "custom"
+        instance = updated_config.auth_config.get_instance("custom")
+        assert instance.url == "custom"
 
     def test_timezone_aware_expired(self):
         """
@@ -143,7 +145,7 @@ class TestAuthConfig:
         """
         write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
         config = Config()
-        assert config.instances[0].account.expire_at.tzinfo is not None
+        assert config.auth_config.instances[0].account.expire_at.tzinfo is not None
 
     def test_init_instance_config_with_expiration_date(self):
         token_data = {

@@ -35,7 +35,9 @@ https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
         else:
             raise
 
-    return create_client(api_key, api_url, allow_self_signed=config.allow_self_signed)
+    return create_client(
+        api_key, api_url, allow_self_signed=config.user_config.allow_self_signed
+    )
 
 
 def create_client(

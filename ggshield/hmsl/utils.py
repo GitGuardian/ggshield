@@ -47,7 +47,7 @@ def get_token(config: Config) -> Optional[str]:
         client = create_client(
             api_url=config.saas_api_url,
             api_key=config.saas_api_key,
-            allow_self_signed=config.allow_self_signed,
+            allow_self_signed=config.user_config.allow_self_signed,
         )
         audience = config.hmsl_audience
     except (MissingTokenError, AuthExpiredError):

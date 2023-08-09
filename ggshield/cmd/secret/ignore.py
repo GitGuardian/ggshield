@@ -25,7 +25,7 @@ def ignore_cmd(
     Ignore some secrets.
     """
     if last_found:
-        config = ctx.obj["config"]
+        config: Config = ctx.obj["config"]
         cache = ctx.obj["cache"]
         nb = ignore_last_found(config, cache)
         path = config.config_path

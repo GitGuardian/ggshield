@@ -43,14 +43,14 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
         scanner = SecretScanner(
             client=client,
             cache=cache,
-            ignored_matches=config.secret.ignored_matches,
+            ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=ScanContext(
                 scan_mode=ScanMode.COMMIT_RANGE,
                 command_path="external",
             ),
         )
         scanner.scan(c.files)
-    assert config.secret.ignored_matches == list()
+    assert config.user_config.secret.ignored_matches == list()
 
     cache_found_secrets = sorted(cache.last_found_secrets, key=compare_matches_ignore)
     found_secrets = sorted(FOUND_SECRETS, key=compare_matches_ignore)
@@ -59,7 +59,7 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
         found_secret.match for found_secret in found_secrets
     ]
     ignore_last_found(config, cache)
-    for ignore in config.secret.ignored_matches:
+    for ignore in config.user_config.secret.ignored_matches:
         assert "test.txt" in ignore.name
     cache.load_cache()
 
@@ -73,7 +73,7 @@ def test_cache_catches_nothing(client, isolated_fs):
     c = Commit()
     c._patch = _MULTIPLE_SECRETS_PATCH
     config = Config()
-    config.secret.ignored_matches = FOUND_SECRETS
+    config.user_config.secret.ignored_matches = FOUND_SECRETS
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
 
@@ -81,7 +81,7 @@ def test_cache_catches_nothing(client, isolated_fs):
         scanner = SecretScanner(
             client=client,
             cache=cache,
-            ignored_matches=config.secret.ignored_matches,
+            ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=ScanContext(
                 scan_mode=ScanMode.COMMIT_RANGE,
                 command_path="external",
@@ -90,7 +90,7 @@ def test_cache_catches_nothing(client, isolated_fs):
         results = scanner.scan(c.files)
 
         assert results.results == []
-        assert config.secret.ignored_matches == FOUND_SECRETS
+        assert config.user_config.secret.ignored_matches == FOUND_SECRETS
         assert cache.last_found_secrets == []
 
 
@@ -106,7 +106,9 @@ def test_ignore_last_found(client, isolated_fs):
     cache.last_found_secrets = FOUND_SECRETS
     ignore_last_found(config, cache)
 
-    matches_ignore = sorted(config.secret.ignored_matches, key=compare_matches_ignore)
+    matches_ignore = sorted(
+        config.user_config.secret.ignored_matches, key=compare_matches_ignore
+    )
 
     found_secrets = sorted(FOUND_SECRETS, key=compare_matches_ignore)
 
@@ -124,13 +126,17 @@ def test_ignore_last_found_with_manually_added_secrets(client, isolated_fs):
         "41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8"
     )
     config = Config()
-    config.secret.ignored_matches = [IgnoredMatch(name="", match=manually_added_secret)]
+    config.user_config.secret.ignored_matches = [
+        IgnoredMatch(name="", match=manually_added_secret)
+    ]
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
 
     ignore_last_found(config, cache)
 
-    matches_ignore = sorted(config.secret.ignored_matches, key=compare_matches_ignore)
+    matches_ignore = sorted(
+        config.user_config.secret.ignored_matches, key=compare_matches_ignore
+    )
 
     found_secrets = sorted(FOUND_SECRETS, key=compare_matches_ignore)
     assert matches_ignore == found_secrets
@@ -182,17 +188,19 @@ def test_ignore_last_found_preserve_previous_config(client, isolated_fs):
     ]
 
     previous_paths = {"some_path", "some_other_path"}
-    config.secret.ignored_matches = previous_secrets.copy()
-    config.secret.ignored_paths = previous_paths
-    config.exit_zero = True
+    config.user_config.secret.ignored_matches = previous_secrets.copy()
+    config.user_config.secret.ignored_paths = previous_paths
+    config.user_config.exit_zero = True
 
     cache = Cache()
     cache.last_found_secrets = FOUND_SECRETS
     ignore_last_found(config, cache)
-    matches_ignore = sorted(config.secret.ignored_matches, key=compare_matches_ignore)
+    matches_ignore = sorted(
+        config.user_config.secret.ignored_matches, key=compare_matches_ignore
+    )
 
     found_secrets = sorted(FOUND_SECRETS + previous_secrets, key=compare_matches_ignore)
 
     assert matches_ignore == found_secrets
-    assert config.secret.ignored_paths == previous_paths
-    assert config.exit_zero is True
+    assert config.user_config.secret.ignored_paths == previous_paths
+    assert config.user_config.exit_zero is True

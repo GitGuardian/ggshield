@@ -8,6 +8,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.scan import ScanContext, ScanMode, Scannable, StringScannable
@@ -60,7 +61,7 @@ def docset_cmd(
     """
     scan docset JSONL files.
     """
-    config = ctx.obj["config"]
+    config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)
     try:
         with create_progress_bar(doc_type="files") as progress:
@@ -72,9 +73,9 @@ def docset_cmd(
             scanner = SecretScanner(
                 client=ctx.obj["client"],
                 cache=ctx.obj["cache"],
-                ignored_matches=config.secret.ignored_matches,
+                ignored_matches=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
-                ignored_detectors=config.secret.ignored_detectors,
+                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
             task_scan = progress.add_task(
                 "[green]Scanning content...", total=len(files)
@@ -82,7 +83,7 @@ def docset_cmd(
             scans = create_scans_from_docset_files(
                 scanner=scanner,
                 input_files=files,
-                verbose=config.verbose,
+                verbose=config.user_config.verbose,
                 progress_callback=partial(progress.update, task_scan),
             )
 
@@ -90,4 +91,4 @@ def docset_cmd(
             SecretScanCollection(id=scan_context.command_id, type="docset", scans=scans)
         )
     except Exception as error:
-        return handle_exception(error, config.verbose)
+        return handle_exception(error, config.user_config.verbose)
