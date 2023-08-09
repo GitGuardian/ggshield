@@ -6,7 +6,7 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from ggshield.core.git_hooks.ci import gitlab_ci_range
+from ggshield.core.git_hooks.ci.commit_range import gitlab_ci_range
 from ggshield.core.utils import EMPTY_SHA
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
@@ -19,7 +19,7 @@ def clear_current_ci_envs(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
 
 
-@patch("ggshield.core.git_hooks.ci.get_list_commit_SHA")
+@patch("ggshield.core.git_hooks.ci.commit_range.get_list_commit_SHA")
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")
 @pytest.mark.parametrize(
     "env,expected_parameter",
@@ -90,7 +90,7 @@ def test_gitlab_ci_range(
 
 
 @patch("ggshield.cmd.secret.scan.ci.scan_commit_range")
-@patch("ggshield.core.git_hooks.ci.get_list_commit_SHA")
+@patch("ggshield.core.git_hooks.ci.commit_range.get_list_commit_SHA")
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")
 @pytest.mark.parametrize(
     ("env", "expected_mode"),

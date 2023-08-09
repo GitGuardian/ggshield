@@ -220,6 +220,23 @@ def get_list_commit_SHA(
     return commit_list
 
 
+def get_last_commit_sha_of_branch(branch_name: str) -> Optional[str]:
+    """
+    Returns the last commit sha of the given branch, or None
+    if no commit could be found
+    """
+    # The branch is not directly available in CI env
+    # We need to get commits through remotes
+    last_target_commit = get_list_commit_SHA(branch_name, max_count=1)
+
+    # Unable to find a commit on this branch
+    # Consider it empty
+    if not last_target_commit:
+        return None
+
+    return last_target_commit[0]
+
+
 def get_filepaths_from_ref(ref: str, wd: Optional[str] = None) -> List[Path]:
     """
     Fetches a list of all file paths indexed at a given reference in a git repository.

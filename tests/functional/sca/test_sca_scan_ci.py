@@ -9,7 +9,7 @@ def test_scan_ci_diff(tmp_path: Path, monkeypatch, pipfile_lock_with_vuln) -> No
     GIVEN a repository with a commit containing a vuln,
     two clean commits on top of it, and a CI env
     WHEN scanning the last two commits, it's OK
-    WHEN scanning the commit containing the vuln
+    WHEN scanning the last three commits, including the vuln
     THEN the vuln is found
     """
     repo = Repository.create(tmp_path)
@@ -26,10 +26,10 @@ def test_scan_ci_diff(tmp_path: Path, monkeypatch, pipfile_lock_with_vuln) -> No
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
-    monkeypatch.setenv("CI_COMMIT_BEFORE_SHA", "HEAD~1")
+    monkeypatch.setenv("CI_COMMIT_BEFORE_SHA", "HEAD~2")
     run_ggshield_sca_scan("ci", expected_code=0, cwd=repo.path)
 
-    monkeypatch.setenv("CI_COMMIT_BEFORE_SHA", "HEAD~2")
+    monkeypatch.setenv("CI_COMMIT_BEFORE_SHA", "HEAD~3")
     proc = run_ggshield_sca_scan("ci", expected_code=1, cwd=repo.path)
     assert "> Pipfile.lock: 1 incident detected" in proc.stdout
     assert (
