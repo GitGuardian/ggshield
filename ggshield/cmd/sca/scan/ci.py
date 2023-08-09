@@ -87,6 +87,7 @@ def scan_ci_cmd(
             "GITHUB_PUSH_REF",
             "GITHUB_DEFAULT_BRANCH",
         ]
+        click.echo("toto")
         for env_var in myenvs:
             click.echo(f"ENV VARS: {env_var}: {os.getenv(env_var)}", err=True)
 
