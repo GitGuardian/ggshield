@@ -65,8 +65,35 @@ def scan_ci_cmd(
 
         check_git_dir()
 
+        ###############################################
+        # Debug part
+
+        myenvs = [
+            # PR Vars
+            "GITHUB_PULL_BASE_SHA",
+            "GH_PR_ADDITIONS",
+            "GH_PR_BASE_LABEL",
+            "GH_PR_BASE_REF",
+            "GH_PR_BASE_SHA",
+            "GH_PR_HEAD_LABEL",
+            "GH_PR_HEAD_REF",
+            "GH_PR_HEAD_SHA",
+            "GH_PR_MERGE_COMMIT_SHA",
+            # Push vars
+            "GITHUB_PUSH_BEFORE_SHA",
+            "GITHUB_PUSH_AFTER_SHA",
+            "GITHUB_PUSH_FORCED",
+            "GITHUB_PUSH_BASE_SHA",
+            "GITHUB_PUSH_REF",
+            "GITHUB_DEFAULT_BRANCH",
+        ]
+        for env_var in myenvs:
+            click.echo(f"ENV VARS: {env_var}: {os.getenv(env_var)}", err=True)
+
         click.echo("DEBUG: Commits to scan:", err=True)
-        for nbr, cmt in enumerate(collect_commit_range_from_ci_env(config.verbose)[0]):
+        for nbr, cmt in enumerate(
+            collect_commit_range_from_ci_env(config.user_config.verbose)[0]
+        ):
             click.echo(f"DEBUG:    {nbr}     {cmt}", err=True)
 
         test_commits = get_list_commit_SHA("..HEAD~1", max_count=10)
@@ -74,18 +101,20 @@ def scan_ci_cmd(
         for cmm in test_commits:
             click.echo(f"DEBUG:    {cmm}", err=True)
 
-        for vv, nn in os.environ.items():
-            click.echo(f"{vv}, {nn}", err=True)
+        # My branch
+        mybranch = os.getenv("GITHUB_HEAD_REF")
+        click.echo(f"DEBUG : mybranch {mybranch}", err=True)
 
-        mybranch_last_commit = get_list_commit_SHA(
-            os.getenv("GITHUB_HEAD_REF"), max_count=1
-        )
+        mybranch_last_commit = get_list_commit_SHA(mybranch, max_count=1)
         click.echo(f"DEBUG: my branch last state {mybranch_last_commit}", err=True)
 
-        mybranch_last_commit = get_list_commit_SHA(
-            os.getenv("GITHUB_BASE_REF"), max_count=1
-        )
-        click.echo(f"DEBUG: main last state {mybranch_last_commit}", err=True)
+        # Main
+        main = os.getenv("GITHUB_BASE_REF")
+        main_last_commit = get_list_commit_SHA(main, max_count=1)
+        click.echo(f"DEBUG: main last state {main_last_commit}", err=True)
+
+        # Back to normal
+        ###############################################
 
         commit_count = len(
             collect_commit_range_from_ci_env(config.user_config.verbose)[0]
