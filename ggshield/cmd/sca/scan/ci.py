@@ -19,7 +19,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
-from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA
+from ggshield.core.git_shell import check_git_dir, get_list_commit_SHA, git
 from ggshield.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -68,51 +68,25 @@ def scan_ci_cmd(
         ###############################################
         # Debug part
 
-        myenvs = [
-            # PR Vars
-            "GITHUB_PULL_BASE_SHA",
-            "GH_PR_ADDITIONS",
-            "GH_PR_BASE_LABEL",
-            "GH_PR_BASE_REF",
-            "GH_PR_BASE_SHA",
-            "GH_PR_HEAD_LABEL",
-            "GH_PR_HEAD_REF",
-            "GH_PR_HEAD_SHA",
-            "GH_PR_MERGE_COMMIT_SHA",
-            # Push vars
-            "GITHUB_PUSH_BEFORE_SHA",
-            "GITHUB_PUSH_AFTER_SHA",
-            "GITHUB_PUSH_FORCED",
-            "GITHUB_PUSH_BASE_SHA",
-            "GITHUB_PUSH_REF",
-            "GITHUB_DEFAULT_BRANCH",
-        ]
-        click.echo("tata")
-        for env_var in myenvs:
-            click.echo(f"ENV VARS: {env_var}: {os.getenv(env_var)}", err=True)
-
-        click.echo("DEBUG: Commits to scan:", err=True)
-        for nbr, cmt in enumerate(
-            collect_commit_range_from_ci_env(config.user_config.verbose)[0]
-        ):
-            click.echo(f"DEBUG:    {nbr}     {cmt}", err=True)
-
-        test_commits = get_list_commit_SHA("..HEAD~1", max_count=10)
-        click.echo("\n", err=True)
-        for cmm in test_commits:
-            click.echo(f"DEBUG:    {cmm}", err=True)
-
         # My branch
-        mybranch = os.getenv("GITHUB_HEAD_REF")
-        click.echo(f"DEBUG : mybranch {mybranch}", err=True)
+        mybranch = os.getenv("GITHUB_BASE_REF")
+        click.echo(f"DEBUG targeted branch: {mybranch}", err=True)
 
-        mybranch_last_commit = get_list_commit_SHA(mybranch, max_count=1)
-        click.echo(f"DEBUG: my branch last state {mybranch_last_commit}", err=True)
+        click.echo("Fetch remote branch")
+        click.echo(git(["fetch"]))
 
-        # Main
-        main = os.getenv("GITHUB_BASE_REF")
-        main_last_commit = get_list_commit_SHA(main, max_count=1)
-        click.echo(f"DEBUG: main last state {main_last_commit}", err=True)
+        click.echo("Existing branches")
+        click.echo(git(["branch", "-a"]))
+
+        click.echo(
+            f"Head of remote main : {get_list_commit_SHA('remotes/origin/main', max_count=3)}",
+            err=True,
+        )
+
+        click.echo(
+            f"Accessible main commits: {get_list_commit_SHA('main', max_count=3)}",
+            err=True,
+        )
 
         # Back to normal
         ###############################################

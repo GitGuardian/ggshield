@@ -220,6 +220,7 @@ jobs:
       - name: Scan commits for SCA vulnerabilities
         uses: ./actions-unstable/sca
         with:
+          fetch-depth: 0
           args: .
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
