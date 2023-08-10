@@ -1,29 +1,6 @@
-from enum import Enum, auto
-from typing import Callable, Dict
-
 import click
 
-from ggshield.core.filter import censor_string
-from ggshield.hmsl.collection import SecretWithKey
-
-
-class InputType(Enum):
-    FILE = auto()
-    ENV = auto()
-
-
-# Methods to compute names for secrets
-# They are useful to help the user identify the secret that may leaked
-# with a more "human-readable" string than a hash.
-# Takes the secret and optional key as input and returns a string.
-NamingStrategy = Callable[[SecretWithKey], str]
-
-NAMING_STRATEGIES: Dict[str, NamingStrategy] = {
-    "censored": lambda secret: censor_string(secret.value),
-    "cleartext": lambda secret: secret.value,
-    "none": lambda _: "",
-    "key": lambda secret: secret.key or censor_string(secret.value),
-}
+from ggshield.hmsl.collection import NAMING_STRATEGIES, InputType
 
 
 input_arg = click.argument(

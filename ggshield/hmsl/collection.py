@@ -1,12 +1,18 @@
 from dataclasses import dataclass
-from typing import Dict, Iterable, Iterator, Optional, Set, TextIO
+from enum import Enum, auto
+from typing import Callable, Dict, Iterable, Iterator, Optional, Set, TextIO
 
 from dotenv import dotenv_values
 
-from ggshield.cmd.hmsl.hmsl_common_options import InputType, NamingStrategy
+from ggshield.core.filter import censor_string
 from ggshield.hmsl import PREFIX_LENGTH
 from ggshield.hmsl.crypto import hash_string
 from ggshield.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES
+
+
+class InputType(Enum):
+    FILE = auto()
+    ENV = auto()
 
 
 @dataclass
@@ -19,6 +25,20 @@ class PreparedSecrets:
 class SecretWithKey:
     key: Optional[str]
     value: str
+
+
+# Methods to compute names for secrets
+# They are useful to help the user identify the secret that may leaked
+# with a more "human-readable" string than a hash.
+# Takes the secret and optional key as input and returns a string.
+
+NamingStrategy = Callable[[SecretWithKey], str]
+NAMING_STRATEGIES: Dict[str, NamingStrategy] = {
+    "censored": lambda secret: censor_string(secret.value),
+    "cleartext": lambda secret: secret.value,
+    "none": lambda _: "",
+    "key": lambda secret: secret.key or censor_string(secret.value),
+}
 
 
 def collect(

@@ -4,15 +4,13 @@ import click
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.hmsl.hmsl_common_options import (
-    InputType,
-    NamingStrategy,
     full_hashes_option,
     input_arg,
     input_type_option,
     naming_strategy_option,
 )
 from ggshield.core.text_utils import display_info
-from ggshield.hmsl.collection import collect, prepare
+from ggshield.hmsl.collection import InputType, NamingStrategy, collect, prepare
 from ggshield.hmsl.output import write_outputs
 
 
