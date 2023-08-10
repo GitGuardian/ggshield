@@ -6,7 +6,6 @@ from requests import HTTPError
 
 from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.decrypt import show_results
-from ggshield.cmd.hmsl.fingerprint import collect, prepare
 from ggshield.cmd.hmsl.hmsl_common_options import (
     InputType,
     NamingStrategy,
@@ -19,6 +18,7 @@ from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize
 from ggshield.hmsl import Secret, get_client
+from ggshield.hmsl.collection import collect, prepare
 
 
 logger = logging.getLogger(__name__)
