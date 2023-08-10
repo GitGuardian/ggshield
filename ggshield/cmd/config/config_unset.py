@@ -5,7 +5,8 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
-from .constants import FIELD_NAMES
+from .config_set import set_user_config_field
+from .constants import FIELD_NAMES, FIELDS
 
 
 @click.command()
@@ -33,18 +34,22 @@ def config_unset_cmd(
     If --all is passed, it iterates over all instances.
     """
     config: Config = ctx.obj["config"]
+    field = FIELDS[field_name]
 
-    if all_:
-        setattr(config.auth_config, field_name, None)
-        for instance in config.auth_config.instances:
+    if field.auth_config:
+        if all_:
+            setattr(config.auth_config, field_name, None)
+            for instance in config.auth_config.instances:
+                setattr(instance, field_name, None)
+
+        elif instance_url is None:
+            setattr(config.auth_config, field_name, None)
+
+        else:
+            instance = config.auth_config.get_instance(instance_url)
             setattr(instance, field_name, None)
 
-    elif instance_url is None:
-        setattr(config.auth_config, field_name, None)
-
+        config.auth_config.save()
     else:
-        instance = config.auth_config.get_instance(instance_url)
-        setattr(instance, field_name, None)
-
-    config.auth_config.save()
+        set_user_config_field(field, None)
     return 0

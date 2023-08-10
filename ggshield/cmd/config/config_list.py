@@ -1,11 +1,11 @@
-from typing import Any
+from typing import Any, Tuple
 
 import click
 
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.config import Config
 
-from .constants import DATETIME_FORMAT
+from .constants import DATETIME_FORMAT, FIELDS
 
 
 @click.command()
@@ -18,7 +18,20 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
     config: Config = ctx.obj["config"]
     default_token_lifetime = config.auth_config.default_token_lifetime
 
-    message = ""
+    message_lines = []
+
+    def add_entries(*entries: Tuple[str, Any]):
+        for key, value in entries:
+            message_lines.append(f"{key}: {value}")
+
+    # List global values
+    for field in FIELDS.values():
+        config_obj = config.auth_config if field.auth_config else config.user_config
+        value = getattr(config_obj, field.name)
+        add_entries((field.name, value))
+    message_lines.append("")
+
+    # List instance values
     for instance in config.auth_config.instances:
         instance_name = instance.name or instance.url
 
@@ -41,16 +54,16 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
             else default_token_lifetime
         )
 
-        message_lines = [
-            f"[{instance_name}]",
-            f"default_token_lifetime: {_default_token_lifetime}",
-            f"workspace_id: {workspace_id}",
-            f"url: {instance.url}",
-            f"token: {token}",
-            f"token_name: {token_name}",
-            f"expiry: {expiry}",
-        ]
-        message += ("\n".join(message_lines)) + "\n\n"
+        message_lines.append(f"[{instance_name}]")
+        add_entries(
+            ("default_token_lifetime", _default_token_lifetime),
+            ("workspace_id", workspace_id),
+            ("url", instance.url),
+            ("token", token),
+            ("token_name", token_name),
+            ("expiry", expiry),
+        )
+        message_lines.append("")
 
-    click.echo(message[:-2])
+    click.echo("\n".join(message_lines).strip())
     return 0

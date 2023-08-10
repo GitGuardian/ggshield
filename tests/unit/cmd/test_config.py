@@ -15,7 +15,10 @@ from .utils import add_instance_config
 
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 
-EXPECTED_OUTPUT = """[https://dashboard.gitguardian.com]
+EXPECTED_OUTPUT = """instance: None
+default_token_lifetime: None
+
+[https://dashboard.gitguardian.com]
 default_token_lifetime: None
 workspace_id: 1
 url: https://dashboard.gitguardian.com
@@ -342,6 +345,27 @@ class TestConfigUnset:
             config.auth_config.default_token_lifetime == default_value
         ), "The instance config should remain unchanged"
 
+    def test_unset_instance(self, cli_fs_runner):
+        """
+        GIVEN a default instance previously set
+        WHEN running `ggshield config unset instance`
+        THEN the default instance is removed
+        """
+        # update global user config
+        assert find_global_config_path() is None
+        config_path = find_global_config_path(to_write=True)
+        config = UserConfig()
+        config.instance = "https://example.com"
+        config.save(config_path)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, param="instance")
+
+        assert exit_code == ExitCode.SUCCESS, output
+        assert output == ""
+
+        config, _ = UserConfig.load(config_path)
+        assert config.instance is None
+
     @staticmethod
     def run_cmd(
         cli_fs_runner, param="default_token_lifetime", instance_url=None, all_=False
@@ -448,6 +472,34 @@ class TestConfigGet:
         """
         exit_code, output = self.run_cmd(cli_fs_runner, param="invalid_field_name")
         assert exit_code == ExitCode.USAGE_ERROR, output
+
+    @pytest.mark.parametrize(
+        ["default_value", "expected_value"],
+        [
+            (None, "not set"),
+            ("https://example.com", "https://example.com"),
+        ],
+    )
+    def test_get_instance(self, default_value, expected_value, cli_fs_runner):
+        """
+        GIVEN a default instance previously set
+        WHEN running `config get instance`
+        THEN it should display the value for this specific config
+        OR display "not set" if no value is found
+        """
+
+        # update global user config
+        assert find_global_config_path() is None
+        if default_value:
+            config_path = find_global_config_path(to_write=True)
+            config = UserConfig()
+            config.instance = default_value
+            config.save(config_path)
+
+        exit_code, output = self.run_cmd(cli_fs_runner, param="instance")
+
+        assert output == f"instance: {expected_value}\n"
+        assert exit_code == ExitCode.SUCCESS
 
     @staticmethod
     def run_cmd(cli_fs_runner, param="default_token_lifetime", instance_url=None):
