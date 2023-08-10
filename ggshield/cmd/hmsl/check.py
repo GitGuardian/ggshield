@@ -6,15 +6,14 @@ from requests import HTTPError
 
 from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.decrypt import show_results
-from ggshield.cmd.hmsl.fingerprint import (
+from ggshield.cmd.hmsl.fingerprint import collect, prepare
+from ggshield.cmd.hmsl.hmsl_common_options import (
     InputType,
     NamingStrategy,
-    collect,
     full_hashes_option,
     input_arg,
     input_type_option,
     naming_strategy_option,
-    prepare,
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError

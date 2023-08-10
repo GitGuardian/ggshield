@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, Iterator, TextIO, cast
 import click
 
 from ggshield.cmd.common_options import add_common_options, json_option
-from ggshield.cmd.hmsl.fingerprint import input_arg
+from ggshield.cmd.hmsl.hmsl_common_options import input_arg
 from ggshield.core.errors import ParseError
 from ggshield.core.text_utils import display_heading, display_warning, pluralize
 from ggshield.hmsl import Match, Secret
