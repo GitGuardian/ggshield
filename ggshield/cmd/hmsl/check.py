@@ -73,7 +73,7 @@ def check_cmd(
     )
 
     # Display results and error
-    show_results(found, prepared_data.mapping, json_output)
+    show_results(found, prepared_data.mapping, json_output, error=error)
     if error:
         raise UnexpectedError(str(error))
 
