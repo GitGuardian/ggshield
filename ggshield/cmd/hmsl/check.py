@@ -7,10 +7,12 @@ from requests import HTTPError
 from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.decrypt import show_results
 from ggshield.cmd.hmsl.fingerprint import (
+    InputType,
     NamingStrategy,
     collect,
     full_hashes_option,
     input_arg,
+    input_type_option,
     naming_strategy_option,
     prepare,
 )
@@ -29,12 +31,14 @@ logger = logging.getLogger(__name__)
 @json_option
 @full_hashes_option
 @naming_strategy_option
+@input_type_option
 @input_arg
 def check_cmd(
     ctx: click.Context,
     path: str,
     full_hashes: bool,
     naming_strategy: NamingStrategy,
+    input_type: InputType,
     json_output: bool,
     **kwargs: Any,
 ) -> int:
@@ -45,7 +49,7 @@ def check_cmd(
     # Collect secrets
     display_info("Collecting secrets...")
     input = cast(TextIO, click.open_file(path, "r"))
-    secrets = list(collect(input))
+    secrets = list(collect(input, input_type))
     # full_hashes is True because we need the hashes to decrypt the secrets.
     # They will correctly be truncated by our client later.
     prepared_data = prepare(secrets, naming_strategy, full_hashes=True)

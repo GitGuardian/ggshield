@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 from typing import Optional
 
@@ -21,6 +22,33 @@ logger = logging.getLogger(__name__)
 
 
 TOKEN_PATH = f"{get_cache_dir()}/hmsl_token"
+
+# Tools for parsing env files
+ENV_LINE_REGEX = re.compile(r'(\S+)(?: *?)=(?: *?)((?:".*?[^\\]")|\S+)')
+
+EXCLUDED_KEYS = {
+    "HOST",
+    "HOSTNAME",
+    "PATH",
+    "PORT",
+}
+
+EXCLUDED_VALUES = {
+    "0",
+    "1",
+    "disabled",
+    "enabled",
+    "false",
+    "n",
+    "no",
+    "none",
+    "null",
+    "off",
+    "on",
+    "true",
+    "y",
+    "yes",
+}
 
 
 def get_client(config: Config) -> HMSLClient:
