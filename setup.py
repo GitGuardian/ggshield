@@ -49,7 +49,7 @@ setup(
         "marshmallow>=3.18.0,<3.19.0",
         "marshmallow-dataclass>=8.5.8,<8.6.0",
         "oauthlib>=3.2.1,<3.3.0",
-        "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@ccd3e47b62",
+        "pygitguardian>=1.9.0,<1.10.0",
         "pyjwt>=2.6.0,<2.7.0",
         "python-dotenv>=0.21.0,<0.22.0",
         "pyyaml>=6.0.1,<6.1",
