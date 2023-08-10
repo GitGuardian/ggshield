@@ -286,8 +286,11 @@
             "version": "==2.21"
         },
         "pygitguardian": {
-            "git": "https://github.com/GitGuardian/py-gitguardian.git",
-            "ref": "ccd3e47b6237ea4996d4bd27a0a5dbf4d8e2a557"
+            "hashes": [
+                "sha256:d58795bdfc0cdf3b67f45cc3a4e135223ccd8e4d38abc3899b387a664fe247a1",
+                "sha256:db4043a9d855f1f9598ff41edd3579444ffed26eea5421b922489e5f0b5852a3"
+            ],
+            "version": "==1.9.0"
         },
         "pygments": {
             "hashes": [
@@ -380,7 +383,7 @@
                 "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36",
                 "sha256:b75ddc264f0ba5615db7ba217daeb99701ad295353c45f9e95963337ceeeffb2"
             ],
-            "markers": "python_version >= '3.7'",
+            "markers": "python_version < '3.11' and python_version >= '3.7'",
             "version": "==4.7.1"
         },
         "typing-inspect": {
@@ -1233,7 +1236,7 @@
                 "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36",
                 "sha256:b75ddc264f0ba5615db7ba217daeb99701ad295353c45f9e95963337ceeeffb2"
             ],
-            "markers": "python_version >= '3.7'",
+            "markers": "python_version < '3.11' and python_version >= '3.7'",
             "version": "==4.7.1"
         },
         "urllib3": {
