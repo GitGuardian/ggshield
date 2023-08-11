@@ -48,7 +48,7 @@ class Config:
         """
         The instance name (defaulting to URL) of the selected instance
         priority order is:
-        - set from the command line (with set_cmdline_instance_name)
+        - set from the command line (by setting cmdline_instance_name)
         - env var (in auth_config.current_instance)
         - in local user config (in user_config.dashboard_url)
         - in global user config (in user_config.dashboard_url)
@@ -78,7 +78,12 @@ class Config:
 
         return DEFAULT_INSTANCE_URL
 
-    def set_cmdline_instance_name(self, name: str) -> None:
+    @property
+    def cmdline_instance_name(self) -> Optional[str]:
+        return self._cmdline_instance_name
+
+    @cmdline_instance_name.setter
+    def cmdline_instance_name(self, name: str) -> None:
         """
         Override the current instance name. To be called by commands supporting the
         `--instance` option.

@@ -172,7 +172,7 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs):
     ):
         with patch.dict(os.environ, clear=True):
             config = Config()
-            config.set_cmdline_instance_name("https://example.com")
+            config.cmdline_instance_name = "https://example.com"
             create_client_from_config(config)
 
 

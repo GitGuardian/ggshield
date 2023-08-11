@@ -6,6 +6,7 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.oauth import OAuthClient
 from ggshield.core.utils import clean_url
@@ -47,6 +48,18 @@ def validate_login_path(
     ):
         raise UnexpectedError("instance and SSO URL params do not match")
     return instance, sso_login_path
+
+
+def print_default_instance_message(config: Config) -> None:
+    """If the instance used is not defined as the default instance, show a message
+    explaining how to make it the default instance."""
+    cli_instance = config.cmdline_instance_name
+    if not cli_instance or cli_instance == DEFAULT_INSTANCE_URL:
+        return
+    click.echo(
+        "\nTo make ggshield always use this instance,"
+        f' run "ggshield config set instance {cli_instance}".'
+    )
 
 
 @click.command()
@@ -125,7 +138,7 @@ def login_cmd(
 
 def token_login(config: Config, instance: Optional[str]) -> None:
     if instance:
-        config.set_cmdline_instance_name(instance)
+        config.cmdline_instance_name = instance
     instance = config.instance_name
     # Override instance to make sure we get a normalized instance name
     instance_config = config.auth_config.get_or_create_instance(instance_name=instance)
@@ -156,6 +169,7 @@ def token_login(config: Config, instance: Optional[str]) -> None:
     instance_config.init_account(token, api_token_data)
     config.auth_config.save()
     click.echo("Authentication was successful.")
+    print_default_instance_message(config)
 
 
 def web_login(
@@ -167,11 +181,18 @@ def web_login(
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
     if instance:
-        config.set_cmdline_instance_name(instance)
+        config.cmdline_instance_name = instance
     defined_instance = config.instance_name
     # Override instance to make sure we get a normalized instance name
     config.auth_config.get_or_create_instance(instance_name=defined_instance)
 
-    OAuthClient(config, defined_instance).oauth_process(
+    client = OAuthClient(config, defined_instance)
+
+    if client.check_existing_token():
+        # skip the process if a valid token is already saved
+        return
+
+    client.oauth_process(
         token_name=token_name, lifetime=lifetime, login_path=login_path
     )
+    print_default_instance_message(config)
