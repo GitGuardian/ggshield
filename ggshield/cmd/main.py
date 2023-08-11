@@ -10,13 +10,7 @@ from ggshield.cmd.auth import auth_group
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config import config_group
 from ggshield.cmd.debug_logs import disable_logs, setup_debug_logs
-
-
-try:
-    from ggshield.cmd.hmsl import hmsl_group
-except ImportError:
-    hmsl_group = None
-
+from ggshield.cmd.hmsl import hmsl_group
 from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
@@ -67,11 +61,6 @@ def config_path_callback(
     return value
 
 
-extra_groups = {}
-if hmsl_group:
-    extra_groups["hmsl"] = hmsl_group
-
-
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
@@ -84,7 +73,7 @@ if hmsl_group:
         "iac": iac_group,
         "honeytoken": honeytoken_group,
         "sca": sca_group,
-        **extra_groups,
+        "hmsl": hmsl_group,
     },
 )
 @click.option(
