@@ -1,5 +1,4 @@
 import os
-from enum import Enum
 from typing import List, Tuple
 
 import click
@@ -8,51 +7,24 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA
 
-
-class SupportedCI(Enum):
-    GITLAB = "GITLAB"
-    TRAVIS = "TRAVIS"
-    CIRCLECI = "CIRCLECI"
-    JENKINS = "JENKINS HOME"
-    GITHUB = "GITHUB ACTIONS"
-    BITBUCKET = "BITBUCKET PIPELINES"
-    DRONE = "DRONE"
-    AZURE = "AZURE PIPELINES"
+from .previous_commit import (
+    github_pull_request_previous_commit_sha,
+    github_push_previous_commit_sha,
+    gitlab_push_previous_commit_sha,
+)
+from .supported_ci import SupportedCI
 
 
 def collect_commit_range_from_ci_env(
     verbose: bool,
 ) -> Tuple[List[str], SupportedCI]:
-    if os.getenv("GITLAB_CI"):
-        commit_list = gitlab_ci_range(verbose)
-        ci_mode = SupportedCI.GITLAB
-    elif os.getenv("GITHUB_ACTIONS"):
-        commit_list = github_actions_range(verbose)
-        ci_mode = SupportedCI.GITHUB
-    elif os.getenv("TRAVIS"):
-        commit_list = travis_range(verbose)
-        ci_mode = SupportedCI.TRAVIS
-    elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
-        commit_list = jenkins_range(verbose)
-        ci_mode = SupportedCI.JENKINS
-    elif os.getenv("CIRCLECI"):
-        commit_list = circle_ci_range(verbose)
-        ci_mode = SupportedCI.CIRCLECI
-    elif os.getenv("BITBUCKET_COMMIT"):
-        commit_list = bitbucket_pipelines_range(verbose)
-        ci_mode = SupportedCI.BITBUCKET
-    elif os.getenv("DRONE"):
-        commit_list = drone_range(verbose)
-        ci_mode = SupportedCI.DRONE
-    elif os.getenv("BUILD_BUILDID"):
-        commit_list = azure_range(verbose)
-        ci_mode = SupportedCI.AZURE
-    else:
-        raise UnexpectedError(
-            f"Current CI is not detected or supported."
-            f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
-        )
-    return (commit_list, ci_mode)
+    supported_ci = SupportedCI.from_ci_env()
+    try:
+        fcn = COLLECT_COMMIT_RANGE_FUNCTIONS[supported_ci]
+    except KeyError:
+        raise UnexpectedError(f"Not implemented for {supported_ci.value}")
+
+    return fcn(verbose), supported_ci
 
 
 def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
@@ -161,7 +133,7 @@ def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
 
 
 def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
-    before_sha = os.getenv("CI_COMMIT_BEFORE_SHA")
+    before_sha = gitlab_push_previous_commit_sha()
     commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD")
     merge_request_target_branch = os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
 
@@ -197,9 +169,9 @@ def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
 
 
 def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
-    push_before_sha = os.getenv("GITHUB_PUSH_BEFORE_SHA")
+    push_before_sha = github_push_previous_commit_sha()
     push_base_sha = os.getenv("GITHUB_PUSH_BASE_SHA")
-    pull_req_base_sha = os.getenv("GITHUB_PULL_BASE_SHA")
+    pull_req_base_sha = github_pull_request_previous_commit_sha()
     default_branch = os.getenv("GITHUB_DEFAULT_BRANCH")
     head_sha = os.getenv("GITHUB_SHA", "HEAD")
 
@@ -213,13 +185,17 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
             err=True,
         )
 
-    if push_before_sha and push_before_sha != EMPTY_SHA:
-        commit_list = get_list_commit_SHA(f"{push_before_sha}...")
+    # The PR base sha has to be checked before the push_before_sha
+    # because the first one is only populated in case of PR
+    # whereas push_before_sha can be populated in PR in case of
+    # push force event in a PR
+    if pull_req_base_sha and pull_req_base_sha != EMPTY_SHA:
+        commit_list = get_list_commit_SHA(f"{pull_req_base_sha}..")
         if commit_list:
             return commit_list
 
-    if pull_req_base_sha and pull_req_base_sha != EMPTY_SHA:
-        commit_list = get_list_commit_SHA(f"{pull_req_base_sha}..")
+    if push_before_sha and push_before_sha != EMPTY_SHA:
+        commit_list = get_list_commit_SHA(f"{push_before_sha}...")
         if commit_list:
             return commit_list
 
@@ -283,3 +259,15 @@ def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
         "  Repository URL: <Fill if public>\n"
         f"  BUILD_SOURCEVERSION: {head_commit}"
     )
+
+
+COLLECT_COMMIT_RANGE_FUNCTIONS = {
+    SupportedCI.AZURE: azure_range,
+    SupportedCI.DRONE: drone_range,
+    SupportedCI.GITHUB: github_actions_range,
+    SupportedCI.GITLAB: gitlab_ci_range,
+    SupportedCI.CIRCLECI: circle_ci_range,
+    SupportedCI.BITBUCKET: bitbucket_pipelines_range,
+    SupportedCI.TRAVIS: travis_range,
+    SupportedCI.JENKINS: jenkins_range,
+}

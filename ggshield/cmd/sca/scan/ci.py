@@ -18,8 +18,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
-from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
-from ggshield.core.git_shell import check_git_dir
+from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
 from ggshield.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -63,16 +62,15 @@ def scan_ci_cmd(
             scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
             return output_handler.process_scan_all_result(scan)
 
-        check_git_dir()
-        commit_count = len(
-            collect_commit_range_from_ci_env(config.user_config.verbose)[0]
+        current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
+            config.user_config.verbose
         )
-        if config.user_config.verbose:
-            click.echo(f"Commits to scan: {commit_count}", err=True)
+
         result = sca_scan_diff(
             ctx=ctx,
             directory=directory,
-            previous_ref=f"HEAD~{commit_count}" if commit_count > 0 else "HEAD",
+            previous_ref=previous_commit,
+            current_ref=current_commit,
         )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)
