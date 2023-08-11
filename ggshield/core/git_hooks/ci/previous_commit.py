@@ -25,37 +25,6 @@ def get_previous_commit_from_ci_env(
 
     return fcn(verbose)
 
-    # if os.getenv("GITLAB_CI"):
-    #     commit_sha = gitlab_previous_commit_sha(verbose)
-
-    # elif os.getenv("GITHUB_ACTIONS"):
-    #     commit_sha = github_previous_commit_sha(verbose)
-
-    # elif os.getenv("TRAVIS"):
-    #     raise NotImplementedError("Not implemented for Travis.")
-
-    # elif os.getenv("JENKINS_HOME") or os.getenv("JENKINS_URL"):
-    #     raise NotImplementedError("Not implemented for Jenkins.")
-
-    # elif os.getenv("CIRCLECI"):
-    #     raise NotImplementedError("Not implemented for CircleCI.")
-
-    # elif os.getenv("BITBUCKET_COMMIT"):
-    #     raise NotImplementedError("Not implemented for BitBucket.")
-
-    # elif os.getenv("DRONE"):
-    #     raise NotImplementedError("Not implemented for Drone.")
-
-    # elif os.getenv("BUILD_BUILDID"):
-    #     raise NotImplementedError("Not implemented for Azure.")
-
-    # else:
-    #     raise UnexpectedError(
-    #         f"Current CI is not detected or supported."
-    #         f" Supported CIs: {', '.join([ci.value for ci in SupportedCI])}."
-    #     )
-    # return commit_sha
-
 
 def github_previous_commit_sha(verbose: bool) -> Optional[str]:
     push_before_sha = github_push_previous_commit_sha()
