@@ -12,4 +12,4 @@ git config --global --add safe.directory "$PWD"
 
 
 args=("$@")
-ggshield iac scan all -v ${args[@]}
+ggshield iac scan ci ${args[@]}
