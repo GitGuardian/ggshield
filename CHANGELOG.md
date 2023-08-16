@@ -35,11 +35,14 @@
 
 #### SCA
 
-- `ggshield sca scan pre-commit` now provides a `--all` option to scan all files.
+- Introduces new commands to perform SCA scans with ggshield:
 
-- The text output of `ggshield sca` scans now includes the identifier of the SCA vulnerability.
-
-- The new `ggshield sca scan diff` command can be used to run custom differential scans.
+  - `ggshield sca scan all <DIRECTORY>` : scans a directory or a repository to find all existing SCA vulnerabilities.
+  - `ggshield sca scan diff <DIRECTORY> --ref <GIT_REF>`: runs differential scan compared to a given git ref.
+  - `ggshield sca scan pre-commit`
+  - `ggshield sca scan pre-push`
+  - `ggshield sca scan pre-receive`
+  - `ggshield sca scan ci`: Evaluates if a CI event introduces new vulnerabilities, only available on Github and Gitlab for now.
 
 #### Other
 
