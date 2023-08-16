@@ -1,5 +1,78 @@
 # Changelog
 
+<a id='changelog-1.18.0'></a>
+
+## 1.18.0 — 2023-08-16
+
+### Added
+
+#### HMSL
+
+- ggshield gained a new group of commands: `hmsl`, short for "Has My Secret Leaked". These commands make it possible to securely check if secrets have been leaked in a public repository.
+
+#### IaC
+
+- `ggshield iac scan` now provides three new commands for use as Git hooks:
+
+  - `ggshield iac scan pre-commit`
+  - `ggshield iac scan pre-push`
+  - `ggshield iac scan pre-receive`
+
+  They use the same arguments and options as the other `ggshield iac scan` commands.
+
+- The new `ggshield iac scan ci` command can be used to perform IaC scans in CI environments.
+  It supports the same arguments as hook subcommands (in particular, `--all` to scan the whole repository).
+  Supported CIs are:
+
+  - Azure
+  - Bitbucket
+  - CircleCI
+  - Drone
+  - GitHub
+  - GitLab
+  - Jenkins
+  - Travis
+
+#### SCA
+
+- `ggshield sca scan pre-commit` now provides a `--all` option to scan all files.
+
+- The text output of `ggshield sca` scans now includes the identifier of the SCA vulnerability.
+
+- The new `ggshield sca scan diff` command can be used to run custom differential scans.
+
+#### Other
+
+- It is now possible to manipulate the default instance using `ggshield config`:
+
+  - `ggshield config set instance <THE_INSTANCE_URL>` defines the default instance.
+  - `ggshield config unset instance` removes the previously defined instance.
+  - The default instance can be printed with `ggshield config get instance` and `ggshield config list`.
+
+### Changed
+
+- ggshield now requires Python 3.8.
+
+- The IaC Github Action now runs the new `ggshield iac scan ci` command. This means the action only fails if the changes introduce a new vulnerability. To fail if any vulnerability is detected, use the `ggshield iac scan ci --all` command.
+
+### Removed
+
+- The following options have been removed from `ggshield iac scan diff`: `--pre-commit`, `--pre-push` and `--pre-receive`. You can replace them with the new `ggshield iac scan pre-*` commands.
+
+### Fixed
+
+- `ggshield secret scan docker` now runs as many scans in parallel as the other scan commands.
+
+- `ggshield` now provides an easier-to-understand error message for "quota limit reached" errors (#309).
+
+- `ggshield iac scan diff` `--minimum-severity` and `--ignore-policy` options are now correctly processed.
+
+- `ggshield secret scan` no longer tries to scan files longer than the maximum document size (#561).
+
+### Security
+
+- ggshield now depends on cryptography 41.0.3, fixing https://github.com/advisories/GHSA-jm77-qphf-c4w8.
+
 <a id='changelog-1.17.3'></a>
 
 ## 1.17.3 — 2023-07-27
