@@ -247,20 +247,25 @@ def clean_url(url: str, warn: bool = False) -> ParseResult:
     return parsed_url
 
 
+def is_local_url(url: ParseResult) -> bool:
+    return url.netloc.startswith("localhost") or url.netloc.startswith("127.0.0.1")
+
+
+def is_saas_url(url: ParseResult) -> bool:
+    return any(url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS)
+
+
 def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     """
     Convert a dashboard URL to an API URL.
     handles the SaaS edge case where the host changes instead of the path
     """
     parsed_url = clean_url(dashboard_url, warn=warn)
-    if parsed_url.scheme != "https" and not (
-        parsed_url.netloc.startswith("localhost")
-        or parsed_url.netloc.startswith("127.0.0.1")
-    ):
+    if parsed_url.scheme != "https" and not is_local_url(parsed_url):
         raise UsageError(
             f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
         )
-    if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
+    if is_saas_url(parsed_url):
         if parsed_url.path:
             raise UsageError(
                 f"Invalid dashboard URL '{dashboard_url}', got an unexpected path '{parsed_url.path}'"

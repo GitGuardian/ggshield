@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
+from click import UsageError
 
 from ggshield.core.config import AccountConfig, Config, InstanceConfig
 from ggshield.core.config.utils import get_auth_config_filepath, load_yaml_dict
@@ -312,3 +313,76 @@ class TestConfig:
 
         dct = load_yaml_dict(local_config_path)
         assert dct["instance"] == "https://after.com"
+
+
+class TestHMSLConfig:
+    @pytest.mark.parametrize(
+        ["hmsl_url", "saas_url", "api_url", "final_hmsl_url"],
+        [
+            [None, None, None, "https://api.hasmysecretleaked.com"],
+            [
+                None,
+                None,
+                "https://api.staging.gitguardian.com",
+                "https://hasmysecretleaked.staging.gitguardian.com",
+            ],
+            [
+                None,
+                "https://api.preprod.gitguardian.com",
+                "https://api.staging.gitguardian.com",
+                "https://hasmysecretleaked.preprod.gitguardian.com",
+            ],
+            [
+                "https://hasmysecretleaked.any.gitguardian.com",
+                "https://api.preprod.gitguardian.com",
+                "https://api.staging.gitguardian.com",
+                "https://hasmysecretleaked.any.gitguardian.com",
+            ],
+            [
+                None,
+                None,
+                "https://api.gitguardian.com",
+                "https://api.hasmysecretleaked.com",
+            ],
+        ],
+    )
+    def test_env_variables(
+        self, monkeypatch, hmsl_url, saas_url, api_url, final_hmsl_url
+    ):
+        config = Config()
+
+        if api_url:
+            monkeypatch.setenv("GITGUARDIAN_API_URL", api_url)
+        else:
+            monkeypatch.delenv("GITGUARDIAN_API_URL", raising=False)
+
+        if saas_url:
+            monkeypatch.setenv("GITGUARDIAN_SAAS_URL", saas_url)
+        else:
+            monkeypatch.delenv("GITGUARDIAN_SAAS_URL", raising=False)
+
+        if hmsl_url:
+            monkeypatch.setenv("GITGUARDIAN_HMSL_URL", hmsl_url)
+        else:
+            monkeypatch.delenv("GITGUARDIAN_HMSL_URL", raising=False)
+
+        assert config.hmsl_url == final_hmsl_url
+
+    def test_self_hosted_not_allowed(self, monkeypatch):
+        config = Config()
+
+        monkeypatch.delenv("GITGUARDIAN_SAAS_URL", raising=False)
+        monkeypatch.delenv("GITGUARDIAN_HMSL_URL", raising=False)
+        monkeypatch.setenv("GITGUARDIAN_API_URL", "https://api.onprem.example.com")
+
+        with pytest.raises(UsageError):
+            config.hmsl_url
+
+    def test_local_allowed(self, monkeypatch):
+        config = Config()
+
+        monkeypatch.delenv("GITGUARDIAN_SAAS_URL", raising=False)
+        monkeypatch.delenv("GITGUARDIAN_HMSL_URL", raising=False)
+        monkeypatch.setenv("GITGUARDIAN_API_URL", "http://localhost")
+
+        assert config.hmsl_url

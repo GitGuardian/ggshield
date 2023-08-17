@@ -7,8 +7,18 @@ import click
 from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import remove_url_trailing_slash
-from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
-from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
+from ggshield.core.constants import (
+    DEFAULT_API_URL,
+    DEFAULT_HMSL_URL,
+    DEFAULT_INSTANCE_URL,
+)
+from ggshield.core.utils import (
+    api_to_dashboard_url,
+    clean_url,
+    dashboard_to_api_url,
+    is_local_url,
+    is_saas_url,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -178,8 +188,26 @@ class Config:
             url = os.environ["GITGUARDIAN_HMSL_URL"]
             logger.debug("Using HasMySecretLeaked URL from $GITGUARDIAN_HMSL_URL")
         except KeyError:
-            url = DEFAULT_HMSL_URL
-            logger.debug("Using default HasMySecretLeaked URL")
+            try:
+                url = os.environ["GITGUARDIAN_SAAS_URL"].replace(
+                    "api", "hasmysecretleaked"
+                )
+                logger.debug("Using HasMySecretLeaked URL from $GITGUARDIAN_SAAS_URL")
+            except KeyError:
+                api = os.environ.get("GITGUARDIAN_API_URL")
+                if api is None or api == DEFAULT_API_URL:
+                    url = DEFAULT_HMSL_URL
+                    logger.debug("Using default HasMySecretLeaked URL")
+                else:
+                    parsed_url = clean_url(api)
+                    if not is_saas_url(parsed_url) and not is_local_url(parsed_url):
+                        raise click.UsageError(
+                            "HasMySecretLeaked is not available on on-prem environments."
+                        )
+                    url = api.replace("api", "hasmysecretleaked")
+                    logger.debug(
+                        "Using HasMySecretLeaked URL from $GITGUARDIAN_API_URL"
+                    )
         return remove_url_trailing_slash(url)
 
     @property

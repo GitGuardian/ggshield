@@ -17,6 +17,7 @@ USER_CONFIG_FILENAMES = [".gitguardian", ".gitguardian.yml", DEFAULT_CONFIG_FILE
 DEFAULT_LOCAL_CONFIG_PATH = os.path.join(".", DEFAULT_CONFIG_FILENAME)
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 DEFAULT_HMSL_URL = "https://api.hasmysecretleaked.com"
+DEFAULT_API_URL = "https://api.gitguardian.com"
 AUTH_CONFIG_FILENAME = "auth_config.yaml"
 ON_PREMISE_API_URL_PATH_PREFIX = "/exposed"
 
