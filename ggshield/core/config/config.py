@@ -143,6 +143,7 @@ class Config:
             default_value = self.hmsl_url.replace("hasmysecretleaked", "gitguardian")
         else:  # case https://hasmysecretleaked.[...]
             default_value = self.hmsl_url.replace("hasmysecretleaked", "api")
+
         return os.environ.get(
             "GITGUARDIAN_SAAS_URL",
             default_value,
@@ -162,9 +163,8 @@ class Config:
             pass
         else:
             return key
-        logger.debug("Using API key for SaaS instancefrom config")
-        dashboard_url = api_to_dashboard_url(self.saas_api_url)
-        return self.auth_config.get_instance_token(dashboard_url)
+        logger.debug("Using API key for SaaS instance from config")
+        return self.api_key
 
     # Properties for HasMySecretLeaked
     # We can't rely on the instance selected by the user,
