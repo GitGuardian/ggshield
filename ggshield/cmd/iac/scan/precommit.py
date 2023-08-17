@@ -10,6 +10,8 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     update_context,
 )
+from ggshield.core.config import Config
+from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import display_warning
 
 
@@ -34,11 +36,15 @@ def scan_pre_commit_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
-    if directory is None:
-        directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-    if scan_all:
-        result = iac_scan_all(ctx, directory)
-        return display_iac_scan_all_result(ctx, directory, result)
-    result = iac_scan_diff(ctx, directory, "HEAD", include_staged=True)
-    return display_iac_scan_diff_result(ctx, directory, result)
+    try:
+        if directory is None:
+            directory = Path().resolve()
+        update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+        if scan_all:
+            result = iac_scan_all(ctx, directory)
+            return display_iac_scan_all_result(ctx, directory, result)
+        result = iac_scan_diff(ctx, directory, "HEAD", include_staged=True)
+        return display_iac_scan_diff_result(ctx, directory, result)
+    except Exception as error:
+        config: Config = ctx.obj["config"]
+        return handle_exception(error, config.user_config.verbose)

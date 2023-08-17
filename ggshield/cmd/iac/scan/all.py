@@ -15,6 +15,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.config import Config
+from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import display_info
 from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
 from ggshield.iac.filter import get_iac_files_from_path
@@ -38,12 +39,17 @@ def scan_all_cmd(
     """
     Scan a directory for all IaC vulnerabilities in the current state.
     """
-    if directory is None:
-        directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    try:
+        if directory is None:
+            directory = Path().resolve()
+        update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    result = iac_scan_all(ctx, directory)
-    return display_iac_scan_all_result(ctx, directory, result)
+        result = iac_scan_all(ctx, directory)
+        return display_iac_scan_all_result(ctx, directory, result)
+
+    except Exception as error:
+        config: Config = ctx.obj["config"]
+        return handle_exception(error, config.user_config.verbose)
 
 
 def iac_scan_all(

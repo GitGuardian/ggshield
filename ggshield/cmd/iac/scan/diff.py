@@ -22,6 +22,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     handle_scan_error,
 )
 from ggshield.core.config import Config
+from ggshield.core.errors import handle_exception
 from ggshield.core.file_utils import get_empty_tar
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import (
@@ -59,13 +60,16 @@ def scan_diff_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
+    try:
+        if directory is None:
+            directory = Path().resolve()
+        update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    if directory is None:
-        directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
-
-    result = iac_scan_diff(ctx, directory, ref, staged)
-    return display_iac_scan_diff_result(ctx, directory, result)
+        result = iac_scan_diff(ctx, directory, ref, staged)
+        return display_iac_scan_diff_result(ctx, directory, result)
+    except Exception as error:
+        config: Config = ctx.obj["config"]
+        return handle_exception(error, config.user_config.verbose)
 
 
 def iac_scan_diff(
