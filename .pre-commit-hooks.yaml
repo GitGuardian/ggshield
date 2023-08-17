@@ -17,6 +17,15 @@
   language: python
   pass_filenames: false
 
+- id: ggshield-sca
+  name: ggshield-sca (pre-commit)
+  entry: ggshield
+  description: Runs ggshield Software Composition Analysis to detect vulnerabilities introduced by dependencies.
+  stages: [commit]
+  args: ['sca', 'scan', 'pre-commit']
+  language: python
+  pass_filenames: false
+
 - id: docker-ggshield
   name: ggshield (pre-commit,docker)
   language: docker_image
@@ -38,6 +47,15 @@
   entry: ggshield
   description: Runs ggshield Infra as Code Security to detect IaC vulnerabilities and policy breaks.
   args: ['iac', 'scan', 'pre-push']
+  stages: [push]
+  language: python
+  pass_filenames: false
+
+- id: ggshield-sca-push
+  name: ggshield-sca (pre-push)
+  entry: ggshield
+  description: Runs ggshield Software Composition Analysis to detect vulnerabilities introduced by dependencies.
+  args: ['sca', 'scan', 'pre-push']
   stages: [push]
   language: python
   pass_filenames: false
