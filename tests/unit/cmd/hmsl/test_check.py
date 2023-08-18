@@ -14,6 +14,7 @@ def use_staging_env(monkeypatch):
     monkeypatch.setenv(
         "GITGUARDIAN_HMSL_URL", "https://hasmysecretleaked.staging.gitguardian.tech"
     )
+    monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
 
 
 @my_vcr.use_cassette

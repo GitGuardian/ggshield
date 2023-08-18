@@ -16,6 +16,7 @@ from ggshield.hmsl.utils import (
 
 @pytest.fixture
 def hmsl_no_env_vars(monkeypatch):
+    monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
     monkeypatch.delenv("GITGUARDIAN_SAAS_URL", raising=False)
     monkeypatch.delenv("GITGUARDIAN_SAAS_API_KEY", raising=False)
     monkeypatch.delenv("GITGUARDIAN_HMSL_URL", raising=False)
