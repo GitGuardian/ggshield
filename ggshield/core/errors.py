@@ -60,6 +60,15 @@ class ParseError(_ExitError):
         super().__init__(ExitCode.UNEXPECTED_ERROR, message)
 
 
+class InvalidGitRefError(_ExitError):
+    """
+    Raised when the git reference does not exist
+    """
+
+    def __init__(self, ref: str):
+        super().__init__(ExitCode.USAGE_ERROR, f"Not a git reference: {ref}.")
+
+
 class AuthError(_ExitError):
     """
     Base exception for Auth-related configuration error

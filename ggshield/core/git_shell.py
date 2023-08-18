@@ -14,7 +14,7 @@ from click import UsageError
 from pygitguardian import ContentTooLarge
 from pygitguardian.client import MAX_TAR_CONTENT_SIZE
 
-from ggshield.core.errors import UnexpectedError
+from ggshield.core.errors import InvalidGitRefError, UnexpectedError
 
 
 COMMAND_TIMEOUT = 45
@@ -179,7 +179,7 @@ def check_git_ref(ref: str, wd: Optional[str] = None) -> None:
     check_git_dir(wd)
 
     if not is_valid_git_commit_ref(ref=ref, wd=wd):
-        raise UsageError(f"Not a git reference: {ref}.")
+        raise InvalidGitRefError(ref)
 
 
 def get_list_commit_SHA(
