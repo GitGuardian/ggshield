@@ -142,7 +142,7 @@ def git(
                 "Git command failed because of a dubious ownership in repository.\n"
                 "If you still want to run ggshield, make sure you mark "
                 "the current repository as safe for git with:\n"
-                "   git config --global --add safe.repository <YOUR_REPO>"
+                "   git config --global --add safe.directory <YOUR_REPO>"
             )
         raise e
     except subprocess.TimeoutExpired:
