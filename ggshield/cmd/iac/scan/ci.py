@@ -37,6 +37,7 @@ def scan_ci_cmd(
     display_warning(
         "This feature is still in beta, its behavior may change in future versions."
     )
+    config: Config = ctx.obj["config"]
     try:
         if directory is None:
             directory = Path().resolve()
@@ -44,8 +45,6 @@ def scan_ci_cmd(
         if scan_all:
             result = iac_scan_all(ctx, directory)
             return display_iac_scan_all_result(ctx, directory, result)
-
-        config: Config = ctx.obj["config"]
 
         current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
             config.user_config.verbose
@@ -61,5 +60,4 @@ def scan_ci_cmd(
         return display_iac_scan_diff_result(ctx, directory, result)
 
     except Exception as error:
-        config: Config = ctx.obj["config"]
         return handle_exception(error, config.user_config.verbose)
