@@ -4,7 +4,7 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import get_last_commit_sha_of_branch
+from ggshield.core.git_shell import get_last_commit_sha_of_branch, git
 from ggshield.core.utils import EMPTY_SHA
 
 from .supported_ci import SupportedCI
@@ -76,7 +76,7 @@ def github_pull_request_previous_commit_sha() -> Optional[str]:
 
 def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
     push_before_sha = gitlab_push_previous_commit_sha()
-    merge_req_base_sha = gitlab_merge_request_previous_commit_sha()
+    merge_req_base_sha = gitlab_merge_request_previous_commit_sha(verbose)
 
     if verbose:
         click.echo(
@@ -108,14 +108,31 @@ def gitlab_push_previous_commit_sha() -> Optional[str]:
     return os.getenv("CI_COMMIT_BEFORE_SHA")
 
 
-def gitlab_merge_request_previous_commit_sha() -> Optional[str]:
+def gitlab_merge_request_previous_commit_sha(verbose: bool) -> Optional[str]:
     targeted_branch = os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
 
     # Not in a pull request workflow
     if targeted_branch is None:
         return None
 
-    return get_last_commit_sha_of_branch(f"remotes/origin/{targeted_branch}")
+    # Requires to fetch targeted branch to access current HEAD
+    git(["fetch", "origin", targeted_branch])
+
+    try:
+        last_commit = get_last_commit_sha_of_branch(f"origin/{targeted_branch}")
+    except Exception:
+        # If fail to get last commit of target branch, fallback on CI env variable
+        # "CI_MERGE_REQUEST_DIFF_BASE_SHA"
+        # This is not the current state of the target branch but the initial state
+        # of current branch
+        if verbose:
+            click.echo(f"Failed to get {targeted_branch} HEAD.")
+            click.echo(
+                f"Fallback on commit {os.getenv('CI_MERGE_REQUEST_DIFF_BASE_SHA')}"
+            )
+        return os.getenv("CI_MERGE_REQUEST_DIFF_BASE_SHA")
+
+    return last_commit
 
 
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {
