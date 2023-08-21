@@ -22,14 +22,15 @@ def _get_vault_token(use_vault_cli_token: bool) -> str:
                 f"could not get the token from Vault CLI: {str(exc)}"
             ) from exc
 
-    if "VAULT_TOKEN" in os.environ:
-        return os.environ["VAULT_TOKEN"]
+    env_token = os.getenv("VAULT_TOKEN")
+    if env_token is None:
+        raise click.UsageError(
+            "you need to specify the Vault token to use, either through the VAULT_TOKEN"
+            " environment variable or by using --use-cli-token to use the token "
+            "from the Vault CLI."
+        )
 
-    raise click.UsageError(
-        "you need to specify the Vault token to use, either through the VAULT_TOKEN"
-        " environment variable or by using --use-cli-token to use the token "
-        "from the Vault CLI."
-    )
+    return env_token
 
 
 @click.command(hidden=True)
