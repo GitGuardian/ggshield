@@ -3,7 +3,7 @@ from typing import Any
 import click
 from requests.exceptions import ConnectionError
 
-import ggshield.hmsl.utils as hmsl_utils
+import ggshield.verticals.hmsl.utils as hmsl_utils
 from ggshield.cmd.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config

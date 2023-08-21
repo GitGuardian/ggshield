@@ -6,7 +6,7 @@ from pygitguardian.client import GGClient
 from pygitguardian.models import JWTResponse
 
 from ggshield.core.config.config import Config
-from ggshield.hmsl.utils import (
+from ggshield.verticals.hmsl.utils import (
     get_token,
     is_token_valid,
     load_token_from_disk,

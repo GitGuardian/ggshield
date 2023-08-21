@@ -4,7 +4,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
-from ggshield.hmsl.crypto import hash_string
+from ggshield.verticals.hmsl.crypto import hash_string
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 

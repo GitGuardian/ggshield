@@ -5,9 +5,9 @@ from typing import Callable, Dict, Iterable, Iterator, Optional, Set, TextIO
 from dotenv import dotenv_values
 
 from ggshield.core.filter import censor_string
-from ggshield.hmsl import PREFIX_LENGTH
-from ggshield.hmsl.crypto import hash_string
-from ggshield.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES
+from ggshield.verticals.hmsl import PREFIX_LENGTH
+from ggshield.verticals.hmsl.crypto import hash_string
+from ggshield.verticals.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES
 
 
 class InputType(Enum):

@@ -6,7 +6,7 @@ import click
 from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.quota import format_quota_color
 from ggshield.core.config import Config
-from ggshield.hmsl import get_client
+from ggshield.verticals.hmsl import get_client
 
 
 logger = logging.getLogger(__name__)

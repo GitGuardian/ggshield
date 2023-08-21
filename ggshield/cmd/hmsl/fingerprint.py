@@ -10,8 +10,13 @@ from ggshield.cmd.hmsl.hmsl_common_options import (
     naming_strategy_option,
 )
 from ggshield.core.text_utils import display_info
-from ggshield.hmsl.collection import InputType, NamingStrategy, collect, prepare
-from ggshield.hmsl.output import write_outputs
+from ggshield.verticals.hmsl.collection import (
+    InputType,
+    NamingStrategy,
+    collect,
+    prepare,
+)
+from ggshield.verticals.hmsl.output import write_outputs
 
 
 def validate_prefix(prefix: str) -> str:

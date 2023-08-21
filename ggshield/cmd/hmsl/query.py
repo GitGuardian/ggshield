@@ -11,7 +11,7 @@ from ggshield.cmd.hmsl.hmsl_common_options import input_arg
 from ggshield.core.config import Config
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize
-from ggshield.hmsl import HASH_REGEX, PREFIX_REGEX, get_client
+from ggshield.verticals.hmsl import HASH_REGEX, PREFIX_REGEX, get_client
 
 
 logger = logging.getLogger(__name__)

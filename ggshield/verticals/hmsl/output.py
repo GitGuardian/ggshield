@@ -9,8 +9,8 @@ from ggshield.core.text_utils import (
     display_warning,
     pluralize,
 )
-from ggshield.hmsl import Secret
-from ggshield.hmsl.collection import PreparedSecrets
+from ggshield.verticals.hmsl import Secret
+from ggshield.verticals.hmsl.collection import PreparedSecrets
 
 
 TEMPLATE = """
