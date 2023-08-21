@@ -21,7 +21,7 @@ all:
 test: unittest functest
 
 unittest:
-	GIT_CONFIG_GLOBAL=''  GIT_CONFIG_SYSTEM='' pipenv run pytest --disable-pytest-warnings -vvv tests/unit
+	pipenv run pytest --disable-pytest-warnings -vvv tests/unit
 
 functest:
 	scripts/run-functional-tests

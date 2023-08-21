@@ -42,10 +42,10 @@ install_packages() {
 
 run_tests() {
     log_progress "Running tests"
-    pytest --disable-pytest-warnings -vvv tests/functional "${@}"
+    pytest --disable-pytest-warnings -vvv tests/functional "$@"
 }
 
 build_wheel
 create_venv
 install_packages
-run_tests "${@}"
+run_tests "$@"

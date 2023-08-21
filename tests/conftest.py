@@ -69,6 +69,18 @@ resource "aws_network_acl_rule" "bad_example" {
 """
 
 
+@pytest.fixture(scope="session", autouse=True)
+def isolated_git():
+    """
+    Don't use any of the existing Git config
+
+    NOTE: As the fixture is scoped to the session we don't have to restore the
+        original values.
+    """
+    os.environ["GIT_CONFIG_GLOBAL"] = ""
+    os.environ["GIT_CONFIG_SYSTEM"] = ""
+
+
 @pytest.fixture(autouse=True)
 def do_not_use_real_user_dirs(monkeypatch, tmp_path):
     """
