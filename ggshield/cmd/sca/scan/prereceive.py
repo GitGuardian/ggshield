@@ -17,11 +17,11 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin
 from ggshield.core.git_shell import check_git_ref, is_valid_git_commit_ref
 from ggshield.core.utils import EMPTY_TREE
-from ggshield.sca.collection.collection import (
+from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
 )
-from ggshield.sca.sca_scan_models import SCAScanAllOutput
+from ggshield.verticals.sca.sca_scan_models import SCAScanAllOutput
 
 
 logger = logging.getLogger(__name__)

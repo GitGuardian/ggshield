@@ -4,7 +4,7 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import ExitCode
-from ggshield.sca.collection import (
+from ggshield.verticals.sca.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
     SCAScanVulnerabilityCollection,

@@ -13,7 +13,9 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
-from ggshield.sca.collection.collection import SCAScanAllVulnerabilityCollection
+from ggshield.verticals.sca.collection.collection import (
+    SCAScanAllVulnerabilityCollection,
+)
 
 
 @click.command()

@@ -4,7 +4,7 @@ import requests
 from pygitguardian.client import GGClient, is_ok, load_detail
 from pygitguardian.models import Detail
 
-from ggshield.sca.sca_scan_models import (
+from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
     SCAScanAllOutput,
     SCAScanDiffOutput,

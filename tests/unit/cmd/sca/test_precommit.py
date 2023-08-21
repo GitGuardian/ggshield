@@ -5,7 +5,7 @@ from click.testing import CliRunner
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from ggshield.sca.sca_scan_models import (
+from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
     SCALocationVulnerability,
     SCAScanDiffOutput,
@@ -36,8 +36,8 @@ def test_sca_scan_pre_commit_no_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
         assert "No SCA vulnerability has been added." in result.stdout
 
 
-@patch("ggshield.sca.client.SCAClient.compute_sca_files")
-@patch("ggshield.sca.client.SCAClient.scan_diff")
+@patch("ggshield.verticals.sca.client.SCAClient.compute_sca_files")
+@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
 def test_sca_scan_pre_commit_with_added_vulns(
     patch_scan_diff,
     patch_compute_sca_files,

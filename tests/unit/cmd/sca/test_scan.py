@@ -14,8 +14,8 @@ from ggshield.cmd.sca.scan.sca_scan_utils import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
-from ggshield.sca.client import SCAClient
-from ggshield.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
+from ggshield.verticals.sca.client import SCAClient
+from ggshield.verticals.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
 from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
@@ -163,7 +163,7 @@ def test_sca_scan_diff_ignore_path(
     assert result == SCAScanDiffOutput()
 
 
-@patch("ggshield.sca.client.SCAClient.scan_diff")
+@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
 def test_sca_scan_diff_no_files(
     scan_diff_mock, client: GGClient, dummy_sca_repo: Repository
 ) -> None:
