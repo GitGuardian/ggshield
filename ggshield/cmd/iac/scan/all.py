@@ -17,9 +17,11 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import display_info
-from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.filter import get_iac_files_from_path
 from ggshield.scan import ScanContext, ScanMode
+from ggshield.verticals.iac.collection.iac_path_scan_collection import (
+    IaCPathScanCollection,
+)
+from ggshield.verticals.iac.filter import get_iac_files_from_path
 
 
 # Changes to arguments must be propagated to default_command

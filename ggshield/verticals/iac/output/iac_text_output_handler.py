@@ -32,10 +32,14 @@ from ggshield.core.text_utils import (
     pluralize,
 )
 from ggshield.core.utils import get_lines_from_content
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.output.iac_output_handler import IaCOutputHandler
 from ggshield.scan import File
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.collection.iac_path_scan_collection import (
+    IaCPathScanCollection,
+)
+from ggshield.verticals.iac.output.iac_output_handler import IaCOutputHandler
 
 
 class GroupedIncidents(NamedTuple):

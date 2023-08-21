@@ -24,7 +24,7 @@ from ggshield.cmd.common_options import (
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.config import Config
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
+from ggshield.verticals.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
 
 def _validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:

@@ -7,8 +7,10 @@ from pygitguardian.iac_models import (
     IaCVulnerability,
 )
 
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.output.iac_text_output_handler import IaCTextOutputHandler
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.output.iac_text_output_handler import IaCTextOutputHandler
 
 
 POLICY_DOC_URL = "https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0021"

@@ -18,8 +18,8 @@ from ggshield.core.git_shell import (
     tar_from_ref_and_filepaths,
 )
 from ggshield.core.text_utils import display_error
-from ggshield.iac.filter import is_iac_file_path
-from ggshield.iac.output import (
+from ggshield.verticals.iac.filter import is_iac_file_path
+from ggshield.verticals.iac.output import (
     IaCJSONOutputHandler,
     IaCOutputHandler,
     IaCTextOutputHandler,

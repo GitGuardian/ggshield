@@ -7,9 +7,13 @@ from pygitguardian.iac_models import (
     IaCVulnerability,
 )
 
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.collection.iac_scan_collection import (
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.collection.iac_path_scan_collection import (
+    IaCPathScanCollection,
+)
+from ggshield.verticals.iac.collection.iac_scan_collection import (
     CollectionType,
     IaCScanCollection,
 )

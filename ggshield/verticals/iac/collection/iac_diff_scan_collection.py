@@ -2,7 +2,7 @@ from typing import Optional
 
 from pygitguardian.iac_models import IaCDiffScanResult
 
-from ggshield.iac.collection.iac_scan_collection import (
+from ggshield.verticals.iac.collection.iac_scan_collection import (
     CollectionType,
     IaCScanCollection,
 )

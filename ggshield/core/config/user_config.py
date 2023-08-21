@@ -21,8 +21,8 @@ from ggshield.core.errors import ParseError, UnexpectedError, format_validation_
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
-from ggshield.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 from ggshield.sca.vuln_identifier import GHSA_ID_PATTERN, is_ghsa_valid
+from ggshield.verticals.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
 
 logger = logging.getLogger(__name__)
