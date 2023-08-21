@@ -10,9 +10,17 @@ from voluptuous import Optional, Required, validators
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
 from ggshield.core.git_shell import Filemode
 from ggshield.scan import Commit, ScanContext, ScanMode, StringScannable
-from ggshield.secret import Result, Results, SecretScanCollection, SecretScanner
-from ggshield.secret.output import SecretJSONOutputHandler, SecretOutputHandler
-from ggshield.secret.output.schemas import JSONScanCollectionSchema
+from ggshield.verticals.secret import (
+    Result,
+    Results,
+    SecretScanCollection,
+    SecretScanner,
+)
+from ggshield.verticals.secret.output import (
+    SecretJSONOutputHandler,
+    SecretOutputHandler,
+)
+from ggshield.verticals.secret.output.schemas import JSONScanCollectionSchema
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,

@@ -15,8 +15,8 @@ from ggshield.scan import (
     Scannable,
     StringScannable,
 )
-from ggshield.secret import SecretScanner, SecretScannerUI
-from ggshield.secret.secret_scanner import handle_scan_chunk_error
+from ggshield.verticals.secret import SecretScanner, SecretScannerUI
+from ggshield.verticals.secret.secret_scanner import handle_scan_chunk_error
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,

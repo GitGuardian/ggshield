@@ -11,7 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.secret.docker import docker_save_to_tmp, docker_scan_archive
+from ggshield.verticals.secret.docker import docker_save_to_tmp, docker_scan_archive
 
 
 # bailout if docker command takes longer than 6 minutes

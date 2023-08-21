@@ -9,8 +9,8 @@ from ggshield import __version__
 from ggshield.core.cache import Cache
 from ggshield.scan import Commit, ScanContext, ScanMode
 from ggshield.scan.scan_context import get_os_info
-from ggshield.secret import SecretScanner
-from ggshield.secret.repo import cd
+from ggshield.verticals.secret import SecretScanner
+from ggshield.verticals.secret.repo import cd
 from tests.unit.conftest import UNCHECKED_SECRET_PATCH
 
 

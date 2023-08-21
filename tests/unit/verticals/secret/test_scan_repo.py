@@ -6,8 +6,8 @@ import pytest
 
 from ggshield.scan import Commit, StringScannable
 from ggshield.scan.commit import CommitInformation
-from ggshield.secret import Result, Results
-from ggshield.secret.repo import get_commits_by_batch, scan_commits_content
+from ggshield.verticals.secret import Result, Results
+from ggshield.verticals.secret.repo import get_commits_by_batch, scan_commits_content
 from tests.unit.conftest import TWO_POLICY_BREAKS
 
 
@@ -71,7 +71,7 @@ def test_get_commits_content_by_batch(
         assert len(batch) == len(expected_batch)
 
 
-@patch("ggshield.secret.repo.SecretScanner")
+@patch("ggshield.verticals.secret.repo.SecretScanner")
 def test_scan_2_commits_same_content(secret_scanner_mock):
     """
     GIVEN 2 commits where each commit has a file with same content and same filename
@@ -118,7 +118,7 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     assert all_policy_breaks_count == 4
 
 
-@patch("ggshield.secret.repo.SecretScanner")
+@patch("ggshield.verticals.secret.repo.SecretScanner")
 def test_scan_2_commits_file_association(secret_scanner_mock):
     """
     GIVEN 2 commits with several files in some commits

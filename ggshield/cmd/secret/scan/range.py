@@ -11,7 +11,7 @@ from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.secret.repo import scan_commit_range
+from ggshield.verticals.secret.repo import scan_commit_range
 
 
 @click.command()

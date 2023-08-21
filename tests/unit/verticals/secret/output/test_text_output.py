@@ -7,9 +7,11 @@ import pytest
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
 from ggshield.core.git_shell import Filemode
 from ggshield.scan import StringScannable
-from ggshield.secret import Result, Results, SecretScanCollection
-from ggshield.secret.output import SecretTextOutputHandler
-from ggshield.secret.output.secret_text_output_handler import format_line_count_break
+from ggshield.verticals.secret import Result, Results, SecretScanCollection
+from ggshield.verticals.secret.output import SecretTextOutputHandler
+from ggshield.verticals.secret.output.secret_text_output_handler import (
+    format_line_count_break,
+)
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -111,7 +113,7 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # None until we make an API call. Since this test does not make any API call, set
     # the version to a fake value.
     with mock.patch(
-        "ggshield.secret.output.secret_text_output_handler.VERSIONS"
+        "ggshield.verticals.secret.output.secret_text_output_handler.VERSIONS"
     ) as VERSIONS:
         VERSIONS.secrets_engine_version = "3.14.159"
 

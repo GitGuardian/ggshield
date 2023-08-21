@@ -12,7 +12,7 @@ from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import create_progress_bar, display_info
 from ggshield.scan import ScanContext, ScanMode, Scannable, StringScannable
-from ggshield.secret import SecretScanCollection, SecretScanner
+from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 def generate_files_from_docsets(

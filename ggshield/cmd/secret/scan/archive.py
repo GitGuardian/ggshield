@@ -13,7 +13,11 @@ from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
 from ggshield.scan import Files, ScanContext, ScanMode
 from ggshield.scan.file import get_files_from_paths
-from ggshield.secret import RichSecretScannerUI, SecretScanCollection, SecretScanner
+from ggshield.verticals.secret import (
+    RichSecretScannerUI,
+    SecretScanCollection,
+    SecretScanner,
+)
 
 
 @click.command()

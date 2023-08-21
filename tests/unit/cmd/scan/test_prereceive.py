@@ -7,8 +7,8 @@ from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.utils import EMPTY_SHA, Filemode
 from ggshield.scan import StringScannable
-from ggshield.secret import Result, Results, SecretScanCollection
-from ggshield.secret.repo import cd
+from ggshield.verticals.secret import Result, Results, SecretScanCollection
+from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository, create_pre_receive_repo
 from tests.unit.conftest import (
     _SIMPLE_SECRET_PATCH,
@@ -157,8 +157,8 @@ class TestPreReceive:
             in result.output
         )
 
-    @patch("ggshield.secret.repo.check_client_api_key")
-    @patch("ggshield.secret.repo.scan_commits_content")
+    @patch("ggshield.verticals.secret.repo.check_client_api_key")
+    @patch("ggshield.verticals.secret.repo.scan_commits_content")
     def test_stdin_supports_gitlab_web_ui(
         self,
         scan_commits_content_mock: Mock,
