@@ -2,7 +2,7 @@ from abc import ABC, abstractproperty
 from enum import Enum
 from typing import Optional, Union
 
-from ggshield.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
+from ggshield.verticals.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
 
 
 SCAScanResult = Union[SCAScanAllOutput, SCAScanDiffOutput]

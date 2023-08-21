@@ -19,7 +19,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
-from ggshield.sca.collection.collection import (
+from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
 )

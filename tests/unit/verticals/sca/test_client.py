@@ -7,8 +7,8 @@ from pygitguardian import GGClient
 from pygitguardian.client import _create_tar
 from pygitguardian.models import Detail
 
-from ggshield.sca.client import SCAClient
-from ggshield.sca.sca_scan_models import (
+from ggshield.verticals.sca.client import SCAClient
+from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
     SCAScanAllOutput,
     SCAScanDiffOutput,
@@ -96,7 +96,7 @@ class TestSCAClient:
         """
         sca_client = SCAClient(client)
 
-        piplock_filepath = Path(current_dir / "../data/Pipfile.lock").resolve()
+        piplock_filepath = Path(current_dir / "../../data/Pipfile.lock").resolve()
 
         tar = _create_tar(".", [piplock_filepath])
         scan_params = SCAScanParameters()

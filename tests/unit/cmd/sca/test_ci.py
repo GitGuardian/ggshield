@@ -6,7 +6,7 @@ from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 
 
-@patch("ggshield.sca.client.SCAClient.scan_diff")
+@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
 @patch(
     "ggshield.cmd.sca.scan.sca_scan_utils.sca_files_from_git_repo", return_value=set()
 )
@@ -38,7 +38,7 @@ def test_sca_scan_ci_no_commit(
     assert "No SCA vulnerability has been added." in result.stdout
 
 
-@patch("ggshield.sca.client.SCAClient.scan_diff")
+@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
 @patch("ggshield.cmd.sca.scan.ci.get_current_and_previous_state_from_ci_env")
 def test_sca_scan_ci_same_commit(
     get_current_and_previous_state_from_ci_env_mock: Mock,
@@ -65,7 +65,7 @@ def test_sca_scan_ci_same_commit(
     assert "No SCA vulnerability has been added." in result.stdout
 
 
-@patch("ggshield.sca.client.SCAClient.sca_scan_directory")
+@patch("ggshield.verticals.sca.client.SCAClient.sca_scan_directory")
 @patch("ggshield.cmd.sca.scan.sca_scan_utils.get_sca_scan_all_filepaths")
 def test_sca_scan_all_no_files(
     scan_filepaths_mock: Mock,

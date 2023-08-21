@@ -12,21 +12,21 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.file_utils import get_empty_tar
 from ggshield.core.git_shell import INDEX_REF, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error, display_info, display_warning
-from ggshield.sca.client import SCAClient
-from ggshield.sca.file_selection import (
+from ggshield.scan.scan_context import ScanContext
+from ggshield.scan.scan_mode import ScanMode
+from ggshield.verticals.sca.client import SCAClient
+from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
     sca_files_from_git_repo,
 )
-from ggshield.sca.output.handler import SCAOutputHandler
-from ggshield.sca.output.text_handler import SCATextOutputHandler
-from ggshield.sca.sca_scan_models import (
+from ggshield.verticals.sca.output.handler import SCAOutputHandler
+from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
+from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
     SCAScanAllOutput,
     SCAScanDiffOutput,
     SCAScanParameters,
 )
-from ggshield.scan.scan_context import ScanContext
-from ggshield.scan.scan_mode import ScanMode
 
 
 def display_sca_beta_warning(func):

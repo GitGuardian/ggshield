@@ -11,9 +11,9 @@ from ggshield.core.git_shell import (
     get_filepaths_from_ref,
     get_staged_filepaths,
 )
-from ggshield.sca.client import SCAClient
 from ggshield.scan import Scannable
 from ggshield.scan.file import get_files_from_paths
+from ggshield.verticals.sca.client import SCAClient
 
 
 # List of filepaths to ignore for SCA scans

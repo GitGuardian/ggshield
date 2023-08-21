@@ -3,12 +3,12 @@ from typing import ClassVar, Optional
 
 from ggshield.core.constants import IncidentStatus
 from ggshield.core.text_utils import STYLE, file_info, format_text
-from ggshield.sca.collection import (
+from ggshield.verticals.sca.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
 )
-from ggshield.sca.output.handler import SCAOutputHandler
-from ggshield.sca.sca_scan_models import (
+from ggshield.verticals.sca.output.handler import SCAOutputHandler
+from ggshield.verticals.sca.sca_scan_models import (
     SCALocationVulnerability,
     SCAVulnerability,
     SCAVulnerablePackageVersion,

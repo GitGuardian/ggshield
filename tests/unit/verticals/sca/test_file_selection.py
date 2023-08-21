@@ -6,13 +6,13 @@ import pytest
 from pygitguardian import GGClient
 
 from ggshield.core.utils import Filemode
-from ggshield.sca.client import SCAClient
-from ggshield.sca.file_selection import (
+from ggshield.scan import StringScannable
+from ggshield.verticals.sca.client import SCAClient
+from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
     is_not_excluded_from_sca,
     sca_files_from_git_repo,
 )
-from ggshield.scan import StringScannable
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 
