@@ -4,7 +4,7 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import ExitCode
-from ggshield.secret import SecretScanCollection
+from ggshield.verticals.secret import SecretScanCollection
 
 
 class SecretOutputHandler(ABC):

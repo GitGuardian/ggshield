@@ -24,9 +24,12 @@ from ggshield.core.git_hooks.prereceive import (
 from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.text_utils import display_error
 from ggshield.scan import ScanContext, ScanMode
-from ggshield.secret.output import SecretGitLabWebUIOutputHandler, SecretOutputHandler
-from ggshield.secret.output.messages import remediation_message
-from ggshield.secret.repo import scan_commit_range
+from ggshield.verticals.secret.output import (
+    SecretGitLabWebUIOutputHandler,
+    SecretOutputHandler,
+)
+from ggshield.verticals.secret.output.messages import remediation_message
+from ggshield.verticals.secret.repo import scan_commit_range
 
 
 logger = logging.getLogger(__name__)

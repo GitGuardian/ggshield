@@ -9,9 +9,9 @@ from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import check_git_dir
 from ggshield.scan import Commit, ScanContext, ScanMode
-from ggshield.secret import SecretScanCollection, SecretScanner
-from ggshield.secret.output import SecretTextOutputHandler
-from ggshield.secret.output.messages import remediation_message
+from ggshield.verticals.secret import SecretScanCollection, SecretScanner
+from ggshield.verticals.secret.output import SecretTextOutputHandler
+from ggshield.verticals.secret.output.messages import remediation_message
 
 
 REMEDIATION_STEPS = """  Since the secret was detected before the commit was made:

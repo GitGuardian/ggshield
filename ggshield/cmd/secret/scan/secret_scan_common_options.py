@@ -16,7 +16,7 @@ from ggshield.core.config import Config
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
-from ggshield.secret.output import (
+from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
     SecretTextOutputHandler,

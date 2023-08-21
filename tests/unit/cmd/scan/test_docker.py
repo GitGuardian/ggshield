@@ -8,8 +8,8 @@ import pytest
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.scan import Files, StringScannable
-from ggshield.secret import SecretScanCollection
-from ggshield.secret.docker import DockerImage, LayerInfo, _validate_filepath
+from ggshield.verticals.secret import SecretScanCollection
+from ggshield.verticals.secret.docker import DockerImage, LayerInfo, _validate_filepath
 from tests.unit.conftest import (
     DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
     DOCKER_EXAMPLE_PATH,
@@ -95,7 +95,7 @@ class TestDockerCMD:
         assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert 'Image "ggshield-non-existant" not found' in result.output
 
-    @patch("ggshield.secret.docker.DockerImage")
+    @patch("ggshield.verticals.secret.docker.DockerImage")
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
