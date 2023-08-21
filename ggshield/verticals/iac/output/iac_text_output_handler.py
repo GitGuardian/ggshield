@@ -29,7 +29,7 @@ from ggshield.core.text_utils import (
     format_text,
     pluralize,
 )
-from ggshield.utils.git_shell import Filemode
+from ggshield.utils.git_shell import Filemode, NotAGitDirectory, get_git_root
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )
@@ -72,16 +72,29 @@ def group_incidents_by_filename(
 class IaCTextOutputHandler(IaCOutputHandler):
     nb_lines: ClassVar[int] = 3
 
+    def _get_source_basedir(self, path: str) -> Path:
+        """Vulnerability path are relative to either git root path or
+        path provided for the scan.
+
+        Returns the source basedir required to find file within filesystem.
+        """
+        try:
+            return Path(get_git_root(wd=path)).resolve()
+        except NotAGitDirectory:
+            # In case we are not in a Git repository
+            return Path(path).resolve()
+
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
         if scan.result and isinstance(scan.result.entities_with_incidents, List):
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # List incidents if any
+            source_basedir = self._get_source_basedir(scan.id)
             for file_result in scan.result.entities_with_incidents:
                 scan_buf.write(
                     self.process_iac_file_result(
-                        Path(scan.id) / file_result.filename, file_result
+                        source_basedir / file_result.filename, file_result
                     )
                 )
             # Show no incidents if none
@@ -105,6 +118,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                     )
                 )
             else:
+                source_basedir = self._get_source_basedir(scan.id)
                 for filename, new, _, _ in group_incidents_by_filename(
                     scan.result.entities_with_incidents
                 ):
@@ -115,7 +129,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                     for file_result in new:
                         scan_buf.write(
                             self.process_iac_diff_result(
-                                Path(scan.id) / file_result.filename, file_result
+                                source_basedir / file_result.filename, file_result
                             )
                         )
             # Show summary
@@ -146,6 +160,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
             len(e.incidents) for e in scan.result.entities_with_incidents.deleted
         )
         total_vulns_count = num_new + num_unchanged + num_deleted
+        source_basedir = self._get_source_basedir(scan.id)
         if total_vulns_count == 0:
             scan_buf.write(no_iac_vulnerabilities())
         else:
@@ -163,7 +178,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                 for file_result in deleted:
                     scan_buf.write(
                         self.process_iac_diff_result(
-                            Path(scan.id) / file_result.filename,
+                            source_basedir / file_result.filename,
                             file_result,
                             "REMOVED",
                         )
@@ -172,7 +187,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                 for file_result in unchanged:
                     scan_buf.write(
                         self.process_iac_diff_result(
-                            Path(scan.id) / file_result.filename,
+                            source_basedir / file_result.filename,
                             file_result,
                             "PERSISTING",
                         )
@@ -181,7 +196,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                 for file_result in new:
                     scan_buf.write(
                         self.process_iac_diff_result(
-                            Path(scan.id) / file_result.filename, file_result, "NEW"
+                            source_basedir / file_result.filename, file_result, "NEW"
                         )
                     )
         # Show summary
