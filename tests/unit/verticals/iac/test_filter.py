@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ggshield.iac.filter import get_iac_files_from_path, is_iac_file_path
+from ggshield.verticals.iac.filter import get_iac_files_from_path, is_iac_file_path
 
 
 FILE_NAMES = [

@@ -32,9 +32,11 @@ from ggshield.core.git_shell import (
     get_filepaths_from_ref,
 )
 from ggshield.core.text_utils import display_info, display_warning
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.filter import is_iac_file_path
 from ggshield.scan import ScanContext, ScanMode
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.filter import is_iac_file_path
 
 
 @click.command()

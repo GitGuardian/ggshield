@@ -2,10 +2,14 @@ from typing import Any, Dict, cast
 
 from pygitguardian.iac_models import IaCDiffScanEntities, IaCFileResult
 
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
-from ggshield.iac.output.iac_output_handler import IaCOutputHandler
-from ggshield.iac.output.schemas import (
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.collection.iac_path_scan_collection import (
+    IaCPathScanCollection,
+)
+from ggshield.verticals.iac.output.iac_output_handler import IaCOutputHandler
+from ggshield.verticals.iac.output.schemas import (
     IaCJSONScanDiffResultSchema,
     IaCJSONScanResultSchema,
 )

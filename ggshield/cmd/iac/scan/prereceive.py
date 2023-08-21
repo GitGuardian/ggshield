@@ -20,8 +20,12 @@ from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin
 from ggshield.core.git_shell import check_git_ref, is_valid_git_commit_ref
 from ggshield.core.utils import EMPTY_TREE
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.collection.iac_path_scan_collection import IaCPathScanCollection
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.collection.iac_path_scan_collection import (
+    IaCPathScanCollection,
+)
 
 
 logger = logging.getLogger(__name__)

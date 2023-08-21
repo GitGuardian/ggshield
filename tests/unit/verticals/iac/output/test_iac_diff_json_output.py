@@ -7,8 +7,10 @@ from pygitguardian.iac_models import (
     IaCVulnerability,
 )
 
-from ggshield.iac.collection.iac_diff_scan_collection import IaCDiffScanCollection
-from ggshield.iac.output import IaCJSONOutputHandler
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
+from ggshield.verticals.iac.output import IaCJSONOutputHandler
 
 
 def file_result_factory(filename: str, incidents: int = 1) -> IaCFileResult:
