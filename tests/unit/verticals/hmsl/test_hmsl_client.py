@@ -3,8 +3,8 @@ from unittest import mock
 
 import pytest
 
-from ggshield.hmsl import HMSLClient
-from ggshield.hmsl.crypto import hash_string
+from ggshield.verticals.hmsl import HMSLClient
+from ggshield.verticals.hmsl.crypto import hash_string
 
 
 SAMPLE_QUERY = ["408a5b05c35bb4d230e31da1f9afa0e8881050cb72775e925d6bc7cb945b4f39"]
@@ -98,7 +98,9 @@ def test_hmsl_client_decode_response(hmsl_client: HMSLClient):
     WHEN a response is received
     THEN the response is properly decrypted
     """
-    with mock.patch("ggshield.hmsl.HMSLClient._query", return_value=SAMPLE_RESPONSE):
+    with mock.patch(
+        "ggshield.verticals.hmsl.HMSLClient._query", return_value=SAMPLE_RESPONSE
+    ):
         response = list(hmsl_client.check(SAMPLE_QUERY, full_hashes=False))
     assert len(response) == 1
     secret = response[0]

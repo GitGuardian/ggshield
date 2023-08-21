@@ -6,9 +6,9 @@ import click
 from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.hmsl_common_options import input_arg
 from ggshield.core.errors import ParseError
-from ggshield.hmsl import Match, Secret
-from ggshield.hmsl.crypto import make_hint
-from ggshield.hmsl.output import show_results
+from ggshield.verticals.hmsl import Match, Secret
+from ggshield.verticals.hmsl.crypto import make_hint
+from ggshield.verticals.hmsl.output import show_results
 
 
 # Types and constants

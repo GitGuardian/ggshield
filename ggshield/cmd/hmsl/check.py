@@ -14,9 +14,14 @@ from ggshield.cmd.hmsl.hmsl_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize
-from ggshield.hmsl import Secret, get_client
-from ggshield.hmsl.collection import InputType, NamingStrategy, collect, prepare
-from ggshield.hmsl.output import show_results
+from ggshield.verticals.hmsl import Secret, get_client
+from ggshield.verticals.hmsl.collection import (
+    InputType,
+    NamingStrategy,
+    collect,
+    prepare,
+)
+from ggshield.verticals.hmsl.output import show_results
 
 
 logger = logging.getLogger(__name__)

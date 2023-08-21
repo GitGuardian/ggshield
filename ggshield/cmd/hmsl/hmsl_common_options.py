@@ -1,6 +1,6 @@
 import click
 
-from ggshield.hmsl.collection import NAMING_STRATEGIES, InputType
+from ggshield.verticals.hmsl.collection import NAMING_STRATEGIES, InputType
 
 
 input_arg = click.argument(

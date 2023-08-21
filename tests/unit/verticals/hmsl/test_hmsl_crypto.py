@@ -2,7 +2,12 @@ import secrets
 
 import pytest
 
-from ggshield.hmsl.crypto import DecryptionError, decrypt, encrypt, hash_string
+from ggshield.verticals.hmsl.crypto import (
+    DecryptionError,
+    decrypt,
+    encrypt,
+    hash_string,
+)
 
 
 @pytest.fixture
