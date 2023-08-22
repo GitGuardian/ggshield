@@ -1,3 +1,5 @@
+DO NOT MERGE ME
+
 <a href="https://gitguardian.com/"><img src="https://cdn.jsdelivr.net/gh/gitguardian/ggshield/doc/logo.svg"></a>
 
 ---
