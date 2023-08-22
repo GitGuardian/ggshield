@@ -85,3 +85,21 @@ repos:
       - id: ggshield
         language_version: python3
         stages: [commit]
+
+  - repo: local
+    hooks:
+      - id: import-linter-config
+        name: Import Linter Config Check
+        entry: pipenv run ./scripts/check-import-linter-config.sh
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [commit]
+
+      - id: import-linter
+        name: Import Linter
+        entry: pipenv run lint-imports
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [commit]
