@@ -269,9 +269,7 @@ def file_diff_info(
 
 def get_pretty_date(dt: datetime) -> str:
     """
-    convert the given datetime to the format September 1st 2022
+    convert the given datetime to the format September 1, 2022
     """
-    month_suffix = {1: "st", 2: "nd", 3: "rd"}.get(
-        dt.day if dt.day < 20 else dt.day % 10, "th"
-    )
-    return dt.strftime(f"%B {dt.day}{month_suffix} %Y")
+    # Don't use %d for the day because it adds a leading 0
+    return dt.strftime(f"%B {dt.day}, %Y")

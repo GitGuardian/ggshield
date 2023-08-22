@@ -329,11 +329,11 @@ class TestAuthLoginWeb:
     @pytest.mark.parametrize(
         ["month", "day", "str_date"],
         [
-            ("01", "31", "January 31st"),
-            ("02", "22", "February 22nd"),
-            ("03", "13", "March 13th"),
-            ("04", "03", "April 3rd"),
-            ("05", "04", "May 4th"),
+            ("01", "31", "January 31"),
+            ("02", "22", "February 22"),
+            ("03", "13", "March 13"),
+            ("04", "03", "April 3"),
+            ("05", "04", "May 4"),
         ],
     )
     def test_existing_non_expired_token(
@@ -352,7 +352,7 @@ class TestAuthLoginWeb:
         self._request_mock.assert_all_requests_happened()
 
         self._assert_last_print(
-            output, f"ggshield is already authenticated until {str_date} 2100"
+            output, f"ggshield is already authenticated until {str_date}, 2100"
         )
 
     def test_auth_login_recreates_token_if_deleted_server_side(
