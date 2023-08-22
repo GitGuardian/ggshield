@@ -13,7 +13,7 @@ from typing import Callable, Sequence
 
 import click
 
-from ggshield.cmd.common_options import (
+from ggshield.cmd.utils.common_options import (
     AnyFunction,
     add_common_options,
     exit_zero_option,

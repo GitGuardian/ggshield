@@ -5,7 +5,6 @@ from typing import Any, Sequence
 import click
 from pygitguardian.iac_models import IaCScanResult
 
-from ggshield.cmd.common_options import all_option
 from ggshield.cmd.iac.scan.diff import iac_scan_diff
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
@@ -15,6 +14,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     IaCSkipScanResult,
     create_output_handler,
 )
+from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin

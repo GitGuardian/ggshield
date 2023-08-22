@@ -4,13 +4,13 @@ from typing import Any, List, Optional, TextIO, cast
 import click
 from requests import HTTPError
 
-from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.hmsl_common_options import (
     full_hashes_option,
     input_arg,
     input_type_option,
     naming_strategy_option,
 )
+from ggshield.cmd.utils.common_options import add_common_options, json_option
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize

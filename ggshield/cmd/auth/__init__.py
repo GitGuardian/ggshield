@@ -2,7 +2,7 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 
 from .login import login_cmd
 from .logout import logout_cmd

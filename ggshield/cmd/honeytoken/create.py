@@ -7,7 +7,7 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, HoneytokenResponse
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 

@@ -3,7 +3,7 @@ from typing import Any, Optional, Tuple
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL

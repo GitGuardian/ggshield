@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.verticals.hmsl.secret_manager.hashicorp_vault import (
     VaultCliTokenFetchingError,
     get_vault_cli_token,

@@ -3,8 +3,8 @@ from typing import Any, Dict, Iterator, TextIO, cast
 
 import click
 
-from ggshield.cmd.common_options import add_common_options, json_option
 from ggshield.cmd.hmsl.hmsl_common_options import input_arg
+from ggshield.cmd.utils.common_options import add_common_options, json_option
 from ggshield.core.errors import ParseError
 from ggshield.verticals.hmsl import Match, Secret
 from ggshield.verticals.hmsl.crypto import make_hint

@@ -7,7 +7,7 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail
 
-from ggshield.cmd.common_options import use_json
+from ggshield.cmd.utils.common_options import use_json
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import is_filepath_excluded

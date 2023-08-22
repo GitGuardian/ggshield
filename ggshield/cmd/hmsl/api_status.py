@@ -3,7 +3,7 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.verticals.hmsl import get_client

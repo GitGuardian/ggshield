@@ -2,13 +2,13 @@ from typing import Any, TextIO, cast
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.hmsl.hmsl_common_options import (
     full_hashes_option,
     input_arg,
     input_type_option,
     naming_strategy_option,
 )
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.text_utils import display_info
 from ggshield.verticals.hmsl.collection import (
     InputType,
