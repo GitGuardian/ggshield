@@ -1,4 +1,6 @@
 import re
+import tempfile
+from pathlib import Path
 
 from pygitguardian.iac_models import (
     IaCDiffScanEntities,
@@ -67,22 +69,24 @@ def test_iac_scan_diff_vuln_not_verbose():
     THEN output should display version, new incidents and scan summary
     """
     output_handler = IaCTextOutputHandler(False)
-    output = output_handler._process_diff_scan_impl(
-        IaCDiffScanCollection(
-            id="ID",
-            result=IaCDiffScanResult(
-                id="ID",
-                type="TYPE",
-                iac_engine_version="1.0.0",
-                entities_with_incidents=IaCDiffScanEntities(
-                    new=[_generate_iac_file_result()],
-                    unchanged=[_generate_iac_file_result()],
-                    deleted=[_generate_iac_file_result()],
+    with tempfile.TemporaryDirectory() as temporary_dir:
+        file = Path(temporary_dir) / "FILENAME.tf"
+        file.write_text("FAKE CONTENT")
+        output = output_handler._process_diff_scan_impl(
+            IaCDiffScanCollection(
+                id=temporary_dir,
+                result=IaCDiffScanResult(
+                    id=temporary_dir,
+                    type="TYPE",
+                    iac_engine_version="1.0.0",
+                    entities_with_incidents=IaCDiffScanEntities(
+                        new=[_generate_iac_file_result()],
+                        unchanged=[_generate_iac_file_result()],
+                        deleted=[_generate_iac_file_result()],
+                    ),
                 ),
-            ),
+            )
         )
-    )
-
     assert_iac_diff_version_displayed(output)
     assert re.search(r"FILENAME\.tf.*1 new incident detected", output)
     assert_iac_diff_summary_displayed(output, new=1, unchanged=1, deleted=1)
@@ -96,19 +100,22 @@ def test_iac_scan_diff_no_vuln_verbose():
     THEN output should display version, new incidents, unchanged incidents, deleted incidents, and scan summary
     """
     output_handler = IaCTextOutputHandler(True)
-    output = output_handler._process_diff_scan_impl(
-        IaCDiffScanCollection(
-            id="ID",
-            result=IaCDiffScanResult(
-                id="ID",
-                type="TYPE",
-                iac_engine_version="1.0.0",
-                entities_with_incidents=IaCDiffScanEntities(
-                    new=[], unchanged=[], deleted=[]
+    with tempfile.TemporaryDirectory() as temporary_dir:
+        file = Path(temporary_dir) / "FILENAME.tf"
+        file.write_text("FAKE CONTENT")
+        output = output_handler._process_diff_scan_impl(
+            IaCDiffScanCollection(
+                id=temporary_dir,
+                result=IaCDiffScanResult(
+                    id=temporary_dir,
+                    type="TYPE",
+                    iac_engine_version="1.0.0",
+                    entities_with_incidents=IaCDiffScanEntities(
+                        new=[], unchanged=[], deleted=[]
+                    ),
                 ),
-            ),
+            )
         )
-    )
 
     assert_iac_diff_version_displayed(output)
     assert_iac_diff_no_incident_message(output)
@@ -122,21 +129,24 @@ def test_iac_scan_diff_vuln_verbose():
     THEN output should display version, new incidents, unchanged incidents, deleted incidents, and scan summary
     """
     output_handler = IaCTextOutputHandler(True)
-    output = output_handler._process_diff_scan_impl(
-        IaCDiffScanCollection(
-            id="ID",
-            result=IaCDiffScanResult(
-                id="ID",
-                type="TYPE",
-                iac_engine_version="1.0.0",
-                entities_with_incidents=IaCDiffScanEntities(
-                    new=[_generate_iac_file_result()],
-                    unchanged=[_generate_iac_file_result()],
-                    deleted=[_generate_iac_file_result()],
+    with tempfile.TemporaryDirectory() as temporary_dir:
+        file = Path(temporary_dir) / "FILENAME.tf"
+        file.write_text("FAKE CONTENT")
+        output = output_handler._process_diff_scan_impl(
+            IaCDiffScanCollection(
+                id=temporary_dir,
+                result=IaCDiffScanResult(
+                    id=temporary_dir,
+                    type="TYPE",
+                    iac_engine_version="1.0.0",
+                    entities_with_incidents=IaCDiffScanEntities(
+                        new=[_generate_iac_file_result()],
+                        unchanged=[_generate_iac_file_result()],
+                        deleted=[_generate_iac_file_result()],
+                    ),
                 ),
-            ),
+            )
         )
-    )
 
     assert_iac_diff_version_displayed(output)
     assert re.search(r"FILENAME\.tf.*1 new incident detected", output)

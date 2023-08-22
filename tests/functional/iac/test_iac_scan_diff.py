@@ -55,6 +55,43 @@ def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
     assert "0 new incidents detected" in result.stdout
 
 
+def test_iac_scan_diff_unchanged_inner_dir(tmp_path: Path) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND inner directory
+    inner_dir_path = tmp_path / "innerdir"
+    inner_dir_path.mkdir()
+
+    # AND a first commit with vulnerabilities
+    file1 = inner_dir_path / "file1.tf"
+    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file1)
+    repo.create_commit()
+
+    # AND a second commit with changes to IaC files
+    # but introducing no changes to vulnerabilities
+    file2 = inner_dir_path / "file2.tf"
+    file2.write_text("")
+    repo.add(file2)
+    repo.create_commit()
+
+    # WHEN scanning the diff in this second commit
+    args = ["diff", "--ref", "HEAD~1", "--verbose", str(inner_dir_path)]
+    result = run_ggshield_iac_scan(*args, cwd=tmp_path, expected_code=0)
+
+    # THEN the output shows one unchanged vulnerability
+    assert "0 incidents deleted" in result.stdout
+    assert "1 incident remaining" in result.stdout
+    assert "0 new incidents detected" in result.stdout
+    vulnerability_lines = [
+        line for line in _IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
+    ]
+    for line in vulnerability_lines:
+        assert line in result.stdout
+
+
 def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
     # GIVEN a git repository
     repo = Repository.create(tmp_path)
@@ -85,6 +122,47 @@ def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
     assert "1 new incident detected" in result.stdout
     # AND details about the new vulnerability are shown
     assert "file2.tf" in result.stdout
+
+
+def test_iac_scan_diff_new_vuln_inner_dir(tmp_path: Path) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND inner directory
+    inner_dir_path = tmp_path / "innerdir"
+    inner_dir_path.mkdir()
+
+    # AND a first commit with a vulnerability in file1.tf
+    file1 = inner_dir_path / "file1.tf"
+    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file1)
+    repo.create_commit()
+
+    # AND a second commit with another vulnerability in file2.tf
+    file2 = inner_dir_path / "file2.tf"
+    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file2)
+    repo.create_commit()
+
+    # WHEN scanning the diff between current and HEAD~1
+    # (meaning reference should be one commit behind)
+    args = ["diff", "--ref", "HEAD~1", "--verbose", str(inner_dir_path)]
+    # THEN exit code is 1 (new vuln detected)
+    result = run_ggshield_iac_scan(*args, cwd=inner_dir_path, expected_code=1)
+
+    # AND vulnerability of file1.tf shows as unchanged
+    # AND vulnerability of file2.tf shows as new
+    assert "0 incidents deleted" in result.stdout
+    assert "1 incident remaining" in result.stdout
+    assert "1 new incident detected" in result.stdout
+    # AND details about the new vulnerability are shown
+    assert "file2.tf" in result.stdout
+    vulnerability_lines = [
+        line for line in _IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
+    ]
+    for line in vulnerability_lines:
+        assert line in result.stdout
 
 
 def test_iac_scan_diff_removed_vuln(tmp_path: Path) -> None:
@@ -118,6 +196,48 @@ def test_iac_scan_diff_removed_vuln(tmp_path: Path) -> None:
     assert "1 incident deleted" in result.stdout
     assert "1 incident remaining" in result.stdout
     assert "0 new incidents detected" in result.stdout
+
+
+def test_iac_scan_diff_removed_vuln_inner_dir(tmp_path: Path) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND inner directory
+    inner_dir_path = tmp_path / "innerdir"
+    inner_dir_path.mkdir()
+
+    # AND a first commit with a vulnerability in file1.tf and file2.tf
+    file1 = inner_dir_path / "file1.tf"
+    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file1)
+
+    file2 = inner_dir_path / "file2.tf"
+    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file2)
+    repo.create_commit()
+
+    # AND a second commit removing the vulnerability in file1.tf
+    file1.write_text("")
+    repo.add(file1)
+    repo.create_commit()
+
+    # WHEN scanning the diff between current and HEAD~1
+    # (meaning reference should be one commit behind)
+    args = ["diff", "--ref", "HEAD~1", "--verbose", str(inner_dir_path)]
+    # THEN exit code is 0 (no new vuln)
+    result = run_ggshield_iac_scan(*args, cwd=inner_dir_path, expected_code=0)
+
+    # AND the output contains the vulnerability of file2.tf as unchanged
+    # AND the output contains the vulnerability of file1.tf as deleted
+    assert "1 incident deleted" in result.stdout
+    assert "1 incident remaining" in result.stdout
+    assert "0 new incidents detected" in result.stdout
+    vulnerability_lines = [
+        line for line in _IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
+    ]
+    for line in vulnerability_lines:
+        assert line in result.stdout
 
 
 def test_iac_scan_diff_only_tracked_iac(tmp_path: Path) -> None:
