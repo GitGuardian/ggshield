@@ -1,5 +1,15 @@
 # Changelog
 
+<a id='changelog-1.18.1'></a>
+
+## 1.18.1 — 2023-08-22
+
+### Fixed
+
+- Fixed a bug which caused IaC and SCA scans to fail on GitLab CI because GitLab does not run `git fetch` on the target branch for merge requests. ggshield now runs `git fetch` itself to avoid this problem.
+
+- Fixed a typo in the command suggested to tell git a directory is safe.
+
 <a id='changelog-1.18.0'></a>
 
 ## 1.18.0 — 2023-08-16
