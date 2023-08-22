@@ -12,16 +12,15 @@ from typing import Any, Dict, Optional, Type, no_type_check
 import click
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
-from ggshield.core.utils import urljoin
-
-from .client import (
+from ggshield.core.client import (
     check_client_api_key,
     create_client,
     create_client_from_config,
     create_session,
 )
-from .config import Config, InstanceConfig
-from .errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.config import Config, InstanceConfig
+from ggshield.core.errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.utils import urljoin
 
 
 CLIENT_ID = "ggshield_oauth"
