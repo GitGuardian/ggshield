@@ -6,7 +6,7 @@ from typing import Any, Optional
 import click
 from click import UsageError
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.git_shell import check_git_dir, git
 

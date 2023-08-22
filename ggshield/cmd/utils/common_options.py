@@ -15,7 +15,7 @@ from typing import Any, Callable, Optional, TypeVar, cast
 
 import click
 
-from ggshield.cmd.debug_logs import setup_debug_logs
+from ggshield.cmd.utils.debug_logs import setup_debug_logs
 from ggshield.core.config.user_config import UserConfig
 
 

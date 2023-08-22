@@ -7,9 +7,7 @@ from typing import Any, List, Optional
 import click
 
 from ggshield.cmd.auth import auth_group
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config import config_group
-from ggshield.cmd.debug_logs import disable_logs, setup_debug_logs
 from ggshield.cmd.hmsl import hmsl_group
 from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.iac import iac_group
@@ -19,6 +17,8 @@ from ggshield.cmd.sca import sca_group
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
+from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.debug_logs import disable_logs, setup_debug_logs
 from ggshield.core import check_updates
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config

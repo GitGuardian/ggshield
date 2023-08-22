@@ -2,8 +2,8 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.iac.scan import iac_scan_group
+from ggshield.cmd.utils.common_options import add_common_options
 
 
 @click.group(commands={"scan": iac_scan_group})

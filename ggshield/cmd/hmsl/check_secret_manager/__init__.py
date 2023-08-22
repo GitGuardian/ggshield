@@ -2,10 +2,10 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.hmsl.check_secret_manager.hashicorp_vault import (
     check_hashicorp_vault_cmd,
 )
+from ggshield.cmd.utils.common_options import add_common_options
 
 
 @click.group(

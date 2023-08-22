@@ -3,7 +3,6 @@ from typing import Any, Optional, Sequence
 
 import click
 
-from ggshield.cmd.common_options import all_option, directory_argument
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
     display_sca_beta_warning,
@@ -14,6 +13,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,

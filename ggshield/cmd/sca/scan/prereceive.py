@@ -4,7 +4,6 @@ from typing import Any, Sequence
 
 import click
 
-from ggshield.cmd.common_options import all_option
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
     display_sca_beta_warning,
@@ -14,6 +13,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin
 from ggshield.core.git_shell import check_git_ref, is_valid_git_commit_ref
 from ggshield.core.utils import EMPTY_TREE

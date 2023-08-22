@@ -2,7 +2,6 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.hmsl.api_status import status_cmd
 from ggshield.cmd.hmsl.check import check_cmd
 from ggshield.cmd.hmsl.check_secret_manager import check_secret_manager_group
@@ -10,6 +9,7 @@ from ggshield.cmd.hmsl.decrypt import decrypt_cmd
 from ggshield.cmd.hmsl.fingerprint import fingerprint_cmd
 from ggshield.cmd.hmsl.query import query_cmd
 from ggshield.cmd.hmsl.quota import quota_cmd
+from ggshield.cmd.utils.common_options import add_common_options
 
 
 @click.group(

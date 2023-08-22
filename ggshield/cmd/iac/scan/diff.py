@@ -4,11 +4,6 @@ from typing import Any, Optional, Sequence, Union
 import click
 from pygitguardian.iac_models import IaCDiffScanResult, IaCScanParameters
 
-from ggshield.cmd.common_options import (
-    directory_argument,
-    reference_option,
-    staged_option,
-)
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     update_context,
@@ -20,6 +15,11 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     get_git_filepaths,
     get_iac_tar,
     handle_scan_error,
+)
+from ggshield.cmd.utils.common_options import (
+    directory_argument,
+    reference_option,
+    staged_option,
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
