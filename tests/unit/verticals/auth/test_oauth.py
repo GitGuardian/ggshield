@@ -3,7 +3,8 @@ from urllib import parse as urlparse
 import pytest
 
 from ggshield.core.config import Config
-from ggshield.verticals.auth.oauth import OAuthClient, get_error_param
+from ggshield.verticals.auth import OAuthClient
+from ggshield.verticals.auth.oauth import get_error_param
 
 
 @pytest.mark.parametrize(

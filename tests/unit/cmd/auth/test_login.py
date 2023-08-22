@@ -11,7 +11,8 @@ from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
-from ggshield.verticals.auth.oauth import OAuthClient, OAuthError, get_pretty_date
+from ggshield.core.text_utils import get_pretty_date
+from ggshield.verticals.auth import OAuthClient, OAuthError
 from tests.unit.conftest import assert_invoke_ok
 from tests.unit.request_mock import RequestMock, create_json_response
 

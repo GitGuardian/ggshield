@@ -7,7 +7,7 @@ from base64 import urlsafe_b64encode
 from datetime import datetime
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Optional, Type, no_type_check
+from typing import Any, Dict, Optional, Type
 
 import click
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
@@ -20,6 +20,7 @@ from ggshield.core.client import (
 )
 from ggshield.core.config import Config, InstanceConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.text_utils import get_pretty_date
 from ggshield.core.utils import urljoin
 
 
@@ -33,17 +34,6 @@ SCOPE = "scan"
 USABLE_PORT_RANGE = (29170, 29998)
 
 logger = logging.getLogger(__name__)
-
-
-@no_type_check
-def get_pretty_date(dt: datetime) -> str:
-    """
-    convert the given datetime to the format September 1st 2022
-    """
-    month_suffix = {1: "st", 2: "nd", 3: "rd"}.get(
-        dt.day if dt.day < 20 else dt.day % 10, "th"
-    )
-    return dt.strftime(f"%B {dt.day}{month_suffix} %Y")
 
 
 def get_error_param(parsed_url: urlparse.ParseResult) -> Optional[str]:

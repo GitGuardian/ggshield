@@ -9,7 +9,7 @@ from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.utils import clean_url
-from ggshield.verticals.auth.oauth import OAuthClient
+from ggshield.verticals.auth import OAuthClient
 
 
 def validate_login_path(
