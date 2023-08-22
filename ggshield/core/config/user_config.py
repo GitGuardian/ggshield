@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
@@ -21,14 +22,15 @@ from ggshield.core.errors import ParseError, UnexpectedError, format_validation_
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 from ggshield.core.utils import api_to_dashboard_url
-from ggshield.verticals.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
-from ggshield.verticals.sca.vuln_identifier import GHSA_ID_PATTERN, is_ghsa_valid
 
 
 logger = logging.getLogger(__name__)
 CURRENT_CONFIG_VERSION = 2
 
 _IGNORE_KNOWN_SECRETS_KEY = "ignore-known-secrets"
+
+GHSA_ID_PATTERN = re.compile("GHSA(-[a-zA-Z0-9]{4}){3}")
+POLICY_ID_PATTERN = re.compile("GG_IAC_[0-9]{4}")
 
 
 @marshmallow_dataclass.dataclass
@@ -56,6 +58,10 @@ class SecretConfig(FilteredConfig):
         self.ignored_matches.append(secret)
 
 
+def validate_policy_id(policy_id: str) -> bool:
+    return bool(POLICY_ID_PATTERN.fullmatch(policy_id))
+
+
 def validate_policy_ids(values: Iterable[str]) -> None:
     invalid_excluded_policies = [
         policy_id for policy_id in values if not validate_policy_id(policy_id)
@@ -78,6 +84,10 @@ class IaCConfig(FilteredConfig):
         default_factory=set, metadata={"validate": validate_policy_ids}
     )
     minimum_severity: str = "LOW"
+
+
+def is_ghsa_valid(ghsa_id: str) -> bool:
+    return bool(GHSA_ID_PATTERN.fullmatch(ghsa_id))
 
 
 def validate_vuln_identifier(value: str):
