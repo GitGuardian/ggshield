@@ -179,7 +179,7 @@ class OAuthClient:
         try:
             while not self._handler_wrapper.complete:
                 # Wait for callback on localserver including an authorization code
-                # any matchin request will get processed by the request handler and
+                # any matching request will get processed by the request handler and
                 # the `process_callback` function
                 self.server.handle_request()  # type: ignore
         except KeyboardInterrupt:
@@ -370,7 +370,7 @@ class OAuthClient:
 
     def get_server_error_message(self, error_code: str) -> str:
         """
-        Return the human readable message associated to the given error code
+        Return the human-readable message associated to the given error code
         """
         if error_code == "too_many_tokens":
             url = urljoin(self.dashboard_url, "/api/personal-access-tokens")

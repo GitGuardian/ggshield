@@ -131,7 +131,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
             line_content = line[1:]
             category = LineCategory.deletion
         elif line_type == "\\":
-            # This type of line should'nt contain any secret; no need to set indices
+            # This type of line shouldn't contain any secret; no need to set indices
             line_content = line[1:]
 
         if line_type and line_content is not None:

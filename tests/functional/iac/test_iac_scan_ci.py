@@ -50,7 +50,7 @@ def test_ci_diff_no_vuln(
     )
 
     # THEN a vulnerability should be found if and only if
-    # the commited file contains one
+    # the committed file contains one
     assert "iac_file.tf" not in result.stdout
     assert ("test_file.tf" in result.stdout) == (
         file_content == _IAC_SINGLE_VULNERABILITY

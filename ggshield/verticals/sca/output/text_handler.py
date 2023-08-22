@@ -56,7 +56,7 @@ class SCATextOutputHandler(SCAOutputHandler):
             if len(scan.result.added_vulns) == 0:
                 scan_buf.write(no_sca_vulnerability_added())
 
-            # Removed vulnerabilites
+            # Removed vulnerabilities
             # List removed incidents if any
             for file_result in scan.result.removed_vulns:
                 scan_buf.write(
