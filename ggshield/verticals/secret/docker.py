@@ -14,10 +14,10 @@ from ggshield.core.cache import Cache
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.file_utils import is_path_binary
+from ggshield.core.scan import Files, ScanContext, Scannable, StringScannable
+from ggshield.core.scan.id_cache import IDCache
 from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import Files, ScanContext, Scannable, StringScannable
-from ggshield.scan.id_cache import IDCache
 
 from .rich_secret_scanner_ui import RichSecretScannerUI
 from .secret_scan_collection import SecretScanCollection

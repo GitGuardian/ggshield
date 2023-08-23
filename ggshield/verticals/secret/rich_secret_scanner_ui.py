@@ -1,7 +1,7 @@
 from typing import Any, Sequence
 
+from ggshield.core.scan.scannable import Scannable
 from ggshield.core.text_utils import create_progress_bar
-from ggshield.scan.scannable import Scannable
 
 from .secret_scanner import SecretScannerUI
 

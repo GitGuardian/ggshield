@@ -31,8 +31,8 @@ from ggshield.core.git_shell import (
     get_diff_files_status,
     get_filepaths_from_ref,
 )
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info, display_warning
-from ggshield.scan import ScanContext, ScanMode
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )

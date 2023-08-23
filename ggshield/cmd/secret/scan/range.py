@@ -10,7 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import get_list_commit_SHA
-from ggshield.scan import ScanContext, ScanMode
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.repo import scan_commit_range
 
 

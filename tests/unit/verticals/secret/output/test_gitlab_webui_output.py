@@ -3,7 +3,7 @@ from copy import deepcopy
 import pytest
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.scan import StringScannable
+from ggshield.core.scan import StringScannable
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output.secret_gitlab_webui_output_handler import (
     SecretGitLabWebUIOutputHandler,

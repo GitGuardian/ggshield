@@ -7,8 +7,8 @@ from click.testing import CliRunner
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE, IGNORED_DEFAULT_WILDCARDS
-from ggshield.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok

@@ -10,8 +10,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
+from ggshield.core.scan import ScanContext, ScanMode, Scannable, StringScannable
 from ggshield.core.text_utils import create_progress_bar, display_info
-from ggshield.scan import ScanContext, ScanMode, Scannable, StringScannable
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
