@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from enum import Enum, auto
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
@@ -264,3 +265,11 @@ def file_diff_info(
         format_text(filename, STYLE["filename"]),
         ", ".join(incidents_count),
     )
+
+
+def get_pretty_date(dt: datetime) -> str:
+    """
+    convert the given datetime to the format September 1, 2022
+    """
+    # Don't use %d for the day because it adds a leading 0
+    return dt.strftime(f"%B {dt.day}, %Y")

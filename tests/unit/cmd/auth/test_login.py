@@ -11,12 +11,8 @@ from ggshield.cmd.main import cli
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
-from ggshield.core.oauth import (
-    OAuthClient,
-    OAuthError,
-    get_error_param,
-    get_pretty_date,
-)
+from ggshield.core.text_utils import get_pretty_date
+from ggshield.verticals.auth import OAuthClient, OAuthError
 from tests.unit.conftest import assert_invoke_ok
 from tests.unit.request_mock import RequestMock, create_json_response
 
@@ -287,13 +283,14 @@ class TestAuthLoginWeb:
         # open browser for the user to login
         self._webbrowser_open_mock = Mock()
         monkeypatch.setattr(
-            "ggshield.core.oauth.webbrowser.open_new_tab", self._webbrowser_open_mock
+            "ggshield.verticals.auth.oauth.webbrowser.open_new_tab",
+            self._webbrowser_open_mock,
         )
 
         # Ensure that original wait_for_callback method is not called
         self._wait_for_callback_mock = Mock()
         monkeypatch.setattr(
-            "ggshield.core.oauth.OAuthClient._wait_for_callback",
+            "ggshield.verticals.auth.oauth.OAuthClient._wait_for_callback",
             self._wait_for_callback_mock,
         )
 
@@ -332,11 +329,11 @@ class TestAuthLoginWeb:
     @pytest.mark.parametrize(
         ["month", "day", "str_date"],
         [
-            ("01", "31", "January 31st"),
-            ("02", "22", "February 22nd"),
-            ("03", "13", "March 13th"),
-            ("04", "03", "April 3rd"),
-            ("05", "04", "May 4th"),
+            ("01", "31", "January 31"),
+            ("02", "22", "February 22"),
+            ("03", "13", "March 13"),
+            ("04", "03", "April 3"),
+            ("05", "04", "May 4"),
         ],
     )
     def test_existing_non_expired_token(
@@ -355,7 +352,7 @@ class TestAuthLoginWeb:
         self._request_mock.assert_all_requests_happened()
 
         self._assert_last_print(
-            output, f"ggshield is already authenticated until {str_date} 2100"
+            output, f"ggshield is already authenticated until {str_date}, 2100"
         )
 
     def test_auth_login_recreates_token_if_deleted_server_side(
@@ -597,7 +594,9 @@ class TestAuthLoginWeb:
         mock_server_class = Mock(
             side_effect=self._get_oserror_side_effect(used_port_count)
         )
-        monkeypatch.setattr("ggshield.core.oauth.HTTPServer", mock_server_class)
+        monkeypatch.setattr(
+            "ggshield.verticals.auth.oauth.HTTPServer", mock_server_class
+        )
 
         if login_result < LoginResult.EXCHANGE_FAILED:
             return
@@ -856,57 +855,3 @@ class TestAuthLoginWeb:
         assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_called()
         self._assert_open_url(host=expected_web_host)
-
-
-class TestLoginUtils:
-    @pytest.mark.parametrize(
-        ["url", "expected_error"],
-        [
-            ("http://localhost:3455", None),
-            ("http://localhost:3455?", None),
-            ("http://localhost:3455?auth=ggshield", None),
-            ("http://localhost:3455?error=some+error", "some error"),
-            ("http://localhost/?error=some+error", "some error"),
-            ("http://localhost:3455/?auth=ggshield&error=some+error", "some error"),
-        ],
-    )
-    def test_get_error_url_param(self, url, expected_error):
-        """
-        GIVEN a url
-        WHEN calling get_error_param
-        THEN it returns the value of the 'error' parameter if it exists else None
-        """
-        error = get_error_param(urlparse.urlparse(url))
-        assert error == expected_error
-
-    @pytest.mark.parametrize(
-        ["error_code", "expected_message"],
-        [
-            (
-                "too_many_tokens",
-                (
-                    "Maximum number of personal access tokens reached. "
-                    "Could not provision a new personal access token.\n"
-                    "Go to your workspace to manage your tokens: "
-                    "https://dashboard.gitguardian.com/api/personal-access-tokens"
-                ),
-            ),
-            (
-                "invalid_saml",
-                "The given SSO URL is invalid.",
-            ),
-            (
-                "invalid_error_code",
-                "An unknown server error has occurred (error code: invalid_error_code).",
-            ),
-        ],
-    )
-    def test_get_error_message(self, error_code, expected_message):
-        """
-        GIVEN an OAuthClient instance and an error code
-        WHEN calling OAuthClient.get_server_error with the error code
-        THEN it should return the corresponding human readable message with formated urls
-        """
-        oauth_client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
-        error_message = oauth_client.get_server_error_message(error_code)
-        assert error_message == expected_message
