@@ -25,7 +25,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
 - [Installation](#installation)
   - [macOS - Using Homebrew](#macos---using-homebrew)
   - [Linux packages](#linux-packages)
-  - [Other Operating Systems - Using pip](#other-operating-systems---using-pip)
+  - [Other Operating Systems - Using pipx or pip](#other-operating-systems---using-pipx-or-pip)
     - [Installing](#installing)
     - [Updating](#updating)
 - [Initial setup](#initial-setup)
@@ -59,12 +59,20 @@ Setup instructions:
 - [Deb packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-deb)
 - [RPM packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-rpm)
 
-## Other Operating Systems - Using pip
+## Other Operating Systems - Using pipx or pip
 
 ### Installing
 
+The recommended way to install `ggshield` is to use [pipx](https://pypa.github.io/pipx/), which will install it an isolated environment:
+
 ```shell
-$ pip install ggshield
+$ pipx install ggshield
+```
+
+Alternatively, you can install with pip as a user package. This will not work if your Python installation is declared as externally managed (for example when using the system Python on operating systems like Debian 12):
+
+```shell
+$ pip install --user -U ggshield
 ```
 
 `ggshield` supports **Python 3.8 and newer**.
@@ -73,10 +81,16 @@ The package should run on MacOS, Linux and Windows.
 
 ### Updating
 
-To update `ggshield` you can add the option `-U/--upgrade` to the pip install command.
+To update `ggshield` when installed with pipx:
 
 ```shell
-$ pip install -U ggshield
+$ pipx upgrade ggshield
+```
+
+If you installed `ggshield` with pip, you can add the option `-U/--upgrade` to the pip install command to update:
+
+```shell
+$ pip install --user -U ggshield
 ```
 
 # Initial setup
