@@ -12,6 +12,8 @@ from ggshield.core.cache import Cache
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
+from ggshield.core.scan import Commit, Files, ScanContext, ScanMode, StringScannable
+from ggshield.core.scan.scan_context import parse_os_release
 from ggshield.core.utils import (
     MatchIndices,
     api_to_dashboard_url,
@@ -20,8 +22,6 @@ from ggshield.core.utils import (
     get_lines_from_content,
     load_dot_env,
 )
-from ggshield.scan import Commit, Files, ScanContext, ScanMode, StringScannable
-from ggshield.scan.scan_context import parse_os_release
 from ggshield.verticals.secret import SecretScanner
 from ggshield.verticals.secret.repo import cd
 from tests.unit.conftest import (

@@ -16,8 +16,8 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info
-from ggshield.scan import ScanContext, ScanMode
 from ggshield.verticals.iac.collection.iac_path_scan_collection import (
     IaCPathScanCollection,
 )

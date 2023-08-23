@@ -7,7 +7,7 @@ from pygitguardian.models import Detail
 
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError
 from ggshield.core.git_shell import Filemode
-from ggshield.scan import (
+from ggshield.core.scan import (
     Commit,
     DecodeError,
     ScanContext,

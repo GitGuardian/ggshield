@@ -5,8 +5,8 @@ from random import randrange
 import charset_normalizer
 import pytest
 
-from ggshield.scan import DecodeError, File
-from ggshield.scan.file import generate_files_from_paths
+from ggshield.core.scan import DecodeError, File
+from ggshield.core.scan.file import generate_files_from_paths
 from tests.conftest import is_windows
 
 

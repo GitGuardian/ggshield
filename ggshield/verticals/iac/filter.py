@@ -2,8 +2,8 @@ import re
 from pathlib import Path
 from typing import List, Set
 
-from ggshield.scan import Scannable
-from ggshield.scan.file import get_files_from_paths
+from ggshield.core.scan import Scannable
+from ggshield.core.scan.file import get_files_from_paths
 
 
 IAC_EXTENSIONS = {

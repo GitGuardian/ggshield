@@ -5,7 +5,7 @@ from pygitguardian.models import ScanResult
 
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
 from ggshield.core.git_shell import Filemode
-from ggshield.scan.scannable import Scannable
+from ggshield.core.scan.scannable import Scannable
 
 
 class Result(NamedTuple):

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from ggshield.scan import Files, StringScannable
+from ggshield.core.scan import Files, StringScannable
 
 
 def test_apply_filter():

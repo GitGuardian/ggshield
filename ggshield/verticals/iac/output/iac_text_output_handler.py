@@ -20,6 +20,7 @@ from pygitguardian.iac_models import (
 )
 
 from ggshield.core.git_shell import Filemode
+from ggshield.core.scan import File
 from ggshield.core.text_utils import (
     STYLE,
     Line,
@@ -32,7 +33,6 @@ from ggshield.core.text_utils import (
     pluralize,
 )
 from ggshield.core.utils import get_lines_from_content
-from ggshield.scan import File
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )

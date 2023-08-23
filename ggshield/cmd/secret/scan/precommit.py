@@ -8,7 +8,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_shell import check_git_dir
-from ggshield.scan import Commit, ScanContext, ScanMode
+from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 from ggshield.verticals.secret.output import SecretTextOutputHandler
 from ggshield.verticals.secret.output.messages import remediation_message

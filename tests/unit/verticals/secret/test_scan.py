@@ -7,8 +7,8 @@ from pygitguardian.models import MultiScanResult, ScanResult
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
-from ggshield.scan import Commit, ScanContext, ScanMode
-from ggshield.scan.scan_context import get_os_info
+from ggshield.core.scan import Commit, ScanContext, ScanMode
+from ggshield.core.scan.scan_context import get_os_info
 from ggshield.verticals.secret import SecretScanner
 from ggshield.verticals.secret.repo import cd
 from tests.unit.conftest import UNCHECKED_SECRET_PATCH

@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ggshield.scan import Commit, StringScannable
-from ggshield.scan.commit import CommitInformation
+from ggshield.core.scan import Commit, StringScannable
+from ggshield.core.scan.commit import CommitInformation
 from ggshield.verticals.secret import Result, Results
 from ggshield.verticals.secret.repo import get_commits_by_batch, scan_commits_content
 from tests.unit.conftest import TWO_POLICY_BREAKS

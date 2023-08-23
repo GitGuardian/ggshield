@@ -18,9 +18,9 @@ from ggshield.core.filter import (
     remove_ignored_from_result,
     remove_results_from_ignore_detectors,
 )
+from ggshield.core.scan import DecodeError, ScanContext, Scannable
 from ggshield.core.text_utils import STYLE, display_error, format_text, pluralize
 from ggshield.core.types import IgnoredMatch
-from ggshield.scan import DecodeError, ScanContext, Scannable
 
 from .secret_scan_collection import Error, Result, Results
 

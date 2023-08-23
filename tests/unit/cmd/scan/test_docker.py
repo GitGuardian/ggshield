@@ -7,7 +7,7 @@ import pytest
 
 from ggshield.cmd.main import cli
 from ggshield.core.errors import ExitCode
-from ggshield.scan import Files, StringScannable
+from ggshield.core.scan import Files, StringScannable
 from ggshield.verticals.secret import SecretScanCollection
 from ggshield.verticals.secret.docker import DockerImage, LayerInfo, _validate_filepath
 from tests.unit.conftest import (

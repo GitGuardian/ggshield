@@ -13,7 +13,7 @@ from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.git_shell import check_git_dir
-from ggshield.scan import ScanContext, ScanMode
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.repo import scan_commit_range
 
 

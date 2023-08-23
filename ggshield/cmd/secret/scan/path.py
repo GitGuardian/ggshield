@@ -8,8 +8,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
-from ggshield.scan import ScanContext, ScanMode
-from ggshield.scan.file import get_files_from_paths
+from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.core.scan.file import get_files_from_paths
 from ggshield.verticals.secret import (
     RichSecretScannerUI,
     SecretScanCollection,

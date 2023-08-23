@@ -22,8 +22,8 @@ from ggshield.core.git_hooks.prereceive import (
     parse_stdin,
 )
 from ggshield.core.git_shell import get_list_commit_SHA
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_error
-from ggshield.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.output import (
     SecretGitLabWebUIOutputHandler,
     SecretOutputHandler,

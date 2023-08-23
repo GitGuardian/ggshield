@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pyfakefs.fake_filesystem import FakeFilesystem
 
-from ggshield.scan.id_cache import IDCache
+from ggshield.core.scan.id_cache import IDCache
 from tests.unit.conftest import make_fake_path_inaccessible
 
 
