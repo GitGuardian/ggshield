@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import requests
 
-from ggshield.core.utils import batched
+from ggshield.utils.itertools import batched
 
 from .crypto import decrypt, make_hint
 
