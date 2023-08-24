@@ -10,15 +10,17 @@ from ggshield.cmd.hmsl.fingerprint import fingerprint_cmd
 from ggshield.cmd.hmsl.query import query_cmd
 from ggshield.cmd.hmsl.quota import quota_cmd
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.utils.click import NaturalOrderGroup
 
 
 @click.group(
+    cls=NaturalOrderGroup,
     commands={
         "check": check_cmd,
         "check-secret-manager": check_secret_manager_group,
-        "decrypt": decrypt_cmd,
         "fingerprint": fingerprint_cmd,
         "query": query_cmd,
+        "decrypt": decrypt_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
     },
