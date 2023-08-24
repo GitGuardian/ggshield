@@ -47,6 +47,8 @@ This is checked at each release: ggshield release process starts with removing a
 
 If your test cannot run without a cassette, then you have to mock the network calls.
 
+For tests interacting with Hashicorp Vault instances in `hmsl` commands, see [the corresponding doc](./hmsl/hashicorp-vault.md).
+
 ### Verifying code coverage
 
 Run `make coverage`. This runs the unit tests through [coverage](https://pypi.org/project/coverage/) and generates an HTML report in `htmlcov/index.html`.

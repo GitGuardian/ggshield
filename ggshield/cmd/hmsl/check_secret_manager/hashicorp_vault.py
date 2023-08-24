@@ -1,12 +1,27 @@
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import click
 
-from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.verticals.hmsl.secret_manager.hashicorp_vault import (
-    VaultCliTokenFetchingError,
+from ggshield.cmd.hmsl.hmsl_common_options import (
+    full_hashes_option,
+    naming_strategy_option,
+)
+from ggshield.cmd.hmsl.hmsl_utils import check_secrets
+from ggshield.cmd.utils.common_options import add_common_options, json_option
+from ggshield.core.config.config import Config
+from ggshield.core.errors import UnexpectedError
+from ggshield.core.text_utils import display_error, display_info, pluralize
+from ggshield.verticals.hmsl.collection import NamingStrategy, collect_list, prepare
+from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.api_client import (
+    VaultAPIClient,
+)
+from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.cli import (
     get_vault_cli_token,
+)
+from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.exceptions import (
+    VaultCliTokenFetchingError,
+    VaultForbiddenItemError,
 )
 
 
@@ -33,7 +48,16 @@ def _get_vault_token(use_vault_cli_token: bool) -> str:
     return env_token
 
 
-@click.command(hidden=True)
+def _split_vault_mount_and_path(initial_path: str) -> Tuple[str, str]:
+    """
+    From a given initial path like secret/my_app/prod/env, split it in two:
+    first the mount name, then the path.
+    """
+    split_path = initial_path.lstrip("/").split("/")
+    return (split_path[0], "/".join(split_path[1:]).strip("/"))
+
+
+@click.command()
 @click.option(
     "--use-cli-token",
     "use_cli_token",
@@ -64,6 +88,9 @@ def _get_vault_token(use_vault_cli_token: bool) -> str:
     type=str,
 )
 @add_common_options()
+@json_option
+@full_hashes_option
+@naming_strategy_option
 @click.pass_context
 def check_hashicorp_vault_cmd(
     ctx: click.Context,
@@ -71,11 +98,14 @@ def check_hashicorp_vault_cmd(
     url: Optional[str],
     recursive: bool,
     vault_path: str,
+    full_hashes: bool,
+    naming_strategy: NamingStrategy,
+    json_output: bool,
     **kwargs: Any,
 ) -> int:
     """
     Check secrets of an Hashicorp Vault instance.
-    Only compatible with the kv secret engine for now.
+    Only compatible with the kv secret engines (v1 or v2) for now.
 
     Will use the VAULT_URL environment variable to get the Vault instance URL or
     the --url option if no environment variable is set.
@@ -94,5 +124,52 @@ def check_hashicorp_vault_cmd(
             )
 
     vault_token = _get_vault_token(use_cli_token)  # noqa: F841
+    vault_client = VaultAPIClient(url, vault_token)
 
-    raise click.UsageError("command not yet implemented.")
+    # Get mount object and check it exists and we have access to it
+    mount_name, secret_path = _split_vault_mount_and_path(vault_path)
+    all_kv_mounts = list(vault_client.get_kv_mounts())
+    mount = next((item for item in all_kv_mounts if item.name == mount_name), None)
+    if mount is None:
+        raise UnexpectedError(
+            f"mount {mount_name} not found. Make sure it exists and "
+            "that your token has access to it."
+        )
+
+    display_info("Fetching secrets from Vault...")
+    try:
+        result = vault_client.get_secrets(mount, secret_path, recursive)
+    # catch this error here if the path provided is a file that we don't have access to
+    except VaultForbiddenItemError:
+        raise UnexpectedError(
+            f"access to the given path '{vault_path}' was forbidden. "
+            "Are you sure the permissions of the token are correct?"
+        )
+
+    if len(result.not_fetched_paths) > 0:
+        display_error(
+            f"Could not fetch {len(result.not_fetched_paths)} paths. "
+            "Make sure your token has access to all the secrets in your vault."
+        )
+        config: Config = ctx.obj["config"]
+        if config.user_config.verbose:
+            display_error("> The following paths could not be fetched:")
+            for path in result.not_fetched_paths:
+                display_error(f"- {path}")
+    display_info(
+        f"Got {len(result.secrets)} {pluralize('secret', len(result.secrets))}."
+    )
+
+    collected_secrets = collect_list(result.secrets)
+    # full_hashes is True because we need the hashes to decrypt the secrets.
+    # They will correctly be truncated by our client later (same as normal check cmd)
+    prepared_secrets = prepare(collected_secrets, naming_strategy, full_hashes=True)
+
+    check_secrets(
+        ctx=ctx,
+        prepared_secrets=prepared_secrets,
+        json_output=json_output,
+        full_hashes=full_hashes,
+    )
+
+    return 0

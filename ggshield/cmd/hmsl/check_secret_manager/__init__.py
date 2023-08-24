@@ -12,7 +12,6 @@ from ggshield.cmd.utils.common_options import add_common_options
     commands={
         "hashicorp-vault": check_hashicorp_vault_cmd,
     },
-    hidden=True,
 )
 @add_common_options()
 def check_secret_manager_group(**kwargs: Any) -> None:

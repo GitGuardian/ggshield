@@ -1,15 +1,9 @@
 import json
-import logging
 import subprocess
 
-
-logger = logging.getLogger(__name__)
-
-
-class VaultCliTokenFetchingError(Exception):
-    """Raised when the token used by Vault CLI cannot be fetched."""
-
-    pass
+from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.exceptions import (
+    VaultCliTokenFetchingError,
+)
 
 
 def get_vault_cli_token() -> str:
