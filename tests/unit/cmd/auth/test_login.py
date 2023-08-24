@@ -496,7 +496,7 @@ class TestAuthLoginWeb:
                 - timedelta(days=2)
             )
         if existing_unrelated_token:
-            # add a dummy unrelated confif
+            # add a dummy unrelated config
             add_instance_config(instance_url="http://some-gg-instance.com")
 
         exit_code, output = self.run_cmd(cli_fs_runner)

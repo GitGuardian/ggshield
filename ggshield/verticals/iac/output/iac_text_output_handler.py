@@ -171,7 +171,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                             "REMOVED",
                         )
                     )
-                # List unchagned incidents if any
+                # List unchanged incidents if any
                 for file_result in unchanged:
                     scan_buf.write(
                         self.process_iac_diff_result(

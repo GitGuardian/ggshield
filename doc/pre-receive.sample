@@ -1,6 +1,6 @@
 #!/bin/sh
 # ggshield as a pre-commit hook
-# Prequirements:
+# Requirements:
 # python >= 3.8, pip
 # Installation instructions:
 # Run: pip install ggshield
