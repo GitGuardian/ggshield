@@ -39,13 +39,13 @@ STATIC_CONFIG = {
             "name": "ggshield-layers",
             "type": "layers",
             "layers": [
+                "ggshield.__main__",
                 "ggshield.cmd|%",
                 "ggshield.verticals|%",
                 "ggshield.core",
                 "ggshield.utils | pygitguardian",
             ],
             "ignore_imports": [
-                "ggshield.cmd.main -> ggshield.cmd.**",
                 "ggshield.cmd.** -> ggshield.cmd.utils.*",
             ],
             "unmatched_ignore_imports_alerting": "warn",

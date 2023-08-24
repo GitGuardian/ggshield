@@ -5,7 +5,7 @@ import pytest
 from pytest_voluptuous import Partial, S
 from voluptuous.validators import All, Invalid, Match, Range
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_ok, my_vcr
 
 

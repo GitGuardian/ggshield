@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan import Files, StringScannable
 from ggshield.verticals.secret import SecretScanCollection

@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from ggshield.__main__ import cli
 from ggshield.cmd.hmsl.decrypt import load_mapping
-from ggshield.cmd.main import cli
 from ggshield.verticals.hmsl.client import PREFIX_LENGTH
 from ggshield.verticals.hmsl.crypto import hash_string
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
