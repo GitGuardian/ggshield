@@ -15,8 +15,8 @@ from ggshield.core.git_shell import (
     git,
     is_git_dir,
     is_valid_git_commit_ref,
-    tar_from_ref_and_filepaths,
 )
+from ggshield.core.tar_utils import tar_from_ref_and_filepaths
 from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
 
