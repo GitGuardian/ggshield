@@ -20,8 +20,8 @@ from ggshield.core.client import (
 )
 from ggshield.core.config import Config, InstanceConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
-from ggshield.core.text_utils import get_pretty_date
 from ggshield.core.url_utils import urljoin
+from ggshield.utils.datetime import get_pretty_date
 
 
 CLIENT_ID = "ggshield_oauth"
