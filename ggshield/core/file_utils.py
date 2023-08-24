@@ -7,9 +7,9 @@ from typing import List, Set, Union
 
 import click
 
-from ggshield.core.binary_extensions import BINARY_EXTENSIONS
 from ggshield.core.filter import is_filepath_excluded
 from ggshield.core.git_shell import git_ls, is_git_dir
+from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 
 
 def get_filepaths(
