@@ -1,5 +1,7 @@
 from functools import wraps
 
+import click
+
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import display_warning
@@ -11,7 +13,8 @@ def exception_wrapper(func):
         try:
             return func(*args, **kwargs)
         except Exception as error:
-            config: Config = args[0].obj["config"]
+            ctx = next(arg for arg in args if isinstance(arg, click.Context))
+            config: Config = ctx.obj["config"]
             return handle_exception(error, config.user_config.verbose)
 
     return wrapper

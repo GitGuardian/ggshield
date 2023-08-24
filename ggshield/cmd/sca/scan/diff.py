@@ -3,15 +3,12 @@ from typing import Any, Optional, Sequence
 
 import click
 
-from ggshield.cmd.sca.scan.sca_scan_utils import (
-    create_output_handler,
-    display_sca_beta_warning,
-    sca_scan_diff,
-)
+from ggshield.cmd.sca.scan.sca_scan_utils import create_output_handler, sca_scan_diff
 from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import (
     directory_argument,
     reference_option,
@@ -27,7 +24,8 @@ from ggshield.verticals.sca.collection.collection import (
 @directory_argument
 @reference_option
 @staged_option
-@display_sca_beta_warning
+@display_beta_warning
+@exception_wrapper
 @click.pass_context
 def scan_diff_cmd(
     ctx: click.Context,
