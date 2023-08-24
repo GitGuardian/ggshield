@@ -13,9 +13,9 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     handle_scan_error,
 )
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info
 from ggshield.verticals.iac.collection.iac_path_scan_collection import (
@@ -29,6 +29,7 @@ from ggshield.verticals.iac.filter import get_iac_files_from_path
 @add_iac_scan_common_options()
 @directory_argument
 @click.pass_context
+@exception_wrapper
 def scan_all_cmd(
     ctx: click.Context,
     exit_zero: bool,
@@ -41,17 +42,12 @@ def scan_all_cmd(
     """
     Scan a directory for all IaC vulnerabilities in the current state.
     """
-    try:
-        if directory is None:
-            directory = Path().resolve()
-        update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    if directory is None:
+        directory = Path().resolve()
+    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-        result = iac_scan_all(ctx, directory)
-        return display_iac_scan_all_result(ctx, directory, result)
-
-    except Exception as error:
-        config: Config = ctx.obj["config"]
-        return handle_exception(error, config.user_config.verbose)
+    result = iac_scan_all(ctx, directory)
+    return display_iac_scan_all_result(ctx, directory, result)
 
 
 def iac_scan_all(
