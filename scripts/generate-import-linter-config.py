@@ -43,10 +43,11 @@ STATIC_CONFIG = {
                 "ggshield.cmd|%",
                 "ggshield.verticals|%",
                 "ggshield.core",
-                "ggshield.utils | pygitguardian",
+                "click | ggshield.utils | pygitguardian",
             ],
             "ignore_imports": [
                 "ggshield.cmd.** -> ggshield.cmd.utils.*",
+                "ggshield.utils.click.** -> click",
             ],
             "unmatched_ignore_imports_alerting": "warn",
         },
