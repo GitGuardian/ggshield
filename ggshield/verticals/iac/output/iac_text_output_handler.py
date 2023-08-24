@@ -19,19 +19,16 @@ from pygitguardian.iac_models import (
     IaCVulnerability,
 )
 
+from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
 from ggshield.core.scan import File
 from ggshield.core.text_utils import (
     STYLE,
-    Line,
     clip_long_line,
     file_diff_info,
     file_info,
     format_text,
-    get_offset,
-    get_padding,
     pluralize,
 )
-from ggshield.core.utils import get_lines_from_content
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
