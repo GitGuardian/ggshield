@@ -43,8 +43,17 @@ jobs:
       - name: Install pre-commit hooks
         run: pre-commit install --install-hooks
 
+      - name: Skip ggshield hooks when running from a fork
+        # See note about steps requiring the GITGUARDIAN_API at the top of this file
+        if: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          echo "SKIP=ggshield,ggshield-local" >> $GITHUB_ENV
+
       - name: Run pre-commit checks
-        run: GITGUARDIAN_API_KEY=${{ secrets.GITGUARDIAN_API_KEY }} pre-commit run --show-diff-on-failure --all-files
+        run: |
+          pre-commit run --show-diff-on-failure --all-files
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
   build:
     name: Build and Test
