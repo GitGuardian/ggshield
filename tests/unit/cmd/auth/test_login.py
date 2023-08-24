@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError

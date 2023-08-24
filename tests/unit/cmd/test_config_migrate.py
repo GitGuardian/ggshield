@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import yaml
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_ok
 
 

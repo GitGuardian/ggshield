@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import click
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 
 

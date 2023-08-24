@@ -3,7 +3,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan import StringScannable
 from ggshield.core.utils import EMPTY_SHA, Filemode

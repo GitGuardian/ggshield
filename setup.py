@@ -31,7 +31,7 @@ setup(
     author="GitGuardian",
     author_email="support@gitguardian.com",
     maintainer="GitGuardian",
-    entry_points={"console_scripts": ["ggshield=ggshield.cmd.main:main"]},
+    entry_points={"console_scripts": ["ggshield=ggshield.__main__:main"]},
     install_requires=[
         "appdirs>=1.4.4,<1.5.0",
         "charset-normalizer>=3.1.0,<3.2.0",

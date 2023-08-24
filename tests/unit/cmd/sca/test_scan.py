@@ -6,7 +6,7 @@ import click
 from click.testing import CliRunner
 from pygitguardian import GGClient
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     get_sca_scan_all_filepaths,
     sca_scan_all,

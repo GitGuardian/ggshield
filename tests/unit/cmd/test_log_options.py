@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_ok
 
 

@@ -3,7 +3,7 @@ from typing import Tuple
 
 import pytest
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path

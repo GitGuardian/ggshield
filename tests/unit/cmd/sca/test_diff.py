@@ -1,6 +1,6 @@
 import pytest
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.verticals.secret.repo import cd
 from tests.unit.conftest import my_vcr
