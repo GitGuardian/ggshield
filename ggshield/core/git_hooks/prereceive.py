@@ -7,8 +7,7 @@ import click
 
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_error
-from ggshield.core.utils import EMPTY_SHA
-from ggshield.utils.git_shell import git
+from ggshield.utils.git_shell import EMPTY_SHA, git
 
 
 logger = logging.getLogger(__name__)

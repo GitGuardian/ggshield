@@ -2,7 +2,6 @@ import re
 from typing import Iterable, List, NamedTuple, Optional, Set, Tuple
 
 from ggshield.core.text_utils import STYLE, format_text
-from ggshield.core.utils import REGEX_HEADER_INFO
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import Filemode, git
 
@@ -10,6 +9,11 @@ from .scannable import Files, Scannable, StringScannable
 
 
 _RX_HEADER_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
+
+
+REGEX_HEADER_INFO = re.compile(
+    r"Author:\s(?P<author>.+?) <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
+)
 
 
 class PatchParseError(Exception):

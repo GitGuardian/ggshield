@@ -15,12 +15,29 @@ from ggshield.cmd.utils.common_options import (
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.utils import IGNORED_DEFAULT_WILDCARDS
 from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
     SecretTextOutputHandler,
 )
+
+
+IGNORED_DEFAULT_WILDCARDS = [
+    "**/.git/**/*",
+    "**/.pytest_cache/**/*",
+    "**/.mypy_cache/**/*",
+    "**/.venv/**/*",
+    "**/.eggs/**/*",
+    "**/.eggs-info/**/*",
+    "**/vendor/**/*",
+    "**/vendors/**/*",
+    "**/node_modules/**/*",
+    "top-1000.txt*",
+    "**/*.storyboard*",
+    "**/*.xib",
+    "**/*.mdx*",
+    "**/*.sops",
+]
 
 
 def _get_secret_config(ctx: click.Context) -> SecretConfig:

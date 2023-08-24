@@ -15,7 +15,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prepush import collect_commits_refs
-from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import EMPTY_SHA
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,

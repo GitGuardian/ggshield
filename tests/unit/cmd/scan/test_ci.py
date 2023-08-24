@@ -7,7 +7,7 @@ import pytest
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.git_hooks.ci.commit_range import gitlab_ci_range
-from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import EMPTY_SHA
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 

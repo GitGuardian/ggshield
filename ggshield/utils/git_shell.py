@@ -8,6 +8,9 @@ from shutil import which
 from typing import Dict, List, Optional
 
 
+EMPTY_SHA = "0000000000000000000000000000000000000000"
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 COMMAND_TIMEOUT = 45
 
 logger = logging.getLogger(__name__)

@@ -23,35 +23,6 @@ REGEX_PATCH_HEADER = re.compile(
     r"^(?P<line_content>@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?: .+)?)"  # noqa
 )
 
-# Source: https://github.com/jonschlinkert/is-git-url MIT LICENSE
-REGEX_GIT_URL = re.compile(
-    r"(?:git|ssh|https?|git@[-\w.]+):(//)?(.*?)(\.git)(/?|#[-\d\w._]+?)$"
-)
-
-REGEX_HEADER_INFO = re.compile(
-    r"Author:\s(?P<author>.+?) <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
-)
-
-EMPTY_SHA = "0000000000000000000000000000000000000000"
-EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-
-IGNORED_DEFAULT_WILDCARDS = [
-    "**/.git/**/*",
-    "**/.pytest_cache/**/*",
-    "**/.mypy_cache/**/*",
-    "**/.venv/**/*",
-    "**/.eggs/**/*",
-    "**/.eggs-info/**/*",
-    "**/vendor/**/*",
-    "**/vendors/**/*",
-    "**/node_modules/**/*",
-    "top-1000.txt*",
-    "**/*.storyboard*",
-    "**/*.xib",
-    "**/*.mdx*",
-    "**/*.sops",
-]
-
 GITGUARDIAN_DOMAINS = ["gitguardian.com", "gitguardian.tech"]
 
 
