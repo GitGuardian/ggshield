@@ -5,7 +5,7 @@ from typing import List, Optional, Set, Tuple, Type
 import click
 from pygitguardian.client import _create_tar
 
-from ggshield.cmd.common_options import use_json
+from ggshield.cmd.utils.common_options import use_json
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError

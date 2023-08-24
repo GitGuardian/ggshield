@@ -2,7 +2,7 @@ from typing import Any, Tuple
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 
 from .constants import DATETIME_FORMAT, FIELDS

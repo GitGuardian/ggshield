@@ -2,8 +2,8 @@ from typing import Any, Optional
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.config.constants import FIELD_NAMES, FIELDS
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.errors import UnknownInstanceError
 

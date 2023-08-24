@@ -2,7 +2,6 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import directory_argument
 from ggshield.cmd.iac.scan.all import scan_all_cmd
 from ggshield.cmd.iac.scan.ci import scan_ci_cmd
 from ggshield.cmd.iac.scan.diff import scan_diff_cmd
@@ -10,6 +9,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import add_iac_scan_common_op
 from ggshield.cmd.iac.scan.precommit import scan_pre_commit_cmd
 from ggshield.cmd.iac.scan.prepush import scan_pre_push_cmd
 from ggshield.cmd.iac.scan.prereceive import scan_pre_receive_cmd
+from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.core.clickutils.default_command_group import DefaultCommandGroup
 from ggshield.core.client import create_client_from_config
 from ggshield.core.text_utils import display_warning

@@ -4,7 +4,6 @@ from typing import Any, Optional, Sequence, Union
 import click
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 
-from ggshield.cmd.common_options import directory_argument
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     update_context,
@@ -14,6 +13,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     handle_scan_error,
 )
+from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.scan import ScanContext, ScanMode

@@ -3,7 +3,7 @@ from typing import Any, Optional
 import click
 from click import BadParameter
 
-from ggshield.cmd.common_options import add_common_options
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path

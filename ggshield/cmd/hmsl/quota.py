@@ -3,8 +3,8 @@ from typing import Any
 
 import click
 
-from ggshield.cmd.common_options import add_common_options
-from ggshield.cmd.quota import format_quota_color
+from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.quota import format_quota_color
 from ggshield.core.config import Config
 from ggshield.verticals.hmsl import get_client
 

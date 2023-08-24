@@ -2,7 +2,7 @@ from typing import Callable, List, Optional
 
 import click
 
-from ggshield.cmd.common_options import (
+from ggshield.cmd.utils.common_options import (
     AnyFunction,
     add_common_options,
     create_config_callback,

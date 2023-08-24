@@ -6,8 +6,8 @@ from typing import Any, List, TextIO, Tuple, cast
 import click
 from requests import HTTPError
 
-from ggshield.cmd.common_options import add_common_options
 from ggshield.cmd.hmsl.hmsl_common_options import input_arg
+from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize

@@ -13,7 +13,7 @@ from typing import Any, Callable, Sequence
 
 import click
 
-from ggshield.cmd.common_options import (
+from ggshield.cmd.utils.common_options import (
     AnyFunction,
     add_common_options,
     exit_zero_option,
@@ -23,8 +23,8 @@ from ggshield.cmd.common_options import (
 )
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.config import Config
+from ggshield.core.config.user_config import POLICY_ID_PATTERN, validate_policy_id
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.verticals.iac.policy_id import POLICY_ID_PATTERN, validate_policy_id
 
 
 def _validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
