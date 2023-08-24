@@ -19,7 +19,6 @@ from pygitguardian.iac_models import (
     IaCVulnerability,
 )
 
-from ggshield.core.git_shell import Filemode
 from ggshield.core.scan import File
 from ggshield.core.text_utils import (
     STYLE,
@@ -33,6 +32,7 @@ from ggshield.core.text_utils import (
     pluralize,
 )
 from ggshield.core.utils import get_lines_from_content
+from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )

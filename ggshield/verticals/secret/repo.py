@@ -14,10 +14,10 @@ from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
-from ggshield.core.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.core.scan import Commit, ScanContext
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
+from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 
 from .output import SecretOutputHandler
 from .secret_scan_collection import Results, SecretScanCollection

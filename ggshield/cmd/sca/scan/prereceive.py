@@ -15,8 +15,8 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin
-from ggshield.core.git_shell import check_git_ref, is_valid_git_commit_ref
 from ggshield.core.utils import EMPTY_TREE
+from ggshield.utils.git_shell import check_git_ref, is_valid_git_commit_ref
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,

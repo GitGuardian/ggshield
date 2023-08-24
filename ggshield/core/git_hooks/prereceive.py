@@ -6,9 +6,9 @@ from typing import Optional, Tuple
 import click
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import git
 from ggshield.core.text_utils import display_error
 from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import git
 
 
 logger = logging.getLogger(__name__)

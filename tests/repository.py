@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from typing import Optional, Union
 
-from ggshield.core.git_shell import git
+from ggshield.utils.git_shell import git
 
 
 class Repository:

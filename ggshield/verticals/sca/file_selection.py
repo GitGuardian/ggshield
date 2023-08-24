@@ -6,10 +6,10 @@ from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.file_utils import is_filepath_excluded
-from ggshield.core.git_shell import get_filepaths_from_ref, get_staged_filepaths
 from ggshield.core.scan import Scannable
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
+from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 from ggshield.verticals.sca.client import SCAClient
 
 

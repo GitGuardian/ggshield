@@ -5,8 +5,8 @@ from typing import List, Set, Union
 
 import click
 
-from ggshield.core.git_shell import git_ls, is_git_dir
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
+from ggshield.utils.git_shell import git_ls, is_git_dir
 
 
 def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> bool:

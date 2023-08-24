@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from ggshield.core.git_shell import (
+from ggshield.core.tar_utils import tar_from_ref_and_filepaths
+from ggshield.utils.git_shell import (
     InvalidGitRefError,
     NotAGitDirectory,
     check_git_dir,
@@ -16,7 +17,6 @@ from ggshield.core.git_shell import (
     is_git_dir,
     is_valid_git_commit_ref,
 )
-from ggshield.core.tar_utils import tar_from_ref_and_filepaths
 from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
 
