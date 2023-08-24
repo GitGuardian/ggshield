@@ -9,18 +9,40 @@ from pathlib import Path
 from shutil import which
 from typing import Dict, Iterable, List, Optional
 
-import click
-from click import UsageError
 from pygitguardian import ContentTooLarge
 from pygitguardian.client import MAX_TAR_CONTENT_SIZE
-
-from ggshield.core.errors import InvalidGitRefError, UnexpectedError
 
 
 COMMAND_TIMEOUT = 45
 INDEX_REF = ""
 
 logger = logging.getLogger(__name__)
+
+
+class GitError(Exception):
+    pass
+
+
+class InvalidGitRefError(GitError):
+    """
+    Raised when the git reference does not exist
+    """
+
+    def __init__(self, ref: str):
+        super().__init__(f"Not a git reference: {ref}.")
+
+
+class NotAGitDirectory(GitError):
+    def __init__(self):
+        super().__init__("Not a git directory.")
+
+
+class GitExecutableNotFound(GitError):
+    pass
+
+
+class GitCommandTimeoutExpired(GitError):
+    pass
 
 
 class Filemode(Enum):
@@ -41,7 +63,7 @@ def _get_git_path() -> str:
     git_path = which("git")
 
     if git_path is None:
-        raise UnexpectedError("unable to find git executable in PATH/PATHEXT")
+        raise GitExecutableNotFound("unable to find git executable in PATH/PATHEXT")
 
     # lower()ing these would provide additional coverage on case-
     # insensitive filesystems but detection is problematic
@@ -53,7 +75,7 @@ def _get_git_path() -> str:
 
     # git was found - ignore git in cwd if cwd not in PATH
     if cwd == os.path.dirname(git_path) and cwd not in path_env:
-        raise UnexpectedError("rejecting git executable in CWD not in PATH")
+        raise GitExecutableNotFound("rejecting git executable in CWD not in PATH")
 
     logger.debug("Found git at %s", git_path)
     return git_path
@@ -99,7 +121,7 @@ def get_git_root(wd: Optional[str] = None) -> str:
         return top_level
     root = _git_rev_parse(option="--git-dir", wd=wd)
     if root is None:
-        raise UsageError("Not a git directory")
+        raise NotAGitDirectory()
     return str(Path(root).resolve())
 
 
@@ -108,7 +130,7 @@ def check_git_dir(wd: Optional[str] = None) -> None:
     if wd is None:
         wd = os.getcwd()
     if not is_git_dir(wd):
-        raise UsageError("Not a git directory.")
+        raise NotAGitDirectory()
 
 
 def git(
@@ -138,7 +160,7 @@ def git(
         if "detected dubious ownership in repository" in e.stderr.decode(
             "utf-8", errors="ignore"
         ):
-            raise UnexpectedError(
+            raise GitError(
                 "Git command failed because of a dubious ownership in repository.\n"
                 "If you still want to run ggshield, make sure you mark "
                 "the current repository as safe for git with:\n"
@@ -146,7 +168,9 @@ def git(
             )
         raise e
     except subprocess.TimeoutExpired:
-        raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
+        raise GitCommandTimeoutExpired(
+            'Command "{}" timed out'.format(" ".join(command))
+        )
 
 
 def git_ls(wd: Optional[str] = None) -> List[str]:
