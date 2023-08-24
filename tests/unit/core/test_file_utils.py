@@ -1,8 +1,13 @@
+import re
 import sys
 import tarfile
 from io import BytesIO
+from pathlib import Path
+from typing import Set, Union
 
-from ggshield.core.file_utils import get_empty_tar
+import pytest
+
+from ggshield.core.file_utils import get_empty_tar, is_filepath_excluded
 
 
 def test_get_empty_tar():
@@ -18,3 +23,18 @@ def test_get_empty_tar():
     # AND it contains no file
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
         assert len(tar.getmembers()) == 0
+
+
+@pytest.mark.parametrize(
+    "path,regexes,excluded",
+    [
+        ("foo", {"foo"}, True),
+        (Path("dir/foo"), {"foo"}, True),
+    ],
+)
+def test_is_filepath_excluded(
+    path: Union[str, Path], regexes: Set[str], excluded: bool
+) -> None:
+    path = str(path)
+    regexes = {re.compile(x) for x in regexes}
+    assert is_filepath_excluded(path, regexes) == excluded

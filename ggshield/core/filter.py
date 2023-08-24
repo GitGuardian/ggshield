@@ -3,7 +3,6 @@ import math
 import operator
 import re
 from collections import OrderedDict
-from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Set
 
 from click import UsageError
@@ -170,10 +169,6 @@ def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern]:
             raise UsageError(f"{path} is not a valid exclude pattern.")
         res.add(re.compile(translate_user_pattern(path)))
     return res
-
-
-def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> bool:
-    return any(r.search(str(PurePosixPath(Path(filepath)))) for r in exclusion_regexes)
 
 
 def censor_string(text: str) -> str:
