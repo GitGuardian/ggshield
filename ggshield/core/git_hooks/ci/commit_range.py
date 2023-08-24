@@ -4,8 +4,8 @@ from typing import List, Tuple
 import click
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import get_list_commit_SHA
 from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import get_list_commit_SHA
 
 from .previous_commit import (
     github_pull_request_previous_commit_sha,

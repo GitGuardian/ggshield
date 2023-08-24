@@ -5,8 +5,8 @@ import click
 import pytest
 
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
-from ggshield.core.git_shell import Filemode
 from ggshield.core.scan import StringScannable
+from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretTextOutputHandler
 from ggshield.verticals.secret.output.secret_text_output_handler import (

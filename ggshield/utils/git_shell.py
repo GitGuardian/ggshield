@@ -1,26 +1,42 @@
 import logging
 import os
 import subprocess
-import tarfile
 from enum import Enum
 from functools import lru_cache
-from io import BytesIO
 from pathlib import Path
 from shutil import which
-from typing import Dict, Iterable, List, Optional
-
-import click
-from click import UsageError
-from pygitguardian import ContentTooLarge
-from pygitguardian.client import MAX_TAR_CONTENT_SIZE
-
-from ggshield.core.errors import InvalidGitRefError, UnexpectedError
+from typing import Dict, List, Optional
 
 
 COMMAND_TIMEOUT = 45
-INDEX_REF = ""
 
 logger = logging.getLogger(__name__)
+
+
+class GitError(Exception):
+    pass
+
+
+class InvalidGitRefError(GitError):
+    """
+    Raised when the git reference does not exist
+    """
+
+    def __init__(self, ref: str):
+        super().__init__(f"Not a git reference: {ref}.")
+
+
+class NotAGitDirectory(GitError):
+    def __init__(self):
+        super().__init__("Not a git directory.")
+
+
+class GitExecutableNotFound(GitError):
+    pass
+
+
+class GitCommandTimeoutExpired(GitError):
+    pass
 
 
 class Filemode(Enum):
@@ -41,7 +57,7 @@ def _get_git_path() -> str:
     git_path = which("git")
 
     if git_path is None:
-        raise UnexpectedError("unable to find git executable in PATH/PATHEXT")
+        raise GitExecutableNotFound("unable to find git executable in PATH/PATHEXT")
 
     # lower()ing these would provide additional coverage on case-
     # insensitive filesystems but detection is problematic
@@ -53,7 +69,7 @@ def _get_git_path() -> str:
 
     # git was found - ignore git in cwd if cwd not in PATH
     if cwd == os.path.dirname(git_path) and cwd not in path_env:
-        raise UnexpectedError("rejecting git executable in CWD not in PATH")
+        raise GitExecutableNotFound("rejecting git executable in CWD not in PATH")
 
     logger.debug("Found git at %s", git_path)
     return git_path
@@ -99,7 +115,7 @@ def get_git_root(wd: Optional[str] = None) -> str:
         return top_level
     root = _git_rev_parse(option="--git-dir", wd=wd)
     if root is None:
-        raise UsageError("Not a git directory")
+        raise NotAGitDirectory()
     return str(Path(root).resolve())
 
 
@@ -108,7 +124,7 @@ def check_git_dir(wd: Optional[str] = None) -> None:
     if wd is None:
         wd = os.getcwd()
     if not is_git_dir(wd):
-        raise UsageError("Not a git directory.")
+        raise NotAGitDirectory()
 
 
 def git(
@@ -138,7 +154,7 @@ def git(
         if "detected dubious ownership in repository" in e.stderr.decode(
             "utf-8", errors="ignore"
         ):
-            raise UnexpectedError(
+            raise GitError(
                 "Git command failed because of a dubious ownership in repository.\n"
                 "If you still want to run ggshield, make sure you mark "
                 "the current repository as safe for git with:\n"
@@ -146,7 +162,9 @@ def git(
             )
         raise e
     except subprocess.TimeoutExpired:
-        raise click.Abort('Command "{}" timed out'.format(" ".join(command)))
+        raise GitCommandTimeoutExpired(
+            'Command "{}" timed out'.format(" ".join(command))
+        )
 
 
 def git_ls(wd: Optional[str] = None) -> List[str]:
@@ -340,49 +358,3 @@ def get_diff_files_status(
 @lru_cache(None)
 def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
     return git(["show", f"{ref}:{path}"], cwd=wd)
-
-
-def tar_from_ref_and_filepaths(
-    ref: str,
-    filepaths: Iterable[Path],
-    wd: Optional[str] = None,
-) -> bytes:
-    """
-    Builds a gzipped archive from a given git reference, and selected filepaths.
-    The filepaths are typically obtained via `get_filepaths_from_ref` or `get_staged_filepaths`
-    before being filtered.
-    The archive is returned as raw bytes.
-    :param ref: git reference, like a commit SHA, a relative reference like HEAD~1,\
-        or any argument accepted as <ref> by git show <ref>:<filepath>
-        An empty string denotes the git "index", aka staging area.
-    :param filepaths: paths to selected files
-    :param wd: string path to the git repository. Defaults to current directory
-    """
-    if not wd:
-        wd = os.getcwd()
-
-    # Empty string as ref makes the path valid for index
-    if ref != INDEX_REF:
-        check_git_ref(ref, wd)
-
-    tar_stream = BytesIO()
-    total_tar_size = 0
-
-    with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:
-        for path in filepaths:
-            raw_file_content = read_git_file(ref, path, wd)
-            data = BytesIO(raw_file_content.encode())
-
-            tarinfo = tarfile.TarInfo(str(path))
-            tarinfo.size = len(data.getbuffer())
-            total_tar_size += tarinfo.size
-
-            if total_tar_size > MAX_TAR_CONTENT_SIZE:
-                raise ContentTooLarge(
-                    f"The total size of the files processed exceeds {MAX_TAR_CONTENT_SIZE / (1024 * 1024):.0f}MB, "
-                    f"please try again with less files"
-                )
-
-            tar.addfile(tarinfo, fileobj=data)
-
-    return tar_stream.getvalue()

@@ -4,8 +4,8 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import get_last_commit_sha_of_branch, git
 from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import get_last_commit_sha_of_branch, git
 
 from .supported_ci import SupportedCI
 

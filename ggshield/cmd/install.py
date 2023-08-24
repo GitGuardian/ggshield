@@ -8,7 +8,7 @@ from click import UsageError
 
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.git_shell import check_git_dir, git
+from ggshield.utils.git_shell import check_git_dir, git
 
 
 # This snippet is used by the global hook to call the hook defined in the

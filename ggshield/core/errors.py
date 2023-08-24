@@ -11,6 +11,7 @@ import click
 from marshmallow import ValidationError
 
 from ggshield.core.text_utils import display_error
+from ggshield.utils.git_shell import GitError, InvalidGitRefError
 
 
 class ExitCode(IntEnum):
@@ -58,15 +59,6 @@ class ParseError(_ExitError):
 
     def __init__(self, message: str):
         super().__init__(ExitCode.UNEXPECTED_ERROR, message)
-
-
-class InvalidGitRefError(_ExitError):
-    """
-    Raised when the git reference does not exist
-    """
-
-    def __init__(self, ref: str):
-        super().__init__(ExitCode.USAGE_ERROR, f"Not a git reference: {ref}.")
 
 
 class AuthError(_ExitError):
@@ -150,11 +142,16 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
     """
     if isinstance(exc, click.exceptions.Abort):
         return ExitCode.SUCCESS
-    exit_code = (
-        exc.exit_code if isinstance(exc, _ExitError) else ExitCode.UNEXPECTED_ERROR
-    )
-    click.echo()
 
+    # Get exit code
+    if isinstance(exc, _ExitError):
+        exit_code = exc.exit_code
+    elif isinstance(exc, InvalidGitRefError):
+        exit_code = ExitCode.USAGE_ERROR
+    else:
+        exit_code = ExitCode.UNEXPECTED_ERROR
+
+    click.echo()
     display_error(f"Error: {exc}")
     if isinstance(exc, UnicodeEncodeError) and platform.system() == "Windows":
         display_error(
@@ -163,7 +160,7 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
             " To workaround that, try setting the PYTHONUTF8 environment variable to 1."
         )
 
-    if not isinstance(exc, click.ClickException):
+    if not isinstance(exc, (click.ClickException, GitError)):
         click.echo()
         if verbose:
             traceback.print_exc()

@@ -4,9 +4,9 @@ from pygitguardian.client import VERSIONS
 from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.core.git_shell import Filemode
 from ggshield.core.text_utils import Line
 from ggshield.core.utils import find_match_indices, get_lines_from_content
+from ggshield.utils.git_shell import Filemode
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
 from .schemas import ExtendedMatch, JSONScanCollectionSchema

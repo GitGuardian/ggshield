@@ -12,9 +12,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.git_shell import git
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.utils import REGEX_GIT_URL
+from ggshield.utils.git_shell import git
 from ggshield.verticals.secret.repo import scan_repo_path
 
 

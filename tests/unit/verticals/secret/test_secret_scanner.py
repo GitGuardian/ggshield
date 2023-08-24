@@ -6,7 +6,6 @@ import pytest
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError
-from ggshield.core.git_shell import Filemode
 from ggshield.core.scan import (
     Commit,
     DecodeError,
@@ -15,6 +14,7 @@ from ggshield.core.scan import (
     Scannable,
     StringScannable,
 )
+from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import SecretScanner, SecretScannerUI
 from ggshield.verticals.secret.secret_scanner import handle_scan_chunk_error
 from tests.unit.conftest import (

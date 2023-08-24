@@ -9,10 +9,9 @@ from ggshield.cmd.utils.common_options import use_json
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
-from ggshield.core.file_utils import get_empty_tar
-from ggshield.core.git_shell import INDEX_REF, tar_from_ref_and_filepaths
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
+from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error, display_info, display_warning
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (

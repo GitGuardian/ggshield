@@ -4,9 +4,11 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from click import UsageError
 
-from ggshield.core.git_shell import (
+from ggshield.core.tar_utils import tar_from_ref_and_filepaths
+from ggshield.utils.git_shell import (
+    InvalidGitRefError,
+    NotAGitDirectory,
     check_git_dir,
     check_git_ref,
     get_filepaths_from_ref,
@@ -14,7 +16,6 @@ from ggshield.core.git_shell import (
     git,
     is_git_dir,
     is_valid_git_commit_ref,
-    tar_from_ref_and_filepaths,
 )
 from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
@@ -48,7 +49,7 @@ def test_check_git_dir(tmp_path):
     check_git_dir()
 
     with cd(str(tmp_path)):
-        with pytest.raises(UsageError):
+        with pytest.raises(NotAGitDirectory):
             check_git_dir()
 
 
@@ -56,7 +57,7 @@ def test_check_git_ref_invalid_git_path(tmp_path):
     # WHEN checking a non git path
     with cd(str(tmp_path)):
         # THEN function throws an error
-        with pytest.raises(UsageError):
+        with pytest.raises(NotAGitDirectory):
             check_git_ref(ref="HEAD")
 
 
@@ -70,13 +71,13 @@ def test_check_git_ref_valid_git_path(tmp_path):
     local_repo.create_commit()
     local_repo.push()
 
-    # THEN valid git reference do not throw
+    # THEN valid git references do not throw
     check_git_ref("HEAD", local_repo_path)
     check_git_ref("@{upstream}", local_repo_path)
 
     # AND other strings throw
-    with pytest.raises(UsageError):
-        check_git_ref("invalid_ref", tmp_path)
+    with pytest.raises(InvalidGitRefError):
+        check_git_ref("invalid_ref", local_repo_path)
 
 
 def test_get_filepaths_from_ref(tmp_path):

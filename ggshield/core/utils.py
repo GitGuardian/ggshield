@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 from pygitguardian.models import Match
 
 from ggshield.core.constants import ON_PREMISE_API_URL_PATH_PREFIX
+from ggshield.utils.git_shell import Filemode, get_git_root, is_git_dir
 
-from .git_shell import Filemode, get_git_root, is_git_dir
 from .text_utils import Line, LineCategory, display_error, display_warning
 
 
