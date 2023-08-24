@@ -21,7 +21,7 @@ from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
-from ggshield.core.utils import api_to_dashboard_url
+from ggshield.core.url_utils import api_to_dashboard_url
 
 
 logger = logging.getLogger(__name__)

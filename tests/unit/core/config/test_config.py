@@ -11,7 +11,7 @@ from ggshield.core.config import AccountConfig, Config, InstanceConfig
 from ggshield.core.config.utils import get_auth_config_filepath, load_yaml_dict
 from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.errors import UnknownInstanceError
-from ggshield.core.utils import dashboard_to_api_url
+from ggshield.core.url_utils import dashboard_to_api_url
 from tests.unit.conftest import write_yaml
 from tests.unit.core.config.conftest import TEST_AUTH_CONFIG
 

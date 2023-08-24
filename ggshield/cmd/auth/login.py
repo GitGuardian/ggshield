@@ -8,7 +8,7 @@ from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.utils import clean_url
+from ggshield.core.url_utils import clean_url
 from ggshield.verticals.auth import OAuthClient
 
 
