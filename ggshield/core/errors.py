@@ -10,8 +10,8 @@ from typing import Any, Dict
 import click
 from marshmallow import ValidationError
 
-from ggshield.core.git_shell import GitError, InvalidGitRefError
 from ggshield.core.text_utils import display_error
+from ggshield.utils.git_shell import GitError, InvalidGitRefError
 
 
 class ExitCode(IntEnum):

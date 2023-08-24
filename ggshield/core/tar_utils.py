@@ -7,7 +7,7 @@ from typing import Iterable, Optional
 from pygitguardian import ContentTooLarge
 from pygitguardian.client import MAX_TAR_CONTENT_SIZE
 
-from ggshield.core.git_shell import check_git_ref, read_git_file
+from ggshield.utils.git_shell import check_git_ref, read_git_file
 
 
 INDEX_REF = ""

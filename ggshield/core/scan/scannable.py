@@ -9,7 +9,7 @@ from typing import BinaryIO, Callable, List, Optional, Tuple
 import charset_normalizer
 from charset_normalizer import CharsetMatch
 
-from ggshield.core.git_shell import Filemode
+from ggshield.utils.git_shell import Filemode
 
 
 logger = logging.getLogger(__name__)

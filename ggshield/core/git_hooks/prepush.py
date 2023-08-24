@@ -3,9 +3,9 @@ import os
 import sys
 from typing import List, Optional, Tuple
 
-from ggshield.core.git_shell import git, is_valid_git_commit_ref
 from ggshield.core.text_utils import display_warning
 from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import git, is_valid_git_commit_ref
 
 
 logger = logging.getLogger(__name__)

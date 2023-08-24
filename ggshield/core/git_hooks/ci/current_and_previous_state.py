@@ -1,6 +1,6 @@
 import click
 
-from ggshield.core.git_shell import check_git_dir
+from ggshield.utils.git_shell import check_git_dir
 
 from .commit_range import collect_commit_range_from_ci_env
 from .previous_commit import get_previous_commit_from_ci_env

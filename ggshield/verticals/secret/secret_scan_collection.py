@@ -4,8 +4,8 @@ from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple
 from pygitguardian.models import ScanResult
 
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
-from ggshield.core.git_shell import Filemode
 from ggshield.core.scan.scannable import Scannable
+from ggshield.utils.git_shell import Filemode
 
 
 class Result(NamedTuple):

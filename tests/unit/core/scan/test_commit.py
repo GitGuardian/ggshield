@@ -4,9 +4,9 @@ import pytest
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.filter import init_exclusion_regexes
-from ggshield.core.git_shell import Filemode
 from ggshield.core.scan import Commit
 from ggshield.core.scan.commit import _parse_patch_header_line
+from ggshield.utils.git_shell import Filemode
 from tests.unit.conftest import DATA_PATH
 
 
