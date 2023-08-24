@@ -10,7 +10,7 @@ from pygitguardian.models import Detail
 from ggshield.cmd.utils.common_options import use_json
 from ggshield.core.config import Config
 from ggshield.core.errors import APIKeyCheckError
-from ggshield.core.filter import is_filepath_excluded
+from ggshield.core.file_utils import is_filepath_excluded
 from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,

@@ -5,7 +5,7 @@ from typing import List, Optional, Set
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
-from ggshield.core.filter import is_filepath_excluded
+from ggshield.core.file_utils import is_filepath_excluded
 from ggshield.core.git_shell import (
     INDEX_REF,
     get_filepaths_from_ref,
