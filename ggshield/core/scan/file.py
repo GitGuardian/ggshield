@@ -5,7 +5,7 @@ from typing import Iterable, Iterator, List, Optional, Set
 
 import click
 
-from ggshield.core.file_utils import get_filepaths, is_path_binary
+from ggshield.utils.files import UnexpectedDirectoryError, get_filepaths, is_path_binary
 
 from .scannable import Files, Scannable
 
@@ -71,9 +71,16 @@ def get_files_from_paths(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository
     """
-    filepaths = get_filepaths(
-        paths, exclusion_regexes, recursive, ignore_git=ignore_git
-    )
+    try:
+        filepaths = get_filepaths(
+            paths, exclusion_regexes, recursive, ignore_git=ignore_git
+        )
+    except UnexpectedDirectoryError as error:
+        raise click.UsageError(
+            f"{click.format_filename(error.path)} is a directory."
+            " Use --recursive to scan directories."
+        )
+
     files = list(generate_files_from_paths(filepaths, verbose))
 
     if verbose:

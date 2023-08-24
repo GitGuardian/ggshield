@@ -7,8 +7,8 @@ from typing import Set, Union
 
 import pytest
 
-from ggshield.core.file_utils import is_filepath_excluded
 from ggshield.core.tar_utils import get_empty_tar
+from ggshield.utils.files import is_filepath_excluded
 
 
 def test_get_empty_tar():
