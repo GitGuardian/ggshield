@@ -4,7 +4,7 @@ from typing import List, Optional
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.verticals.secret.repo import cd
 from tests.repository import create_pre_receive_repo

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from click.testing import CliRunner, Result
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from tests.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,

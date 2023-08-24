@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 from click.testing import CliRunner
 from pytest_voluptuous import S
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
 from tests.unit.request_mock import RequestMock, create_json_response

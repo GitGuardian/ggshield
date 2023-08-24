@@ -4,7 +4,7 @@ from typing import List
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr

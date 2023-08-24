@@ -7,7 +7,7 @@ import voluptuous.validators as validators
 from click.testing import CliRunner, Result
 from pytest_voluptuous import S
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from tests.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,
     _IAC_NO_VULNERABILITIES,

@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from click.testing import CliRunner
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_ok, my_vcr
 
 

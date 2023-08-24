@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from ggshield.cmd.main import cli
+from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.git_hooks.ci.commit_range import gitlab_ci_range
 from ggshield.core.utils import EMPTY_SHA
