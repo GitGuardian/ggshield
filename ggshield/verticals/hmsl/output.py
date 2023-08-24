@@ -1,7 +1,8 @@
 import json
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 import click
+from requests import HTTPError
 
 from ggshield.core.text_utils import (
     display_heading,
@@ -40,7 +41,10 @@ def write_outputs(result: PreparedSecrets, prefix: str) -> None:
 
 
 def show_results(
-    secrets: Iterable[Secret], names: Dict[str, str], json_output: bool
+    secrets: Iterable[Secret],
+    names: Dict[str, str],
+    json_output: bool,
+    error: Optional[Exception] = None,
 ) -> None:
     """
     Display the secrets.
@@ -50,7 +54,7 @@ def show_results(
         display_warning(
             f"Found {len(secrets)} leaked {pluralize('secret', len(secrets))}."
         )
-    else:
+    elif not error:
         display_heading("All right! No leaked secret has been found.")
 
     data = {
@@ -70,3 +74,20 @@ def show_results(
     else:
         for i, secret in enumerate(data["leaks"]):
             click.echo(TEMPLATE.format(number=i + 1, **secret))
+
+    if error:
+        show_error_during_scan(error)
+
+
+def show_error_during_scan(error: Exception):
+    if isinstance(error, HTTPError) and error.response.status_code == 429:
+        error_message = "These are partial results: Quota exceeded"
+        if error.response.headers.get("RateLimit-Query") is not None:
+            error_message += (
+                f" required {error.response.headers.get('RateLimit-Query')} credits."
+            )
+        else:
+            error_message += "."
+        display_warning(error_message)
+    else:
+        display_warning("These are partial results, errors occurred during scan")
