@@ -5,6 +5,7 @@ from click.testing import CliRunner
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from ggshield.utils.os import cd
 from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
     SCALocationVulnerability,
@@ -12,7 +13,6 @@ from ggshield.verticals.sca.sca_scan_models import (
     SCAVulnerability,
     SCAVulnerablePackageVersion,
 )
-from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr
 

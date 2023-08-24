@@ -17,7 +17,7 @@ from ggshield.utils.git_shell import (
     is_git_dir,
     is_valid_git_commit_ref,
 )
-from ggshield.verticals.secret.repo import cd
+from ggshield.utils.os import cd
 from tests.repository import Repository
 
 

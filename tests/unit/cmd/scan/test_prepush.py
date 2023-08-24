@@ -12,7 +12,7 @@ from ggshield.core.errors import ExitCode
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import EMPTY_SHA, EMPTY_TREE
-from ggshield.verticals.secret.repo import cd
+from ggshield.utils.os import cd
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 

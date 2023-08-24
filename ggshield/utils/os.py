@@ -1,9 +1,11 @@
 import logging
+import os
 import platform
 import sys
+from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Tuple
+from typing import Iterator, Tuple
 
 
 logger = logging.getLogger(__name__)
@@ -48,3 +50,16 @@ def parse_os_release(os_release_path: Path) -> Tuple[str, str]:
     except Exception as exc:
         logger.warning(f"Failed to read Linux OS name and version: {exc}")
         return error_tuple
+
+
+@contextmanager
+def cd(newdir: str) -> Iterator[None]:
+    """
+    A context manager to temporarily change the current directory
+    """
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
