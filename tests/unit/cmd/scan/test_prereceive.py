@@ -6,8 +6,7 @@ from click.testing import CliRunner
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan import StringScannable
-from ggshield.core.utils import Filemode
-from ggshield.utils.git_shell import EMPTY_SHA
+from ggshield.utils.git_shell import EMPTY_SHA, Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository, create_pre_receive_repo

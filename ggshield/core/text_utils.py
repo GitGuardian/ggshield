@@ -1,7 +1,6 @@
 import sys
 from datetime import datetime
-from enum import Enum, auto
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import click
 from rich.console import Console
@@ -15,8 +14,6 @@ from rich.progress import (
 
 from .constants import IncidentStatus
 
-
-LINE_DISPLAY = {"file": "{} | ", "patch": "{} {} | "}
 
 LIGHT_GREY = (146, 146, 146)
 ORANGE = (255, 128, 80)
@@ -58,61 +55,6 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "sca_vulnerability_low": {"fg": (146, 146, 146), "bold": True},  # light-grey
     "sca_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
 }
-
-
-class LineCategory(Enum):
-    addition = auto()
-    data = auto()
-    deletion = auto()
-    empty = auto()
-
-
-class Line(NamedTuple):
-    """
-    Line object making easier to handle line
-    by line display.
-
-    - content: Content of the line
-    - category: The line category [+|-| ] (addition, deletion, untouched)
-    - pre_index: Line index (deletion for patches, line index for files)
-    - post_index: Line index (addition for patches)
-    """
-
-    content: str
-    category: Optional[LineCategory] = None
-    pre_index: Optional[int] = None
-    post_index: Optional[int] = None
-
-    def build_line_count(self, padding: int, is_secret: bool = False) -> str:
-        """Return the formatted line count."""
-        line_count_style = (
-            STYLE["line_count_secret"] if is_secret else STYLE["line_count"]
-        )
-        if self.category is not None and not isinstance(self.category, LineCategory):
-            raise TypeError("line category invalid")
-
-        # File
-        if self.category == LineCategory.data:
-            return LINE_DISPLAY["file"].format(
-                format_text(
-                    format_line_count(self.pre_index, padding), line_count_style
-                )
-            )
-
-        # Patch
-        pre_index = format_line_count(self.pre_index, padding)
-        post_index = format_line_count(self.post_index, padding)
-
-        if self.category == LineCategory.addition:
-            pre_index = " " * padding
-
-        elif self.category == LineCategory.deletion:
-            post_index = " " * padding
-
-        return LINE_DISPLAY["patch"].format(
-            format_text(pre_index, line_count_style),
-            format_text(post_index, line_count_style),
-        )
 
 
 def format_text(text: str, style: Dict[str, Any]) -> str:
@@ -181,20 +123,6 @@ def create_progress_bar(doc_type: str) -> Progress:
         TimeRemainingColumn(),
         console=Console(file=sys.stderr),
     )
-
-
-def get_padding(lines: List[Line]) -> int:
-    """Return the number of digit of the maximum line number."""
-    # value can be None
-    return max(len(str(lines[-1].pre_index or 0)), len(str(lines[-1].post_index or 0)))
-
-
-def get_offset(padding: int, is_patch: bool = False) -> int:
-    """Return the offset due to the line display."""
-    if is_patch:
-        return len(LINE_DISPLAY["patch"].format("0" * padding, "0" * padding))
-
-    return len(LINE_DISPLAY["file"].format("0" * padding))
 
 
 def clip_long_line(
