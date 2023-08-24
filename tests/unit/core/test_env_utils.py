@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from ggshield.core.env_utils import load_dot_env
-from ggshield.verticals.secret.repo import cd
+from ggshield.utils.os import cd
 
 
 @patch("ggshield.core.env_utils.load_dotenv")

@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
-from ggshield.verticals.secret.repo import cd
+from ggshield.utils.os import cd
 from tests.repository import create_pre_receive_repo
 from tests.unit.conftest import my_vcr
 

@@ -1,8 +1,6 @@
 import itertools
-import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Iterable, Iterator, List, Optional, Set
 
@@ -18,6 +16,7 @@ from ggshield.core.scan import Commit, ScanContext
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
+from ggshield.utils.os import cd
 
 from .output import SecretOutputHandler
 from .secret_scan_collection import Results, SecretScanCollection
@@ -26,16 +25,6 @@ from .secret_scanner import SecretScanner
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
 SCAN_THREADS = 4
-
-
-@contextmanager
-def cd(newdir: str) -> Iterator[None]:
-    prevdir = os.getcwd()
-    os.chdir(os.path.expanduser(newdir))
-    try:
-        yield
-    finally:
-        os.chdir(prevdir)
 
 
 def scan_repo_path(

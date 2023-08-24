@@ -8,7 +8,7 @@ from ggshield.core.config import Config
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path
 from ggshield.core.errors import ExitCode
-from ggshield.verticals.secret.repo import cd
+from ggshield.utils.os import cd
 
 from .utils import add_instance_config
 
