@@ -5,8 +5,8 @@ import click
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
 )
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
 from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.utils.git_shell import check_git_dir
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -31,6 +31,7 @@ BYPASS_MESSAGE = """  - if you use the pre-commit framework:
 @click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
 @add_secret_scan_common_options()
 @click.pass_context
+@exception_wrapper
 def precommit_cmd(
     ctx: click.Context, precommit_args: List[str], **kwargs: Any
 ) -> int:  # pragma: no cover
@@ -44,36 +45,33 @@ def precommit_cmd(
         output=None,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
     )
-    try:
-        check_git_dir()
+    check_git_dir()
 
-        scan_context = ScanContext(
-            scan_mode=ScanMode.PRE_COMMIT,
-            command_path=ctx.command_path,
-        )
+    scan_context = ScanContext(
+        scan_mode=ScanMode.PRE_COMMIT,
+        command_path=ctx.command_path,
+    )
 
-        commit = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"])
-        scanner = SecretScanner(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
-            scan_context=scan_context,
-            ignored_matches=config.user_config.secret.ignored_matches,
-            ignored_detectors=config.user_config.secret.ignored_detectors,
-        )
-        results = scanner.scan(commit.files)
+    commit = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"])
+    scanner = SecretScanner(
+        client=ctx.obj["client"],
+        cache=ctx.obj["cache"],
+        scan_context=scan_context,
+        ignored_matches=config.user_config.secret.ignored_matches,
+        ignored_detectors=config.user_config.secret.ignored_detectors,
+    )
+    results = scanner.scan(commit.files)
 
-        return_code = output_handler.process_scan(
-            SecretScanCollection(id="cached", type="pre-commit", results=results)
+    return_code = output_handler.process_scan(
+        SecretScanCollection(id="cached", type="pre-commit", results=results)
+    )
+    if return_code:
+        click.echo(
+            remediation_message(
+                remediation_steps=REMEDIATION_STEPS,
+                bypass_message=BYPASS_MESSAGE,
+                rewrite_git_history=False,
+            ),
+            err=True,
         )
-        if return_code:
-            click.echo(
-                remediation_message(
-                    remediation_steps=REMEDIATION_STEPS,
-                    bypass_message=BYPASS_MESSAGE,
-                    rewrite_git_history=False,
-                ),
-                err=True,
-            )
-        return return_code
-    except Exception as error:
-        return handle_exception(error, config.user_config.verbose)
+    return return_code
