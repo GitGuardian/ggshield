@@ -23,14 +23,14 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
-from ggshield.core.file_utils import get_empty_tar, is_filepath_excluded
+from ggshield.core.file_utils import is_filepath_excluded
 from ggshield.core.git_shell import (
-    INDEX_REF,
     Filemode,
     get_diff_files_status,
     get_filepaths_from_ref,
 )
 from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
 from ggshield.core.text_utils import display_info, display_warning
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
