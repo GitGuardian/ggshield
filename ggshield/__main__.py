@@ -22,9 +22,9 @@ from ggshield.cmd.utils.debug_logs import disable_logs, setup_debug_logs
 from ggshield.core import check_updates
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
 from ggshield.core.text_utils import display_warning
-from ggshield.core.utils import load_dot_env
 
 
 logger = logging.getLogger(__name__)
