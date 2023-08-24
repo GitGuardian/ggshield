@@ -11,12 +11,6 @@ from ggshield.verticals.hmsl.crypto import make_hint
 from ggshield.verticals.hmsl.output import show_results
 
 
-# Types and constants
-
-
-# Command
-
-
 @click.command()
 @add_common_options()
 @click.option(
@@ -32,7 +26,7 @@ from ggshield.verticals.hmsl.output import show_results
 @input_arg
 def decrypt_cmd(path: str, mapping_file: TextIO, json_output: bool, **_: Any) -> int:
     """
-    Decrypt and show secrets information.
+    Decrypt `query`'s output and show secrets information.
     """
     # Opens the file or stdin
     input = cast(TextIO, click.open_file(path, "r"))

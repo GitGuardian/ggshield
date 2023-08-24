@@ -47,7 +47,9 @@ def fingerprint_cmd(
     **_: Any,
 ) -> int:
     """
-    Collect secrets and prepare them to be queried.
+    Collect secrets and compute fingerprints.
+
+    Fingerprints are to be used later by the `decrypt` command.
     """
     # Opens the file or stdin
     input = cast(TextIO, click.open_file(path, "r"))

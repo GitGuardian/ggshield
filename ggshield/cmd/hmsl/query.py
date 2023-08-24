@@ -27,7 +27,7 @@ def query_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Query HasMySecretLeaked.
+    Query HasMySecretLeaked using outputs of `fingerprint` command.
     """
 
     # Opens the file or stdin
