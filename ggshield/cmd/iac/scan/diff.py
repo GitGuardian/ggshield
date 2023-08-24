@@ -23,8 +23,7 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
-from ggshield.core.file_utils import get_empty_tar
-from ggshield.core.filter import is_filepath_excluded
+from ggshield.core.file_utils import get_empty_tar, is_filepath_excluded
 from ggshield.core.git_shell import (
     INDEX_REF,
     Filemode,
