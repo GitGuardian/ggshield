@@ -8,7 +8,7 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.errors import AuthError, UnexpectedError
-from ggshield.core.utils import dashboard_to_api_url
+from ggshield.core.url_utils import dashboard_to_api_url
 
 
 CONNECTION_ERROR_MESSAGE = (
