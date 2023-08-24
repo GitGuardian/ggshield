@@ -5,7 +5,6 @@ import click
 
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
-    display_sca_beta_warning,
     sca_scan_all,
     sca_scan_diff,
 )
@@ -13,6 +12,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
@@ -25,7 +25,8 @@ from ggshield.verticals.sca.collection.collection import (
 @all_option
 @directory_argument
 @click.pass_context
-@display_sca_beta_warning
+@display_beta_warning
+@exception_wrapper
 def scan_pre_commit_cmd(
     ctx: click.Context,
     exit_zero: bool,
