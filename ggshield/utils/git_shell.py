@@ -360,4 +360,5 @@ def get_diff_files_status(
 
 @lru_cache(None)
 def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
-    return git(["show", f"{ref}:{Path(path)}"], cwd=wd)
+    # Use as_posix to handle git and Windows
+    return git(["show", f"{ref}:{path.as_posix()}"], cwd=wd)
