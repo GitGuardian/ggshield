@@ -12,9 +12,10 @@ layers =
 	ggshield.cmd.auth | ggshield.cmd.config | ggshield.cmd.hmsl | ggshield.cmd.honeytoken | ggshield.cmd.iac | ggshield.cmd.install | ggshield.cmd.quota | ggshield.cmd.sca | ggshield.cmd.secret | ggshield.cmd.status | ggshield.cmd.utils
 	ggshield.verticals.auth | ggshield.verticals.hmsl | ggshield.verticals.iac | ggshield.verticals.sca | ggshield.verticals.secret
 	ggshield.core
-	ggshield.utils | pygitguardian
+	click | ggshield.utils | pygitguardian
 ignore_imports = 
 	ggshield.cmd.** -> ggshield.cmd.utils.*
+	ggshield.utils.click.** -> click
 unmatched_ignore_imports_alerting = warn
 
 [importlinter:contract:verticals-cmd-transversals]

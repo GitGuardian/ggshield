@@ -3,10 +3,15 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import List, Set, Union
 
-import click
-
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 from ggshield.utils.git_shell import git_ls, is_git_dir
+
+
+class UnexpectedDirectoryError(ValueError):
+    """Raise when a directory is used where it is not excepted"""
+
+    def __init__(self, path: str):
+        self.path = path
 
 
 def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> bool:
@@ -25,7 +30,7 @@ def get_filepaths(
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
     :param ignore_git: Ignore that the folder is a git repository
-    :raise: click.UsageError if directory is given without --recursive option
+    :raise: UnexceptedDirectoryError if directory is given without --recursive option
     """
     targets = set()
     for path in paths:
@@ -33,9 +38,7 @@ def get_filepaths(
             targets.add(path)
         elif os.path.isdir(path):
             if not recursive:
-                raise click.UsageError(
-                    f"{click.format_filename(path)} is a directory. Use --recursive to scan directories."
-                )
+                raise UnexpectedDirectoryError(path)
             top_dir = Path(path)
 
             if not ignore_git and is_git_dir(path):
