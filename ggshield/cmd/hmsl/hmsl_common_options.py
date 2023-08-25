@@ -19,7 +19,7 @@ naming_strategy_option = click.option(
     type=click.Choice(list(NAMING_STRATEGIES.keys())),
     default="key",
     show_default=True,
-    help="""Strategy to generate the hints.
+    help="""Strategy to generate the hints in the output.
             With "censored", only the first and last characters are displayed.
             With "cleartext", the full secret is used as a hint (Not recommended!).
             With "none", no hint is generated.
@@ -43,5 +43,5 @@ full_hashes_option = click.option(
     "--full-hashes",
     is_flag=True,
     default=False,
-    help="Send full hashes instead of prefixes.",
+    help="Send full hashes to the API instead of prefixes.",
 )

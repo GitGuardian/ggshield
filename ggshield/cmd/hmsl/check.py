@@ -45,7 +45,7 @@ def check_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Check if secrets have leaked.
+    Check if secrets have leaked in one command.
     """
 
     # Collect secrets
