@@ -6,7 +6,7 @@ import pytest
 from pygitguardian import GGClient
 
 from ggshield.core.scan import StringScannable
-from ggshield.core.utils import Filemode
+from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,

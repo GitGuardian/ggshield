@@ -8,18 +8,16 @@ from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
+from ggshield.core.match_indices import find_match_indices
 from ggshield.core.text_utils import (
     STYLE,
-    Line,
     clip_long_line,
     file_info,
     format_text,
-    get_offset,
-    get_padding,
     pluralize,
     translate_validity,
 )
-from ggshield.core.utils import find_match_indices, get_lines_from_content
 from ggshield.utils.git_shell import Filemode
 
 from ..secret_scan_collection import Result, SecretScanCollection

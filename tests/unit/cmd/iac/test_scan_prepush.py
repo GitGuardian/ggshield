@@ -5,7 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
-from ggshield.verticals.secret.repo import cd
+from ggshield.utils.os import cd
 from tests.conftest import _IAC_NO_VULNERABILITIES, _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr

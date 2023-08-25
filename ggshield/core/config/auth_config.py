@@ -19,7 +19,7 @@ from ggshield.core.errors import (
     MissingTokenError,
     UnknownInstanceError,
 )
-from ggshield.core.utils import datetime_from_isoformat
+from ggshield.utils.datetime import datetime_from_isoformat
 
 
 @dataclass

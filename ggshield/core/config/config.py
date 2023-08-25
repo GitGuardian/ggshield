@@ -8,7 +8,11 @@ from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
-from ggshield.core.utils import api_to_dashboard_url, clean_url, dashboard_to_api_url
+from ggshield.core.url_utils import (
+    api_to_dashboard_url,
+    clean_url,
+    dashboard_to_api_url,
+)
 
 
 logger = logging.getLogger(__name__)

@@ -11,8 +11,12 @@ from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prepush import BYPASS_MESSAGE, collect_commits_refs
 from ggshield.core.scan import ScanContext, ScanMode
-from ggshield.core.utils import EMPTY_SHA, EMPTY_TREE
-from ggshield.utils.git_shell import check_git_dir, get_list_commit_SHA
+from ggshield.utils.git_shell import (
+    EMPTY_SHA,
+    EMPTY_TREE,
+    check_git_dir,
+    get_list_commit_SHA,
+)
 from ggshield.verticals.secret.output.messages import remediation_message
 from ggshield.verticals.secret.repo import scan_commit_range
 

@@ -14,9 +14,9 @@ from ggshield.cmd.sca.scan.sca_scan_utils import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
+from ggshield.utils.os import cd
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
-from ggshield.verticals.secret.repo import cd
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 

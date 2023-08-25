@@ -14,7 +14,7 @@ from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.text_utils import display_warning
-from ggshield.core.utils import EMPTY_SHA
+from ggshield.utils.git_shell import EMPTY_SHA
 
 
 @click.command()
