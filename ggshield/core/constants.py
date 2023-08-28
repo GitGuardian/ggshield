@@ -24,3 +24,26 @@ ON_PREMISE_API_URL_PATH_PREFIX = "/exposed"
 class IncidentStatus(str, Enum):
     DETECTED = "detected"
     REMOVED = "removed"
+
+
+class IncidentSeverity(str, Enum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    UNKNOWN = "unknown"
+
+    def _weight(self) -> int:
+        """returns a weight to define `__lt__` method"""
+        if self == IncidentSeverity.CRITICAL:
+            return 0
+        if self == IncidentSeverity.HIGH:
+            return 10
+        if self == IncidentSeverity.MEDIUM:
+            return 20
+        if self == IncidentSeverity.LOW:
+            return 30
+        return 100
+
+    def __lt__(self, other: "IncidentSeverity") -> bool:
+        return self._weight() < other._weight()
