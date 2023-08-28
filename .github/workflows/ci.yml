@@ -154,7 +154,7 @@ jobs:
           curl -L https://github.com/goreleaser/nfpm/releases/download/v2.15.0/nfpm_amd64.deb -o nfpm_amd64.deb
           sudo dpkg -i nfpm_amd64.deb
 
-          pip install shiv==1.0.1
+          pip install shiv==1.0.1 build
 
       # Append the abbreviated git sha1 to the version number to avoid confusing
       # these packages with those produced at release time
