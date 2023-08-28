@@ -16,7 +16,13 @@ from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
 from ggshield.utils.os import cd
 from ggshield.verticals.sca.client import SCAClient
-from ggshield.verticals.sca.sca_scan_models import SCAScanAllOutput, SCAScanDiffOutput
+from ggshield.verticals.sca.sca_scan_models import (
+    SCALocationVulnerability,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAVulnerability,
+    SCAVulnerablePackageVersion,
+)
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 
@@ -245,7 +251,6 @@ CVE IDs: CVE-2023-30608"""
 def test_sca_scan_all_exit_zero(
     tmp_path, cli_fs_runner, pipfile_lock_with_vuln
 ) -> None:
-
     file_with_vulns = Path(tmp_path / "Pipfile.lock")
     file_with_vulns.write_text(pipfile_lock_with_vuln)
 
@@ -261,3 +266,108 @@ def test_sca_scan_all_exit_zero(
         )
 
         assert result.exit_code == ExitCode.SUCCESS
+
+
+@patch("ggshield.cmd.sca.scan.all.sca_scan_all")
+def test_sca_text_handler_ordering(patch_scan_all, cli_fs_runner):
+    """
+    GIVEN an unordered result for a SCA scan all
+    WHEN printing the result
+    THEN vulnerabilities are ordered as expected
+    """
+    patch_scan_all.return_value = SCAScanAllOutput(
+        scanned_files=["Pipfile.lock", "toto/Pipfile.lock"],
+        found_package_vulns=[
+            SCALocationVulnerability(
+                location="Pipfile.lock",
+                package_vulns=[
+                    SCAVulnerablePackageVersion(
+                        package_full_name="toto",
+                        version="1.0.0",
+                        ecosystem="pypi",
+                        vulns=[
+                            SCAVulnerability(severity="low", summary="", identifier="")
+                        ],
+                    ),
+                    SCAVulnerablePackageVersion(
+                        package_full_name="titi",
+                        version="2.0.0",
+                        ecosystem="pypi",
+                        vulns=[
+                            SCAVulnerability(
+                                severity="medium", summary="", identifier=""
+                            )
+                        ],
+                    ),
+                ],
+            ),
+            SCALocationVulnerability(
+                location="toto/Pipfile.lock",
+                package_vulns=[
+                    SCAVulnerablePackageVersion(
+                        package_full_name="foo",
+                        version="1.0.5",
+                        ecosystem="pypi",
+                        vulns=[
+                            SCAVulnerability(severity="high", summary="", identifier="")
+                        ],
+                    ),
+                    SCAVulnerablePackageVersion(
+                        package_full_name="bar",
+                        version="2.5.6",
+                        ecosystem="pypi",
+                        vulns=[
+                            SCAVulnerability(
+                                severity="critical", summary="", identifier=""
+                            )
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+        ],
+    )
+
+    assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+    assert (
+        """> toto/Pipfile.lock: 2 incidents detected
+
+>>> : Incident 1 (SCA): bar@2.5.6
+Severity: Critical
+Summary: 
+No fix is currently available.
+Identifier: 
+CVE IDs: -
+
+>>> : Incident 2 (SCA): foo@1.0.5
+Severity: High
+Summary: 
+No fix is currently available.
+Identifier: 
+CVE IDs: -
+
+> Pipfile.lock: 2 incidents detected
+
+>>> : Incident 1 (SCA): titi@2.0.0
+Severity: Medium
+Summary: 
+No fix is currently available.
+Identifier: 
+CVE IDs: -
+
+>>> : Incident 2 (SCA): toto@1.0.0
+Severity: Low
+Summary: 
+No fix is currently available.
+Identifier: 
+CVE IDs: -"""  # noqa W291
+        in result.stdout
+    )
