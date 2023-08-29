@@ -18,6 +18,7 @@ from ggshield.cmd.utils.common_options import (
     add_common_options,
     exit_zero_option,
     ignore_path_option,
+    json_option,
     minimum_severity_option,
 )
 from ggshield.core.client import create_client_from_config
@@ -31,6 +32,7 @@ def add_sca_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         exit_zero_option(cmd)
         minimum_severity_option(cmd)
         ignore_path_option(cmd)
+        json_option(cmd)
         return cmd
 
     return decorator
