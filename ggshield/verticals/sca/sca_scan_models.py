@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, cast
+from typing import List, Optional, Type, cast
 
 import marshmallow_dataclass
 from pygitguardian.models import Base, BaseSchema, FromDictMixin
@@ -88,10 +88,12 @@ class SCAScanAllOutput(Base, FromDictMixin):
     found_package_vulns: List[SCALocationVulnerability] = field(default_factory=list)
 
 
-SCAScanAllOutput.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(SCAScanAllOutput, base_schema=BaseSchema)(),
+SCAScanAllOutputSchema = cast(
+    Type[BaseSchema],
+    marshmallow_dataclass.class_schema(SCAScanAllOutput, base_schema=BaseSchema),
 )
+
+SCAScanAllOutput.SCHEMA = SCAScanAllOutputSchema()
 
 
 @dataclass
@@ -101,7 +103,9 @@ class SCAScanDiffOutput(Base, FromDictMixin):
     removed_vulns: List[SCALocationVulnerability] = field(default_factory=list)
 
 
-SCAScanDiffOutput.SCHEMA = cast(
-    BaseSchema,
-    marshmallow_dataclass.class_schema(SCAScanDiffOutput, base_schema=BaseSchema)(),
+SCAScanDiffOutputSchema = cast(
+    Type[BaseSchema],
+    marshmallow_dataclass.class_schema(SCAScanDiffOutput, base_schema=BaseSchema),
 )
+
+SCAScanDiffOutput.SCHEMA = SCAScanDiffOutputSchema()
