@@ -19,6 +19,7 @@ from ggshield.verticals.sca.file_selection import (
     sca_files_from_git_repo,
 )
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
+from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
 from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
 from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
@@ -140,9 +141,7 @@ def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
     instance"""
     output_handler_cls: Type[SCAOutputHandler]
     if use_json(ctx):
-        raise NotImplementedError(
-            "JSON output is not currently supported for SCA scan."
-        )
+        output_handler_cls = SCAJsonOutputHandler
     else:
         output_handler_cls = SCATextOutputHandler
     config: Config = ctx.obj["config"]
