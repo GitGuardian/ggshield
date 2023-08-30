@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Set, Tuple, Type
 
@@ -46,7 +47,11 @@ def display_sca_beta_warning(func):
 def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
     return SCAScanParameters(
         minimum_severity=sca_config.minimum_severity,
-        ignored_vulnerabilities=sca_config.ignored_vulnerabilities,
+        ignored_vulnerabilities=[
+            ignored_vuln
+            for ignored_vuln in sca_config.ignored_vulnerabilities
+            if ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow()
+        ],
     )
 
 
