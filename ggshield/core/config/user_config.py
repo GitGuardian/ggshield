@@ -110,8 +110,8 @@ class SCAIgnoredVulnerability(FilteredConfig):
 
     identifier: str = field(metadata={"validate": validate_vuln_identifier})
     path: str
-    comment: Optional[str]
-    until: Optional[datetime]
+    comment: Optional[str] = None
+    until: Optional[datetime] = None
 
     @post_load
     def datetime_to_utc(self, data, **kwargs):
