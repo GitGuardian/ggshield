@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, List
 
 import click
@@ -10,6 +11,7 @@ from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.core.config import Config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.utils.click import RealPath
 from ggshield.verticals.secret import (
     RichSecretScannerUI,
     SecretScanCollection,
@@ -19,7 +21,7 @@ from ggshield.verticals.secret import (
 
 @click.command()
 @click.argument(
-    "paths", nargs=-1, type=click.Path(exists=True, resolve_path=True), required=True
+    "paths", nargs=-1, type=RealPath(exists=True, resolve_path=True), required=True
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan.")
@@ -28,7 +30,7 @@ from ggshield.verticals.secret import (
 @exception_wrapper
 def path_cmd(
     ctx: click.Context,
-    paths: List[str],
+    paths: List[Path],
     recursive: bool,
     yes: bool,
     **kwargs: Any,
@@ -62,6 +64,8 @@ def path_cmd(
             ignored_detectors=config.user_config.secret.ignored_detectors,
         )
         results = scanner.scan(files.files, scanner_ui=ui)
-    scan = SecretScanCollection(id=" ".join(paths), type="path_scan", results=results)
+    scan = SecretScanCollection(
+        id=" ".join(str(x) for x in paths), type="path_scan", results=results
+    )
 
     return output_handler.process_scan(scan)

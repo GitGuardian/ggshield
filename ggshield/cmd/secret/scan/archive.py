@@ -13,6 +13,7 @@ from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import Files, ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.utils.click import RealPath
 from ggshield.verticals.secret import (
     RichSecretScannerUI,
     SecretScanCollection,
@@ -22,27 +23,28 @@ from ggshield.verticals.secret import (
 
 @click.command()
 @click.argument(
-    "path", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
+    "path", nargs=1, type=RealPath(exists=True, resolve_path=True), required=True
 )
 @add_secret_scan_common_options()
 @click.pass_context
 def archive_cmd(
     ctx: click.Context,
-    path: str,
+    path: Path,
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
     scan archive <PATH>.
     """
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
+        temp_path = Path(temp_dir)
         try:
-            shutil.unpack_archive(path, extract_dir=Path(temp_dir))
+            shutil.unpack_archive(path, extract_dir=temp_path)
         except Exception as exn:
             raise UnexpectedError(f'Failed to unpack "{path}" archive: {exn}')
 
         config: Config = ctx.obj["config"]
         files: Files = get_files_from_paths(
-            paths=[temp_dir],
+            paths=[temp_path],
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             recursive=True,
             yes=True,

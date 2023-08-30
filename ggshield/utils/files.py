@@ -1,7 +1,7 @@
 import os
 import re
 from pathlib import Path, PurePosixPath
-from typing import List, Set, Union
+from typing import List, Set
 
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 from ggshield.utils.git_shell import git_ls, is_git_dir
@@ -19,7 +19,7 @@ def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> b
 
 
 def get_filepaths(
-    paths: Union[List, str],
+    paths: List[str],
     exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     ignore_git: bool,

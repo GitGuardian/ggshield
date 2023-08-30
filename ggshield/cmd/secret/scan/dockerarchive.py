@@ -10,12 +10,13 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.core.config import Config
 from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.utils.click import RealPath
 from ggshield.verticals.secret.docker import docker_scan_archive
 
 
 @click.command(hidden=True)
 @click.argument(
-    "archive", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
+    "archive", nargs=1, type=RealPath(exists=True, resolve_path=True), required=True
 )
 @add_secret_scan_common_options()
 @click.pass_context
