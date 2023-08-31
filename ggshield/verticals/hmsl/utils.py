@@ -1,7 +1,7 @@
 import logging
-import os
 import re
 import time
+from pathlib import Path
 from typing import Optional
 
 import jwt
@@ -21,7 +21,7 @@ from ggshield.verticals.hmsl.client import HMSLClient
 logger = logging.getLogger(__name__)
 
 
-TOKEN_PATH = f"{get_cache_dir()}/hmsl_token"
+TOKEN_PATH = Path(get_cache_dir(), "hmsl_token")
 
 # Tools for parsing env files
 ENV_LINE_REGEX = re.compile(r'(\S+)(?: *?)=(?: *?)((?:".*?[^\\]")|\S+)')
@@ -121,7 +121,7 @@ def is_token_valid(token: Optional[str], audience: str) -> bool:
 
 def load_token_from_disk() -> Optional[str]:
     try:
-        return open(TOKEN_PATH).read()
+        return TOKEN_PATH.read_text()
     except FileNotFoundError:
         return None
     except Exception as e:
@@ -131,14 +131,14 @@ def load_token_from_disk() -> Optional[str]:
 
 def save_token(token: str) -> None:
     try:
-        open(TOKEN_PATH, "w").write(token)
+        TOKEN_PATH.write_text(token)
     except Exception as e:
         logger.warning(f"Error while saving token: {e}")
 
 
 def remove_token_from_disk() -> None:
     try:
-        os.remove(TOKEN_PATH)
+        TOKEN_PATH.unlink(missing_ok=True)
     except OSError:
         pass
     except Exception as e:
