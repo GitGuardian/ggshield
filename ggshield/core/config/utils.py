@@ -29,11 +29,12 @@ def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> No
             replace_in_keys(element, old_char=old_char, new_char=new_char)
 
 
-def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
-    if not os.path.isfile(path):
+def load_yaml_dict(path: Union[str, Path]) -> Optional[Dict[str, Any]]:
+    path = Path(path)
+    if not path.exists():
         return None
 
-    with open(path) as f:
+    with path.open() as f:
         try:
             data = yaml.safe_load(f) or {}
         except (yaml.parser.ParserError, yaml.scanner.ScannerError) as e:
@@ -46,7 +47,7 @@ def load_yaml_dict(path: str) -> Optional[Dict[str, Any]]:
     return data
 
 
-def save_yaml_dict(data: Dict[str, Any], path: str) -> None:
+def save_yaml_dict(data: Dict[str, Any], path: Union[str, Path]) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("w") as f:
