@@ -121,10 +121,6 @@ def update_from_other_instance(dst: Any, src: Any) -> None:
             dst.__dict__[name] = value
 
 
-def ensure_path_exists(dir_path: str) -> None:
-    Path(dir_path).mkdir(parents=True, exist_ok=True)
-
-
 def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:
     """
     Returns a copy of `dct` with all items already in `reference_dct` removed.
