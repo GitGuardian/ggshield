@@ -4,7 +4,12 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.utils.git_shell import EMPTY_SHA, get_last_commit_sha_of_branch, git
+from ggshield.utils.git_shell import (
+    EMPTY_SHA,
+    get_last_commit_sha_of_branch,
+    get_list_commit_SHA,
+    git,
+)
 
 from .supported_ci import SupportedCI
 
@@ -28,6 +33,8 @@ def get_previous_commit_from_ci_env(
 def github_previous_commit_sha(verbose: bool) -> Optional[str]:
     push_before_sha = github_push_previous_commit_sha()
     pull_req_base_sha = github_pull_request_previous_commit_sha()
+    head_sha = os.getenv("GITHUB_SHA", "HEAD")
+    event_name = os.getenv("GITHUB_EVENT_NAME")
 
     if verbose:
         click.echo(
@@ -43,8 +50,17 @@ def github_previous_commit_sha(verbose: bool) -> Optional[str]:
     if pull_req_base_sha:
         return pull_req_base_sha
 
-    if push_before_sha:
+    if push_before_sha and push_before_sha != EMPTY_SHA:
         return push_before_sha
+
+    if head_sha and event_name == "push":
+        if verbose:
+            click.echo("Could not find previous commit for current branch.")
+            click.echo("Current branch may have been just pushed.")
+            click.echo("Only scan last commit.")
+        last_commits = get_list_commit_SHA(f"{head_sha}~1", max_count=1)
+        if len(last_commits) == 1:
+            return last_commits[0]
 
     raise UnexpectedError(
         "Unable to get previous commit. Please submit an issue with the following info:\n"
