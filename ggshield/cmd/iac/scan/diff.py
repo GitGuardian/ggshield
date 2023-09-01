@@ -143,7 +143,7 @@ def iac_scan_diff(
             file
             for file, mode in files_status.items()
             if mode in modified_modes
-            and not is_filepath_excluded(str(file), exclusion_regexes)
+            and not is_filepath_excluded(file, exclusion_regexes)
             and is_iac_file_path(file)
         ]
 

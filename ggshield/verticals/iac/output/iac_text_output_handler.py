@@ -235,7 +235,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
         result_buf.write(file_info(file_result.filename, len(file_result.incidents)))
 
         try:
-            file = File(str(file_path))
+            file = File(file_path)
             lines: List[Line] = get_lines_from_content(
                 file.content, Filemode.FILE, False
             )
@@ -282,7 +282,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
         result_buf = StringIO()
 
         try:
-            file = File(str(file_path))
+            file = File(file_path)
             lines: List[Line] = get_lines_from_content(
                 file.content, Filemode.FILE, False
             )

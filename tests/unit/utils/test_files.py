@@ -36,6 +36,5 @@ def test_get_empty_tar():
 def test_is_filepath_excluded(
     path: Union[str, Path], regexes: Set[str], excluded: bool
 ) -> None:
-    path = str(path)
     regexes = {re.compile(x) for x in regexes}
     assert is_filepath_excluded(path, regexes) == excluded

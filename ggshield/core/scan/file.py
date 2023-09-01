@@ -1,7 +1,6 @@
-import os
 import re
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Set
+from typing import Iterable, Iterator, List, Optional, Set, Union
 
 import click
 
@@ -13,7 +12,7 @@ from .scannable import Files, Scannable
 class File(Scannable):
     """Implementation of Scannable for files from the disk."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: Union[str, Path]):
         super().__init__()
         self._path = Path(path)
         self._content: Optional[str] = None
@@ -76,7 +75,7 @@ def get_files_from_paths(
     """
     try:
         filepaths = get_filepaths(
-            [str(x) for x in paths], exclusion_regexes, recursive, ignore_git=ignore_git
+            paths, exclusion_regexes, recursive, ignore_git=ignore_git
         )
     except UnexpectedDirectoryError as error:
         raise click.UsageError(
@@ -102,11 +101,11 @@ def get_files_from_paths(
 
 
 def generate_files_from_paths(
-    paths: Iterable[str], display_binary_files: bool
+    paths: Iterable[Path], display_binary_files: bool
 ) -> Iterator[Scannable]:
     """Loop on filepaths and return an iterator on scannable files."""
     for path in paths:
-        if os.path.isdir(path) or not os.path.exists(path):
+        if path.is_dir() or not path.exists():
             continue
 
         if is_path_binary(path):

@@ -89,7 +89,7 @@ def sca_files_from_git_repo(
         files=[
             str(path)
             for path in all_files
-            if not is_filepath_excluded(str(path), exclusion_regexes)
+            if not is_filepath_excluded(path, exclusion_regexes)
         ]
     )
     if isinstance(sca_files_result, Detail):
