@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Any, List, Optional
 
 import click
@@ -25,6 +26,7 @@ from ggshield.core.config import Config
 from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
 from ggshield.core.text_utils import display_warning
+from ggshield.utils.click import RealPath
 
 
 logger = logging.getLogger(__name__)
@@ -50,8 +52,8 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
 
 
 def config_path_callback(
-    ctx: click.Context, param: click.Parameter, value: Optional[str]
-) -> Optional[str]:
+    ctx: click.Context, param: click.Parameter, value: Optional[Path]
+) -> Optional[Path]:
     # The --config option is marked as "is_eager" to ensure it's called before all the
     # others. This makes it the right place to create the configuration object.
     if not ctx.obj:
@@ -79,7 +81,7 @@ def config_path_callback(
 @click.option(
     "-c",
     "--config-path",
-    type=click.Path(exists=True, resolve_path=True, file_okay=True, dir_okay=False),
+    type=RealPath(exists=True, resolve_path=True, file_okay=True, dir_okay=False),
     is_eager=True,
     help="Set a custom config file. Ignores local and global config files.",
     callback=config_path_callback,

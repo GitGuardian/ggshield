@@ -2,6 +2,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 import marshmallow_dataclass
@@ -171,7 +172,7 @@ class UserConfig(FilteredConfig):
     # gets displayed.
     deprecation_messages: List[str] = field(default_factory=list)
 
-    def save(self, config_path: str) -> None:
+    def save(self, config_path: Path) -> None:
         """
         Save config to config_path
         """
@@ -186,7 +187,7 @@ class UserConfig(FilteredConfig):
         save_yaml_dict(dct, config_path)
 
     @classmethod
-    def load(cls, config_path: Optional[str] = None) -> Tuple["UserConfig", str]:
+    def load(cls, config_path: Optional[Path] = None) -> Tuple["UserConfig", Path]:
         """
         Load the various user configs files to create a UserConfig object:
         - global user configuration file (in the home)
@@ -216,10 +217,10 @@ class UserConfig(FilteredConfig):
             logger.debug("No local config")
 
         if config_path is None:
-            config_path = DEFAULT_LOCAL_CONFIG_PATH
+            config_path = Path(DEFAULT_LOCAL_CONFIG_PATH)
         return user_config, config_path
 
-    def _update_from_file(self, config_path: str) -> None:
+    def _update_from_file(self, config_path: Path) -> None:
         try:
             data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
             config_version = data.pop("version", 1)
