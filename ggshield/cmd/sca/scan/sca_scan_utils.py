@@ -13,7 +13,7 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
-from ggshield.core.text_utils import display_error, display_info, display_warning
+from ggshield.core.text_utils import display_error, display_info
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
@@ -28,20 +28,6 @@ from ggshield.verticals.sca.sca_scan_models import (
     SCAScanDiffOutput,
     SCAScanParameters,
 )
-
-
-def display_sca_beta_warning(func):
-    """
-    Displays warning about SCA commands being in beta.
-    """
-
-    def func_with_beta_warning(*args, **kwargs):
-        display_warning(
-            "This feature is still in beta, its behavior may change in future versions."
-        )
-        return func(*args, **kwargs)
-
-    return func_with_beta_warning
 
 
 def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:

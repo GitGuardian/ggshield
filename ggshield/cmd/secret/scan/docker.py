@@ -8,8 +8,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.docker import docker_save_to_tmp, docker_scan_archive
 
@@ -30,6 +30,7 @@ DOCKER_COMMAND_TIMEOUT = 360
 @click.argument("name", nargs=1, type=click.STRING, required=True)
 @add_secret_scan_common_options()
 @click.pass_context
+@exception_wrapper
 def docker_name_cmd(
     ctx: click.Context, name: str, docker_timeout: int, **kwargs: Any
 ) -> int:
@@ -43,24 +44,21 @@ def docker_name_cmd(
         config: Config = ctx.obj["config"]
         output_handler = create_output_handler(ctx)
 
-        try:
-            archive = Path(temporary_dir) / "archive.tar"
-            docker_save_to_tmp(name, archive, docker_timeout)
+        archive = Path(temporary_dir) / "archive.tar"
+        docker_save_to_tmp(name, archive, docker_timeout)
 
-            scan_context = ScanContext(
-                scan_mode=ScanMode.DOCKER,
-                command_path=ctx.command_path,
-            )
+        scan_context = ScanContext(
+            scan_mode=ScanMode.DOCKER,
+            command_path=ctx.command_path,
+        )
 
-            scan = docker_scan_archive(
-                archive_path=archive,
-                client=ctx.obj["client"],
-                cache=ctx.obj["cache"],
-                scan_context=scan_context,
-                matches_ignore=config.user_config.secret.ignored_matches,
-                ignored_detectors=config.user_config.secret.ignored_detectors,
-            )
+        scan = docker_scan_archive(
+            archive_path=archive,
+            client=ctx.obj["client"],
+            cache=ctx.obj["cache"],
+            scan_context=scan_context,
+            matches_ignore=config.user_config.secret.ignored_matches,
+            ignored_detectors=config.user_config.secret.ignored_detectors,
+        )
 
-            return output_handler.process_scan(scan)
-        except Exception as error:
-            return handle_exception(error, config.user_config.verbose)
+        return output_handler.process_scan(scan)
