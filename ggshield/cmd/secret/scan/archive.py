@@ -41,12 +41,14 @@ def archive_cmd(
             raise UnexpectedError(f'Failed to unpack "{path}" archive: {exn}')
 
         config: Config = ctx.obj["config"]
+        verbose = config.user_config.verbose
         files: Files = get_files_from_paths(
             paths=[temp_dir],
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             recursive=True,
             yes=True,
-            verbose=config.user_config.verbose,
+            display_scanned_files=verbose,
+            display_binary_files=verbose,
             ignore_git=True,
         )
 

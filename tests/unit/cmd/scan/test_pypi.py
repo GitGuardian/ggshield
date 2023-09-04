@@ -118,6 +118,7 @@ class TestListPackageFiles:
                 exclusion_regexes=expected_exclusion_regexes,
                 recursive=True,
                 yes=True,
-                verbose=verbose,
+                display_scanned_files=verbose,
+                display_binary_files=verbose,
                 ignore_git=True,
             )

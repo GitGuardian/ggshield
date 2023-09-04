@@ -123,8 +123,13 @@ def get_sca_scan_all_filepaths(
 
     # Only sca_files field is useful in the case of a full_scan,
     # all the potential files already exist in `all_filepaths`
+    sca_files = response.sca_files
+    if verbose:
+        display_info("> Scanned files:")
+        for filename in sca_files:
+            display_info(f"- {click.format_filename(filename)}")
 
-    return response.sca_files, response.status_code
+    return sca_files, response.status_code
 
 
 def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
@@ -179,11 +184,19 @@ def sca_scan_diff(
         previous_files = []
     else:
         previous_files = sca_files_from_git_repo(
-            directory, previous_ref, client, exclusion_regexes
+            directory,
+            previous_ref,
+            client,
+            exclusion_regexes=exclusion_regexes,
+            verbose=config.user_config.verbose,
         )
 
     current_files = sca_files_from_git_repo(
-        directory, current_ref, client, exclusion_regexes
+        directory,
+        current_ref,
+        client,
+        exclusion_regexes=exclusion_regexes,
+        verbose=config.user_config.verbose,
     )
 
     if len(previous_files) == 0 and len(current_files) == 0:

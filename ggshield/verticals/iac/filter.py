@@ -37,7 +37,8 @@ def get_iac_files_from_path(
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,
-        verbose=verbose,
+        display_binary_files=verbose,
+        display_scanned_files=False,  # If True, this displays all files in the directory but we only want IaC files
         ignore_git=ignore_git,
     ).apply_filter(is_iac_file)
 

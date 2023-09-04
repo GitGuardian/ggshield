@@ -80,7 +80,8 @@ def get_files_from_package(
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,
-        verbose=verbose,
+        display_scanned_files=verbose,
+        display_binary_files=verbose,
         ignore_git=True,
     )
 
