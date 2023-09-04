@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Type
+from typing import List, Optional, Set, Tuple, Type, Union
 
 import click
 from pygitguardian.client import _create_tar
@@ -12,22 +12,19 @@ from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
-from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
+from ggshield.core.tar_utils import (INDEX_REF, get_empty_tar,
+                                     tar_from_ref_and_filepaths)
 from ggshield.core.text_utils import display_error, display_info
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
-    get_all_files_from_sca_paths,
-    sca_files_from_git_repo,
-)
+    get_all_files_from_sca_paths, sca_files_from_git_repo)
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
 from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
 from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
-from ggshield.verticals.sca.sca_scan_models import (
-    ComputeSCAFilesResult,
-    SCAScanAllOutput,
-    SCAScanDiffOutput,
-    SCAScanParameters,
-)
+from ggshield.verticals.sca.sca_scan_models import (ComputeSCAFilesResult,
+                                                    SCAScanAllOutput,
+                                                    SCAScanDiffOutput,
+                                                    SCAScanParameters)
 
 
 def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
@@ -77,7 +74,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.SCA_DIRECTORY,
+            scan_mode=ScanMode.DIRECTORY,
         ).get_http_headers(),
     )
 
@@ -145,6 +142,8 @@ def sca_scan_diff(
     ctx: click.Context,
     directory: Path,
     previous_ref: Optional[str],
+    scan_mode: Union[ScanMode, str],
+    ci_mode: Optional[str] = None,
     include_staged: bool = False,
     current_ref: Optional[str] = None,
 ) -> SCAScanDiffOutput:
@@ -202,7 +201,14 @@ def sca_scan_diff(
     scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
     response = client.scan_diff(
-        reference=previous_tar, current=current_tar, scan_parameters=scan_parameters
+        reference=previous_tar,
+        current=current_tar,
+        scan_parameters=scan_parameters,
+        extra_headers=ScanContext(
+            command_path=ctx.command_path,
+            scan_mode=scan_mode,
+            extra_headers={"Ci-Mode": ci_mode} if ci_mode else None,
+        ).get_http_headers(),
     )
 
     if not isinstance(response, SCAScanDiffOutput):

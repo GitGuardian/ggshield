@@ -7,22 +7,16 @@ from click.testing import CliRunner
 from pygitguardian import GGClient
 
 from ggshield.__main__ import cli
-from ggshield.cmd.sca.scan.sca_scan_utils import (
-    get_sca_scan_all_filepaths,
-    sca_scan_all,
-    sca_scan_diff,
-)
+from ggshield.cmd.sca.scan.sca_scan_utils import (get_sca_scan_all_filepaths,
+                                                  sca_scan_all, sca_scan_diff)
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.os import cd
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.sca_scan_models import (
-    SCALocationVulnerability,
-    SCAScanAllOutput,
-    SCAScanDiffOutput,
-    SCAVulnerability,
-    SCAVulnerablePackageVersion,
-)
+    SCALocationVulnerability, SCAScanAllOutput, SCAScanDiffOutput,
+    SCAVulnerability, SCAVulnerablePackageVersion)
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 
@@ -123,6 +117,7 @@ def test_sca_scan_diff(client: GGClient, dummy_sca_repo: Repository):
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="branch_with_vuln",
+            scan_mode=ScanMode.DIFF,
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == ["Pipfile", "Pipfile.lock"]
@@ -137,6 +132,7 @@ def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="HEAD",
+            scan_mode=ScanMode.DIFF,
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == []
@@ -164,6 +160,7 @@ def test_sca_scan_diff_ignore_path(
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="branch_with_vuln",
+            scan_mode=ScanMode.DIFF,
         )
 
     assert result == SCAScanDiffOutput()
@@ -186,6 +183,7 @@ def test_sca_scan_diff_no_files(
             directory=dummy_sca_repo.path,
             previous_ref="HEAD",
             include_staged=True,
+            scan_mode=ScanMode.DIFF,
         )
 
     scan_diff_mock.assert_not_called()
@@ -342,32 +340,32 @@ def test_sca_text_handler_ordering(patch_scan_all, cli_fs_runner):
 
 >>> : Incident 1 (SCA): bar@2.5.6
 Severity: Critical
-Summary: 
+Summary:
 No fix is currently available.
-Identifier: 
+Identifier:
 CVE IDs: -
 
 >>> : Incident 2 (SCA): foo@1.0.5
 Severity: High
-Summary: 
+Summary:
 No fix is currently available.
-Identifier: 
+Identifier:
 CVE IDs: -
 
 > Pipfile.lock: 2 incidents detected
 
 >>> : Incident 1 (SCA): titi@2.0.0
 Severity: Medium
-Summary: 
+Summary:
 No fix is currently available.
-Identifier: 
+Identifier:
 CVE IDs: -
 
 >>> : Incident 2 (SCA): toto@1.0.0
 Severity: Low
-Summary: 
+Summary:
 No fix is currently available.
-Identifier: 
+Identifier:
 CVE IDs: -"""  # noqa W291
         in result.stdout
     )
