@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12)
+          - pygitguardian/1.9.0 (Darwin;py3.11.4)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:49 GMT
+          - Mon, 04 Sep 2023 14:10:13 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '14'
+          - '9'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -73,7 +73,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12)
+          - pygitguardian/1.9.0 (Darwin;py3.11.4)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -91,7 +91,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:49 GMT
+          - Mon, 04 Sep 2023 14:10:13 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -101,86 +101,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '12'
+          - '9'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
-        x-xss-protection:
-          - 1; mode=block
-      status:
-        code: 200
-        message: OK
-  - request:
-      body: !!binary |
-        LS05MTJlYjViN2VlNGVlNDJiZDFlMDYxZDY3MWY5OTExOQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        gBDRZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOTEyZWI1YjdlZTRl
-        ZTQyYmQxZTA2MWQ2NzFmOTkxMTkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAgBDRZAL/7cEBDQAAAMKg909t
-        DjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tOTEyZWI1YjdlZTRlZTQyYmQxZTA2MWQ2NzFmOTkx
-        MTktLQ0K
-      headers:
-        Accept:
-          - '*/*'
-        Accept-Encoding:
-          - gzip, deflate
-        Connection:
-          - keep-alive
-        Content-Length:
-          - '348'
-        Content-Type:
-          - multipart/form-data; boundary=912eb5b7ee4ee42bd1e061d671f99119
-        User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12)
-      method: POST
-      uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
-    response:
-      body:
-        string: '{"scanned_files":[],"added_vulns":[],"removed_vulns":[]}'
-      headers:
-        access-control-expose-headers:
-          - X-App-Version
-        allow:
-          - POST, OPTIONS
-        content-length:
-          - '56'
-        content-type:
-          - application/json
-        cross-origin-opener-policy:
-          - same-origin
-        date:
-          - Mon, 07 Aug 2023 15:40:49 GMT
-        referrer-policy:
-          - strict-origin-when-cross-origin
-        server:
-          - istio-envoy
-        strict-transport-security:
-          - max-age=31536000; includeSubDomains
-        vary:
-          - Cookie
-        x-app-version:
-          - v2.36.0
-        x-content-type-options:
-          - nosniff
-          - nosniff
-        x-envoy-upstream-service-time:
-          - '233'
-        x-frame-options:
-          - DENY
-          - SAMEORIGIN
-        x-sca-engine-version:
-          - 1.16.1
-        x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:

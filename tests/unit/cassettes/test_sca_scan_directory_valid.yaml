@@ -1,22 +1,22 @@
 interactions:
   - request:
       body: !!binary |
-        LS01Nzc4YmU0OGRiNjk3YTNkZjJiNGVmMjBlNjBmMGJjZQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS0yZWMxNTk5YzQ4ZmQ3N2FjZmNhM2ExM2FlNjhlOTdlMQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
-        IG51bGwsICJpZ25vcmVkX3Z1bG5lcmFiaWxpdGllcyI6IFtdfQ0KLS01Nzc4YmU0OGRiNjk3YTNk
-        ZjJiNGVmMjBlNjBmMGJjZQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJk
-        aXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAuRDRZAL/7ZXNbpwwEIA571Os
-        uOSSgv+BSFv12GPuVRQZexxoloXaECWq8u4FNkqWZNuqh6RqM98B2zMee2bsMUmapJ/O9e1n0BZ8
-        9CqQPT9rCeHiqT/JKWGURevb6A0YQq/9uH30PmH5uunrBjZUFVQwxrlKuBSZEGwVIf89VdtAWsHO
-        12nn269g+pBeXYWqhq1NewjjcNjVfWp1r9PzunP1FpJta67/sP6VmmucZpIctmTuUxVRIZRgJGNT
-        /TNOMhKtyVvW/5yDXyXqN/p/lO+r9Uh82UCv47P1fjiLKh2qhWSWhkozqUZ5TEgpXZbxTMti/FpZ
-        gACrRVZapcGVJeRSSisZt5RAZsGKksvcWBCkFLqMHxe+P33atdtfsQ+hAzPuog5UHr4NtYcwOXVo
-        EtrBm1n8ZeHr0vN56k43MPne3XV1fPpSP/jtpK76vgtnaTpNS1p/lYa66bZwzOIGfO3uLkOYDHs/
-        wGLK/ePoYnUQaWzB6WHbLxNuwPe1q1/mfDqJI/EdnMcZccRKZY3USo8dN+ZacyVyYZUxXAhJgRol
-        RW4UtVrb3HBGxiffFRSsNdmx0B6WNsowKHInTZarApzR1OUFVQ4sY7m1BZV8XMfRUghhOBWGKABH
-        WJETM5Z2vFj5YrlR3Gh/DT7sD6Wv2t3lmNFQt7v1x836hCfq5Jlr8YN+sths2PhWJDLJjl+mm7sO
-        /N/J52sGTRKWUHIQ8v5ure7xj40gCIIgCIIgCIIgCIIgCIIgCIIgCPJu+QFzgUraACgAAA0KLS01
-        Nzc4YmU0OGRiNjk3YTNkZjJiNGVmMjBlNjBmMGJjZS0tDQo=
+        IG51bGwsICJpZ25vcmVkX3Z1bG5lcmFiaWxpdGllcyI6IFtdfQ0KLS0yZWMxNTk5YzQ4ZmQ3N2Fj
+        ZmNhM2ExM2FlNjhlOTdlMQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJk
+        aXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgARuj1ZAL/7ZXBbpwwEEA571cg
+        LrmkYBvbQKSteuwxl56qKDL2OFgLuxRDmqjKv9fsRsnSbKVekkrJPAkwM2N7Zuyx0yzNvlyqu6+g
+        DAzRq0AO/O1LSM6f27OcEkZZFN9Fb8DkRzWE6aOPCSvjbnQdrKmsqAyP4GlZ0YJxuYqQd883D4PP
+        lG5c20KnvHYqu7n5uRs2vlcaQts3DlqTjeBHn01bN2ZGjSq7dL11LaTtTm/+of4lP9R4IeWh1tlT
+        zdOCyohyLgUVlPE8IqwggkYxecv6X6TghF0ws/b9rf+vVRxIrjsYVXIRH373okb5ZiHZS32jmJBB
+        nhBSC1sUeaFEFd5GVMDBKF7URiqwdQ2lEMIIlhtKoDBgeJ2LUhvgpOaqTp4Gfjh/nrU/bKtPvgcd
+        ZpFHqgF+TG4APzt13MXvpkHvxd8Xvi4935tuVQez7/1975Lzl/ppaGd1M469v8iy2SzdDTeZd13f
+        wqketzA4e3/t/dxxHCZYmDw8/V2tjiJNDFg1teMy4RqG0Vn3MufzSpyI72g9LoglRkijhZIqNGzI
+        tcolL7mRWuecCwpUS8FLLalRypQ6ZyQc+baiYIwuToX2OLSWmkFVWqGLUlZgtaI23BDSgmGsNCZc
+        GXkYx9Kac65zyjWRAJawqiQ6lHayGPlqOVHSqWETTqDDoozNbnsdMurdbht/XsdneSrP/nAtedTP
+        PdZrRlieirQ4vZlu73sY/k8+XzNokrKUkqOQD3tr9YA3NoIgCIIgCIIgCIIgCIIgCIIgCIIgyIfl
+        N0CO4ZkAKAAADQotLTJlYzE1OTljNDhmZDc3YWNmY2EzYTEzYWU2OGU5N2UxLS0NCg==
       headers:
         Accept:
           - '*/*'
@@ -25,17 +25,17 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '890'
+          - '904'
         Content-Type:
-          - multipart/form-data; boundary=5778be48db697a3df2b4ef20e60f0bce
+          - multipart/form-data; boundary=2ec1599c48fd77acfca3a13ae68e97e1
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12)
+          - pygitguardian/1.9.0 (Darwin;py3.11.4)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
     response:
       body:
         string:
-          '{"scanned_files":["home/henri/projects/ggshield/tests/unit/data/Pipfile.lock"],"found_package_vulns":[{"location":"home/henri/projects/ggshield/tests/unit/data/Pipfile.lock","package_vulns":[{"package_full_name":"certifi","version":"2023.5.7","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-37920"],"identifier":"GHSA-xqr8-7jwr-rhp7","severity":"high","created_at":"2023-07-25T14:43:53Z","fixed_version":"2023.07.22","summary":"Removal
+          '{"scanned_files":["Users/achillemascia/ggworkspace/ggshield/tests/unit/data/Pipfile.lock"],"found_package_vulns":[{"location":"Users/achillemascia/ggworkspace/ggshield/tests/unit/data/Pipfile.lock","package_vulns":[{"package_full_name":"certifi","version":"2023.5.7","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":["CVE-2023-37920"],"identifier":"GHSA-xqr8-7jwr-rhp7","severity":"high","created_at":"2023-07-25T14:43:53Z","fixed_version":"2023.7.22","summary":"Removal
           of e-Tugra root certificate"}]},{"package_full_name":"vyper","version":"0.2.10","ecosystem":"pypi","dependency_type":"transitive","vulns":[{"cve_ids":[],"identifier":"GHSA-22wc-c9wj-6q2v","severity":"medium","created_at":"2021-04-19T15:12:05Z","fixed_version":"0.2.12","summary":"VVE-2021-0001:
           Memory corruption using function calls within arrays"},{"cve_ids":["CVE-2023-31146"],"identifier":"GHSA-3p37-3636-q8wv","severity":"high","created_at":"2023-05-12T20:21:54Z","fixed_version":"0.3.8","summary":"Vyper
           vulnerable to OOB DynArray access when array is on both LHS and RHS of an
@@ -58,13 +58,13 @@ interactions:
         allow:
           - POST, OPTIONS
         content-length:
-          - '3358'
+          - '3381'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:41:46 GMT
+          - Mon, 04 Sep 2023 14:23:02 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -76,19 +76,19 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '141'
+          - '248'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:
