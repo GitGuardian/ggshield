@@ -4,6 +4,12 @@ import click
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from ggshield.utils.git_shell import EMPTY_SHA, get_list_commit_SHA
+from ggshield.utils.os import cd
+from ggshield.verticals.sca.sca_scan_models import (
+    ComputeSCAFilesResult,
+    SCAScanDiffOutput,
+)
 
 
 @patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
@@ -20,7 +26,7 @@ def test_sca_scan_ci_no_commit(
 ):
     """
     GIVEN a repository with no commits
-    WHEN `secret scan ci` is called without --all
+    WHEN `sca scan ci` is called without --all
     THEN no scan has been triggered and the scan is successful
     """
 
@@ -48,7 +54,7 @@ def test_sca_scan_ci_same_commit(
 ):
     """
     GIVEN the same commits in the two states in CI
-    WHEN `secret scan ci` is called without --all
+    WHEN `sca scan ci` is called without --all
     THEN no scan has been triggered and the scan is successful
     """
     monkeypatch.setenv("CI", "1")
@@ -75,7 +81,7 @@ def test_sca_scan_all_no_files(
 ):
     """
     GIVEN there are no files to check
-    WHEN `secret scan ci` is called with --all
+    WHEN `sca scan ci` is called with --all
     THEN no scan has been triggered, and the scan is successful
     """
     monkeypatch.setenv("CI", "1")
@@ -87,3 +93,53 @@ def test_sca_scan_all_no_files(
     assert result.exit_code == ExitCode.SUCCESS
     assert "No file to scan." in result.stdout
     assert "No SCA vulnerability has been found." in result.stdout
+
+
+@patch("ggshield.verticals.sca.client.SCAClient.compute_sca_files")
+@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
+def test_sca_scan_ci_github_push_before_empty_sha(
+    scan_diff_mock: Mock,
+    compute_sca_files_mock: Mock,
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo,
+    monkeypatch,
+):
+    """
+    GIVEN an empty commit sha in a GITHUB_PUSH_BEFORE_SHA in CI
+    WHEN `sca scan ci` is called without --all
+    THEN no error is raised
+    THEN the last commit of the branch is scanned
+    """
+
+    # Set CI env variables
+    monkeypatch.setenv("CI", "1")
+    monkeypatch.setenv("GITHUB_ACTIONS", "1")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("GITHUB_PUSH_BEFORE_SHA", EMPTY_SHA)
+
+    # Mocks the two SCAClient calls
+    compute_sca_files_mock.return_value = ComputeSCAFilesResult(
+        sca_files=["Pipfile", "Pipfile.lock"], potential_siblings=[]
+    )
+    scan_diff_mock.return_value = SCAScanDiffOutput(
+        scanned_files=[], added_vulns=[], removed_vulns=[]
+    )
+
+    # Run CI scan
+    with cd(str(dummy_sca_repo.path)):
+        # Set two commits on the current branch
+        dummy_sca_repo.git("checkout", "branch_with_vuln")
+        dummy_sca_repo.create_commit("first commit")
+        dummy_sca_repo.create_commit("second commit")
+
+        # Set GITHUB_SHA to current HEAD
+        head_sha = get_list_commit_SHA("HEAD", max_count=1)[0]
+        monkeypatch.setenv("GITHUB_SHA", head_sha)
+
+        result = cli_fs_runner.invoke(
+            cli, ["sca", "scan", "ci", "--verbose"], catch_exceptions=False
+        )
+
+    scan_diff_mock.assert_called_once()
+    assert result.exit_code == ExitCode.SUCCESS
+    assert "No SCA vulnerability has been added." in result.stdout
