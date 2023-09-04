@@ -123,6 +123,7 @@ def test_sca_scan_diff(client: GGClient, dummy_sca_repo: Repository):
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="branch_with_vuln",
+            scan_mode="",
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == ["Pipfile", "Pipfile.lock"]
@@ -137,6 +138,7 @@ def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="HEAD",
+            scan_mode="",
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == []
@@ -164,6 +166,7 @@ def test_sca_scan_diff_ignore_path(
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="branch_with_vuln",
+            scan_mode="",
         )
 
     assert result == SCAScanDiffOutput()
@@ -186,6 +189,7 @@ def test_sca_scan_diff_no_files(
             directory=dummy_sca_repo.path,
             previous_ref="HEAD",
             include_staged=True,
+            scan_mode="",
         )
 
     scan_diff_mock.assert_not_called()
@@ -370,4 +374,4 @@ No fix is currently available.
 Identifier: 
 CVE IDs: -"""  # noqa W291
         in result.stdout
-    )
+i    )
