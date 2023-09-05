@@ -1,9 +1,9 @@
 interactions:
   - request:
       body:
-        "--4904770009c06822a8f0130dba19005f\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{\"minimum_severity\":
-        null, \"ignored_vulnerabilities\": []}\r\n--4904770009c06822a8f0130dba19005f\r\nContent-Disposition:
-        form-data; name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--4904770009c06822a8f0130dba19005f--\r\n"
+        "--f8169c7f7ae836d395a20fbe65b4a2bb\r\nContent-Disposition: form-data; name=\"scan_parameters\"\r\n\r\n{\"minimum_severity\":
+        null, \"ignored_vulnerabilities\": []}\r\n--f8169c7f7ae836d395a20fbe65b4a2bb\r\nContent-Disposition:
+        form-data; name=\"directory\"; filename=\"directory\"\r\n\r\n\r\n--f8169c7f7ae836d395a20fbe65b4a2bb--\r\n"
       headers:
         Accept:
           - '*/*'
@@ -14,9 +14,9 @@ interactions:
         Content-Length:
           - '303'
         Content-Type:
-          - multipart/form-data; boundary=4904770009c06822a8f0130dba19005f
+          - multipart/form-data; boundary=f8169c7f7ae836d395a20fbe65b4a2bb
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12)
+          - pygitguardian/1.9.0 (Darwin;py3.11.4)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
     response:
@@ -34,7 +34,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:41:47 GMT
+          - Mon, 04 Sep 2023 14:23:03 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -44,18 +44,18 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '29'
+          - '23'
         x-frame-options:
           - DENY
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:

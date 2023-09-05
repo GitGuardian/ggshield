@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Type
+from typing import List, Optional, Set, Tuple, Type, Union
 
 import click
 from pygitguardian.client import _create_tar
@@ -77,7 +77,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.SCA_DIRECTORY,
+            scan_mode=ScanMode.DIRECTORY,
         ).get_http_headers(),
     )
 
@@ -145,6 +145,8 @@ def sca_scan_diff(
     ctx: click.Context,
     directory: Path,
     previous_ref: Optional[str],
+    scan_mode: Union[ScanMode, str],
+    ci_mode: Optional[str] = None,
     include_staged: bool = False,
     current_ref: Optional[str] = None,
 ) -> SCAScanDiffOutput:
@@ -202,7 +204,14 @@ def sca_scan_diff(
     scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
     response = client.scan_diff(
-        reference=previous_tar, current=current_tar, scan_parameters=scan_parameters
+        reference=previous_tar,
+        current=current_tar,
+        scan_parameters=scan_parameters,
+        extra_headers=ScanContext(
+            command_path=ctx.command_path,
+            scan_mode=scan_mode,
+            extra_headers={"Ci-Mode": ci_mode} if ci_mode else None,
+        ).get_http_headers(),
     )
 
     if not isinstance(response, SCAScanDiffOutput):

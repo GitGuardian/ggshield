@@ -31,6 +31,7 @@ def test_sca_scan_ci_no_commit(
     """
 
     monkeypatch.setenv("CI", "1")
+    monkeypatch.setenv("GITHUB_ACTIONS", "1")
     get_current_and_previous_state_from_ci_env_mock.return_value = (
         "HEAD",
         None,
@@ -58,6 +59,7 @@ def test_sca_scan_ci_same_commit(
     THEN no scan has been triggered and the scan is successful
     """
     monkeypatch.setenv("CI", "1")
+    monkeypatch.setenv("GITHUB_ACTIONS", "1")
     get_current_and_previous_state_from_ci_env_mock.return_value = (
         "abcdefg",
         "abcdefg",

@@ -14,6 +14,7 @@ from ggshield.cmd.sca.scan.sca_scan_utils import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.os import cd
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.sca_scan_models import (
@@ -123,6 +124,7 @@ def test_sca_scan_diff(client: GGClient, dummy_sca_repo: Repository):
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="branch_with_vuln",
+            scan_mode=ScanMode.DIFF,
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == ["Pipfile", "Pipfile.lock"]
@@ -137,6 +139,7 @@ def test_sca_scan_diff_same_ref(client: GGClient, dummy_sca_repo: Repository):
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="HEAD",
+            scan_mode=ScanMode.DIFF,
         )
     assert isinstance(result, SCAScanDiffOutput)
     assert result.scanned_files == []
@@ -164,6 +167,7 @@ def test_sca_scan_diff_ignore_path(
             ctx=ctx,
             directory=dummy_sca_repo.path,
             previous_ref="branch_with_vuln",
+            scan_mode=ScanMode.DIFF,
         )
 
     assert result == SCAScanDiffOutput()
@@ -186,6 +190,7 @@ def test_sca_scan_diff_no_files(
             directory=dummy_sca_repo.path,
             previous_ref="HEAD",
             include_staged=True,
+            scan_mode=ScanMode.DIFF,
         )
 
     scan_diff_mock.assert_not_called()

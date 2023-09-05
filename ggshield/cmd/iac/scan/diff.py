@@ -168,7 +168,7 @@ def iac_scan_diff(
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.IAC_DIFF,
+            scan_mode=ScanMode.DIFF,
         ).get_http_headers(),
     )
 

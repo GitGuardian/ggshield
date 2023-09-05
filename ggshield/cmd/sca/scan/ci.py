@@ -19,6 +19,8 @@ from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -67,11 +69,15 @@ def scan_ci_cmd(
             config.user_config.verbose
         )
 
+        ci_mode = SupportedCI.from_ci_env()
+        scan_mode = f"{ScanMode.CI.value}/{ci_mode.value}"
         result = sca_scan_diff(
             ctx=ctx,
             directory=directory,
             previous_ref=previous_commit,
             current_ref=current_commit,
+            scan_mode=scan_mode,
+            ci_mode=ci_mode.name,
         )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)
