@@ -5,17 +5,22 @@ import click
 from pygitguardian.iac_models import IaCScanParameters, IaCScanResult
 
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
-    add_iac_scan_common_options, update_context)
-from ggshield.cmd.iac.scan.iac_scan_utils import (IaCSkipScanResult,
-                                                  create_output_handler,
-                                                  handle_scan_error)
+    add_iac_scan_common_options,
+    update_context,
+)
+from ggshield.cmd.iac.scan.iac_scan_utils import (
+    IaCSkipScanResult,
+    create_output_handler,
+    handle_scan_error,
+)
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.core.config import Config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info
-from ggshield.verticals.iac.collection.iac_path_scan_collection import \
-    IaCPathScanCollection
+from ggshield.verticals.iac.collection.iac_path_scan_collection import (
+    IaCPathScanCollection,
+)
 from ggshield.verticals.iac.filter import get_iac_files_from_path
 
 

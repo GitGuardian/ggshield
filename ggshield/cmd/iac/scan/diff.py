@@ -5,26 +5,36 @@ import click
 from pygitguardian.iac_models import IaCDiffScanResult, IaCScanParameters
 
 from ggshield.cmd.iac.scan.iac_scan_common_options import (
-    add_iac_scan_common_options, update_context)
-from ggshield.cmd.iac.scan.iac_scan_utils import (IaCSkipScanResult,
-                                                  create_output_handler,
-                                                  filter_iac_filepaths,
-                                                  get_git_filepaths,
-                                                  get_iac_tar,
-                                                  handle_scan_error)
-from ggshield.cmd.utils.common_decorators import (display_beta_warning,
-                                                  exception_wrapper)
-from ggshield.cmd.utils.common_options import (directory_argument,
-                                               reference_option, staged_option)
+    add_iac_scan_common_options,
+    update_context,
+)
+from ggshield.cmd.iac.scan.iac_scan_utils import (
+    IaCSkipScanResult,
+    create_output_handler,
+    filter_iac_filepaths,
+    get_git_filepaths,
+    get_iac_tar,
+    handle_scan_error,
+)
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
+from ggshield.cmd.utils.common_options import (
+    directory_argument,
+    reference_option,
+    staged_option,
+)
 from ggshield.core.config import Config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
 from ggshield.core.text_utils import display_info
 from ggshield.utils.files import is_filepath_excluded
-from ggshield.utils.git_shell import (Filemode, get_diff_files_status,
-                                      get_filepaths_from_ref)
-from ggshield.verticals.iac.collection.iac_diff_scan_collection import \
-    IaCDiffScanCollection
+from ggshield.utils.git_shell import (
+    Filemode,
+    get_diff_files_status,
+    get_filepaths_from_ref,
+)
+from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
+    IaCDiffScanCollection,
+)
 from ggshield.verticals.iac.filter import is_iac_file_path
 
 

@@ -12,19 +12,22 @@ from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
-from ggshield.core.tar_utils import (INDEX_REF, get_empty_tar,
-                                     tar_from_ref_and_filepaths)
+from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error, display_info
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
-    get_all_files_from_sca_paths, sca_files_from_git_repo)
+    get_all_files_from_sca_paths,
+    sca_files_from_git_repo,
+)
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
 from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
 from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
-from ggshield.verticals.sca.sca_scan_models import (ComputeSCAFilesResult,
-                                                    SCAScanAllOutput,
-                                                    SCAScanDiffOutput,
-                                                    SCAScanParameters)
+from ggshield.verticals.sca.sca_scan_models import (
+    ComputeSCAFilesResult,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAScanParameters,
+)
 
 
 def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
