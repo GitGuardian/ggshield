@@ -423,32 +423,32 @@ class RequestHandlerWrapper:
                 """
                 callback_url: str = self_.path
                 parsed_url = urlparse.urlparse(callback_url)
-                if parsed_url.path == "/":
-                    error_string = get_error_param(parsed_url)
-                    if error_string is not None:
-                        self_._end_request(200)
-                        self.error_message = self.oauth_client.get_server_error_message(
-                            error_string
-                        )
-                    else:
-                        try:
-                            self.oauth_client.process_callback(callback_url)
-                        except OAuthError as error:
-                            self_._end_request(400)
-                            # attach error message to the handler wrapper instance
-                            self.error_message = error.message
-                        else:
-                            self_._end_request(
-                                301,
-                                urljoin(
-                                    self.oauth_client.dashboard_url, "authenticated"
-                                ),
-                            )
-
-                    # indicate to the server to stop
-                    self.complete = True
-                else:
+                if parsed_url.path != "/":
                     self_._end_request(404)
+                    return
+
+                error_string = get_error_param(parsed_url)
+                if error_string is not None:
+                    self_._end_request(200)
+                    self.error_message = self.oauth_client.get_server_error_message(
+                        error_string
+                    )
+                    return
+
+                try:
+                    self.oauth_client.process_callback(callback_url)
+                except OAuthError as error:
+                    self_._end_request(400)
+                    # attach error message to the handler wrapper instance
+                    self.error_message = error.message
+                else:
+                    self_._end_request(
+                        301,
+                        urljoin(self.oauth_client.dashboard_url, "authenticated"),
+                    )
+
+                # indicate to the server to stop
+                self.complete = True
 
             def _end_request(
                 self_,  # type:ignore
