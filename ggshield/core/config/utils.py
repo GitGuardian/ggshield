@@ -58,11 +58,11 @@ def save_yaml_dict(data: Dict[str, Any], path: Union[str, Path]) -> None:
 
 
 def get_auth_config_filepath() -> Path:
-    return Path(get_config_dir(), AUTH_CONFIG_FILENAME)
+    return get_config_dir() / AUTH_CONFIG_FILENAME
 
 
 def get_global_path(filename: str) -> Path:
-    return Path(get_user_home_dir(), filename)
+    return get_user_home_dir() / filename
 
 
 @overload

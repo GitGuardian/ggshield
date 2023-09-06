@@ -1,7 +1,6 @@
 import logging
 import re
 import time
-from pathlib import Path
 from typing import Optional
 
 import jwt
@@ -21,7 +20,7 @@ from ggshield.verticals.hmsl.client import HMSLClient
 logger = logging.getLogger(__name__)
 
 
-TOKEN_PATH = Path(get_cache_dir(), "hmsl_token")
+TOKEN_PATH = get_cache_dir() / "hmsl_token"
 
 # Tools for parsing env files
 ENV_LINE_REGEX = re.compile(r'(\S+)(?: *?)=(?: *?)((?:".*?[^\\]")|\S+)')

@@ -1,6 +1,5 @@
 import logging
 import time
-from pathlib import Path
 from typing import Optional, Tuple
 
 import requests
@@ -12,7 +11,7 @@ from .config.utils import load_yaml_dict, save_yaml_dict
 
 
 logger = logging.getLogger(__name__)
-CACHE_FILE = Path(get_cache_dir(), "update_check.yaml")
+CACHE_FILE = get_cache_dir() / "update_check.yaml"
 
 CHECK_AT_KEY = "check-at"
 
