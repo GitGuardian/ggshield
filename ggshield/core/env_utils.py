@@ -29,7 +29,7 @@ def _find_dot_env() -> Optional[Path]:
 
     # If we are in a git checkout, look for a .env at the root of the checkout
     if is_git_dir(os.getcwd()):
-        env = Path(get_git_root(), ".env")
+        env = get_git_root() / ".env"
         if env.is_file():
             return env
 

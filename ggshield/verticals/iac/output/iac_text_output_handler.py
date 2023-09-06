@@ -79,7 +79,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
         Returns the source basedir required to find file within filesystem.
         """
         try:
-            return Path(get_git_root(wd=path)).resolve()
+            return get_git_root(wd=path).resolve()
         except NotAGitDirectory:
             # In case we are not in a Git repository
             return Path(path).resolve()

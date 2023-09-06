@@ -101,7 +101,7 @@ def is_git_working_tree(wd: Union[str, Path]) -> bool:
     return _git_rev_parse("--show-toplevel", Path(wd)) is not None
 
 
-def get_git_root(wd: Optional[Union[str, Path]] = None) -> str:
+def get_git_root(wd: Optional[Union[str, Path]] = None) -> Path:
     """
     Fetches the root of the git repo.
     This corresponds to the root directory in the case of a working tree,
@@ -117,11 +117,11 @@ def get_git_root(wd: Optional[Union[str, Path]] = None) -> str:
     check_git_dir(wd)
     top_level = _git_rev_parse(option="--show-toplevel", wd=wd)
     if top_level is not None:
-        return top_level
+        return Path(top_level)
     root = _git_rev_parse(option="--git-dir", wd=wd)
     if root is None:
         raise NotAGitDirectory()
-    return str(Path(root).resolve())
+    return Path(root).resolve()
 
 
 def check_git_dir(wd: Optional[Union[str, Path]] = None) -> None:

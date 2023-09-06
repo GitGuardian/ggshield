@@ -72,7 +72,7 @@ def test_load_dot_env_loads_git_root_env(
     THEN the .env file at the root of the git repository is loaded
     """
     is_git_dir_mock.return_value = True
-    get_git_root_mock.return_value = str(tmp_path)
+    get_git_root_mock.return_value = tmp_path
 
     sub1_sub2_dir = tmp_path / "sub1" / "sub2"
     git_root_dotenv = tmp_path / ".env"
