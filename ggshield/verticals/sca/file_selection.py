@@ -48,7 +48,7 @@ def get_all_files_from_sca_paths(
     :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
     """
     files = get_files_from_paths(
-        paths=[str(path)],
+        paths=[path],
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,

@@ -33,7 +33,7 @@ def get_iac_files_from_path(
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """
     files = get_files_from_paths(
-        paths=[str(path)],
+        paths=[path],
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,

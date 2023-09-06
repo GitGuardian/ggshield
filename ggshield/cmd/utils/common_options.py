@@ -164,7 +164,6 @@ ignore_path_option = click.option(
     "--ipa",
     "ignore_paths",
     default=None,
-    type=click.Path(),
     multiple=True,
     help="Do not scan paths that match the specified glob-like patterns.",
 )

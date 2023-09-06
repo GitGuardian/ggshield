@@ -55,7 +55,7 @@ class File(Scannable):
 
 
 def get_files_from_paths(
-    paths: List[str],
+    paths: List[Path],
     exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     yes: bool,
@@ -76,7 +76,7 @@ def get_files_from_paths(
     """
     try:
         filepaths = get_filepaths(
-            paths, exclusion_regexes, recursive, ignore_git=ignore_git
+            [str(x) for x in paths], exclusion_regexes, recursive, ignore_git=ignore_git
         )
     except UnexpectedDirectoryError as error:
         raise click.UsageError(

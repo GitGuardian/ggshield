@@ -1,4 +1,5 @@
-from typing import Callable, List, Optional
+from pathlib import Path
+from typing import Callable, List, Optional, Union
 
 import click
 
@@ -15,6 +16,7 @@ from ggshield.cmd.utils.common_options import (
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
+from ggshield.utils.click import RealPath
 from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
@@ -47,7 +49,7 @@ def _get_secret_config(ctx: click.Context) -> SecretConfig:
 _output_option = click.option(
     "--output",
     "-o",
-    type=click.Path(exists=False, resolve_path=True),
+    type=RealPath(exists=False, resolve_path=True),
     default=None,
     help="Route ggshield output to file.",
     callback=create_ctx_callback("output"),
@@ -78,7 +80,6 @@ def _exclude_callback(
 _exclude_option = click.option(
     "--exclude",
     default=None,
-    type=click.Path(),
     help="""
     Do not scan paths that match the specified glob-like patterns.
     """,
@@ -138,7 +139,7 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
         SecretJSONOutputHandler if use_json(ctx) else SecretTextOutputHandler
     )
     config: Config = ctx.obj["config"]
-    output = ctx.obj.get("output")
+    output: Union[Path, None] = ctx.obj.get("output")
     return output_handler_cls(
         show_secrets=config.user_config.secret.show_secrets,
         verbose=config.user_config.verbose,

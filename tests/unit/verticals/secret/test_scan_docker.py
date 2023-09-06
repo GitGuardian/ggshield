@@ -1,6 +1,5 @@
 import re
 import subprocess
-import tarfile
 from pathlib import Path
 from typing import Dict
 from unittest.mock import patch
@@ -80,14 +79,13 @@ class TestDockerScan:
     def test_get_config(self, members, match):
         tarfile = TarMock(members)
         with pytest.raises(InvalidDockerArchiveException, match=match):
-            DockerImage(tarfile)
+            DockerImage(Path("dummy"), tarfile)
 
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
     def test_docker_archive(self, image_path: Path):
-        with tarfile.open(image_path) as archive:
-            image = DockerImage(archive)
+        with DockerImage.open(image_path) as image:
 
             # List of (LayerInfo, Files)
             # The filter is here to remove layers with no scannables
