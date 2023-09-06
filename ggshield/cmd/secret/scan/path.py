@@ -38,12 +38,14 @@ def path_cmd(
     """
     config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)
+    verbose = config.user_config.verbose
     files = get_files_from_paths(
         paths=paths,
         exclusion_regexes=ctx.obj["exclusion_regexes"],
         recursive=recursive,
         yes=yes,
-        verbose=config.user_config.verbose,
+        display_scanned_files=verbose,
+        display_binary_files=verbose,
         # when scanning a path explicitly we should not care if it is a git repository or not
         ignore_git=True,
     )
