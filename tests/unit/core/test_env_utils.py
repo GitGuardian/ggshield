@@ -44,13 +44,13 @@ def test_load_dot_env(
         for key, value in env.items():
             monkeypatch.setenv(key, value)
 
-    with cd(str(tmp_path / cwd)):
+    with cd(tmp_path / cwd):
         load_dot_env()
 
         if expected_dotenv_path:
             expected_dotenv_path = tmp_path / expected_dotenv_path
             load_dotenv_mock.assert_called_once_with(
-                str(expected_dotenv_path), override=True
+                expected_dotenv_path, override=True
             )
         else:
             load_dotenv_mock.assert_not_called()
@@ -81,6 +81,6 @@ def test_load_dot_env_loads_git_root_env(
     (tmp_path / "sub1" / ".env").touch()
     git_root_dotenv.touch()
 
-    with cd(str(sub1_sub2_dir)):
+    with cd(sub1_sub2_dir):
         load_dot_env()
-        load_dotenv_mock.assert_called_once_with(str(git_root_dotenv), override=True)
+        load_dotenv_mock.assert_called_once_with(git_root_dotenv, override=True)
