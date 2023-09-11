@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple
+from os import PathLike
+from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from pygitguardian.models import ScanResult
 
@@ -81,14 +82,14 @@ class SecretScanCollection:
 
     def __init__(
         self,
-        id: str,
+        id: Union[str, PathLike],
         type: str,
         results: Optional[Results] = None,
         scans: Optional[List["SecretScanCollection"]] = None,
         optional_header: Optional[str] = None,
         extra_info: Optional[Dict[str, str]] = None,
     ):
-        self.id = id
+        self.id = str(id)
         self.type = type
         self.results = results
         self.scans = scans

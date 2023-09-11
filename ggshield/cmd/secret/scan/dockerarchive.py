@@ -7,18 +7,20 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
 from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.utils.click import RealPath
 from ggshield.verticals.secret.docker import docker_scan_archive
 
 
 @click.command(hidden=True)
 @click.argument(
-    "archive", nargs=1, type=click.Path(exists=True, resolve_path=True), required=True
+    "archive", nargs=1, type=RealPath(exists=True, resolve_path=True), required=True
 )
 @add_secret_scan_common_options()
 @click.pass_context
+@exception_wrapper
 def docker_archive_cmd(
     ctx: click.Context,
     archive: Path,
@@ -37,16 +39,13 @@ def docker_archive_cmd(
         command_path=ctx.command_path,
     )
 
-    try:
-        scan = docker_scan_archive(
-            archive_path=archive,
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
-            matches_ignore=config.user_config.secret.ignored_matches,
-            scan_context=scan_context,
-            ignored_detectors=config.user_config.secret.ignored_detectors,
-        )
+    scan = docker_scan_archive(
+        archive_path=archive,
+        client=ctx.obj["client"],
+        cache=ctx.obj["cache"],
+        matches_ignore=config.user_config.secret.ignored_matches,
+        scan_context=scan_context,
+        ignored_detectors=config.user_config.secret.ignored_detectors,
+    )
 
-        return output_handler.process_scan(scan)
-    except Exception as error:
-        return handle_exception(error, config.user_config.verbose)
+    return output_handler.process_scan(scan)

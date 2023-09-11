@@ -2,12 +2,14 @@ import re
 from pathlib import Path
 from typing import List, Optional, Set
 
+import click
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan import Scannable
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
+from ggshield.core.text_utils import display_info
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 from ggshield.verticals.sca.client import SCAClient
@@ -46,11 +48,12 @@ def get_all_files_from_sca_paths(
     :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
     """
     files = get_files_from_paths(
-        paths=[str(path)],
+        paths=[path],
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,
-        verbose=verbose,
+        display_binary_files=verbose,
+        display_scanned_files=False,  # If True, this displays all files in the directory but we only want SCA files
         ignore_git=ignore_git,
     ).apply_filter(is_not_excluded_from_sca)
 
@@ -70,6 +73,7 @@ def sca_files_from_git_repo(
     ref: str,
     client: SCAClient,
     exclusion_regexes: Optional[Set[re.Pattern]] = None,
+    verbose: bool = False,
 ) -> Set[Path]:
     """Returns SCA files from the git repository at
     the given directory, for the given ref. Empty string denotes selection
@@ -92,5 +96,11 @@ def sca_files_from_git_repo(
         if sca_files_result.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
         raise UnexpectedError("Failed to select SCA files")
+
+    sca_files = sca_files_result.sca_files
+    if verbose:
+        display_info(f"> Scanned files from {ref}:")
+        for filename in sca_files:
+            display_info(f"- {click.format_filename(filename)}")
 
     return set(map(Path, sca_files_result.sca_files))

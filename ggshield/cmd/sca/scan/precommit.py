@@ -5,7 +5,6 @@ import click
 
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
-    display_sca_beta_warning,
     sca_scan_all,
     sca_scan_diff,
 )
@@ -13,7 +12,9 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -25,7 +26,8 @@ from ggshield.verticals.sca.collection.collection import (
 @all_option
 @directory_argument
 @click.pass_context
-@display_sca_beta_warning
+@display_beta_warning
+@exception_wrapper
 def scan_pre_commit_cmd(
     ctx: click.Context,
     exit_zero: bool,
@@ -51,7 +53,11 @@ def scan_pre_commit_cmd(
         return output_handler.process_scan_all_result(scan)
 
     result = sca_scan_diff(
-        ctx=ctx, directory=directory, previous_ref="HEAD", include_staged=True
+        ctx=ctx,
+        directory=directory,
+        previous_ref="HEAD",
+        include_staged=True,
+        scan_mode=ScanMode.PRE_COMMIT,
     )
 
     scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)

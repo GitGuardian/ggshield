@@ -95,14 +95,14 @@ class TestDockerCMD:
         assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
         assert 'Image "ggshield-non-existant" not found' in result.output
 
-    @patch("ggshield.verticals.secret.docker.DockerImage")
+    @patch("ggshield.verticals.secret.docker.DockerImage.open")
     @pytest.mark.parametrize(
         "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
     )
     @pytest.mark.parametrize("json_output", (False, True))
     def test_docker_scan_archive(
         self,
-        _docker_image_class_mock: Mock,
+        docker_image_open_mock: Mock,
         cli_fs_runner: click.testing.CliRunner,
         image_path: Path,
         json_output: bool,
@@ -129,7 +129,7 @@ class TestDockerCMD:
 
         docker_image = create_docker_image()
 
-        _docker_image_class_mock.return_value = docker_image
+        docker_image_open_mock.return_value.__enter__.return_value = docker_image
 
         with my_vcr.use_cassette("test_scan_file_secret"):
             json_arg = ["--json"] if json_output else []
@@ -146,6 +146,7 @@ class TestDockerCMD:
                 ],
             )
             assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
+            docker_image_open_mock.assert_called_once_with(image_path)
             docker_image.get_layer.assert_called_once_with(layer_info)
 
             if json_output:

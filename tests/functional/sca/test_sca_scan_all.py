@@ -1,4 +1,6 @@
-from tests.functional.utils import run_ggshield
+import json
+
+from tests.functional.utils import assert_is_valid_json, run_ggshield
 from tests.repository import Repository
 
 
@@ -28,3 +30,23 @@ def test_sca_scan_all_without_dependency_file(dummy_sca_repo: Repository) -> Non
         "sca", "scan", "all", cwd=dummy_sca_repo.path, expected_code=0
     )
     assert "No file to scan." in result.stderr
+
+
+def test_scan_all_json_output(dummy_sca_repo: Repository) -> None:
+    """
+    GIVEN a repo with a vulnerability
+    WHEN scanning it with the '--json' option
+    THEN the output is a valid JSON with the expected data
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+
+    result = run_ggshield(
+        "sca", "scan", "all", "--json", cwd=dummy_sca_repo.path, expected_code=1
+    )
+
+    assert_is_valid_json(result.stdout)
+    parsed_result = json.loads(result.stdout)
+    assert len(parsed_result["scanned_files"]) == 2
+    assert len(parsed_result["found_package_vulns"]) == 1
+    assert parsed_result["found_package_vulns"][0]["location"] == "Pipfile.lock"
+    assert len(parsed_result["found_package_vulns"][0]["package_vulns"]) == 1

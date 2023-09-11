@@ -33,11 +33,12 @@ def get_iac_files_from_path(
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """
     files = get_files_from_paths(
-        paths=[str(path)],
+        paths=[path],
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,
-        verbose=verbose,
+        display_binary_files=verbose,
+        display_scanned_files=False,  # If True, this displays all files in the directory but we only want IaC files
         ignore_git=ignore_git,
     ).apply_filter(is_iac_file)
 

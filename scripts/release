@@ -61,9 +61,18 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
+def get_current_branch_name() -> str:
+    try:
+        proc = check_run(
+            ["git", "symbolic-ref", "--short", "HEAD"], capture_output=True
+        )
+    except subprocess.CalledProcessError:
+        fail("Could not get the current branch")
+    return proc.stdout.strip()
+
+
 def check_working_tree_is_on_release_branch() -> bool:
-    proc = check_run(["git", "symbolic-ref", "--short", "HEAD"], capture_output=True)
-    branch_name = proc.stdout.strip()
+    branch_name = get_current_branch_name()
     for pattern in RELEASE_BRANCHES:
         if re.search(pattern, branch_name):
             return True
@@ -79,6 +88,28 @@ def check_working_tree_is_clean() -> bool:
     if lines:
         log_error("Working tree contains changes")
         return False
+    return True
+
+
+def check_working_tree_is_up_to_date() -> bool:
+    branch_name = get_current_branch_name()
+    remote_branch_name = f"origin/{branch_name}"
+
+    # Check a matching remote branch exists
+    proc = check_run(["git", "branch", "-r"], capture_output=True)
+    if not any(x.strip() == remote_branch_name for x in proc.stdout.splitlines()):
+        log_error(f"No remote branch for {branch_name}")
+        return False
+
+    # Fetch remote changes and fail if there are any
+    check_run(["git", "fetch"], capture_output=True)
+    proc = check_run(
+        ["git", "log", f"{branch_name}..{remote_branch_name}"], capture_output=True
+    )
+    if proc.stdout:
+        log_error("Working tree is not up-to-date")
+        return False
+
     return True
 
 
@@ -136,6 +167,7 @@ def main(dev_mode: bool) -> int:
     checks = (
         check_working_tree_is_on_release_branch,
         check_working_tree_is_clean,
+        check_working_tree_is_up_to_date,
         check_dependencies,
     )
     fails = sum(1 for check in checks if not check())

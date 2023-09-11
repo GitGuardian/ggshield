@@ -1,6 +1,7 @@
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Type
+from typing import List, Optional, Set, Tuple, Type, Union
 
 import click
 from pygitguardian.client import _create_tar
@@ -12,13 +13,14 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
-from ggshield.core.text_utils import display_error, display_info, display_warning
+from ggshield.core.text_utils import display_error, display_info
 from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
     sca_files_from_git_repo,
 )
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
+from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
 from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
 from ggshield.verticals.sca.sca_scan_models import (
     ComputeSCAFilesResult,
@@ -28,24 +30,14 @@ from ggshield.verticals.sca.sca_scan_models import (
 )
 
 
-def display_sca_beta_warning(func):
-    """
-    Displays warning about SCA commands being in beta.
-    """
-
-    def func_with_beta_warning(*args, **kwargs):
-        display_warning(
-            "This feature is still in beta, its behavior may change in future versions."
-        )
-        return func(*args, **kwargs)
-
-    return func_with_beta_warning
-
-
 def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
     return SCAScanParameters(
         minimum_severity=sca_config.minimum_severity,
-        ignored_vulnerabilities=sca_config.ignored_vulnerabilities,
+        ignored_vulnerabilities=[
+            ignored_vuln
+            for ignored_vuln in sca_config.ignored_vulnerabilities
+            if ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow()
+        ],
     )
 
 
@@ -85,7 +77,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.SCA_DIRECTORY,
+            scan_mode=ScanMode.DIRECTORY,
         ).get_http_headers(),
     )
 
@@ -131,8 +123,13 @@ def get_sca_scan_all_filepaths(
 
     # Only sca_files field is useful in the case of a full_scan,
     # all the potential files already exist in `all_filepaths`
+    sca_files = response.sca_files
+    if verbose:
+        display_info("> Scanned files:")
+        for filename in sca_files:
+            display_info(f"- {click.format_filename(filename)}")
 
-    return response.sca_files, response.status_code
+    return sca_files, response.status_code
 
 
 def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
@@ -140,9 +137,7 @@ def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
     instance"""
     output_handler_cls: Type[SCAOutputHandler]
     if use_json(ctx):
-        raise NotImplementedError(
-            "JSON output is not currently supported for SCA scan."
-        )
+        output_handler_cls = SCAJsonOutputHandler
     else:
         output_handler_cls = SCATextOutputHandler
     config: Config = ctx.obj["config"]
@@ -155,6 +150,8 @@ def sca_scan_diff(
     ctx: click.Context,
     directory: Path,
     previous_ref: Optional[str],
+    scan_mode: Union[ScanMode, str],
+    ci_mode: Optional[str] = None,
     include_staged: bool = False,
     current_ref: Optional[str] = None,
 ) -> SCAScanDiffOutput:
@@ -187,11 +184,19 @@ def sca_scan_diff(
         previous_files = []
     else:
         previous_files = sca_files_from_git_repo(
-            directory, previous_ref, client, exclusion_regexes
+            directory,
+            previous_ref,
+            client,
+            exclusion_regexes=exclusion_regexes,
+            verbose=config.user_config.verbose,
         )
 
     current_files = sca_files_from_git_repo(
-        directory, current_ref, client, exclusion_regexes
+        directory,
+        current_ref,
+        client,
+        exclusion_regexes=exclusion_regexes,
+        verbose=config.user_config.verbose,
     )
 
     if len(previous_files) == 0 and len(current_files) == 0:
@@ -212,7 +217,14 @@ def sca_scan_diff(
     scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
     response = client.scan_diff(
-        reference=previous_tar, current=current_tar, scan_parameters=scan_parameters
+        reference=previous_tar,
+        current=current_tar,
+        scan_parameters=scan_parameters,
+        extra_headers=ScanContext(
+            command_path=ctx.command_path,
+            scan_mode=scan_mode,
+            extra_headers={"Ci-Mode": ci_mode} if ci_mode else None,
+        ).get_http_headers(),
     )
 
     if not isinstance(response, SCAScanDiffOutput):

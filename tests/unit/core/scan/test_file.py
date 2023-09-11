@@ -229,7 +229,7 @@ def test_generate_files_from_paths(
     path = tmp_path / filename
     Path(path).write_bytes(input_content)
 
-    files = list(generate_files_from_paths([str(path)], verbose=False))
+    files = list(generate_files_from_paths([str(path)], display_binary_files=False))
 
     file = files[0]
     assert file.filename == str(path)
