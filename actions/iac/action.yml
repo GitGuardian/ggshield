@@ -5,16 +5,9 @@ author: GitGuardian <support@gitguardian.com>
 inputs:
   args:
     description: |
-      Arguments to be passed to ggshield iac scan
-      Options:
-        --exit-zero                     Always return a 0 (non-error) status code, even if issues
-                                        are found. The env var GITGUARDIAN_EXIT_ZERO can also be used
-                                        to set this option.
-        --minimum-severity              [LOW|MEDIUM|HIGH|CRITICAL]
-                                        Minimum severity of the policies
-        --ignore-policy, --ipo TEXT     Policies to exclude from the results.
-        --ignore-path, --ipa PATH       Do not scan the specified paths.
-        --json                          JSON output.
+      Arguments to pass to `ggshield iac scan ci`.
+
+      [`ggshield iac scan ci` reference](https://docs.gitguardian.com/ggshield-docs/reference/iac/scan/ci).
     required: false
 branding:
   icon: 'shield'
