@@ -45,7 +45,9 @@ def check_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Check if secrets have leaked in one command.
+    Check if secrets have leaked.
+
+    Note: Secrets can be read from stdin using `ggshield hmsl check -`.
     """
 
     # Collect secrets

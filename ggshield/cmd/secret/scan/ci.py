@@ -23,7 +23,7 @@ from ggshield.verticals.secret.repo import scan_commit_range
 @exception_wrapper
 def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
-    scan in a CI environment.
+    Scan the set of pushed commits that triggered the CI pipeline.
     """
     config: Config = ctx.obj["config"]
     check_git_dir()

@@ -48,7 +48,20 @@ def scan_pre_receive_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    scan as a pre-receive git hook.
+    Scan a Git repository for changes in IaC vulnerabilities in the received pushed commits.
+    This is intended to be used as a pre-receive hook.
+
+    The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
+    in which case the scan is only successful if no IaC vulnerability (old and new) was found.
+
+    By default, the output will show:
+    - The number of known IaC vulnerabilities resolved by the changes
+    - The number of known IaC vulnerabilities left untouched
+    - The number and the list of new IaC vulnerabilities introduced by the changes
+
+    It is the remote equivalent of the `iac scan pre-push` command.
+
+    Note that it is not currently possible to scan a specific sub-directory of the repo.
     """
     if get_breakglass_option():
         return 0

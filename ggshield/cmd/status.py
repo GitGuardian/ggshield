@@ -16,7 +16,7 @@ from ggshield.core.text_utils import STYLE, format_text
 @add_common_options()
 @click.pass_context
 def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
-    """Show API status."""
+    """Show API status and version."""
     client: GGClient = create_client_from_config(ctx.obj["config"])
     response: HealthCheckResponse = client.health_check()
 

@@ -35,9 +35,9 @@ def docker_name_cmd(
     ctx: click.Context, name: str, docker_timeout: int, **kwargs: Any
 ) -> int:
     """
-    scan a docker image <NAME>.
+    Scan a Docker image after exporting its filesystem and manifest with the `docker save` command.
 
-    ggshield will try to pull the image if it's not available locally.
+    ggshield tries to pull the image if it's not available locally.
     """
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:

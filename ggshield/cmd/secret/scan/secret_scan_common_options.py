@@ -51,7 +51,7 @@ _output_option = click.option(
     "-o",
     type=RealPath(exists=False, resolve_path=True),
     default=None,
-    help="Route ggshield output to file.",
+    help="Redirect ggshield output to PATH.",
     callback=create_ctx_callback("output"),
 )
 
@@ -85,6 +85,7 @@ _exclude_option = click.option(
     """,
     multiple=True,
     callback=_exclude_callback,
+    metavar="PATTERNS",
 )
 
 
@@ -114,6 +115,7 @@ _banlist_detectors_option = click.option(
     help="Exclude results from a detector.",
     multiple=True,
     callback=_banlist_detectors_callback,
+    metavar="DETECTOR",
 )
 
 

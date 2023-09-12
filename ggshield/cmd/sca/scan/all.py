@@ -30,7 +30,11 @@ def scan_all_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan a directory for SCA vulnerabilities.
+    Scans a directory for existing vulnerabilities in open-source dependencies.
+
+    Scanning a repository with this command will not trigger any incident on your dashboard.
+
+    Only metadata such as call time, request size and scan mode is stored server-side.
     """
     if directory is None:
         directory = Path().resolve()

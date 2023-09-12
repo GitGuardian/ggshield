@@ -58,7 +58,14 @@ def scan_diff_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan all changes made since the provided Git ref for IaC vulnerabilities.
+    Scan a Git repository for changes in IaC vulnerabilities between two states.
+
+    The scan is successful if no *new* IaC vulnerability was found.
+
+    By default, the output will show:
+    - The number of known IaC vulnerabilities resolved by the changes
+    - The number of known IaC vulnerabilities left untouched
+    - The number and the list of new IaC vulnerabilities introduced by the changes
     """
     if directory is None:
         directory = Path().resolve()

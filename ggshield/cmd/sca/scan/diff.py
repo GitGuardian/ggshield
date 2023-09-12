@@ -39,7 +39,15 @@ def scan_diff_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan all changes made since the provided Git ref for SCA vulnerabilities.
+    Scans if the current revision of a git repository introduces SCA vulnerabilities.
+
+    This command checks if the current revision introduces new vulnerabilities compared
+    to the revision from GIT_REF.
+
+    Scanning a repository with this command will not trigger any incident on your
+    dashboard.
+
+    Only metadata such as call time, request size and scan mode is stored server-side.
     """
     if directory is None:
         directory = Path().resolve()

@@ -23,6 +23,7 @@ CONNECTION_ERROR_MESSAGE = (
     required=False,
     type=str,
     help="URL of the instance to logout from.",
+    metavar="URL",
 )
 @click.option(
     "--revoke/--no-revoke",
@@ -30,7 +31,12 @@ CONNECTION_ERROR_MESSAGE = (
     default=True,
     help="Whether the token should be revoked on logout before being removed from the configuration.",
 )
-@click.option("--all", "all_", is_flag=True, help="Iterate over every saved tokens.")
+@click.option(
+    "--all",
+    "all_",
+    is_flag=True,
+    help="Remove authentication for all instances.",
+)
 @add_common_options()
 @click.pass_context
 def logout_cmd(
@@ -81,7 +87,6 @@ def check_account_config_exists(config: Config, instance_url: str) -> None:
 
 
 def revoke_token(config: Config, instance_url: str) -> None:
-
     instance = config.auth_config.get_instance(instance_url)
 
     assert instance.account is not None

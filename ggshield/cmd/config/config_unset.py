@@ -6,11 +6,24 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 
 from .config_set import set_user_config_field
-from .constants import FIELD_NAMES, FIELDS
+from .constants import FIELD_NAMES, FIELD_NAMES_DOC, FIELDS
 
 
-@click.command()
-@click.argument("field_name", nargs=1, type=click.Choice(FIELD_NAMES), required=True)
+@click.command(
+    help=f"""Remove the value of the given configuration key.
+
+If `--all` is passed, iterates over all instances.
+
+{FIELD_NAMES_DOC}
+"""
+)
+@click.argument(
+    "field_name",
+    nargs=1,
+    type=click.Choice(FIELD_NAMES),
+    required=True,
+    metavar="KEY",
+)
 @click.option(
     "--instance",
     "instance_url",
@@ -19,7 +32,7 @@ from .constants import FIELD_NAMES, FIELDS
     metavar="URL",
     help="Set per instance configuration.",
 )
-@click.option("--all", "all_", is_flag=True, help="Iterate over every instances.")
+@click.option("--all", "all_", is_flag=True, help="Iterate over all instances.")
 @add_common_options()
 @click.pass_context
 def config_unset_cmd(
@@ -29,10 +42,6 @@ def config_unset_cmd(
     all_: bool,
     **kwargs: Any,
 ) -> int:
-    """
-    Remove the value of the given configuration key.
-    If --all is passed, it iterates over all instances.
-    """
     config: Config = ctx.obj["config"]
     field = FIELDS[field_name]
 

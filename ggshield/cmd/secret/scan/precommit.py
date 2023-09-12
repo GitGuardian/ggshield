@@ -36,7 +36,7 @@ def precommit_cmd(
     ctx: click.Context, precommit_args: List[str], **kwargs: Any
 ) -> int:  # pragma: no cover
     """
-    scan as a pre-commit git hook.
+    Scan as a pre-commit hook all changes that have been staged in a git repository.
     """
     config: Config = ctx.obj["config"]
     output_handler = SecretTextOutputHandler(

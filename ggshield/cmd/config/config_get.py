@@ -2,14 +2,26 @@ from typing import Any, Optional
 
 import click
 
-from ggshield.cmd.config.constants import FIELD_NAMES, FIELDS
+from ggshield.cmd.config.constants import FIELD_NAMES, FIELD_NAMES_DOC, FIELDS
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.config import Config
 from ggshield.core.errors import UnknownInstanceError
 
 
-@click.command()
-@click.argument("field_name", nargs=1, type=click.Choice(FIELD_NAMES), required=True)
+@click.command(
+    help=f"""
+Print the value of the given configuration key.
+If `--instance` is passed, retrieve the value for this specific instance.
+
+{FIELD_NAMES_DOC}"""
+)
+@click.argument(
+    "field_name",
+    nargs=1,
+    type=click.Choice(FIELD_NAMES),
+    required=True,
+    metavar="KEY",
+)
 @click.option(
     "--instance",
     "instance_url",
@@ -23,10 +35,6 @@ from ggshield.core.errors import UnknownInstanceError
 def config_get_cmd(
     ctx: click.Context, field_name: str, instance_url: Optional[str], **kwargs: Any
 ) -> int:
-    """
-    Print the value of the given configuration key.
-    If --instance is passed, retrieve the value for this specific instance.
-    """
     config: Config = ctx.obj["config"]
     field = FIELDS[field_name]
 

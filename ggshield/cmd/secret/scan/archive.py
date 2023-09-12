@@ -33,7 +33,7 @@ def archive_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    scan archive <PATH>.
+    Scan an archive file. Supported archive formats are zip, tar, tar.gz, tar.bz2 and tar.xz.
     """
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         temp_path = Path(temp_dir)

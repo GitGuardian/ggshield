@@ -27,7 +27,7 @@ def docker_archive_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    scan a docker archive <ARCHIVE> without attempting to save or pull the image.
+    Scan a docker archive <ARCHIVE> without attempting to save or pull the image.
 
     Hidden command `ggshield secret scan docker-archive`
     """

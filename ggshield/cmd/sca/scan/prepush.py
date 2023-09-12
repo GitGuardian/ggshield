@@ -40,8 +40,14 @@ def scan_pre_push_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan as pre-push for SCA vulnerabilities.
-    By default, it will return vulnerabilities added in the pushed commits.
+    Scans if the local HEAD of a git repository introduces new SCA vulnerabilities.
+
+    This command checks if the current HEAD of a git repository introduces new SCA
+    vulnerabilities compared to the remote HEAD of the branch in a pre-push hook.
+
+    Scanning a repository with this command will not trigger any incident on your dashboard.
+
+    Only metadata such as call time, request size and scan mode is stored server-side.
     """
     directory = Path().resolve()
 

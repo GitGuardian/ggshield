@@ -36,7 +36,7 @@ REMEDIATION_STEPS = """  Since the secret was detected before the push BUT after
 @exception_wrapper
 def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> int:
     """
-    scan as a pre-push git hook.
+    Scan as a pre-push git hook all commits that are about to be pushed.
     """
     config: Config = ctx.obj["config"]
 

@@ -42,7 +42,14 @@ def scan_pre_receive_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan as a pre-receive git hook.
+    Scans if the received HEAD of a git repository introduces new SCA vulnerabilities.
+
+    This command checks if the current HEAD of a git repository introduces new SCA
+    vulnerabilities compared to the remote HEAD of the branch in a pre-receive hook.
+
+    Scanning a repository with this command will not trigger any incident on your dashboard.
+
+    Only metadata such as call time, request size and scan mode is stored server-side.
     """
     if get_breakglass_option():
         return 0

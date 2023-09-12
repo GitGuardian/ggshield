@@ -94,7 +94,7 @@ def prereceive_cmd(
     ctx: click.Context, web: bool, prereceive_args: List[str], **kwargs: Any
 ) -> int:
     """
-    scan as a pre-receive git hook.
+    Scan as a pre-receive git hook all commits about to enter the remote git repository.
     """
     config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)

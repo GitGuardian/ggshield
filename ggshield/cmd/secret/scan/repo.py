@@ -33,14 +33,9 @@ def repo_cmd(
     ctx: click.Context, repository: str, **kwargs: Any
 ) -> int:  # pragma: no cover
     """
-    scan a REPOSITORY's commits at a given URL or path.
+    Scan a REPOSITORY's commits at the given URL or path.
 
-    REPOSITORY is the clone URI or the path of the repository to scan.
-    Examples:
-
-    ggshield secret scan repo git@github.com:GitGuardian/ggshield.git
-
-    ggshield secret scan repo /repositories/ggshield
+    REPOSITORY is the clone URL or the path of the repository to scan.
     """
     config: Config = ctx.obj["config"]
     cache: Cache = ctx.obj["cache"]

@@ -41,6 +41,8 @@ def scan_all_cmd(
 ) -> int:
     """
     Scan a directory for all IaC vulnerabilities in the current state.
+
+    The scan is successful if no IaC vulnerability (known or new) was found.
     """
     if directory is None:
         directory = Path().resolve()

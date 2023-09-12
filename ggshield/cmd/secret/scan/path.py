@@ -36,7 +36,7 @@ def path_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    scan files and directories.
+    Scan files and directories.
     """
     config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)

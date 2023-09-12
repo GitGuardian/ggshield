@@ -146,8 +146,11 @@ exit_zero_option = click.option(
     is_flag=True,
     default=None,
     envvar="GITGUARDIAN_EXIT_ZERO",
-    help="Always return a 0 (non-error) status code, even if incidents are found."
-    "The env var GITGUARDIAN_EXIT_ZERO can also be used to set this option.",
+    help=(
+        "Always return a 0 (non-error) status code, even if incidents are found."
+        " This option can also be set with the `GITGUARDIAN_EXIT_ZERO` environment"
+        " variable."
+    ),
     callback=create_config_callback("exit_zero"),
 )
 
@@ -166,6 +169,7 @@ ignore_path_option = click.option(
     default=None,
     multiple=True,
     help="Do not scan paths that match the specified glob-like patterns.",
+    metavar="PATTERN",
 )
 
 
@@ -215,10 +219,11 @@ reference_option = click.option(
     "--ref",
     required=True,
     type=click.STRING,
-    help="A git reference.",
+    help="A Git reference, such as a commit ID, a reference relative to HEAD or a remote.",
+    metavar="GIT_REF",
 )
 staged_option = click.option(
     "--staged",
     is_flag=True,
-    help="Whether staged changes should be included into the scan.",
+    help="Include staged changes in the scan.",
 )

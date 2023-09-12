@@ -60,7 +60,12 @@ def docset_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    scan docset JSONL files.
+    Scan docset JSONL files.
+
+    The JSONL files must be formatted using the ["Docset" format][1].
+
+    \b
+    [1]: https://docs.gitguardian.com/ggshield-docs/integrations/other-data-sources/other-data-sources
     """
     config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)

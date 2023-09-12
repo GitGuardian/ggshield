@@ -8,7 +8,7 @@ from ggshield.core.config import Config
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path
 
-from .constants import FIELD_NAMES, FIELDS, ConfigField
+from .constants import FIELD_NAMES, FIELD_NAMES_DOC, FIELDS, ConfigField
 
 
 def set_user_config_field(field: ConfigField, value: Any) -> None:
@@ -18,8 +18,19 @@ def set_user_config_field(field: ConfigField, value: Any) -> None:
     user_config.save(config_path)
 
 
-@click.command()
-@click.argument("field_name", nargs=1, type=click.Choice(FIELD_NAMES), required=True)
+@click.command(
+    help=f"""Update the value of the given configuration key.
+
+{FIELD_NAMES_DOC}
+"""
+)
+@click.argument(
+    "field_name",
+    nargs=1,
+    type=click.Choice(FIELD_NAMES),
+    required=True,
+    metavar="KEY",
+)
 @click.argument("value", nargs=1, type=click.STRING, required=True)
 @click.option(
     "--instance",
@@ -37,9 +48,6 @@ def config_set_cmd(
     instance: Optional[str],
     **kwargs: Any,
 ) -> int:
-    """
-    Update the value of the given configuration key.
-    """
     config: Config = ctx.obj["config"]
 
     field = FIELDS[field_name]

@@ -75,12 +75,14 @@ def print_default_instance_message(config: Config) -> None:
     required=False,
     type=str,
     help="URL of the instance to authenticate against.",
+    metavar="URL",
 )
 @click.option(
     "--sso-url",
     required=False,
     type=str,
     help="URL of your SSO login page to force the authentication flow through your workspace SSO.",
+    metavar="URL",
 )
 @click.option(
     "--token-name",
@@ -94,6 +96,7 @@ def print_default_instance_message(config: Config) -> None:
     type=click.IntRange(0),
     default=None,
     help="Number of days before the token expires. 0 means the token never expires.",
+    metavar="DAYS",
 )
 @add_common_options()
 @click.pass_context
@@ -107,16 +110,20 @@ def login_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Authenticate with a GitGuardian workspace.
+    Authenticate with a GitGuardian instance.
+
     A successful authentication results in a personal access token.
     This token is stored in your configuration and used to authenticate your future requests.
 
-    The default authentication method is "web".
-    ggshield launches a web browser to authenticate you to your GitGuardian workspace,
+    The default authentication method is `web`.
+    ggshield launches a web browser to authenticate you to your GitGuardian instance,
     then automatically generates a token on your behalf.
 
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
+
+    If a valid personal access token is already configured, this command simply displays
+    a success message indicating that ggshield is already ready to use.
     """
     config: Config = ctx.obj["config"]
 

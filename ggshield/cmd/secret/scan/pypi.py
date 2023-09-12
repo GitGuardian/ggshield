@@ -93,7 +93,16 @@ def pypi_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    scan a pypi package <NAME>.
+    Scan a pypi package.
+
+    Under the hood this command uses the `pip download` command to download the python
+    package.
+
+    You can use pip environment variables or configuration files to set `pip download`
+    parameters as explained in [pip documentation][1].  For example, you can set pip
+    `--index-url` parameter with the `PIP_INDEX_URL` environment variable.
+
+    [1]: https://pip.pypa.io/en/stable/topics/configuration/
     """
     config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)

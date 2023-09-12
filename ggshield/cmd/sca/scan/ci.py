@@ -44,7 +44,11 @@ def scan_ci_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    scan in a CI environment.
+    Evaluates if a CI event introduces SCA vulnerabilities.
+
+    Scanning a repository with this command will not trigger any incident on your dashboard.
+
+    Only metadata such as call time, request size and scan mode is stored server-side.
     """
     if directory is None:
         directory = Path().resolve()

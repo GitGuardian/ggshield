@@ -25,10 +25,11 @@ def range_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    scan a defined COMMIT_RANGE in git.
+    Scan each commit in the given commit range.
 
-    git rev-list COMMIT_RANGE to list several commits to scan.
-    example: ggshield secret scan commit-range HEAD~1...
+    Any git compatible commit range can be provided as an input.
+
+    Example: `ggshield secret scan commit-range HEAD~1...`
     """
     config: Config = ctx.obj["config"]
     commit_list = get_list_commit_SHA(commit_range)
