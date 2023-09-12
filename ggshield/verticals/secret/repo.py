@@ -2,6 +2,7 @@ import itertools
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
+from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional, Set
 
 from click import UsageError
@@ -33,7 +34,7 @@ def scan_repo_path(
     output_handler: SecretOutputHandler,
     config: Config,
     scan_context: ScanContext,
-    repo_path: str,
+    repo_path: Path,
 ) -> int:  # pragma: no cover
     try:
         if not is_git_dir(repo_path):

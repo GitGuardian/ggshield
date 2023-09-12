@@ -1,4 +1,3 @@
-import os
 from typing import Any
 
 import click
@@ -22,12 +21,13 @@ def config_migrate_cmd(ctx: click.Context, **kwargs: Any) -> int:
     # First save to a new path, then rename the current config file to .old
     # and the new file to the current file. This way if something goes wrong
     # while saving, the existing file is left untouched.
-    new_path = config._config_path + ".new"
+    new_path = config._config_path.with_name(config._config_path.name + ".new")
     config.user_config.save(new_path)
 
-    old_path = config._config_path + ".old"
-    os.rename(config._config_path, old_path)
-    os.rename(new_path, config._config_path)
+    old_path = config._config_path.with_name(config._config_path.name + ".old")
+    config._config_path.rename(old_path)
+
+    new_path.rename(config._config_path)
 
     click.echo(
         f"Configuration file has been migrated. The previous version has been kept as a backup as {old_path}."

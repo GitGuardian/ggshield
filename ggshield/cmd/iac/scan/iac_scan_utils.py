@@ -59,7 +59,7 @@ def _accept_iac_file_on_path(
 ) -> bool:
     return is_iac_file_path(path) and (
         exclusion_regexes is None
-        or not is_filepath_excluded(str(directory / path), exclusion_regexes)
+        or not is_filepath_excluded(directory / path, exclusion_regexes)
     )
 
 

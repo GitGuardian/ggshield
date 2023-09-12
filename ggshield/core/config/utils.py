@@ -1,4 +1,3 @@
-import os
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union, overload
@@ -58,25 +57,25 @@ def save_yaml_dict(data: Dict[str, Any], path: Union[str, Path]) -> None:
             raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
 
 
-def get_auth_config_filepath() -> str:
-    return os.path.join(get_config_dir(), AUTH_CONFIG_FILENAME)
+def get_auth_config_filepath() -> Path:
+    return get_config_dir() / AUTH_CONFIG_FILENAME
 
 
-def get_global_path(filename: str) -> str:
-    return os.path.join(get_user_home_dir(), filename)
+def get_global_path(filename: str) -> Path:
+    return get_user_home_dir() / filename
 
 
 @overload
-def find_global_config_path(*, to_write: Literal[False] = False) -> Optional[str]:
+def find_global_config_path(*, to_write: Literal[False] = False) -> Optional[Path]:
     ...
 
 
 @overload
-def find_global_config_path(*, to_write: Literal[True]) -> str:
+def find_global_config_path(*, to_write: Literal[True]) -> Path:
     ...
 
 
-def find_global_config_path(*, to_write: bool = False) -> Optional[str]:
+def find_global_config_path(*, to_write: bool = False) -> Optional[Path]:
     """
     Returns the path to the user global config file (the file in the user home
     directory).
@@ -88,15 +87,16 @@ def find_global_config_path(*, to_write: bool = False) -> Optional[str]:
     """
     for filename in USER_CONFIG_FILENAMES:
         path = get_global_path(filename)
-        if os.path.exists(path):
+        if path.exists():
             return path
     return get_global_path(DEFAULT_CONFIG_FILENAME) if to_write else None
 
 
-def find_local_config_path() -> Optional[str]:
+def find_local_config_path() -> Optional[Path]:
     for filename in USER_CONFIG_FILENAMES:
-        if os.path.exists(filename):
-            return filename
+        path = Path(filename)
+        if path.exists():
+            return path
     return None
 
 
@@ -119,10 +119,6 @@ def update_from_other_instance(dst: Any, src: Any) -> None:
             update_from_other_instance(dst.__dict__[name], value)
         else:
             dst.__dict__[name] = value
-
-
-def ensure_path_exists(dir_path: str) -> None:
-    Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
 def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:

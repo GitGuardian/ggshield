@@ -5,7 +5,7 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from shutil import which
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 
 EMPTY_SHA = "0000000000000000000000000000000000000000"
@@ -79,7 +79,7 @@ def _get_git_path() -> str:
 
 
 @lru_cache(None)
-def _git_rev_parse_absolute(option: str, wd_absolute: str) -> Optional[str]:
+def _git_rev_parse_absolute(option: str, wd_absolute: Path) -> Optional[str]:
     """
     Helper function for `_git_rev_parse` to only cache on absolute paths.
     """
@@ -89,19 +89,19 @@ def _git_rev_parse_absolute(option: str, wd_absolute: str) -> Optional[str]:
         return None
 
 
-def _git_rev_parse(option: str, wd: str) -> Optional[str]:
-    return _git_rev_parse_absolute(option=option, wd_absolute=str(Path(wd).resolve()))
+def _git_rev_parse(option: str, wd: Path) -> Optional[str]:
+    return _git_rev_parse_absolute(option=option, wd_absolute=wd.resolve())
 
 
-def is_git_dir(wd: str) -> bool:
-    return _git_rev_parse("--git-dir", wd) is not None
+def is_git_dir(wd: Union[str, Path]) -> bool:
+    return _git_rev_parse("--git-dir", Path(wd)) is not None
 
 
-def is_git_working_tree(wd: str) -> bool:
-    return _git_rev_parse("--show-toplevel", wd) is not None
+def is_git_working_tree(wd: Union[str, Path]) -> bool:
+    return _git_rev_parse("--show-toplevel", Path(wd)) is not None
 
 
-def get_git_root(wd: Optional[str] = None) -> str:
+def get_git_root(wd: Optional[Union[str, Path]] = None) -> Path:
     """
     Fetches the root of the git repo.
     This corresponds to the root directory in the case of a working tree,
@@ -111,21 +111,23 @@ def get_git_root(wd: Optional[str] = None) -> str:
     :return: absolute path to the git root, as a string.
     """
     if wd is None:
-        wd = os.getcwd()
+        wd = Path.cwd()
+    else:
+        wd = Path(wd)
     check_git_dir(wd)
     top_level = _git_rev_parse(option="--show-toplevel", wd=wd)
     if top_level is not None:
-        return top_level
+        return Path(top_level)
     root = _git_rev_parse(option="--git-dir", wd=wd)
     if root is None:
         raise NotAGitDirectory()
-    return str(Path(root).resolve())
+    return Path(root).resolve()
 
 
-def check_git_dir(wd: Optional[str] = None) -> None:
+def check_git_dir(wd: Optional[Union[str, Path]] = None) -> None:
     """Check if folder is git directory."""
     if wd is None:
-        wd = os.getcwd()
+        wd = Path.cwd()
     if not is_git_dir(wd):
         raise NotAGitDirectory()
 
@@ -134,11 +136,14 @@ def git(
     command: List[str],
     timeout: int = COMMAND_TIMEOUT,
     check: bool = True,
-    cwd: Optional[str] = None,
+    cwd: Optional[Union[str, Path]] = None,
 ) -> str:
     """Calls git with the given arguments, returns stdout as a string"""
     env = os.environ.copy()
     env["LANG"] = "C"
+
+    if cwd is None:
+        cwd = Path.cwd()
 
     try:
         logger.debug("command=%s", command)
@@ -148,7 +153,7 @@ def git(
             capture_output=True,
             timeout=timeout,
             env=env,
-            cwd=cwd,
+            cwd=str(cwd),
         )
         if result.stderr:
             logger.debug("stderr=%s", result.stderr.decode("utf-8", errors="ignore"))
@@ -170,17 +175,17 @@ def git(
         )
 
 
-def git_ls(wd: Optional[str] = None) -> List[str]:
+def git_ls(wd: Optional[Union[str, Path]] = None) -> List[str]:
     cmd = ["ls-files", "--recurse-submodules"]
     return git(cmd, timeout=600, cwd=wd).split("\n")
 
 
-def is_valid_git_commit_ref(ref: str, wd: Optional[str] = None) -> bool:
+def is_valid_git_commit_ref(ref: str, wd: Optional[Union[str, Path]] = None) -> bool:
     """
     Check if a reference is valid and can be resolved to a commit
     """
     if not wd:
-        wd = os.getcwd()
+        wd = Path.cwd()
 
     ref += "^{commit}"
     cmd = ["cat-file", "-e", ref]
@@ -193,10 +198,10 @@ def is_valid_git_commit_ref(ref: str, wd: Optional[str] = None) -> bool:
     return True
 
 
-def check_git_ref(ref: str, wd: Optional[str] = None) -> None:
+def check_git_ref(ref: str, wd: Optional[Union[str, Path]] = None) -> None:
     """Check if folder is a git repository and ref is a git reference."""
     if wd is None:
-        wd = os.getcwd()
+        wd = Path.cwd()
     check_git_dir(wd)
 
     if not is_valid_git_commit_ref(ref=ref, wd=wd):
@@ -258,14 +263,16 @@ def get_last_commit_sha_of_branch(branch_name: str) -> Optional[str]:
     return last_target_commit[0]
 
 
-def get_filepaths_from_ref(ref: str, wd: Optional[str] = None) -> List[Path]:
+def get_filepaths_from_ref(
+    ref: str, wd: Optional[Union[str, Path]] = None
+) -> List[Path]:
     """
     Fetches a list of all file paths indexed at a given reference in a git repository.
     :param ref: git reference, like a commit SHA, a relative reference like HEAD~1, ...
     :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
-        wd = os.getcwd()
+        wd = Path.cwd()
 
     check_git_ref(ref, wd)
 
@@ -275,13 +282,13 @@ def get_filepaths_from_ref(ref: str, wd: Optional[str] = None) -> List[Path]:
     return [Path(path_str) for path_str in filepaths]
 
 
-def get_staged_filepaths(wd: Optional[str] = None) -> List[Path]:
+def get_staged_filepaths(wd: Optional[Union[str, Path]] = None) -> List[Path]:
     """
     Fetches a list of all file paths at the index in a git repository.
     :param wd: string path to the git repository. Defaults to current directory
     """
     if not wd:
-        wd = os.getcwd()
+        wd = Path.cwd()
 
     filepaths = git(["ls-files", "--full-name", "-c"], cwd=wd).splitlines()
     return [Path(path_str) for path_str in filepaths]
@@ -291,7 +298,7 @@ def get_diff_files_status(
     ref: str,
     staged: bool = False,
     similarity: int = 100,
-    wd: Optional[str] = None,
+    wd: Optional[Union[str, Path]] = None,
     current_ref: Optional[str] = None,
 ) -> Dict[Path, Filemode]:
     """
@@ -308,7 +315,7 @@ def get_diff_files_status(
         current_ref = "HEAD"
 
     if not wd:
-        wd = os.getcwd()
+        wd = Path.cwd()
 
     check_git_ref(wd=wd, ref=ref)
 
@@ -359,6 +366,6 @@ def get_diff_files_status(
 
 
 @lru_cache(None)
-def read_git_file(ref: str, path: Path, wd: Optional[str] = None) -> str:
+def read_git_file(ref: str, path: Path, wd: Optional[Union[str, Path]] = None) -> str:
     # Use as_posix to handle git and Windows
     return git(["show", f"{ref}:{path.as_posix()}"], cwd=wd)

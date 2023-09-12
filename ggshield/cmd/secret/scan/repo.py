@@ -1,6 +1,6 @@
-import os
 import re
 import tempfile
+from pathlib import Path
 from typing import Any
 
 import click
@@ -51,14 +51,15 @@ def repo_cmd(
         command_path=ctx.command_path,
     )
 
-    if os.path.isdir(repository):
+    path = Path(repository)
+    if path.is_dir():
         return scan_repo_path(
             client=client,
             cache=cache,
             output_handler=create_output_handler(ctx),
             config=config,
             scan_context=scan_context,
-            repo_path=repository,
+            repo_path=path,
         )
 
     if REGEX_GIT_URL.match(repository):
@@ -70,7 +71,7 @@ def repo_cmd(
                 output_handler=create_output_handler(ctx),
                 config=config,
                 scan_context=scan_context,
-                repo_path=tmpdirname,
+                repo_path=Path(tmpdirname),
             )
 
     if any(host in repository for host in ("gitlab.com", "github.com")):

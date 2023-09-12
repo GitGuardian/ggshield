@@ -24,7 +24,7 @@ pytestmark = requires_docker()
 
 @pytest.fixture()
 def clear_layer_cache():
-    shutil.rmtree(Path(get_cache_dir()) / "docker", ignore_errors=True)
+    shutil.rmtree(get_cache_dir() / "docker", ignore_errors=True)
 
 
 def build_image(tmp_path: Path, name: str) -> None:

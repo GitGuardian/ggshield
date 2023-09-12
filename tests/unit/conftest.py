@@ -606,7 +606,7 @@ def isolated_fs(fs):
     f.set_contents(mock_contents)
 
 
-def write_text(filename: str, content: str):
+def write_text(filename: Union[str, Path], content: str):
     """Create a text file named `filename` with content `content.
     Create any missing dirs if necessary."""
     path = Path(filename)
@@ -614,7 +614,7 @@ def write_text(filename: str, content: str):
     path.write_text(content)
 
 
-def write_yaml(filename: str, data: Any):
+def write_yaml(filename: Union[str, Path], data: Any):
     """Save data as a YAML file in `filename`, using `write_text()`"""
     write_text(filename, yaml.dump(data))
 

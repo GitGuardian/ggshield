@@ -7,13 +7,11 @@ import marshmallow_dataclass
 from pygitguardian.models import FromDictMixin, ToDictMixin
 
 from ggshield.core.config.utils import (
-    ensure_path_exists,
     get_auth_config_filepath,
     load_yaml_dict,
     replace_in_keys,
     save_yaml_dict,
 )
-from ggshield.core.dirs import get_config_dir
 from ggshield.core.errors import (
     AuthExpiredError,
     MissingTokenError,
@@ -131,7 +129,6 @@ class AuthConfig(FromDictMixin, ToDictMixin):
 
     def save(self) -> None:
         config_path = get_auth_config_filepath()
-        ensure_path_exists(get_config_dir())
         data = prepare_auth_config_dict_for_save(self.to_dict())
         save_yaml_dict(data, config_path)
 

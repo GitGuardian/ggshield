@@ -272,7 +272,7 @@ def _validate_filepath(
 
 
 def _get_layer_id_cache(secrets_engine_version: str) -> IDCache:
-    cache_path = Path(get_cache_dir()) / "docker" / f"{secrets_engine_version}.json"
+    cache_path = get_cache_dir() / "docker" / f"{secrets_engine_version}.json"
     return IDCache(cache_path)
 
 
