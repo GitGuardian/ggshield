@@ -44,7 +44,7 @@ def test_file_decode_content(tmp_path, encoding: str, bom: bytes):
     path = tmp_path / "test.conf"
     raw_content = bom + UNICODE_TEST_CONTENT.encode(encoding)
     path.write_bytes(raw_content)
-    file = File(str(path))
+    file = File(path)
     assert file.content == UNICODE_TEST_CONTENT
 
 
@@ -58,7 +58,7 @@ def test_file_does_not_decode_binary(tmp_path):
     data = (randrange(256) for _ in range(2000))
     path.write_bytes(bytes(data))
 
-    file = File(str(path))
+    file = File(path)
     with pytest.raises(DecodeError):
         _dummy = file.content  # noqa (mute "_dummy" is never used)
 
@@ -73,7 +73,7 @@ def test_file_is_longer_does_not_decode_binary(tmp_path):
     data = (randrange(256) for _ in range(2000))
     path.write_bytes(bytes(data))
 
-    file = File(str(path))
+    file = File(path)
     with pytest.raises(DecodeError):
         file.is_longer_than(1000)
 
@@ -88,7 +88,7 @@ def test_file_is_longer_than_does_not_read_large_files(tmp_path):
     path = tmp_path / "test.conf"
     path.write_text(UNICODE_TEST_CONTENT * 1000, encoding="utf-8")
 
-    file = File(str(path))
+    file = File(path)
     assert file.is_longer_than(50)
     assert file._content is None
 
@@ -104,7 +104,7 @@ def test_file_is_longer_than_does_not_read_utf8_file(tmp_path):
     path.write_text(UNICODE_TEST_CONTENT, encoding="utf-8")
     assert get_charset_normalizer_encoding(path) == "utf_8"
 
-    file = File(str(path))
+    file = File(path)
     assert not file.is_longer_than(1000)
     assert file._content is None
 
@@ -120,7 +120,7 @@ def test_file_is_longer_than_if_file_has_been_read(tmp_path):
     content = "Mangé"
     path.write_text(content, encoding="utf-8")
 
-    file = File(str(path))
+    file = File(path)
     byte_content = path.stat().st_size
 
     # byte_content should be greater than len(content) because the *utf-8 encoded*
@@ -154,7 +154,7 @@ def test_file_is_longer_utf32(tmp_path):
     # byte_content is longer than str_size because utf32 uses 4 bytes per code-point
     assert len(byte_content) > str_size
 
-    file = File(str(path))
+    file = File(path)
     assert not file.is_longer_than(len(byte_content))
     assert file._content == str_content
 
@@ -178,7 +178,7 @@ def test_file_is_longer_using_8bit_codec(tmp_path):
     # 1 byte per character
     assert len(byte_content) < len(str_content.encode())
 
-    file = File(str(path))
+    file = File(path)
     assert file.is_longer_than(len(byte_content))
 
 
@@ -194,7 +194,7 @@ def test_file_repr():
     else:
         str_path = "/usr"
         expected_url = "file:///usr"
-    file = File(str_path)
+    file = File(Path(str_path))
     assert repr(file) == f"<File url={expected_url} filemode=Filemode.FILE>"
 
 
@@ -205,7 +205,7 @@ def test_file_path():
     THEN file.path returns the correct path
     """
     str_path = r"c:\Windows" if is_windows() else "/usr"
-    file = File(str_path)
+    file = File(Path(str_path))
     assert file.path == Path(str_path)
 
 
@@ -227,9 +227,9 @@ def test_generate_files_from_paths(
     AND the content of the File instance is what is expected
     """
     path = tmp_path / filename
-    Path(path).write_bytes(input_content)
+    path.write_bytes(input_content)
 
-    files = list(generate_files_from_paths([str(path)], verbose=False))
+    files = list(generate_files_from_paths([path], display_binary_files=False))
 
     file = files[0]
     assert file.filename == str(path)

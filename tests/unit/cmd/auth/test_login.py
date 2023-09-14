@@ -67,13 +67,6 @@ VALID_METADATA_RESPONSE = create_json_response(
 )
 
 
-@pytest.fixture(autouse=True)
-def tmp_config(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "ggshield.core.config.utils.get_config_dir", lambda: str(tmp_path)
-    )
-
-
 class TestAuthLoginToken:
     @pytest.fixture(autouse=True)
     def setup_method(self, monkeypatch):

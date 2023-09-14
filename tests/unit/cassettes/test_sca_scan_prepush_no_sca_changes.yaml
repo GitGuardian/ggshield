@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:57 GMT
+          - Mon, 04 Sep 2023 14:10:18 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,7 +41,7 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
@@ -53,7 +53,7 @@ interactions:
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -73,7 +73,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -91,7 +91,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:57 GMT
+          - Mon, 04 Sep 2023 14:10:19 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -101,19 +101,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '10'
+          - '11'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -121,14 +121,14 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1iY2NiNTM4NTkwMjllOWQ0YjVhODlmYjlhMjg1YjcwNA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS0xNWVjYmJhMGE4ZDM3NjRkMDU0MTUwZmQzNjI1ZTQ0ZQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        iBDRZAL/7c27CYAwAEXRjOIIQUJcwxUsFAIW4md/g6XYKgjnNPd1ry/LVOYxvClWOaWr1b0Pu2tT
-        Dk0MHzi2fVjrZQAAAAAAAAAAAID/OAHQQQhBACgAAA0KLS1iY2NiNTM4NTkwMjllOWQ0YjVhODlm
-        YjlhMjg1YjcwNA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJjdXJyZW50
-        IjsgZmlsZW5hbWU9ImN1cnJlbnQiDQoNCh+LCACJENFkAv/tzbsJgDAARdGM4ghBQlzDFSwUAhbi
+        S+X1ZAL/7c27CYAwAEXRjOIIQUJcwxUsFAIW4md/g6XYKgjnNPd1ry/LVOYxvClWOaWr1b0Pu2tT
+        Dk0MHzi2fVjrZQAAAAAAAAAAAID/OAHQQQhBACgAAA0KLS0xNWVjYmJhMGE4ZDM3NjRkMDU0MTUw
+        ZmQzNjI1ZTQ0ZQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJjdXJyZW50
+        IjsgZmlsZW5hbWU9ImN1cnJlbnQiDQoNCh+LCABL5fVkAv/tzbsJgDAARdGM4ghBQlzDFSwUAhbi
         Z3+DpdgqCOc093WvL8tU5jG8KVY5pavVvQ+7a1MOTQwfOLZ9WOtlAAAAAAAAAAAAgP84AdBBCEEA
-        KAAADQotLWJjY2I1Mzg1OTAyOWU5ZDRiNWE4OWZiOWEyODViNzA0LS0NCg==
+        KAAADQotLTE1ZWNiYmEwYThkMzc2NGQwNTQxNTBmZDM2MjVlNDRlLS0NCg==
       headers:
         Accept:
           - '*/*'
@@ -139,9 +139,23 @@ interactions:
         Content-Length:
           - '442'
         Content-Type:
-          - multipart/form-data; boundary=bccb53859029e9d4b5a89fb9a285b704
+          - multipart/form-data; boundary=15ecbba0a8d3764d054150fd3625e44e
+        GGShield-Command-Id:
+          - 8c3796d9-2555-4d41-8c3f-97e6da408178
+        GGShield-Command-Path:
+          - cli sca scan pre-push
+        GGShield-OS-Name:
+          - darwin
+        GGShield-OS-Version:
+          - 'Darwin Kernel Version 22.6.0: Wed Jul  5 22:22:05 PDT 2023; root:xnu-8796.141.3~6/RELEASE_ARM64_T6000'
+        GGShield-Python-Version:
+          - 3.11.4
+        GGShield-Version:
+          - 1.18.1
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
+        mode:
+          - pre_push
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
@@ -159,7 +173,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:57 GMT
+          - Mon, 04 Sep 2023 14:10:19 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -169,19 +183,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '246'
+          - '224'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:

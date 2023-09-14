@@ -5,7 +5,6 @@ import click
 
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
-    display_sca_beta_warning,
     sca_scan_all,
     sca_scan_diff,
 )
@@ -13,8 +12,10 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prepush import collect_commits_refs
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_SHA
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
@@ -27,7 +28,8 @@ from ggshield.verticals.sca.collection.collection import (
 @add_sca_scan_common_options()
 @all_option
 @click.pass_context
-@display_sca_beta_warning
+@display_beta_warning
+@exception_wrapper
 def scan_pre_push_cmd(
     ctx: click.Context,
     prepush_args: List[str],
@@ -59,6 +61,8 @@ def scan_pre_push_cmd(
         return output_handler.process_scan_all_result(scan)
 
     else:
-        result = sca_scan_diff(ctx, directory, remote_commit)
+        result = sca_scan_diff(
+            ctx, directory, previous_ref=remote_commit, scan_mode=ScanMode.PRE_PUSH
+        )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)

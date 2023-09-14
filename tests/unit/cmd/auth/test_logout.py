@@ -12,13 +12,6 @@ from ggshield.core.errors import ExitCode
 from ..utils import add_instance_config
 
 
-@pytest.fixture(autouse=True)
-def tmp_config(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "ggshield.core.config.utils.get_config_dir", lambda: str(tmp_path)
-    )
-
-
 class TestAuthLogout:
     def test_logout_no_account_config(self, cli_fs_runner):
         """

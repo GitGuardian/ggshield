@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:41:09 GMT
+          - Mon, 04 Sep 2023 14:10:26 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '15'
+          - '11'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -61,13 +61,13 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1jNzgzYTA5Mjk5YjZkY2MwZTZjOTM3NGZhMmFiZGQ5Yg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS01ZWQ2ZWI3YTkxNzQ1MGVlZGNmNDg1OGNhNzU5ZWVlNw0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        lBDRZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tYzc4M2EwOTI5OWI2
-        ZGNjMGU2YzkzNzRmYTJhYmRkOWINCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
-        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAlBDRZAL/7c27CYAwAEXRjOII
+        UuX1ZAL/7cEBDQAAAMKg909tDjegAAAAAAAAAAAAgDcDmt4dJwAoAAANCi0tNWVkNmViN2E5MTc0
+        NTBlZWRjZjQ4NThjYTc1OWVlZTcNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFt
+        ZT0iY3VycmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgAUuX1ZAL/7c27CYAwAEXRjOII
         QUJcwxUsFAIW4md/g6XYKgjnNPd1ry/LVOYxvClWOaWr1b0Pu2tTDk0MHzi2fVjrZQAAAAAAAAAA
-        AID/OAHQQQhBACgAAA0KLS1jNzgzYTA5Mjk5YjZkY2MwZTZjOTM3NGZhMmFiZGQ5Yi0tDQo=
+        AID/OAHQQQhBACgAAA0KLS01ZWQ2ZWI3YTkxNzQ1MGVlZGNmNDg1OGNhNzU5ZWVlNy0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -78,9 +78,23 @@ interactions:
         Content-Length:
           - '395'
         Content-Type:
-          - multipart/form-data; boundary=c783a09299b6dcc0e6c9374fa2abdd9b
+          - multipart/form-data; boundary=5ed6eb7a917450eedcf4858ca759eee7
+        GGShield-Command-Id:
+          - a4a9b757-ab75-44e4-b474-a4b338326afc
+        GGShield-Command-Path:
+          - cli sca scan pre-receive
+        GGShield-OS-Name:
+          - darwin
+        GGShield-OS-Version:
+          - 'Darwin Kernel Version 22.6.0: Wed Jul  5 22:22:05 PDT 2023; root:xnu-8796.141.3~6/RELEASE_ARM64_T6000'
+        GGShield-Python-Version:
+          - 3.11.4
+        GGShield-Version:
+          - 1.18.1
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
+        mode:
+          - pre_receive
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
@@ -98,7 +112,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:41:09 GMT
+          - Mon, 04 Sep 2023 14:10:27 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -108,19 +122,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '248'
+          - '231'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:

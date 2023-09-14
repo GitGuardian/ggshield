@@ -16,16 +16,16 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     get_iac_tar,
     handle_scan_error,
 )
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import (
     directory_argument,
     reference_option,
     staged_option,
 )
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
-from ggshield.core.text_utils import display_info, display_warning
+from ggshield.core.text_utils import display_info
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import (
     Filemode,
@@ -44,6 +44,8 @@ from ggshield.verticals.iac.filter import is_iac_file_path
 @staged_option
 @directory_argument
 @click.pass_context
+@display_beta_warning
+@exception_wrapper
 def scan_diff_cmd(
     ctx: click.Context,
     exit_zero: bool,
@@ -58,19 +60,12 @@ def scan_diff_cmd(
     """
     Scan all changes made since the provided Git ref for IaC vulnerabilities.
     """
-    display_warning(
-        "This feature is still in beta, its behavior may change in future versions."
-    )
-    try:
-        if directory is None:
-            directory = Path().resolve()
-        update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    if directory is None:
+        directory = Path().resolve()
+    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-        result = iac_scan_diff(ctx, directory, ref, staged)
-        return display_iac_scan_diff_result(ctx, directory, result)
-    except Exception as error:
-        config: Config = ctx.obj["config"]
-        return handle_exception(error, config.user_config.verbose)
+    result = iac_scan_diff(ctx, directory, ref, staged)
+    return display_iac_scan_diff_result(ctx, directory, result)
 
 
 def iac_scan_diff(
@@ -148,7 +143,7 @@ def iac_scan_diff(
             file
             for file, mode in files_status.items()
             if mode in modified_modes
-            and not is_filepath_excluded(str(file), exclusion_regexes)
+            and not is_filepath_excluded(file, exclusion_regexes)
             and is_iac_file_path(file)
         ]
 
@@ -173,7 +168,7 @@ def iac_scan_diff(
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.IAC_DIFF,
+            scan_mode=ScanMode.DIFF,
         ).get_http_headers(),
     )
 

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -10,14 +11,14 @@ from ggshield.verticals.secret import SecretScanCollection
 class SecretOutputHandler(ABC):
     show_secrets: bool = False
     verbose: bool = False
-    output: Optional[str] = None
+    output: Optional[Path] = None
     use_stderr: bool = False
 
     def __init__(
         self,
         show_secrets: bool,
         verbose: bool,
-        output: Optional[str] = None,
+        output: Optional[Path] = None,
         ignore_known_secrets: bool = False,
     ):
         self.show_secrets = show_secrets
@@ -33,8 +34,7 @@ class SecretOutputHandler(ABC):
         """
         text = self._process_scan_impl(scan)
         if self.output:
-            with open(self.output, "w+") as f:
-                f.write(text)
+            self.output.write_text(text)
         else:
             click.echo(text, err=self.use_stderr)
         return self._get_exit_code(scan)

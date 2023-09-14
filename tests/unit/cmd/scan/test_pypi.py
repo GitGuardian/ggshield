@@ -17,11 +17,10 @@ from ggshield.core.errors import UnexpectedError
 
 class TestPipDownload:
     package_name: str = "what-ever-non-existing"
-    tmp_dir: str = "/tmp/iam-temporary"
 
-    def test_pip_download_success(self):
+    def test_pip_download_success(self, tmp_path):
         with patch("subprocess.run") as call:
-            save_package_to_tmp(temp_dir=self.tmp_dir, package_name=self.package_name)
+            save_package_to_tmp(temp_dir=tmp_path, package_name=self.package_name)
 
             call.assert_called_once_with(
                 [
@@ -29,7 +28,7 @@ class TestPipDownload:
                     "download",
                     self.package_name,
                     "--dest",
-                    self.tmp_dir,
+                    str(tmp_path),
                     "--no-deps",
                 ],
                 check=True,
@@ -38,7 +37,7 @@ class TestPipDownload:
                 timeout=PYPI_DOWNLOAD_TIMEOUT,
             )
 
-    def test_pip_download_nonexistent_package(self):
+    def test_pip_download_nonexistent_package(self, tmp_path):
         with patch(
             "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=None)
         ):
@@ -46,11 +45,9 @@ class TestPipDownload:
                 UnexpectedError,
                 match=f'Failed to download "{self.package_name}"',
             ):
-                save_package_to_tmp(
-                    temp_dir=self.tmp_dir, package_name=self.package_name
-                )
+                save_package_to_tmp(temp_dir=tmp_path, package_name=self.package_name)
 
-    def test_pip_download_timeout(self):
+    def test_pip_download_timeout(self, tmp_path):
         with patch(
             "subprocess.run",
             side_effect=subprocess.TimeoutExpired(
@@ -61,17 +58,14 @@ class TestPipDownload:
                 UnexpectedError,
                 match=(
                     f'Command "pip download {self.package_name} '
-                    f'--dest {self.tmp_dir} --no-deps" timed out'
+                    f'--dest {re.escape(str(tmp_path))} --no-deps" timed out'
                 ),
             ):
-                save_package_to_tmp(
-                    temp_dir=self.tmp_dir, package_name=self.package_name
-                )
+                save_package_to_tmp(temp_dir=tmp_path, package_name=self.package_name)
 
 
 class TestListPackageFiles:
     package_name: str = "what-ever-non-existing"
-    tmp_dir: str = "/tmp/iam-temporary"
     exclusion_regexes: Set[re.Pattern] = {re.compile("i am a regex")}
 
     @pytest.mark.parametrize(
@@ -90,12 +84,13 @@ class TestListPackageFiles:
         get_files_from_paths_mock: Mock,
         extension: str,
         verbose: bool,
+        tmp_path,
     ):
-        archive_path: str = Path(f"{self.tmp_dir}/{self.package_name}.{extension}")
+        archive_path = tmp_path / f"{self.package_name}.{extension}"
 
         with patch.object(Path, "iterdir", return_value=iter([archive_path])):
             get_files_from_package(
-                archive_dir=self.tmp_dir,
+                archive_dir=tmp_path,
                 package_name=self.package_name,
                 exclusion_regexes=self.exclusion_regexes,
                 verbose=verbose,
@@ -104,7 +99,7 @@ class TestListPackageFiles:
             unpack_kwargs = {"format": "zip"} if extension == "whl" else {}
             unpack_archive_mock.assert_called_once_with(
                 str(archive_path),
-                extract_dir=Path(self.tmp_dir),
+                extract_dir=tmp_path,
                 **unpack_kwargs,
             )
 
@@ -114,10 +109,11 @@ class TestListPackageFiles:
             )
 
             get_files_from_paths_mock.assert_called_once_with(
-                paths=[self.tmp_dir],
+                paths=[tmp_path],
                 exclusion_regexes=expected_exclusion_regexes,
                 recursive=True,
                 yes=True,
-                verbose=verbose,
+                display_scanned_files=verbose,
+                display_binary_files=verbose,
                 ignore_git=True,
             )

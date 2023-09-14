@@ -7,8 +7,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prepush import BYPASS_MESSAGE, collect_commits_refs
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import (
@@ -33,6 +33,7 @@ REMEDIATION_STEPS = """  Since the secret was detected before the push BUT after
 @click.argument("prepush_args", nargs=-1, type=click.UNPROCESSED)
 @add_secret_scan_common_options()
 @click.pass_context
+@exception_wrapper
 def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> int:
     """
     scan as a pre-push git hook.
@@ -83,33 +84,30 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     if config.user_config.verbose:
         click.echo(f"Commits to scan: {len(commit_list)}", err=True)
 
-    try:
-        check_git_dir()
+    check_git_dir()
 
-        scan_context = ScanContext(
-            scan_mode=ScanMode.PRE_PUSH,
-            command_path=ctx.command_path,
-        )
+    scan_context = ScanContext(
+        scan_mode=ScanMode.PRE_PUSH,
+        command_path=ctx.command_path,
+    )
 
-        return_code = scan_commit_range(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
-            commit_list=commit_list,
-            output_handler=create_output_handler(ctx),
-            exclusion_regexes=ctx.obj["exclusion_regexes"],
-            matches_ignore=config.user_config.secret.ignored_matches,
-            scan_context=scan_context,
-            ignored_detectors=config.user_config.secret.ignored_detectors,
+    return_code = scan_commit_range(
+        client=ctx.obj["client"],
+        cache=ctx.obj["cache"],
+        commit_list=commit_list,
+        output_handler=create_output_handler(ctx),
+        exclusion_regexes=ctx.obj["exclusion_regexes"],
+        matches_ignore=config.user_config.secret.ignored_matches,
+        scan_context=scan_context,
+        ignored_detectors=config.user_config.secret.ignored_detectors,
+    )
+    if return_code:
+        click.echo(
+            remediation_message(
+                remediation_steps=REMEDIATION_STEPS,
+                bypass_message=BYPASS_MESSAGE,
+                rewrite_git_history=True,
+            ),
+            err=True,
         )
-        if return_code:
-            click.echo(
-                remediation_message(
-                    remediation_steps=REMEDIATION_STEPS,
-                    bypass_message=BYPASS_MESSAGE,
-                    rewrite_git_history=True,
-                ),
-                err=True,
-            )
-        return return_code
-    except Exception as error:
-        return handle_exception(error, config.user_config.verbose)
+    return return_code

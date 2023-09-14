@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
@@ -36,11 +37,13 @@ def test_sca_scan_pre_commit_no_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
         assert "No SCA vulnerability has been added." in result.stdout
 
 
+@pytest.mark.parametrize("verbose", [True, False])
 @patch("ggshield.verticals.sca.client.SCAClient.compute_sca_files")
 @patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
 def test_sca_scan_pre_commit_with_added_vulns(
     patch_scan_diff,
     patch_compute_sca_files,
+    verbose,
     tmp_path,
     cli_fs_runner: CliRunner,
     pipfile_lock_with_vuln,
@@ -50,6 +53,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
     WHEN running the sca scan pre-commit command
     THEN we get the ExitCode.SCAN_FOUND_PROBLEMS
     THEN the text output contains the added vulnerabilities
+    THEN the text output contains the removed vulnerabilities in verbose mode
     """
 
     patch_compute_sca_files.side_effect = [
@@ -115,14 +119,11 @@ def test_sca_scan_pre_commit_with_added_vulns(
     repo.add(str(file_with_vulns))
 
     with cd(str(tmp_path)):
-        result = cli_fs_runner.invoke(
-            cli,
-            [
-                "sca",
-                "scan",
-                "pre-commit",
-            ],
-        )
+        cli_params = ["sca", "scan", "pre-commit"]
+        if verbose:
+            cli_params.append("--verbose")
+
+        result = cli_fs_runner.invoke(cli, cli_params)
 
         assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
 
@@ -130,6 +131,7 @@ def test_sca_scan_pre_commit_with_added_vulns(
         assert "> Pipfile.lock: 1 incident detected" in result.stdout
         assert (
             """
+>>> NEW: Incident 1 (SCA): toto@1.2.3
 Severity: Critical
 Summary: a vuln
 No fix is currently available.
@@ -138,17 +140,16 @@ CVE IDs: CVE-2023"""
             in result.stdout
         )
 
-        # Output on removed vuln
-        assert "> Pipfile.lock: 1 incident removed" in result.stdout
-        assert (
-            """
+        if verbose:
+            # Output on removed vuln
+            assert (
+                """
+>>> REMOVED: Incident 2 (SCA): bar@4.5.6
 Severity: Low
-Summary: another vuln
-No fix is currently available.
 Identifier: GHSA-efgh-5678-xxxx
 CVE IDs: CVE-2023-bis"""
-            in result.stdout
-        )
+                in result.stdout
+            )
 
 
 @my_vcr.use_cassette("test_sca_scan_pre_commit_all.yaml")

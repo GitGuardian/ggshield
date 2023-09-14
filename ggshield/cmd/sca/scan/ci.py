@@ -7,7 +7,6 @@ from click import UsageError
 
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
-    display_sca_beta_warning,
     sca_scan_all,
     sca_scan_diff,
 )
@@ -15,10 +14,13 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -30,7 +32,8 @@ from ggshield.verticals.sca.collection.collection import (
 @click.pass_context
 @directory_argument
 @all_option
-@display_sca_beta_warning
+@display_beta_warning
+@exception_wrapper
 def scan_ci_cmd(
     ctx: click.Context,
     exit_zero: bool,
@@ -66,11 +69,15 @@ def scan_ci_cmd(
             config.user_config.verbose
         )
 
+        ci_mode = SupportedCI.from_ci_env()
+        scan_mode = f"{ScanMode.CI.value}/{ci_mode.value}"
         result = sca_scan_diff(
             ctx=ctx,
             directory=directory,
             previous_ref=previous_commit,
             current_ref=current_commit,
+            scan_mode=scan_mode,
+            ci_mode=ci_mode.name,
         )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)

@@ -1,4 +1,3 @@
-import os
 import re
 from pathlib import Path, PurePosixPath
 from typing import List, Set, Union
@@ -10,41 +9,43 @@ from ggshield.utils.git_shell import git_ls, is_git_dir
 class UnexpectedDirectoryError(ValueError):
     """Raise when a directory is used where it is not excepted"""
 
-    def __init__(self, path: str):
+    def __init__(self, path: Path):
         self.path = path
 
 
-def is_filepath_excluded(filepath: str, exclusion_regexes: Set[re.Pattern]) -> bool:
-    return any(r.search(str(PurePosixPath(Path(filepath)))) for r in exclusion_regexes)
+def is_filepath_excluded(
+    filepath: Union[str, Path], exclusion_regexes: Set[re.Pattern]
+) -> bool:
+    filepath = Path(filepath)
+    return any(r.search(str(PurePosixPath(filepath))) for r in exclusion_regexes)
 
 
 def get_filepaths(
-    paths: Union[List, str],
+    paths: List[Path],
     exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     ignore_git: bool,
-) -> Set[str]:
+) -> Set[Path]:
     """
     Retrieve the filepaths from the command.
 
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
     :param ignore_git: Ignore that the folder is a git repository
-    :raise: UnexceptedDirectoryError if directory is given without --recursive option
+    :raise: UnexpectedDirectoryError if directory is given without --recursive option
     """
-    targets = set()
+    targets: Set[Path] = set()
     for path in paths:
-        if os.path.isfile(path):
+        if path.is_file():
             targets.add(path)
-        elif os.path.isdir(path):
+        elif path.is_dir():
             if not recursive:
                 raise UnexpectedDirectoryError(path)
-            top_dir = Path(path)
 
             if not ignore_git and is_git_dir(path):
-                _targets = {os.path.join(path, target) for target in git_ls(path)}
+                _targets = {path / target for target in git_ls(path)}
             else:
-                _targets = {str(target) for target in top_dir.rglob(r"*")}
+                _targets = path.rglob(r"*")
 
             for file_path in _targets:
                 if not is_filepath_excluded(file_path, exclusion_regexes):
@@ -52,7 +53,7 @@ def get_filepaths(
     return targets
 
 
-def is_path_binary(path: str) -> bool:
-    _, ext = os.path.splitext(path)
+def is_path_binary(path: Union[str, Path]) -> bool:
+    ext = Path(path).suffix
     # `[1:]` because `ext` starts with a "." but extensions in `BINARY_EXTENSIONS` do not
     return ext[1:] in BINARY_EXTENSIONS

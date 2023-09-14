@@ -1,7 +1,6 @@
-import os
 import re
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Set
+from typing import Iterable, Iterator, List, Optional, Set, Union
 
 import click
 
@@ -13,7 +12,7 @@ from .scannable import Files, Scannable
 class File(Scannable):
     """Implementation of Scannable for files from the disk."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: Union[str, Path]):
         super().__init__()
         self._path = Path(path)
         self._content: Optional[str] = None
@@ -55,11 +54,12 @@ class File(Scannable):
 
 
 def get_files_from_paths(
-    paths: List[str],
+    paths: List[Path],
     exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     yes: bool,
-    verbose: bool,
+    display_scanned_files: bool,
+    display_binary_files: bool,
     ignore_git: bool = False,
 ) -> Files:
     """
@@ -68,7 +68,9 @@ def get_files_from_paths(
     :param paths: List of file/dir paths from the command
     :param recursive: Recursive option
     :param yes: Skip confirmation option
-    :param verbose: Option that displays filepaths as they are scanned
+    :param display_scanned_files: In some parts of the code (e.g. SCA), we might want
+    to display a processed list instead and set this to False
+    :param display_binary_files: Display all ignored binary files
     :param ignore_git: Ignore that the folder is a git repository
     """
     try:
@@ -81,9 +83,9 @@ def get_files_from_paths(
             " Use --recursive to scan directories."
         )
 
-    files = list(generate_files_from_paths(filepaths, verbose))
+    files = list(generate_files_from_paths(filepaths, display_binary_files))
 
-    if verbose:
+    if display_scanned_files:
         for f in files:
             click.echo(f"- {click.format_filename(f.filename)}", err=True)
 
@@ -99,15 +101,15 @@ def get_files_from_paths(
 
 
 def generate_files_from_paths(
-    paths: Iterable[str], verbose: bool
+    paths: Iterable[Path], display_binary_files: bool
 ) -> Iterator[Scannable]:
     """Loop on filepaths and return an iterator on scannable files."""
     for path in paths:
-        if os.path.isdir(path) or not os.path.exists(path):
+        if path.is_dir() or not path.exists():
             continue
 
         if is_path_binary(path):
-            if verbose:
+            if display_binary_files:
                 click.echo(
                     f"ignoring binary file: {path}",
                     err=True,

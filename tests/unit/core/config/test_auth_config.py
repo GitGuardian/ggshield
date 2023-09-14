@@ -69,7 +69,7 @@ class TestAuthConfig:
         """
         write_text(get_auth_config_filepath(), "Not a:\nyaml file.\n")
         expected_output = (
-            f"{re.escape(get_auth_config_filepath())} is not a valid YAML file:"
+            f"{re.escape(str(get_auth_config_filepath()))} is not a valid YAML file:"
         )
 
         with pytest.raises(

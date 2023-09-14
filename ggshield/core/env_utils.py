@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -11,25 +12,25 @@ from ggshield.utils.git_shell import get_git_root, is_git_dir
 logger = logging.getLogger(__name__)
 
 
-def _find_dot_env() -> Optional[str]:
+def _find_dot_env() -> Optional[Path]:
     """Look for a .env to load, returns its path if found"""
-    env = os.getenv("GITGUARDIAN_DOTENV_PATH")
-    if env:
-        if os.path.isfile(env):
-            return env
-        else:
+    if env_var := os.getenv("GITGUARDIAN_DOTENV_PATH"):
+        path = Path(env_var)
+        if not path.is_file():
             display_error("GITGUARDIAN_DOTENV_PATH does not point to a valid .env file")
             return None
 
+        return path
+
     # Look for a .env in the current directory
-    env = ".env"
-    if os.path.isfile(env):
+    env = Path(".env")
+    if env.is_file():
         return env
 
     # If we are in a git checkout, look for a .env at the root of the checkout
     if is_git_dir(os.getcwd()):
-        env = os.path.join(get_git_root(), ".env")
-        if os.path.isfile(env):
+        env = get_git_root() / ".env"
+        if env.is_file():
             return env
 
     return None
@@ -44,6 +45,6 @@ def load_dot_env() -> None:
 
     dot_env_path = _find_dot_env()
     if dot_env_path:
-        dot_env_path = os.path.abspath(dot_env_path)
+        dot_env_path = dot_env_path.absolute()
         logger.debug("Loading environment file %s", dot_env_path)
         load_dotenv(dot_env_path, override=True)

@@ -1,11 +1,11 @@
 import json
-import os.path
 import re
 import subprocess
 import tarfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, Generator, Iterable, List, Optional, Set
 
 from click import UsageError
 from pygitguardian import GGClient
@@ -144,12 +144,19 @@ class DockerImage:
 
     layer_infos: List[LayerInfo]
 
-    def __init__(self, tar_file: tarfile.TarFile):
+    @staticmethod
+    @contextmanager
+    def open(archive_path: Path) -> Generator["DockerImage", None, None]:
+        """ContextManager to create a DockerImage instance."""
+        with tarfile.open(archive_path) as tar_file:
+            yield DockerImage(archive_path, tar_file)
+
+    def __init__(self, archive_path: Path, tar_file: tarfile.TarFile):
+        """Creates a DockerImage instance. Internal. Prefer using DockerImage.open()."""
+        self.archive_path = archive_path
         self.tar_file = tar_file
         self._load_manifest()
-
         self._load_image()
-
         self.config_scannable = StringScannable(
             "Dockerfile or build-args", json.dumps(self.image, indent=2)
         )
@@ -232,7 +239,7 @@ class DockerImage:
         """
         layer_filename = layer_info.filename
         layer_archive = tarfile.TarFile(
-            name=os.path.join(self.tar_file.name, layer_filename),  # type: ignore
+            name=self.archive_path / layer_filename,
             fileobj=self.tar_file.extractfile(layer_filename),
         )
 
@@ -265,7 +272,7 @@ def _validate_filepath(
 
 
 def _get_layer_id_cache(secrets_engine_version: str) -> IDCache:
-    cache_path = Path(get_cache_dir()) / "docker" / f"{secrets_engine_version}.json"
+    cache_path = get_cache_dir() / "docker" / f"{secrets_engine_version}.json"
     return IDCache(cache_path)
 
 
@@ -342,8 +349,7 @@ def docker_scan_archive(
     assert secrets_engine_version is not None
     layer_id_cache = _get_layer_id_cache(secrets_engine_version)
 
-    with tarfile.open(archive_path) as archive:
-        docker_image = DockerImage(archive)
+    with DockerImage.open(archive_path) as docker_image:
 
         display_heading("Scanning Docker config")
         with RichSecretScannerUI(1) as ui:
@@ -367,5 +373,5 @@ def docker_scan_archive(
                 results.extend(layer_results)
 
     return SecretScanCollection(
-        id=str(archive), type="scan_docker_archive", results=results
+        id=str(archive_path), type="scan_docker_archive", results=results
     )

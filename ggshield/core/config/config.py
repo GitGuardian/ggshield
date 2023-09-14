@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 import click
@@ -32,9 +33,9 @@ class Config:
     # The instance name, if ggshield is invoked with `--instance`
     _cmdline_instance_name: Optional[str]
 
-    _config_path: str
+    _config_path: Path
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[Path] = None):
         self.user_config, self._config_path = UserConfig.load(config_path=config_path)
         self.auth_config = AuthConfig.load()
         self._cmdline_instance_name = None
@@ -44,7 +45,7 @@ class Config:
         self.auth_config.save()
 
     @property
-    def config_path(self) -> str:
+    def config_path(self) -> Path:
         return self._config_path
 
     @property

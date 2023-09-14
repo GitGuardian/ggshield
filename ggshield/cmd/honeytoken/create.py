@@ -10,6 +10,7 @@ from pygitguardian.models import Detail, HoneytokenResponse
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
+from ggshield.utils.click import RealPath
 
 
 def _generate_random_honeytoken_name() -> str:
@@ -52,9 +53,7 @@ def _dict_to_string(data: Dict, space: bool = False) -> str:
     "-o",
     "--output",
     "output_file",
-    type=click.Path(
-        path_type=Path, file_okay=True, dir_okay=False, readable=True, writable=True
-    ),
+    type=RealPath(file_okay=True, dir_okay=False, readable=True, writable=True),
     required=False,
     help="Specify a filename to append your honeytoken directly to the content of this file. \
 If the file does not exist, it will be created.",
@@ -108,7 +107,7 @@ To learn more, visit https://docs.gitguardian.com/honeytoken/getting-started."""
         )
 
         # special output for piped or redirect
-        with open(output_file, "a") as opened_output_file:
+        with output_file.open("a") as opened_output_file:
             opened_output_file.write(f"{_dict_to_string(token_to_display)}\n")
 
     else:

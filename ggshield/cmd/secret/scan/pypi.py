@@ -26,13 +26,13 @@ from ggshield.verticals.secret import (
 PYPI_DOWNLOAD_TIMEOUT = 30
 
 
-def save_package_to_tmp(temp_dir: str, package_name: str) -> None:
+def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
     command: List[str] = [
         "pip",
         "download",
         package_name,
         "--dest",
-        temp_dir,
+        str(temp_dir),
         "--no-deps",
     ]
 
@@ -55,21 +55,18 @@ def save_package_to_tmp(temp_dir: str, package_name: str) -> None:
 
 
 def get_files_from_package(
-    archive_dir: str,
+    archive_dir: Path,
     package_name: str,
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
 ) -> Files:
-    archive_dir_path = Path(archive_dir)
-    archive: Path = next(archive_dir_path.iterdir())
+    archive: Path = next(archive_dir.iterdir())
     unpack_kwargs: Dict[str, str] = (
         {"format": "zip"} if archive.suffix == ".whl" else {}
     )
 
     try:
-        shutil.unpack_archive(
-            str(archive), extract_dir=archive_dir_path, **unpack_kwargs
-        )
+        shutil.unpack_archive(str(archive), extract_dir=archive_dir, **unpack_kwargs)
     except Exception as exn:
         raise UnexpectedError(f'Failed to unpack package "{package_name}": {exn}.')
 
@@ -80,7 +77,8 @@ def get_files_from_package(
         exclusion_regexes=exclusion_regexes,
         recursive=True,
         yes=True,
-        verbose=verbose,
+        display_scanned_files=verbose,
+        display_binary_files=verbose,
         ignore_git=True,
     )
 
@@ -101,10 +99,11 @@ def pypi_cmd(
     output_handler = create_output_handler(ctx)
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
-        save_package_to_tmp(temp_dir=temp_dir, package_name=package_name)
+        temp_path = Path(temp_dir)
+        save_package_to_tmp(temp_dir=temp_path, package_name=package_name)
 
         files: Files = get_files_from_package(
-            archive_dir=temp_dir,
+            archive_dir=temp_path,
             package_name=package_name,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             verbose=config.user_config.verbose,

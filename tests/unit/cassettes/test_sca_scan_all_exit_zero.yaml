@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:51 GMT
+          - Mon, 04 Sep 2023 14:10:15 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '17'
+          - '14'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -61,21 +61,21 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1mNzM5NDg5N2UyYzAyOWZiODE3MTg4ZDdjNWEyMGZlOA0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS0yMzE2NTBmNTI2ZjNkM2Y5ZGQwOTQxMzY4OWM3NGFiYQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
-        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tZjczOTQ4OTdlMmMwMjlm
-        YjgxNzE4OGQ3YzVhMjBmZTgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
-        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAIMQ0WQC/+3VT2+bMBQAcM75
-        FBHnjvg/JlKkHXfsfaoiYz8PNBIohirRlO8+SKYWlnQ7tVK397sQbPOe8eMpySpZfb43hy9gHLTR
-        myAXr10J4eLl9zhOCaMsWh6id9CHzrRD+uj/xPRy15U72FCVUcGYliRRWgvGxSJC/7z7svFlBUlV
-        2+9vlWNsaqXOPU5TSabXERVERVQIJdjQ+IQP/c+45NGSvGf/F7Bvyz+s+9v8B7X4sVgO4u0OOhOv
-        l5fb81BhQjEbOY+GwjCphvGY5Z6q1CuTMmMM8UJ7qVOVCemZ4alOheeeUuGMk5BJZl3qfOY8aJc5
-        pmn8HPh095K1uXyQn0IDdsiiJlMtPPZlC+F6U82xK+r99gnaUNb7cXM8oeR2glD3rT0H+ToLMg95
-        Xro3OxiDNcemjO+u5/u2GqeLrmvCerUalyV1+20Vyl1Twa0nhh2W/rgNYXywa3uYLTk93z0sJtuO
-        HXjTV928POGxakwb4Po0xsLdeMFJ+daEM24JWJZZJ1luweSW5mIojEwz4JR6DiJTNM+0o6lghDqp
-        GDOM51oCF7fe7VdolVmjidBC5flYfQaWawKCK2K04YK4XHNPrPXceAuQD/0vnCds+HxSpnQ8i/ww
-        TxSXeweHV2oST+q/2ZBEJHzyCfx2ok9Q1c14dqfFCf/pEEIIIYQQQgghhBBCCCGEEEIIfXA/AT8A
-        9M4AKAAADQotLWY3Mzk0ODk3ZTJjMDI5ZmI4MTcxODhkN2M1YTIwZmU4LS0NCg==
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tMjMxNjUwZjUyNmYzZDNm
+        OWRkMDk0MTM2ODljNzRhYmENCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
+        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAEfl9WQC/+3VzY6bMBAAYM55
+        iojzlvgP20SK1GOPe69WkbHHBRUCi2GVqMq7F5IqG5rscVfqdr5Lgm1mjIcRySpZfX00+29gHHTR
+        uyBnb/0SwsXr/2mcEkZZtNxHH2AIvenG9NH/iell3Zc1bKjMuOZSUpGkhNJM6UWEPr3HsvVlBUnV
+        2J/vlWNqainOPa6kPPc6u/Q8FURGVAiVcslSoqJpRNBoST6y/40tyqqC2gRbmjvrxmXef776L34t
+        lqN4W0Nv4vXyfHkaKkwoZiOn0VAYlspxPGa5p1J5aRQzxhAvtE+1kplIPTNcaSU895QKZ1wKWcqs
+        U85nzoN2mWOaxpfAx4fXrO35hfwSWrBjFnk11cHzUHYQbjfVHvqi2W1foAtls5s2xxNK7icIzdDZ
+        U5DvsyDzkKelO1PDFKw9tGX8cDs/dNU0XfR9G9ar1bQsabofq1DWbQX37hh3WPrDNoTpxr4bYLbk
+        eLl6WlxtO3bgzVD18/KE56o1XYDb05gKd+cBr8q3JpxxS8CyzLqU5RZMbmkuxsKkKgNOqecgMknz
+        TDuqBCPUpZIxw3iuU+Di3rP9CS0zazQRWsg8n6rPwHJNQHBJjDZcEJdr7om1nhtvAfKp250nbHx9
+        FJM6nkV+mieKy52D/Rs1ia/qv9mQRCT86hX460RfoGra6eyOiyN+6RBCCCGEEEIIIYQQQgghhBBC
+        CP3jfgN6TqmDACgAAA0KLS0yMzE2NTBmNTI2ZjNkM2Y5ZGQwOTQxMzY4OWM3NGFiYS0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -84,25 +84,25 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '844'
+          - '851'
         Content-Type:
-          - multipart/form-data; boundary=f7394897e2c029fb817188d7c5a20fe8
+          - multipart/form-data; boundary=231650f526f3d3f9dd09413689c74aba
         GGShield-Command-Id:
-          - 205186a8-57f2-4dc2-8715-51563f1bf660
+          - 305b3ae6-55e2-4de4-b94a-abfd33055ca7
         GGShield-Command-Path:
           - cli sca scan all
         GGShield-OS-Name:
-          - ubuntu
+          - darwin
         GGShield-OS-Version:
-          - '22.04'
+          - 'Darwin Kernel Version 22.6.0: Wed Jul  5 22:22:05 PDT 2023; root:xnu-8796.141.3~6/RELEASE_ARM64_T6000'
         GGShield-Python-Version:
-          - 3.10.12
+          - 3.11.4
         GGShield-Version:
-          - 1.17.3
+          - 1.18.1
         User-Agent:
-          - pygitguardian/1.8.0 (Linux;py3.10.12) ggshield
+          - pygitguardian/1.9.0 (Darwin;py3.11.4) ggshield
         mode:
-          - sca_directory
+          - directory
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
     response:
@@ -123,7 +123,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 07 Aug 2023 15:40:52 GMT
+          - Mon, 04 Sep 2023 14:10:15 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -133,19 +133,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.36.0
+          - v2.38.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '108'
+          - '151'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
           - 1.16.1
         x-secrets-engine-version:
-          - 2.95.0
+          - 2.96.0
         x-xss-protection:
           - 1; mode=block
       status:

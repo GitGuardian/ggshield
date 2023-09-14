@@ -86,6 +86,7 @@ class SCAClient:
         reference: bytes,
         current: bytes,
         scan_parameters: SCAScanParameters,
+        extra_headers: Optional[Dict[str, str]] = None,
     ) -> Union[Detail, SCAScanDiffOutput]:
         result: Union[Detail, SCAScanDiffOutput]
         try:
@@ -95,6 +96,7 @@ class SCAClient:
                 data={
                     "scan_parameters": SCAScanParameters.SCHEMA.dumps(scan_parameters)
                 },
+                extra_headers=extra_headers,
             )
         except requests.exceptions.ReadTimeout:
             result = Detail("The request timed out.")

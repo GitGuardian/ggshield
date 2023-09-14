@@ -5,7 +5,7 @@ import sys
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, Union
 
 
 logger = logging.getLogger(__name__)
@@ -53,12 +53,13 @@ def parse_os_release(os_release_path: Path) -> Tuple[str, str]:
 
 
 @contextmanager
-def cd(newdir: str) -> Iterator[None]:
+def cd(newdir: Union[str, Path]) -> Iterator[None]:
     """
     A context manager to temporarily change the current directory
     """
-    prevdir = os.getcwd()
-    os.chdir(os.path.expanduser(newdir))
+    prevdir = Path.cwd()
+    newdir = Path(newdir).expanduser()
+    os.chdir(newdir)
     try:
         yield
     finally:
