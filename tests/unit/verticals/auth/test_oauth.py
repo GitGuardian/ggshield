@@ -45,6 +45,10 @@ def test_get_error_url_param(url, expected_error):
             "The given SSO URL is invalid.",
         ),
         (
+            "invalid_scope",
+            "The requested scopes are invalid.",
+        ),
+        (
             "invalid_error_code",
             "An unknown server error has occurred (error code: invalid_error_code).",
         ),

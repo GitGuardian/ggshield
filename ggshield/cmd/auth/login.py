@@ -1,5 +1,5 @@
 import re
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import click
 
@@ -78,6 +78,16 @@ def print_default_instance_message(config: Config) -> None:
     metavar="URL",
 )
 @click.option(
+    "--scopes",
+    required=False,
+    type=str,
+    help=(
+        "Space-separated list of extra scopes to request in addition to the default"
+        " `scan` scope."
+    ),
+    metavar="SCOPES",
+)
+@click.option(
     "--sso-url",
     required=False,
     type=str,
@@ -104,6 +114,7 @@ def login_cmd(
     ctx: click.Context,
     method: str,
     instance: Optional[str],
+    scopes: Optional[str],
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
@@ -127,17 +138,24 @@ def login_cmd(
     """
     config: Config = ctx.obj["config"]
 
-    if sso_url is not None and method != "web":
-        raise click.BadParameter(
-            "--sso-url is reserved for the web login method.", param_hint="sso-url"
-        )
+    if method != "web":
+        if sso_url is not None:
+            raise click.BadParameter(
+                "--sso-url is reserved for the web login method.", param_hint="sso-url"
+            )
+
+        if scopes is not None:
+            raise click.BadParameter(
+                "--scopes is reserved for the web login method.", param_hint="scopes"
+            )
 
     if method == "token":
         token_login(config, instance)
         return 0
 
     if method == "web":
-        web_login(config, instance, token_name, lifetime, sso_url)
+        extra_scopes = scopes.split(" ") if scopes else None
+        web_login(config, instance, token_name, lifetime, sso_url, extra_scopes)
         return 0
 
     return 1
@@ -185,6 +203,7 @@ def web_login(
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
+    extra_scopes: Optional[List[str]],
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
     if instance:
@@ -200,6 +219,9 @@ def web_login(
         return
 
     client.oauth_process(
-        token_name=token_name, lifetime=lifetime, login_path=login_path
+        token_name=token_name,
+        lifetime=lifetime,
+        login_path=login_path,
+        extra_scopes=extra_scopes,
     )
     print_default_instance_message(config)

@@ -2,7 +2,7 @@ import json
 import urllib.parse as urlparse
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum, auto
-from typing import Optional
+from typing import Optional, Set
 from unittest.mock import Mock
 
 import pytest
@@ -24,7 +24,6 @@ _EXPECTED_URL_PARAMS = {
     "client_id": ["ggshield_oauth"],
     "code_challenge_method": ["S256"],
     "response_type": ["code"],
-    "scope": ["scan"],
     "utm_campaign": ["ggshield"],
     "utm_medium": ["login"],
     "utm_source": ["cli"],
@@ -294,6 +293,9 @@ class TestAuthLoginWeb:
         self._lifetime = None
         self._instance_url = None
         self._sso_url = None
+        # This is not a list because the --scopes argument takes a single
+        # space-separated string
+        self._scopes: Optional[str] = None
 
         config = Config()
         assert len(config.auth_config.instances) == 0
@@ -526,6 +528,19 @@ class TestAuthLoginWeb:
 
         self._assert_config("mysupertoken")
 
+    def test_scopes(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN a coll to `auth login` with the `--scopes` argument
+        WHEN the browser is opened
+        THEN the URI includes the scopes
+        """
+        self.prepare_mocks(monkeypatch, scopes="honeytokens:write teams:read")
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(scope_set={"scan", "honeytokens:write", "teams:read"})
+
     def prepare_mocks(
         self,
         monkeypatch,
@@ -536,6 +551,7 @@ class TestAuthLoginWeb:
         login_result: LoginResult = LoginResult.SUCCESS,
         sso_url=None,
         downsized_token: Optional[bool] = False,
+        scopes: Optional[str] = None,
     ):
         """
         Configure self._request_mock to emulate HTTP requests
@@ -546,6 +562,7 @@ class TestAuthLoginWeb:
         self._lifetime
         self._instance_url
         self._sso_url
+        self._scopes
         self._generated_token_name
         """
         token = "mysupertoken"
@@ -555,6 +572,7 @@ class TestAuthLoginWeb:
         self._lifetime = lifetime
         self._instance_url = instance_url
         self._sso_url = sso_url
+        self._scopes = scopes
 
         # token name generated if passed as None
         self._generated_token_name = (
@@ -639,6 +657,9 @@ class TestAuthLoginWeb:
         if self._sso_url is not None:
             cmd.append(f"--sso-url={self._sso_url}")
 
+        if self._scopes is not None:
+            cmd.append(f"--scopes={self._scopes}")
+
         # run cli command
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
 
@@ -692,12 +713,19 @@ class TestAuthLoginWeb:
         assert output.rsplit("\n", 2)[-2] == expected_str
 
     def _assert_open_url(
-        self, *, host: Optional[str] = None, expected_port: int = 29170
+        self,
+        *,
+        host: Optional[str] = None,
+        expected_port: int = 29170,
+        scope_set: Optional[Set[str]] = None,
     ):
         """
         assert that the url to be open in the browser has the right static parameters
         also check if the port of the redirect url is the one expected depending on occupied ports
         """
+        if scope_set is None:
+            scope_set = {"scan"}
+
         (url,), kwargs = self._webbrowser_open_mock.call_args_list[0]
         parsed_url = urlparse.urlparse(url)
         url_params = urlparse.parse_qs(parsed_url.query)
@@ -717,6 +745,12 @@ class TestAuthLoginWeb:
         assert redirect_uri.startswith(
             f"http://localhost:{expected_port}"
         ), redirect_uri
+
+        # We pass `WebApplicationClient.prepare_request_uri()` a list of
+        # strings but it generates a *single* `scope` query parameter, whose
+        # value is a space-separated string. That's why we have to split it.
+        actual_scope_set = set(url_params["scope"][0].split(" "))
+        assert actual_scope_set == scope_set
 
     def _assert_post_payload(self, payload):
         """

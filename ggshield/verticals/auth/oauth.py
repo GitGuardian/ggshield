@@ -7,7 +7,7 @@ from base64 import urlsafe_b64encode
 from datetime import datetime
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import click
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
@@ -25,7 +25,7 @@ from ggshield.utils.datetime import get_pretty_date
 
 
 CLIENT_ID = "ggshield_oauth"
-SCOPE = "scan"
+SCAN_SCOPE = "scan"
 
 # potential port range to be used to run local server
 # to handle authorization code callback
@@ -61,6 +61,7 @@ class OAuthClient:
         self._state = ""  # use the `state` property instead
         self._lifetime: Optional[int] = None
         self._login_path = "auth/login"
+        self._extra_scopes = []
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
@@ -76,6 +77,7 @@ class OAuthClient:
         token_name: Optional[str] = None,
         lifetime: Optional[int] = None,
         login_path: Optional[str] = None,
+        extra_scopes: Optional[List[str]] = None,
     ) -> None:
         """
         Handle the whole oauth process which includes
@@ -94,6 +96,9 @@ class OAuthClient:
         if lifetime is None:
             lifetime = self.default_token_lifetime
         self._lifetime = lifetime
+
+        if extra_scopes is not None:
+            self._extra_scopes = extra_scopes
 
         self._prepare_server()
         self._redirect_to_login()
@@ -140,7 +145,7 @@ class OAuthClient:
         request_uri = self._oauth_client.prepare_request_uri(
             uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,
-            scope=SCOPE,
+            scope=[SCAN_SCOPE, *self._extra_scopes],
             code_challenge=self.code_challenge,
             code_challenge_method="S256",
             state=self.state,
@@ -380,6 +385,8 @@ class OAuthClient:
             )
         elif error_code == "invalid_saml":
             return "The given SSO URL is invalid."
+        elif error_code == "invalid_scope":
+            return "The requested scopes are invalid."
         return f"An unknown server error has occurred (error code: {error_code})."
 
     @property
@@ -427,6 +434,9 @@ class RequestHandlerWrapper:
                     self_._end_request(404)
                     return
 
+                # indicate to the server to stop
+                self.complete = True
+
                 error_string = get_error_param(parsed_url)
                 if error_string is not None:
                     self_._end_request(200)
@@ -446,9 +456,6 @@ class RequestHandlerWrapper:
                         301,
                         urljoin(self.oauth_client.dashboard_url, "authenticated"),
                     )
-
-                # indicate to the server to stop
-                self.complete = True
 
             def _end_request(
                 self_,  # type:ignore
