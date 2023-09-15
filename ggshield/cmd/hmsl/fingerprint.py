@@ -31,8 +31,9 @@ def validate_prefix(prefix: str) -> str:
     "--prefix",
     "-p",
     default="",
-    help="Prefix for output file names.",
+    help="Prefix for output file names. For instance `-p foo` produces `foo-payload.txt` and `foo-mapping.txt`.",
     callback=lambda _, __, value: validate_prefix(value),
+    metavar="PREFIX",
 )
 @full_hashes_option
 @naming_strategy_option
@@ -50,6 +51,8 @@ def fingerprint_cmd(
     Collect secrets and compute fingerprints.
 
     Fingerprints are to be used later by the `decrypt` command.
+
+    Note: Secrets can be read from stdin using `ggshield hmsl fingerprint -`.
     """
     # Opens the file or stdin
     input = cast(TextIO, click.open_file(path, "r"))

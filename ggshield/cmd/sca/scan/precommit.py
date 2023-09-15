@@ -38,7 +38,14 @@ def scan_pre_commit_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Find SCA vulnerabilities in a git working directory, compared to HEAD.
+    Scans if the currently staged files introduce SCA vulnerabilities.
+
+    This command checks if the currently staged files introduce SCA vulnerabilities
+    compared to the current state of the repository.
+
+    Scanning a repository with this command will not trigger any incident on your dashboard.
+
+    Only metadata such as call time, request size and scan mode is stored server-side.
     """
     if directory is None:
         directory = Path().resolve()

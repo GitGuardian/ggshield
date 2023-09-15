@@ -34,6 +34,9 @@ def scan_ci_cmd(
 ) -> int:
     """
     Scan in CI for IaC vulnerabilities. By default, it will return vulnerabilities added in the new commits.
+
+    The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
+    in which case the scan is only successful if no IaC vulnerability (old and new) was found.
     """
     config: Config = ctx.obj["config"]
     if directory is None:

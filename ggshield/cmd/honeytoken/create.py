@@ -33,14 +33,14 @@ def _dict_to_string(data: Dict, space: bool = False) -> str:
     required=False,
     type=str,
     help="Specify a name for your honeytoken. If this option is not provided, a unique name will be generated with a \
-'ggshield-' prefix.",
+`ggshield-` prefix.",
 )
 @click.option(
     "--type",
     "type_",
     required=True,
     type=click.Choice(("AWS",)),
-    help="Specify the type of honeytoken that you want to create. (For now only AWS honeytokens are supported!)",
+    help="Specify the type of honeytoken that you want to create. (For now only AWS honeytokens are supported)",
 )
 @click.option(
     "--description",
@@ -70,8 +70,10 @@ def create_cmd(
 ) -> int:
     """
     Command to create a honeytoken.
-    This action is restricted to authorized users only. To learn more, visit
-    <https://docs.gitguardian.com/honeytoken/getting-started>
+
+    The prerequisites to use this command are the following:
+    - you have the necessary permissions as a user (for now, Honeytoken is restricted to users with a manager role),
+    - the personal access token used by ggshield has the required scopes. (`honeytoken:read` and `honeytoken:write`).
     """
     # if name is not given, generate a random one
     if not name:

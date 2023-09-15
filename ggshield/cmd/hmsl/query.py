@@ -27,7 +27,11 @@ def query_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Query HasMySecretLeaked using outputs of `fingerprint` command.
+    Query HasMySecretLeaked using outputs from the `fingerprint` command.
+
+    Note: If you used the `-f` option during stage one, the results will not be
+    encrypted. It is still useful to pass them through `decrypt` to properly format the
+    output.
     """
 
     # Opens the file or stdin

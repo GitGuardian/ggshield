@@ -33,7 +33,16 @@ def scan_pre_push_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan as pre-push for IaC vulnerabilities. By default, it will return vulnerabilities added in the pushed commits.
+    Scan a Git repository for changes in IaC vulnerabilities in the pushed commits.
+    This is intended to be used as a pre-push hook.
+
+    The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
+    in which case the scan is only successful if no IaC vulnerability (old and new) was found.
+
+    By default, the output will show:
+    - The number of known IaC vulnerabilities resolved by the changes
+    - The number of known IaC vulnerabilities left untouched
+    - The number and the list of new IaC vulnerabilities introduced by the changes
     """
     directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)

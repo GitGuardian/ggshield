@@ -31,7 +31,15 @@ def scan_pre_commit_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Scan as pre-commit for IaC vulnerabilities. By default, it will return vulnerabilities added in the commit.
+    Scan a Git repository for changes in IaC vulnerabilities between HEAD and current staged changes.
+
+    The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
+    in which case the scan is only successful if no IaC vulnerability (old and new) was found.
+
+    By default, the output will show:
+    - The number of known IaC vulnerabilities resolved by the changes
+    - The number of known IaC vulnerabilities left untouched
+    - The number and the list of new IaC vulnerabilities introduced by the changes
     """
     if directory is None:
         directory = Path().resolve()

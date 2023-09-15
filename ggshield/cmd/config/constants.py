@@ -37,3 +37,5 @@ _FIELDS = (
 FIELDS = {x.name: x for x in _FIELDS}
 
 FIELD_NAMES = sorted(FIELDS.keys())
+
+FIELD_NAMES_DOC = "Supported keys:\n" + "\n".join(f"- `{x}`" for x in FIELD_NAMES)

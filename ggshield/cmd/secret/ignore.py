@@ -12,7 +12,7 @@ from ggshield.core.text_utils import pluralize
 @click.option(
     "--last-found",
     is_flag=True,
-    help="Ignore secrets found in the last ggshield secret scan run.",
+    help="Ignore secrets found in the last `ggshield secret scan` run.",
 )
 @add_common_options()
 @click.pass_context
@@ -23,6 +23,14 @@ def ignore_cmd(
 ) -> None:
     """
     Ignore some secrets.
+
+    The `secret ignore` command instructs ggshield to ignore secrets it finds during a scan.
+
+    This command needs to be used with an option to determine which secrets it should ignore.
+    For now, it only handles the `--last-found` option, which ignores all secrets found during the last scan.
+
+    The command adds the ignored secrets to the `secrets.ignored-matches` section of your local
+    configuration file. If no local configuration file is found, a `.gitguardian.yaml` file is created.
     """
     if last_found:
         config: Config = ctx.obj["config"]

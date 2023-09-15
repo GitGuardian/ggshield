@@ -41,13 +41,18 @@ fi
     help="Type of hook to install.",
     default="pre-commit",
 )
-@click.option("--force", "-f", is_flag=True, help="Force override.")
+@click.option("--force", "-f", is_flag=True, help="Overwrite any existing hook script.")
 @click.option("--append", "-a", is_flag=True, help="Append to existing script.")
 @add_common_options()
 def install_cmd(
     mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any
 ) -> int:
-    """Install a pre-commit or pre-push git hook (local or global)."""
+    """
+    Installs ggshield as a pre-commit or pre-push hook.
+
+    The `install` command installs ggshield as a git pre-commit or pre-push hook, either
+    for the current repository (locally) or for all repositories (globally).
+    """
     return_code = (
         install_global(hook_type=hook_type, force=force, append=append)
         if mode == "global"
