@@ -16,7 +16,7 @@ build_wheel() {
     # Remove existing .whl files to make sure there is only one .whl. This way we
     # can use a glob to refer to it.
     rm -rf dist/*.whl
-    pipenv run python setup.py bdist_wheel
+    python -m build --wheel
 }
 
 create_venv() {

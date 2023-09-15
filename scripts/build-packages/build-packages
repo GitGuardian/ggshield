@@ -17,14 +17,14 @@ GGSHIELD_WRAPPER=$PWD/ggshield-wrapper
 # Move to the work-tree root
 cd $(git rev-parse --show-toplevel)
 
-# Where `python setup.py ...` places its packages
+# Where `python -m build ...` places its packages
 DIST_DIR=$PWD/dist
 
 # Where npfm places its packages. We do not use $DIST_DIR to ensure the "upload
 # to pypi" build step does not try to upload them.
 PKG_DIR=$PWD/packages
 
-VERSION=$(python setup.py --version)
+VERSION=$(python -c 'import ggshield; print(ggshield.__version__)')
 
 GGSHIELD_WHL=$DIST_DIR/ggshield-$VERSION-py3-none-any.whl
 GGSHIELD_PYZ=$PKG_DIR/ggshield-$VERSION.pyz
@@ -37,7 +37,7 @@ log_progress() {
 
 build_whl() {
     log_progress "Building wheel"
-    python setup.py sdist bdist_wheel
+    python -m build --wheel
 }
 
 build_pyz() {

@@ -107,8 +107,8 @@ jobs:
 
       - name: Ensure a clean package installation
         run: |
-          pip install wheel check-wheel-contents
-          python setup.py clean --all bdist_wheel
+          pip install build wheel check-wheel-contents
+          python -m build --wheel
           # The created wheel (.whl) file will be found and analyzed within the `dist/` folder
           check-wheel-contents dist/
 
