@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 from enum import Enum
 from functools import lru_cache
@@ -93,6 +94,27 @@ def _git_rev_parse_absolute(option: str, wd_absolute: Path) -> Optional[str]:
 
 def _git_rev_parse(option: str, wd: Path) -> Optional[str]:
     return _git_rev_parse_absolute(option=option, wd_absolute=wd.resolve())
+
+
+def simplify_git_url(url: str) -> str:
+    """
+    Removes elements from the git remote url.
+    - scheme
+    - credentials
+    - port
+    - extension
+    https://user:pass@mygitlab.corp.com:84/path/to/repo.git -> mygitlab.corp.com/toto/titi/tata
+    """
+    for (pattern, replace) in (
+        (r"https?://", ""),  # Scheme
+        (r".+@", ""),  # Credentials
+        (r":\d*/", "/"),  # Port
+        (r"\.git$", ""),  # Github/Gitlab/BitBucket extension (**.git)
+        (r"/_git/", "/"),  # Azure Devops extension (**/_git/**)
+        (":", "/"),  # Normalize ssh url to https format
+    ):
+        url = re.sub(pattern, replace, url)
+    return url
 
 
 def is_git_dir(wd: Union[str, Path]) -> bool:
@@ -263,6 +285,28 @@ def get_last_commit_sha_of_branch(branch_name: str) -> Optional[str]:
         return None
 
     return last_target_commit[0]
+
+
+def get_repository_url_from_path(wd: Path) -> Optional[str]:
+    """
+    Returns one of the repository remote urls. Returns None if no remote are found,
+    or the directory is not a repository.
+    """
+    remotes_raw: List[str] = []
+    try:
+        if not is_git_dir(wd):
+            return None
+        remotes_raw = git(["remote", "-v"], cwd=wd).splitlines()
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+    url: Optional[str] = None
+    for line in remotes_raw:
+        if match := re.search(r"^(.*)\t(.*) \(fetch\)$", line):
+            name, url = match.groups()
+            if name == "origin":
+                break
+    return simplify_git_url(url) if url else None
 
 
 def get_filepaths_from_ref(
