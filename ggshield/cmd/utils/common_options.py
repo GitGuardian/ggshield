@@ -17,6 +17,8 @@ import click
 
 from ggshield.cmd.utils.debug_logs import setup_debug_logs
 from ggshield.core.config.user_config import UserConfig
+from ggshield.core.text_utils import display_warning
+from ggshield.utils.files import is_filepath_excluded
 
 
 AnyFunction = Callable[..., Any]
@@ -34,6 +36,15 @@ ClickCallback = Callable[
 def get_config_from_context(ctx: click.Context) -> UserConfig:
     """Returns the UserConfig object stored in Click context"""
     return cast(UserConfig, ctx.obj["config"].user_config)
+
+
+def check_directory_in_ignored_path(ctx: click.Context, directory: Path) -> None:
+    """Check if the directory is in the ignored paths in the config."""
+    if is_filepath_excluded(next(directory.rglob("*")), ctx.obj["exclusion_regexes"]):
+        display_warning(
+            "Directory to scan is in the ignored paths in the config, ignoring config and proceeding with scan."  # noqa: E501
+        )
+        ctx.obj["exclusion_regexes"] = set()
 
 
 def create_ctx_callback(name: str) -> ClickCallback:

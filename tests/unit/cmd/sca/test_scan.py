@@ -273,6 +273,36 @@ def test_sca_scan_all_exit_zero(
         assert result.exit_code == ExitCode.SUCCESS
 
 
+def test_sca_scan_ignore_config_exclusion_regexes(
+    cli_fs_runner, tmp_path, pipfile_lock_with_vuln
+) -> None:
+    """
+    GIVEN a valid click context
+    WHEN calling sca_scan_all with a path that is ignored in the config
+    THEN it is still scanned
+    """
+    config_path = Path(".gitguardian.yaml")
+    config_path.write_text(
+        f"""
+version: 2
+
+sca:
+  ignored-paths:
+    - /{tmp_path}/
+"""
+    )
+
+    Path(tmp_path / "Pipfile.lock").write_text(pipfile_lock_with_vuln)
+
+    log_path = tmp_path / "out.log"
+
+    result = cli_fs_runner.invoke(
+        cli, ["sca", "scan", "all", str(tmp_path), "--log-file", str(log_path)]
+    )
+    assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+    assert "Directory to scan is in the ignored paths in the config" in result.stdout
+
+
 @patch("ggshield.cmd.sca.scan.all.sca_scan_all")
 def test_sca_text_handler_ordering(patch_scan_all, cli_fs_runner):
     """

@@ -10,6 +10,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import (
+    check_directory_in_ignored_path,
     directory_argument,
     reference_option,
     staged_option,
@@ -54,6 +55,9 @@ def scan_diff_cmd(
 
     # Adds client and required parameters to the context
     update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+
+    # If directory is in the ignored paths, ignore config and proceed with scan
+    check_directory_in_ignored_path(ctx, directory)
 
     output_handler = create_output_handler(ctx)
 

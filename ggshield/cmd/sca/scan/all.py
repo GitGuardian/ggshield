@@ -9,7 +9,10 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     update_context,
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
-from ggshield.cmd.utils.common_options import directory_argument
+from ggshield.cmd.utils.common_options import (
+    check_directory_in_ignored_path,
+    directory_argument,
+)
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
 )
@@ -41,6 +44,9 @@ def scan_all_cmd(
 
     # Adds client and required parameters to the context
     update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+
+    # If directory is in the ignored paths, ignore config and proceed with scan
+    check_directory_in_ignored_path(ctx, directory)
 
     result = sca_scan_all(ctx, directory)
     scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)

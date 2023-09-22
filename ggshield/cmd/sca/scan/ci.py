@@ -15,7 +15,11 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     update_context,
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
-from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.cmd.utils.common_options import (
+    all_option,
+    check_directory_in_ignored_path,
+    directory_argument,
+)
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
@@ -55,6 +59,9 @@ def scan_ci_cmd(
 
     # Adds client and required parameters to the context
     update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+
+    # If directory is in the ignored paths, ignore config and proceed with scan
+    check_directory_in_ignored_path(ctx, directory)
 
     config: Config = ctx.obj["config"]
     try:

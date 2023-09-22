@@ -13,7 +13,10 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     update_context,
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
-from ggshield.cmd.utils.common_options import all_option
+from ggshield.cmd.utils.common_options import (
+    all_option,
+    check_directory_in_ignored_path,
+)
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_SHA
@@ -53,6 +56,9 @@ def scan_pre_push_cmd(
 
     # Adds client and required parameters to the context
     update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+
+    # If directory is in the ignored paths, ignore config and proceed with scan
+    check_directory_in_ignored_path(ctx, directory)
 
     _, remote_commit = collect_commits_refs(prepush_args)
     # Will happen if this is the first push on the branch
