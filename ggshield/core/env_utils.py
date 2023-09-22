@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import get_git_root, is_git_dir
+from ggshield.utils.os import getenv_bool
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def _find_dot_env() -> Optional[Path]:
 
 def load_dot_env() -> None:
     """Loads .env file into os.environ."""
-    dont_load_env = os.getenv("GITGUARDIAN_DONT_LOAD_ENV", False)
+    dont_load_env = getenv_bool("GITGUARDIAN_DONT_LOAD_ENV")
     if dont_load_env:
         logger.debug("Not loading .env, GITGUARDIAN_DONT_LOAD_ENV is set")
         return
