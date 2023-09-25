@@ -21,26 +21,23 @@ class Cache:
         self.purge()
         self.load_cache()
 
-    def load_cache(self) -> bool:
-        if not self.cache_path.is_file():
-            return True
+    def load_cache(self) -> None:
+        if not self.cache_path.is_file() or self.cache_path.stat().st_size == 0:
+            return
 
-        _cache: dict = {}
-        if self.cache_path.stat().st_size != 0:
+        try:
+            f = self.cache_path.open()
+        except PermissionError:
+            # Hotfix: for the time being we skip cache handling if permission denied
+            return
+        with f:
             try:
-                f = self.cache_path.open()
-            except PermissionError:
-                # Hotfix: for the time being we skip cache handling if permission denied
-                return True
-            with f:
-                try:
-                    _cache = json.load(f)
-                except Exception as e:
-                    raise UnexpectedError(
-                        f"Parsing error while reading {self.cache_path}:\n{str(e)}"
-                    )
+                _cache: Dict[str, Any] = json.load(f)
+            except Exception as e:
+                raise UnexpectedError(
+                    f"Parsing error while reading {self.cache_path}:\n{str(e)}"
+                )
         self.update_cache(**_cache)
-        return True
 
     def update_cache(self, **kwargs: Any) -> None:
         if SECRETS_CACHE_KEY in kwargs:
