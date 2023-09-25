@@ -1,6 +1,5 @@
 import json
 import os
-from unittest.mock import patch
 
 import pytest
 import yaml
@@ -47,19 +46,20 @@ class TestCache:
 
     def test_read_only_fs(self):
         """
-        GIVEN a read-only file-system
+        GIVEN a read-only cache file
         WHEN save is called
         THEN it shouldn't raise an exception
         """
+
         cache = Cache()
         cache.update_cache(last_found_secrets=[{"match": "XXX"}])
-        # don't use mock.patch decorator on the test, since Cache.__init__ also calls open
-        with patch("builtins.open") as open_mock:
-            # The read-only FS is simulated with patched builtin open raising an error
-            open_mock.side_effect = OSError("Read-only file system")
-            cache.save()
-            # Make sure our patched open was called
-            open_mock.assert_called_once()
+
+        # Make cache file read-only and verify it really is read-only
+        cache.cache_path.touch(mode=0o400)
+        with pytest.raises(PermissionError):
+            cache.cache_path.open("w")
+
+        cache.save()
 
     @pytest.mark.parametrize("with_entry", [True, False])
     def test_save_cache_first_time(self, isolated_fs, with_entry):

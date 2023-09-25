@@ -1,10 +1,10 @@
 import json
-import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 from pygitguardian.models import PolicyBreak
 
-from ggshield.core.constants import CACHE_FILENAME
+from ggshield.core.constants import CACHE_PATH
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import get_ignore_sha
 from ggshield.core.text_utils import display_warning
@@ -15,20 +15,20 @@ SECRETS_CACHE_KEY = "last_found_secrets"
 
 
 class Cache:
-    def __init__(self, cache_filename: str = CACHE_FILENAME) -> None:
-        self.cache_filename = cache_filename
+    def __init__(self) -> None:
+        self.cache_path = Path(CACHE_PATH)
         self.last_found_secrets: List[IgnoredMatch] = []
         self.purge()
         self.load_cache()
 
     def load_cache(self) -> bool:
-        if not os.path.isfile(self.cache_filename):
+        if not self.cache_path.is_file():
             return True
 
         _cache: dict = {}
-        if os.stat(self.cache_filename).st_size != 0:
+        if self.cache_path.stat().st_size != 0:
             try:
-                f = open(self.cache_filename)
+                f = self.cache_path.open()
             except PermissionError:
                 # Hotfix: for the time being we skip cache handling if permission denied
                 return True
@@ -37,7 +37,7 @@ class Cache:
                     _cache = json.load(f)
                 except Exception as e:
                     raise UnexpectedError(
-                        f"Parsing error while reading {self.cache_filename}:\n{str(e)}"
+                        f"Parsing error while reading {self.cache_path}:\n{str(e)}"
                     )
         self.update_cache(**_cache)
         return True
@@ -62,7 +62,7 @@ class Cache:
             # if there are no found secrets, don't modify the cache file
             return
         try:
-            f = open(self.cache_filename, "w")
+            f = self.cache_path.open("w")
         except OSError:
             # Hotfix: for the time being we skip cache handling if permission denied
             return
@@ -71,7 +71,7 @@ class Cache:
                 json.dump(self.to_dict(), f)
             except Exception as e:
                 raise UnexpectedError(
-                    f"Failed to save cache in {self.cache_filename}:\n{str(e)}"
+                    f"Failed to save cache in {self.cache_path}:\n{str(e)}"
                 )
 
     def purge(self) -> None:
