@@ -20,7 +20,7 @@ jobs:
           curl -L https://github.com/goreleaser/nfpm/releases/download/v2.15.0/nfpm_amd64.deb -o nfpm_amd64.deb
           sudo dpkg -i nfpm_amd64.deb
 
-          pip install shiv==1.0.1
+          pip install shiv==1.0.1 build
 
       - name: Create packages
         shell: bash
