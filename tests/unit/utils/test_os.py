@@ -3,7 +3,7 @@ from typing import AnyStr, Tuple
 
 import pytest
 
-from ggshield.utils.os import parse_os_release
+from ggshield.utils.os import getenv_bool, getenv_float, getenv_int, parse_os_release
 
 
 @pytest.mark.skipif(
@@ -29,3 +29,62 @@ def test_parse_os_release(
     file.write_text(file_contents)
     file.chmod(file_permissions)
     assert parse_os_release(file) == expected_tuple
+
+
+@pytest.mark.parametrize(
+    ("env_value", "default", "expected"),
+    (
+        ("12", 5, 12),
+        ("12", None, 12),
+        (None, 5, 5),
+        (None, None, None),
+    ),
+)
+def test_getenv_int(monkeypatch, env_value, default, expected):
+    key = "TEST_GETENV_VAR"
+    if env_value:
+        monkeypatch.setenv(key, env_value)
+    else:
+        monkeypatch.delenv(key, raising=False)
+    assert getenv_int(key, default) == expected
+
+
+@pytest.mark.parametrize(
+    ("env_value", "default", "expected"),
+    (
+        ("12.5", 5.3, 12.5),
+        ("12.5", None, 12.5),
+        (None, 5.5, 5.5),
+        (None, None, None),
+    ),
+)
+def test_getenv_float(monkeypatch, env_value, default, expected):
+    key = "TEST_GETENV_VAR"
+    if env_value:
+        monkeypatch.setenv(key, env_value)
+    else:
+        monkeypatch.delenv(key, raising=False)
+    assert getenv_float(key, default) == expected
+
+
+@pytest.mark.parametrize(
+    ("env_value", "default", "expected"),
+    (
+        ("true", False, True),
+        ("Whatever", False, True),
+        ("1", False, True),
+        (None, True, True),
+        (None, False, False),
+        ("0", True, False),
+        ("false", True, False),
+        ("FaLsE", True, False),
+        (None, None, None),
+    ),
+)
+def test_getenv_bool(monkeypatch, env_value, default, expected):
+    key = "TEST_GETENV_VAR"
+    if env_value:
+        monkeypatch.setenv(key, env_value)
+    else:
+        monkeypatch.delenv(key, raising=False)
+    assert getenv_bool(key, default) == expected

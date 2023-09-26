@@ -1,13 +1,15 @@
 import os
 from enum import Enum
 
+from ggshield.utils.os import getenv_int
+
 
 CPU_COUNT = os.cpu_count() or 1
 
 
 def _get_max_workers() -> int:
     # We add a max value to avoid silently consuming all threads on powerful machines
-    return int(os.getenv("GG_MAX_WORKERS", "32"))
+    return getenv_int("GG_MAX_WORKERS", 32)
 
 
 MAX_WORKERS = min(CPU_COUNT, _get_max_workers())

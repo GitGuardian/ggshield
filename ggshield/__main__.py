@@ -27,6 +27,7 @@ from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
 from ggshield.core.text_utils import display_warning
 from ggshield.utils.click import RealPath
+from ggshield.utils.os import getenv_bool
 
 
 logger = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ def main(args: Optional[List[str]] = None) -> Any:
     `args` is only used by unit-tests.
     """
     disable_logs()
-    show_crash_log = os.getenv("GITGUARDIAN_CRASH_LOG", "False").lower() == "true"
+    show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
 
 

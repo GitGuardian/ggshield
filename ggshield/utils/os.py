@@ -5,7 +5,7 @@ import sys
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator, Tuple, Union
+from typing import Iterator, Optional, Tuple, Union, overload
 
 
 logger = logging.getLogger(__name__)
@@ -64,3 +64,54 @@ def cd(newdir: Union[str, Path]) -> Iterator[None]:
         yield
     finally:
         os.chdir(prevdir)
+
+
+@overload
+def getenv_int(key: str, default: None = None) -> Optional[int]:
+    ...
+
+
+@overload
+def getenv_int(key: str, default: int) -> int:
+    ...
+
+
+def getenv_int(key: str, default: Optional[int] = None) -> Optional[int]:
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return int(value)
+
+
+@overload
+def getenv_float(key: str, default: None = None) -> Optional[float]:
+    ...
+
+
+@overload
+def getenv_float(key: str, default: float) -> float:
+    ...
+
+
+def getenv_float(key: str, default: Optional[float] = None) -> Optional[float]:
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return float(value)
+
+
+@overload
+def getenv_bool(key: str, default: None = None) -> Optional[bool]:
+    ...
+
+
+@overload
+def getenv_bool(key: str, default: bool) -> bool:
+    ...
+
+
+def getenv_bool(key: str, default: Optional[bool] = None) -> Optional[bool]:
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return value.lower() not in {"false", "0"}

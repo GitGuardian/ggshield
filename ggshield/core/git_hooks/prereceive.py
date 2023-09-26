@@ -8,6 +8,7 @@ import click
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import EMPTY_SHA, git
+from ggshield.utils.os import getenv_float, getenv_int
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ BYPASS_MESSAGE = """\n     git push -o breakglass"""
 
 def get_prereceive_timeout() -> float:
     try:
-        return float(os.getenv("GITGUARDIAN_TIMEOUT", PRERECEIVE_TIMEOUT))
+        return getenv_float("GITGUARDIAN_TIMEOUT", PRERECEIVE_TIMEOUT)
     except BaseException as e:
         display_error(f"Unable to parse GITGUARDIAN_TIMEOUT: {str(e)}")
         return PRERECEIVE_TIMEOUT
@@ -31,9 +32,8 @@ def get_prereceive_timeout() -> float:
 
 def get_breakglass_option() -> bool:
     """Test all options passed to git for `breakglass`"""
-    raw_option_count = os.getenv("GIT_PUSH_OPTION_COUNT", None)
-    if raw_option_count is not None:
-        option_count = int(raw_option_count)
+    option_count = getenv_int("GIT_PUSH_OPTION_COUNT")
+    if option_count is not None:
         for option in range(option_count):
             if os.getenv(f"GIT_PUSH_OPTION_{option}", "") == "breakglass":
                 click.echo(
