@@ -121,7 +121,7 @@ def test_sca_scan_ci_github_push_before_empty_sha(
 
     # Mocks the two SCAClient calls
     compute_sca_files_mock.return_value = ComputeSCAFilesResult(
-        sca_files=["Pipfile", "Pipfile.lock"], potential_siblings=[]
+        sca_files=["Pipfile", "Pipfile.lock"]
     )
     scan_diff_mock.return_value = SCAScanDiffOutput(
         scanned_files=[], added_vulns=[], removed_vulns=[]
