@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.19.1 - 2023-09-26
+
+- Internal fixes to unblock release process
+
 <a id='changelog-1.19.0'></a>
 
 ## 1.19.0 — 2023-09-26
