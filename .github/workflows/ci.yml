@@ -148,6 +148,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Warning: changes on this step should be reflected in workflows/tag.yml
       - name: Install packaging tools
         shell: bash
         run: |
