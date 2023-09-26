@@ -4,9 +4,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ggshield.verticals.hmsl.secret_manager.hashicorp_vault import (
-    VaultCliTokenFetchingError,
+from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.cli import (
     get_vault_cli_token,
+)
+from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.exceptions import (
+    VaultCliTokenFetchingError,
 )
 
 
@@ -50,7 +52,7 @@ def test_get_vault_cli_token_vault_cli_parsing_error(successful_vault_cli_call):
     """
 
     with patch(
-        "ggshield.verticals.hmsl.secret_manager.hashicorp_vault.json.loads",
+        "ggshield.verticals.hmsl.secret_manager.hashicorp_vault.cli.json.loads",
         side_effect=RuntimeError(),
     ):
         with pytest.raises(
