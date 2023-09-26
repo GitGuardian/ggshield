@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.9.0 (Darwin;py3.11.4)
+          - pygitguardian/1.10.0 (Linux;py3.10.13)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 04 Sep 2023 14:10:13 GMT
+          - Tue, 26 Sep 2023 13:21:33 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.38.0
+          - v2.39.1
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '9'
+          - '11'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.16.1
+          - 1.17.0
         x-secrets-engine-version:
-          - 2.96.0
+          - 2.97.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -73,7 +73,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.9.0 (Darwin;py3.11.4)
+          - pygitguardian/1.10.0 (Linux;py3.10.13)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -91,7 +91,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 04 Sep 2023 14:10:13 GMT
+          - Tue, 26 Sep 2023 13:21:33 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -101,19 +101,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.38.0
+          - v2.39.1
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '9'
+          - '11'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.16.1
+          - 1.17.0
         x-secrets-engine-version:
-          - 2.96.0
+          - 2.97.0
         x-xss-protection:
           - 1; mode=block
       status:

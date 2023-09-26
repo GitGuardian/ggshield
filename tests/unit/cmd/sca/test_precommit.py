@@ -58,9 +58,9 @@ def test_sca_scan_pre_commit_with_added_vulns(
 
     patch_compute_sca_files.side_effect = [
         # First call, repo is empty
-        ComputeSCAFilesResult(sca_files=[], potential_siblings=[]),
+        ComputeSCAFilesResult(sca_files=[]),
         # Second call, there is the dependency file
-        ComputeSCAFilesResult(sca_files=["Pipfile.lock"], potential_siblings=[]),
+        ComputeSCAFilesResult(sca_files=["Pipfile.lock"]),
     ]
 
     patch_scan_diff.return_value = SCAScanDiffOutput(

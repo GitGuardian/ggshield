@@ -13,25 +13,25 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.9.0 (Darwin;py3.11.4)
+          - pygitguardian/1.10.0 (Linux;py3.10.13)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
       body:
-        string: '{"sca_files":["Pipfile","Pipfile.lock"],"potential_siblings":["Pipfile.lock","Pipfile"]}'
+        string: '{"sca_files":["Pipfile","Pipfile.lock"],"potential_siblings":[]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '88'
+          - '64'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 04 Sep 2023 14:10:11 GMT
+          - Tue, 26 Sep 2023 13:21:31 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.38.0
+          - v2.39.1
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '36'
+          - '11'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.16.1
+          - 1.17.0
         x-secrets-engine-version:
-          - 2.96.0
+          - 2.97.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -73,7 +73,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.9.0 (Darwin;py3.11.4)
+          - pygitguardian/1.10.0 (Linux;py3.10.13)
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -91,7 +91,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 04 Sep 2023 14:10:11 GMT
+          - Tue, 26 Sep 2023 13:21:31 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -101,7 +101,7 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.38.0
+          - v2.39.1
         x-content-type-options:
           - nosniff
           - nosniff
@@ -111,9 +111,9 @@ interactions:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.16.1
+          - 1.17.0
         x-secrets-engine-version:
-          - 2.96.0
+          - 2.97.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -121,22 +121,21 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS0wZWYzMDBkYzhhNjZkYmFkOGJhYjRjOWE2OGE5ZWIxYw0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS1kOGIzODNmY2I3NDNlMzU3MWQyMzA5MDViMzhjNDM4OA0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        Q+X1ZAL/7ZXNbqMwEMdz5ikin9vEX4CJlHfoPYoiY48bVBIohmijVd59MdkmYZMe29Vq53cBZsYz
-        xsP8eSlqV5Qw+UpoTyLlcO3580q5vN6f7SmP5WRKJ99A51vd9CUn/yfRauWrrjGwXkddU06XU7Jt
-        29ov5vP6WBezqnmd+2JXl0CiAzSFO268D2Ft00G01zsIS0IoiaJVrc2bfgW/jvx7WevGD97lks7k
-        TIQAC4fna1C0auC9K5pwXx/bbbXf9DV8Ue3DMjFjlEyQL+XlPP+zsjJvf2n+maTxeP4Z5TTF+f+W
-        +f8ZTXvIZgetJovp+XEwbbXfjiyD1W81j5PeTnjuWJK6RKdca02dVC5WaZLJ2HEtUpVKJxxj0mob
-        QxZzY1PrMutA2cxyxcgl8enpWrU+f5DPvgbTV0luXB9icb+psXiEzQ3i8bDAWe5CktUoyTjlEBrk
-        LSQb5O3p3t8LZnB/JpgPVlwltF84SOit+3R5Wkc32yYWnO7KdtyeD4W9P43QuAcveNO+BRVcGAqG
-        Z8bGPDegc8Ny2TcmTjMQjDkBMktYninLUskps3HCueYiVzEI+ejdfqdOMqMVlUomeR66z8EIRUGK
-        hGqlhaQ2V8JRY5zQzgDk/fxL6yjvP5+UJ4qMMq/HhUixt/Djk56Qm/5f/jnjs72e6AHKqg5nd4pO
-        +BtAEARBEARBEARBEARBEARBEARBEARB/nF+AXOIyCYAKAAADQotLTBlZjMwMGRjOGE2NmRiYWQ4
-        YmFiNGM5YTY4YTllYjFjDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImN1
-        cnJlbnQiOyBmaWxlbmFtZT0iY3VycmVudCINCg0KH4sIAETl9WQC/+3BAQ0AAADCoPdPbQ43oAAA
-        AAAAAAAAAIA3A5reHScAKAAADQotLTBlZjMwMGRjOGE2NmRiYWQ4YmFiNGM5YTY4YTllYjFjLS0N
-        Cg==
+        3NoSZQL/7ZTLbqswEIaz5iki1m3iG2Ai5R26Rygy9rhBJYFiqE50lHc/hpxcaFN11W4638Z4PJ4x
+        Hs//VDa2rGBR1fpl9k0QTyzEOHrej1SQ6Px9slPCSDKbk9kP0LtOtT797HcS/A3mnnCzg06Fq/lp
+        Opq2ym0nltHqtopFsbeHrLA0TmysEqaUIlZIG8kkTkVkmeKJTITlllJhlIkgjZg2ibGpsSBNapik
+        4SXw8eGatTk9yEfXgPZZ4pulFl77sgX38VDNodvW+80btK6s98Ph+IKS+wlc3bd6DJJNgkxDjq57
+        tYMhWHNoyvDh43rfVsPytusat1ouB7dF3T4vXblrKri3w5+wtIeNc8PGru1h4nK8zPLg5tihAav6
+        qpuWx71WjWodfLyNoXB3fvCmfCvCGdcENEu1iVihQRWaFsIXJkpS4JRaDiKNaZFKQxPBCDVRzJhi
+        vJARcHHv3/6HjlOtJBFSxEUxVJ+B5pKA4DFRUnFBTCG5JVpbrqwGKHz/C2MJ888nYbEMJ5HzaaKw
+        3Bv480lNwpv6r9dkIRb85gm8u9E3qOpmuLtjcJz9Xp5O7fatOb7Qf8IEmeo/SVgkUP9/RP+z7CSI
+        eR54OZuvP5ez4Cpe3m0Ur0Eghy1jMwZB1ij9op7B5cFZnYbVSy8Gme+7x6tTkJ0lPQ+mEj5sGyV8
+        hiAIgiAIgiAIgiAIgiAIgiAIgiAIgiDIl/wD78ooVQAoAAANCi0tZDhiMzgzZmNiNzQzZTM1NzFk
+        MjMwOTA1YjM4YzQzODgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iY3Vy
+        cmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgA3NoSZQL/7cEBDQAAAMKg909tDjegAAAA
+        AAAAAAAAgDcDmt4dJwAoAAANCi0tZDhiMzgzZmNiNzQzZTM1NzFkMjMwOTA1YjM4YzQzODgtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -145,23 +144,23 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '856'
+          - '855'
         Content-Type:
-          - multipart/form-data; boundary=0ef300dc8a66dbad8bab4c9a68a9eb1c
+          - multipart/form-data; boundary=d8b383fcb743e3571d230905b38c4388
         GGShield-Command-Id:
-          - 500f8a69-fc24-4020-96da-888e6fd718e8
+          - ed75ad48-436a-4dd0-b70f-c392b5055cb2
         GGShield-Command-Path:
           - ''
         GGShield-OS-Name:
-          - darwin
+          - ubuntu
         GGShield-OS-Version:
-          - 'Darwin Kernel Version 22.6.0: Wed Jul  5 22:22:05 PDT 2023; root:xnu-8796.141.3~6/RELEASE_ARM64_T6000'
+          - '22.04'
         GGShield-Python-Version:
-          - 3.11.4
+          - 3.10.13
         GGShield-Version:
           - 1.18.1
         User-Agent:
-          - pygitguardian/1.9.0 (Darwin;py3.11.4)
+          - pygitguardian/1.10.0 (Linux;py3.10.13)
         mode:
           - diff
       method: POST
@@ -184,7 +183,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 04 Sep 2023 14:10:12 GMT
+          - Tue, 26 Sep 2023 13:21:32 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -194,19 +193,19 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.38.0
+          - v2.39.1
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '274'
+          - '224'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.16.1
+          - 1.17.0
         x-secrets-engine-version:
-          - 2.96.0
+          - 2.97.0
         x-xss-protection:
           - 1; mode=block
       status:

@@ -13,6 +13,7 @@ from ggshield.verticals.sca.sca_scan_models import (
     SCAScanAllOutput,
     SCAScanDiffOutput,
     SCAScanParameters,
+    SCAVulnerability,
 )
 from tests.unit.conftest import my_vcr
 
@@ -85,7 +86,6 @@ class TestSCAClient:
         result = sca_client.compute_sca_files(files=["Pipfile", "something_else"])
         assert isinstance(result, ComputeSCAFilesResult)
         assert result.sca_files == ["Pipfile"]
-        assert result.potential_siblings == ["Pipfile.lock"]
 
     @my_vcr.use_cassette("test_sca_scan_directory_valid.yaml", ignore_localhost=False)
     def test_sca_scan_directory(self, client: GGClient):
@@ -114,7 +114,19 @@ class TestSCAClient:
             None,
         )
         assert vuln_pkg is not None
-        assert len(vuln_pkg.vulns) == 13
+        assert (
+            SCAVulnerability.from_dict(
+                {
+                    "cve_ids": [],
+                    "identifier": "GHSA-22wc-c9wj-6q2v",
+                    "severity": "medium",
+                    "created_at": "2021-04-19T15:12:05Z",
+                    "fixed_version": "0.2.12",
+                    "summary": "VVE-2021-0001: Memory corruption using function calls within arrays",
+                }
+            )
+            in vuln_pkg.vulns
+        )
 
     @my_vcr.use_cassette(
         "test_sca_scan_directory_invalid_tar.yaml", ignore_localhost=False
