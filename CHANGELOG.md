@@ -1,5 +1,31 @@
 # Changelog
 
+<a id='changelog-1.19.0'></a>
+
+## 1.19.0 — 2023-09-26
+
+### Removed
+
+- ggshield now refuses to install on python < 3.8
+
+### Added
+
+#### HMSL
+
+- Added new `ggshield hmsl check-secret-manager hashicorp-vault` command to scan secrets of an [HashiCorp Vault](https://www.hashicorp.com/products/vault) instance.
+
+### Changed
+
+- Help messages have been improved and are now kept in sync with [ggshield online reference documentation](https://docs.gitguardian.com/ggshield-docs/reference/overview).
+
+### Fixed
+
+- Fixed a typo in the command suggested to tell git a directory is safe.
+
+- The bug on Gitlab CI for IaC and SCA, failing because git does not access the target branch in a merge request is fixed. Now fetches the target branch in the CI env before collecting commit shas.
+
+- Fix IaC and SCA scan commands in Windows
+
 <a id='changelog-1.18.1'></a>
 
 ## 1.18.1 — 2023-08-22
