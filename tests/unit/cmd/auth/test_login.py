@@ -14,7 +14,11 @@ from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.utils.datetime import get_pretty_date
 from ggshield.verticals.auth import OAuthClient, OAuthError
 from tests.unit.conftest import assert_invoke_ok
-from tests.unit.request_mock import RequestMock, create_json_response
+from tests.unit.request_mock import (
+    RequestMock,
+    create_html_response,
+    create_json_response,
+)
 
 from ..utils import add_instance_config
 
@@ -264,6 +268,8 @@ class LoginResult(IntEnum):
     INVALID_STATE = auto()
     NO_AUTHORIZATION_CODE = auto()
     EXCHANGE_FAILED = auto()
+    GARBAGE_HTML_RESPONSE = auto()
+    GARBAGE_NO_TOKEN_RESPONSE = auto()
     INVALID_TOKEN = auto()
     SUCCESS = auto()
 
@@ -441,7 +447,39 @@ class TestAuthLoginWeb:
 
         self._request_mock.assert_all_requests_happened()
         self._webbrowser_open_mock.assert_called_once()
-        self._assert_last_print(output, "Error: Cannot create a token.")
+        self._assert_last_print(output, "Error: Cannot create a token: kaboom.")
+
+    @pytest.mark.parametrize(
+        ("login_result", "message"),
+        (
+            (
+                LoginResult.GARBAGE_HTML_RESPONSE,
+                "Error: Server response is not JSON (HTTP code: 418).",
+            ),
+            (
+                LoginResult.GARBAGE_NO_TOKEN_RESPONSE,
+                "Error: Server did not provide the created token.",
+            ),
+        ),
+    )
+    def test_garbage_exits_error(
+        self, cli_fs_runner, login_result, message, monkeypatch
+    ):
+        """
+        GIVEN a token created via the oauth process
+        WHEN the response answer is HTML
+        THEN the auth flow fails with an explanatory message
+        """
+        self.prepare_mocks(monkeypatch, login_result=login_result)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.UNEXPECTED_ERROR
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url()
+
+        self._request_mock.assert_all_requests_happened()
+
+        self._assert_last_print(output, message)
 
     def test_invalid_token_exits_error(self, cli_fs_runner, monkeypatch):
         """
@@ -609,13 +647,18 @@ class TestAuthLoginWeb:
             "ggshield.verticals.auth.oauth.HTTPServer", mock_server_class
         )
 
+        # Step: POST /v1/oauth/token
         if login_result < LoginResult.EXCHANGE_FAILED:
             return
 
         token_response_payload = {}
         if login_result == LoginResult.EXCHANGE_FAILED:
-            response = create_json_response({}, status_code=400)
-        else:
+            response = create_json_response({"detail": "kaboom"}, status_code=400)
+        elif login_result == LoginResult.GARBAGE_HTML_RESPONSE:
+            response = create_html_response("I'm a teapot", 418)
+        elif login_result == LoginResult.GARBAGE_NO_TOKEN_RESPONSE:
+            response = create_json_response({"no_key": "nope"})
+        elif login_result in (LoginResult.INVALID_TOKEN, LoginResult.SUCCESS):
             token_response_payload = VALID_TOKEN_RESPONSE.json().copy()
             if downsized_token is not None:
                 token_response_payload["expire_at_downsized"] = downsized_token
@@ -625,19 +668,24 @@ class TestAuthLoginWeb:
 
             # mock api call to exchange the code against a valid access token
             response = create_json_response({"key": token, **token_response_payload})
+        else:
+            raise ValueError(f"Invalid {login_result=}")
 
         self._request_mock.add_POST(
             "/v1/oauth/token", response, self._assert_post_payload
         )
 
-        if login_result >= LoginResult.INVALID_TOKEN:
-            self._request_mock.add_GET(
-                TOKEN_ENDPOINT,
-                create_json_response(
-                    token_response_payload,
-                    400 if login_result == LoginResult.INVALID_TOKEN else 200,
-                ),
-            )
+        # GET /v1/token, only if we received a token
+        if login_result < LoginResult.INVALID_TOKEN:
+            return
+
+        self._request_mock.add_GET(
+            TOKEN_ENDPOINT,
+            create_json_response(
+                token_response_payload,
+                400 if login_result == LoginResult.INVALID_TOKEN else 200,
+            ),
+        )
 
     def run_cmd(self, cli_fs_runner, method="web"):
         """

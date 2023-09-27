@@ -235,24 +235,23 @@ class OAuthClient:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
-        raise_error = False
-        if response.ok:
-            try:
-                response_json = response.json()
-                self._expire_at_downsized = response_json.get(
-                    "expire_at_downsized",
-                    False,
-                )
-                self._access_token = response_json["key"]
-            except (json.decoder.JSONDecodeError, ValueError):
-                raise_error = True
-        else:
-            raise_error = True
+        try:
+            dct = response.json()
+        except json.decoder.JSONDecodeError:
+            raise UnexpectedError(
+                f"Server response is not JSON (HTTP code: {response.status_code})."
+            )
 
-        if raise_error:
-            raise OAuthError("Cannot create a token.")
+        if not response.ok:
+            detail = dct.get("detail", "[no error message]")
+            raise OAuthError(f"Cannot create a token: {detail}.")
 
-        self._access_token = response.json()["key"]
+        try:
+            self._access_token = dct["key"]
+        except KeyError:
+            raise UnexpectedError("Server did not provide the created token.")
+
+        self._expire_at_downsized = dct.get("expire_at_downsized", False)
 
     def _validate_access_token(self) -> Dict[str, Any]:
         """
@@ -431,46 +430,49 @@ class RequestHandlerWrapper:
                 callback_url: str = self_.path
                 parsed_url = urlparse.urlparse(callback_url)
                 if parsed_url.path != "/":
-                    self_._end_request(404)
+                    self_._write_error_response(404, f"Invalid path: {parsed_url.path}")
                     return
 
                 # indicate to the server to stop
                 self.complete = True
 
-                error_string = get_error_param(parsed_url)
-                if error_string is not None:
-                    self_._end_request(200)
-                    self.error_message = self.oauth_client.get_server_error_message(
-                        error_string
+                if error_param := get_error_param(parsed_url):
+                    error_message = self.oauth_client.get_server_error_message(
+                        error_param
                     )
+                    self_._write_error_response(400, error_message)
+                    self.error_message = error_message
                     return
 
                 try:
                     self.oauth_client.process_callback(callback_url)
                 except OAuthError as error:
-                    self_._end_request(400)
+                    self_._write_error_response(400, error.message)
                     # attach error message to the handler wrapper instance
                     self.error_message = error.message
                 else:
-                    self_._end_request(
-                        301,
+                    self_._redirect(
                         urljoin(self.oauth_client.dashboard_url, "authenticated"),
                     )
 
-            def _end_request(
+            def _write_error_response(
                 self_,  # type:ignore
                 status_code: int,
-                redirect_url: Optional[str] = None,
+                message: str,
             ) -> None:
-                """
-                End the current request. If a redirect url is provided,
-                the response will be a redirection to this url.
-                If not the response will be a user error 400
-                """
+                """Return a basic HTML error page"""
                 self_.send_response(status_code)
+                self_.end_headers()
 
-                if redirect_url is not None:
-                    self_.send_header("Location", redirect_url)
+                content = f"<html><body><h1>Error</h1>{message}</body></html>"
+                self_.wfile.write(content.encode())
+
+            def _redirect(
+                self_,  # type:ignore
+                redirect_url: str,
+            ) -> None:
+                self_.send_response(301)
+                self_.send_header("Location", redirect_url)
                 self_.end_headers()
 
             def log_message(self, format: str, *args: Any) -> None:
