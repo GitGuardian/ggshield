@@ -80,7 +80,7 @@ repos:
         stages: [push]
 
   - repo: https://github.com/gitguardian/ggshield
-    rev: v1.18.1
+    rev: v1.19.1
     hooks:
       - id: ggshield
         language_version: python3
