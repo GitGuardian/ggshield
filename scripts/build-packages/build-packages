@@ -27,6 +27,7 @@ PKG_DIR=$PWD/packages
 VERSION=$(python -c 'import ggshield; print(ggshield.__version__)')
 
 GGSHIELD_WHL=$DIST_DIR/ggshield-$VERSION-py3-none-any.whl
+GGSHIELD_SDIST=$DIST_DIR/ggshield-$VERSION.tar.gz
 GGSHIELD_PYZ=$PKG_DIR/ggshield-$VERSION.pyz
 
 log_progress() {
@@ -35,9 +36,9 @@ log_progress() {
     echo -e "${cstart}$*${cend}"
 }
 
-build_whl() {
-    log_progress "Building wheel"
-    python -m build --wheel
+build_whl_sdist() {
+    log_progress "Building wheel and sdist"
+    python -m build
 }
 
 build_pyz() {
@@ -68,8 +69,8 @@ run_nfpm() {
 
 mkdir -p $PKG_DIR
 
-if [ ! -f "$GGSHIELD_WHL" ] ; then
-    build_whl
+if [ ! -f "$GGSHIELD_WHL" ] || [ ! -f "$GGSHIELD_SDIST" ] ; then
+    build_whl_sdist
 fi
 
 if [ ! -f "$GGSHIELD_PYZ" ] ; then
