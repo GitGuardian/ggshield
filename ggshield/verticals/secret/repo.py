@@ -13,7 +13,7 @@ from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
-from ggshield.core.scan import Commit, ScanContext
+from ggshield.core.scan import Commit, PatchParseError, ScanContext
 from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
@@ -120,7 +120,14 @@ def get_commits_by_batch(
     current_count = 0
     batch = []
     for commit in commits:
-        num_files = len(commit.files)
+        try:
+            num_files = len(commit.files)
+        except PatchParseError as e:
+            display_error(
+                f"\nError extracting files from commit {commit.sha}:\n{e}\n"
+                "Results may be incomplete."
+            )
+            continue
         if current_count + num_files < batch_max_size:
             batch.append(commit)
             current_count += num_files

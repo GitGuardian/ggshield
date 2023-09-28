@@ -123,16 +123,7 @@ class Commit(Files):
     def patch(self) -> str:
         """Get the change patch for the commit."""
         if self._patch is None:
-            common_args = [
-                "--raw",  # shows a header with the files touched by the commit
-                "-z",  # separate file names in the raw header with \0
-                "--patch",  # force output of the diff (--raw disables it)
-                "-m",  # split multi-parent (aka merge) commits into several one-parent commits
-            ]
-            if self.sha:
-                self._patch = git(["show", self.sha] + common_args)
-            else:
-                self._patch = git(["diff", "--cached"] + common_args)
+            self._patch = self.get_patch()
 
         return self._patch
 
@@ -142,6 +133,19 @@ class Commit(Files):
             self._files = list(self.get_files())
 
         return self._files
+
+    def get_patch(self) -> str:
+        common_args = [
+            "--raw",  # shows a header with the files touched by the commit
+            "-z",  # separate file names in the raw header with \0
+            "--patch",  # force output of the diff (--raw disables it)
+            "-m",
+            # split multi-parent (aka merge) commits into several one-parent commits
+        ]
+        if self.sha:
+            return git(["show", self.sha] + common_args)
+        else:
+            return git(["diff", "--cached"] + common_args)
 
     def get_files(self) -> Iterable[Scannable]:
         """

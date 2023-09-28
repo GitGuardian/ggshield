@@ -1,4 +1,4 @@
-from .commit import Commit
+from .commit import Commit, PatchParseError
 from .file import File, get_files_from_paths
 from .scan_context import ScanContext
 from .scan_mode import ScanMode
@@ -11,6 +11,7 @@ __all__ = [
     "DecodeError",
     "File",
     "Files",
+    "PatchParseError",
     "ScanContext",
     "ScanMode",
     "Scannable",

@@ -1,14 +1,30 @@
 from copy import deepcopy
-from typing import List
+from typing import Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from ggshield.core.scan import Commit, StringScannable
 from ggshield.core.scan.commit import CommitInformation
+from ggshield.utils.git_shell import GitCommandTimeoutExpired
 from ggshield.verticals.secret import Result, Results
 from ggshield.verticals.secret.repo import get_commits_by_batch, scan_commits_content
 from tests.unit.conftest import TWO_POLICY_BREAKS
+
+
+def create_test_commit(*, sha: str, files: Dict[str, str]) -> Commit:
+    """Helper function to create a commit with the given sha and files"""
+    commit = Commit(sha=sha)
+    commit.get_files = MagicMock(
+        return_value=[
+            StringScannable(
+                url=key,
+                content=value,
+            )
+            for key, value in files.items()
+        ]
+    )
+    return commit
 
 
 @pytest.mark.parametrize(
@@ -54,21 +70,40 @@ def test_get_commits_content_by_batch(
     """
     commits = []
     for commit_nb, size in enumerate(commits_sizes):
-        commit = Commit(sha=f"some_sha_{commit_nb}")
-        commit.get_files = MagicMock(
-            return_value=[
-                StringScannable(
-                    content=f"some content {file_nb}",
-                    url=f"some_filename_{file_nb}.py",
-                )
-                for file_nb in range(size)
-            ]
-        )
+        files = {f"{file_nb}.py": f"some content {file_nb}" for file_nb in range(size)}
+        commit = create_test_commit(sha=f"some_sha_{commit_nb}", files=files)
         commits.append(commit)
     batches = list(get_commits_by_batch(commits=commits, batch_max_size=batch_size))
     assert len(batches) == len(expected_batches)
     for (batch, expected_batch) in zip(batches, expected_batches):
         assert len(batch) == len(expected_batch)
+
+
+def create_git_show_timeout_commit() -> Commit:
+    """Helper command to simulate a commit for which calling `git show` to extract
+    the patch causes a GitCommandTimeoutExpired exception"""
+    commit = Commit(sha="d3ad511a")
+    commit.get_patch = MagicMock(side_effect=GitCommandTimeoutExpired)
+    return commit
+
+
+def test_get_commits_content_by_batch_continue_on_git_show_timeout(capsys):
+    """
+    GIVEN a set of commits
+    AND the first one causes `git show` to timeout
+    WHEN get_commits_by_patch() is called on the commits
+    THEN it does not stop on the first one
+    AND a warning message is printed
+    """
+    bad_commit = create_git_show_timeout_commit()
+    good_commit = create_test_commit(sha="1234", files={"README": "hello"})
+    commits = [bad_commit, good_commit]
+
+    batches = list(get_commits_by_batch(commits=commits, batch_max_size=2))
+    captured = capsys.readouterr()
+
+    assert batches == [[good_commit]]
+    assert f"Error extracting files from commit {bad_commit.sha}:" in captured.err
 
 
 @patch("ggshield.verticals.secret.repo.SecretScanner")
