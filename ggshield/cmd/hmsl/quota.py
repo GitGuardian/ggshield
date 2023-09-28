@@ -25,7 +25,7 @@ def quota_cmd(
 
     # Get our client
     config: Config = ctx.obj["config"]
-    client = get_client(config)
+    client = get_client(config, ctx.command_path)
 
     click.echo(
         f"Quota limit: {client.quota.limit}\n"

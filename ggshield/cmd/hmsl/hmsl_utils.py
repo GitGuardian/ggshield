@@ -23,7 +23,7 @@ def check_secrets(
     # Query the API
     display_info("Querying HasMySecretLeaked...")
     config: Config = ctx.obj["config"]
-    client = get_client(config)
+    client = get_client(config, hmsl_command_path=ctx.command_path)
     found: Iterable[Secret] = []
     error: Optional[Exception] = None
     try:

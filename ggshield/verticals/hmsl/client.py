@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import requests
 
+from ggshield import __version__
 from ggshield.utils.itertools import batched
 
 from .crypto import decrypt, make_hint
@@ -61,12 +62,24 @@ class Quota:
 
 class HMSLClient:
     def __init__(
-        self, url: str, jwt: Optional[str] = None, *, prefix_length: int = PREFIX_LENGTH
+        self,
+        url: str,
+        hmsl_command_path: str,
+        jwt: Optional[str] = None,
+        *,
+        prefix_length: int = PREFIX_LENGTH,
     ) -> None:
         self.url = url.strip("/")
         self.jwt = jwt
         self.prefix_length = prefix_length
         self._quota: Optional[Quota] = None
+
+        # Create a session with common headers.
+        self.session = requests.Session()
+        self.session.headers["GGShield-HMSL-Command-Name"] = hmsl_command_path.replace(
+            "ggshield ", ""
+        ).replace(" ", "_")
+        self.session.headers["User-Agent"] = f"GGShield {__version__}"
 
     @property
     def quota(self) -> Quota:
@@ -80,7 +93,7 @@ class HMSLClient:
     def status(self) -> bool:
         """Return the status of the HMSL server."""
         try:
-            response = requests.get(f"{self.url}/healthz")
+            response = self.session.get(f"{self.url}/healthz")
             response.raise_for_status()
             return True
         except requests.exceptions.RequestException:
@@ -152,7 +165,7 @@ class HMSLClient:
             headers = {"Authorization": f"Bearer {self.jwt}"}
         else:
             headers = {}
-        response = requests.post(
+        response = self.session.post(
             self.url + endpoint,
             json=body,
             headers=headers,

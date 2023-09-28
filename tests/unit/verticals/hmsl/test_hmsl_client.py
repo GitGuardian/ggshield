@@ -1,9 +1,11 @@
-from typing import List
+from typing import List, Optional, Union
 from unittest import mock
 
 import pytest
 
+from ggshield import __version__
 from ggshield.verticals.hmsl import HMSLClient
+from ggshield.verticals.hmsl.client import PREFIX_LENGTH
 from ggshield.verticals.hmsl.crypto import hash_string
 
 
@@ -34,10 +36,18 @@ def hashes():
     return [hash_string(letter) for letter in "abcdefghijklmnopqrstuvwxyz"]
 
 
-@pytest.fixture
-def hmsl_client():
+def get_hmsl_client(
+    hmsl_command_path: Optional[str] = None,
+    prefix_length: int = PREFIX_LENGTH,
+    jwt: Union[str, None] = None,
+):
     """Return a HMSL client."""
-    return HMSLClient("foo")
+    return HMSLClient(
+        "foo",
+        hmsl_command_path or "ggshield hmsl check",
+        jwt=jwt,
+        prefix_length=prefix_length,
+    )
 
 
 def test_hmsl_client_check_prefixes(hashes: List[str]):
@@ -46,10 +56,10 @@ def test_hmsl_client_check_prefixes(hashes: List[str]):
     WHEN a batch of hashes is audited
     THEN the query contains prefixes
     """
-    hmsl_client = HMSLClient("foo", prefix_length=6)
+    hmsl_client = get_hmsl_client(prefix_length=6)
     expected_prefixes = {hash[:6] for hash in hashes[:5]}
 
-    with mock.patch("requests.post") as post:
+    with mock.patch("requests.Session.post") as post:
         list(hmsl_client.check(hashes[:5]))
         url, kwargs = post.call_args
         assert url == ("foo/v1/prefixes",)
@@ -59,15 +69,15 @@ def test_hmsl_client_check_prefixes(hashes: List[str]):
         )
 
 
-def test_hmsl_client_check_hashes(hmsl_client: HMSLClient, hashes):
+def test_hmsl_client_check_hashes(hashes):
     """
     GIVEN a HMSL client
     WHEN a batch of hashes is audited as full hashes
     THEN the query contains full hashes
     """
-    hmsl_client = HMSLClient("foo")
+    hmsl_client = get_hmsl_client()
 
-    with mock.patch("requests.post") as post:
+    with mock.patch("requests.Session.post") as post:
         list(hmsl_client.check(hashes + hashes, full_hashes=True))
         url, kwargs = post.call_args
         assert url == ("foo/v1/hashes",)
@@ -82,9 +92,9 @@ def test_hmsl_client_jwt(hashes):
     WHEN a JWT is provided
     THEN the query contains it as an Bearer token
     """
-    hmsl_client = HMSLClient("foo", jwt="bar")
+    hmsl_client = get_hmsl_client(jwt="bar")
 
-    with mock.patch("requests.post") as post:
+    with mock.patch("requests.Session.post") as post:
         list(hmsl_client.check([]))
         assert not post.called
         list(hmsl_client.check(hashes[:1]))
@@ -92,12 +102,14 @@ def test_hmsl_client_jwt(hashes):
         assert ("Authorization", "Bearer bar") in kwargs["headers"].items()
 
 
-def test_hmsl_client_decode_response(hmsl_client: HMSLClient):
+def test_hmsl_client_decode_response():
     """
     GIVEN a HMSL client
     WHEN a response is received
     THEN the response is properly decrypted
     """
+    hmsl_client = get_hmsl_client()
+
     with mock.patch(
         "ggshield.verticals.hmsl.HMSLClient._query", return_value=SAMPLE_RESPONSE
     ):
@@ -106,3 +118,29 @@ def test_hmsl_client_decode_response(hmsl_client: HMSLClient):
     secret = response[0]
     assert secret.count == 42
     assert "github.com" in secret.url
+
+
+@pytest.mark.parametrize(
+    "command, expected_header_value",
+    [
+        (
+            "ggshield hmsl check-secret-manager hashicorp-vault",
+            "hmsl_check-secret-manager_hashicorp-vault",
+        ),
+        ("ggshield hmsl check", "hmsl_check"),
+    ],
+)
+def test_hmsl_common_headers(command, expected_header_value):
+    """
+    GIVEN the HMSLClient class
+    WHEN creating a new client instance
+    THEN the underlying requests session has the GGShield-HMSL-Command-Name header set correctly
+    """
+
+    hmsl_client = get_hmsl_client(command)
+
+    assert (
+        hmsl_client.session.headers["GGShield-HMSL-Command-Name"]
+        == expected_header_value
+    )
+    assert hmsl_client.session.headers["User-Agent"] == f"GGShield {__version__}"

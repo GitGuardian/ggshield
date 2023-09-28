@@ -25,7 +25,7 @@ def status_cmd(
 
     # Get our client
     config: Config = ctx.obj["config"]
-    client = get_client(config)
+    client = get_client(config, ctx.command_path)
 
     click.echo(
         f"{format_text('API URL:', STYLE['key'])} {client.url}\n"
