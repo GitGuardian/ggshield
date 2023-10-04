@@ -12,6 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prepush import collect_commits_refs
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_SHA
 
 
@@ -54,8 +55,14 @@ def scan_pre_push_cmd(
     )
 
     if scan_all or has_no_remote_commit:
-        result = iac_scan_all(ctx, directory)
+        result = iac_scan_all(ctx, directory, scan_mode=ScanMode.PRE_PUSH_ALL)
         return display_iac_scan_all_result(ctx, directory, result)
     else:
-        result = iac_scan_diff(ctx, directory, remote_commit, include_staged=False)
+        result = iac_scan_diff(
+            ctx,
+            directory,
+            remote_commit,
+            include_staged=False,
+            scan_mode=ScanMode.PRE_PUSH_DIFF,
+        )
         return display_iac_scan_diff_result(ctx, directory, result)
