@@ -127,7 +127,8 @@ class VaultAPIClient:
 
         data = api_res["data"]["data"] if mount.version == "2" else api_res["data"]
         return [
-            (secret_name, secret_value) for secret_name, secret_value in data.items()
+            (f"{path}/{secret_name}", secret_value)
+            for secret_name, secret_value in data.items()
         ]
 
     def _get_secrets_or_empty(

@@ -162,12 +162,15 @@ def test_list_kv_items_v2(vault_api_client, vault_path, expected_results):
 @pytest.mark.parametrize(
     "vault_path, expected_results",
     [
-        ("b2b/web_app/prod/config.env", [("PROD_STUFF", "test")]),
+        (
+            "b2b/web_app/prod/config.env",
+            [("b2b/web_app/prod/config.env/PROD_STUFF", "test")],
+        ),
         (
             "b2b/worker/config.env",
             [
-                ("ANOTHER_PASSWORD", "my_secret_key"),
-                ("SECRET", "super_secret"),
+                ("b2b/worker/config.env/ANOTHER_PASSWORD", "my_secret_key"),
+                ("b2b/worker/config.env/SECRET", "super_secret"),
             ],
         ),
     ],
@@ -192,12 +195,15 @@ def test_get_kv_secrets_v1(vault_api_client, vault_path, expected_results):
 @pytest.mark.parametrize(
     "vault_path, expected_results",
     [
-        ("b2b/web_app/prod/config.env", [("PROD_STUFF", "test")]),
+        (
+            "b2b/web_app/prod/config.env",
+            [("b2b/web_app/prod/config.env/PROD_STUFF", "test")],
+        ),
         (
             "b2b/worker/config.env",
             [
-                ("ANOTHER_PASSWORD", "my_secret_key"),
-                ("SECRET", "super_secret"),
+                ("b2b/worker/config.env/ANOTHER_PASSWORD", "my_secret_key"),
+                ("b2b/worker/config.env/SECRET", "super_secret"),
             ],
         ),
     ],

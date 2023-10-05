@@ -62,7 +62,10 @@ def collect_list(input: List[Tuple[str, str]]) -> Iterator[SecretWithKey]:
         # filter our excluded keys and values
         if not key or not value:
             continue
-        if key.upper() in EXCLUDED_KEYS or value.lower() in EXCLUDED_VALUES:
+        if (
+            key.split("/")[-1].upper() in EXCLUDED_KEYS  # Only use the variable name
+            or value.lower() in EXCLUDED_VALUES
+        ):
             continue
         yield SecretWithKey(key=key, value=value)
 
