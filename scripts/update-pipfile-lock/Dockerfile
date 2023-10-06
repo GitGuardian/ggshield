@@ -13,7 +13,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install pipenv==2022.10.4
+RUN pip install pipenv==2023.10.3
 RUN useradd --uid $UID --create-home user
 
 WORKDIR /home/user/src

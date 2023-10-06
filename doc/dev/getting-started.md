@@ -2,7 +2,7 @@
 
 ## Setup your development environment
 
-1. Install [pipenv](https://github.com/pypa/pipenv#installation). ggshield uses version `20222.10.4`. Recent versions will not work due to the removal of the `--skip-lock` flag used when installing developer packages.
+1. Install [pipenv](https://github.com/pypa/pipenv#installation). ggshield uses version `2023.10.3`.
 
 1. Install the [pre-commit framework](https://pre-commit.com/#install)
 

@@ -3,25 +3,24 @@ import argparse
 import configparser
 import importlib
 import pkgutil
-from collections.abc import ItemsView
-from typing import Literal, cast
+from typing import Dict, ItemsView, List, Literal, Tuple, Union, cast
 
 from typing_extensions import NotRequired, TypedDict
 
 
 AlertingLevel = Literal["error", "warn", "none"]
-ValueType = AlertingLevel | str | list[str]
+ValueType = Union[AlertingLevel, str, List[str]]
 
 
 class Contract(TypedDict):
     name: str
     type: Literal["layers", "independence", "forbidden"]
-    layers: NotRequired[list[str]]
-    modules: NotRequired[list[str]]
-    ignore_imports: NotRequired[list[str]]
+    layers: NotRequired[List[str]]
+    modules: NotRequired[List[str]]
+    ignore_imports: NotRequired[List[str]]
     unmatched_ignore_imports_alerting: NotRequired[AlertingLevel]
-    source_modules: NotRequired[list[str]]
-    forbidden_modules: NotRequired[list[str]]
+    source_modules: NotRequired[List[str]]
+    forbidden_modules: NotRequired[List[str]]
 
 
 NOTICE = (
@@ -72,7 +71,7 @@ STATIC_CONFIG = {
 }
 
 
-def get_submodules(*, name: str, prefixed: bool) -> list[str]:
+def get_submodules(*, name: str, prefixed: bool) -> List[str]:
     """Retrieve the modules included in a package"""
     module = importlib.import_module(name)
     return [
@@ -84,7 +83,7 @@ def get_submodules(*, name: str, prefixed: bool) -> list[str]:
     ]
 
 
-def expand_glob(line: str) -> list[str]:
+def expand_glob(line: str) -> List[str]:
     """
     Expand the *glob*
 
@@ -112,9 +111,9 @@ def expand_glob(line: str) -> list[str]:
 
 def expand_modules(
     *,
-    values: list[str],
+    values: List[str],
     ordered: bool = False,
-) -> list[str]:
+) -> List[str]:
     """Build the list with the glob expanded"""
     expanded = (
         module_name
@@ -127,7 +126,7 @@ def expand_modules(
 def expand_value(value: ValueType, key: str) -> ValueType:
     """Build the list with items expanded"""
     if isinstance(value, list):
-        typed_value = cast(list[str], value)
+        typed_value = cast(List[str], value)
         return expand_modules(
             values=typed_value,
             ordered=key != "layers",
@@ -136,14 +135,14 @@ def expand_value(value: ValueType, key: str) -> ValueType:
     return value
 
 
-def normalize_value(data: ValueType) -> bool | str:
+def normalize_value(data: ValueType) -> Union[bool, str]:
     """Normalize value to be compatible with import-linter config format"""
     if isinstance(data, list):
         return "\n".join(["", *data])
     return data
 
 
-def normalize_contract(contract: Contract) -> tuple[str, dict[str, bool | str]]:
+def normalize_contract(contract: Contract) -> Tuple[str, Dict[str, Union[bool, str]]]:
     """Normalize contract to be compatible with import-linter config format"""
     cid = compute_contract_id(contract["name"])
     content = {
@@ -159,7 +158,7 @@ def compute_contract_id(name: str) -> str:
     return f"importlinter:contract:{slug}"
 
 
-def normalize_contracts(config) -> dict[str, dict[str, bool | str]]:
+def normalize_contracts(config) -> Dict[str, Dict[str, Union[bool, str]]]:
     """Build contracts from template and expand the globs"""
     normalized = {key: value for key, value in config.items() if key != CONTRACTS}
 
