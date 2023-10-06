@@ -65,7 +65,7 @@ def scan_ci_cmd(
 
         output_handler = create_output_handler(ctx)
         if scan_all:
-            result = sca_scan_all(ctx, directory)
+            result = sca_scan_all(ctx, directory, scan_mode=ScanMode.CI_ALL)
             scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
             return output_handler.process_scan_all_result(scan)
 
@@ -74,7 +74,7 @@ def scan_ci_cmd(
         )
 
         ci_mode = SupportedCI.from_ci_env()
-        scan_mode = f"{ScanMode.CI.value}/{ci_mode.value}"
+        scan_mode = f"{ScanMode.CI_DIFF.value}/{ci_mode.value}"
         result = sca_scan_diff(
             ctx=ctx,
             directory=directory,

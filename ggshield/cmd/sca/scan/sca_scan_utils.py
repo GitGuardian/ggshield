@@ -41,7 +41,9 @@ def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
     )
 
 
-def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
+def sca_scan_all(
+    ctx: click.Context, directory: Path, scan_mode: ScanMode = ScanMode.DIRECTORY
+) -> SCAScanAllOutput:
     """
     Scan an entire directory for SCA Vulnerabilities.
 
@@ -77,7 +79,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.DIRECTORY,
+            scan_mode=scan_mode,
         ).get_http_headers(),
     )
 

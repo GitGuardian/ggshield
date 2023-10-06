@@ -62,13 +62,13 @@ def scan_pre_push_cmd(
 
     output_handler = create_output_handler(ctx)
     if scan_all or has_no_remote_commit:
-        result = sca_scan_all(ctx, directory)
+        result = sca_scan_all(ctx, directory, scan_mode=ScanMode.PRE_PUSH_ALL)
         scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_all_result(scan)
 
     else:
         result = sca_scan_diff(
-            ctx, directory, previous_ref=remote_commit, scan_mode=ScanMode.PRE_PUSH
+            ctx, directory, previous_ref=remote_commit, scan_mode=ScanMode.PRE_PUSH_DIFF
         )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)
