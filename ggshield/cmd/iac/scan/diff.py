@@ -22,6 +22,7 @@ from ggshield.cmd.utils.common_options import (
     reference_option,
     staged_option,
 )
+from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.config import Config
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
@@ -107,6 +108,8 @@ def iac_scan_diff(
     config: Config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
+
+    check_directory_not_ignored(directory, exclusion_regexes)
 
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:

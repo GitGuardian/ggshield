@@ -148,7 +148,7 @@ def test_ci_cmd_does_not_work_outside_ci(_, cli_fs_runner: click.testing.CliRunn
     result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
 
     # THEN it fails
-    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
 
     # And the error message explains why
     assert "only be used in a CI environment" in result.stdout

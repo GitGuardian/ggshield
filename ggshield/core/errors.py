@@ -146,7 +146,7 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
     # Get exit code
     if isinstance(exc, _ExitError):
         exit_code = exc.exit_code
-    elif isinstance(exc, InvalidGitRefError):
+    elif isinstance(exc, (InvalidGitRefError, click.UsageError)):
         exit_code = ExitCode.USAGE_ERROR
     else:
         exit_code = ExitCode.UNEXPECTED_ERROR

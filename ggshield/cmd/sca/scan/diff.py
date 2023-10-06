@@ -26,8 +26,8 @@ from ggshield.verticals.sca.collection.collection import (
 @reference_option
 @staged_option
 @display_beta_warning
-@exception_wrapper
 @click.pass_context
+@exception_wrapper
 def scan_diff_cmd(
     ctx: click.Context,
     exit_zero: bool,

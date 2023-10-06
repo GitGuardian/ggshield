@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
@@ -7,7 +8,7 @@ from ggshield.core.errors import ExitCode
 from ggshield.utils.os import cd
 from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
-from tests.unit.conftest import my_vcr
+from tests.unit.conftest import assert_invoke_exited_with, my_vcr
 
 
 @my_vcr.use_cassette("test_iac_scan_diff_no_argument")
@@ -54,7 +55,7 @@ def test_scan_diff_valid_args(tmp_path, cli_fs_runner: CliRunner) -> None:
             "--ignore-policy",
             "GG_IAC_0002",
             "--ignore-path",
-            "**",
+            str(tmp_path / "directory"),
             str(tmp_path),
         ],
     )
@@ -154,3 +155,39 @@ def test_iac_scan_diff_invalid_reference(tmp_path, cli_fs_runner: CliRunner) -> 
         )
         assert result1.exit_code == ExitCode.USAGE_ERROR
         assert "Not a git reference" in result1.stdout
+
+
+@patch("pygitguardian.client.GGClient.iac_diff_scan")
+def test_iac_scan_diff_ignored_directory(
+    iac_diff_scan_mock: Mock, cli_fs_runner: CliRunner
+) -> None:
+    """
+    GIVEN a directory which is ignored
+    WHEN running the iac scan diff command on this directory
+    THEN an error is raised
+    """
+    path = Path(".")
+    repo = Repository.create(path)
+    initial_commit = repo.create_commit()
+    iac_file = path / "iac_file.tf"
+    iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(iac_file)
+    repo.create_commit()
+
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "iac",
+            "scan",
+            "diff",
+            "--ref",
+            initial_commit,
+            "--ignore-path",
+            str(path),
+            str(path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "An ignored file or directory cannot be scanned." in result.stdout
+    iac_diff_scan_mock.assert_not_called()
