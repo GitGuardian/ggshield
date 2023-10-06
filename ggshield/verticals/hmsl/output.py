@@ -23,6 +23,8 @@ First occurrence:
     URL: "{url}"
 """
 
+TOO_MANY_SECRETS_THRESHOLD = 100
+
 
 def write_outputs(result: PreparedSecrets, prefix: str) -> None:
     """
@@ -74,6 +76,10 @@ def show_results(
     else:
         for i, secret in enumerate(data["leaks"]):
             click.echo(TEMPLATE.format(number=i + 1, **secret))
+            if secret["count"] >= TOO_MANY_SECRETS_THRESHOLD:
+                display_warning(
+                    "Given the number of occurrences, your secret might be a template value."
+                )
 
     if error:
         show_error_during_scan(error)
