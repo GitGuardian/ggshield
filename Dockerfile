@@ -19,7 +19,7 @@ RUN \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install pipenv --upgrade
+RUN pip3 install pipenv==2023.10.3
 
 COPY . .
 
