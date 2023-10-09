@@ -16,6 +16,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.core.config import Config
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info
 from ggshield.verticals.iac.collection.iac_path_scan_collection import (
@@ -48,12 +49,15 @@ def scan_all_cmd(
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    result = iac_scan_all(ctx, directory)
+    result = iac_scan_all(ctx, directory, scan_mode=ScanMode.DIRECTORY_ALL)
     return display_iac_scan_all_result(ctx, directory, result)
 
 
 def iac_scan_all(
-    ctx: click.Context, directory: Path
+    ctx: click.Context,
+    directory: Path,
+    scan_mode: ScanMode,
+    ci_mode: Optional[SupportedCI] = None,
 ) -> Union[IaCScanResult, IaCSkipScanResult, None]:
     config: Config = ctx.obj["config"]
 
@@ -89,7 +93,8 @@ def iac_scan_all(
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.DIRECTORY,
+            scan_mode=scan_mode if ci_mode is None else f"{scan_mode}/{ci_mode.value}",
+            extra_headers={"Ci-Mode": str(ci_mode)} if ci_mode else None,
         ).get_http_headers(),
     )
 

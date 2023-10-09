@@ -13,6 +13,8 @@ from ggshield.cmd.utils.common_decorators import display_beta_warning, exception
 from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.core.config import Config
 from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
+from ggshield.core.scan.scan_mode import ScanMode
 
 
 @click.command()
@@ -42,8 +44,12 @@ def scan_ci_cmd(
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    ci_mode = SupportedCI.from_ci_env()
+
     if scan_all:
-        result = iac_scan_all(ctx, directory)
+        result = iac_scan_all(
+            ctx, directory, scan_mode=ScanMode.CI_ALL, ci_mode=ci_mode
+        )
         return display_iac_scan_all_result(ctx, directory, result)
 
     current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
@@ -56,5 +62,7 @@ def scan_ci_cmd(
         previous_commit,
         current_ref=current_commit,
         include_staged=True,
+        scan_mode=ScanMode.CI_DIFF,
+        ci_mode=ci_mode,
     )
     return display_iac_scan_diff_result(ctx, directory, result)

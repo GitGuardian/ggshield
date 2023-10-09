@@ -11,6 +11,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.core.scan.scan_mode import ScanMode
 
 
 @click.command()
@@ -45,7 +46,9 @@ def scan_pre_commit_cmd(
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     if scan_all:
-        result = iac_scan_all(ctx, directory)
+        result = iac_scan_all(ctx, directory, scan_mode=ScanMode.PRE_COMMIT_ALL)
         return display_iac_scan_all_result(ctx, directory, result)
-    result = iac_scan_diff(ctx, directory, "HEAD", include_staged=True)
+    result = iac_scan_diff(
+        ctx, directory, "HEAD", include_staged=True, scan_mode=ScanMode.PRE_COMMIT_DIFF
+    )
     return display_iac_scan_diff_result(ctx, directory, result)

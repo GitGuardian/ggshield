@@ -17,6 +17,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin
+from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_TREE, check_git_ref, is_valid_git_commit_ref
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
@@ -95,6 +96,7 @@ def scan_pre_receive_cmd(
         previous_ref=before,
         include_staged=False,
         current_ref=after,
+        scan_mode=ScanMode.PRE_RECEIVE_ALL if scan_all else ScanMode.PRE_RECEIVE_DIFF,
     )
 
     output_handler = create_output_handler(ctx)

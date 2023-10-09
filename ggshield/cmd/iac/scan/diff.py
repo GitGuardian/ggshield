@@ -23,6 +23,7 @@ from ggshield.cmd.utils.common_options import (
     staged_option,
 )
 from ggshield.core.config import Config
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
 from ggshield.core.text_utils import display_info
@@ -71,7 +72,9 @@ def scan_diff_cmd(
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
-    result = iac_scan_diff(ctx, directory, ref, staged)
+    result = iac_scan_diff(
+        ctx, directory, ref, staged, scan_mode=ScanMode.DIRECTORY_DIFF
+    )
     return display_iac_scan_diff_result(ctx, directory, result)
 
 
@@ -80,7 +83,9 @@ def iac_scan_diff(
     directory: Path,
     previous_ref: Optional[str],
     include_staged: bool,
+    scan_mode: ScanMode,
     current_ref: Optional[str] = None,
+    ci_mode: Optional[SupportedCI] = None,
 ) -> Union[IaCDiffScanResult, IaCSkipScanResult, None]:
     """
     Performs a diff scan for IaC vulnerabilities,
@@ -93,6 +98,7 @@ def iac_scan_diff(
     :param previous_ref: git reference to the state of reference for the analysis
     :param include_staged: bool whether or not we want to consider the staged files
     only when the current reference is set to None.
+    :param scan_mode: a string describing the type of scan, for API analytics.
     :param current_ref: optional git reference to the current state, defaults to None.
     When set to None, the current state is the indexed files currently on disk.
     :return: IacDiffScanResult if the scan was performed; IaCSkipScanResult if the scan
@@ -175,7 +181,8 @@ def iac_scan_diff(
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=ScanMode.DIFF,
+            scan_mode=scan_mode if ci_mode is None else f"{scan_mode}/{ci_mode.value}",
+            extra_headers={"Ci-Mode": str(ci_mode)} if ci_mode else None,
         ).get_http_headers(),
     )
 
