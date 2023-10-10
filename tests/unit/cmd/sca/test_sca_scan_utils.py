@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from pygitguardian.sca_models import SCAScanParameters
 
 from ggshield.cmd.sca.scan.sca_scan_utils import get_scan_params_from_config
-from ggshield.core.config.user_config import SCAConfig, SCAIgnoredVulnerability
+from ggshield.core.config.user_config import SCAConfig, SCAConfigIgnoredVulnerability
 
 
 def test_get_scan_params_from_config():
@@ -18,18 +18,18 @@ def test_get_scan_params_from_config():
         minimum_severity="high",
         ignored_vulnerabilities=[
             # Not ignored anymore
-            SCAIgnoredVulnerability(
+            SCAConfigIgnoredVulnerability(
                 identifier="GHSA-toto-1234",
                 path="Pipfile.lock",
                 until=datetime(year=1970, month=1, day=1),
             ),
             # Ignored ones
-            SCAIgnoredVulnerability(
+            SCAConfigIgnoredVulnerability(
                 identifier="GHSA-4567-8765",
                 path="toto/Pipfile.lock",
                 until=datetime.utcnow() + timedelta(days=1),
             ),
-            SCAIgnoredVulnerability(
+            SCAConfigIgnoredVulnerability(
                 identifier="GHSA-4567-other",
                 path="toto/Pipfile.lock",
             ),
