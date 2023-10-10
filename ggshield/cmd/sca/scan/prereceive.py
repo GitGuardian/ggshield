@@ -83,7 +83,7 @@ def scan_pre_receive_cmd(
         previous_ref=before,
         include_staged=False,
         current_ref=after,
-        scan_mode=ScanMode.PRE_RECEIVE,
+        scan_mode=ScanMode.PRE_RECEIVE_ALL if scan_all else ScanMode.PRE_RECEIVE_DIFF,
     )
 
     output_handler = create_output_handler(ctx)
