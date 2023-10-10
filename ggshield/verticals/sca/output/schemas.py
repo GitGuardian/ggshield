@@ -1,12 +1,28 @@
-from ggshield.verticals.sca.sca_scan_models import (
-    SCAScanAllOutputSchema,
-    SCAScanDiffOutputSchema,
+from dataclasses import dataclass
+from typing import cast
+
+import marshmallow_dataclass
+from pygitguardian.models import BaseSchema
+from pygitguardian.sca_models import SCAScanAllOutput, SCAScanDiffOutput
+
+
+@dataclass
+class SCAJSONScanAllOutput(SCAScanAllOutput):
+    total_vulns: int = 0
+
+
+SCAJSONScanAllOutputSchema = cast(
+    BaseSchema,
+    marshmallow_dataclass.class_schema(SCAJSONScanAllOutput, base_schema=BaseSchema)(),
 )
 
 
-class SCAJSONScanAllOutputSchema(SCAScanAllOutputSchema):
-    total_vulns: int
+@dataclass
+class SCAJSONScanDiffOutput(SCAScanDiffOutput):
+    total_vulns: int = 0
 
 
-class SCAJSONScanDiffOutputSchema(SCAScanDiffOutputSchema):
-    total_vulns: int
+SCAJSONScanDiffOutputSchema = cast(
+    BaseSchema,
+    marshmallow_dataclass.class_schema(SCAJSONScanDiffOutput, base_schema=BaseSchema)(),
+)

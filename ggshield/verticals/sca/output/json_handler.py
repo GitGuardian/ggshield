@@ -14,7 +14,7 @@ from ggshield.verticals.sca.output.schemas import (
 class SCAJsonOutputHandler(SCAOutputHandler):
     def _process_scan_all_impl(self, scan: SCAScanAllVulnerabilityCollection) -> str:
         scan_dict = self.create_scan_all_dict(scan)
-        schema = SCAJSONScanAllOutputSchema()
+        schema = SCAJSONScanAllOutputSchema
         serialized_result = schema.load(scan_dict)
         text = schema.dumps(serialized_result)
         return cast(str, text)
@@ -25,7 +25,7 @@ class SCAJsonOutputHandler(SCAOutputHandler):
             if scan.result is not None
             else {"scanned_files": [], "added_vulns": [], "removed_vulns": []}
         )
-        schema = SCAJSONScanDiffOutputSchema()
+        schema = SCAJSONScanDiffOutputSchema
         serialized_result = schema.load(scan_dict)
         text = schema.dumps(serialized_result)
         return cast(str, text)

@@ -4,7 +4,14 @@ from pathlib import Path
 from typing import List, Optional, Set, Tuple, Type, Union
 
 import click
-from pygitguardian.client import _create_tar
+from pygitguardian.client import GGClient, _create_tar
+from pygitguardian.sca_models import (
+    ComputeSCAFilesResult,
+    SCAIgnoredVulnerability,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAScanParameters,
+)
 
 from ggshield.cmd.utils.common_options import use_json
 from ggshield.core.config import Config
@@ -14,7 +21,6 @@ from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error, display_info
-from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
     sca_files_from_git_repo,
@@ -22,19 +28,15 @@ from ggshield.verticals.sca.file_selection import (
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
 from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
 from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
-from ggshield.verticals.sca.sca_scan_models import (
-    ComputeSCAFilesResult,
-    SCAScanAllOutput,
-    SCAScanDiffOutput,
-    SCAScanParameters,
-)
 
 
 def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
     return SCAScanParameters(
         minimum_severity=sca_config.minimum_severity,
         ignored_vulnerabilities=[
-            ignored_vuln
+            SCAIgnoredVulnerability(
+                identifier=ignored_vuln.identifier, path=ignored_vuln.path
+            )
             for ignored_vuln in sca_config.ignored_vulnerabilities
             if ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow()
         ],
@@ -50,7 +52,7 @@ def sca_scan_all(ctx: click.Context, directory: Path) -> SCAScanAllOutput:
     - Launches the scan with a call to SCA public API
     """
     config: Config = ctx.obj["config"]
-    client = SCAClient(ctx.obj["client"])
+    client = ctx.obj["client"]
 
     sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
         directory=directory,
@@ -95,7 +97,7 @@ def get_sca_scan_all_filepaths(
     directory: Path,
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
-    client: SCAClient,
+    client: GGClient,
 ) -> Tuple[List[str], int]:
     """
     Retrieve SCA related files of a directory.
@@ -171,7 +173,7 @@ def sca_scan_diff(
     :return: SCAScanDiffOutput object.
     """
     config: Config = ctx.obj["config"]
-    client = SCAClient(ctx.obj["client"])
+    client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 
     if current_ref is None:

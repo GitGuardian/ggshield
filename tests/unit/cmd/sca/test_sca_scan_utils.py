@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 
+from pygitguardian.sca_models import SCAScanParameters
+
 from ggshield.cmd.sca.scan.sca_scan_utils import get_scan_params_from_config
 from ggshield.core.config.user_config import SCAConfig, SCAIgnoredVulnerability
-from ggshield.verticals.sca.sca_scan_models import SCAScanParameters
 
 
 def test_get_scan_params_from_config():

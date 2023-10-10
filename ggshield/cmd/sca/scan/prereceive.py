@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import click
+from pygitguardian.sca_models import SCAScanAllOutput
 
 from ggshield.cmd.sca.scan.sca_scan_utils import create_output_handler, sca_scan_diff
 from ggshield.cmd.sca.scan.scan_common_options import (
@@ -18,7 +19,6 @@ from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
 )
-from ggshield.verticals.sca.sca_scan_models import SCAScanAllOutput
 
 
 logger = logging.getLogger(__name__)

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Optional, Set
 
 import click
+from pygitguardian.client import GGClient
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
@@ -12,7 +13,6 @@ from ggshield.core.tar_utils import INDEX_REF
 from ggshield.core.text_utils import display_info
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
-from ggshield.verticals.sca.client import SCAClient
 
 
 # List of filepaths to ignore for SCA scans
@@ -71,7 +71,7 @@ def is_not_excluded_from_sca(scannable: Scannable) -> bool:
 def sca_files_from_git_repo(
     directory: Path,
     ref: str,
-    client: SCAClient,
+    client: GGClient,
     exclusion_regexes: Optional[Set[re.Pattern]] = None,
     verbose: bool = False,
 ) -> Set[Path]:
