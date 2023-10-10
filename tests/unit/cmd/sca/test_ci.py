@@ -1,18 +1,15 @@
 from unittest.mock import Mock, patch
 
 import click
+from pygitguardian.sca_models import ComputeSCAFilesResult, SCAScanDiffOutput
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.utils.git_shell import EMPTY_SHA, get_list_commit_SHA
 from ggshield.utils.os import cd
-from ggshield.verticals.sca.sca_scan_models import (
-    ComputeSCAFilesResult,
-    SCAScanDiffOutput,
-)
 
 
-@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
+@patch("pygitguardian.GGClient.scan_diff")
 @patch(
     "ggshield.cmd.sca.scan.sca_scan_utils.sca_files_from_git_repo", return_value=set()
 )
@@ -45,7 +42,7 @@ def test_sca_scan_ci_no_commit(
     assert "No SCA vulnerability has been added." in result.stdout
 
 
-@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
+@patch("pygitguardian.GGClient.scan_diff")
 @patch("ggshield.cmd.sca.scan.ci.get_current_and_previous_state_from_ci_env")
 def test_sca_scan_ci_same_commit(
     get_current_and_previous_state_from_ci_env_mock: Mock,
@@ -73,7 +70,7 @@ def test_sca_scan_ci_same_commit(
     assert "No SCA vulnerability has been added." in result.stdout
 
 
-@patch("ggshield.verticals.sca.client.SCAClient.sca_scan_directory")
+@patch("pygitguardian.GGClient.sca_scan_directory")
 @patch("ggshield.cmd.sca.scan.sca_scan_utils.get_sca_scan_all_filepaths")
 def test_sca_scan_all_no_files(
     scan_filepaths_mock: Mock,
@@ -97,8 +94,8 @@ def test_sca_scan_all_no_files(
     assert "No SCA vulnerability has been found." in result.stdout
 
 
-@patch("ggshield.verticals.sca.client.SCAClient.compute_sca_files")
-@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
+@patch("pygitguardian.GGClient.compute_sca_files")
+@patch("pygitguardian.GGClient.scan_diff")
 def test_sca_scan_ci_github_push_before_empty_sha(
     scan_diff_mock: Mock,
     compute_sca_files_mock: Mock,
@@ -119,7 +116,7 @@ def test_sca_scan_ci_github_push_before_empty_sha(
     monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
     monkeypatch.setenv("GITHUB_PUSH_BEFORE_SHA", EMPTY_SHA)
 
-    # Mocks the two SCAClient calls
+    # Mocks the two client calls
     compute_sca_files_mock.return_value = ComputeSCAFilesResult(
         sca_files=["Pipfile", "Pipfile.lock"]
     )

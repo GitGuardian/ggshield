@@ -3,6 +3,12 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import ClassVar, Dict, Generator, List, Optional, Union
 
+from pygitguardian.sca_models import (
+    SCALocationVulnerability,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+)
+
 from ggshield.core.constants import IncidentSeverity, IncidentStatus
 from ggshield.core.text_utils import STYLE, file_info, format_text, pluralize
 from ggshield.verticals.sca.collection import (
@@ -10,11 +16,6 @@ from ggshield.verticals.sca.collection import (
     SCAScanDiffVulnerabilityCollection,
 )
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
-from ggshield.verticals.sca.sca_scan_models import (
-    SCALocationVulnerability,
-    SCAScanAllOutput,
-    SCAScanDiffOutput,
-)
 
 
 @dataclass

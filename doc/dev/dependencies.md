@@ -26,16 +26,15 @@ You only need to do this once. From now on, changes you make in py-gitguardian a
 
 For the changes to pass on CI, you need to:
 
-1. Update py-gitguardian dependency in `setup.py` to use a git+https URL, like this:
+1. Update py-gitguardian dependency in `setup.cfg` to use a git+https URL, like this:
 
    ```python
-   setup(
-       ...,
-       # TODO: replace this with a real version number as soon as a new version of
-       # py-gitguardian is out
-       "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@c6b941f8046de0188bc167d5a3d4ea7ebdd81e78",  # noqa: E501
-       ...,
-   )
+   install_requires =
+        ...
+        # TODO: replace this with a real version number as soon as a new version of
+        # py-gitguardian is out
+        pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@cfa919cff68cc4d3ca40bf2bb8a6f24bc5fca786
+    ...
    ```
 
 2. Update the `Pipfile.lock` with `make update-pipfile-lock`.

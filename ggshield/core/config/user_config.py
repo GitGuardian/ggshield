@@ -99,7 +99,7 @@ def validate_vuln_identifier(value: str):
 
 
 @marshmallow_dataclass.dataclass
-class SCAIgnoredVulnerability(FilteredConfig):
+class SCAConfigIgnoredVulnerability(FilteredConfig):
     """
     A model of an ignored vulnerability for SCA. This allows to ignore all occurrences
     of a given vulnerability in a given dependency file.
@@ -130,7 +130,9 @@ class SCAConfig(FilteredConfig):
 
     ignored_paths: Set[str] = field(default_factory=set)
     minimum_severity: str = "LOW"
-    ignored_vulnerabilities: List[SCAIgnoredVulnerability] = field(default_factory=list)
+    ignored_vulnerabilities: List[SCAConfigIgnoredVulnerability] = field(
+        default_factory=list
+    )
 
     @post_load
     def validate_ignored_vulns(self, data, **kwargs):

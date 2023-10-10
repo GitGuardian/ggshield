@@ -5,7 +5,7 @@ from ggshield.core.config.user_config import (
     CURRENT_CONFIG_VERSION,
     IaCConfig,
     SCAConfig,
-    SCAIgnoredVulnerability,
+    SCAConfigIgnoredVulnerability,
     UserConfig,
 )
 from ggshield.core.errors import ParseError, UnexpectedError
@@ -257,7 +257,7 @@ class TestUserConfig:
         assert sca_config.ignored_paths == {"mypath"}
         assert sca_config.minimum_severity == "myseverity"
         assert len(sca_config.ignored_vulnerabilities) == 1
-        assert sca_config.ignored_vulnerabilities[0] == SCAIgnoredVulnerability(
+        assert sca_config.ignored_vulnerabilities[0] == SCAConfigIgnoredVulnerability(
             identifier="GHSA-aaaa-bbbb-cccc",
             path="Pipfile",
             comment="Not my prob",

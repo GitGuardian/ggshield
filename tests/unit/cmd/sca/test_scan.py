@@ -5,6 +5,13 @@ from unittest.mock import patch
 import click
 from click.testing import CliRunner
 from pygitguardian import GGClient
+from pygitguardian.sca_models import (
+    SCALocationVulnerability,
+    SCAScanAllOutput,
+    SCAScanDiffOutput,
+    SCAVulnerability,
+    SCAVulnerablePackageVersion,
+)
 
 from ggshield.__main__ import cli
 from ggshield.cmd.sca.scan.sca_scan_utils import (
@@ -16,14 +23,6 @@ from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.os import cd
-from ggshield.verticals.sca.client import SCAClient
-from ggshield.verticals.sca.sca_scan_models import (
-    SCALocationVulnerability,
-    SCAScanAllOutput,
-    SCAScanDiffOutput,
-    SCAVulnerability,
-    SCAVulnerablePackageVersion,
-)
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 
@@ -44,7 +43,7 @@ def get_valid_ctx(client: GGClient) -> click.Context:
 @my_vcr.use_cassette("test_sca_get_scan_all_filepaths.yaml", ignore_localhost=False)
 def test_get_sca_scan_all_filepaths(client: GGClient, tmp_path) -> None:
     """
-    GIVEN a directory and an SCAClient instance
+    GIVEN a directory and a client instance
     WHEN requesting the SCA filepaths in this directory
     THEN the API called is made without error
     THEN the existing SCA related files are listed
@@ -55,13 +54,11 @@ def test_get_sca_scan_all_filepaths(client: GGClient, tmp_path) -> None:
     # This one should not appear in response
     write_text(filename=str(tmp_path / ".venv" / "Pipfile"), content="")
 
-    sca_client = SCAClient(client)
-
     result = get_sca_scan_all_filepaths(
         directory=tmp_path,
         exclusion_regexes=set(),
         verbose=False,
-        client=sca_client,
+        client=client,
     )
 
     assert result == (["Pipfile"], 200)
@@ -173,7 +170,7 @@ def test_sca_scan_diff_ignore_path(
     assert result == SCAScanDiffOutput()
 
 
-@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
+@patch("pygitguardian.GGClient.scan_diff")
 def test_sca_scan_diff_no_files(
     scan_diff_mock, client: GGClient, dummy_sca_repo: Repository
 ) -> None:

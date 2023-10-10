@@ -3,17 +3,17 @@ from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
-
-from ggshield.__main__ import cli
-from ggshield.core.errors import ExitCode
-from ggshield.utils.os import cd
-from ggshield.verticals.sca.sca_scan_models import (
+from pygitguardian.sca_models import (
     ComputeSCAFilesResult,
     SCALocationVulnerability,
     SCAScanDiffOutput,
     SCAVulnerability,
     SCAVulnerablePackageVersion,
 )
+
+from ggshield.__main__ import cli
+from ggshield.core.errors import ExitCode
+from ggshield.utils.os import cd
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr
 
@@ -38,8 +38,8 @@ def test_sca_scan_pre_commit_no_arg(tmp_path, cli_fs_runner: CliRunner) -> None:
 
 
 @pytest.mark.parametrize("verbose", [True, False])
-@patch("ggshield.verticals.sca.client.SCAClient.compute_sca_files")
-@patch("ggshield.verticals.sca.client.SCAClient.scan_diff")
+@patch("pygitguardian.GGClient.compute_sca_files")
+@patch("pygitguardian.GGClient.scan_diff")
 def test_sca_scan_pre_commit_with_added_vulns(
     patch_scan_diff,
     patch_compute_sca_files,

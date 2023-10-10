@@ -7,7 +7,6 @@ from pygitguardian import GGClient
 
 from ggshield.core.scan import StringScannable
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.sca.client import SCAClient
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
     is_not_excluded_from_sca,
@@ -85,9 +84,8 @@ def test_sca_files_from_git_repo(
 
     fun_name = inspect.currentframe().f_code.co_name
     with my_vcr.use_cassette(f"{fun_name}_{branch_name}"):
-        sca_client = SCAClient(client)
         files = sca_files_from_git_repo(
-            client=sca_client, directory=dummy_sca_repo.path, ref=branch_name
+            client=client, directory=dummy_sca_repo.path, ref=branch_name
         )
         assert files == expected_files
 
@@ -102,11 +100,10 @@ def test_sca_files_from_git_repo_with_staged_files(
     THEN we get the staged files
     """
 
-    sca_client = SCAClient(client)
     dummy_sca_repo.git("checkout", "branch_without_sca")
     (dummy_sca_repo.path / "package.json").touch()
     dummy_sca_repo.add("package.json")
     files = sca_files_from_git_repo(
-        client=sca_client, directory=dummy_sca_repo.path, ref=""
+        client=client, directory=dummy_sca_repo.path, ref=""
     )
     assert files == {Path("package.json")}
