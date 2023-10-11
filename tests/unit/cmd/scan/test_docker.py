@@ -92,7 +92,7 @@ class TestDockerCMD:
             cli,
             ["-v", "secret", "scan", "docker", "ggshield-non-existant"],
         )
-        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert 'Image "ggshield-non-existant" not found' in result.output
 
     @patch("ggshield.verticals.secret.docker.DockerImage.open")

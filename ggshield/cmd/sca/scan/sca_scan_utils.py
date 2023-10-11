@@ -14,6 +14,7 @@ from pygitguardian.sca_models import (
 )
 
 from ggshield.cmd.utils.common_options import use_json
+from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
@@ -55,10 +56,13 @@ def sca_scan_all(
     """
     config: Config = ctx.obj["config"]
     client = ctx.obj["client"]
+    exclusion_regexes = ctx.obj["exclusion_regexes"]
+
+    check_directory_not_ignored(directory, exclusion_regexes)
 
     sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
         directory=directory,
-        exclusion_regexes=ctx.obj["exclusion_regexes"],
+        exclusion_regexes=exclusion_regexes,
         verbose=config.user_config.verbose,
         client=client,
     )
@@ -177,6 +181,8 @@ def sca_scan_diff(
     config: Config = ctx.obj["config"]
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
+
+    check_directory_not_ignored(directory, exclusion_regexes)
 
     if current_ref is None:
         current_ref = INDEX_REF if include_staged else "HEAD"

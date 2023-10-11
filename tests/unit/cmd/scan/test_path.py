@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -192,6 +193,26 @@ class TestPathScan:
         assert "file1\n" in result.output
         assert "file2\n" in result.output
         assert "No secrets have been found" in result.output
+
+    @patch("ggshield.verticals.secret.secret_scanner.SecretScanner.scan")
+    def test_scan_ignored_directory(self, scan_mock, cli_fs_runner):
+        self.create_files()
+        config = """
+version: 2
+secret:
+    ignored-paths:
+        - "file1"
+
+"""
+        Path(".gitguardian.yaml").write_text(config)
+
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "path", "file1", "file2", "-y"]
+        )
+
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+        assert "An ignored file or directory cannot be scanned." in result.stdout
+        scan_mock.assert_not_called()
 
 
 class TestScanDirectory:

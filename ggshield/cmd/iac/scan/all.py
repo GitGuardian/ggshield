@@ -15,6 +15,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
+from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.config import Config
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
@@ -60,10 +61,13 @@ def iac_scan_all(
     ci_mode: Optional[SupportedCI] = None,
 ) -> Union[IaCScanResult, IaCSkipScanResult, None]:
     config: Config = ctx.obj["config"]
+    exclusion_regexes = ctx.obj["exclusion_regexes"]
+
+    check_directory_not_ignored(directory, exclusion_regexes)
 
     paths = get_iac_files_from_path(
         path=directory,
-        exclusion_regexes=ctx.obj["exclusion_regexes"],
+        exclusion_regexes=exclusion_regexes,
         # bypass verbose here: we want to display only IaC files
         verbose=False,
         # If the repository is a git repository, ignore untracked files

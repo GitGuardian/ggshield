@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
@@ -10,7 +11,7 @@ from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from tests.conftest import _IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
-from tests.unit.conftest import my_vcr
+from tests.unit.conftest import assert_invoke_exited_with, my_vcr
 from tests.unit.request_mock import create_json_response
 
 
@@ -238,3 +239,36 @@ def test_iac_scan_all_verbose(cli_fs_runner: CliRunner, cli_command) -> None:
         assert iac_file_name in result.stdout
         # AND the non-IaC file does not
         assert non_iac_file_name not in result.stdout
+
+
+@patch("pygitguardian.client.GGClient.iac_directory_scan")
+def test_iac_scan_all_ignored_directory(
+    iac_directory_scan_mock: Mock, cli_fs_runner: CliRunner, cli_command
+) -> None:
+    """
+    GIVEN a directory which is ignored
+    WHEN running the iac scan all command on this directory
+    THEN an error is raised
+    """
+    path = Path(".")
+    repo = Repository.create(path)
+    iac_file = path / "iac_file.tf"
+    iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(iac_file)
+    repo.create_commit()
+
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "iac",
+            "scan",
+            "all",
+            "--ignore-path",
+            str(path),
+            str(path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "An ignored file or directory cannot be scanned." in result.stdout
+    iac_directory_scan_mock.assert_not_called()

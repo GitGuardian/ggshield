@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import click
 from click.testing import CliRunner
@@ -24,7 +24,7 @@ from ggshield.core.errors import ExitCode
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.os import cd
 from tests.repository import Repository
-from tests.unit.conftest import my_vcr, write_text
+from tests.unit.conftest import assert_invoke_exited_with, my_vcr, write_text
 
 
 def get_valid_ctx(client: GGClient) -> click.Context:
@@ -179,14 +179,14 @@ def test_sca_scan_diff_no_files(
     WHEN scanning the diff with all files ignored
     THEN no scan is triggered
     """
+    dummy_sca_repo.git("checkout", "branch_without_vuln")
     ctx = get_valid_ctx(client)
-    ctx.obj["exclusion_regexes"] = {re.compile(".*")}
+    ctx.obj["exclusion_regexes"] = {re.compile(r"Pipfile"), re.compile(r"\.py")}
     with ctx:
         sca_scan_diff(
             ctx=ctx,
             directory=dummy_sca_repo.path,
-            previous_ref="HEAD",
-            include_staged=True,
+            previous_ref="branch_with_vuln",
             scan_mode=ScanMode.DIFF,
         )
 
@@ -373,3 +373,63 @@ Identifier:
 CVE IDs: -"""  # noqa W291
         in result.stdout
     )
+
+
+@patch("pygitguardian.GGClient.compute_sca_files")
+def test_scan_all_ignored_directory(
+    compute_sca_files_mock: Mock,
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo: Repository,
+):
+    """
+    GIVEN a directory which is ignored
+    WHEN running the sca scan all command on this directory
+    THEN an error is raised
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            "--ignore-path",
+            dummy_sca_repo.path.name,
+            str(dummy_sca_repo.path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "An ignored file or directory cannot be scanned." in result.stdout
+    compute_sca_files_mock.assert_not_called()
+
+
+@patch("pygitguardian.GGClient.compute_sca_files")
+def test_sca_scan_diff_ignored_directory(
+    compute_sca_files_mock: Mock,
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo: Repository,
+) -> None:
+    """
+    GIVEN a directory which is ignored
+    WHEN running the sca scan diff command on this directory
+    THEN an error is raised
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "diff",
+            "--ref",
+            "branch_without_vuln",
+            "--ignore-path",
+            dummy_sca_repo.path.name,
+            str(dummy_sca_repo.path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "An ignored file or directory cannot be scanned." in result.stdout
+    compute_sca_files_mock.assert_not_called()
