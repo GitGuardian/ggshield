@@ -5,7 +5,7 @@ from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import Filemode, git
 
-from .scannable import Files, Scannable, StringScannable
+from .scannable import Scannable, StringScannable
 
 
 _RX_HEADER_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
@@ -82,7 +82,7 @@ class CommitInformation(NamedTuple):
     date: str
 
 
-class Commit(Files):
+class Commit:
     """
     Commit represents a commit which is a list of commit files.
     """
@@ -92,8 +92,8 @@ class Commit(Files):
         sha: Optional[str] = None,
         exclusion_regexes: Optional[Set[re.Pattern]] = None,
     ):
-        super().__init__([])
         self.sha = sha
+        self._files: List[Scannable] = []
         self._patch: Optional[str] = None
         self.exclusion_regexes: Set[re.Pattern] = exclusion_regexes or set()
         self._info: Optional[CommitInformation] = None

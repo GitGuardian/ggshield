@@ -6,7 +6,7 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.lines import get_lines_from_content
 from ggshield.core.match_indices import MatchIndices, find_match_indices
-from ggshield.core.scan import Commit, Files, ScanContext, ScanMode, StringScannable
+from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.verticals.secret import SecretScanner
 from tests.unit.conftest import (
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
@@ -67,10 +67,11 @@ def test_make_indices_patch(
     expected_indices_list: List[MatchIndices],
 ):
     if is_patch:
-        o = Commit()
-        o._patch = content
+        commit = Commit()
+        commit._patch = content
+        files = commit.files
     else:
-        o = Files([StringScannable(content=content, url="test_file")])
+        files = [StringScannable(content=content, url="test_file")]
     with my_vcr.use_cassette(name):
         scanner = SecretScanner(
             client=client,
@@ -80,7 +81,7 @@ def test_make_indices_patch(
                 command_path="external",
             ),
         )
-        results = scanner.scan(o.files)
+        results = scanner.scan(files)
         result = results.results[0]
 
     lines = get_lines_from_content(
