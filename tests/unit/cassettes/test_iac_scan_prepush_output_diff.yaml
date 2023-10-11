@@ -46,7 +46,7 @@ interactions:
         string:
           '{"id":"1c35cf53-d150-43d0-936b-a587e56b2332","iac_engine_version":"1.10.2","type":"diff_scan","entities_with_incidents":{"unchanged":[],"deleted":[],"new":[{"filename":"vuln.tf","incidents":[{"policy":"Plain
           HTTP is used","policy_id":"GG_IAC_0001","severity":"HIGH","component":"aws_alb_listener.bad_example","line_end":3,"line_start":3,"description":"Plain
-          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0001"}]}]}}'
+          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://docs.gitguardian.com/iac-security/policies/GG_IAC_0001"}]}]}}'
       headers:
         access-control-expose-headers:
           - X-App-Version

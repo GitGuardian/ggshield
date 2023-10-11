@@ -55,7 +55,7 @@ def _generate_file_result_with_vulnerability() -> IaCFileResult:
                 line_end=35,
                 line_start=1,
                 description="The API server of an AKS cluster [...]",
-                documentation_url="https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0024",
+                documentation_url="https://docs.gitguardian.com/iac-security/policies/GG_IAC_0024",
                 component="azurerm_kubernetes_cluster.k8s_cluster",
                 severity="HIGH",
             )

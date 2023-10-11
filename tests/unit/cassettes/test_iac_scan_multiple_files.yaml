@@ -46,15 +46,15 @@ interactions:
         string:
           '{"id":"402bc71d-07a1-47aa-8723-ea96c0cf922c","iac_engine_version":"1.8.0","type":"path_scan","entities_with_incidents":[{"filename":"iac_file_multiple_vulnerabilities.tf","incidents":[{"policy":"Unrestricted
           egress traffic might lead to remote code execution","policy_id":"GG_IAC_0002","severity":"HIGH","component":"aws_security_group.bad_example","line_end":4,"line_start":4,"description":"Open
-          egress means that the asset can download data from the whole web.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0002"},{"policy":"Unrestricted
+          egress means that the asset can download data from the whole web.","documentation_url":"https://docs.gitguardian.com/iac-security/policies/GG_IAC_0002"},{"policy":"Unrestricted
           ingress traffic leaves assets exposed to remote attacks","policy_id":"GG_IAC_0003","severity":"HIGH","component":"aws_security_group_rule.bad_example","line_end":10,"line_start":10,"description":"A
           security group has open ingress from all IPs, and on all ports. This means
           that the\nassets in this security group are exposed to the whole web.\n\nFurthermore,
           no port range is specified. This\nmeans that some applications running on
           assets of this security group may be reached by\nexternal traffic, while they
-          are not expected to do so.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0003"}]},{"filename":"iac_file_single_vulnerability.tf","incidents":[{"policy":"Plain
+          are not expected to do so.","documentation_url":"https://docs.gitguardian.com/iac-security/policies/GG_IAC_0003"}]},{"filename":"iac_file_single_vulnerability.tf","incidents":[{"policy":"Plain
           HTTP is used","policy_id":"GG_IAC_0001","severity":"HIGH","component":"aws_alb_listener.bad_example","line_end":3,"line_start":3,"description":"Plain
-          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0001"}]}]}'
+          HTTP should not be used, it is unencrypted. HTTPS should be used instead.","documentation_url":"https://docs.gitguardian.com/iac-security/policies/GG_IAC_0001"}]}]}'
       headers:
         access-control-expose-headers:
           - X-App-Version

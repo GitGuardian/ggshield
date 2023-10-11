@@ -126,7 +126,11 @@ def assert_no_failures_displayed(result: Result):
 
 
 def assert_documentation_url_displayed(result: Result):
-    base_doc_url = "https://docs.gitguardian.com/iac-scanning/policies/"
+    # TODO IAC-424: remove `iac-scanning` from regex
+    # base_doc_url = "https://docs.gitguardian.com/iac-security/policies/"
+    base_doc_url = (
+        r"https://docs.gitguardian.com/(iac\-security|iac\-scanning)/policies/"
+    )
     regex = r"\((GG_IAC_\d{4})\).+" + base_doc_url.replace(".", r"\.") + r"\1"
     assert re.search(
         regex,
