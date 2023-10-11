@@ -7,7 +7,7 @@ import pytest
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
-from ggshield.core.scan import Files, StringScannable
+from ggshield.core.scan import StringScannable
 from ggshield.verticals.secret import SecretScanCollection
 from ggshield.verticals.secret.docker import DockerImage, LayerInfo, _validate_filepath
 from tests.unit.conftest import (
@@ -123,7 +123,7 @@ class TestDockerCMD:
             scannable = StringScannable(
                 content=UNCHECKED_SECRET_PATCH, url="file_secret"
             )
-            docker_image.get_layer.return_value = Files([scannable])
+            docker_image.get_layer_scannables.return_value = [scannable]
 
             return docker_image
 
@@ -147,7 +147,7 @@ class TestDockerCMD:
             )
             assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
             docker_image_open_mock.assert_called_once_with(image_path)
-            docker_image.get_layer.assert_called_once_with(layer_info)
+            docker_image.get_layer_scannables.assert_called_once_with(layer_info)
 
             if json_output:
                 output = json.loads(result.output)

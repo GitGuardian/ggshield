@@ -13,7 +13,7 @@ from pygitguardian import GGClient
 from ggshield.core.cache import Cache
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.scan import Files, ScanContext, Scannable, StringScannable
+from ggshield.core.scan import ScanContext, Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
 from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
@@ -163,10 +163,6 @@ class DockerImage:
 
         self._load_layer_infos()
 
-    def get_layer(self, layer_info: LayerInfo) -> Files:
-        scannables = list(self._get_layer_scannables(layer_info))
-        return Files(scannables)
-
     def _load_manifest(self) -> None:
         """
         Reads "manifest.json", stores result in self.manifest
@@ -233,7 +229,7 @@ class DockerImage:
         ]
         self.layer_infos = [x for x in layer_infos if x.should_scan()]
 
-    def _get_layer_scannables(self, layer_info: LayerInfo) -> Iterable[Scannable]:
+    def get_layer_scannables(self, layer_info: LayerInfo) -> Iterable[Scannable]:
         """
         Extracts Scannable to be scanned for given layer.
         """
@@ -356,8 +352,8 @@ def docker_scan_archive(
             results = scanner.scan([docker_image.config_scannable], scanner_ui=ui)
 
         for info in docker_image.layer_infos:
-            layer = docker_image.get_layer(info)
-            file_count = len(layer.files)
+            files = list(docker_image.get_layer_scannables(info))
+            file_count = len(files)
             if file_count == 0:
                 continue
             print()
@@ -367,7 +363,7 @@ def docker_scan_archive(
             else:
                 display_heading(f"Scanning layer {info.diff_id}")
                 with RichSecretScannerUI(file_count) as ui:
-                    layer_results = scanner.scan(layer.files, scanner_ui=ui)
+                    layer_results = scanner.scan(files, scanner_ui=ui)
                 if not layer_results.has_policy_breaks:
                     layer_id_cache.add(layer_id)
                 results.extend(layer_results)

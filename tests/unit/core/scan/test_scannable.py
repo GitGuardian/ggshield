@@ -2,17 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from ggshield.core.scan import Files, StringScannable
-
-
-def test_apply_filter():
-    file1 = StringScannable(content="", url="file1")
-    file2 = StringScannable(content="", url="file2")
-    files = Files([file1, file2])
-
-    filtered_files = files.apply_filter(lambda file: file.filename == "file1")
-    assert len(filtered_files.files) == 1
-    assert file1 in filtered_files.files
+from ggshield.core.scan import StringScannable
 
 
 def test_string_scannable_path():

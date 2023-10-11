@@ -14,7 +14,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.scan import Files, ScanContext, ScanMode
+from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.verticals.secret import (
     RichSecretScannerUI,
@@ -59,7 +59,7 @@ def get_files_from_package(
     package_name: str,
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
-) -> Files:
+) -> List[Scannable]:
     archive: Path = next(archive_dir.iterdir())
     unpack_kwargs: Dict[str, str] = (
         {"format": "zip"} if archive.suffix == ".whl" else {}
@@ -111,14 +111,14 @@ def pypi_cmd(
         temp_path = Path(temp_dir)
         save_package_to_tmp(temp_dir=temp_path, package_name=package_name)
 
-        files: Files = get_files_from_package(
+        files = get_files_from_package(
             archive_dir=temp_path,
             package_name=package_name,
             exclusion_regexes=ctx.obj["exclusion_regexes"],
             verbose=config.user_config.verbose,
         )
 
-        with RichSecretScannerUI(len(files.files), dataset_type="PyPI Package") as ui:
+        with RichSecretScannerUI(len(files), dataset_type="PyPI Package") as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.PYPI,
                 command_path=ctx.command_path,
@@ -131,7 +131,7 @@ def pypi_cmd(
                 scan_context=scan_context,
                 ignored_detectors=config.user_config.secret.ignored_detectors,
             )
-            results = scanner.scan(files.files, scanner_ui=ui)
+            results = scanner.scan(files, scanner_ui=ui)
         scan = SecretScanCollection(id=package_name, type="path_scan", results=results)
 
         return output_handler.process_scan(scan)

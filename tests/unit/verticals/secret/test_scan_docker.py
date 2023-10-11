@@ -1,13 +1,14 @@
 import re
 import subprocess
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 from unittest.mock import patch
 
 import click
 import pytest
 
 from ggshield.core.errors import UnexpectedError
+from ggshield.core.scan import File
 from ggshield.verticals.secret.docker import (
     DockerImage,
     InvalidDockerArchiveException,
@@ -86,24 +87,23 @@ class TestDockerScan:
     )
     def test_docker_archive(self, image_path: Path):
         with DockerImage.open(image_path) as image:
+            # IDs for non-empty layers
+            layer_ids: List[str] = []
+            # Files for non-empty layers
+            layer_files: List[List[File]] = []
 
-            # List of (LayerInfo, Files)
-            # The filter is here to remove layers with no scannables
-            infos_and_layers = list(
-                filter(
-                    lambda info_and_layer: info_and_layer[1].files,
-                    ((x, image.get_layer(x)) for x in image.layer_infos),
-                )
-            )
+            # Fill layer_ids and layer_files
+            for info in image.layer_infos:
+                if files := list(image.get_layer_scannables(info)):
+                    layer_ids.append(info.diff_id)
+                    layer_files.append(files)
 
-            layer_ids = [x.diff_id for x, _ in infos_and_layers]
             assert layer_ids == list(DOCKER_EXAMPLE_LAYER_FILES)
 
-            layers = [l for _, l in infos_and_layers]
-            for layer, expected_content_dict in zip(
-                layers, DOCKER_EXAMPLE_LAYER_FILES.values()
+            for files, expected_content_dict in zip(
+                layer_files, DOCKER_EXAMPLE_LAYER_FILES.values()
             ):
-                content_dict = {x.path.as_posix(): x.content for x in layer.files}
+                content_dict = {x.path.as_posix(): x.content for x in files}
                 assert content_dict == expected_content_dict
 
 

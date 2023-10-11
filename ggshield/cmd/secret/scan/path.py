@@ -57,7 +57,7 @@ def path_cmd(
         ignore_git=True,
     )
 
-    with RichSecretScannerUI(len(files.files), dataset_type="Path") as ui:
+    with RichSecretScannerUI(len(files), dataset_type="Path") as ui:
         scan_context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path=ctx.command_path,
@@ -70,7 +70,7 @@ def path_cmd(
             scan_context=scan_context,
             ignored_detectors=config.user_config.secret.ignored_detectors,
         )
-        results = scanner.scan(files.files, scanner_ui=ui)
+        results = scanner.scan(files, scanner_ui=ui)
     scan = SecretScanCollection(
         id=" ".join(str(x) for x in paths), type="path_scan", results=results
     )

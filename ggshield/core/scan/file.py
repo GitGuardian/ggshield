@@ -6,7 +6,7 @@ import click
 
 from ggshield.utils.files import UnexpectedDirectoryError, get_filepaths, is_path_binary
 
-from .scannable import Files, Scannable
+from .scannable import Scannable
 
 
 class File(Scannable):
@@ -61,7 +61,7 @@ def get_files_from_paths(
     display_scanned_files: bool,
     display_binary_files: bool,
     ignore_git: bool = False,
-) -> Files:
+) -> List[Scannable]:
     """
     Create a scan object from files content.
 
@@ -97,7 +97,7 @@ def get_files_from_paths(
             err=True,
         )
 
-    return Files(files)
+    return files
 
 
 def generate_files_from_paths(
