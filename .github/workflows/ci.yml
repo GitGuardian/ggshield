@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
@@ -54,6 +56,16 @@ jobs:
           pre-commit run --show-diff-on-failure --all-files
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+
+      - name: Check commit messages
+        if: github.event_name == 'pull_request'
+        run: |
+          if git log --format=%s "origin/$GITHUB_BASE_REF..origin/$GITHUB_HEAD_REF" | grep '^fixup!' ; then
+              echo 'Error: this pull request contains fixup commits. Squash them.'
+              exit 1
+          fi
+          # In case `git log` fails
+          exit "${PIPESTATUS[0]}"
 
   build:
     name: Build and Test
