@@ -50,9 +50,15 @@ EXCLUDED_VALUES = {
 }
 
 
-def get_client(config: Config) -> HMSLClient:
+def get_client(config: Config, hmsl_command_path: str) -> HMSLClient:
+    """
+    Get an instance of HMSLClient according to your current CLI config and the
+    current CLI command.
+    """
     token = get_token(config)
-    return HMSLClient(config.hmsl_url, token)
+    return HMSLClient(
+        url=config.hmsl_url, hmsl_command_path=hmsl_command_path, jwt=token
+    )
 
 
 def get_token(config: Config) -> Optional[str]:

@@ -40,7 +40,7 @@ def query_cmd(
 
     # Get our client
     config: Config = ctx.obj["config"]
-    client = get_client(config)
+    client = get_client(config, ctx.command_path)
 
     # Send the hashes to the API
     try:
