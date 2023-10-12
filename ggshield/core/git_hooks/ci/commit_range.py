@@ -97,36 +97,21 @@ def bitbucket_pipelines_range(verbose: bool) -> List[str]:  # pragma: no cover
 
 
 def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
-    """
-    # Extract commit range (or single commit)
-    COMMIT_RANGE=$(echo "${CIRCLE_COMPARE_URL}" | cut -d/ -f7)
-
-    # Fix single commit, unfortunately we don't always get a commit range from Circle CI
-    if [[ $COMMIT_RANGE != *"..."* ]]; then
-    COMMIT_RANGE="${COMMIT_RANGE}...${COMMIT_RANGE}"
-    fi
-    """
-    compare_range = os.getenv("CIRCLE_RANGE")
+    """Extract range of commits to scan"""
     commit_sha = os.getenv("CIRCLE_SHA1", "HEAD")
+    commit_count = os.getenv("COMMIT_COUNT", "1")
 
     if verbose:
-        click.echo(
-            f"CIRCLE_RANGE: {compare_range}\nCIRCLE_SHA1: {commit_sha}", err=True
-        )
+        click.echo(f"COMMIT_COUNT: {commit_count}\nCIRCLE_SHA1: {commit_sha}", err=True)
 
-    if compare_range and not compare_range.startswith("..."):
-        commit_list = get_list_commit_SHA(compare_range)
-        if commit_list:
-            return commit_list
-
-    commit_list = get_list_commit_SHA(f"{commit_sha}~1...")
+    commit_list = get_list_commit_SHA(commit_sha, max_count=int(commit_count))
     if commit_list:
         return commit_list
 
     raise UnexpectedError(
         "Unable to get commit range. Please submit an issue with the following info:\n"
         "\tRepository URL: <Fill if public>\n"
-        f"\tCIRCLE_RANGE: {compare_range}\n"
+        f"\tCOMMIT_COUNT: {commit_count}\n"
         f"\tCIRCLE_SHA1: {commit_sha}"
     )
 
