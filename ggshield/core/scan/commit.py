@@ -1,5 +1,6 @@
 import re
 from functools import cached_property
+from pathlib import Path
 from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 from ggshield.core.text_utils import STYLE, format_text
@@ -127,13 +128,15 @@ class Commit:
 
     @staticmethod
     def from_sha(
-        sha: str, exclusion_regexes: Optional[Set[re.Pattern]] = None
+        sha: str,
+        exclusion_regexes: Optional[Set[re.Pattern]] = None,
+        cwd: Optional[Path] = None,
     ) -> "Commit":
-        patch_header = git(["show", "--no-patch", sha])
+        patch_header = git(["show", "--no-patch", sha], cwd=cwd)
         info = CommitInformation.from_patch_header(patch_header)
 
         def parser() -> Iterable[Scannable]:
-            patch = git(["show", sha] + _PATCH_COMMON_ARGS)
+            patch = git(["show", sha] + _PATCH_COMMON_ARGS, cwd=cwd)
             try:
                 yield from _parse_patch(patch, exclusion_regexes)
             except Exception as exc:
@@ -142,9 +145,11 @@ class Commit:
         return Commit(sha, parser, info)
 
     @staticmethod
-    def from_staged(exclusion_regexes: Optional[Set[re.Pattern]] = None) -> "Commit":
+    def from_staged(
+        exclusion_regexes: Optional[Set[re.Pattern]] = None, cwd: Optional[Path] = None
+    ) -> "Commit":
         def parser() -> Iterable[Scannable]:
-            patch = git(["diff", "--cached"] + _PATCH_COMMON_ARGS)
+            patch = git(["diff", "--cached"] + _PATCH_COMMON_ARGS, cwd=cwd)
             try:
                 yield from _parse_patch(patch, exclusion_regexes)
             except Exception as exc:
@@ -184,8 +189,6 @@ class Commit:
     def get_files(self) -> Iterable[Scannable]:
         """
         Parse the patch into files and extract the changes for each one of them.
-
-        See tests/data/patches for examples
         """
         yield from self._patch_parser()
 

@@ -1,4 +1,6 @@
-from typing import List, Tuple
+import subprocess
+from pathlib import Path
+from typing import Callable, List, Tuple
 
 import pytest
 
@@ -6,10 +8,10 @@ from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import Commit
 from ggshield.core.scan.commit import _parse_patch_header_line
 from ggshield.utils.git_shell import Filemode
-from tests.unit.conftest import DATA_PATH
+from tests.conftest import is_windows
+from tests.repository import Repository
 
 
-PATCHES_DIR = DATA_PATH / "patches"
 PATCH_SEPARATION = (
     """commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
 Author: Testificate Jose <test@test.test>
@@ -162,85 +164,281 @@ def test_parse_patch_header_line(
     assert (name, mode) == (expected_name, expected_mode)
 
 
+def create_file(repo: Repository, name: str = "f", content: str = "Hello\n") -> Path:
+    path = repo.path / name
+    path.write_text(content)
+    return path
+
+
+def file_append(path: Path, content: str) -> None:
+    with path.open("a") as f:
+        f.write(content)
+
+
+def file_search_and_replace(path: Path, src: str, dst: str) -> None:
+    content = path.read_text().replace(src, dst)
+    path.write_text(content)
+
+
+def scenario_add(repo: Repository) -> None:
+    repo.add(create_file(repo))
+    repo.create_commit()
+
+
+def scenario_add_unusual_chars(repo: Repository) -> None:
+    repo.add(create_file(repo, "I'm unusual!"))
+    repo.create_commit()
+
+
+def scenario_add_two(repo: Repository) -> None:
+    repo.add(create_file(repo, "one"))
+    repo.add(create_file(repo, "two"))
+    repo.create_commit()
+
+
+def scenario_modify(repo: Repository) -> None:
+    path = create_file(repo, "f", "Old content")
+    repo.add(path)
+    repo.create_commit()
+    path.write_text("New content")
+    repo.add(path)
+    repo.create_commit()
+
+
+def scenario_remove(repo: Repository) -> None:
+    path = create_file(repo)
+    repo.add(path)
+    repo.create_commit()
+    repo.git("rm", path)
+    repo.create_commit()
+
+
+def scenario_rename(repo: Repository) -> None:
+    path = create_file(repo, "old file.txt")
+    repo.add(path)
+    repo.create_commit()
+    repo.git("mv", path.name, "new file.txt")
+    repo.create_commit()
+
+
+def scenario_chmod(repo: Repository) -> None:
+    path = create_file(repo)
+    repo.add(path)
+    repo.create_commit()
+    path.chmod(0o755)
+    repo.add(path)
+    repo.create_commit()
+
+
+def scenario_rename_chmod_modify(repo: Repository) -> None:
+    path = create_file(repo, "oldscript", "another script\n")
+    repo.add(path)
+    repo.create_commit()
+
+    # rename
+    new_path = repo.path / "newscript"
+    repo.git("mv", path.name, new_path.name)
+
+    # chmod
+    new_path.chmod(0o755)
+
+    # modify, but not too much so that it's still considered as a rename
+    file_append(new_path, "more content\n")
+
+    repo.add(new_path)
+    repo.create_commit()
+
+
+def scenario_merge(repo: Repository) -> None:
+    long_file = create_file(
+        repo,
+        "longfile",
+        """Some content
+
+long enough
+
+
+for changes
+to merge
+
+without conflict...
+
+hopefully
+""",
+    )
+    repo.add(long_file)
+    repo.create_commit()
+
+    # Append to long_file in branch b1
+    repo.create_branch("b1")
+    file_append(long_file, "Hello from b1\n")
+    repo.add(long_file)
+    repo.create_commit()
+
+    # Replace text in long_file in branch b2
+    repo.checkout("main")
+    repo.create_branch("b2")
+    file_search_and_replace(long_file, "for changes", "for changes from b2")
+    repo.add(long_file)
+    repo.create_commit()
+
+    # Replace text in branch main
+    repo.checkout("main")
+    file_search_and_replace(long_file, "Some content", "## Some content")
+    repo.add(long_file)
+    repo.create_commit()
+
+    # Merge all branches
+    repo.git("merge", "--no-ff", "b1", "b2")
+
+
+def scenario_merge_with_changes(repo: Repository) -> None:
+    path = create_file(repo, "conflicted")
+    repo.add(path)
+    repo.create_commit()
+
+    # Append from branch b1
+    repo.create_branch("b1")
+    file_append(path, "Hello from b1\n")
+    repo.add(path)
+    repo.create_commit()
+
+    # Append from main
+    repo.checkout("main")
+    file_append(path, "Hello from main\n")
+    repo.add(path)
+    repo.create_commit()
+
+    # Try to merge
+    try:
+        repo.git("merge", "--no-ff", "b1", "--no-commit")
+    except subprocess.CalledProcessError:
+        pass
+
+    # Solve conflict
+    path.write_text("Solve conflict\n")
+    repo.add(path)
+    repo.create_commit()
+
+
+def scenario_type_change(repo: Repository) -> None:
+    path = create_file(repo)
+
+    # Create `f2` as a symlink to path
+    f2_path = repo.path / "f2"
+    f2_path.symlink_to(path)
+    repo.add(path, f2_path)
+    repo.create_commit()
+
+    # Turn `f2` into a file
+    f2_path.unlink()
+    f2_path.write_text("file")
+    repo.add(f2_path)
+    repo.create_commit()
+
+
 @pytest.mark.parametrize(
-    ("patch_name", "expected_names_and_modes"),
+    ("scenario", "expected_names_and_modes"),
     [
-        ("add.patch", [("README.md", Filemode.NEW)]),
-        ("pre-commit.patch", [("NEW.md", Filemode.NEW)]),
-        (
-            "add_two_files.patch",
-            [
-                ("one", Filemode.NEW),
-                ("two", Filemode.NEW),
-            ],
-        ),
-        (
-            "add_unusual.patch",
-            [
-                ("I'm unusual!", Filemode.NEW),
-            ],
-        ),
-        (
-            "chmod.patch",
-            [],  # a permission change with no content change yields no content
-        ),
-        (
-            "chmod_rename_modify.patch",
-            [
-                ("newscript", Filemode.RENAME),
-            ],
-        ),
-        (
-            "modify.patch",
-            [
-                ("README.md", Filemode.MODIFY),
-            ],
-        ),
-        (
-            "remove.patch",
-            [
-                ("foo_file", Filemode.DELETE),
-            ],
-        ),
-        (
-            "rename.patch",
-            [],  # a rename with no content change yields no content
-        ),
-        (
-            "merge.patch",
-            [
-                ("longfile", Filemode.MODIFY),
-                ("longfile", Filemode.MODIFY),
-                ("longfile", Filemode.MODIFY),
-            ],
-        ),
-        (
-            "merge-with-changes.patch",
-            [
-                ("conflicted", Filemode.MODIFY),
-                ("conflicted", Filemode.MODIFY),
-            ],
-        ),
-        (
-            "type-change.patch",
-            [
-                ("README2.md", Filemode.NEW),
-            ],
-        ),
+        pytest.param(*x, id=x[0].__name__)
+        for x in [
+            (scenario_add, [("f", Filemode.NEW)]),
+            (scenario_add_unusual_chars, [("I'm unusual!", Filemode.NEW)]),
+            (
+                scenario_add_two,
+                [
+                    ("one", Filemode.NEW),
+                    ("two", Filemode.NEW),
+                ],
+            ),
+            (
+                scenario_modify,
+                [
+                    ("f", Filemode.MODIFY),
+                ],
+            ),
+            (
+                scenario_remove,
+                [
+                    ("f", Filemode.DELETE),
+                ],
+            ),
+            (
+                scenario_rename,
+                [],  # a rename with no content change yields no content
+            ),
+            (
+                scenario_chmod,
+                [],  # a permission change with no content change yields no content
+            ),
+            (
+                scenario_rename_chmod_modify,
+                [
+                    ("newscript", Filemode.RENAME),
+                ],
+            ),
+            (
+                scenario_merge,
+                [
+                    ("longfile", Filemode.MODIFY),
+                    ("longfile", Filemode.MODIFY),
+                    ("longfile", Filemode.MODIFY),
+                ],
+            ),
+            (
+                scenario_merge_with_changes,
+                [
+                    ("conflicted", Filemode.MODIFY),
+                    ("conflicted", Filemode.MODIFY),
+                ],
+            ),
+            (
+                scenario_type_change,
+                [
+                    ("f2", Filemode.NEW),
+                ],
+            ),
+        ]
     ],
 )
-def test_get_files(
-    patch_name: str, expected_names_and_modes: List[Tuple[str, Filemode]]
+def test_from_sha(
+    tmp_path,
+    scenario: Callable[[Repository], None],
+    expected_names_and_modes: List[Tuple[str, Filemode]],
 ):
     """
-    GIVEN a Commit created from a patch from data/patches
+    GIVEN a Commit created from `scenario`
     WHEN Commit.get_files() is called
     THEN it returns files with correct names and modes
     """
-    patch_path = PATCHES_DIR / patch_name
+    if is_windows() and scenario == scenario_type_change:
+        # Path.symlink_to() does not produce the expected diff changes on Windows, so
+        # skip this test for now
+        pytest.skip()
+    repo = Repository.create(tmp_path)
+    scenario(repo)
 
-    commit = Commit.from_patch(patch_path.read_text())
+    commit = Commit.from_sha(repo.get_top_sha(), cwd=tmp_path)
     files = list(commit.get_files())
 
     names_and_modes = [(x.filename, x.filemode) for x in files]
     assert names_and_modes == expected_names_and_modes
+
+
+def test_from_staged(tmp_path):
+    """
+    GIVEN a new file added with `git add`
+    AND a Commit instance created from git staged files
+    WHEN Commit.get_files() is called
+    THEN it returns files with correct names and modes
+    """
+    repository = Repository.create(tmp_path)
+    new_file = tmp_path / "NEW.md"
+    new_file.write_text("Hello")
+    repository.add(new_file)
+
+    commit = Commit.from_staged(cwd=tmp_path)
+    files = list(commit.get_files())
+
+    names_and_modes = [(x.filename, x.filemode) for x in files]
+    assert names_and_modes == [("NEW.md", Filemode.NEW)]
