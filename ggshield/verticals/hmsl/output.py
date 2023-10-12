@@ -19,6 +19,9 @@ TEMPLATE = """
 Secret name: "{name}"
 Secret hash: "{hash}"
 Distinct locations: {count}
+"""
+
+URL_DISPLAY_TEMPLATE = """
 First occurrence:
     URL: "{url}"
 """
@@ -75,7 +78,12 @@ def show_results(
         click.echo(json.dumps(data))
     else:
         for i, secret in enumerate(data["leaks"]):
-            click.echo(TEMPLATE.format(number=i + 1, **secret))
+            # Don't show empty URL
+            template = TEMPLATE
+            if secret.get("url"):
+                template = template.rstrip() + URL_DISPLAY_TEMPLATE
+
+            click.echo(template.format(number=i + 1, **secret))
             if secret["count"] >= TOO_MANY_SECRETS_THRESHOLD:
                 display_warning(
                     "Given the number of occurrences, your secret might be a template value."

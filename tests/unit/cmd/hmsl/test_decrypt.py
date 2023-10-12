@@ -31,6 +31,9 @@ RESULTS_CONTENT = (
     '"0XmzWJNyq3gHbeqb5+T5xSjuwP1qFdrIbvsW4K5Spk+Yn2mfBs92Z3ipEngis2nZMNS+K99h/sh3+hvqTH5T5Z0p/YnCd2f+1E4suGEbVnA="}\n'
     '{"hint": "9c9e78a410131e548c733e08b1de9a3dcccbe5cda970cb6ad740655b7741e7b3", "payload": '
     '"WDmh3FQvY+i5DO+6bWeOkY5J78jHBHCsEFjl9u1PEpftDS5Htzcc/dQqrzFcYvBwU+RbPLag2z/w7PBW+m472D9R1OExamCWs6MjN65j3L0="}\n'
+    # No location returned for the following secret
+    '{"hint": "60d8cf27924c89ac016d59f20a63bb6449c4f058abf9eeed93d36c3f83e75681", "payload": '
+    '"W9F0FQDILc/IRkpevr7mPLF5nxPaq9LM6Z8vcyQBS2Wm9j+D/y6jX8F0LjOUQTs="}\n'
 )
 
 RESULTS_CLEARTEXT_CONTENT = (
@@ -50,6 +53,18 @@ def mapping_path(cli_fs_runner, tmp_path: Path):
         "\n".join(f"{key}:{value}" for key, value in mapping.items())
     )
     return mapping_path
+
+
+@pytest.fixture
+def mapping_path_no_location(cli_fs_runner, tmp_path: Path):
+    """Prepare a mapping file"""
+    mapping_path_no_location = tmp_path / "mapping_no_location.txt"
+    secrets = ["apikey_with_no_location"]
+    mapping_no_location = {hash_string(secret): secret for secret in secrets}
+    mapping_path_no_location.write_text(
+        "\n".join(f"{key}:{value}" for key, value in mapping_no_location.items())
+    )
+    return mapping_path_no_location
 
 
 @pytest.fixture
@@ -101,6 +116,7 @@ def test_hmsl_decrypt_default_behavior(
     assert_invoke_ok(result)
     assert result.output.count("> Secret ") == 1
     assert 'Secret name: "foo"' in result.output
+    assert "URL: " in result.output
 
 
 def test_hmsl_decrypt_full_hashes_behavior(
@@ -117,3 +133,19 @@ def test_hmsl_decrypt_full_hashes_behavior(
     assert_invoke_ok(result)
     assert result.output.count("> Secret ") == 1
     assert 'Secret name: "password"' in result.output
+
+
+def test_hmsl_decrypt_no_location_returned(
+    cli_fs_runner: CliRunner, mapping_path_no_location, results_path: Path
+) -> None:
+    """
+    GIVEN a secret for which no location is returned
+    WHEN running the decrypt command on a file
+    THEN the secret is correctly decrypted with no location associated
+    """
+    result = cli_fs_runner.invoke(
+        cli, ["hmsl", "decrypt", "-m", str(mapping_path_no_location), str(results_path)]
+    )
+    assert result.output.count("> Secret ") == 1
+    assert 'Secret name: "apikey_with_no_location"' in result.output
+    assert "URL: " not in result.output

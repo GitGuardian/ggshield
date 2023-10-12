@@ -24,7 +24,7 @@ PREFIX_REGEX = re.compile(f"^[0-9a-f]{{{PREFIX_LENGTH}}}$")
 class Secret:
     hash: str
     count: int
-    url: str
+    url: Union[str, None] = None
 
 
 @dataclass
@@ -36,10 +36,14 @@ class Match:
         key = bytes.fromhex(hash)
         payload = base64.b64decode(self.payload)
         decrypted = json.loads(decrypt(payload, key))
+        if decrypted.get("l"):
+            url = decrypted.get("l", {}).get("u")
+        else:
+            url = None
         return Secret(
             hash=hash,
             count=decrypted["c"],
-            url=decrypted["l"]["u"],
+            url=url,
         )
 
 
@@ -141,7 +145,7 @@ class HMSLClient:
                 Secret(
                     hash=secret["hash"],
                     count=secret["count"],
-                    url=secret["location"]["u"],
+                    url=secret["location"]["u"] if secret["location"] else None,
                 )
                 for secret in response["secrets"]
             ]
