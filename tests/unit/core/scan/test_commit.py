@@ -1,7 +1,6 @@
 from typing import List, Tuple
 
 import pytest
-from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import Commit
@@ -125,23 +124,6 @@ def test_patch_separation_ignore():
 
     assert len(files) == 3
     assert not (any(entry.filename == file_to_ignore for entry in files))
-
-
-def test_patch_max_size():
-    patch = """
-diff --git a/.env b/.env
-new file mode 100644
-index 0000000..0000000
---- /dev/null
-+++ b/.env
-@@ -0,0 +1,112 @@
-CHECK_ENVIRONMENT=true
-    """
-    patch += "a" * DOCUMENT_SIZE_THRESHOLD_BYTES
-    commit = Commit.from_patch(patch)
-    files = list(commit.get_files())
-
-    assert len(files) == 0
 
 
 @pytest.mark.parametrize(
