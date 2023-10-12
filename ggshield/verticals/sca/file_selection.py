@@ -47,17 +47,21 @@ def get_all_files_from_sca_paths(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
     """
-    files = get_files_from_paths(
-        paths=[path],
-        exclusion_regexes=exclusion_regexes,
-        recursive=True,
-        yes=True,
-        display_binary_files=verbose,
-        display_scanned_files=False,  # If True, this displays all files in the directory but we only want SCA files
-        ignore_git=ignore_git,
-    ).apply_filter(is_not_excluded_from_sca)
+    paths = [
+        x.path
+        for x in get_files_from_paths(
+            paths=[path],
+            exclusion_regexes=exclusion_regexes,
+            recursive=True,
+            yes=True,
+            display_binary_files=verbose,
+            display_scanned_files=False,  # If True, this displays all files in the directory but we only want SCA files
+            ignore_git=ignore_git,
+        )
+        if is_not_excluded_from_sca(x)
+    ]
 
-    return [str(x.relative_to(path)) for x in files.paths]
+    return [str(x.relative_to(path)) for x in paths]
 
 
 def is_not_excluded_from_sca(scannable: Scannable) -> bool:

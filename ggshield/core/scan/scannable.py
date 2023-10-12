@@ -4,7 +4,7 @@ import urllib.parse
 from abc import ABC, abstractmethod
 from io import SEEK_END, SEEK_SET
 from pathlib import Path
-from typing import BinaryIO, Callable, List, Optional, Tuple
+from typing import BinaryIO, Optional, Tuple
 
 import charset_normalizer
 from charset_normalizer import CharsetMatch
@@ -188,32 +188,3 @@ class StringScannable(Scannable):
     @property
     def content(self) -> str:
         return self._content
-
-
-class Files:
-    """
-    Files is a list of files. Useful for directory scanning.
-
-    TODO: Rename to something like ScannableCollection: this class is no longer limited
-    to holding File instances.
-    """
-
-    def __init__(self, files: List[Scannable]):
-        self._files = files
-
-    @property
-    def files(self) -> List[Scannable]:
-        """The list of files owned by this instance. The same filename can appear twice,
-        in case of a merge commit."""
-        return self._files
-
-    @property
-    def paths(self) -> List[Path]:
-        """Convenience property to list paths in the same order as files"""
-        return [x.path for x in self.files]
-
-    def __repr__(self) -> str:
-        return f"<Files files={self.files}>"
-
-    def apply_filter(self, filter_func: Callable[[Scannable], bool]) -> "Files":
-        return Files([file for file in self.files if filter_func(file)])
