@@ -161,7 +161,7 @@ def scan_commit_range(
 
         commits_batch = get_commits_by_batch(
             commits=(
-                Commit(sha=sha, exclusion_regexes=exclusion_regexes)
+                Commit.from_sha(sha, exclusion_regexes=exclusion_regexes)
                 for sha in commit_list
             ),
             batch_max_size=max_documents,

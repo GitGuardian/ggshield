@@ -77,9 +77,8 @@ _EXPECT_NO_SECRET = {
         "_NO_SECRET",
     ],
 )
-def test_scan_patch(client, cache, name, input_patch, expected):
-    c = Commit()
-    c._patch = input_patch
+def test_scan_patch(client, cache, name: str, input_patch: str, expected: ExpectedScan):
+    commit = Commit.from_patch(input_patch)
 
     with my_vcr.use_cassette(name):
         scanner = SecretScanner(
@@ -90,7 +89,7 @@ def test_scan_patch(client, cache, name, input_patch, expected):
                 command_path="external",
             ),
         )
-        results = scanner.scan(c.files)
+        results = scanner.scan(commit.get_files())
         for result in results.results:
             if result.scan.policy_breaks:
                 assert len(result.scan.policy_breaks[0].matches) == expected.matches

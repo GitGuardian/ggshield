@@ -103,13 +103,12 @@ CHECK_ENVIRONMENT=true
 
 
 def test_patch_separation():
-    c = Commit()
-    c._patch = PATCH_SEPARATION
-    files = list(c.get_files())
+    commit = Commit.from_patch(PATCH_SEPARATION)
+    files = list(commit.get_files())
 
-    assert c.info.author == "Testificate Jose"
-    assert c.info.email == "test@test.test"
-    assert c.info.date == "Fri Oct 18 13:20:00 2012 +0100"
+    assert commit.info.author == "Testificate Jose"
+    assert commit.info.email == "test@test.test"
+    assert commit.info.date == "Fri Oct 18 13:20:00 2012 +0100"
 
     assert len(files) == len(EXPECTED_PATCH_CONTENT)
     for file_, (name, content) in zip(files, EXPECTED_PATCH_CONTENT):
@@ -118,19 +117,18 @@ def test_patch_separation():
 
 
 def test_patch_separation_ignore():
-    c = Commit()
-    c._patch = PATCH_SEPARATION
     file_to_ignore = ".env"
-    c.exclusion_regexes = init_exclusion_regexes([file_to_ignore])
-    files = list(c.get_files())
+    commit = Commit.from_patch(
+        PATCH_SEPARATION, init_exclusion_regexes([file_to_ignore])
+    )
+    files = list(commit.get_files())
 
     assert len(files) == 3
     assert not (any(entry.filename == file_to_ignore for entry in files))
 
 
 def test_patch_max_size():
-    c = Commit()
-    c._patch = """
+    patch = """
 diff --git a/.env b/.env
 new file mode 100644
 index 0000000..0000000
@@ -139,8 +137,9 @@ index 0000000..0000000
 @@ -0,0 +1,112 @@
 CHECK_ENVIRONMENT=true
     """
-    c._patch += "a" * DOCUMENT_SIZE_THRESHOLD_BYTES
-    files = list(c.get_files())
+    patch += "a" * DOCUMENT_SIZE_THRESHOLD_BYTES
+    commit = Commit.from_patch(patch)
+    files = list(commit.get_files())
 
     assert len(files) == 0
 
@@ -258,8 +257,7 @@ def test_get_files(
     """
     patch_path = PATCHES_DIR / patch_name
 
-    commit = Commit()
-    commit._patch = patch_path.read_text()
+    commit = Commit.from_patch(patch_path.read_text())
     files = list(commit.get_files())
 
     names_and_modes = [(x.filename, x.filemode) for x in files]

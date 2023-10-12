@@ -126,8 +126,7 @@ SCHEMA_WITH_INCIDENTS = S(
     ],
 )
 def test_json_output(client, cache, name, input_patch, expected_exit_code):
-    c = Commit()
-    c._patch = input_patch
+    c = Commit.from_patch(input_patch)
     handler = SecretJSONOutputHandler(verbose=True, show_secrets=False)
 
     with my_vcr.use_cassette(name):

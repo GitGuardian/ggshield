@@ -1,5 +1,6 @@
 import re
-from typing import Iterable, List, NamedTuple, Optional, Set, Tuple
+from functools import cached_property
+from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.files import is_filepath_excluded
@@ -24,7 +25,9 @@ class PatchParseError(Exception):
     pass
 
 
-def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[Scannable]:
+def _parse_patch(
+    patch: str, exclusion_regexes: Optional[Set[re.Pattern]]
+) -> Iterable[Scannable]:
     """
     Parse the patch generated with `git show` (or `git diff`)
 
@@ -33,6 +36,9 @@ def _parse_patch(patch: str, exclusion_regexes: Set[re.Pattern]) -> Iterable[Sca
     to generate one single-parent commit per parent. This makes later code simpler and
     ensures we see *all* the changes.
     """
+    if exclusion_regexes is None:
+        exclusion_regexes = set()
+
     for commit in patch.split("\0commit "):
         tokens = commit.split("\0diff ", 1)
         if len(tokens) == 1:
@@ -81,6 +87,24 @@ class CommitInformation(NamedTuple):
     email: str
     date: str
 
+    @staticmethod
+    def from_patch_header(patch: str) -> "CommitInformation":
+        match = REGEX_HEADER_INFO.search(patch)
+        assert match is not None
+        return CommitInformation(**match.groupdict())
+
+
+_UNKNOWN_COMMIT_INFORMATION = CommitInformation("unknown", "", "")
+
+
+# Command line arguments passed to git to get parsable patches
+_PATCH_COMMON_ARGS = [
+    "--raw",  # shows a header with the files touched by the commit
+    "-z",  # separate file names in the raw header with \0
+    "--patch",  # force output of the diff (--raw disables it)
+    "-m",  # split multi-parent (aka merge) commits into several one-parent commits
+]
+
 
 class Commit:
     """
@@ -89,26 +113,60 @@ class Commit:
 
     def __init__(
         self,
-        sha: Optional[str] = None,
-        exclusion_regexes: Optional[Set[re.Pattern]] = None,
+        sha: Optional[str],
+        patch_parser: Callable[[], Iterable[Scannable]],
+        info: Optional[CommitInformation] = None,
     ):
+        """
+        Internal constructor. Used by the `from_*` static methods and by some tests.
+        Real code should use the `from_*` methods.
+        """
         self.sha = sha
-        self._files: List[Scannable] = []
-        self._patch: Optional[str] = None
-        self.exclusion_regexes: Set[re.Pattern] = exclusion_regexes or set()
-        self._info: Optional[CommitInformation] = None
+        self._patch_parser = patch_parser
+        self.info = info or _UNKNOWN_COMMIT_INFORMATION
 
-    @property
-    def info(self) -> CommitInformation:
-        if self._info is None:
-            m = REGEX_HEADER_INFO.search(self.patch)
+    @staticmethod
+    def from_sha(
+        sha: str, exclusion_regexes: Optional[Set[re.Pattern]] = None
+    ) -> "Commit":
+        patch_header = git(["show", "--no-patch", sha])
+        info = CommitInformation.from_patch_header(patch_header)
 
-            if m is None:
-                self._info = CommitInformation("unknown", "", "")
-            else:
-                self._info = CommitInformation(**m.groupdict())
+        def parser() -> Iterable[Scannable]:
+            patch = git(["show", sha] + _PATCH_COMMON_ARGS)
+            try:
+                yield from _parse_patch(patch, exclusion_regexes)
+            except Exception as exc:
+                raise PatchParseError(f"Could not parse patch (sha: {sha}): {exc}")
 
-        return self._info
+        return Commit(sha, parser, info)
+
+    @staticmethod
+    def from_staged(exclusion_regexes: Optional[Set[re.Pattern]] = None) -> "Commit":
+        def parser() -> Iterable[Scannable]:
+            patch = git(["diff", "--cached"] + _PATCH_COMMON_ARGS)
+            try:
+                yield from _parse_patch(patch, exclusion_regexes)
+            except Exception as exc:
+                raise PatchParseError(f"Could not parse patch: {exc}")
+
+        return Commit(sha=None, patch_parser=parser)
+
+    @staticmethod
+    def from_patch(
+        patch: str,
+        exclusion_regexes: Optional[Set[re.Pattern]] = None,
+    ) -> "Commit":
+        """This one is for tests"""
+        info = CommitInformation.from_patch_header(patch)
+
+        def parser() -> Iterable[Scannable]:
+            try:
+                yield from _parse_patch(patch, exclusion_regexes)
+            except Exception as exc:
+                raise PatchParseError(f"Could not parse patch: {exc}")
+
+        return Commit(sha=None, patch_parser=parser, info=info)
 
     @property
     def optional_header(self) -> str:
@@ -119,29 +177,9 @@ class Commit:
             + f"Date: {self.info.date}\n"
         )
 
-    @property
-    def patch(self) -> str:
-        """Get the change patch for the commit."""
-        if self._patch is None:
-            common_args = [
-                "--raw",  # shows a header with the files touched by the commit
-                "-z",  # separate file names in the raw header with \0
-                "--patch",  # force output of the diff (--raw disables it)
-                "-m",  # split multi-parent (aka merge) commits into several one-parent commits
-            ]
-            if self.sha:
-                self._patch = git(["show", self.sha] + common_args)
-            else:
-                self._patch = git(["diff", "--cached"] + common_args)
-
-        return self._patch
-
-    @property
+    @cached_property
     def files(self) -> List[Scannable]:
-        if not self._files:
-            self._files = list(self.get_files())
-
-        return self._files
+        return list(self.get_files())
 
     def get_files(self) -> Iterable[Scannable]:
         """
@@ -149,13 +187,10 @@ class Commit:
 
         See tests/data/patches for examples
         """
-        try:
-            yield from _parse_patch(self.patch, self.exclusion_regexes)
-        except Exception as exc:
-            raise PatchParseError(f"Could not parse patch (sha: {self.sha}): {exc}")
+        yield from self._patch_parser()
 
     def __repr__(self) -> str:
-        return f"<Commit sha={self.sha} files={self.files}>"
+        return f"<Commit sha={self.sha}>"
 
 
 def _parse_patch_header_line(line: str) -> Tuple[str, Filemode]:

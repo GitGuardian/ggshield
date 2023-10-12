@@ -67,9 +67,8 @@ def test_make_indices_patch(
     expected_indices_list: List[MatchIndices],
 ):
     if is_patch:
-        commit = Commit()
-        commit._patch = content
-        files = commit.files
+        commit = Commit.from_patch(content)
+        files = commit.get_files()
     else:
         files = [StringScannable(content=content, url="test_file")]
     with my_vcr.use_cassette(name):
