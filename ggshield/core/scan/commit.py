@@ -1,7 +1,6 @@
 import re
-from functools import cached_property
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Iterable, Optional, Sequence, Set, Tuple
 
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.files import is_filepath_excluded
@@ -226,10 +225,6 @@ class Commit:
             + f"Author: {self.info.author} <{self.info.email}>\n"
             + f"Date: {self.info.date}\n"
         )
-
-    @cached_property
-    def files(self) -> List[Scannable]:
-        return list(self.get_files())
 
     def get_files(self) -> Iterable[Scannable]:
         """

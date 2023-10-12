@@ -138,7 +138,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
                 command_path="external",
             ),
         )
-        results = scanner.scan(c.files)
+        results = scanner.scan(c.get_files())
 
         scan = SecretScanCollection(id="path", type="test", results=deepcopy(results))
         json_flat_results = handler._process_scan_impl(scan)
