@@ -29,7 +29,7 @@ class Repository:
 
     @classmethod
     def create(cls, path: Path, bare=False) -> "Repository":
-        cmd = ["init", str(path)]
+        cmd = ["init", str(path), "--initial-branch", "main"]
         if bare:
             cmd.append("--bare")
         git(cmd)
