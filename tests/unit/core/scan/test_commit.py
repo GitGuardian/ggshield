@@ -6,7 +6,7 @@ import pytest
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import Commit
-from ggshield.core.scan.commit import _parse_patch_header_line
+from ggshield.core.scan.commit import CommitInformation, _parse_patch_header_line
 from ggshield.utils.git_shell import Filemode
 from tests.conftest import is_windows
 from tests.repository import Repository
@@ -442,3 +442,28 @@ def test_from_staged(tmp_path):
 
     names_and_modes = [(x.filename, x.filemode) for x in files]
     assert names_and_modes == [("NEW.md", Filemode.NEW)]
+
+
+@pytest.mark.parametrize(
+    ("patch", "expected"),
+    [
+        (
+            "Author: ezra <ezra@lothal.sw>\nDate: Thu Sep 29 15:55:41 2022 +0000\n",
+            CommitInformation(
+                "ezra", "ezra@lothal.sw", "Thu Sep 29 15:55:41 2022 +0000"
+            ),
+        ),
+        # This can happen, see: https://github.com/sqlite/sqlite/commit/981706534.patch
+        (
+            "Author: emptymail <>\nDate: Thu Sep 29 15:55:41 2022 +0000\n",
+            CommitInformation("emptymail", "", "Thu Sep 29 15:55:41 2022 +0000"),
+        ),
+    ],
+)
+def test_commit_information_from_patch_header(patch: str, expected: CommitInformation):
+    """
+    GIVEN a patch header
+    WHEN parsing it with CommitInformation.from_patch_header()
+    THEN it extracts the expected values
+    """
+    assert CommitInformation.from_patch_header(patch) == expected

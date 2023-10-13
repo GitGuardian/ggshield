@@ -14,7 +14,7 @@ _RX_HEADER_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
 
 
 REGEX_HEADER_INFO = re.compile(
-    r"Author:\s(?P<author>.+?) <(?P<email>.+?)>\nDate:\s+(?P<date>.+)?\n"
+    r"Author:\s(?P<author>.+?) <(?P<email>.*?)>\nDate:\s+(?P<date>.+)?\n"
 )
 
 
@@ -91,7 +91,7 @@ class CommitInformation(NamedTuple):
     @staticmethod
     def from_patch_header(patch: str) -> "CommitInformation":
         match = REGEX_HEADER_INFO.search(patch)
-        assert match is not None
+        assert match is not None, patch
         return CommitInformation(**match.groupdict())
 
 
