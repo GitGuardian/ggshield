@@ -150,7 +150,23 @@ def gitlab_merge_request_previous_commit_sha(verbose: bool) -> Optional[str]:
     return last_commit
 
 
+def circle_previous_commit_sha(verbose: bool) -> Optional[str]:
+    """Get the commit before the first commit of the event."""
+    commit_sha = os.getenv("CIRCLE_SHA1", "HEAD")
+    commit_count = int(os.getenv("COMMIT_COUNT", "1"))
+
+    if verbose:
+        click.echo(f"CIRCLE_SHA1: {commit_sha}\nCOMMIT_COUNT: {commit_count}", err=True)
+
+    commit_list = get_list_commit_SHA(commit_sha, max_count=commit_count - 1)
+    if len(commit_list) <= commit_count:
+        # There were no commits before this event
+        return None
+    return commit_list[0]
+
+
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {
     SupportedCI.GITLAB: gitlab_previous_commit_sha,
     SupportedCI.GITHUB: github_previous_commit_sha,
+    SupportedCI.CIRCLECI: circle_previous_commit_sha,
 }
