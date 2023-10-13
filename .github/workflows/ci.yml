@@ -22,7 +22,9 @@ jobs:
     name: Lint package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
@@ -55,6 +57,16 @@ jobs:
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
+      - name: Check commit messages
+        if: github.event_name == 'pull_request'
+        run: |
+          if git log --format=%s "origin/$GITHUB_BASE_REF..origin/$GITHUB_HEAD_REF" | grep '^fixup!' ; then
+              echo 'Error: this pull request contains fixup commits. Squash them.'
+              exit 1
+          fi
+          # In case `git log` fails
+          exit "${PIPESTATUS[0]}"
+
   build:
     name: Build and Test
     runs-on: ${{ matrix.os }}
@@ -68,7 +80,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-2022]
         python-version: ['3.8', '3.9', '3.10', '3.11']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
@@ -121,7 +133,7 @@ jobs:
           coverage report --fail-under=80
           coverage xml
 
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
           flags: unittests
@@ -144,7 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -186,7 +198,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Scan commits for hardcoded secrets
@@ -205,7 +217,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Scan commits for IaC vulnerabilities
@@ -224,7 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Scan commits for SCA vulnerabilities
@@ -244,7 +256,7 @@ jobs:
       [lint, build, test_github_iac_scan_action, test_github_secret_scan_action]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build and push
         uses: docker/build-push-action@v1
         with:
@@ -261,7 +273,7 @@ jobs:
       [lint, build, test_github_iac_scan_action, test_github_secret_scan_action]
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Push to GitHub Packages
         uses: docker/build-push-action@v1
         with:
