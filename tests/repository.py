@@ -51,6 +51,9 @@ class Repository:
         self.git("commit", "--allow-empty", "-m", message)
         return self.get_top_sha()
 
+    def checkout(self, name: str) -> None:
+        self.git("checkout", name)
+
     def create_branch(self, name: str, orphan: bool = False) -> None:
         self.git("checkout", "--orphan" if orphan else "-b", name)
 
