@@ -36,9 +36,9 @@ def test_hmsl_check_random_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> N
 @my_vcr.use_cassette
 def test_hmsl_check_common_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
-    GIVEN a random secret
+    GIVEN a common secret
     WHEN running the check command on it
-    THEN we should not find a match
+    THEN we do find matches
     """
     secrets_path = tmp_path / "secrets.txt"
     secrets_path.write_text("password")
@@ -55,9 +55,9 @@ def test_hmsl_check_common_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> N
 @my_vcr.use_cassette
 def test_hmsl_check_full_hash(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
-    GIVEN a random
-    WHEN running the check command on it
-    THEN we should not find a match
+    GIVEN a common secret
+    WHEN running the check command on it with full hash option
+    THEN we do find matches
     """
     secrets_path = tmp_path / "secrets.txt"
     secrets_path.write_text("password")
@@ -65,7 +65,6 @@ def test_hmsl_check_full_hash(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     result = cli_fs_runner.invoke(
         cli, ["hmsl", "check", "-f", "-n", "cleartext", str(secrets_path)]
     )
-
     assert "Found 1 leaked secret" in result.output
     assert "password" in result.output
     assert_invoke_ok(result)
