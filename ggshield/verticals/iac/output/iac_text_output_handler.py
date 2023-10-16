@@ -124,7 +124,8 @@ class IaCTextOutputHandler(IaCOutputHandler):
                 ):
                     if not new:
                         continue
-                    scan_buf.write(file_diff_info(filename, len(new), None, None))
+                    num_new = sum(len(e.incidents) for e in new)
+                    scan_buf.write(file_diff_info(filename, num_new, None, None))
                     # List new incidents if any
                     for file_result in new:
                         scan_buf.write(
