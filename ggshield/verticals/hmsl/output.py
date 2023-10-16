@@ -22,7 +22,7 @@ Distinct locations: {count}
 """
 
 URL_DISPLAY_TEMPLATE = """
-First occurrence:
+First location:
     URL: "{url}"
 """
 
