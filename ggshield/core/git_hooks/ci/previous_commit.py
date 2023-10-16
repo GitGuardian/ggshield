@@ -150,7 +150,43 @@ def gitlab_merge_request_previous_commit_sha(verbose: bool) -> Optional[str]:
     return last_commit
 
 
+def jenkins_previous_commit_sha(verbose: bool) -> Optional[str]:
+    previous_commit = os.getenv("GIT_PREVIOUS_COMMIT")
+    target_branch = os.getenv("CHANGE_TARGET")
+    current_commit = os.getenv("GIT_COMMIT")
+
+    if verbose:
+        click.echo(
+            f"GIT_PREVIOUS_COMMIT: {previous_commit}\n"
+            f"CHANGE_TARGET: {target_branch}\n",
+            err=True,
+        )
+
+    if target_branch:
+        return get_last_commit_sha_of_branch(f"origin/{target_branch}")
+
+    if previous_commit:
+        return previous_commit
+
+    if current_commit:
+        if verbose:
+            click.echo("Could not find previous commit for current branch.")
+            click.echo("Current branch may have been just pushed.")
+            click.echo("Only scan last commit.")
+        last_commits = get_list_commit_SHA(f"{current_commit}~1", max_count=1)
+        if len(last_commits) == 1:
+            return last_commits[0]
+
+    raise UnexpectedError(
+        "Unable to get previous commit. Please submit an issue with the following info:\n"
+        "  Repository URL: <Fill if public>\n"
+        f"GIT_PREVIOUS_COMMIT: {previous_commit}\n"
+        f"CHANGE_TARGET: {target_branch}\n"
+    )
+
+
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {
     SupportedCI.GITLAB: gitlab_previous_commit_sha,
     SupportedCI.GITHUB: github_previous_commit_sha,
+    SupportedCI.JENKINS: jenkins_previous_commit_sha,
 }
