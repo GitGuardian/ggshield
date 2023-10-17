@@ -1,5 +1,21 @@
 # Changelog
 
+<a id='changelog-1.20.0'></a>
+
+## 1.20.0 — 2023-10-17
+
+### Changed
+
+#### HMSL
+
+- Adapt message in case we find tons of matches
+
+- command `hmsl check-secret-manager hashicorp-vault` with a "key" naming strategy will display the variable's full path instead of the variable name
+
+- Support no location URL in HMSL response.
+
+- Change wording for HMSL output: do not mention occurrences as it can be misleading.
+
 ## 1.19.1 - 2023-09-26
 
 - Internal fixes to unblock release process
