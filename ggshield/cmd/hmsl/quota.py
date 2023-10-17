@@ -20,7 +20,7 @@ def quota_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Get the number of remaining credits for today.
+    Get the remaining quotas for today.
     """
 
     # Get our client
