@@ -1,5 +1,70 @@
 interactions:
   - request:
+      body:
+        '{"audience": "https://hasmysecretleaked.staging.gitguardian.tech", "audience_type":
+        "hmsl"}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '91'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.11.0 (Darwin;py3.10.8) ggshield
+      method: POST
+      uri: https://api.staging.gitguardian.tech/v1/auth/jwt
+    response:
+      body:
+        string: '{"detail":"Invalid API key."}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '29'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Tue, 17 Oct 2023 07:12:11 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        www-authenticate:
+          - Token
+        x-app-version:
+          - b9134237
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '49'
+        x-frame-options:
+          - DENY
+        x-sca-engine-version:
+          - 1.18.1
+        x-sca-last-vuln-fetch:
+          - '2023-10-17T05:42:55.432587+00:00'
+        x-secrets-engine-version:
+          - 2.98.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 401
+        message: Unauthorized
+  - request:
       body: '{"hashes": ["743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47"]}'
       headers:
         Accept:
@@ -12,28 +77,32 @@ interactions:
           - '80'
         Content-Type:
           - application/json
+        GGShield-HMSL-Command-Name:
+          - cli_hmsl_query
         User-Agent:
-          - python-requests/2.31.0
+          - GGShield 1.19.1
       method: POST
       uri: https://hasmysecretleaked.staging.gitguardian.tech/v1/hashes
     response:
       body:
-        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":14,"location":{"u":"https://github.com/edly-io/devstack/commit/ccfc9c2d63c2917be60a9fd2a4c36ff3a8b9bb8c#diff-e45e45baeda1c1e73482975a664062aa56f20c03dd9d64a827aba57775bed0d3L158"}}]}'
+        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":313,"location":null}]}'
       headers:
         content-length:
-          - '277'
+          - '117'
         content-type:
           - application/json
         date:
-          - Wed, 14 Jun 2023 13:09:10 GMT
+          - Tue, 17 Oct 2023 07:12:11 GMT
         ratelimit-limit:
-          - '500'
+          - '10000'
         ratelimit-remaining:
-          - '499'
+          - '9999'
         ratelimit-reset:
-          - '39048'
+          - '60467'
         server:
           - istio-envoy
+        x-app-version:
+          - 1.6.1-staging.1
         x-envoy-upstream-service-time:
           - '34'
       status:

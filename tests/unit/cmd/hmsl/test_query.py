@@ -38,7 +38,7 @@ def test_hmsl_query_hash(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
     GIVEN a common hash
     WHEN running the check command on it
-    THEN we should find a match
+    THEN we should find a match and no location URL is returned
     """
     payload_path = tmp_path / "payload.txt"
     payload_path.write_text(
@@ -46,7 +46,7 @@ def test_hmsl_query_hash(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     )
     result = cli_fs_runner.invoke(cli, ["hmsl", "query", str(payload_path)])
     assert_invoke_ok(result)
-    assert "github.com" in result.output  # already decrypted
+    assert "github.com" not in result.output  # already decrypted
 
 
 def test_bad_payload(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
