@@ -218,8 +218,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Scan commits for IaC vulnerabilities
         uses: ./actions-unstable/iac
         with:
