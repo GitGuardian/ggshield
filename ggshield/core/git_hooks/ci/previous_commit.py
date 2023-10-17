@@ -185,8 +185,87 @@ def jenkins_previous_commit_sha(verbose: bool) -> Optional[str]:
     )
 
 
+def azure_previous_commit_sha(verbose: bool) -> Optional[str]:
+    push_before_sha = azure_push_previous_commit_sha(verbose)
+    pull_req_base_sha = azure_pull_request_previous_commit_sha(verbose)
+
+    if verbose:
+        click.echo(
+            f"PUSH_PREVIOUS_COMMIT: {push_before_sha}\n"
+            f"PR_TARGET_COMMIT: {pull_req_base_sha}\n",
+            err=True,
+        )
+
+    if pull_req_base_sha is not None:
+        return pull_req_base_sha
+
+    if push_before_sha is not None:
+        if verbose:
+            click.echo(
+                "The number of commits of a push event is not available in Azure pipelines."
+            )
+            click.echo("Scanning only last commit.")
+        return push_before_sha
+
+    raise UnexpectedError(
+        "Unable to get previous commit. Please submit an issue with the following info:\n"
+        "  Repository URL: <Fill if public>\n"
+        f"azure_push_before_sha: {push_before_sha}\n"
+        f"azure_pull_req_base_sha: {pull_req_base_sha}\n"
+    )
+
+
+def azure_push_previous_commit_sha(verbose: bool) -> Optional[str]:
+    head_commit = os.getenv("BUILD_SOURCEVERSION")
+
+    if verbose:
+        click.echo(f"BUILD_SOURCEVERSION: {head_commit}\n", err=True)
+
+    last_commits = get_list_commit_SHA(f"{head_commit}~1", max_count=1)
+    if len(last_commits) == 0:
+        if verbose:
+            click.echo("Unable to find commit HEAD~1.")
+        return None
+
+    return last_commits[0]
+
+
+def azure_pull_request_previous_commit_sha(verbose: bool) -> Optional[str]:
+    """
+    Returns commit to compare with in a PR environment in Azure.
+    If env variable SYSTEM_PULLREQUEST_TARGETBRANCHNAME is not defined, not in a PR.
+    Else, fetch target branch and get commit sha of its HEAD.
+    If fail to get this commit sha, returns previous commit in current branch HEAD~1.
+    """
+    targeted_branch = os.getenv("SYSTEM_PULLREQUEST_TARGETBRANCHNAME")
+
+    # Not in a PR CI job
+    if targeted_branch is None:
+        return None
+
+    # Requires to fetch targeted branch to access current HEAD
+    git(["fetch", "origin", targeted_branch])
+
+    last_commit = get_last_commit_sha_of_branch(f"origin/{targeted_branch}")
+    if last_commit is not None:
+        return last_commit
+
+    if verbose:
+        click.echo("Unable to find HEAD commit sha of target branch.")
+        click.echo("Scans only last commit of current branch.")
+
+    last_commit = get_last_commit_sha_of_branch("HEAD~1")
+    if last_commit is not None:
+        return last_commit
+
+    if verbose:
+        click.echo("Unable to find commit HEAD~1.")
+    return None
+
+
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {
     SupportedCI.GITLAB: gitlab_previous_commit_sha,
     SupportedCI.GITHUB: github_previous_commit_sha,
     SupportedCI.JENKINS: jenkins_previous_commit_sha,
+    SupportedCI.AZURE: azure_previous_commit_sha,
 }
