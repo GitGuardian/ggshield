@@ -85,7 +85,7 @@ def iac_scan_all(
     client = ctx.obj["client"]
 
     scan_parameters = IaCScanParameters(
-        list(config.user_config.iac.ignored_policies),
+        list({ignored.policy for ignored in config.user_config.iac.ignored_policies}),
         config.user_config.iac.minimum_severity,
     )
     # If paths are not sorted, the tar bytes order will be different when calling the function twice

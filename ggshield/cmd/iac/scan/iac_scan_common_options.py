@@ -23,7 +23,12 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.config import Config
-from ggshield.core.config.user_config import POLICY_ID_PATTERN, validate_policy_id
+from ggshield.core.config.user_config import (
+    POLICY_ID_PATTERN,
+    IaCConfigIgnoredPath,
+    IaCConfigIgnoredPolicy,
+    validate_policy_id,
+)
 from ggshield.core.filter import init_exclusion_regexes
 
 
@@ -72,14 +77,18 @@ def update_context(
     ctx.obj["client"] = create_client_from_config(config)
 
     if ignore_paths is not None:
-        config.user_config.iac.ignored_paths.update(ignore_paths)
+        config.user_config.iac.ignored_paths.extend(
+            (IaCConfigIgnoredPath(path=path) for path in ignore_paths)
+        )
 
     ctx.obj["exclusion_regexes"] = init_exclusion_regexes(
-        config.user_config.iac.ignored_paths
+        {ignored.path for ignored in config.user_config.iac.ignored_paths}
     )
 
     if ignore_policies is not None:
-        config.user_config.iac.ignored_policies.update(ignore_policies)
+        config.user_config.iac.ignored_policies.extend(
+            (IaCConfigIgnoredPolicy(policy=policy) for policy in ignore_policies)
+        )
 
     if exit_zero is not None:
         config.user_config.exit_zero = exit_zero
