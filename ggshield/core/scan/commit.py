@@ -1,21 +1,23 @@
 import re
 from functools import cached_property
 from pathlib import Path
-from typing import Callable, Iterable, List, NamedTuple, Optional, Set, Tuple
+from typing import Callable, Iterable, List, Optional, Sequence, Set, Tuple
 
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import Filemode, git
 
-from .scannable import Scannable, StringScannable
+from .commit_information import CommitInformation
+from .scannable import Scannable
 
 
 _RX_HEADER_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
 
+# Used instead of the SHA in commit URLs for staged changes
+_STAGED_PREFIX = "staged"
 
-REGEX_HEADER_INFO = re.compile(
-    r"Author:\s(?P<author>.+?) <(?P<email>.*?)>\nDate:\s+(?P<date>.+)?\n"
-)
+# Used instead of the SHA in commit URLs for commit files created from a patch
+_PATCH_PREFIX = "patch"
 
 
 class PatchParseError(Exception):
@@ -26,8 +28,61 @@ class PatchParseError(Exception):
     pass
 
 
+class CommitScannable(Scannable):
+    """Represents a file inside a commit. The URL of a CommitScannable looks like
+    this:
+
+        commit://<sha>/<path>
+
+    For staged commits and commits from patches, `<sha>` is replaced with _STAGED_PREFIX
+    and _PATCH_PREFIX respectively.
+    """
+
+    def __init__(
+        self,
+        sha: Optional[str],
+        path: Path,
+        content: str,
+        filemode: Filemode = Filemode.MODIFY,
+    ) -> None:
+        super().__init__(filemode)
+        self._sha = sha
+        self._path = path
+        self._content = content
+        self._utf8_encoded_size = None
+
+    @property
+    def url(self) -> str:
+        return CommitScannable.create_url(self._sha, self.path)
+
+    @property
+    def filename(self) -> str:
+        return self.url
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
+        if self._utf8_encoded_size is None:
+            self._utf8_encoded_size = len(self._content.encode(errors="replace"))
+        return self._utf8_encoded_size > max_utf8_encoded_size
+
+    @property
+    def content(self) -> str:
+        return self._content
+
+    @staticmethod
+    def create_url(sha: Optional[str], path: Path) -> str:
+        """Creates a Commit URL based on the sha and Path. It is exposed as a static
+        method so that code working with not-yet-parsed commits can return an URL for
+        them."""
+        prefix = sha if sha else _STAGED_PREFIX
+        return f"commit://{prefix}/{path.as_posix()}"
+
+
 def _parse_patch(
-    patch: str, exclusion_regexes: Optional[Set[re.Pattern]]
+    sha: Optional[str], patch: str, exclusion_regexes: Optional[Set[re.Pattern]]
 ) -> Iterable[Scannable]:
     """
     Parse the patch generated with `git show` (or `git diff`)
@@ -64,7 +119,7 @@ def _parse_patch(
             # +1 because we searched for the '\n'
             content = diff[end_of_headers + 1 :]
 
-            yield StringScannable(filename, content, filemode=filemode)
+            yield CommitScannable(sha, Path(filename), content, filemode=filemode)
 
 
 def _parse_patch_header(header: str) -> Iterable[Tuple[str, Filemode]]:
@@ -81,21 +136,6 @@ def _parse_patch_header(header: str) -> Iterable[Tuple[str, Filemode]]:
     # First item returned by split() contains commit info and message, skip it
     for line in _RX_HEADER_LINE_SEPARATOR.split(header)[1:]:
         yield _parse_patch_header_line(f":{line}")
-
-
-class CommitInformation(NamedTuple):
-    author: str
-    email: str
-    date: str
-
-    @staticmethod
-    def from_patch_header(patch: str) -> "CommitInformation":
-        match = REGEX_HEADER_INFO.search(patch)
-        assert match is not None, patch
-        return CommitInformation(**match.groupdict())
-
-
-_UNKNOWN_COMMIT_INFORMATION = CommitInformation("unknown", "", "")
 
 
 # Command line arguments passed to git to get parsable patches
@@ -116,7 +156,7 @@ class Commit:
         self,
         sha: Optional[str],
         patch_parser: Callable[[], Iterable[Scannable]],
-        info: Optional[CommitInformation] = None,
+        info: CommitInformation,
     ):
         """
         Internal constructor. Used by the `from_*` static methods and by some tests.
@@ -124,7 +164,11 @@ class Commit:
         """
         self.sha = sha
         self._patch_parser = patch_parser
-        self.info = info or _UNKNOWN_COMMIT_INFORMATION
+        self.info = info
+
+    @property
+    def urls(self) -> Sequence[str]:
+        return [CommitScannable.create_url(self.sha, x) for x in self.info.paths]
 
     @staticmethod
     def from_sha(
@@ -132,13 +176,12 @@ class Commit:
         exclusion_regexes: Optional[Set[re.Pattern]] = None,
         cwd: Optional[Path] = None,
     ) -> "Commit":
-        patch_header = git(["show", "--no-patch", sha], cwd=cwd)
-        info = CommitInformation.from_patch_header(patch_header)
+        info = CommitInformation.from_sha(sha, cwd=cwd)
 
         def parser() -> Iterable[Scannable]:
             patch = git(["show", sha] + _PATCH_COMMON_ARGS, cwd=cwd)
             try:
-                yield from _parse_patch(patch, exclusion_regexes)
+                yield from _parse_patch(sha, patch, exclusion_regexes)
             except Exception as exc:
                 raise PatchParseError(f"Could not parse patch (sha: {sha}): {exc}")
 
@@ -151,11 +194,13 @@ class Commit:
         def parser() -> Iterable[Scannable]:
             patch = git(["diff", "--cached"] + _PATCH_COMMON_ARGS, cwd=cwd)
             try:
-                yield from _parse_patch(patch, exclusion_regexes)
+                yield from _parse_patch(_STAGED_PREFIX, patch, exclusion_regexes)
             except Exception as exc:
                 raise PatchParseError(f"Could not parse patch: {exc}")
 
-        return Commit(sha=None, patch_parser=parser)
+        info = CommitInformation.from_staged(cwd)
+
+        return Commit(sha=None, patch_parser=parser, info=info)
 
     @staticmethod
     def from_patch(
@@ -167,7 +212,7 @@ class Commit:
 
         def parser() -> Iterable[Scannable]:
             try:
-                yield from _parse_patch(patch, exclusion_regexes)
+                yield from _parse_patch(_PATCH_PREFIX, patch, exclusion_regexes)
             except Exception as exc:
                 raise PatchParseError(f"Could not parse patch: {exc}")
 

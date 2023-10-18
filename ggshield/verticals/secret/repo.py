@@ -100,7 +100,11 @@ def scan_commits_content(
                     errors=results.errors,
                 ),
                 optional_header=commit.optional_header,
-                extra_info=commit.info._asdict(),
+                extra_info={
+                    "author": commit.info.author,
+                    "email": commit.info.email,
+                    "date": commit.info.date,
+                },
             )
         )
 
@@ -120,7 +124,7 @@ def get_commits_by_batch(
     current_count = 0
     batch = []
     for commit in commits:
-        num_files = len(commit.files)
+        num_files = len(commit.urls)
         if current_count + num_files < batch_max_size:
             batch.append(commit)
             current_count += num_files

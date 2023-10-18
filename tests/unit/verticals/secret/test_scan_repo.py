@@ -1,11 +1,13 @@
 from copy import deepcopy
-from functools import partial
+from pathlib import Path
 from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ggshield.core.scan import Commit, StringScannable
+from ggshield.core.scan import Commit
+from ggshield.core.scan.commit import CommitScannable
+from ggshield.core.scan.commit_information import CommitInformation
 from ggshield.verticals.secret import Result, Results
 from ggshield.verticals.secret.repo import get_commits_by_batch, scan_commits_content
 from tests.unit.conftest import TWO_POLICY_BREAKS
@@ -51,23 +53,29 @@ def test_get_commits_content_by_batch(
     GIVEN a set of commits containing a given number of files
     WHEN the number of files per commit varies
     THEN batches are still below the limit
+    AND commit patches are not fully parsed (we want to delay parsing them until the
+    last moment)
     """
-
-    def patch_parser(idx, size):
-        return [
-            StringScannable(
-                content=f"some content {file_nb}",
-                url=f"some_filename_c{idx}_f{file_nb}.py",
-            )
-            for file_nb in range(size)
-        ]
+    never_called_parser = MagicMock()
 
     commits = [
-        Commit(sha=f"some_sha_{idx}", patch_parser=partial(patch_parser, idx, size))
+        Commit(
+            sha=f"some_sha_{idx}",
+            patch_parser=never_called_parser,
+            info=CommitInformation(
+                author="",
+                email="",
+                date="",
+                paths=[Path(f"file{file_idx}") for file_idx in range(size)],
+            ),
+        )
         for idx, size in enumerate(commits_sizes)
     ]
 
     batches = list(get_commits_by_batch(commits=commits, batch_max_size=batch_size))
+
+    never_called_parser.assert_not_called()
+
     for batch, expected_batch in zip(batches, expected_batches):
         assert len(batch) == len(expected_batch)
     assert len(batches) == len(expected_batches)
@@ -80,24 +88,44 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     WHEN scan_commits_content returns 2 policy break for each commit
     THEN the total number of policy breaks is 4
     """
+    path = Path("filename")
+    content = "content"
+    commit_1_files = [CommitScannable("some_sha_1", path, content)]
     commit_1 = Commit(
         sha="some_sha_1",
-        patch_parser=lambda: [StringScannable(content="document", url="filename")],
+        patch_parser=lambda: commit_1_files,
+        info=(
+            CommitInformation(
+                author="",
+                email="",
+                date="",
+                paths=[path],
+            )
+        ),
     )
 
+    commit_2_files = [CommitScannable("some_sha_2", path, content)]
     commit_2 = Commit(
         sha="some_sha_2",
-        patch_parser=lambda: [StringScannable(content="document", url="filename")],
+        patch_parser=lambda: commit_2_files,
+        info=(
+            CommitInformation(
+                author="",
+                email="",
+                date="",
+                paths=[path],
+            )
+        ),
     )
 
     secret_scanner_mock.return_value.scan.return_value = Results(
         results=[
             Result(
-                commit_1.files[0],
+                commit_1_files[0],
                 scan=deepcopy(TWO_POLICY_BREAKS),
             ),
             Result(
-                commit_2.files[0],
+                commit_2_files[0],
                 scan=deepcopy(TWO_POLICY_BREAKS),
             ),
         ],
@@ -128,18 +156,38 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
     WHEN scan_commits_content returns results with policy breaks for some of the files
     THEN the files and policy breaks are associated with the correct commits
     """
-    file1_1 = StringScannable(content="document1", url="filename1")
-    file1_2 = StringScannable(content="document2", url="filename2")
-    file1_3 = StringScannable(content="document3", url="filename3")
+    sha1 = "some_sha_1"
+    file1_1 = CommitScannable(sha1, Path("filename1"), "document1")
+    file1_2 = CommitScannable(sha1, Path("filename2"), "document2")
+    file1_3 = CommitScannable(sha1, Path("filename3"), "document3")
+    file1_list = [file1_1, file1_2, file1_3]
 
     commit_1 = Commit(
-        sha="some_sha_1", patch_parser=lambda: [file1_1, file1_2, file1_3]
+        sha=sha1,
+        patch_parser=lambda: file1_list,
+        info=CommitInformation(
+            author="",
+            email="",
+            date="",
+            paths=[x.path for x in file1_list],
+        ),
     )
 
-    file2_1 = StringScannable(content="document2", url="filename2")
-    file2_2 = StringScannable(content="document3", url="filename3")
+    sha2 = "some_sha_2"
+    file2_1 = CommitScannable(sha2, Path("filename2"), "document2")
+    file2_2 = CommitScannable(sha2, Path("filename3"), "document3")
+    file2_list = [file2_1, file2_2]
 
-    commit_2 = Commit(sha="some_sha_2", patch_parser=lambda: [file2_1, file2_2])
+    commit_2 = Commit(
+        sha=sha2,
+        patch_parser=lambda: file2_list,
+        info=CommitInformation(
+            author="",
+            email="",
+            date="",
+            paths=[x.path for x in file2_list],
+        ),
+    )
 
     policy_breaks_file_1_1 = deepcopy(TWO_POLICY_BREAKS)
     policy_breaks_file_1_3 = deepcopy(TWO_POLICY_BREAKS)

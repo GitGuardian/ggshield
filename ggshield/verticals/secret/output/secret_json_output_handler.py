@@ -56,7 +56,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
     def process_result(self, result: Result) -> Dict[str, Any]:
         result_dict: Dict[str, Any] = {
-            "filename": result.filename,
+            "filename": result.file.path,
             "mode": result.filemode.name,
             "incidents": [],
             "total_occurrences": 0,

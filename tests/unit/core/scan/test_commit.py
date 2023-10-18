@@ -6,7 +6,8 @@ import pytest
 
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import Commit
-from ggshield.core.scan.commit import CommitInformation, _parse_patch_header_line
+from ggshield.core.scan.commit import _parse_patch_header_line
+from ggshield.core.scan.commit_information import CommitInformation
 from ggshield.utils.git_shell import Filemode
 from tests.conftest import is_windows
 from tests.repository import Repository
@@ -68,6 +69,7 @@ index 56dc0d42..fdf48995 100644
 +   added
 """
 )  # noqa
+
 EXPECTED_PATCH_CONTENT = (
     (
         "ggshield/tests/cassettes/test_files_yes.yaml",
@@ -112,8 +114,8 @@ def test_patch_separation():
     assert commit.info.date == "Fri Oct 18 13:20:00 2012 +0100"
 
     assert len(files) == len(EXPECTED_PATCH_CONTENT)
-    for file_, (name, content) in zip(files, EXPECTED_PATCH_CONTENT):
-        assert file_.filename == name
+    for file_, (path, content) in zip(files, EXPECTED_PATCH_CONTENT):
+        assert file_.path == Path(path)
         assert file_.content == content
 
 
@@ -338,7 +340,7 @@ def scenario_type_change(repo: Repository) -> None:
 
 
 @pytest.mark.parametrize(
-    ("scenario", "expected_names_and_modes"),
+    ("scenario", "expected_paths_and_modes"),
     [
         pytest.param(*x, id=x[0].__name__)
         for x in [
@@ -404,7 +406,7 @@ def scenario_type_change(repo: Repository) -> None:
 def test_from_sha(
     tmp_path,
     scenario: Callable[[Repository], None],
-    expected_names_and_modes: List[Tuple[str, Filemode]],
+    expected_paths_and_modes: List[Tuple[str, Filemode]],
 ):
     """
     GIVEN a Commit created from `scenario`
@@ -418,11 +420,14 @@ def test_from_sha(
     repo = Repository.create(tmp_path)
     scenario(repo)
 
-    commit = Commit.from_sha(repo.get_top_sha(), cwd=tmp_path)
+    sha = repo.get_top_sha()
+    commit = Commit.from_sha(sha, cwd=tmp_path)
     files = list(commit.get_files())
 
-    names_and_modes = [(x.filename, x.filemode) for x in files]
-    assert names_and_modes == expected_names_and_modes
+    paths_and_modes = [(x.path, x.filemode) for x in files]
+    assert paths_and_modes == [
+        (Path(name), mode) for name, mode in expected_paths_and_modes
+    ]
 
 
 def test_from_staged(tmp_path):
@@ -440,23 +445,54 @@ def test_from_staged(tmp_path):
     commit = Commit.from_staged(cwd=tmp_path)
     files = list(commit.get_files())
 
-    names_and_modes = [(x.filename, x.filemode) for x in files]
-    assert names_and_modes == [("NEW.md", Filemode.NEW)]
+    paths_and_modes = [(x.path, x.filemode) for x in files]
+    assert paths_and_modes == [(Path("NEW.md"), Filemode.NEW)]
 
 
 @pytest.mark.parametrize(
     ("patch", "expected"),
     [
         (
-            "Author: ezra <ezra@lothal.sw>\nDate: Thu Sep 29 15:55:41 2022 +0000\n",
+            """Author: ezra <ezra@lothal.sw>
+Date: Thu Sep 29 15:55:41 2022 +0000
+
+    Make changes
+
+ghost.txt\0cat.py\0""",
             CommitInformation(
-                "ezra", "ezra@lothal.sw", "Thu Sep 29 15:55:41 2022 +0000"
+                "ezra",
+                "ezra@lothal.sw",
+                "Thu Sep 29 15:55:41 2022 +0000",
+                [Path(x) for x in ("ghost.txt", "cat.py")],
             ),
         ),
         # This can happen, see: https://github.com/sqlite/sqlite/commit/981706534.patch
         (
-            "Author: emptymail <>\nDate: Thu Sep 29 15:55:41 2022 +0000\n",
-            CommitInformation("emptymail", "", "Thu Sep 29 15:55:41 2022 +0000"),
+            """Author: emptymail <>
+Date: Thu Sep 29 15:55:41 2022 +0000
+
+    Delete gone.txt, rename old.txt to new.txt
+
+gone.txt\0new.txt\0""",
+            CommitInformation(
+                "emptymail",
+                "",
+                "Thu Sep 29 15:55:41 2022 +0000",
+                [Path(x) for x in ("gone.txt", "new.txt")],
+            ),
+        ),
+        (
+            """Author: ezra <ezra@lothal.sw>
+Date: Thu Sep 29 15:55:41 2022 +0000
+
+    An empty commit
+""",
+            CommitInformation(
+                "ezra",
+                "ezra@lothal.sw",
+                "Thu Sep 29 15:55:41 2022 +0000",
+                [],
+            ),
         ),
     ],
 )
