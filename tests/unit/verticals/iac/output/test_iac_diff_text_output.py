@@ -31,7 +31,17 @@ def _generate_iac_file_result() -> IaCFileResult:
                 component="azurerm_network_security_group.bad_sg",
                 severity="HIGH",
                 documentation_url=POLICY_DOC_URL,
-            )
+            ),
+            IaCVulnerability(
+                policy="Another policy",
+                policy_id="GG_IAC_0022",
+                line_start=1,
+                line_end=2,
+                description="Another description",
+                component="another.component",
+                severity="HIGH",
+                documentation_url=POLICY_DOC_URL,
+            ),
         ],
     )
 
@@ -88,8 +98,8 @@ def test_iac_scan_diff_vuln_not_verbose():
             )
         )
     assert_iac_diff_version_displayed(output)
-    assert re.search(r"FILENAME\.tf.*1 new incident detected", output)
-    assert_iac_diff_summary_displayed(output, new=1, unchanged=1, deleted=1)
+    assert re.search(r"FILENAME\.tf.*2 new incidents detected", output)
+    assert_iac_diff_summary_displayed(output, new=2, unchanged=2, deleted=2)
     assert_documentation_url_displayed(output, POLICY_DOC_URL)
 
 
@@ -149,8 +159,8 @@ def test_iac_scan_diff_vuln_verbose():
         )
 
     assert_iac_diff_version_displayed(output)
-    assert re.search(r"FILENAME\.tf.*1 new incident detected", output)
-    assert_iac_diff_summary_displayed(output, new=1, unchanged=1, deleted=1)
+    assert re.search(r"FILENAME\.tf.*2 new incidents detected", output)
+    assert_iac_diff_summary_displayed(output, new=2, unchanged=2, deleted=2)
     assert_documentation_url_displayed(output, POLICY_DOC_URL)
 
 
