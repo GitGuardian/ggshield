@@ -19,6 +19,19 @@ def create_json_response(json_data: Dict[str, Any], status_code: int = 200) -> R
     return response
 
 
+def create_html_response(html: str, status_code: int = 200) -> Response:
+    """Helper function to create a Response returned by the requests package containing
+    HTML. This is required because `requests.Response` does not provide an easy
+    way to build a response manually.
+
+    Can be used on its own or with RequestMock."""
+    response = Response()
+    response.headers = {"content-type": "text/html"}
+    response.status_code = status_code
+    response._content = html.encode("utf-8")
+    return response
+
+
 # See ExpectedRequest.data_checker
 DataChecker = Callable[[Any], None]
 JSONChecker = Callable[[Union[List[str], Dict[str, Any]]], None]

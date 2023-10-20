@@ -72,8 +72,10 @@ def create_cmd(
     Command to create a honeytoken.
 
     The prerequisites to use this command are the following:
+
     - you have the necessary permissions as a user (for now, Honeytoken is restricted to users with a manager role),
-    - the personal access token used by ggshield has the required scopes. (`honeytoken:read` and `honeytoken:write`).
+
+    - the personal access token used by ggshield has the `honeytokens:write` scope.
     """
     # if name is not given, generate a random one
     if not name:
@@ -89,7 +91,7 @@ def create_cmd(
 
 - the honeytoken module is enabled for your GitGuardian workspace,
 - you have the necessary permissions as a user,
-- the personal access token used by ggshield has the required scopes (honeytoken:write).
+- the personal access token used by ggshield has the `honeytokens:write` scope.
 
 To learn more, visit https://docs.gitguardian.com/honeytoken/getting-started."""
         )

@@ -1,5 +1,5 @@
 import re
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import click
 
@@ -78,6 +78,16 @@ def print_default_instance_message(config: Config) -> None:
     metavar="URL",
 )
 @click.option(
+    "--scopes",
+    required=False,
+    type=str,
+    help=(
+        "Space-separated list of extra scopes to request in addition to the default"
+        " `scan` scope."
+    ),
+    metavar="SCOPES",
+)
+@click.option(
     "--sso-url",
     required=False,
     type=str,
@@ -104,6 +114,7 @@ def login_cmd(
     ctx: click.Context,
     method: str,
     instance: Optional[str],
+    scopes: Optional[str],
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
@@ -117,27 +128,38 @@ def login_cmd(
 
     The default authentication method is `web`.
     ggshield launches a web browser to authenticate you to your GitGuardian instance,
-    then automatically generates a token on your behalf.
+    then automatically generates a token on your behalf. By default, the token will have
+    the `scan` scope. Use the `--scopes` option to grant the token extra scopes. You can
+    find the list of available scopes in [GitGuardian API documentation][1].
 
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
 
     If a valid personal access token is already configured, this command simply displays
     a success message indicating that ggshield is already ready to use.
+
+    [1]: https://docs.gitguardian.com/api-docs/introduction#scopes
     """
     config: Config = ctx.obj["config"]
 
-    if sso_url is not None and method != "web":
-        raise click.BadParameter(
-            "--sso-url is reserved for the web login method.", param_hint="sso-url"
-        )
+    if method != "web":
+        if sso_url is not None:
+            raise click.BadParameter(
+                "--sso-url is reserved for the web login method.", param_hint="sso-url"
+            )
+
+        if scopes is not None:
+            raise click.BadParameter(
+                "--scopes is reserved for the web login method.", param_hint="scopes"
+            )
 
     if method == "token":
         token_login(config, instance)
         return 0
 
     if method == "web":
-        web_login(config, instance, token_name, lifetime, sso_url)
+        extra_scopes = scopes.split(" ") if scopes else None
+        web_login(config, instance, token_name, lifetime, sso_url, extra_scopes)
         return 0
 
     return 1
@@ -185,6 +207,7 @@ def web_login(
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
+    extra_scopes: Optional[List[str]],
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
     if instance:
@@ -200,6 +223,9 @@ def web_login(
         return
 
     client.oauth_process(
-        token_name=token_name, lifetime=lifetime, login_path=login_path
+        token_name=token_name,
+        lifetime=lifetime,
+        login_path=login_path,
+        extra_scopes=extra_scopes,
     )
     print_default_instance_message(config)

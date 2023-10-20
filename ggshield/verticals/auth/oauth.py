@@ -7,7 +7,7 @@ from base64 import urlsafe_b64encode
 from datetime import datetime
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import click
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
@@ -25,7 +25,7 @@ from ggshield.utils.datetime import get_pretty_date
 
 
 CLIENT_ID = "ggshield_oauth"
-SCOPE = "scan"
+SCAN_SCOPE = "scan"
 
 # potential port range to be used to run local server
 # to handle authorization code callback
@@ -61,6 +61,7 @@ class OAuthClient:
         self._state = ""  # use the `state` property instead
         self._lifetime: Optional[int] = None
         self._login_path = "auth/login"
+        self._extra_scopes = []
 
         self._handler_wrapper = RequestHandlerWrapper(oauth_client=self)
         self._access_token: Optional[str] = None
@@ -76,6 +77,7 @@ class OAuthClient:
         token_name: Optional[str] = None,
         lifetime: Optional[int] = None,
         login_path: Optional[str] = None,
+        extra_scopes: Optional[List[str]] = None,
     ) -> None:
         """
         Handle the whole oauth process which includes
@@ -94,6 +96,9 @@ class OAuthClient:
         if lifetime is None:
             lifetime = self.default_token_lifetime
         self._lifetime = lifetime
+
+        if extra_scopes is not None:
+            self._extra_scopes = extra_scopes
 
         self._prepare_server()
         self._redirect_to_login()
@@ -140,7 +145,7 @@ class OAuthClient:
         request_uri = self._oauth_client.prepare_request_uri(
             uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,
-            scope=SCOPE,
+            scope=[SCAN_SCOPE, *self._extra_scopes],
             code_challenge=self.code_challenge,
             code_challenge_method="S256",
             state=self.state,
@@ -230,24 +235,23 @@ class OAuthClient:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
-        raise_error = False
-        if response.ok:
-            try:
-                response_json = response.json()
-                self._expire_at_downsized = response_json.get(
-                    "expire_at_downsized",
-                    False,
-                )
-                self._access_token = response_json["key"]
-            except (json.decoder.JSONDecodeError, ValueError):
-                raise_error = True
-        else:
-            raise_error = True
+        try:
+            dct = response.json()
+        except json.decoder.JSONDecodeError:
+            raise UnexpectedError(
+                f"Server response is not JSON (HTTP code: {response.status_code})."
+            )
 
-        if raise_error:
-            raise OAuthError("Cannot create a token.")
+        if not response.ok:
+            detail = dct.get("detail", "[no error message]")
+            raise OAuthError(f"Cannot create a token: {detail}.")
 
-        self._access_token = response.json()["key"]
+        try:
+            self._access_token = dct["key"]
+        except KeyError:
+            raise UnexpectedError("Server did not provide the created token.")
+
+        self._expire_at_downsized = dct.get("expire_at_downsized", False)
 
     def _validate_access_token(self) -> Dict[str, Any]:
         """
@@ -380,6 +384,8 @@ class OAuthClient:
             )
         elif error_code == "invalid_saml":
             return "The given SSO URL is invalid."
+        elif error_code == "invalid_scope":
+            return "The requested scopes are invalid."
         return f"An unknown server error has occurred (error code: {error_code})."
 
     @property
@@ -423,47 +429,50 @@ class RequestHandlerWrapper:
                 """
                 callback_url: str = self_.path
                 parsed_url = urlparse.urlparse(callback_url)
-                if parsed_url.path == "/":
-                    error_string = get_error_param(parsed_url)
-                    if error_string is not None:
-                        self_._end_request(200)
-                        self.error_message = self.oauth_client.get_server_error_message(
-                            error_string
-                        )
-                    else:
-                        try:
-                            self.oauth_client.process_callback(callback_url)
-                        except OAuthError as error:
-                            self_._end_request(400)
-                            # attach error message to the handler wrapper instance
-                            self.error_message = error.message
-                        else:
-                            self_._end_request(
-                                301,
-                                urljoin(
-                                    self.oauth_client.dashboard_url, "authenticated"
-                                ),
-                            )
+                if parsed_url.path != "/":
+                    self_._write_error_response(404, f"Invalid path: {parsed_url.path}")
+                    return
 
-                    # indicate to the server to stop
-                    self.complete = True
+                # indicate to the server to stop
+                self.complete = True
+
+                if error_param := get_error_param(parsed_url):
+                    error_message = self.oauth_client.get_server_error_message(
+                        error_param
+                    )
+                    self_._write_error_response(400, error_message)
+                    self.error_message = error_message
+                    return
+
+                try:
+                    self.oauth_client.process_callback(callback_url)
+                except OAuthError as error:
+                    self_._write_error_response(400, error.message)
+                    # attach error message to the handler wrapper instance
+                    self.error_message = error.message
                 else:
-                    self_._end_request(404)
+                    self_._redirect(
+                        urljoin(self.oauth_client.dashboard_url, "authenticated"),
+                    )
 
-            def _end_request(
+            def _write_error_response(
                 self_,  # type:ignore
                 status_code: int,
-                redirect_url: Optional[str] = None,
+                message: str,
             ) -> None:
-                """
-                End the current request. If a redirect url is provided,
-                the response will be a redirection to this url.
-                If not the response will be a user error 400
-                """
+                """Return a basic HTML error page"""
                 self_.send_response(status_code)
+                self_.end_headers()
 
-                if redirect_url is not None:
-                    self_.send_header("Location", redirect_url)
+                content = f"<html><body><h1>Error</h1>{message}</body></html>"
+                self_.wfile.write(content.encode())
+
+            def _redirect(
+                self_,  # type:ignore
+                redirect_url: str,
+            ) -> None:
+                self_.send_response(301)
+                self_.send_header("Location", redirect_url)
                 self_.end_headers()
 
             def log_message(self, format: str, *args: Any) -> None:
