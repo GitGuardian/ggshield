@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any, List
 
 import click
@@ -89,6 +90,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     scan_context = ScanContext(
         scan_mode=ScanMode.PRE_PUSH,
         command_path=ctx.command_path,
+        target_path=Path.cwd(),
     )
 
     return_code = scan_commit_range(

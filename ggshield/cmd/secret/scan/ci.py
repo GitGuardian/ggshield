@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any
 
 import click
@@ -39,6 +40,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     scan_context = ScanContext(
         scan_mode=mode_header,
         command_path=ctx.command_path,
+        target_path=Path.cwd(),
         extra_headers={"Ci-Mode": ci_mode.name},
     )
 

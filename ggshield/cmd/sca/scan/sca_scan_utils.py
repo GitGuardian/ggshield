@@ -86,6 +86,7 @@ def sca_scan_all(
         ScanContext(
             command_path=ctx.command_path,
             scan_mode=scan_mode,
+            target_path=directory,
         ).get_http_headers(),
     )
 
@@ -233,6 +234,7 @@ def sca_scan_diff(
         extra_headers=ScanContext(
             command_path=ctx.command_path,
             scan_mode=scan_mode,
+            target_path=directory,
             extra_headers={"Ci-Mode": ci_mode} if ci_mode else None,
         ).get_http_headers(),
     )

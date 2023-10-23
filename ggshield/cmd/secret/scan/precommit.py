@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, List
 
 import click
@@ -50,6 +51,7 @@ def precommit_cmd(
     scan_context = ScanContext(
         scan_mode=ScanMode.PRE_COMMIT,
         command_path=ctx.command_path,
+        target_path=Path.cwd(),
     )
 
     commit = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"])
