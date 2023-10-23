@@ -1,9 +1,11 @@
 import platform
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Optional, Union
 
 from ggshield import __version__
+from ggshield.utils.git_shell import get_repository_url_from_path
 from ggshield.utils.os import get_os_info
 
 from .scan_mode import ScanMode
@@ -14,6 +16,7 @@ class ScanContext:
     scan_mode: Union[ScanMode, str]
     command_path: str
     extra_headers: Optional[Dict[str, str]] = None
+    target_path: Optional[Path] = None
 
     def __post_init__(self) -> None:
         self.command_id = str(uuid.uuid4())
@@ -34,6 +37,10 @@ class ScanContext:
             "OS-Version": self.os_version,
             "Python-Version": self.python_version,
         }
+        if self.target_path is not None:
+            repo_url = get_repository_url_from_path(self.target_path)
+            if repo_url is not None:
+                headers["Repository-URL"] = repo_url
         if self.extra_headers:
             headers = {**headers, **self.extra_headers}
 
