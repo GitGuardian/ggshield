@@ -50,6 +50,6 @@ full_hashes_option = click.option(
     help=(
         "Put the full hashes into the payload instead of the prefixes. This is useful"
         " for partners that trust GitGuardian because it allows to send more hashes"
-        " per batch, and consumes less credits, but leaks more data to GitGuardian."
+        " per batch, and consumes less credits."
     ),
 )
