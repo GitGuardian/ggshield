@@ -29,6 +29,7 @@ omit = [".venv/*"]
 
 [tool.pyright]
 include = ["ggshield"]
+reportUnnecessaryTypeIgnoreComment = true
 
 [tool.scriv]
 version = "literal: ggshield/__init__.py: __version__"
