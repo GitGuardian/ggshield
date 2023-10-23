@@ -1,0 +1,60 @@
+interactions:
+  - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.10.0 (Linux;py3.10.4) ggshield
+      method: GET
+      uri: https://api.gitguardian.com/v1/metadata
+    response:
+      body:
+        string: '{"version":"v2.41.5","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"onboarding__segmentation_v1_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576}}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, HEAD, OPTIONS
+        content-length:
+          - '392'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 25 Oct 2023 13:36:10 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.41.5
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '21'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.18.1
+        x-sca-last-vuln-fetch:
+          - '2023-10-17T16:26:51.058422+00:00'
+        x-secrets-engine-version:
+          - 2.98.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1
