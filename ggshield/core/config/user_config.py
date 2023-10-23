@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import marshmallow_dataclass
 from marshmallow import ValidationError, post_load, pre_load
@@ -75,7 +75,7 @@ class ConfigIgnoredElement(FilteredConfig):
 
     # Accept date yyyy-mm-dd instead of a full datetime
     @pre_load
-    def parse_date(self, data, **kwargs):
+    def parse_date(self, data: Dict[str, Any], **kwargs: Any):
         if not (isinstance(data, dict)) or data.get("until") is None:
             return data
         try:
@@ -85,7 +85,7 @@ class ConfigIgnoredElement(FilteredConfig):
             return data
 
     @post_load
-    def datetime_to_utc(self, data, **kwargs):
+    def datetime_to_utc(self, data: Dict[str, Any], **kwargs: Any):
         if data["until"] is not None:
             data["until"] = data["until"].astimezone(timezone.utc)
         return data
@@ -117,7 +117,14 @@ def report_expired_elements(expired_lst: List[ConfigIgnoredElement]) -> None:
 class IaCConfigIgnoredPath(ConfigIgnoredElement):
     path: str
 
-    def __init__(self, path, comment=None, until=None, *args, **kwargs):
+    def __init__(
+        self,
+        path: str,
+        comment: Optional[str] = None,
+        until: Optional[datetime] = None,
+        *args: Any,
+        **kwargs: Any,
+    ):
         super().__init__(comment, until, *args, **kwargs)
         self.path = path
 
@@ -125,7 +132,7 @@ class IaCConfigIgnoredPath(ConfigIgnoredElement):
         return f"Path {self.path}"
 
     @pre_load
-    def convert_paths(self, in_data, **kwargs):
+    def convert_paths(self, in_data: Union[str, Dict[str, Any]], **kwargs: Any):
         return {"path": in_data} if isinstance(in_data, str) else in_data
 
 
@@ -133,7 +140,14 @@ class IaCConfigIgnoredPath(ConfigIgnoredElement):
 class IaCConfigIgnoredPolicy(ConfigIgnoredElement):
     policy: str = field(metadata={"validate": validate_policy_id})
 
-    def __init__(self, policy, comment=None, until=None, *args, **kwargs):
+    def __init__(
+        self,
+        policy: str,
+        comment: Optional[str] = None,
+        until: Optional[datetime] = None,
+        *args: Any,
+        **kwargs: Any,
+    ):
         super().__init__(comment, until, *args, **kwargs)
         self.policy = policy
 
@@ -141,7 +155,7 @@ class IaCConfigIgnoredPolicy(ConfigIgnoredElement):
         return f"Policy {self.policy}"
 
     @pre_load
-    def convert_policies(self, in_data, **kwargs):
+    def convert_policies(self, in_data: Union[str, Dict[str, Any]], **kwargs: Any):
         return {"policy": in_data} if isinstance(in_data, str) else in_data
 
 
@@ -157,13 +171,13 @@ class IaCConfig(FilteredConfig):
     minimum_severity: str = "LOW"
 
     @post_load
-    def validate_ignored_paths(self, data, **kwargs):
+    def validate_ignored_paths(self, data: Dict[str, Any], **kwargs: Any):
         expired_lst = remove_expired_elements(data["ignored_paths"])
         report_expired_elements(expired_lst)
         return data
 
     @post_load
-    def validate_ignored_policies(self, data, **kwargs):
+    def validate_ignored_policies(self, data: Dict[str, Any], **kwargs: Any):
         expired_lst = remove_expired_elements(data["ignored_policies"])
         report_expired_elements(expired_lst)
         return data
@@ -194,7 +208,15 @@ class SCAConfigIgnoredVulnerability(ConfigIgnoredElement):
     identifier: str = field(metadata={"validate": validate_vuln_identifier})
     path: str
 
-    def __init__(self, identifier, path, comment=None, until=None, *args, **kwargs):
+    def __init__(
+        self,
+        identifier: str,
+        path: str,
+        comment: Optional[str] = None,
+        until: Optional[datetime] = None,
+        *args: Any,
+        **kwargs: Any,
+    ):
         super().__init__(comment, until, *args, **kwargs)
         self.identifier = identifier
         self.path = path
@@ -217,7 +239,7 @@ class SCAConfig(FilteredConfig):
     )
 
     @post_load
-    def validate_ignored_vulns(self, data, **kwargs):
+    def validate_ignored_vulns(self, data: Dict[str, Any], **kwargs: Any):
         expired_lst = remove_expired_elements(data["ignored_vulnerabilities"])
         report_expired_elements(expired_lst)
         return data

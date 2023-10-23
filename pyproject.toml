@@ -29,6 +29,7 @@ omit = [".venv/*"]
 
 [tool.pyright]
 include = ["ggshield"]
+reportMissingParameterType = true
 reportUnnecessaryTypeIgnoreComment = true
 
 [tool.scriv]

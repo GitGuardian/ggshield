@@ -1,3 +1,5 @@
+from typing import List
+
 import click
 
 
@@ -8,5 +10,5 @@ class NaturalOrderGroup(click.Group):
     This will not work with python < 3.6.
     """
 
-    def list_commands(self, ctx):
-        return self.commands.keys()
+    def list_commands(self, ctx: click.Context) -> List[str]:
+        return list(self.commands.keys())
