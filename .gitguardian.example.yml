@@ -43,11 +43,21 @@ iac:
     - '**/README.md'
     - 'doc/*'
     - 'LICENSE'
+    - path: 'tests/*'
+      comment: 'Ignore vulnerabilities in tests'
+    - path: 'dev/*'
+      comment: 'Ignore vulnerabilities in dev sandbox'
+      until: '2030-06-24T00:00:01Z'
 
   # IaC vulnerabilities to ignore
   ignored-policies:
     - GG_IAC_0000
     - GG_IAC_0005
+    - policy: 'GG_IAC_0003'
+      until: '2030-06-24T00:00:01Z'
+    - policy: 'GG_IAC_0012'
+      comment: 'We will handle this later'
+      until: '2030-06-24T00:00:01Z'
 
   # Minimum severity of the policies
   minimum-severity: HIGH

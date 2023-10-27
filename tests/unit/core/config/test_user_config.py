@@ -1,9 +1,16 @@
+import contextlib
+import io
+from datetime import datetime, timezone
+from typing import Optional
+
 import pytest
 
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import (
     CURRENT_CONFIG_VERSION,
     IaCConfig,
+    IaCConfigIgnoredPath,
+    IaCConfigIgnoredPolicy,
     SCAConfig,
     SCAConfigIgnoredVulnerability,
     UserConfig,
@@ -15,6 +22,12 @@ from tests.unit.conftest import write_text, write_yaml
 
 @pytest.mark.usefixtures("isolated_fs")
 class TestUserConfig:
+    def _assert_times(self, time1: Optional[datetime], time2: Optional[str]):
+        if time1 is not None:
+            assert time1 == datetime.strptime(
+                str(time2), "%Y-%m-%d %H:%M:%S"
+            ).astimezone(timezone.utc)
+
     def test_parsing_error(cli_fs_runner, local_config_path):
         write_text(local_config_path, "Not a:\nyaml file.\n")
         expected_output = f"{local_config_path} is not a valid YAML file:"
@@ -162,24 +175,166 @@ class TestUserConfig:
             IgnoredMatch(name="", match="dbca"),
         ]
 
-    def test_iac_config(self, local_config_path):
+    @pytest.mark.parametrize(
+        "paths",
+        (
+            ["mypath"],
+            [{"path": "mypath"}],
+            [{"path": "mypath"}, {"path": "mypath"}],
+            [
+                {
+                    "path": "mypath",
+                    "comment": "mycomment",
+                    "until": "2050-01-01 00:00:00",
+                }
+            ],
+            ["myfirstpath", {"path": "mysecondpath", "comment": "mycomment"}],
+        ),
+    )
+    @pytest.mark.parametrize(
+        "policies",
+        (
+            ["GG_IAC_0001"],
+            [{"policy": "GG_IAC_0001"}],
+            [{"policy": "GG_IAC_0001"}, {"policy": "GG_IAC_0001"}],
+            [
+                {
+                    "policy": "GG_IAC_0001",
+                    "comment": "mycomment",
+                    "until": "2050-01-01 00:00:00",
+                }
+            ],
+            ["GG_IAC_0001", {"policy": "GG_IAC_0002", "comment": "mycomment"}],
+        ),
+    )
+    def test_iac_config(self, local_config_path, paths, policies):
         write_yaml(
             local_config_path,
             {
                 "version": 2,
                 "iac": {
-                    "ignored_paths": ["mypath"],
-                    "ignored_policies": ["GG_IAC_0001"],
+                    "ignored_paths": paths,
+                    "ignored_policies": policies,
                     "minimum_severity": "myseverity",
                 },
             },
         )
         config = Config()
         iac_config = config.user_config.iac
+
         assert isinstance(iac_config, IaCConfig)
-        assert iac_config.ignored_paths == {"mypath"}
-        assert iac_config.ignored_policies == {"GG_IAC_0001"}
+        for i, result in enumerate(iac_config.ignored_policies):
+            expected = (
+                IaCConfigIgnoredPolicy(policy=policies[i])
+                if isinstance(policies[i], str)
+                else IaCConfigIgnoredPolicy(**policies[i])
+            )
+            assert isinstance(result, IaCConfigIgnoredPolicy)
+            assert result.policy == expected.policy
+            assert result.comment == expected.comment
+            self._assert_times(result.until, expected.until)
+        for i, result in enumerate(iac_config.ignored_paths):
+            expected = (
+                IaCConfigIgnoredPath(path=paths[i])
+                if isinstance(paths[i], str)
+                else IaCConfigIgnoredPath(**paths[i])
+            )
+            assert isinstance(result, IaCConfigIgnoredPath)
+            assert result.path == expected.path
+            assert result.comment == expected.comment
+            self._assert_times(result.until, expected.until)
         assert iac_config.minimum_severity == "myseverity"
+
+    def test_iac_ignore_until(self, local_config_path):
+        """
+        GIVEN a local config file with iac configs
+        WHEN setting an ignore param with a past datetime
+        THEN it's ignored, and a warning is shown
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored_paths": [
+                        {
+                            "path": "mypath1",
+                            "until": "2010-05-01T00:00:00",
+                        },
+                        {
+                            "path": "mypath2",
+                            "until": "2050-05-01T00:00:00",
+                        },
+                        {"path": "mypath3"},
+                    ],
+                    "ignored_policies": [
+                        {
+                            "policy": "GG_IAC_0001",
+                            "until": "2010-05-01T00:00:00",
+                        },
+                        {
+                            "policy": "GG_IAC_0002",
+                            "until": "2050-05-01T00:00:00",
+                        },
+                        {"policy": "GG_IAC_0003"},
+                    ],
+                },
+            },
+        )
+        f = io.StringIO()
+        with contextlib.redirect_stderr(f):
+            config = Config()
+
+        iac_config = config.user_config.iac
+        assert isinstance(iac_config, IaCConfig)
+        assert {ignored.path for ignored in iac_config.ignored_paths} == {
+            "mypath2",
+            "mypath3",
+        }
+        assert {ignored.policy for ignored in iac_config.ignored_policies} == {
+            "GG_IAC_0002",
+            "GG_IAC_0003",
+        }
+
+        assert "mypath1 has an expired 'until' date" in f.getvalue()
+        assert "GG_IAC_0001 has an expired 'until' date" in f.getvalue()
+
+    def test_iac_ignore_dates(self, local_config_path):
+        """
+        GIVEN a local config file with iac configs
+        WHEN setting until dates in different formats
+        THEN all given formats are accepted
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored_paths": [
+                        {
+                            "path": "mypath1",
+                            "until": "2050-05-01T00:00:01Z",
+                        },
+                        {
+                            "path": "mypath2",
+                            "until": "2050-05-01T00:00:00",
+                        },
+                        {
+                            "path": "mypath3",
+                            "until": "2050-05-01 00:00:00",
+                        },
+                        {
+                            "path": "mypath4",
+                            "until": "2050-05-01",
+                        },
+                    ],
+                },
+            },
+        )
+        config = Config()
+        iac_config = config.user_config.iac
+        assert isinstance(iac_config, IaCConfig)
+        assert len(iac_config.ignored_paths) == 4
 
     def test_iac_config_bad_policy_id(self, local_config_path):
         write_yaml(
@@ -224,8 +379,14 @@ class TestUserConfig:
         config = Config()
         iac_config = config.user_config.iac
         assert isinstance(iac_config, IaCConfig)
-        assert iac_config.ignored_paths == {"myglobalpath", "mypath"}
-        assert iac_config.ignored_policies == {"GG_IAC_0001", "GG_IAC_0002"}
+        assert {ignored.path for ignored in iac_config.ignored_paths} == {
+            "myglobalpath",
+            "mypath",
+        }
+        assert {ignored.policy for ignored in iac_config.ignored_policies} == {
+            "GG_IAC_0001",
+            "GG_IAC_0002",
+        }
         assert iac_config.minimum_severity == "myseverity"
 
     def test_sca_config(self, local_config_path):

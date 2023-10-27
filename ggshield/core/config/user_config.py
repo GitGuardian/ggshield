@@ -3,10 +3,10 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import marshmallow_dataclass
-from marshmallow import ValidationError, post_load
+from marshmallow import ValidationError, post_load, pre_load
 from pygitguardian.models import FromDictMixin
 
 from ggshield.core.config.utils import (
@@ -63,14 +63,86 @@ def validate_policy_id(policy_id: str) -> bool:
     return bool(POLICY_ID_PATTERN.fullmatch(policy_id))
 
 
-def validate_policy_ids(values: Iterable[str]) -> None:
-    invalid_excluded_policies = [
-        policy_id for policy_id in values if not validate_policy_id(policy_id)
-    ]
-    if len(invalid_excluded_policies) > 0:
-        raise ValidationError(
-            f"The policies {invalid_excluded_policies} do not match the pattern '{POLICY_ID_PATTERN.pattern}'"
+@marshmallow_dataclass.dataclass
+class ConfigIgnoredElement(FilteredConfig):
+    """
+    Base class for a config element which can be ignored temporarily.
+    Classes inheriting it must reject expired dates themselves.
+    """
+
+    comment: Optional[str]
+    until: Optional[datetime]
+
+    # Accept date yyyy-mm-dd instead of a full datetime
+    @pre_load
+    def parse_date(self, data, **kwargs):
+        if not (isinstance(data, dict)) or data.get("until") is None:
+            return data
+        try:
+            data["until"] = str(datetime.strptime(str(data["until"]), "%Y-%m-%d"))
+            return data
+        except ValueError:
+            return data
+
+    @post_load
+    def datetime_to_utc(self, data, **kwargs):
+        if data["until"] is not None:
+            data["until"] = data["until"].astimezone(timezone.utc)
+        return data
+
+
+def remove_expired_elements(
+    lst: List[ConfigIgnoredElement],
+) -> List[ConfigIgnoredElement]:
+    expired: List[ConfigIgnoredElement] = []
+    now = datetime.now(tz=timezone.utc)
+    for idx in range(len(lst) - 1, -1, -1):
+        ignored = lst[idx]
+        if ignored.until and ignored.until <= now:
+            lst.pop(idx)
+            expired.insert(0, ignored)
+
+    return expired
+
+
+def report_expired_elements(expired_lst: List[ConfigIgnoredElement]) -> None:
+    for element in expired_lst:
+        display_warning(
+            f"{element} has an expired 'until' "
+            f"date ({element.until}), please update your configuration file."
         )
+
+
+@marshmallow_dataclass.dataclass
+class IaCConfigIgnoredPath(ConfigIgnoredElement):
+    path: str
+
+    def __init__(self, path, comment=None, until=None, *args, **kwargs):
+        super().__init__(comment, until, *args, **kwargs)
+        self.path = path
+
+    def __str__(self):
+        return f"Path {self.path}"
+
+    @pre_load
+    def convert_paths(self, in_data, **kwargs):
+        return {"path": in_data} if isinstance(in_data, str) else in_data
+
+
+@marshmallow_dataclass.dataclass
+class IaCConfigIgnoredPolicy(ConfigIgnoredElement):
+    policy: str = field(metadata={"validate": validate_policy_id})
+
+    def __init__(self, policy, comment=None, until=None, *args, **kwargs):
+        super().__init__(comment, until, *args, **kwargs)
+        self.policy = policy
+
+    def __str__(self):
+        return f"Policy {self.policy}"
+
+    @pre_load
+    def convert_policies(self, in_data, **kwargs):
+        return {"policy": in_data} if isinstance(in_data, str) else in_data
 
 
 @marshmallow_dataclass.dataclass
@@ -80,11 +152,21 @@ class IaCConfig(FilteredConfig):
     (local and global).
     """
 
-    ignored_paths: Set[str] = field(default_factory=set)
-    ignored_policies: Set[str] = field(
-        default_factory=set, metadata={"validate": validate_policy_ids}
-    )
+    ignored_paths: List[IaCConfigIgnoredPath] = field(default_factory=list)
+    ignored_policies: List[IaCConfigIgnoredPolicy] = field(default_factory=list)
     minimum_severity: str = "LOW"
+
+    @post_load
+    def validate_ignored_paths(self, data, **kwargs):
+        expired_lst = remove_expired_elements(data["ignored_paths"])
+        report_expired_elements(expired_lst)
+        return data
+
+    @post_load
+    def validate_ignored_policies(self, data, **kwargs):
+        expired_lst = remove_expired_elements(data["ignored_policies"])
+        report_expired_elements(expired_lst)
+        return data
 
 
 def is_ghsa_valid(ghsa_id: str) -> bool:
@@ -99,7 +181,7 @@ def validate_vuln_identifier(value: str):
 
 
 @marshmallow_dataclass.dataclass
-class SCAConfigIgnoredVulnerability(FilteredConfig):
+class SCAConfigIgnoredVulnerability(ConfigIgnoredElement):
     """
     A model of an ignored vulnerability for SCA. This allows to ignore all occurrences
     of a given vulnerability in a given dependency file.
@@ -111,14 +193,14 @@ class SCAConfigIgnoredVulnerability(FilteredConfig):
 
     identifier: str = field(metadata={"validate": validate_vuln_identifier})
     path: str
-    comment: Optional[str] = None
-    until: Optional[datetime] = None
 
-    @post_load
-    def datetime_to_utc(self, data, **kwargs):
-        if data["until"] is not None:
-            data["until"] = data["until"].astimezone(timezone.utc)
-        return data
+    def __init__(self, identifier, path, comment=None, until=None, *args, **kwargs):
+        super().__init__(comment, until, *args, **kwargs)
+        self.identifier = identifier
+        self.path = path
+
+    def __str__(self):
+        return f"Vulnerability {self.identifier}"
 
 
 @marshmallow_dataclass.dataclass
@@ -136,16 +218,8 @@ class SCAConfig(FilteredConfig):
 
     @post_load
     def validate_ignored_vulns(self, data, **kwargs):
-        valid_vulnerabilities = []
-        for vuln in data["ignored_vulnerabilities"]:
-            if vuln.until is None or vuln.until > datetime.now(tz=timezone.utc):
-                valid_vulnerabilities.append(vuln)
-            else:
-                display_warning(
-                    f"Vulnerability {vuln.identifier} in {vuln.path} has an expired 'until'"
-                    f"date ({vuln.until}), please udpate your configuration file."
-                )
-        data["ignored_vulnerabilities"] = valid_vulnerabilities
+        expired_lst = remove_expired_elements(data["ignored_vulnerabilities"])
+        report_expired_elements(expired_lst)
         return data
 
 

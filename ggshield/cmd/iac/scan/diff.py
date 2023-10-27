@@ -174,7 +174,7 @@ def iac_scan_diff(
     current_tar = get_iac_tar(directory, current_ref, exclusion_regexes)
 
     scan_parameters = IaCScanParameters(
-        list(config.user_config.iac.ignored_policies),
+        list({ignored.policy for ignored in config.user_config.iac.ignored_policies}),
         config.user_config.iac.minimum_severity,
     )
 
