@@ -48,6 +48,7 @@ def repo_cmd(
 
     path = Path(repository)
     if path.is_dir():
+        scan_context.target_path = path
         return scan_repo_path(
             client=client,
             cache=cache,
@@ -60,6 +61,7 @@ def repo_cmd(
     if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
             git(["clone", repository, tmpdirname])
+            scan_context.target_path = Path(tmpdirname)
             return scan_repo_path(
                 client=client,
                 cache=cache,

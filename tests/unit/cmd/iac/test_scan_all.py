@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 import requests
@@ -26,7 +26,6 @@ def setup_single_iac_vuln_repo(tmp_path: Path) -> str:
     Sets up a local repo with a single vulnerable IaC file from a given tmp_path.
     :returns: a string representing the path to the file
     """
-
     repo = Repository.create(tmp_path)
 
     iac_file_name = "iac_file_single_vulnerability.tf"
@@ -272,3 +271,42 @@ def test_iac_scan_all_ignored_directory(
     assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
     assert "An ignored file or directory cannot be scanned." in result.stdout
     iac_directory_scan_mock.assert_not_called()
+
+
+@patch("pygitguardian.GGClient.iac_directory_scan")
+def test_iac_scan_all_context_repository(
+    scan_mock: Mock, tmp_path: Path, cli_fs_runner: CliRunner, cli_command
+) -> None:
+    """
+    GIVEN a repository with a remote url
+    WHEN executing a scan all
+    THEN repository url is sent
+    """
+    local_repo = Repository.create(tmp_path)
+    remote_url = "https://github.com/owner/repository.git"
+    local_repo.git("remote", "add", "origin", remote_url)
+
+    tracked_file = local_repo.path / "iac_file_single_vulnerability.tf"
+    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    local_repo.add(tracked_file)
+    local_repo.create_commit()
+
+    cli_fs_runner.invoke(
+        cli,
+        cli_command
+        + [
+            str(local_repo.path),
+        ],
+    )
+
+    scan_mock.assert_called_once_with(
+        local_repo.path,
+        ["iac_file_single_vulnerability.tf"],
+        ANY,
+        ANY,
+    )
+    assert any(
+        isinstance(arg, dict)
+        and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
+        for arg in scan_mock.call_args[0]
+    )

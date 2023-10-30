@@ -433,3 +433,40 @@ def test_sca_scan_diff_ignored_directory(
     assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
     assert "An ignored file or directory cannot be scanned." in result.stdout
     compute_sca_files_mock.assert_not_called()
+
+
+@patch("pygitguardian.GGClient.sca_scan_directory")
+@my_vcr.use_cassette("test_sca_scan_context_repository.yaml")
+def test_sca_scan_context_repository(
+    scan_mock: Mock, tmp_path: Path, cli_fs_runner: CliRunner, pipfile_lock_with_vuln
+) -> None:
+    """
+    GIVEN a repository with a remote url
+    WHEN executing a scan
+    THEN repository url is sent
+    """
+    local_repo = Repository.create(tmp_path)
+    remote_url = "https://github.com/owner/repository.git"
+    local_repo.git("remote", "add", "origin", remote_url)
+
+    file = local_repo.path / "Pipfile.lock"
+    file.write_text(pipfile_lock_with_vuln)
+    local_repo.add(file)
+    local_repo.create_commit()
+
+    cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            str(local_repo.path),
+        ],
+    )
+
+    scan_mock.assert_called_once()
+    assert any(
+        isinstance(arg, dict)
+        and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
+        for arg in scan_mock.call_args[0]
+    )

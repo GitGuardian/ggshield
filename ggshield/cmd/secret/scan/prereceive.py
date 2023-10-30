@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any, List, Set
 
 import click
@@ -53,6 +54,7 @@ def _execute_prereceive(
         scan_context = ScanContext(
             scan_mode=ScanMode.PRE_RECEIVE,
             command_path=command_path,
+            target_path=Path.cwd(),
         )
 
         return_code = scan_commit_range(

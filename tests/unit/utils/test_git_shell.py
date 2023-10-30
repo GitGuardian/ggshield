@@ -2,6 +2,7 @@ import os
 import tarfile
 from io import BytesIO
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -12,13 +13,32 @@ from ggshield.utils.git_shell import (
     check_git_dir,
     check_git_ref,
     get_filepaths_from_ref,
+    get_repository_url_from_path,
     get_staged_filepaths,
     git,
     is_git_dir,
     is_valid_git_commit_ref,
+    simplify_git_url,
 )
 from ggshield.utils.os import cd
 from tests.repository import Repository
+
+
+def _add_remote(
+    repository: Repository, repository_name: str, remote_name: Optional[str] = "origin"
+):
+    remote_url = f"https://github.com/owner/{repository_name}.git"
+    repository.git("remote", "add", remote_name, remote_url)
+
+
+def _create_repository_with_remote(
+    repository_path: Path,
+    repository_name: str,
+    remote_name: Optional[str] = "origin",
+):
+    local_repo = Repository.create(repository_path, bare=True)
+    _add_remote(local_repo, repository_name, remote_name)
+    return local_repo
 
 
 def test_git_shell():
@@ -78,6 +98,132 @@ def test_check_git_ref_valid_git_path(tmp_path):
     # AND other strings throw
     with pytest.raises(InvalidGitRefError):
         check_git_ref("invalid_ref", local_repo_path)
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://user:password@github.com:84/GitGuardian/ggshield.git",
+            "github.com/GitGuardian/ggshield",
+        ),
+        (
+            "https://github.com/GitGuardian/ggshield.git",
+            "github.com/GitGuardian/ggshield",
+        ),
+        (
+            "git@github.com:GitGuardian/ggshield.git",
+            "github.com/GitGuardian/ggshield",
+        ),
+        (
+            "https://github.com/Git.Guar-di_an/gg.sh-ie_ld.git",
+            "github.com/Git.Guar-di_an/gg.sh-ie_ld",
+        ),
+        (
+            "https://gitlab.instance.ovh/owner/project/repository.git",
+            "gitlab.instance.ovh/owner/project/repository",
+        ),
+        (
+            "https://username@dev.azure.com/username/project/_git/repository",
+            "dev.azure.com/username/project/repository",
+        ),
+        (
+            "https://username@bitbucket.org/owner/repository.git",
+            "bitbucket.org/owner/repository",
+        ),
+    ],
+    ids=[
+        "Full Github https",
+        "Github https",
+        "Github ssh",
+        "Github special characters",
+        "Gitlab https",
+        "Azure Devops https",
+        "BitBucket https",
+    ],
+)
+def test_simplify_git_url(url, expected):
+    assert expected == simplify_git_url(url)
+
+
+def test_get_repository_url_from_path(tmp_path: Path):
+    # GIVEN a local repository with remote url
+    local_repo = _create_repository_with_remote(tmp_path, "repository")
+
+    # THEN the remote url is returned in the root clone directory
+    assert "repository" in get_repository_url_from_path(local_repo.path)
+    # AND in a subdirectory
+    subdirectory_path = local_repo.path / "subdirectory"
+    subdirectory_path.mkdir()
+    assert "repository" in get_repository_url_from_path(subdirectory_path)
+
+
+def test_get_repository_url_from_path_no_repo(tmp_path: Path):
+    # GIVEN a local directory with no remote git directory
+    local_directory_path = tmp_path / "local"
+    local_directory_path.mkdir()
+    # AND a local repository with no remote git directory
+    local_repository_path = tmp_path / "repo"
+    repo = Repository.create(local_repository_path)
+    repo.create_commit()
+
+    # THEN no url is returned
+    assert get_repository_url_from_path(local_directory_path) is None
+    assert get_repository_url_from_path(local_repository_path) is None
+
+
+def test_get_repository_url_from_path_two_remotes(tmp_path: Path):
+    # GIVEN a local repository with two remotes
+    local_repo = _create_repository_with_remote(
+        repository_path=tmp_path,
+        repository_name="repository1",
+        remote_name="other_remote",
+    )
+    _add_remote(
+        repository=local_repo,
+        repository_name="repository2",
+        remote_name="origin",
+    )
+
+    # THEN only one remote is returned, with priority to origin
+    assert "repository2" in get_repository_url_from_path(local_repo.path)
+    # AND in a subdirectory
+    subdirectory_path = local_repo.path / "subdirectory"
+    subdirectory_path.mkdir()
+    assert "repository2" in get_repository_url_from_path(subdirectory_path)
+
+
+def test_get_repository_url_from_path_different_repo(tmp_path: Path):
+    # GIVEN two repositories with one remote each
+    local_repo1 = _create_repository_with_remote(
+        repository_path=tmp_path / "local1",
+        repository_name="repository1",
+    )
+    local_repo2 = _create_repository_with_remote(
+        repository_path=tmp_path / "local2",
+        repository_name="repository2",
+    )
+
+    # THEN scanning repo 2 from repo 1 yields repo 2's remote url
+    with cd(str(local_repo1.path)):
+        assert "repository2" in get_repository_url_from_path(local_repo2.path)
+
+
+def test_get_repository_url_from_path_subrepo(tmp_path: Path):
+    # GIVEN two repositories, each with its remote, with repo2 nested inside repo1
+    local_repo1 = _create_repository_with_remote(
+        repository_path=tmp_path,
+        repository_name="repository1",
+    )
+    local_repo2 = _create_repository_with_remote(
+        repository_path=local_repo1.path / "nested",
+        repository_name="repository2",
+    )
+
+    # THEN scanning local repo 1 returns remote repo 1 url
+    assert "repository1" in get_repository_url_from_path(local_repo1.path)
+    # AND scanning local repo 2 returns remote repo 2 url
+    assert "repository2" in get_repository_url_from_path(local_repo2.path)
 
 
 def test_get_filepaths_from_ref(tmp_path):

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 import click
@@ -41,6 +42,7 @@ def range_cmd(
     scan_context = ScanContext(
         scan_mode=ScanMode.COMMIT_RANGE,
         command_path=ctx.command_path,
+        target_path=Path.cwd(),
     )
 
     return scan_commit_range(

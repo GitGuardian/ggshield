@@ -167,6 +167,7 @@ class TestPrepush:
             scan_context=ScanContext(
                 scan_mode=ScanMode.PRE_PUSH,
                 command_path="cli secret scan pre-push",
+                target_path=local_repo.path,
             ),
             ignored_detectors=set(),
         )

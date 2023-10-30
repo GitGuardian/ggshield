@@ -1,13 +1,14 @@
 import json
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from tests.repository import Repository
 from tests.unit.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
     UNCHECKED_SECRET_PATCH,
@@ -406,3 +407,43 @@ class TestScanDirectory:
                 ) in result.output
             else:
                 assert "No secrets have been found" in result.output
+
+    @patch("pygitguardian.GGClient.multi_content_scan")
+    @my_vcr.use_cassette("test_scan_context_repository.yaml")
+    def test_scan_context_repository(
+        self,
+        scan_mock: Mock,
+        tmp_path: Path,
+        cli_fs_runner: CliRunner,
+    ) -> None:
+        """
+        GIVEN a repository with a remote url
+        WHEN executing a scan
+        THEN repository url is sent
+        """
+        local_repo = Repository.create(tmp_path)
+        remote_url = "https://github.com/owner/repository.git"
+        local_repo.git("remote", "add", "origin", remote_url)
+
+        file = local_repo.path / "file_secret"
+        file.write_text(_ONE_LINE_AND_MULTILINE_PATCH)
+        local_repo.add(file)
+        local_repo.create_commit()
+
+        cli_fs_runner.invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "path",
+                "-r",
+                str(local_repo.path),
+            ],
+        )
+
+        scan_mock.assert_called_once()
+        assert any(
+            isinstance(arg, dict)
+            and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
+            for arg in scan_mock.call_args[0]
+        )
