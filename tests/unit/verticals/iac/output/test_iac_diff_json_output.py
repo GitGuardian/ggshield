@@ -57,28 +57,32 @@ def test_iac_scan_diff_one_new():
         )
     )
     parsed_json = json.loads(raw_json)
-
     assert parsed_json == {
-        "added_vulns": [
-            {
-                "filename": "/path/to/first/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    }
-                ],
-                "total_incidents": 1,
-            }
-        ],
-        "persisting_vulns": [],
-        "removed_vulns": [],
+        "id": "id",
+        "type": "type",
+        "iac_engine_version": "",
+        "entities_with_incidents": {
+            "unchanged": [],
+            "new": [
+                {
+                    "filename": "/path/to/first/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        }
+                    ],
+                    "total_incidents": 1,
+                }
+            ],
+            "deleted": [],
+        },
     }
 
 
@@ -111,58 +115,63 @@ def test_iac_scan_diff_several_new():
     parsed_json = json.loads(raw_json)
 
     assert parsed_json == {
-        "added_vulns": [
-            {
-                "filename": "/path/to/first/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    }
-                ],
-                "total_incidents": 1,
-            },
-            {
-                "filename": "/path/to/second/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    }
-                ],
-                "total_incidents": 1,
-            },
-            {
-                "filename": "/path/to/third/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    }
-                ],
-                "total_incidents": 1,
-            },
-        ],
-        "persisting_vulns": [],
-        "removed_vulns": [],
+        "id": "id",
+        "type": "type",
+        "iac_engine_version": "",
+        "entities_with_incidents": {
+            "unchanged": [],
+            "new": [
+                {
+                    "filename": "/path/to/first/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        }
+                    ],
+                    "total_incidents": 1,
+                },
+                {
+                    "filename": "/path/to/second/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        }
+                    ],
+                    "total_incidents": 1,
+                },
+                {
+                    "filename": "/path/to/third/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        }
+                    ],
+                    "total_incidents": 1,
+                },
+            ],
+            "deleted": [],
+        },
     }
 
 
@@ -193,46 +202,51 @@ def test_iac_scan_diff_several_new_on_same_file():
     parsed_json = json.loads(raw_json)
 
     assert parsed_json == {
-        "added_vulns": [
-            {
-                "filename": "/path/to/first/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    },
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    },
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    },
-                ],
-                "total_incidents": 3,
-            },
-        ],
-        "persisting_vulns": [],
-        "removed_vulns": [],
+        "id": "id",
+        "type": "type",
+        "iac_engine_version": "",
+        "entities_with_incidents": {
+            "unchanged": [],
+            "new": [
+                {
+                    "filename": "/path/to/first/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        },
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        },
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        },
+                    ],
+                    "total_incidents": 3,
+                },
+            ],
+            "deleted": [],
+        },
     }
 
 
@@ -263,26 +277,31 @@ def test_iac_scan_diff_one_persisting():
     parsed_json = json.loads(raw_json)
 
     assert parsed_json == {
-        "added_vulns": [],
-        "persisting_vulns": [
-            {
-                "filename": "/path/to/first/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    }
-                ],
-                "total_incidents": 1,
-            }
-        ],
-        "removed_vulns": [],
+        "id": "id",
+        "type": "type",
+        "iac_engine_version": "",
+        "entities_with_incidents": {
+            "unchanged": [
+                {
+                    "filename": "/path/to/first/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        }
+                    ],
+                    "total_incidents": 1,
+                }
+            ],
+            "new": [],
+            "deleted": [],
+        },
     }
 
 
@@ -313,24 +332,29 @@ def test_iac_scan_diff_one_removed():
     parsed_json = json.loads(raw_json)
 
     assert parsed_json == {
-        "added_vulns": [],
-        "persisting_vulns": [],
-        "removed_vulns": [
-            {
-                "filename": "/path/to/first/file.tf",
-                "incidents": [
-                    {
-                        "policy": "POLICY",
-                        "policy_id": "POLICY_ID",
-                        "line_end": 0,
-                        "line_start": 0,
-                        "description": "DESCRIPTION",
-                        "documentation_url": "DOCUMENTATION_URL",
-                        "component": "COMPONENT",
-                        "severity": "SEVERITY",
-                    }
-                ],
-                "total_incidents": 1,
-            }
-        ],
+        "id": "id",
+        "type": "type",
+        "iac_engine_version": "",
+        "entities_with_incidents": {
+            "unchanged": [],
+            "new": [],
+            "deleted": [
+                {
+                    "filename": "/path/to/first/file.tf",
+                    "incidents": [
+                        {
+                            "policy": "POLICY",
+                            "policy_id": "POLICY_ID",
+                            "line_end": 0,
+                            "line_start": 0,
+                            "description": "DESCRIPTION",
+                            "documentation_url": "DOCUMENTATION_URL",
+                            "component": "COMPONENT",
+                            "severity": "SEVERITY",
+                        }
+                    ],
+                    "total_incidents": 1,
+                }
+            ],
+        },
     }
