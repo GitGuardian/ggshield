@@ -5,6 +5,8 @@ from typing import Callable, Iterable, Optional, Sequence, Set, Tuple
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.files import is_filepath_excluded
 from ggshield.utils.git_shell import Filemode, git
+from ggshield.utils.itertools import batched
+from ggshield.utils.os import getenv_int
 
 from .commit_information import CommitInformation
 from .scannable import Scannable
@@ -17,6 +19,9 @@ _STAGED_PREFIX = "staged"
 
 # Used instead of the SHA in commit URLs for commit files created from a patch
 _PATCH_PREFIX = "patch"
+
+# get files in commit by batch of _MAX_DOCS_PER_COMMIT
+_MAX_DOCS_PER_COMMIT = getenv_int("GG_MAX_DOCS_PER_COMMIT", 20)
 
 
 class PatchParseError(Exception):
@@ -146,6 +151,9 @@ _PATCH_COMMON_ARGS = [
 ]
 
 
+PatchParserFunction = Callable[["Commit"], Iterable[Scannable]]
+
+
 class Commit:
     """
     Commit represents a commit which is a list of commit files.
@@ -154,7 +162,7 @@ class Commit:
     def __init__(
         self,
         sha: Optional[str],
-        patch_parser: Callable[[], Iterable[Scannable]],
+        patch_parser: PatchParserFunction,
         info: CommitInformation,
     ):
         """
@@ -177,12 +185,19 @@ class Commit:
     ) -> "Commit":
         info = CommitInformation.from_sha(sha, cwd=cwd)
 
-        def parser() -> Iterable[Scannable]:
-            patch = git(["show", sha] + _PATCH_COMMON_ARGS, cwd=cwd)
-            try:
-                yield from _parse_patch(sha, patch, exclusion_regexes)
-            except Exception as exc:
-                raise PatchParseError(f"Could not parse patch (sha: {sha}): {exc}")
+        def parser(commit: "Commit") -> Iterable[Scannable]:
+            for paths in batched(commit.info.paths, _MAX_DOCS_PER_COMMIT):
+                patch = git(
+                    ["show", sha]
+                    + _PATCH_COMMON_ARGS
+                    + ["--"]
+                    + [str(x) for x in paths],
+                    cwd=cwd,
+                )
+                try:
+                    yield from _parse_patch(sha, patch, exclusion_regexes)
+                except Exception as exc:
+                    raise PatchParseError(f"Could not parse patch (sha: {sha}): {exc}")
 
         return Commit(sha, parser, info)
 
@@ -190,7 +205,7 @@ class Commit:
     def from_staged(
         exclusion_regexes: Optional[Set[re.Pattern]] = None, cwd: Optional[Path] = None
     ) -> "Commit":
-        def parser() -> Iterable[Scannable]:
+        def parser(commit: "Commit") -> Iterable[Scannable]:
             patch = git(["diff", "--cached"] + _PATCH_COMMON_ARGS, cwd=cwd)
             try:
                 yield from _parse_patch(_STAGED_PREFIX, patch, exclusion_regexes)
@@ -209,7 +224,7 @@ class Commit:
         """This one is for tests"""
         info = CommitInformation.from_patch_header(patch)
 
-        def parser() -> Iterable[Scannable]:
+        def parser(commit: "Commit") -> Iterable[Scannable]:
             try:
                 yield from _parse_patch(_PATCH_PREFIX, patch, exclusion_regexes)
             except Exception as exc:
@@ -230,7 +245,7 @@ class Commit:
         """
         Parse the patch into files and extract the changes for each one of them.
         """
-        yield from self._patch_parser()
+        yield from self._patch_parser(self)
 
     def __repr__(self) -> str:
         return f"<Commit sha={self.sha}>"
