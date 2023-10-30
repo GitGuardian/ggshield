@@ -29,7 +29,7 @@ class Repository:
 
     @classmethod
     def create(cls, path: Path, bare=False) -> "Repository":
-        cmd = ["init", str(path)]
+        cmd = ["init", str(path), "--initial-branch", "main"]
         if bare:
             cmd.append("--bare")
         git(cmd)
@@ -50,6 +50,9 @@ class Repository:
         self._ensure_credentials_are_set()
         self.git("commit", "--allow-empty", "-m", message)
         return self.get_top_sha()
+
+    def checkout(self, name: str) -> None:
+        self.git("checkout", name)
 
     def create_branch(self, name: str, orphan: bool = False) -> None:
         self.git("checkout", "--orphan" if orphan else "-b", name)

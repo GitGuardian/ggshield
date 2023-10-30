@@ -52,7 +52,7 @@ def precommit_cmd(
         command_path=ctx.command_path,
     )
 
-    commit = Commit(exclusion_regexes=ctx.obj["exclusion_regexes"])
+    commit = Commit.from_staged(ctx.obj["exclusion_regexes"])
     scanner = SecretScanner(
         client=ctx.obj["client"],
         cache=ctx.obj["cache"],

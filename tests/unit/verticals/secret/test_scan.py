@@ -29,8 +29,7 @@ def test_request_headers(scan_mock: Mock, client):
     THEN GGClient.multi_content_scan() is called with the correct values for
     `extra_headers`
     """
-    c = Commit()
-    c._patch = UNCHECKED_SECRET_PATCH
+    c = Commit.from_patch(UNCHECKED_SECRET_PATCH)
 
     scan_result = ScanResult(policy_break_count=0, policy_breaks=[], policies=[])
     multi_scan_result = MultiScanResult([scan_result])

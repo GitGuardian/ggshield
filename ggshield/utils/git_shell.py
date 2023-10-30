@@ -158,19 +158,23 @@ def git(
             cwd=str(cwd),
         )
         if result.stderr:
-            logger.debug("stderr=%s", result.stderr.decode("utf-8", errors="ignore"))
+            logger.warning(
+                "command=%s, stderr=%s",
+                command,
+                result.stderr.decode("utf-8", errors="ignore"),
+            )
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
-    except subprocess.CalledProcessError as e:
-        if "detected dubious ownership in repository" in e.stderr.decode(
-            "utf-8", errors="ignore"
-        ):
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.decode("utf-8", errors="ignore")
+        logger.error("command=%s, stderr=%s", command, stderr)
+        if "detected dubious ownership in repository" in stderr:
             raise GitError(
                 "Git command failed because of a dubious ownership in repository.\n"
                 "If you still want to run ggshield, make sure you mark "
                 "the current repository as safe for git with:\n"
                 "   git config --global --add safe.directory <YOUR_REPO>"
             )
-        raise e
+        raise exc
     except subprocess.TimeoutExpired:
         raise GitCommandTimeoutExpired(
             'Command "{}" timed out'.format(" ".join(command))

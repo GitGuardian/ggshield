@@ -32,8 +32,7 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
     WHEN I run a scan with multiple secrets
     THEN cache last_found_secrets is updated with these secrets and saved
     """
-    c = Commit()
-    c._patch = _MULTIPLE_SECRETS_PATCH
+    commit = Commit.from_patch(_MULTIPLE_SECRETS_PATCH)
     config = Config()
     cache = Cache()
     cache.purge()
@@ -49,7 +48,7 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
                 command_path="external",
             ),
         )
-        scanner.scan(c.files)
+        scanner.scan(commit.files)
     assert config.user_config.secret.ignored_matches == list()
 
     cache_found_secrets = sorted(cache.last_found_secrets, key=compare_matches_ignore)
@@ -70,8 +69,7 @@ def test_cache_catches_nothing(client, isolated_fs):
     WHEN I run a scan (therefore finding no secret)
     THEN config matches is unchanged and cache is empty
     """
-    c = Commit()
-    c._patch = _MULTIPLE_SECRETS_PATCH
+    commit = Commit.from_patch(_MULTIPLE_SECRETS_PATCH)
     config = Config()
     config.user_config.secret.ignored_matches = FOUND_SECRETS
     cache = Cache()
@@ -87,7 +85,7 @@ def test_cache_catches_nothing(client, isolated_fs):
                 command_path="external",
             ),
         )
-        results = scanner.scan(c.files)
+        results = scanner.scan(commit.files)
 
         assert results.results == []
         assert config.user_config.secret.ignored_matches == FOUND_SECRETS

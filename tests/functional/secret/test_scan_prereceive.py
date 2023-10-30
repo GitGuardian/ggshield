@@ -130,12 +130,12 @@ def test_scan_prereceive_timeout(
     # THEN the hook timeouts and allows the push
     with patch.dict(
         os.environ, {**os.environ, "GITGUARDIAN_API_URL": slow_gitguardian_api}
-    ), caplog.at_level(logging.DEBUG):
+    ), caplog.at_level(logging.WARNING):
         local_repo.push()
 
     # AND the error message contains timeout message
     assert any(
         "Pre-receive hook took too long" in record.message
         for record in caplog.records
-        if record.levelname == "DEBUG"
+        if record.levelname == "WARNING"
     )
