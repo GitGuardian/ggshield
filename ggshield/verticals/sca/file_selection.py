@@ -99,6 +99,8 @@ def sca_files_from_git_repo(
     if isinstance(sca_files_result, Detail):
         if sca_files_result.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
+        elif sca_files_result.status_code == 501:
+            raise UnexpectedError(sca_files_result.detail)
         raise UnexpectedError("Failed to select SCA files")
 
     sca_files = sca_files_result.sca_files
