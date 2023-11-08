@@ -1,7 +1,5 @@
 from typing import Any, Dict, cast
 
-from pygitguardian.iac_models import IaCDiffScanEntities, IaCFileResult
-
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )
@@ -53,26 +51,21 @@ class IaCJSONOutputHandler(IaCOutputHandler):
 
     @staticmethod
     def create_diff_scan_dict(scan: IaCDiffScanCollection) -> Dict[str, Any]:
-        ret: Dict[str, Any] = {
-            "added_vulns": [],
-            "persisting_vulns": [],
-            "removed_vulns": [],
-        }
+        if scan.result is None:
+            return {
+                "id": scan.id,
+                "type": scan.type.value,
+                "total_incidents": 0,
+                "entities_with_incidents": {
+                    "unchanged": [],
+                    "new": [],
+                    "deleted": [],
+                },
+            }
+        scan_dict = scan.result.to_dict()
 
-        def file_result_transform(file_result: IaCFileResult) -> Dict[str, Any]:
-            return dict(
-                filename=file_result.filename,
-                incidents=file_result.incidents,
-                total_incidents=len(file_result.incidents),
-            )
+        for category in scan_dict["entities_with_incidents"]:
+            for file_result in scan_dict["entities_with_incidents"][category]:
+                file_result["total_incidents"] = len(file_result["incidents"])
 
-        if scan.result is not None and isinstance(
-            scan.result.entities_with_incidents, IaCDiffScanEntities
-        ):
-            for file_result in scan.result.entities_with_incidents.new:
-                ret["added_vulns"].append(file_result_transform(file_result))
-            for file_result in scan.result.entities_with_incidents.unchanged:
-                ret["persisting_vulns"].append(file_result_transform(file_result))
-            for file_result in scan.result.entities_with_incidents.deleted:
-                ret["removed_vulns"].append(file_result_transform(file_result))
-        return ret
+        return scan_dict
