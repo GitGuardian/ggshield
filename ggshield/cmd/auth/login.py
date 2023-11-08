@@ -79,6 +79,7 @@ def print_default_instance_message(config: Config) -> None:
 )
 @click.option(
     "--scopes",
+    hidden=True,
     required=False,
     type=str,
     help=(
