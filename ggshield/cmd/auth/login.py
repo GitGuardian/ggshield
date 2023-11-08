@@ -129,17 +129,13 @@ def login_cmd(
 
     The default authentication method is `web`.
     ggshield launches a web browser to authenticate you to your GitGuardian instance,
-    then automatically generates a token on your behalf. By default, the token will have
-    the `scan` scope. Use the `--scopes` option to grant the token extra scopes. You can
-    find the list of available scopes in [GitGuardian API documentation][1].
+    then automatically generates a token on your behalf.
 
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
 
     If a valid personal access token is already configured, this command simply displays
     a success message indicating that ggshield is already ready to use.
-
-    [1]: https://docs.gitguardian.com/api-docs/introduction#scopes
     """
     config: Config = ctx.obj["config"]
 
