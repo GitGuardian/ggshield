@@ -112,7 +112,7 @@ def leak_dictionary_by_ignore_sha(
     matches that start on said line.
     """
     policy_breaks.sort(
-        key=lambda x: min(  # type: ignore
+        key=lambda x: min(
             match.index_start if match.index_start else -1 for match in x.matches
         )
     )

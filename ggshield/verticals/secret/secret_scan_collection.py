@@ -33,9 +33,7 @@ class Result(NamedTuple):
 
     @property
     def has_policy_breaks(self) -> bool:
-        # Needs a `type: ignore` because py-gitguardian type hints are not complete.
-        # See https://github.com/GitGuardian/py-gitguardian/issues/49
-        return self.scan.has_policy_breaks  # type: ignore
+        return self.scan.has_policy_breaks
 
 
 class Error(NamedTuple):

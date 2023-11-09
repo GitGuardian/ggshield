@@ -209,7 +209,7 @@ class OAuthClient:
             authorization_code = None
         if authorization_code is None:
             raise OAuthError("Invalid code or state received from the callback.")
-        return authorization_code  # type: ignore
+        return authorization_code
 
     def _claim_token(self, authorization_code: str) -> None:
         """
@@ -266,7 +266,7 @@ class OAuthClient:
         ).get(endpoint="token")
         if not response.ok:
             raise OAuthError("The created token is invalid.")
-        return response.json()  # type: ignore
+        return response.json()
 
     def _save_token(self, api_token_data: Dict[str, Any]) -> None:
         """

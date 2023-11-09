@@ -46,7 +46,7 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
                 else "never"
             )
         else:
-            workspace_id = token = token_name = expiry = "not set"  # type: ignore
+            workspace_id = token = token_name = expiry = "not set"
 
         _default_token_lifetime = (
             instance.default_token_lifetime
