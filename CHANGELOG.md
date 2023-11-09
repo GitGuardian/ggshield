@@ -1,5 +1,89 @@
 # Changelog
 
+<a id='changelog-1.21.0'></a>
+
+## 1.21.0 — 2023-11-09
+
+### Added
+
+- Support for new options in gitguardian config file. IaC `ignored-paths` and `ignored_policies` can now be defined as objects with `comment` and `until` properties. If an `until` date is provided, the path/policy is only ignored up until this date. The old format is still supported. Check `.gitguardian.example.yaml` for a sample.
+
+### Changed
+
+- `ggshield iac scan diff --json` output was changed. `added_vulns`, `persisting_vulns` and `removed_vulns` were renamed as `new`, `unchanged` and `deleted`. They also were moved into a `entities_with_incidents` similarly to the scan all JSON output.
+  <details>
+    <summary>Sample IaC diff JSON output</summary>
+
+      ```json
+      {
+          "id": "fb0e9a92-de34-43f9-b779-17d25e99ab35",
+          "iac_engine_version": "1.15.0",
+          "type": "diff_scan",
+          "entities_with_incidents": {
+              "unchanged": [
+                  {
+                      "filename": "s3.tf",
+                      "incidents": [
+                          {
+                              "policy": "Allowing public exposure of a S3 bucket can lead to data leakage",
+                              "policy_id": "GG_IAC_0055",
+                              "line_end": 118,
+                              "line_start": 96,
+                              "description": "AWS S3 Block Public Access is a feature that allows setting up centralized controls\\nto manage public access to S3 resources.\\n\\nEnforcing the BlockPublicAcls, BlockPublicPolicy and IgnorePublicAcls rule on a bucket\\nallows to make sure that no ACL (Access control list) or policy giving public access\\ncan be associated with the bucket, and that existing ACL giving public access to\\nthe bucket will not be taken into account.",
+                              "documentation_url": "<https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0055>",
+                              "component": "aws_s3_bucket.operations",
+                              "severity": "HIGH"
+                          }
+                      ],
+                      "total_incidents": 1
+                  }
+              ],
+              "deleted": [
+              {
+                  "filename": "s3.tf",
+                      "incidents": [
+                          {
+                              "policy": "Allowing public exposure of a S3 bucket can lead to data leakage",
+                              "policy_id": "GG_IAC_0055",
+                              "line_end": 118,
+                              "line_start": 96,
+                              "description": "AWS S3 Block Public Access is a feature that allows setting up centralized controls\\nto manage public access to S3 resources.\\n\\nEnforcing the BlockPublicAcls, BlockPublicPolicy and IgnorePublicAcls rule on a bucket\\nallows to make sure that no ACL (Access control list) or policy giving public access\\ncan be associated with the bucket, and that existing ACL giving public access to\\nthe bucket will not be taken into account.",
+                              "documentation_url": "<https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0055>",
+                              "component": "aws_s3_bucket.operations",
+                              "severity": "HIGH",
+                          }
+                      ],
+                      "total_incidents": 1
+                  }
+              ],
+              "new": [
+              {
+                  "filename": "s3.tf",
+                      "incidents": [
+                          {
+                              "policy": "Allowing public exposure of a S3 bucket can lead to data leakage",
+                              "policy_id": "GG_IAC_0055",
+                              "line_end": 118,
+                              "line_start": 96,
+                              "description": "AWS S3 Block Public Access is a feature that allows setting up centralized controls\\nto manage public access to S3 resources.\\n\\nEnforcing the BlockPublicAcls, BlockPublicPolicy and IgnorePublicAcls rule on a bucket\\nallows to make sure that no ACL (Access control list) or policy giving public access\\ncan be associated with the bucket, and that existing ACL giving public access to\\nthe bucket will not be taken into account.",
+                              "documentation_url": "<https://docs.gitguardian.com/iac-scanning/policies/GG_IAC_0055>",
+                              "component": "aws_s3_bucket.operations",
+                              "severity": "HIGH"
+                          }
+                      ],
+                      "total_incidents": 1
+                  }
+              ]
+          }
+      }
+      ```
+
+  </details>
+
+### Fixed
+
+- When a git command fails, its output is now always correctly logged.
+
 <a id='changelog-1.20.0'></a>
 
 ## 1.20.0 — 2023-10-17
