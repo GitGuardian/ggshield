@@ -13,8 +13,9 @@ from ggshield.core.scan.commit_information import CommitInformation
 Date: Thu Sep 29 15:55:41 2022 +0000
 
     Make changes
-
-ghost.txt\0cat.py\0""",
+"""
+            + ":100644 100644 9abcdef 1234567 M\0ghost.txt\0"
+            + ":100644 100644 9abcdef 8714891 M\0cat.py\0",
             CommitInformation(
                 "ezra",
                 "ezra@lothal.sw",
@@ -28,8 +29,9 @@ ghost.txt\0cat.py\0""",
 Date: Thu Sep 29 15:55:41 2022 +0000
 
     Delete gone.txt, rename old.txt to new.txt
-
-gone.txt\0new.txt\0""",
+"""
+            + ":100644 000000 514981a 0000000 D\0gone.txt\0"
+            + ":000000 100644 0000000 8714891 A\0new.txt\0",
             CommitInformation(
                 "emptymail",
                 "",

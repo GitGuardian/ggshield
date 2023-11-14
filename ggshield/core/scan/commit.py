@@ -9,6 +9,7 @@ from ggshield.utils.os import getenv_int
 
 from .commit_information import CommitInformation
 from .commit_utils import (
+    DIFF_EMPTY_COMMIT_INFO_BLOCK,
     PATCH_COMMON_ARGS,
     PATCH_PREFIX,
     STAGED_PREFIX,
@@ -21,15 +22,7 @@ from .scannable import Scannable
 # get files in commit by batch of _MAX_DOCS_PER_COMMIT
 _MAX_DOCS_PER_COMMIT = getenv_int("GG_MAX_DOCS_PER_COMMIT", 20)
 
-
-class PatchParseError(Exception):
-    """
-    Raised by Commit.get_files() if it fails to parse its patch.
-    """
-
-    pass
-
-
+# Internal: type for a function to produce scannables from a commit
 PatchParserFunction = Callable[["Commit"], Iterable[Scannable]]
 
 
@@ -66,17 +59,18 @@ class Commit:
 
         def parser(commit: "Commit") -> Iterable[Scannable]:
             for paths in batched(commit.info.paths, _MAX_DOCS_PER_COMMIT):
-                patch = git(
-                    ["show", sha]
-                    + PATCH_COMMON_ARGS
-                    + ["--"]
-                    + [str(x) for x in paths],
-                    cwd=cwd,
-                )
-                try:
-                    yield from parse_patch(sha, patch, exclusion_regexes)
-                except Exception as exc:
-                    raise PatchParseError(f"Could not parse patch (sha: {sha}): {exc}")
+                cmd = ["show", sha, *PATCH_COMMON_ARGS, "--"]
+
+                # Append paths to the command-line. If the file has been renamed, append
+                # both old and new paths. If we only append the new path then `git
+                # show` returns the new path as an added file.
+                for path in paths:
+                    if old_path := commit.info.renames.get(path):
+                        cmd.append(str(old_path))
+                    cmd.append(str(path))
+
+                patch = git(cmd, cwd=cwd)
+                yield from parse_patch(sha, patch, exclusion_regexes)
 
         return Commit(sha, parser, info)
 
@@ -85,11 +79,12 @@ class Commit:
         exclusion_regexes: Optional[Set[re.Pattern]] = None, cwd: Optional[Path] = None
     ) -> "Commit":
         def parser(commit: "Commit") -> Iterable[Scannable]:
-            patch = git(["diff", "--cached"] + PATCH_COMMON_ARGS, cwd=cwd)
-            try:
-                yield from parse_patch(STAGED_PREFIX, patch, exclusion_regexes)
-            except Exception as exc:
-                raise PatchParseError(f"Could not parse patch: {exc}")
+            patch = git(["diff", "--staged"] + PATCH_COMMON_ARGS, cwd=cwd)
+            yield from parse_patch(
+                STAGED_PREFIX,
+                DIFF_EMPTY_COMMIT_INFO_BLOCK + patch,
+                exclusion_regexes,
+            )
 
         info = CommitInformation.from_staged(cwd)
 
@@ -104,10 +99,7 @@ class Commit:
         info = CommitInformation.from_patch_header(patch)
 
         def parser(commit: "Commit") -> Iterable[Scannable]:
-            try:
-                yield from parse_patch(PATCH_PREFIX, patch, exclusion_regexes)
-            except Exception as exc:
-                raise PatchParseError(f"Could not parse patch: {exc}")
+            yield from parse_patch(PATCH_PREFIX, patch, exclusion_regexes)
 
         return Commit(sha=None, patch_parser=parser, info=info)
 
