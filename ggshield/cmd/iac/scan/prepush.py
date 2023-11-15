@@ -11,6 +11,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option
+from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_SHA
@@ -45,6 +46,9 @@ def scan_pre_push_cmd(
     - The number of known IaC vulnerabilities left untouched
     - The number and the list of new IaC vulnerabilities introduced by the changes
     """
+    if check_user_requested_skip():
+        return 0
+
     directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 

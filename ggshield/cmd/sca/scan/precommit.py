@@ -14,6 +14,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
@@ -47,6 +48,9 @@ def scan_pre_commit_cmd(
 
     Only metadata such as call time, request size and scan mode is stored server-side.
     """
+    if check_user_requested_skip():
+        return 0
+
     if directory is None:
         directory = Path().resolve()
 
