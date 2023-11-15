@@ -1,21 +1,10 @@
-from dataclasses import dataclass, field
-from typing import List, Type, cast
-
-import marshmallow_dataclass
 from marshmallow import fields
 from pygitguardian.iac_models import (
-    IaCDiffScanEntities,
-    IaCDiffScanResult,
-    IaCFileResult,
+    IaCDiffScanResultSchema,
     IaCFileResultSchema,
     IaCScanResultSchema,
 )
-from pygitguardian.models import BaseSchema
-
-
-@dataclass
-class IaCJSONFileResult(IaCFileResult):
-    total_incidents: int
+from pygitguardian.models import BaseSchema, FromDictMixin
 
 
 class IaCJSONFileResultSchema(IaCFileResultSchema):
@@ -27,22 +16,11 @@ class IaCJSONScanResultSchema(IaCScanResultSchema):
     total_incidents = fields.Integer(dump_default=0)
 
 
-@dataclass
-class IaCJSONScanDiffEntities(IaCDiffScanEntities):
-    unchanged: List[IaCJSONFileResult] = field(default_factory=list)
-    new: List[IaCJSONFileResult] = field(default_factory=list)
-    deleted: List[IaCJSONFileResult] = field(default_factory=list)
+class IaCJSONScanDiffEntitiesSchema(BaseSchema, FromDictMixin):
+    unchanged = fields.List(fields.Nested(IaCJSONFileResultSchema))
+    new = fields.List(fields.Nested(IaCJSONFileResultSchema))
+    deleted = fields.List(fields.Nested(IaCJSONFileResultSchema))
 
 
-@dataclass
-class IaCJSONScanDiffResult(IaCDiffScanResult):
-    entities_with_incidents: IaCJSONScanDiffEntities = field(
-        default_factory=IaCJSONScanDiffEntities
-    )
-
-
-IaCJSONScanDiffResultSchema = cast(
-    Type[BaseSchema],
-    marshmallow_dataclass.class_schema(IaCJSONScanDiffResult, BaseSchema),
-)
-IaCJSONScanDiffResult.SCHEMA = IaCJSONScanDiffResultSchema()
+class IaCJSONScanDiffResultSchema(IaCDiffScanResultSchema):
+    entities_with_incidents = fields.Nested(IaCJSONScanDiffEntitiesSchema)
