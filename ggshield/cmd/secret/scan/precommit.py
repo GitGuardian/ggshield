@@ -62,7 +62,7 @@ def precommit_cmd(
         ignored_matches=config.user_config.secret.ignored_matches,
         ignored_detectors=config.user_config.secret.ignored_detectors,
     )
-    results = scanner.scan(commit.files)
+    results = scanner.scan(commit.get_files())
 
     return_code = output_handler.process_scan(
         SecretScanCollection(id="cached", type="pre-commit", results=results)

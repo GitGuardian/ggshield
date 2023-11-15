@@ -1,48 +1,121 @@
+import json
 import os
-from pathlib import Path
 from unittest.mock import patch
+
+import pytest
+from pytest_voluptuous import S
+from voluptuous import Optional as SOptional
+from voluptuous import Url
 
 from tests.conftest import GG_VALID_TOKEN
 from tests.functional.utils import recreate_censored_content, run_ggshield_scan
 from tests.repository import Repository
 
 
-def test_scan_repo(tmp_path: Path) -> None:
-    # GIVEN a repository
-    repo = Repository.create(tmp_path)
+LEAK_CONTENT = f"password = {GG_VALID_TOKEN}"
 
-    # AND a commit containing a leak
+
+SECRET_JSON_SCHEMA = S(
+    {
+        "id": str,
+        "type": "commit-range",
+        "scans": [
+            {
+                "id": str,
+                "type": "commit",
+                SOptional("entities_with_incidents"): [
+                    {
+                        "mode": str,
+                        "filename": str,
+                        "incidents": [
+                            {
+                                "policy": "Secrets detection",
+                                "occurrences": [
+                                    {
+                                        "match": str,
+                                        "type": str,
+                                        "line_start": int,
+                                        "line_end": int,
+                                        "index_start": int,
+                                        "index_end": int,
+                                        "post_line_start": int,
+                                        "post_line_end": int,
+                                    },
+                                ],
+                                "type": str,
+                                "validity": str,
+                                "ignore_sha": str,
+                                "total_occurrences": int,
+                                SOptional("incident_url"): Url(),
+                                "known_secret": bool,
+                            },
+                        ],
+                        "total_incidents": int,
+                        "total_occurrences": int,
+                    },
+                ],
+                "extra_info": {
+                    "author": str,
+                    "email": str,
+                    "date": str,
+                },
+                "total_incidents": int,
+                "total_occurrences": int,
+            },
+        ],
+        "total_incidents": int,
+        "total_occurrences": int,
+    }
+)
+
+
+@pytest.fixture(scope="module")
+def leaky_repo(tmp_path_factory: pytest.TempPathFactory) -> Repository:
+    """
+    Create a repository, add a commit with a secret in it, then add 2 clean commits on
+    top of it
+    """
+    repo = Repository.create(tmp_path_factory.mktemp("test_scan_repo"))
+
     secret_file = repo.path / "secret.conf"
-    leak_content = f"password = {GG_VALID_TOKEN}"
-    secret_file.write_text(leak_content)
+    secret_file.write_text(LEAK_CONTENT)
     repo.add("secret.conf")
+    repo.create_commit()
 
-    # AND some clean commits on top of it
-    for _ in range(3):
+    for _ in range(2):
         repo.create_commit()
 
+    return repo
+
+
+def test_scan_repo(leaky_repo: Repository) -> None:
+    # GIVEN a repository with a past commit containing a leak
     # WHEN scanning the repo
     # THEN the leak is found
-    proc = run_ggshield_scan("repo", str(repo.path), expected_code=1, cwd=repo.path)
+    proc = run_ggshield_scan(
+        "repo", str(leaky_repo.path), expected_code=1, cwd=leaky_repo.path
+    )
 
-    assert recreate_censored_content(leak_content, GG_VALID_TOKEN) in proc.stdout
+    # AND the output contains the line of the leak
+    assert recreate_censored_content(LEAK_CONTENT, GG_VALID_TOKEN) in proc.stdout
+
+
+def test_scan_repo_json(leaky_repo: Repository) -> None:
+    # GIVEN a repository with a past commit containing a leak
+    # WHEN scanning the repo
+    # THEN the leak is found
+    proc = run_ggshield_scan(
+        "repo", "--json", str(leaky_repo.path), expected_code=1, cwd=leaky_repo.path
+    )
+    # AND the JSON output matches the expected format
+    dct = json.loads(proc.stdout)
+    assert SECRET_JSON_SCHEMA == dct
 
 
 def test_scan_repo_quota_limit_reached(
-    tmp_path: Path, no_quota_gitguardian_api: str, caplog
+    leaky_repo: Repository, no_quota_gitguardian_api: str, caplog
 ) -> None:
-    # GIVEN a repository
-    repo = Repository.create(tmp_path)
-
-    # AND a commit containing a leak
-    secret_file = repo.path / "secret.conf"
-    leak_content = f"password = {GG_VALID_TOKEN}"
-    secret_file.write_text(leak_content)
-    repo.add("secret.conf")
-
-    # AND some clean commits on top of it
-    for _ in range(3):
-        repo.create_commit()
+    # GIVEN a repository with a past commit containing a leak
 
     # WHEN scanning the repo
     # THEN error code is 128
@@ -50,7 +123,11 @@ def test_scan_repo_quota_limit_reached(
         os.environ, {**os.environ, "GITGUARDIAN_API_URL": no_quota_gitguardian_api}
     ):
         proc = run_ggshield_scan(
-            "repo", str(repo.path), "--json", expected_code=128, cwd=repo.path
+            "repo",
+            str(leaky_repo.path),
+            "--json",
+            expected_code=128,
+            cwd=leaky_repo.path,
         )
 
     # AND stderr contains an error message

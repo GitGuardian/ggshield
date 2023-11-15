@@ -48,7 +48,7 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
                 command_path="external",
             ),
         )
-        scanner.scan(commit.files)
+        scanner.scan(commit.get_files())
     assert config.user_config.secret.ignored_matches == list()
 
     cache_found_secrets = sorted(cache.last_found_secrets, key=compare_matches_ignore)
@@ -85,7 +85,7 @@ def test_cache_catches_nothing(client, isolated_fs):
                 command_path="external",
             ),
         )
-        results = scanner.scan(commit.files)
+        results = scanner.scan(commit.get_files())
 
         assert results.results == []
         assert config.user_config.secret.ignored_matches == FOUND_SECRETS

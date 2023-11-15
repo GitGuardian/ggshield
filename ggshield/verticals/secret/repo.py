@@ -65,7 +65,9 @@ def scan_commits_content(
     ignored_detectors: Optional[Set[str]] = None,
 ) -> SecretScanCollection:  # pragma: no cover
     try:
-        commit_files = list(itertools.chain.from_iterable(c.files for c in commits))
+        commit_files = list(
+            itertools.chain.from_iterable(c.get_files() for c in commits)
+        )
 
         progress_callback(advance=len(commits))
         scanner = SecretScanner(
@@ -85,11 +87,11 @@ def scan_commits_content(
     except Exception as exc:
         results = Results.from_exception(exc)
 
-    result_for_files = {result.file: result for result in results.results}
+    result_for_urls = {result.file.url: result for result in results.results}
     scans = []
     for commit in commits:
         results_for_commit_files = [
-            result_for_files[file] for file in commit.files if file in result_for_files
+            result_for_urls[u] for u in commit.urls if u in result_for_urls
         ]
         scans.append(
             SecretScanCollection(
@@ -100,7 +102,11 @@ def scan_commits_content(
                     errors=results.errors,
                 ),
                 optional_header=commit.optional_header,
-                extra_info=commit.info._asdict(),
+                extra_info={
+                    "author": commit.info.author,
+                    "email": commit.info.email,
+                    "date": commit.info.date,
+                },
             )
         )
 
@@ -120,7 +126,7 @@ def get_commits_by_batch(
     current_count = 0
     batch = []
     for commit in commits:
-        num_files = len(commit.files)
+        num_files = len(commit.urls)
         if current_count + num_files < batch_max_size:
             batch.append(commit)
             current_count += num_files
