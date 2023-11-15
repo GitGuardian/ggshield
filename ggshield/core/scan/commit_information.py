@@ -64,6 +64,10 @@ class CommitInformation:
     @staticmethod
     def from_staged(cwd: Optional[Path] = None) -> "CommitInformation":
         output = git(["diff", "--staged"] + HEADER_COMMON_ARGS, cwd=cwd)
+        if not output:
+            # This happens when there are no changes
+            return CommitInformation("", "", "", [])
+
         return CommitInformation.from_patch_header(
             DIFF_EMPTY_COMMIT_INFO_BLOCK + output
         )

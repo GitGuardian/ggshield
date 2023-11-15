@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from ggshield.core.scan.commit_information import CommitInformation
+from tests.repository import Repository
 
 
 @pytest.mark.parametrize(
@@ -61,3 +62,19 @@ def test_commit_information_from_patch_header(patch: str, expected: CommitInform
     THEN it extracts the expected values
     """
     assert CommitInformation.from_patch_header(patch) == expected
+
+
+def test_from_staged_without_changes(tmp_path):
+    """
+    GIVEN a repository with no changes
+    WHEN calling CommitInformation.from_staged()
+    THEN it returns a CommitInformation instance with no paths
+    """
+    repo = Repository.create(tmp_path)
+    test_file = tmp_path / "t"
+    test_file.touch()
+    repo.add(test_file)
+    repo.create_commit()
+
+    info = CommitInformation.from_staged(tmp_path)
+    assert info.paths == []
