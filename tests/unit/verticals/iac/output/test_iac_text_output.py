@@ -1,20 +1,30 @@
 import re
 from pathlib import Path
+from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner, Result
+from pygitguardian.iac_models import IaCFileResult
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from ggshield.core.scan.scan_mode import ScanMode
+from ggshield.verticals.iac.output.iac_text_output_handler import IaCTextOutputHandler
 from tests.conftest import (
     _IAC_MULTIPLE_VULNERABILITIES,
     _IAC_NO_VULNERABILITIES,
     _IAC_SINGLE_VULNERABILITY,
 )
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
+from tests.unit.verticals.iac.utils import (
+    generate_diff_scan_collection,
+    generate_path_scan_collection,
+    generate_vulnerability,
+)
 
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
-def test_display_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
+def test_display_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_single_vulnerability.tf").write_text(
         _IAC_SINGLE_VULNERABILITY
     )
@@ -34,7 +44,7 @@ def test_display_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
 
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
-def test_exit_zero_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
+def test_exit_zero_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_single_vulnerability.tf").write_text(
         _IAC_SINGLE_VULNERABILITY
     )
@@ -52,7 +62,7 @@ def test_exit_zero_single_vulnerability(tmp_path, cli_fs_runner: CliRunner):
 
 
 @my_vcr.use_cassette("test_iac_scan_multiple_vulnerabilities")
-def test_display_multiple_vulnerabilities(tmp_path, cli_fs_runner: CliRunner):
+def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_multiple_vulnerabilities.tf").write_text(
         _IAC_MULTIPLE_VULNERABILITIES
     )
@@ -73,7 +83,7 @@ def test_display_multiple_vulnerabilities(tmp_path, cli_fs_runner: CliRunner):
 
 
 @my_vcr.use_cassette("test_iac_scan_no_vulnerabilities")
-def test_display_no_vulnerability(tmp_path, cli_fs_runner: CliRunner):
+def test_display_no_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(_IAC_NO_VULNERABILITIES)
 
     result = cli_fs_runner.invoke(
@@ -115,6 +125,73 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
     assert_file_single_vulnerability_displayed(result)
     assert_file_multiple_vulnerabilities_displayed(result)
     assert_no_failures_displayed(result)
+
+
+@patch("ggshield.core.text_utils.format_text", lambda text, *args: text)
+@pytest.mark.parametrize("verbose", [True, False])
+@pytest.mark.parametrize("scan_type", [ScanMode.DIRECTORY_ALL, ScanMode.DIRECTORY_DIFF])
+def test_text_all_output_no_ignored(verbose: bool, scan_type: ScanMode, tmp_path: Path):
+    """
+    GIVEN   - a file result with ignored & unignored vulns
+            - a file result with only unignored vulns
+            - a file result with only ignored vulns
+    WHEN    showing scan output
+    THEN    ignored vulns are not shown
+    """
+    output_path = tmp_path / "output"
+
+    collection_factory_fn = (
+        generate_path_scan_collection
+        if scan_type == ScanMode.DIRECTORY_ALL
+        else generate_diff_scan_collection
+    )
+    collection = collection_factory_fn(
+        [
+            IaCFileResult(
+                filename="iac_file_single_vulnerability.tf",
+                incidents=[
+                    generate_vulnerability(policy_id="GG_IAC_0001"),
+                    generate_vulnerability(status="IGNORED", policy_id="GG_IAC_0002"),
+                ],
+            ),
+            IaCFileResult(
+                filename="iac_file_multiple_vulnerabilities.tf",
+                incidents=[
+                    generate_vulnerability(policy_id="GG_IAC_0003"),
+                    generate_vulnerability(policy_id="GG_IAC_0004"),
+                ],
+            ),
+            IaCFileResult(
+                filename="iac_file_no_vulnerabilities.tf",
+                incidents=[
+                    generate_vulnerability(status="IGNORED", policy_id="GG_IAC_0005"),
+                    generate_vulnerability(status="IGNORED", policy_id="GG_IAC_0006"),
+                ],
+            ),
+        ]
+    )
+
+    output_handler = IaCTextOutputHandler(verbose=verbose, output=str(output_path))
+    process_fn = (
+        output_handler.process_scan
+        if scan_type == ScanMode.DIRECTORY_ALL
+        else output_handler.process_diff_scan
+    )
+    exit_code = process_fn(collection)
+
+    assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+
+    output = output_path.read_text()
+    assert "iac_file_single_vulnerability.tf: 1 " in output
+    assert "iac_file_multiple_vulnerabilities.tf: 2 " in output
+    assert "iac_file_no_vulnerabilities.tf" not in output
+    assert set(re.findall(r"GG_IAC_\d{4}", output)) == {
+        "GG_IAC_0001",
+        "GG_IAC_0003",
+        "GG_IAC_0004",
+    }
+    if scan_type == ScanMode.DIRECTORY_DIFF:
+        assert "[+] 3 new incidents detected" in output
 
 
 def assert_iac_version_displayed(result: Result):

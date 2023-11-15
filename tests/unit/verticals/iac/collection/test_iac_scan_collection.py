@@ -77,3 +77,85 @@ def test_iac_diff_scan_collection_new_results() -> None:
         [generate_file_result_with_vulnerability()]
     )
     assert collection.has_results
+
+
+def test_iac_path_scan_collection_entities_without_ignored() -> None:
+    """
+    GIVEN an IaC path scan collection with some ignored vulns
+    THEN entities_without_ignored excludes ignored vulns
+    """
+    collection = generate_path_scan_collection(
+        [
+            generate_file_result_with_vulnerability(policy_id="GG_IAC_0001"),
+            generate_file_result_with_vulnerability(
+                policy_id="GG_IAC_0002", status="IGNORED"
+            ),
+        ]
+    )
+    entities_without_ignored = collection.get_entities_without_ignored()
+    assert len(entities_without_ignored) == 1
+    assert len(entities_without_ignored[0].incidents) == 1
+    assert entities_without_ignored[0].incidents[0].policy_id == "GG_IAC_0001"
+
+
+def test_iac_diff_scan_collection_entities_without_ignored() -> None:
+    """
+    GIVEN an IaC diff scan collection with some ignored vulns
+    THEN entities_without_ignored excludes ignored vulns
+    """
+    collection = generate_diff_scan_collection(
+        [
+            generate_file_result_with_vulnerability(policy_id="GG_IAC_0001"),
+            generate_file_result_with_vulnerability(
+                policy_id="GG_IAC_0002", status="IGNORED"
+            ),
+        ]
+    )
+    entities_without_ignored = collection.get_entities_without_ignored()
+    assert len(entities_without_ignored.new) == 1
+    assert len(entities_without_ignored.new[0].incidents) == 1
+    assert entities_without_ignored.new[0].incidents[0].policy_id == "GG_IAC_0001"
+
+
+def test_iac_path_scan_collection_result_without_ignored() -> None:
+    """
+    GIVEN an IaC path scan collection with some ignored vulns
+    THEN result_without_ignored excludes ignored vulns
+    """
+    collection = generate_path_scan_collection(
+        [
+            generate_file_result_with_vulnerability(policy_id="GG_IAC_0001"),
+            generate_file_result_with_vulnerability(
+                policy_id="GG_IAC_0002", status="IGNORED"
+            ),
+        ]
+    )
+    result_without_ignored = collection.get_result_without_ignored()
+    assert len(result_without_ignored.entities_with_incidents) == 1
+    assert len(result_without_ignored.entities_with_incidents[0].incidents) == 1
+    assert (
+        result_without_ignored.entities_with_incidents[0].incidents[0].policy_id
+        == "GG_IAC_0001"
+    )
+
+
+def test_iac_diff_scan_collection_result_without_ignored() -> None:
+    """
+    GIVEN an IaC diff scan collection with some ignored vulns
+    THEN result_without_ignored excludes ignored vulns
+    """
+    collection = generate_diff_scan_collection(
+        [
+            generate_file_result_with_vulnerability(policy_id="GG_IAC_0001"),
+            generate_file_result_with_vulnerability(
+                policy_id="GG_IAC_0002", status="IGNORED"
+            ),
+        ]
+    )
+    result_without_ignored = collection.get_result_without_ignored()
+    assert len(result_without_ignored.entities_with_incidents.new) == 1
+    assert len(result_without_ignored.entities_with_incidents.new[0].incidents) == 1
+    assert (
+        result_without_ignored.entities_with_incidents.new[0].incidents[0].policy_id
+        == "GG_IAC_0001"
+    )
