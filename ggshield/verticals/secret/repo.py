@@ -65,11 +65,8 @@ def scan_commits_content(
     ignored_detectors: Optional[Set[str]] = None,
 ) -> SecretScanCollection:  # pragma: no cover
     try:
-        commit_files = list(
-            itertools.chain.from_iterable(c.get_files() for c in commits)
-        )
+        commit_files = itertools.chain.from_iterable(c.get_files() for c in commits)
 
-        progress_callback(advance=len(commits))
         scanner = SecretScanner(
             client=client,
             cache=cache,
@@ -86,6 +83,8 @@ def scan_commits_content(
         raise
     except Exception as exc:
         results = Results.from_exception(exc)
+    finally:
+        progress_callback(advance=len(commits))
 
     result_for_urls = {result.file.url: result for result in results.results}
     scans = []
