@@ -333,6 +333,7 @@ def docker_scan_archive(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
+    verbose: bool = False,
 ) -> SecretScanCollection:
     scanner = SecretScanner(
         client=client,
@@ -346,7 +347,6 @@ def docker_scan_archive(
     layer_id_cache = _get_layer_id_cache(secrets_engine_version)
 
     with DockerImage.open(archive_path) as docker_image:
-
         display_heading("Scanning Docker config")
         with RichSecretScannerUI(1) as ui:
             results = scanner.scan([docker_image.config_scannable], scanner_ui=ui)

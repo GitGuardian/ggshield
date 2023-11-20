@@ -106,6 +106,7 @@ def pypi_cmd(
     """
     config: Config = ctx.obj["config"]
     output_handler = create_output_handler(ctx)
+    verbose = config.user_config.verbose
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         temp_path = Path(temp_dir)
@@ -118,7 +119,9 @@ def pypi_cmd(
             verbose=config.user_config.verbose,
         )
 
-        with RichSecretScannerUI(len(files), dataset_type="PyPI Package") as ui:
+        with RichSecretScannerUI(
+            len(files), dataset_type="PyPI Package", verbose=verbose
+        ) as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.PYPI,
                 command_path=ctx.command_path,

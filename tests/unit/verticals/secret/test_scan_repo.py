@@ -139,6 +139,7 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
         matches_ignore=[],
         scan_context=MagicMock(),
         progress_callback=(lambda advance: None),
+        commit_scanned_callback=(lambda commit: None),
     )
 
     assert len(scan_collection.scans) == 2
@@ -217,6 +218,7 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
         matches_ignore=[],
         scan_context=MagicMock(),
         progress_callback=(lambda advance: None),
+        commit_scanned_callback=(lambda commit: None),
     )
 
     assert len(scan_collection.scans) == 2

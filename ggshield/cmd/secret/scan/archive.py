@@ -54,7 +54,9 @@ def archive_cmd(
             ignore_git=True,
         )
 
-        with RichSecretScannerUI(len(files), dataset_type="Archive") as ui:
+        with RichSecretScannerUI(
+            len(files), dataset_type="Archive", verbose=verbose
+        ) as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,
