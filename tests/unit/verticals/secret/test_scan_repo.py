@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from ggshield.core.scan import Commit
-from ggshield.core.scan.commit import CommitScannable
 from ggshield.core.scan.commit_information import CommitInformation
+from ggshield.core.scan.commit_utils import CommitScannable
 from ggshield.verticals.secret import Result, Results
 from ggshield.verticals.secret.repo import get_commits_by_batch, scan_commits_content
 from tests.unit.conftest import TWO_POLICY_BREAKS
@@ -93,7 +93,7 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     commit_1_files = [CommitScannable("some_sha_1", path, content)]
     commit_1 = Commit(
         sha="some_sha_1",
-        patch_parser=lambda: commit_1_files,
+        patch_parser=lambda commit: commit_1_files,
         info=(
             CommitInformation(
                 author="",
@@ -107,7 +107,7 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     commit_2_files = [CommitScannable("some_sha_2", path, content)]
     commit_2 = Commit(
         sha="some_sha_2",
-        patch_parser=lambda: commit_2_files,
+        patch_parser=lambda commit: commit_2_files,
         info=(
             CommitInformation(
                 author="",
@@ -164,7 +164,7 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
 
     commit_1 = Commit(
         sha=sha1,
-        patch_parser=lambda: file1_list,
+        patch_parser=lambda commit: file1_list,
         info=CommitInformation(
             author="",
             email="",
@@ -180,7 +180,7 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
 
     commit_2 = Commit(
         sha=sha2,
-        patch_parser=lambda: file2_list,
+        patch_parser=lambda commit: file2_list,
         info=CommitInformation(
             author="",
             email="",
