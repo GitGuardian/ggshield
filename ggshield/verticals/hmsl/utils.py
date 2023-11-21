@@ -20,8 +20,6 @@ from ggshield.verticals.hmsl.client import HMSLClient
 logger = logging.getLogger(__name__)
 
 
-TOKEN_PATH = get_cache_dir() / "hmsl_token"
-
 # Tools for parsing env files
 ENV_LINE_REGEX = re.compile(r'(\S+)(?: *?)=(?: *?)((?:".*?[^\\]")|\S+)')
 
@@ -59,6 +57,10 @@ def get_client(config: Config, hmsl_command_path: str) -> HMSLClient:
     return HMSLClient(
         url=config.hmsl_url, hmsl_command_path=hmsl_command_path, jwt=token
     )
+
+
+def get_token_path():
+    return get_cache_dir() / "hmsl_token"
 
 
 def get_token(config: Config) -> Optional[str]:
@@ -126,7 +128,7 @@ def is_token_valid(token: Optional[str], audience: str) -> bool:
 
 def load_token_from_disk() -> Optional[str]:
     try:
-        return TOKEN_PATH.read_text()
+        return get_token_path().read_text()
     except FileNotFoundError:
         return None
     except Exception as e:
@@ -136,14 +138,14 @@ def load_token_from_disk() -> Optional[str]:
 
 def save_token(token: str) -> None:
     try:
-        TOKEN_PATH.write_text(token)
+        get_token_path().write_text(token)
     except Exception as e:
         logger.warning(f"Error while saving token: {e}")
 
 
 def remove_token_from_disk() -> None:
     try:
-        TOKEN_PATH.unlink(missing_ok=True)
+        get_token_path().unlink(missing_ok=True)
     except OSError:
         pass
     except Exception as e:

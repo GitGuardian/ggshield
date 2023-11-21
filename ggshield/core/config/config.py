@@ -104,7 +104,7 @@ class Config:
     @property
     def api_url(self) -> str:
         """
-        The API URL to use to use the API
+        The API URL to use the API
         It's the API URL from the configured instance
         """
         # TODO change when instance_name can be a name instead of just a URL
