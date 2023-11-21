@@ -1,9 +1,11 @@
 import io
+import json
 import os
 import platform
 import tarfile
 import tempfile
 from pathlib import Path
+from typing import Any, Dict
 
 import pytest
 
@@ -12,6 +14,8 @@ from tests.repository import Repository
 
 # The directory holding ggshield repository checkout
 ROOT_DIR = Path(__file__).parent.parent
+
+JSON_SCHEMAS_DIR = ROOT_DIR / "doc/schemas"
 
 # This is a test token, it is always reported as a valid secret
 GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
@@ -262,3 +266,48 @@ def dummy_sca_repo(tmp_path):
     """Return a fresh copy of a dummy sca repo"""
     DUMMY_SCA_REPO.extractall(path=tmp_path)
     return Repository(tmp_path)
+
+
+@pytest.fixture(scope="session")
+def secret_json_schema() -> Dict[str, Any]:
+    """Load the JSON schema for all `secret scan` commands,"""
+    return _load_json_schema("secret.json")
+
+
+@pytest.fixture(scope="session")
+def quota_json_schema() -> Dict[str, Any]:
+    """Load the JSON schema for `quota` command."""
+    return _load_json_schema("quota.json")
+
+
+@pytest.fixture(scope="session")
+def api_status_json_schema() -> Dict[str, Any]:
+    """Load the JSON schema for `api-status` command."""
+    return _load_json_schema("api-status.json")
+
+
+def _load_json_schema(name: str) -> Dict[str, Any]:
+    """Load a JSON schema and patch it to reject additional properties. We patch it this
+    way to ensure all fields of ggshield JSON output are documented in the JSON schema.
+    """
+    with (JSON_SCHEMAS_DIR / name).open() as fp:
+        dct = json.load(fp)
+    _reject_additional_properties(dct)
+    return dct
+
+
+def _reject_additional_properties(dct: Dict[str, Any]):
+    """Helper for JSON Schema fixtures: adds `"additionalProperties": false` to all
+    objects of the JSON schema, ensuring we do not add fields without updating the
+    schema.
+    """
+    try:
+        type_ = dct["type"]
+    except KeyError:
+        return
+    if type_ == "object":
+        dct["additionalProperties"] = False
+        for child in dct["properties"].values():
+            _reject_additional_properties(child)
+    elif type_ == "array":
+        _reject_additional_properties(dct["items"])

@@ -1,19 +1,17 @@
+import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
 from string import Template
 
+import jsonschema
 import pytest
 
 from ggshield.core.dirs import get_cache_dir
 from tests.conftest import GG_VALID_TOKEN, skipwindows
 from tests.functional.conftest import FUNCTESTS_DATA_PATH, requires_docker
-from tests.functional.utils import (
-    assert_is_valid_json,
-    recreate_censored_content,
-    run_ggshield_scan,
-)
+from tests.functional.utils import recreate_censored_content, run_ggshield_scan
 
 
 TEST_DOCKER_IMAGE = os.getenv("GGTEST_DOCKER_IMAGE", "ubuntu:20.04")
@@ -49,9 +47,12 @@ def test_scan_docker(clear_layer_cache) -> None:
     run_ggshield_scan("docker", TEST_DOCKER_IMAGE)
 
 
-def test_scan_docker_json(clear_layer_cache) -> None:
+def test_scan_docker_json(clear_layer_cache, secret_json_schema) -> None:
+    # GIVEN a scan of a docker image
     proc = run_ggshield_scan("docker", TEST_DOCKER_IMAGE, "--json")
-    assert_is_valid_json(proc.stdout)
+    # THEN the output is a valid JSON, matching the secret schema
+    dct = json.loads(proc.stdout)
+    jsonschema.validate(dct, secret_json_schema)
 
 
 @pytest.mark.parametrize(

@@ -1,56 +1,49 @@
 import json
 from unittest import mock
 
+import jsonschema
 import pytest
-from pytest_voluptuous import Partial, S
-from voluptuous.validators import All, Invalid, Match, Range
+from pytest_voluptuous import S
+from voluptuous.validators import All, Match
 
 from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_ok, my_vcr
 
 
-def test_quota(cli_fs_runner):
+def test_quota(cli_fs_runner, quota_json_schema):
     with my_vcr.use_cassette("quota"):
         cmd = ["quota", "--json"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
 
-        def quota_values_must_match(output):
-            if output["count"] + output["remaining"] != output["limit"]:
-                raise Invalid("API calls count and remaining must sum to limit.")
+    dct = json.loads(result.output)
+    jsonschema.validate(dct, quota_json_schema)
 
-        assert S(
-            All(
-                Partial(  # Partial validation because of the "since" key
-                    {
-                        "count": All(int, Range(min=0)),
-                        "limit": All(int, Range(min=0)),
-                        "remaining": All(int, Range(min=0)),
-                    }
-                ),
-                quota_values_must_match,
-            )
-        ) == json.loads(result.output)
+    assert dct["count"] + dct["remaining"] == dct["limit"]
 
 
-def test_api_status(cli_fs_runner):
+def test_api_status(cli_fs_runner, api_status_json_schema):
     with my_vcr.use_cassette("test_health_check"):
         cmd = ["api-status", "--json"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
 
-        assert S(
+    dct = json.loads(result.output)
+    jsonschema.validate(dct, api_status_json_schema)
+
+    assert (
+        S(
             All(
-                Partial(  # Partial validation because of the "since" key
-                    {
-                        "detail": "Valid API key.",
-                        "status_code": 200,
-                        "app_version": Match(r"v\d\.\d{1,3}\.\d{1,2}(-rc\.\d)?"),
-                        "secrets_engine_version": Match(r"\d\.\d{1,3}\.\d"),
-                    }
-                ),
+                {
+                    "detail": "Valid API key.",
+                    "status_code": 200,
+                    "app_version": Match(r"v\d\.\d{1,3}\.\d{1,2}(-rc\.\d)?"),
+                    "secrets_engine_version": Match(r"\d\.\d{1,3}\.\d"),
+                }
             )
-        ) == json.loads(result.output)
+        )
+        == dct
+    )
 
 
 @pytest.mark.parametrize("verify", [True, False])

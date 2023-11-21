@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ggshield api-status",
+  "type": "object",
+  "properties": {
+    "status_code": {
+      "type": "integer",
+      "minimum": 200,
+      "description": "HTTP status code for the request"
+    },
+    "detail": {
+      "type": "string",
+      "description": "Human-readable version of the status"
+    },
+    "app_version": {
+      "type": "string",
+      "description": "Version of the server-side GitGuardian application"
+    },
+    "secrets_engine_version": {
+      "type": "string",
+      "description": "Version of the secrets engine"
+    }
+  },
+  "required": ["status_code", "detail", "app_version", "secrets_engine_version"]
+}

@@ -2,10 +2,8 @@ import json
 import os
 from unittest.mock import patch
 
+import jsonschema
 import pytest
-from pytest_voluptuous import S
-from voluptuous import Optional as SOptional
-from voluptuous import Url
 
 from tests.conftest import GG_VALID_TOKEN
 from tests.functional.utils import recreate_censored_content, run_ggshield_scan
@@ -13,60 +11,6 @@ from tests.repository import Repository
 
 
 LEAK_CONTENT = f"password = {GG_VALID_TOKEN}"
-
-
-SECRET_JSON_SCHEMA = S(
-    {
-        "id": str,
-        "type": "commit-range",
-        "scans": [
-            {
-                "id": str,
-                "type": "commit",
-                SOptional("entities_with_incidents"): [
-                    {
-                        "mode": str,
-                        "filename": str,
-                        "incidents": [
-                            {
-                                "policy": "Secrets detection",
-                                "occurrences": [
-                                    {
-                                        "match": str,
-                                        "type": str,
-                                        "line_start": int,
-                                        "line_end": int,
-                                        "index_start": int,
-                                        "index_end": int,
-                                        "post_line_start": int,
-                                        "post_line_end": int,
-                                    },
-                                ],
-                                "type": str,
-                                "validity": str,
-                                "ignore_sha": str,
-                                "total_occurrences": int,
-                                SOptional("incident_url"): Url(),
-                                "known_secret": bool,
-                            },
-                        ],
-                        "total_incidents": int,
-                        "total_occurrences": int,
-                    },
-                ],
-                "extra_info": {
-                    "author": str,
-                    "email": str,
-                    "date": str,
-                },
-                "total_incidents": int,
-                "total_occurrences": int,
-            },
-        ],
-        "total_incidents": int,
-        "total_occurrences": int,
-    }
-)
 
 
 @pytest.fixture(scope="module")
@@ -100,7 +44,7 @@ def test_scan_repo(leaky_repo: Repository) -> None:
     assert recreate_censored_content(LEAK_CONTENT, GG_VALID_TOKEN) in proc.stdout
 
 
-def test_scan_repo_json(leaky_repo: Repository) -> None:
+def test_scan_repo_json(leaky_repo: Repository, secret_json_schema) -> None:
     # GIVEN a repository with a past commit containing a leak
     # WHEN scanning the repo
     # THEN the leak is found
@@ -109,7 +53,7 @@ def test_scan_repo_json(leaky_repo: Repository) -> None:
     )
     # AND the JSON output matches the expected format
     dct = json.loads(proc.stdout)
-    assert SECRET_JSON_SCHEMA == dct
+    jsonschema.validate(dct, secret_json_schema)
 
 
 def test_scan_repo_quota_limit_reached(

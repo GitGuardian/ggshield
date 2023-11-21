@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ggshield quota",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Quota used since the `since` date"
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total quota of the workspace"
+    },
+    "remaining": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Quota available"
+    },
+    "since": {
+      "type": "string",
+      "format": "date",
+      "description": "start day of the quota sliding window"
+    }
+  },
+  "required": ["count", "limit", "remaining", "since"]
+}
