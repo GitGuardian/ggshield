@@ -50,6 +50,7 @@ def scan_repo_path(
                 matches_ignore=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.user_config.secret.ignored_detectors,
+                verbose=config.user_config.verbose,
             )
     except Exception as error:
         return handle_exception(error, config.user_config.verbose)
@@ -62,6 +63,7 @@ def scan_commits_content(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     progress_callback: Callable[..., None],
+    commit_scanned_callback: Callable[[Commit], None],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> SecretScanCollection:  # pragma: no cover
     try:
@@ -85,6 +87,8 @@ def scan_commits_content(
         results = Results.from_exception(exc)
     finally:
         progress_callback(advance=len(commits))
+        for commit in commits:
+            commit_scanned_callback(commit)
 
     result_for_urls = {result.file.url: result for result in results.results}
     scans = []
@@ -148,6 +152,7 @@ def scan_commit_range(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
+    verbose: bool = False,
 ) -> ExitCode:
     """
     Scan every commit in a range.
@@ -173,6 +178,10 @@ def scan_commit_range(
         )
         scans: List[SecretScanCollection] = []
 
+        def commit_scanned_callback(commit: Commit):
+            if verbose:
+                progress.console.print(f"Scanned {commit.sha}")
+
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []
             for commits in commits_batch:
@@ -185,6 +194,7 @@ def scan_commit_range(
                         matches_ignore,
                         scan_context,
                         partial(progress.update, task_scan),
+                        commit_scanned_callback,
                         ignored_detectors,
                     )
                 )

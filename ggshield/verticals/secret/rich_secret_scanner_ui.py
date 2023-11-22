@@ -13,11 +13,16 @@ class RichSecretScannerUI(SecretScannerUI):
     """
 
     def __init__(
-        self, total: int, dataset_type: str = "", scannable_type: str = "files"
+        self,
+        total: int,
+        dataset_type: str = "",
+        scannable_type: str = "files",
+        verbose: bool = False,
     ):
         self.progress = create_progress_bar(scannable_type)
         task_title = f"Scanning {dataset_type}..." if dataset_type else "Scanning..."
         self.task = self.progress.add_task(task_title, total=total)
+        self.verbose = verbose
 
     def __enter__(self) -> "RichSecretScannerUI":
         self.progress.__enter__()
@@ -27,6 +32,9 @@ class RichSecretScannerUI(SecretScannerUI):
         self.progress.__exit__(*args)
 
     def on_scanned(self, scannables: Sequence[Scannable]) -> None:
+        if self.verbose:
+            for scannable in scannables:
+                self.progress.console.print(f"Scanned {scannable.path}")
         self.progress.advance(self.task, len(scannables))
 
     def on_skipped(self, scannable: Scannable, reason: str) -> None:

@@ -59,7 +59,7 @@ def path_cmd(
 
     target = paths[0] if len(paths) == 1 else Path.cwd()
     target_path = target if target.is_dir() else target.parent
-    with RichSecretScannerUI(len(files), dataset_type="Path") as ui:
+    with RichSecretScannerUI(len(files), dataset_type="Path", verbose=verbose) as ui:
         scan_context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path=ctx.command_path,
