@@ -14,6 +14,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option
+from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_SHA
@@ -49,6 +50,9 @@ def scan_pre_push_cmd(
 
     Only metadata such as call time, request size and scan mode is stored server-side.
     """
+    if check_user_requested_skip():
+        return 0
+
     directory = Path().resolve()
 
     # Adds client and required parameters to the context
