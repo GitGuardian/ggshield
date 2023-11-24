@@ -92,6 +92,7 @@ def github_pull_request_previous_commit_sha() -> Optional[str]:
 def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
     push_before_sha = gitlab_push_previous_commit_sha()
     merge_req_base_sha = gitlab_merge_request_previous_commit_sha(verbose)
+    is_merge_req = bool(os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME"))
 
     if verbose:
         click.echo(
@@ -102,7 +103,7 @@ def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
 
     # push_before_sha is always EMPTY_SHA in MR pipeline according with
     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-    if push_before_sha == EMPTY_SHA and merge_req_base_sha:
+    if (push_before_sha == EMPTY_SHA or is_merge_req) and merge_req_base_sha:
         # Targeted branch is empty
         if merge_req_base_sha == EMPTY_SHA:
             return None

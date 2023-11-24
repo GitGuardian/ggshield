@@ -56,3 +56,43 @@ def test_ci_diff_no_vuln(
         file_content == _IAC_SINGLE_VULNERABILITY
     )
     assert expected_output in result.stdout
+
+
+def test_gitlab_previous_commit_sha_for_merged_results_pipelines(
+    tmp_path: Path,
+) -> None:
+    # GIVEN a remote repository
+    remote_repository = Repository.create(tmp_path / "remote", bare=True)
+    # AND a local clone with a first vulnerability
+    local_tmp_path = tmp_path / "local"
+    repository = Repository.clone(remote_repository.path, local_tmp_path)
+    ignored_file = local_tmp_path / "ignored_file.tf"
+    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repository.add(ignored_file)
+    repository.create_commit()
+    repository.push()
+
+    # AND a new commit containing another file with a vulnerability
+    scanned_file = local_tmp_path / "scanned_file.tf"
+    scanned_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    repository.add(scanned_file)
+    last_sha = repository.create_commit()
+
+    # WHEN scanning it with the local last commit as CI_COMMIT_BEFORE_SHA var
+    # to emulate Gitlab "merged results pipelines" behaviour
+    args = ["ci"]
+    result = run_ggshield_iac_scan(
+        *args,
+        cwd=local_tmp_path,
+        expected_code=1,
+        env={
+            "GITLAB_CI": "1",
+            "CI_COMMIT_BEFORE_SHA": last_sha,
+            "CI_MERGE_REQUEST_TARGET_BRANCH_NAME": "main",
+        },
+    )
+
+    # THEN the scan should be run on the expected commit
+    assert "ignored_file.tf" not in result.stdout
+    assert "scanned_file.tf" in result.stdout
+    assert "[+] 1 new incident detected (HIGH: 1)" in result.stdout
