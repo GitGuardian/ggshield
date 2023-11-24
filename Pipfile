@@ -23,6 +23,7 @@ seed-isort-config = "*"
 snapshottest = "*"
 typing-extensions = "*"
 import-linter = "*"
+jsonschema = "*"
 
 vcrpy = ">=4.3.0,!=4.3.1,<4.4.0"
 

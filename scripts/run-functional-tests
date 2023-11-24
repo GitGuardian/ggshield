@@ -37,7 +37,7 @@ create_venv() {
 install_packages() {
     log_progress "Installing packages"
     # Install ggshield and test dependencies
-    pip install "dist/`ls dist`[all]" pytest pytest-voluptuous
+    pip install "dist/`ls dist`[all]" pytest pytest-voluptuous jsonschema
 }
 
 run_tests() {

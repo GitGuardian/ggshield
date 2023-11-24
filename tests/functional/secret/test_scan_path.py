@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import jsonschema
 import pytest
 
 from tests.conftest import (
@@ -10,7 +11,6 @@ from tests.conftest import (
     UNKNOWN_SECRET,
 )
 from tests.functional.utils import (
-    assert_is_valid_json,
     recreate_censored_content,
     recreate_censored_string,
     run_ggshield_scan,
@@ -57,7 +57,9 @@ def test_scan_path_does_not_fail_on_long_paths(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("show_secrets", (True, False))
-def test_scan_path_json_output(tmp_path: Path, show_secrets: bool) -> None:
+def test_scan_path_json_output(
+    tmp_path: Path, secret_json_schema, show_secrets: bool
+) -> None:
     # GIVEN a secret
     test_file = tmp_path / "config.py"
     test_file.write_text(f"SECRET='{GG_VALID_TOKEN}'")
@@ -69,21 +71,22 @@ def test_scan_path_json_output(tmp_path: Path, show_secrets: bool) -> None:
     result = run_ggshield_scan(*args, cwd=tmp_path, expected_code=1)
 
     # THEN the output is a valid JSON
-    assert_is_valid_json(result.stdout)
     parsed_result = json.loads(result.stdout)
-    # containing one incident with one occurrence
+    # AND there is one incident with one occurrence
     assert parsed_result["total_incidents"] == 1
     assert parsed_result["total_occurrences"] == 1
     incident = parsed_result["entities_with_incidents"][0]["incidents"][0]
-    # with the expected ignore_sha
+    # AND it has the expected ignore_sha
     assert incident["ignore_sha"] == GG_VALID_TOKEN_IGNORE_SHA
-    # and the secrets shown only with --show-secrets
+    # AND the secrets are shown only if --show-secrets has been set
     if show_secrets:
         assert incident["occurrences"][0]["match"] == GG_VALID_TOKEN
     else:
         assert incident["occurrences"][0]["match"] == recreate_censored_string(
             GG_VALID_TOKEN
         )
+    # AND the schema is valid
+    jsonschema.validate(parsed_result, secret_json_schema)
 
 
 def test_scan_path_ignore_known_secrets(tmp_path: Path) -> None:
