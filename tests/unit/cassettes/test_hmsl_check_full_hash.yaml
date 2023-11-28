@@ -12,30 +12,34 @@ interactions:
           - '80'
         Content-Type:
           - application/json
+        GGShield-HMSL-Command-Name:
+          - cli_hmsl_check
         User-Agent:
-          - python-requests/2.31.0
+          - GGShield 1.21.0
       method: POST
-      uri: https://hasmysecretleaked.staging.gitguardian.tech/v1/hashes
+      uri: https://api.hasmysecretleaked.com/v1/hashes
     response:
       body:
-        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":14,"location":{"u":"https://github.com/edly-io/devstack/commit/ccfc9c2d63c2917be60a9fd2a4c36ff3a8b9bb8c#diff-e45e45baeda1c1e73482975a664062aa56f20c03dd9d64a827aba57775bed0d3L158"}}]}'
+        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":2135,"location":null}]}'
       headers:
         content-length:
-          - '277'
+          - '118'
         content-type:
           - application/json
         date:
-          - Wed, 14 Jun 2023 13:16:46 GMT
+          - Tue, 28 Nov 2023 09:00:17 GMT
         ratelimit-limit:
-          - '500'
+          - '50'
         ratelimit-remaining:
-          - '478'
+          - '19'
         ratelimit-reset:
-          - '38592'
+          - '53982'
         server:
           - istio-envoy
+        x-app-version:
+          - 1.9.0
         x-envoy-upstream-service-time:
-          - '31'
+          - '15'
       status:
         code: 200
         message: OK

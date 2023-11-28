@@ -575,6 +575,12 @@ def client() -> GGClient:
     return GGClient(api_key, base_uri)
 
 
+@pytest.fixture
+def no_api_key(monkeypatch):
+    """Remove GITGUARDIAN_API_KEY from the environment, useful to test anonymous use"""
+    monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
+
+
 @pytest.fixture(scope="session")
 def cache() -> Cache:
     c = Cache()
