@@ -87,7 +87,7 @@ def _git_rev_parse_absolute(option: str, wd_absolute: Path) -> Optional[str]:
     Helper function for `_git_rev_parse` to only cache on absolute paths.
     """
     try:
-        return git(["rev-parse", option], cwd=wd_absolute)
+        return git(["rev-parse", option], cwd=wd_absolute, log_stderr=False)
     except subprocess.CalledProcessError:
         return None
 
@@ -161,6 +161,7 @@ def git(
     timeout: int = COMMAND_TIMEOUT,
     check: bool = True,
     cwd: Optional[Union[str, Path]] = None,
+    log_stderr: bool = True,
 ) -> str:
     """Calls git with the given arguments, returns stdout as a string"""
     env = os.environ.copy()
@@ -179,7 +180,7 @@ def git(
             env=env,
             cwd=str(cwd),
         )
-        if result.stderr:
+        if result.stderr and log_stderr:
             logger.warning(
                 "command=%s, stderr=%s",
                 command,
@@ -188,7 +189,8 @@ def git(
         return result.stdout.decode("utf-8", errors="ignore").rstrip()
     except subprocess.CalledProcessError as exc:
         stderr = exc.stderr.decode("utf-8", errors="ignore")
-        logger.error("command=%s, stderr=%s", command, stderr)
+        if log_stderr:
+            logger.error("command=%s, stderr=%s", command, stderr)
         if "detected dubious ownership in repository" in stderr:
             raise GitError(
                 "Git command failed because of a dubious ownership in repository.\n"
