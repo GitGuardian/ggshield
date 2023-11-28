@@ -1,5 +1,23 @@
 # Changelog
 
+<a id='changelog-1.22.0'></a>
+
+## 1.22.0 — 2023-11-28
+
+### Added
+
+- Secret: ggshield now prints the name of what is being scanned when called with `--verbose` (#212).
+
+- You can now use the `SKIP=ggshield` environment variable without the [pre-commit framework](https://pre-commit.com/) to skip pre-commit and pre-push scans.
+
+### Changed
+
+- ggshield can now scan huge commits without running out of memory.
+
+### Fixed
+
+- IAC and SCA: scans in GitLab merge request pipelines should now be performed on the intended commit ranges, instead of an empty range.
+
 <a id='changelog-1.21.0'></a>
 
 ## 1.21.0 — 2023-11-09
