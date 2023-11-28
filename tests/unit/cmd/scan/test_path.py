@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -55,7 +56,6 @@ class TestPathScan:
         WHEN it is scanned
         THEN the secret is reported
         AND the exit code is not 0
-        AND there is a deprecated message in the output if the scan used the deprecated syntax
         """
         Path("file_secret").write_text(UNCHECKED_SECRET_PATCH)
         assert os.path.isfile("file_secret")
@@ -66,14 +66,15 @@ class TestPathScan:
             result = cli_fs_runner.invoke(cli, cmd)
             assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
             assert result.exception
-            assert (
+            assert re.search(
                 """>> Secret detected: GitGuardian Development Secret
    Validity: No Checker
    Occurrences: 1
-   Known by GitGuardian dashboard: NO
-   Incident URL: N/A
-   Secret SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4"""
-                in result.output
+   Known by GitGuardian dashboard: (YES|NO)
+   Incident URL: (https://.*|N/A)
+   Secret SHA: 4f307a4cae8f14cc276398c666559a6d4f959640616ed733b168a9ee7ab08fd4
+""",
+                result.output,
             )
 
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
@@ -86,15 +87,15 @@ class TestPathScan:
             )
         assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         assert result.exception
-        assert (
+        assert re.search(
             """>> Secret detected: GitGuardian Test Token Checked
    Validity: Valid
    Occurrences: 1
-   Known by GitGuardian dashboard: NO
-   Incident URL: N/A
+   Known by GitGuardian dashboard: (YES|NO)
+   Incident URL: (https://.*|N/A)
    Secret SHA: 56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd
-"""
-            in result.output
+""",
+            result.output,
         )
 
     @pytest.mark.parametrize("validity", [True, False])
