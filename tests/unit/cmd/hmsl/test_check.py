@@ -1,24 +1,16 @@
 from pathlib import Path
 from uuid import uuid4
 
-import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_ok, my_vcr
 
 
-@pytest.fixture(autouse=True)
-def use_staging_env(monkeypatch):
-    # The cassettes where recorded before the service was operational in production
-    monkeypatch.setenv(
-        "GITGUARDIAN_HMSL_URL", "https://hasmysecretleaked.staging.gitguardian.tech"
-    )
-    monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
-
-
 @my_vcr.use_cassette
-def test_hmsl_check_random_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
+def test_hmsl_check_random_secret(
+    cli_fs_runner: CliRunner, tmp_path: Path, no_api_key
+) -> None:
     """
     GIVEN a random secret
     WHEN running the check command on it
@@ -34,7 +26,9 @@ def test_hmsl_check_random_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> N
 
 
 @my_vcr.use_cassette
-def test_hmsl_check_common_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
+def test_hmsl_check_common_secret(
+    cli_fs_runner: CliRunner, tmp_path: Path, no_api_key
+) -> None:
     """
     GIVEN a common secret
     WHEN running the check command on it
@@ -53,7 +47,9 @@ def test_hmsl_check_common_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> N
 
 
 @my_vcr.use_cassette
-def test_hmsl_check_full_hash(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
+def test_hmsl_check_full_hash(
+    cli_fs_runner: CliRunner, tmp_path: Path, no_api_key
+) -> None:
     """
     GIVEN a common secret
     WHEN running the check command on it with full hash option

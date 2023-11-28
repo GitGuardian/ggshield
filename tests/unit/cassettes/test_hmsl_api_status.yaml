@@ -8,10 +8,12 @@ interactions:
           - gzip, deflate
         Connection:
           - keep-alive
+        GGShield-HMSL-Command-Name:
+          - cli_hmsl_api-status
         User-Agent:
-          - python-requests/2.31.0
+          - GGShield 1.21.0
       method: GET
-      uri: https://hasmysecretleaked.staging.gitguardian.tech/healthz
+      uri: https://api.hasmysecretleaked.com/healthz
     response:
       body:
         string: '{"msg":"ok"}'
@@ -21,11 +23,13 @@ interactions:
         content-type:
           - application/json
         date:
-          - Tue, 20 Jun 2023 11:48:34 GMT
+          - Tue, 28 Nov 2023 09:00:15 GMT
         server:
           - istio-envoy
+        x-app-version:
+          - 1.9.0
         x-envoy-upstream-service-time:
-          - '2'
+          - '6'
       status:
         code: 200
         message: OK
