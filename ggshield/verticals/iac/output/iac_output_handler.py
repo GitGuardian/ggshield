@@ -4,6 +4,7 @@ from typing import Optional
 import click
 
 from ggshield.core.errors import ExitCode
+from ggshield.core.text_utils import display_warning
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )
@@ -120,6 +121,12 @@ class IaCOutputHandler(ABC):
     def _handle_process_scan_result(
         self, scan: IaCScanCollection, text: str
     ) -> ExitCode:
+        source_found = scan.result is not None and scan.result.source_found
+        if self.verbose and not source_found:
+            display_warning(
+                "ggshield cannot fetch incidents monitored by the platform on this repository"
+            )
+
         if self.output:
             with open(self.output, "w+") as f:
                 f.write(text)

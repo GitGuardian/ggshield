@@ -44,12 +44,15 @@ def generate_file_result_with_vulnerability(
     )
 
 
-def generate_path_scan_collection(file_results: List[IaCFileResult]):
+def generate_path_scan_collection(
+    file_results: List[IaCFileResult], source_found: bool = True
+):
     return IaCPathScanCollection(
         ".",
         IaCScanResult(
             id=".",
             type="path_scan",
+            source_found=source_found,
             iac_engine_version="1.8.0",
             entities_with_incidents=file_results,
         ),
@@ -60,12 +63,14 @@ def generate_diff_scan_collection(
     new: List[IaCFileResult],
     unchanged: List[IaCFileResult] = [],
     deleted: List[IaCFileResult] = [],
+    source_found: bool = True,
 ):
     return IaCDiffScanCollection(
         ".",
         IaCDiffScanResult(
             id=".",
             type="diff_scan",
+            source_found=source_found,
             iac_engine_version="1.8.0",
             entities_with_incidents=IaCDiffScanEntities(
                 unchanged=unchanged,
