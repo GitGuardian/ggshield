@@ -9,6 +9,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
     add_iac_scan_common_options,
     update_context,
 )
+from ggshield.cmd.iac.scan.iac_scan_utils import augment_unignored_issues
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -50,6 +51,7 @@ def scan_ci_cmd(
         result = iac_scan_all(
             ctx, directory, scan_mode=ScanMode.CI_ALL, ci_mode=ci_mode
         )
+        augment_unignored_issues(ctx.obj["config"].user_config, result)
         return display_iac_scan_all_result(ctx, directory, result)
 
     current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
@@ -65,4 +67,5 @@ def scan_ci_cmd(
         scan_mode=ScanMode.CI_DIFF,
         ci_mode=ci_mode,
     )
+    augment_unignored_issues(ctx.obj["config"].user_config, result)
     return display_iac_scan_diff_result(ctx, directory, result)

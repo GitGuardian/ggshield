@@ -12,6 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     IaCSkipScanResult,
+    augment_unignored_issues,
     create_output_handler,
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
@@ -98,6 +99,7 @@ def scan_pre_receive_cmd(
         current_ref=after,
         scan_mode=ScanMode.PRE_RECEIVE_ALL if scan_all else ScanMode.PRE_RECEIVE_DIFF,
     )
+    augment_unignored_issues(ctx.obj["config"].user_config, result)
 
     output_handler = create_output_handler(ctx)
 

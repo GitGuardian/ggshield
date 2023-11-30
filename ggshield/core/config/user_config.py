@@ -170,16 +170,29 @@ class IaCConfig(FilteredConfig):
     ignored_policies: List[IaCConfigIgnoredPolicy] = field(default_factory=list)
     minimum_severity: str = "LOW"
 
+    # If we hit any outdated ignore rules when loading the configuration file, we
+    # want to keep them in order to display additional details but we do not want
+    # to store them in ignored rules because they will be used to scan.
+    # Instead, we store them in these new computed fields. However we must mark them
+    # as excluded, otherwise they would be serialized if the user runs a command to
+    # write in the configuration file, which would be odd.
+    outdated_ignored_paths: List[IaCConfigIgnoredPath] = field(default_factory=list)
+    outdated_ignored_policies: List[IaCConfigIgnoredPolicy] = field(
+        default_factory=list
+    )
+
     @post_load
     def validate_ignored_paths(self, data: Dict[str, Any], **kwargs: Any):
         expired_lst = remove_expired_elements(data["ignored_paths"])
         report_expired_elements(expired_lst)
+        data["outdated_ignored_paths"] = expired_lst
         return data
 
     @post_load
     def validate_ignored_policies(self, data: Dict[str, Any], **kwargs: Any):
         expired_lst = remove_expired_elements(data["ignored_policies"])
         report_expired_elements(expired_lst)
+        data["outdated_ignored_policies"] = expired_lst
         return data
 
 
@@ -346,7 +359,11 @@ class UserConfig(FilteredConfig):
 
 
 UserConfig.SCHEMA = marshmallow_dataclass.class_schema(UserConfig)(
-    exclude=("deprecation_messages",)
+    exclude=(
+        "deprecation_messages",
+        "iac.outdated_ignored_paths",
+        "iac.outdated_ignored_policies",
+    )
 )
 
 
