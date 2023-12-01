@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -8,6 +9,7 @@ from ggshield.utils.git_shell import (
     EMPTY_SHA,
     get_last_commit_sha_of_branch,
     get_list_commit_SHA,
+    get_new_branch_ci_commits,
     git,
 )
 
@@ -111,6 +113,22 @@ def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
 
     if push_before_sha and push_before_sha != EMPTY_SHA:
         return push_before_sha
+
+    # push_before_sha is also always EMPTY_SHA for the first commit of a new branch
+    current_branch = os.getenv("CI_COMMIT_BRANCH")
+    if current_branch:
+        new_commits = get_new_branch_ci_commits(current_branch, Path.cwd(), "origin")
+        if new_commits:
+            new_branch_before_sha = f"{new_commits[-1]}^1"
+            if verbose:
+                click.echo(
+                    f"new_branch_before_sha: {new_branch_before_sha}\n",
+                    err=True,
+                )
+            return new_branch_before_sha
+        else:
+            # New branch pushed with no commits
+            return "HEAD"
 
     raise UnexpectedError(
         "Unable to get previous commit. Please submit an issue with the following info:\n"

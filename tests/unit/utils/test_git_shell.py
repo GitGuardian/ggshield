@@ -13,6 +13,7 @@ from ggshield.utils.git_shell import (
     check_git_dir,
     check_git_ref,
     get_filepaths_from_ref,
+    get_new_branch_ci_commits,
     get_repository_url_from_path,
     get_staged_filepaths,
     git,
@@ -53,6 +54,58 @@ def test_is_git_dir(tmp_path):
 def test_is_valid_git_commit_ref():
     assert is_valid_git_commit_ref("HEAD")
     assert not is_valid_git_commit_ref("invalid_ref")
+
+
+def test_get_new_branch_ci_commits(tmp_path: Path):
+    # GIVEN a remote repository
+    remote_repository = Repository.create(tmp_path / "remote", bare=True)
+
+    # AND a local clone, with commitM pushed on main
+    local_repository = Repository.clone(remote_repository.path, tmp_path / "local")
+    local_repository.create_commit()
+    local_repository.push()
+
+    # AND commitA1 on new branchA
+    local_repository.create_branch("branchA")
+    commitA1_sha = local_repository.create_commit("commitA1")
+    # AND commitB1 & B2 on new branchB, created from branchA
+    local_repository.create_branch("branchB")
+    commitB1_sha = local_repository.create_commit("commitB1")
+    commitB2_sha = local_repository.create_commit("commitB2")
+    # AND commitA2 created later on branchA
+    local_repository.checkout("branchA")
+    commitA2_sha = local_repository.create_commit("commitA2")
+
+    # WHEN executing get_branch_new_commits
+    # THEN only new commits are found for each branch
+    local_repository.checkout("branchA")
+    assert get_new_branch_ci_commits("branchA", local_repository.path) == [
+        commitA2_sha,
+        commitA1_sha,
+    ]
+    local_repository.checkout("branchB")
+    assert get_new_branch_ci_commits("branchB", local_repository.path) == (
+        [commitB2_sha, commitB1_sha, commitA1_sha]
+    )
+
+
+def test_get_branch_new_commits_many_branches(tmp_path: Path):
+    # GIVEN a repository with many branches
+    remote_repository = Repository.create(tmp_path / "remote", bare=True)
+    local_repository = Repository.clone(remote_repository.path, tmp_path / "local")
+    for i in range(50):
+        local_repository.create_branch(f"branch_with_a_long_name{i}")
+        local_repository.create_commit()
+    local_repository.push("--all")
+
+    # AND a local branch with one new commit
+    local_repository.create_branch("tested-branch")
+    tested_commit = local_repository.create_commit()
+    # WHEN executing get_branch_new_commits
+    # THEN it works as intended
+    assert get_new_branch_ci_commits("tested-branch", local_repository.path) == [
+        tested_commit
+    ]
 
 
 def test_check_git_dir(tmp_path):
