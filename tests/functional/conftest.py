@@ -5,7 +5,7 @@ import socketserver
 import time
 from multiprocessing import Process
 from pathlib import Path
-from typing import Generator, Tuple
+from typing import Generator
 from urllib.parse import urlparse
 
 import pytest
@@ -145,28 +145,28 @@ def repo_with_hook_content(tmp_path: Path, hook_content: str) -> Repository:
 
 
 @pytest.fixture
-def iac_repo_with_hook(tmp_path: Path) -> Tuple[Repository, Repository]:
+def iac_repo_with_hook(tmp_path: Path) -> Repository:
     return repo_with_hook_content(
         tmp_path=tmp_path, hook_content=HOOK_CONTENT.format("iac")
     )
 
 
 @pytest.fixture
-def iac_repo_with_hook_all(tmp_path: Path) -> Tuple[Repository, Repository]:
+def iac_repo_with_hook_all(tmp_path: Path) -> Repository:
     return repo_with_hook_content(
         tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("iac")
     )
 
 
 @pytest.fixture
-def sca_repo_with_hook(tmp_path: Path) -> Tuple[Repository, Repository]:
+def sca_repo_with_hook(tmp_path: Path) -> Repository:
     return repo_with_hook_content(
         tmp_path=tmp_path, hook_content=HOOK_CONTENT.format("sca")
     )
 
 
 @pytest.fixture
-def sca_repo_with_hook_all(tmp_path: Path) -> Tuple[Repository, Repository]:
+def sca_repo_with_hook_all(tmp_path: Path) -> Repository:
     return repo_with_hook_content(
         tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("sca")
     )

@@ -5,7 +5,7 @@ import platform
 import tarfile
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pytest
 
@@ -258,11 +258,14 @@ def make_dummy_sca_repo():
     return tarfile.TarFile(fileobj=result_buffer, mode="r")
 
 
-DUMMY_SCA_REPO = make_dummy_sca_repo()
+DUMMY_SCA_REPO: Optional[tarfile.TarFile] = None
 
 
 @pytest.fixture
 def dummy_sca_repo(tmp_path):
+    global DUMMY_SCA_REPO
+    if not DUMMY_SCA_REPO:
+        DUMMY_SCA_REPO = make_dummy_sca_repo()
     """Return a fresh copy of a dummy sca repo"""
     DUMMY_SCA_REPO.extractall(path=tmp_path)
     return Repository(tmp_path)
