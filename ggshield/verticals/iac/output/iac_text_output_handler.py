@@ -87,31 +87,33 @@ class IaCTextOutputHandler(IaCOutputHandler):
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
-        if scan.result and isinstance(scan.result.entities_with_incidents, List):
+        entities_without_ignored = scan.get_entities_without_ignored()
+        if scan.result is not None and isinstance(entities_without_ignored, List):
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # List incidents if any
             source_basedir = self._get_source_basedir(scan.id)
-            for file_result in scan.result.entities_with_incidents:
+            for file_result in entities_without_ignored:
                 scan_buf.write(
                     self.process_iac_file_result(
                         source_basedir / file_result.filename, file_result
                     )
                 )
             # Show no incidents if none
-            if len(scan.result.entities_with_incidents) == 0:
+            if len(entities_without_ignored) == 0:
                 scan_buf.write(no_iac_vulnerabilities())
         return scan_buf.getvalue()
 
     def _process_diff_scan_impl_not_verbose(self, scan: IaCDiffScanCollection) -> str:
         scan_buf = StringIO()
 
+        entities_without_ignored = scan.get_entities_without_ignored()
         if scan.result is not None and isinstance(
-            scan.result.entities_with_incidents, IaCDiffScanEntities
+            entities_without_ignored, IaCDiffScanEntities
         ):
             # Add iac version on output
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # Show no incidents if none
-            if len(scan.result.entities_with_incidents.new) == 0:
+            if len(entities_without_ignored.new) == 0:
                 scan_buf.write(
                     format_text(
                         "\nNo new incidents have been found\n", STYLE["no_secret"]
@@ -120,7 +122,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
             else:
                 source_basedir = self._get_source_basedir(scan.id)
                 for filename, new, _, _ in group_incidents_by_filename(
-                    scan.result.entities_with_incidents
+                    entities_without_ignored
                 ):
                     if not new:
                         continue
@@ -136,16 +138,17 @@ class IaCTextOutputHandler(IaCOutputHandler):
             # Show summary
             scan_buf.write(
                 diff_scan_summary(
-                    scan.result.entities_with_incidents.new,
-                    scan.result.entities_with_incidents.unchanged,
-                    scan.result.entities_with_incidents.deleted,
+                    entities_without_ignored.new,
+                    entities_without_ignored.unchanged,
+                    entities_without_ignored.deleted,
                 )
             )
         return scan_buf.getvalue()
 
     def _process_diff_scan_impl_verbose(self, scan: IaCDiffScanCollection) -> str:
+        entities_without_ignored = scan.get_entities_without_ignored()
         if scan.result is None or not isinstance(
-            scan.result.entities_with_incidents, IaCDiffScanEntities
+            entities_without_ignored, IaCDiffScanEntities
         ):
             return ""
 
@@ -153,20 +156,18 @@ class IaCTextOutputHandler(IaCOutputHandler):
         # Add iac version on output
         scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
         # Show no incidents if none
-        num_new = sum(len(e.incidents) for e in scan.result.entities_with_incidents.new)
+        num_new = sum(len(e.incidents) for e in entities_without_ignored.new)
         num_unchanged = sum(
-            len(e.incidents) for e in scan.result.entities_with_incidents.unchanged
+            len(e.incidents) for e in entities_without_ignored.unchanged
         )
-        num_deleted = sum(
-            len(e.incidents) for e in scan.result.entities_with_incidents.deleted
-        )
+        num_deleted = sum(len(e.incidents) for e in entities_without_ignored.deleted)
         total_vulns_count = num_new + num_unchanged + num_deleted
         source_basedir = self._get_source_basedir(scan.id)
         if total_vulns_count == 0:
             scan_buf.write(no_iac_vulnerabilities())
         else:
             for filename, new, unchanged, deleted in group_incidents_by_filename(
-                scan.result.entities_with_incidents
+                entities_without_ignored
             ):
                 num_new = sum(len(e.incidents) for e in new)
                 num_unchanged = sum(len(e.incidents) for e in unchanged)
@@ -203,9 +204,9 @@ class IaCTextOutputHandler(IaCOutputHandler):
         # Show summary
         scan_buf.write(
             diff_scan_summary(
-                scan.result.entities_with_incidents.new,
-                scan.result.entities_with_incidents.unchanged,
-                scan.result.entities_with_incidents.deleted,
+                entities_without_ignored.new,
+                entities_without_ignored.unchanged,
+                entities_without_ignored.deleted,
             )
         )
         return scan_buf.getvalue()

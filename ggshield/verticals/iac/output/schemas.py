@@ -1,24 +1,20 @@
-from dataclasses import dataclass, field
-from typing import List, Type, cast
-
-import marshmallow_dataclass
 from marshmallow import fields
 from pygitguardian.iac_models import (
-    IaCDiffScanEntities,
-    IaCDiffScanResult,
-    IaCFileResult,
+    IaCDiffScanResultSchema,
     IaCFileResultSchema,
     IaCScanResultSchema,
+    IaCVulnerabilitySchema,
 )
-from pygitguardian.models import BaseSchema
+from pygitguardian.models import BaseSchema, FromDictMixin
 
 
-@dataclass
-class IaCJSONFileResult(IaCFileResult):
-    total_incidents: int
+class IaCJSONVulnerabilitySchema(IaCVulnerabilitySchema):
+    class Meta:
+        exclude = ("url", "status", "ignored_until", "ignore_reason", "ignore_comment")
 
 
 class IaCJSONFileResultSchema(IaCFileResultSchema):
+    incidents = fields.List(fields.Nested(IaCJSONVulnerabilitySchema))
     total_incidents = fields.Integer(dump_default=0)
 
 
@@ -26,23 +22,18 @@ class IaCJSONScanResultSchema(IaCScanResultSchema):
     entities_with_incidents = fields.List(fields.Nested(IaCJSONFileResultSchema))
     total_incidents = fields.Integer(dump_default=0)
 
-
-@dataclass
-class IaCJSONScanDiffEntities(IaCDiffScanEntities):
-    unchanged: List[IaCJSONFileResult] = field(default_factory=list)
-    new: List[IaCJSONFileResult] = field(default_factory=list)
-    deleted: List[IaCJSONFileResult] = field(default_factory=list)
+    class Meta:
+        exclude = ("source_found",)
 
 
-@dataclass
-class IaCJSONScanDiffResult(IaCDiffScanResult):
-    entities_with_incidents: IaCJSONScanDiffEntities = field(
-        default_factory=IaCJSONScanDiffEntities
-    )
+class IaCJSONScanDiffEntitiesSchema(BaseSchema, FromDictMixin):
+    unchanged = fields.List(fields.Nested(IaCJSONFileResultSchema))
+    new = fields.List(fields.Nested(IaCJSONFileResultSchema))
+    deleted = fields.List(fields.Nested(IaCJSONFileResultSchema))
 
 
-IaCJSONScanDiffResultSchema = cast(
-    Type[BaseSchema],
-    marshmallow_dataclass.class_schema(IaCJSONScanDiffResult, BaseSchema),
-)
-IaCJSONScanDiffResult.SCHEMA = IaCJSONScanDiffResultSchema()
+class IaCJSONScanDiffResultSchema(IaCDiffScanResultSchema):
+    entities_with_incidents = fields.Nested(IaCJSONScanDiffEntitiesSchema)
+
+    class Meta:
+        exclude = ("source_found",)

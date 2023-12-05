@@ -1,8 +1,13 @@
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Union
+from typing import List, Optional, Union
 
-from pygitguardian.iac_models import IaCDiffScanResult, IaCScanResult
+from pygitguardian.iac_models import (
+    IaCDiffScanEntities,
+    IaCDiffScanResult,
+    IaCFileResult,
+    IaCScanResult,
+)
 
 
 IaCResult = Union[IaCScanResult, IaCDiffScanResult]
@@ -28,9 +33,30 @@ class IaCScanCollection(ABC):
         self.id = id
         self.result = result
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def has_results(self) -> bool:
         """
         Whether the scan found problems
         """
-        return self.result is not None
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_entities_without_ignored(
+        self,
+    ) -> Optional[Union[List[IaCFileResult], IaCDiffScanEntities]]:
+        """
+        Removes vulnerabilities marked as ignored.
+        Removes files that only have ignored vulnerabilities.
+        Returns file list.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_result_without_ignored(self) -> Optional[IaCResult]:
+        """
+        Removes vulnerabilities marked as ignored.
+        Removes files that only have ignored vulnerabilities.
+        Returns result object
+        """
+        raise NotImplementedError()
