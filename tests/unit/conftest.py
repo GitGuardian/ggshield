@@ -15,6 +15,7 @@ from pygitguardian.models import ScanResult
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
 from ggshield.core.cache import Cache
+from ggshield.core.url_utils import dashboard_to_api_url
 from tests.conftest import GG_VALID_TOKEN
 
 
@@ -571,7 +572,15 @@ def client() -> GGClient:
         )
         os.environ["GITGUARDIAN_API_KEY"] = "not-a-real-key"
     api_key = os.environ["GITGUARDIAN_API_KEY"]
-    base_uri = os.getenv("GITGUARDIAN_API_URL", "https://api.gitguardian.com")
+
+    if "GITGUARDIAN_API_URL" in os.environ:  # deprecated
+        base_uri = os.environ["GITGUARDIAN_API_URL"]
+    else:
+        instance_url = os.getenv(
+            "GITGUARDIAN_INSTANCE", "https://dashboard.gitguardian.com"
+        )
+        base_uri = dashboard_to_api_url(instance_url)
+
     return GGClient(api_key, base_uri)
 
 
