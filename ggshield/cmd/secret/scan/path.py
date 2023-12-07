@@ -39,7 +39,8 @@ def path_cmd(
     """
     Scan files and directories.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     verbose = config.user_config.verbose
 

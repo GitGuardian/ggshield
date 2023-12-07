@@ -104,7 +104,8 @@ def pypi_cmd(
 
     [1]: https://pip.pypa.io/en/stable/topics/configuration/
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     verbose = config.user_config.verbose
 

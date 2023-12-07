@@ -26,7 +26,8 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Scan the set of pushed commits that triggered the CI pipeline.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     check_git_dir()
     if not (os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")):
         raise UsageError("`secret scan ci` should only be used in a CI environment.")
@@ -45,7 +46,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     )
 
     return scan_commit_range(
-        client=ctx.obj["client"],
+        client=ctx_obj.client,
         cache=ReadOnlyCache(),
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),

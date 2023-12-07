@@ -42,7 +42,8 @@ def archive_cmd(
         except Exception as exn:
             raise UnexpectedError(f'Failed to unpack "{path}" archive: {exn}')
 
-        config = ContextObj.get(ctx).config
+        ctx_obj = ContextObj.get(ctx)
+        config = ctx_obj.config
         verbose = config.user_config.verbose
         files = get_files_from_paths(
             paths=[temp_path],
@@ -63,8 +64,8 @@ def archive_cmd(
             )
 
             scanner = SecretScanner(
-                client=ctx.obj["client"],
-                cache=ctx.obj["cache"],
+                client=ctx_obj.client,
+                cache=ctx_obj.cache,
                 scan_context=scan_context,
                 ignored_matches=config.user_config.secret.ignored_matches,
                 ignored_detectors=config.user_config.secret.ignored_detectors,

@@ -99,7 +99,8 @@ def prereceive_cmd(
     """
     Scan as a pre-receive git hook all commits about to enter the remote git repository.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
@@ -140,8 +141,8 @@ def prereceive_cmd(
             output_handler,
             commit_list,
             ctx.command_path,
-            ctx.obj["client"],
-            ctx.obj["exclusion_regexes"],
+            ctx_obj.client,
+            ctx_obj.exclusion_regexes,
         ),
     )
 

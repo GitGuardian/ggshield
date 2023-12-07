@@ -41,7 +41,8 @@ def docker_name_cmd(
     """
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
-        config = ContextObj.get(ctx).config
+        ctx_obj = ContextObj.get(ctx)
+        config = ctx_obj.config
         output_handler = create_output_handler(ctx)
 
         archive = Path(temporary_dir) / "archive.tar"
@@ -54,8 +55,8 @@ def docker_name_cmd(
 
         scan = docker_scan_archive(
             archive_path=archive,
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
+            client=ctx_obj.client,
+            cache=ctx_obj.cache,
             scan_context=scan_context,
             matches_ignore=config.user_config.secret.ignored_matches,
             ignored_detectors=config.user_config.secret.ignored_detectors,

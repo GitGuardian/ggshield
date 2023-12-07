@@ -67,7 +67,8 @@ def docset_cmd(
     \b
     [1]: https://docs.gitguardian.com/ggshield-docs/integrations/other-data-sources/other-data-sources
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     with create_progress_bar(doc_type="files") as progress:
 
