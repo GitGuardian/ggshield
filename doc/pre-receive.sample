@@ -12,7 +12,7 @@
 # export GITGUARDIAN_API_KEY=<INSERT YOUR KEY>
 
 # Set this if you use a self-hosted GitGuardian instance
-# export GITGUARDIAN_API_URL="https://dashboard.gitguardian.mycorp.local/exposed/"
+# export GITGUARDIAN_INSTANCE="https://dashboard.gitguardian.mycorp.local/"
 
 set -e
 ggshield secret scan pre-receive

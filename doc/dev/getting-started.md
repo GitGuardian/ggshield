@@ -29,7 +29,7 @@ You should be good to go. Verify it is the case by running unit tests. See below
 
 The `GITGUARDIAN_API_KEY` environment variable must be defined to run functional tests. It is also required when recording VCR.py cassettes or updating existing ones.
 
-If you want to run tests against another GitGuardian instance, define the `GITGUARDIAN_API_URL` environment variable.
+If you want to run tests against another GitGuardian instance, define the `GITGUARDIAN_INSTANCE` environment variable.
 
 The `TEST_KNOWN_SECRET` environment variable must also be defined to run functional tests. It must point to a single-match secret known on the dashboard linked to `GITGUARDIAN_API_KEY`.
 
