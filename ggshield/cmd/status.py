@@ -2,10 +2,10 @@
 from typing import Any
 
 import click
-from pygitguardian import GGClient
 from pygitguardian.models import HealthCheckResponse
 
 from ggshield.cmd.utils.common_options import add_common_options, json_option, use_json
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import STYLE, format_text
@@ -17,7 +17,8 @@ from ggshield.core.text_utils import STYLE, format_text
 @click.pass_context
 def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """Show API status and version."""
-    client: GGClient = create_client_from_config(ctx.obj["config"])
+    ctx_obj = ContextObj.get(ctx)
+    client = create_client_from_config(ctx_obj.config)
     response: HealthCheckResponse = client.health_check()
 
     if not isinstance(response, HealthCheckResponse):

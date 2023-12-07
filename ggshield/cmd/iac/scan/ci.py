@@ -11,7 +11,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan.scan_mode import ScanMode
@@ -40,7 +40,7 @@ def scan_ci_cmd(
     The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
     in which case the scan is only successful if no IaC vulnerability (old and new) was found.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)

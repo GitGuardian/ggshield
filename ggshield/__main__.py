@@ -19,6 +19,7 @@ from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.debug_logs import disable_logs, setup_debug_logs
 from ggshield.core import check_updates
 from ggshield.core.cache import Cache
@@ -58,9 +59,10 @@ def config_path_callback(
     # The --config option is marked as "is_eager" to ensure it's called before all the
     # others. This makes it the right place to create the configuration object.
     if not ctx.obj:
-        ctx.obj = {"cache": Cache()}
+        ctx.obj = ContextObj()
+        ctx.obj.cache = Cache()
 
-    ctx.obj["config"] = Config(value)
+    ctx.obj.config = Config(value)
     return value
 
 
@@ -96,7 +98,7 @@ def cli(
 ) -> None:
     load_dot_env()
 
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     _set_color(ctx)
 
@@ -157,8 +159,9 @@ def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -
     It executes some final functions and then terminates.
     The argument exit_code is the result of the previously executed click command.
     """
-    _display_deprecation_message(ctx.obj["config"])
-    _check_for_updates(ctx.obj.get("check_for_updates", True))
+    ctx_obj = ContextObj.get(ctx)
+    _display_deprecation_message(ctx_obj.config)
+    _check_for_updates(ctx_obj.check_for_updates)
     sys.exit(exit_code)
 
 

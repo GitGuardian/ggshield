@@ -4,7 +4,7 @@ import click
 from click import BadParameter
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path
 
@@ -48,7 +48,7 @@ def config_set_cmd(
     instance: Optional[str],
     **kwargs: Any,
 ) -> int:
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     field = FIELDS[field_name]
 

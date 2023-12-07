@@ -14,8 +14,8 @@ from pygitguardian.sca_models import (
 )
 
 from ggshield.cmd.utils.common_options import use_json
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
-from ggshield.core.config import Config
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
@@ -54,9 +54,10 @@ def sca_scan_all(
     - Create a tar archive with the required files contents
     - Launches the scan with a call to SCA public API
     """
-    config: Config = ctx.obj["config"]
-    client = ctx.obj["client"]
-    exclusion_regexes = ctx.obj["exclusion_regexes"]
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
+    client = ctx_obj.client
+    exclusion_regexes = ctx_obj.exclusion_regexes
 
     check_directory_not_ignored(directory, exclusion_regexes)
 
@@ -149,7 +150,7 @@ def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
         output_handler_cls = SCAJsonOutputHandler
     else:
         output_handler_cls = SCATextOutputHandler
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     return output_handler_cls(
         verbose=config.user_config.verbose, exit_zero=config.user_config.exit_zero
     )
@@ -179,7 +180,7 @@ def sca_scan_diff(
     When set to None, the current state is the indexed files currently on disk.
     :return: SCAScanDiffOutput object.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 

@@ -3,6 +3,7 @@ from typing import Any
 import click
 
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.text_utils import pluralize
@@ -33,7 +34,7 @@ def ignore_cmd(
     configuration file. If no local configuration file is found, a `.gitguardian.yaml` file is created.
     """
     if last_found:
-        config: Config = ctx.obj["config"]
+        config = ContextObj.get(ctx).config
         cache = ctx.obj["cache"]
         nb = ignore_last_found(config, cache)
         path = config.config_path

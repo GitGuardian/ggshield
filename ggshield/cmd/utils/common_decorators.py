@@ -4,7 +4,7 @@ from typing import Callable, TypeVar
 import click
 from typing_extensions import ParamSpec
 
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import handle_exception
 from ggshield.core.text_utils import display_warning
 
@@ -20,7 +20,7 @@ def exception_wrapper(func: Callable[P, int]) -> Callable[P, int]:
             return func(*args, **kwargs)
         except Exception as error:
             ctx = next(arg for arg in args if isinstance(arg, click.Context))
-            config: Config = ctx.obj["config"]
+            config = ContextObj.get(ctx).config
             return handle_exception(error, config.user_config.verbose)
 
     return wrapper

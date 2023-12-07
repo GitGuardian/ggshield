@@ -3,7 +3,7 @@ from typing import Any
 import click
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 
 
 @click.command()
@@ -13,7 +13,7 @@ def config_migrate_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Migrate configuration file to the latest version
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     # Clear all deprecation messages, so that they do not show up when we quit
     config.user_config.deprecation_messages = []

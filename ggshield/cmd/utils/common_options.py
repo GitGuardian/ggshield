@@ -45,7 +45,7 @@ def create_ctx_callback(name: str) -> ClickCallback:
         ctx: click.Context, param: click.Parameter, value: Optional[ArgT]
     ) -> Optional[ArgT]:
         if value is not None:
-            ctx.obj[name] = value
+            setattr(ctx.obj, name, value)
         return value
 
     return callback
@@ -197,7 +197,7 @@ json_option = click.option(
 
 def use_json(ctx: click.Context) -> bool:
     """Tells whether --json has been set"""
-    return bool(ctx.obj.get("use_json", False))
+    return ctx.obj.use_json
 
 
 directory_argument = click.argument(

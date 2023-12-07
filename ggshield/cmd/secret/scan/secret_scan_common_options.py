@@ -1,5 +1,4 @@
-from pathlib import Path
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional
 
 import click
 
@@ -13,7 +12,7 @@ from ggshield.cmd.utils.common_options import (
     json_option,
     use_json,
 )
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.utils.click import RealPath
@@ -140,11 +139,11 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     output_handler_cls = (
         SecretJSONOutputHandler if use_json(ctx) else SecretTextOutputHandler
     )
-    config: Config = ctx.obj["config"]
-    output: Union[Path, None] = ctx.obj.get("output")
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     return output_handler_cls(
         show_secrets=config.user_config.secret.show_secrets,
         verbose=config.user_config.verbose,
-        output=output,
+        output=ctx.obj.output,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
     )

@@ -21,8 +21,8 @@ from ggshield.cmd.utils.common_options import (
     json_option,
     minimum_severity_option,
 )
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
-from ggshield.core.config.config import Config
 from ggshield.core.config.user_config import (
     POLICY_ID_PATTERN,
     IaCConfigIgnoredPath,
@@ -73,7 +73,7 @@ def update_context(
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
 ) -> None:
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     ctx.obj["client"] = create_client_from_config(config)
 
     if ignore_paths is not None:

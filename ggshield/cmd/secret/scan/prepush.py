@@ -9,8 +9,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
-from ggshield.core.config import Config
 from ggshield.core.git_hooks.prepush import BYPASS_MESSAGE, collect_commits_refs
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import (
@@ -40,7 +40,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     """
     Scan as a pre-push git hook all commits that are about to be pushed.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     if check_user_requested_skip():
         return 0

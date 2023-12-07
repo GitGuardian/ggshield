@@ -4,7 +4,7 @@ from typing import Any
 import click
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.verticals.hmsl import get_client
 
@@ -24,7 +24,7 @@ def status_cmd(
     """
 
     # Get our client
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     client = get_client(config, ctx.command_path)
 
     click.echo(

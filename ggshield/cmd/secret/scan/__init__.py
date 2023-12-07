@@ -18,8 +18,8 @@ from ggshield.cmd.secret.scan.repo import repo_cmd
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
 )
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
-from ggshield.core.config import Config
 from ggshield.core.text_utils import display_error
 
 
@@ -70,7 +70,7 @@ def scan_group_impl(ctx: click.Context) -> int:
     ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
     return_code = 0
 
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     max_commits = get_max_commits_for_hook()
     if max_commits:

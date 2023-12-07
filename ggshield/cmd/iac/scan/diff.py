@@ -22,8 +22,8 @@ from ggshield.cmd.utils.common_options import (
     reference_option,
     staged_option,
 )
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
-from ggshield.core.config import Config
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
@@ -105,7 +105,7 @@ def iac_scan_diff(
     :return: IacDiffScanResult if the scan was performed; IaCSkipScanResult if the scan
     was skipped (i.e. no IaC files were detected or changed between the two references)
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 

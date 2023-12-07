@@ -13,6 +13,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
@@ -98,7 +99,7 @@ def prereceive_cmd(
     """
     Scan as a pre-receive git hook all commits about to enter the remote git repository.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     output_handler = create_output_handler(ctx)
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI

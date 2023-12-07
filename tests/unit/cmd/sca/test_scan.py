@@ -19,6 +19,7 @@ from ggshield.cmd.sca.scan.sca_scan_utils import (
     sca_scan_all,
     sca_scan_diff,
 )
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan.scan_mode import ScanMode
@@ -33,9 +34,12 @@ def get_valid_ctx(client: GGClient) -> click.Context:
     """
     config = Config()
     config.user_config.verbose = False
+    ctx_obj = ContextObj()
+    ctx_obj.client = client
+    ctx_obj.config = config
     ctx = click.Context(
         click.Command("sca scan all"),
-        obj={"client": client, "exclusion_regexes": [], "config": config},
+        obj=ctx_obj,
     )
     return ctx
 

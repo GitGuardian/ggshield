@@ -8,7 +8,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import Detail
 
 from ggshield.cmd.utils.common_options import use_json
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.tar_utils import INDEX_REF, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error
@@ -35,7 +35,7 @@ def create_output_handler(ctx: click.Context) -> IaCOutputHandler:
         output_handler_cls = IaCJSONOutputHandler
     else:
         output_handler_cls = IaCTextOutputHandler
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     return output_handler_cls(verbose=config.user_config.verbose)
 
 

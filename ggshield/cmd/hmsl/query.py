@@ -8,7 +8,7 @@ from requests import HTTPError
 
 from ggshield.cmd.hmsl.hmsl_common_options import input_arg
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize
 from ggshield.verticals.hmsl import HASH_REGEX, PREFIX_REGEX, get_client
@@ -39,7 +39,7 @@ def query_cmd(
     payload, full_hashes = load_payload(input)
 
     # Get our client
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     client = get_client(config, ctx.command_path)
 
     # Send the hashes to the API

@@ -4,7 +4,7 @@ import click
 
 from ggshield.cmd.config.constants import FIELD_NAMES, FIELD_NAMES_DOC, FIELDS
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnknownInstanceError
 
 
@@ -35,7 +35,7 @@ If `--instance` is passed, retrieve the value for this specific instance.
 def config_get_cmd(
     ctx: click.Context, field_name: str, instance_url: Optional[str], **kwargs: Any
 ) -> int:
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     field = FIELDS[field_name]
 
     if field.auth_config:

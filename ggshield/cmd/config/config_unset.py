@@ -3,7 +3,7 @@ from typing import Any, Optional
 import click
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 
 from .config_set import set_user_config_field
 from .constants import FIELD_NAMES, FIELD_NAMES_DOC, FIELDS
@@ -42,7 +42,7 @@ def config_unset_cmd(
     all_: bool,
     **kwargs: Any,
 ) -> int:
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     field = FIELDS[field_name]
 
     if field.auth_config:

@@ -5,6 +5,7 @@ from requests.exceptions import ConnectionError
 
 import ggshield.verticals.hmsl.utils as hmsl_utils
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.errors import AuthError, UnexpectedError
@@ -50,7 +51,7 @@ def logout_cmd(
     If not specified, ggshield will logout from the default instance.
     The `--all` option can be used if you want to logout from all your GitGuardian instances.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     if all_:
         for _instance in config.auth_config.instances:

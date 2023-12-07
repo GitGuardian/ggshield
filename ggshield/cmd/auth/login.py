@@ -4,6 +4,7 @@ from typing import Any, List, Optional, Tuple
 import click
 
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
@@ -137,7 +138,7 @@ def login_cmd(
     If a valid personal access token is already configured, this command simply displays
     a success message indicating that ggshield is already ready to use.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
 
     if method != "web":
         if sso_url is not None:
