@@ -10,6 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     IaCSkipScanResult,
+    augment_unignored_issues,
     create_output_handler,
     filter_iac_filepaths,
     get_git_filepaths,
@@ -76,6 +77,7 @@ def scan_diff_cmd(
     result = iac_scan_diff(
         ctx, directory, ref, staged, scan_mode=ScanMode.DIRECTORY_DIFF
     )
+    augment_unignored_issues(ctx.obj["config"].user_config, result)
     return display_iac_scan_diff_result(ctx, directory, result)
 
 

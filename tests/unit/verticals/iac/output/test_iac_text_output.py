@@ -1,3 +1,4 @@
+import datetime
 import re
 from pathlib import Path
 from unittest.mock import patch
@@ -192,6 +193,74 @@ def test_text_all_output_no_ignored(verbose: bool, scan_type: ScanMode, tmp_path
     }
     if scan_type == ScanMode.DIRECTORY_DIFF:
         assert "[+] 3 new incidents detected" in output
+
+
+@patch("ggshield.core.text_utils.format_text", lambda text, *args: text)
+@pytest.mark.parametrize("scan_type", [ScanMode.DIRECTORY_ALL, ScanMode.DIRECTORY_DIFF])
+def test_text_all_output_previously_ignored(scan_type: ScanMode, tmp_path: Path):
+    """
+    GIVEN   - a vuln with ignored_until date in the past
+    GIVEN   - a vuln with ignored_until date in the future
+    GIVEN   - a vuln with no ignored_until date
+    GIVEN   - a vuln which is not ignored
+    WHEN    showing scan output
+    THEN    previously ignored vulns are showed with the end of grace period date
+            but ignored vulns are not shown
+    """
+    output_path = tmp_path / "output"
+
+    current_time = datetime.datetime.now()
+    past_time = current_time - datetime.timedelta(days=1)
+    future_time = current_time + datetime.timedelta(days=1)
+
+    collection_factory_fn = (
+        generate_path_scan_collection
+        if scan_type == ScanMode.DIRECTORY_ALL
+        else generate_diff_scan_collection
+    )
+    collection = collection_factory_fn(
+        [
+            IaCFileResult(
+                filename="iac_file.tf",
+                incidents=[
+                    generate_vulnerability(policy_id="GG_IAC_0001"),
+                    generate_vulnerability(status="IGNORED", policy_id="GG_IAC_0002"),
+                    generate_vulnerability(
+                        ignored_until=past_time, policy_id="GG_IAC_0003"
+                    ),
+                    generate_vulnerability(
+                        status="IGNORED",
+                        ignored_until=future_time,
+                        policy_id="GG_IAC_0004",
+                    ),
+                ],
+            ),
+        ]
+    )
+
+    output_handler = IaCTextOutputHandler(verbose=True, output=str(output_path))
+    process_fn = (
+        output_handler.process_scan
+        if scan_type == ScanMode.DIRECTORY_ALL
+        else output_handler.process_diff_scan
+    )
+    exit_code = process_fn(collection)
+
+    assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+
+    with open(output_path, "r") as f:
+        output = f.read()
+        assert "iac_file.tf: 2 " in output
+        assert set(re.findall(r"GG_IAC_\d{4}", output)) == {
+            "GG_IAC_0001",
+            "GG_IAC_0003",
+        }
+        assert (
+            f"The incident is no longer ignored in the scan since {past_time.strftime('%Y-%m-%d')}"
+            in output
+        )
+        if scan_type == ScanMode.DIRECTORY_DIFF:
+            assert "[+] 2 new incidents detected" in output
 
 
 def assert_iac_version_displayed(result: Result):

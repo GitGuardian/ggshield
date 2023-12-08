@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from pygitguardian.iac_models import (
@@ -19,6 +20,7 @@ from ggshield.verticals.iac.collection.iac_path_scan_collection import (
 def generate_vulnerability(
     policy_id: Optional[str] = "GG_IAC_0024",
     status: Optional[str] = None,
+    ignored_until: Optional[datetime] = None,
 ) -> IaCVulnerability:
     return IaCVulnerability(
         policy="Leaving public access open exposes your service to the internet",
@@ -30,6 +32,7 @@ def generate_vulnerability(
         component="azurerm_kubernetes_cluster.k8s_cluster",
         severity="HIGH",
         status=status,
+        ignored_until=ignored_until,
     )
 
 

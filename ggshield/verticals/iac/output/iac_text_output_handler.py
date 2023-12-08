@@ -1,5 +1,6 @@
 import shutil
 from collections import Counter, defaultdict
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import (
@@ -268,6 +269,10 @@ class IaCTextOutputHandler(IaCOutputHandler):
                         clip_long_lines=not self.verbose,
                     )
                 )
+            if vulnerability.ignored_until is not None:
+                result_buf.write(
+                    iac_vulnerability_end_of_ignored_period(vulnerability.ignored_until)
+                )
 
         return result_buf.getvalue()
 
@@ -314,6 +319,10 @@ class IaCTextOutputHandler(IaCOutputHandler):
                         self.nb_lines,
                         clip_long_lines=not self.verbose,
                     )
+                )
+            if vulnerability.ignored_until is not None:
+                result_buf.write(
+                    iac_vulnerability_end_of_ignored_period(vulnerability.ignored_until)
                 )
 
         return result_buf.getvalue()
@@ -395,6 +404,12 @@ def iac_vulnerability_location_failed(
     line_end: int,
 ) -> str:
     return f"\nThe incident was found between lines {line_start} and {line_end}\n"  # noqa: E501
+
+
+def iac_vulnerability_end_of_ignored_period(
+    ignored_until: datetime,
+) -> str:
+    return f"\nThe incident is no longer ignored in the scan since {ignored_until.strftime('%Y-%m-%d')}\n"  # noqa: E501
 
 
 def iac_engine_version(iac_engine_version: str) -> str:

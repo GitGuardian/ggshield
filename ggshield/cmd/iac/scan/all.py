@@ -10,6 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import (
     IaCSkipScanResult,
+    augment_unignored_issues,
     create_output_handler,
     handle_scan_error,
 )
@@ -51,6 +52,7 @@ def scan_all_cmd(
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     result = iac_scan_all(ctx, directory, scan_mode=ScanMode.DIRECTORY_ALL)
+    augment_unignored_issues(ctx.obj["config"].user_config, result)
     return display_iac_scan_all_result(ctx, directory, result)
 
 
