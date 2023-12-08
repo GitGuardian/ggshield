@@ -3,7 +3,7 @@ from typing import Any, Tuple
 import click
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 
 from .constants import DATETIME_FORMAT, FIELDS
 
@@ -15,7 +15,7 @@ def config_list_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Print the list of configuration keys and values.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     default_token_lifetime = config.auth_config.default_token_lifetime
 
     message_lines = []

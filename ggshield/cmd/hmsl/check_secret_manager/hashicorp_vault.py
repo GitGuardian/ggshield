@@ -9,7 +9,7 @@ from ggshield.cmd.hmsl.hmsl_common_options import (
 )
 from ggshield.cmd.hmsl.hmsl_utils import check_secrets
 from ggshield.cmd.utils.common_options import add_common_options, json_option
-from ggshield.core.config.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_error, display_info, pluralize
 from ggshield.verticals.hmsl.collection import NamingStrategy, collect_list, prepare
@@ -151,7 +151,7 @@ def check_hashicorp_vault_cmd(
             f"Could not fetch {len(result.not_fetched_paths)} paths. "
             "Make sure your token has access to all the secrets in your vault."
         )
-        config: Config = ctx.obj["config"]
+        config = ContextObj.get(ctx).config
         if config.user_config.verbose:
             display_error("> The following paths could not be fetched:")
             for path in result.not_fetched_paths:

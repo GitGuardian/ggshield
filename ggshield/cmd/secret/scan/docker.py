@@ -9,7 +9,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.docker import docker_save_to_tmp, docker_scan_archive
 
@@ -41,7 +41,7 @@ def docker_name_cmd(
     """
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
-        config: Config = ctx.obj["config"]
+        config = ContextObj.get(ctx).config
         output_handler = create_output_handler(ctx)
 
         archive = Path(temporary_dir) / "archive.tar"

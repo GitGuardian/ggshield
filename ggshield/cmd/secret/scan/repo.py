@@ -11,8 +11,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.cache import Cache
-from ggshield.core.config import Config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import git
 from ggshield.verticals.secret.repo import scan_repo_path
@@ -37,7 +37,7 @@ def repo_cmd(
 
     REPOSITORY is the clone URL or the path of the repository to scan.
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     cache: Cache = ctx.obj["cache"]
     client: GGClient = ctx.obj["client"]
 

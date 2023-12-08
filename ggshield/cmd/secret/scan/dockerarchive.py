@@ -8,7 +8,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.click import RealPath
 from ggshield.verticals.secret.docker import docker_scan_archive
@@ -31,7 +31,7 @@ def docker_archive_cmd(
 
     Hidden command `ggshield secret scan docker-archive`
     """
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     output_handler = create_output_handler(ctx)
 
     scan_context = ScanContext(

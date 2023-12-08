@@ -3,7 +3,7 @@ from typing import Iterable, Optional
 import click
 from requests import HTTPError
 
-from ggshield.core.config import Config
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize
 from ggshield.verticals.hmsl import Secret, get_client
@@ -22,7 +22,7 @@ def check_secrets(
     """
     # Query the API
     display_info("Querying HasMySecretLeaked...")
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     client = get_client(config, hmsl_command_path=ctx.command_path)
     found: Iterable[Secret] = []
     error: Optional[Exception] = None

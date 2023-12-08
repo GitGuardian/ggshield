@@ -15,8 +15,8 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
-from ggshield.core.config import Config
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info
@@ -60,7 +60,7 @@ def iac_scan_all(
     scan_mode: ScanMode,
     ci_mode: Optional[SupportedCI] = None,
 ) -> Union[IaCScanResult, IaCSkipScanResult, None]:
-    config: Config = ctx.obj["config"]
+    config = ContextObj.get(ctx).config
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 
     check_directory_not_ignored(directory, exclusion_regexes)
