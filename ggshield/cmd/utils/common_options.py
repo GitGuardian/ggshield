@@ -195,11 +195,6 @@ json_option = click.option(
 )
 
 
-def use_json(ctx: click.Context) -> bool:
-    """Tells whether --json has been set"""
-    return ctx.obj.use_json
-
-
 directory_argument = click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),

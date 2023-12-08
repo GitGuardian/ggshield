@@ -10,7 +10,6 @@ from ggshield.cmd.utils.common_options import (
     exit_zero_option,
     get_config_from_context,
     json_option,
-    use_json,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.config.user_config import SecretConfig
@@ -136,10 +135,10 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
 def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     """Read objects defined in ctx.obj and create the appropriate OutputHandler
     instance"""
-    output_handler_cls = (
-        SecretJSONOutputHandler if use_json(ctx) else SecretTextOutputHandler
-    )
     ctx_obj = ContextObj.get(ctx)
+    output_handler_cls = (
+        SecretJSONOutputHandler if ctx_obj.use_json else SecretTextOutputHandler
+    )
     config = ctx_obj.config
     return output_handler_cls(
         show_secrets=config.user_config.secret.show_secrets,

@@ -4,7 +4,7 @@ from typing import Any
 import click
 from pygitguardian.models import HealthCheckResponse
 
-from ggshield.cmd.utils.common_options import add_common_options, json_option, use_json
+from ggshield.cmd.utils.common_options import add_common_options, json_option
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
@@ -26,7 +26,7 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
 
     click.echo(
         response.to_json()
-        if use_json(ctx)
+        if ctx_obj.use_json
         else (
             f"{format_text('API URL:', STYLE['key'])} {client.base_uri}\n"
             f"{format_text('Status:', STYLE['key'])} {format_healthcheck_status(response)}\n"

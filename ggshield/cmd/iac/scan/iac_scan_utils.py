@@ -7,7 +7,6 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail
 
-from ggshield.cmd.utils.common_options import use_json
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.tar_utils import INDEX_REF, tar_from_ref_and_filepaths
@@ -30,13 +29,13 @@ class IaCSkipScanResult:
 def create_output_handler(ctx: click.Context) -> IaCOutputHandler:
     """Read objects defined in ctx.obj and create the appropriate OutputHandler
     instance"""
+    ctx_obj = ContextObj.get(ctx)
     output_handler_cls: Type[IaCOutputHandler]
-    if use_json(ctx):
+    if ctx_obj.use_json:
         output_handler_cls = IaCJSONOutputHandler
     else:
         output_handler_cls = IaCTextOutputHandler
-    config = ContextObj.get(ctx).config
-    return output_handler_cls(verbose=config.user_config.verbose)
+    return output_handler_cls(verbose=ctx_obj.config.user_config.verbose)
 
 
 def handle_scan_error(client: GGClient, detail: Detail) -> None:

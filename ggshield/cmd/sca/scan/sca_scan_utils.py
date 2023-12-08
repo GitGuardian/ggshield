@@ -13,7 +13,6 @@ from pygitguardian.sca_models import (
     SCAScanParameters,
 )
 
-from ggshield.cmd.utils.common_options import use_json
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.config.user_config import SCAConfig
@@ -145,12 +144,13 @@ def get_sca_scan_all_filepaths(
 def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
     """Read objects defined in ctx.obj and create the appropriate OutputHandler
     instance"""
+    ctx_obj = ContextObj.get(ctx)
     output_handler_cls: Type[SCAOutputHandler]
-    if use_json(ctx):
+    if ctx_obj.use_json:
         output_handler_cls = SCAJsonOutputHandler
     else:
         output_handler_cls = SCATextOutputHandler
-    config = ContextObj.get(ctx).config
+    config = ctx_obj.config
     return output_handler_cls(
         verbose=config.user_config.verbose, exit_zero=config.user_config.exit_zero
     )
