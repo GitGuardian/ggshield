@@ -72,7 +72,9 @@ def scan_diff_cmd(
     """
     if directory is None:
         directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    update_context(
+        ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths, directory
+    )
 
     result = iac_scan_diff(
         ctx, directory, ref, staged, scan_mode=ScanMode.DIRECTORY_DIFF
@@ -111,7 +113,7 @@ def iac_scan_diff(
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 
-    check_directory_not_ignored(directory, exclusion_regexes)
+    check_directory_not_ignored(exclusion_regexes)
 
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:

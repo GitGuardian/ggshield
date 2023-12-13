@@ -54,7 +54,7 @@ def scan_ci_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(ctx, exit_zero, minimum_severity, ignore_paths, directory)
 
     config = ContextObj.get(ctx).config
     try:

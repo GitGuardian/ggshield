@@ -49,7 +49,9 @@ def scan_pre_commit_cmd(
 
     if directory is None:
         directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    update_context(
+        ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths, directory
+    )
     if scan_all:
         result = iac_scan_all(ctx, directory, scan_mode=ScanMode.PRE_COMMIT_ALL)
         augment_unignored_issues(ctx.obj["config"].user_config, result)

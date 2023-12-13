@@ -9,7 +9,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.cmd.utils.files import check_directory_not_ignored
+from ggshield.cmd.utils.files import check_path_not_ignored
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.click import RealPath
@@ -41,7 +41,7 @@ def path_cmd(
     verbose = config.user_config.verbose
 
     for path in paths:
-        check_directory_not_ignored(path, ctx.obj["exclusion_regexes"])
+        check_path_not_ignored(path, ctx.obj["exclusion_regexes"])
 
     files = get_files_from_paths(
         paths=paths,

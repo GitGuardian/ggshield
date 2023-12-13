@@ -53,7 +53,7 @@ def scan_diff_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(ctx, exit_zero, minimum_severity, ignore_paths, directory)
 
     output_handler = create_output_handler(ctx)
 

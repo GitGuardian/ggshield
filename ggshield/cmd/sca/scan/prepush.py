@@ -56,7 +56,7 @@ def scan_pre_push_cmd(
     directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(ctx, exit_zero, minimum_severity, ignore_paths, directory)
 
     _, remote_commit = collect_commits_refs(prepush_args)
     # Will happen if this is the first push on the branch

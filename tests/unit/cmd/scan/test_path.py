@@ -448,3 +448,39 @@ class TestScanDirectory:
             and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
             for arg in scan_mock.call_args[0]
         )
+
+    @my_vcr.use_cassette("test_config_ignore_relative_path.yaml")
+    def test_config_ignore_relative_path(self, cli_fs_runner):
+        """
+        GIVEN a repo and a config file with ignored paths
+        WHEN scanning a directory of the repo
+        THEN the ignored paths are considered relative to the
+        directory of the config file and the correct files are ignored
+        """
+        self.create_files()
+        config = """
+version: 2
+secret:
+    ignored-paths:
+        - "dir/file2"
+        - "dir/subdir/file3"
+"""
+        Path(".gitguardian.yaml").write_text(config)
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "-v",
+                "path",
+                "dir",
+                "-r",
+            ],
+            input="n\n",
+        )
+
+        assert_invoke_ok(result)
+        assert self.path_line("dir/file2") not in result.output
+        assert self.path_line("dir/subdir/file3") not in result.output
+        assert self.path_line("dir/subdir/file4") in result.output

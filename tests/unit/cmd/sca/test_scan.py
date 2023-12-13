@@ -1,17 +1,20 @@
+import os
 import re
 import tarfile
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import click
 from click.testing import CliRunner
 from pygitguardian import GGClient
 from pygitguardian.client import _create_tar
 from pygitguardian.sca_models import (
+    SCAIgnoredVulnerability,
     SCALocationVulnerability,
     SCAScanAllOutput,
     SCAScanDiffOutput,
+    SCAScanParameters,
     SCAVulnerability,
     SCAVulnerablePackageVersion,
 )
@@ -394,14 +397,23 @@ def test_scan_all_ignored_directory(
     THEN an error is raised
     """
     dummy_sca_repo.git("checkout", "branch_with_vuln")
+    config_path = dummy_sca_repo.path / ".gitguardian.yaml"
+    config_path.write_text(
+        f"""
+version: 2
+sca:
+  ignored-paths:
+    - '{dummy_sca_repo.path}'
+"""
+    )
     result = cli_fs_runner.invoke(
         cli,
         [
+            "-c",
+            config_path,
             "sca",
             "scan",
             "all",
-            "--ignore-path",
-            dummy_sca_repo.path.name,
             str(dummy_sca_repo.path),
         ],
     )
@@ -423,16 +435,25 @@ def test_sca_scan_diff_ignored_directory(
     THEN an error is raised
     """
     dummy_sca_repo.git("checkout", "branch_with_vuln")
+    config_path = dummy_sca_repo.path / ".gitguardian.yaml"
+    config_path.write_text(
+        f"""
+version: 2
+sca:
+  ignored-paths:
+    - '{dummy_sca_repo.path}'
+"""
+    )
     result = cli_fs_runner.invoke(
         cli,
         [
+            "-c",
+            config_path,
             "sca",
             "scan",
             "diff",
             "--ref",
             "branch_without_vuln",
-            "--ignore-path",
-            dummy_sca_repo.path.name,
             str(dummy_sca_repo.path),
         ],
     )
@@ -522,3 +543,54 @@ def test_sca_scan_subdir_tar(
     fileobj = BytesIO(tarbytes)
     with tarfile.open(fileobj=fileobj) as tar:
         assert tar.getnames() == ["inner/dir/Pipfile.lock"]
+
+
+@patch("pygitguardian.GGClient.sca_scan_directory")
+@my_vcr.use_cassette("test_relative_ignored_vulnerability_path.yaml")
+def test_relative_ignored_vulnerability_path(
+    scan_mock: Mock,
+    tmp_path: Path,
+    pipfile_lock_with_vuln: str,
+    cli_fs_runner: CliRunner,
+) -> None:
+    """
+    GIVEN a file with a vulnerability ignored in the config file
+    WHEN executing a scan in a directory
+    THEN the ignored vulnerability's path is considered relative
+    to the directory of the config file
+    """
+    config = """
+version: 2
+sca:
+  ignored-vulnerabilities:
+    - identifier: 'GHSA-rrm6-wvj7-cwh2'
+      path: 'dir/Pipfile.lock'
+"""
+    config_file = tmp_path / ".gitguardian.yaml"
+    config_file.write_text(config)
+
+    os.makedirs(tmp_path / "dir", exist_ok=True)
+    lockfile = tmp_path / "dir" / "Pipfile.lock"
+    lockfile.write_text(pipfile_lock_with_vuln)
+
+    cli_fs_runner.invoke(
+        cli,
+        [
+            "-c",
+            str(config_file),
+            "sca",
+            "scan",
+            "all",
+            str(tmp_path / "dir"),
+        ],
+    )
+
+    scan_parameters = SCAScanParameters(
+        minimum_severity="LOW",
+        ignored_vulnerabilities=[
+            SCAIgnoredVulnerability(
+                identifier="GHSA-rrm6-wvj7-cwh2", path="Pipfile.lock"
+            )
+        ],
+    )
+    scan_mock.assert_called_with(ANY, scan_parameters, ANY)

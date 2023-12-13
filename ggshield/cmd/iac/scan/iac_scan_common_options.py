@@ -9,7 +9,8 @@ To use it:
 The `kwargs` argument is required due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
-from typing import Any, Callable, Sequence
+from pathlib import Path
+from typing import Any, Callable, Optional, Sequence
 
 import click
 
@@ -25,11 +26,10 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.user_config import (
     POLICY_ID_PATTERN,
-    IaCConfigIgnoredPath,
     IaCConfigIgnoredPolicy,
     validate_policy_id,
 )
-from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.filter import get_ignore_paths_from_sources, init_exclusion_regexes
 
 
 def _validate_exclude(_ctx: Any, _param: Any, value: Sequence[str]) -> Sequence[str]:
@@ -72,19 +72,22 @@ def update_context(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
+    directory: Optional[Path] = None,
 ) -> None:
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
     ctx_obj.client = create_client_from_config(config, ctx_obj.ui)
 
-    if ignore_paths is not None:
-        config.user_config.iac.ignored_paths.extend(
-            (IaCConfigIgnoredPath(path=path) for path in ignore_paths)
-        )
-
-    ctx_obj.exclusion_regexes = init_exclusion_regexes(
-        {ignored.path for ignored in config.user_config.iac.ignored_paths}
+    exclusion_ignore_paths = get_ignore_paths_from_sources(
+        cli_ignore_paths=ignore_paths or (),
+        config_ignore_paths={
+            ignored.path for ignored in config.user_config.iac.ignored_paths
+        },
+        config_path=config._config_path,
+        directory=directory,
     )
+
+    ctx_obj.exclusion_regexes = init_exclusion_regexes(exclusion_ignore_paths)
 
     if ignore_policies is not None:
         config.user_config.iac.ignored_policies.extend(

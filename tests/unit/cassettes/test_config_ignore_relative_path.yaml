@@ -1,0 +1,140 @@
+interactions:
+  - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.10.0 (Darwin;py3.11.6) ggshield
+      method: GET
+      uri: https://api.gitguardian.com/v1/metadata
+    response:
+      body:
+        string: '{"version":"v2.48.1","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576}}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, HEAD, OPTIONS
+        content-length:
+          - '433'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Fri, 22 Dec 2023 10:30:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.48.1
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '22'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.21.0
+        x-sca-last-vuln-fetch:
+          - '2023-12-22T10:27:01.234594+00:00'
+        x-secrets-engine-version:
+          - 2.102.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body:
+        '[{"filename": "/private/var/folders/k5/rnwg_7ds51575hmp6m8lq30h0000gp/T/tmpfgh3asn4/dir/subdir/file4",
+        "document": "This is a file with no secrets."}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '150'
+        Content-Type:
+          - application/json
+        GGShield-Command-Id:
+          - 3d9cf2bb-8a4a-4a78-9f52-99f7cb59e410
+        GGShield-Command-Path:
+          - cli secret scan path
+        GGShield-OS-Name:
+          - darwin
+        GGShield-OS-Version:
+          - 'Darwin Kernel Version 23.2.0: Wed Nov 15 21:53:18 PST 2023; root:xnu-10002.61.3~2/RELEASE_ARM64_T6000'
+        GGShield-Python-Version:
+          - 3.11.6
+        GGShield-Version:
+          - 1.22.0
+        User-Agent:
+          - pygitguardian/1.10.0 (Darwin;py3.11.6) ggshield
+        mode:
+          - path
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan?ignore_known_secrets=True
+    response:
+      body:
+        string:
+          '[{"policy_break_count":0,"policies":["File extensions","Filenames","Secrets
+          detection"],"policy_breaks":[]}]'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '108'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Fri, 22 Dec 2023 10:30:47 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.48.1
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '40'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.21.0
+        x-sca-last-vuln-fetch:
+          - '2023-12-22T10:27:01.234594+00:00'
+        x-secrets-engine-version:
+          - 2.102.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

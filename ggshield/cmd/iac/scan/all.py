@@ -50,7 +50,9 @@ def scan_all_cmd(
     """
     if directory is None:
         directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    update_context(
+        ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths, directory
+    )
 
     result = iac_scan_all(ctx, directory, scan_mode=ScanMode.DIRECTORY_ALL)
     augment_unignored_issues(ctx.obj["config"].user_config, result)
@@ -66,7 +68,7 @@ def iac_scan_all(
     config = ContextObj.get(ctx).config
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 
-    check_directory_not_ignored(directory, exclusion_regexes)
+    check_directory_not_ignored(exclusion_regexes)
 
     paths = get_iac_files_from_path(
         path=directory,

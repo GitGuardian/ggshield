@@ -44,7 +44,9 @@ def scan_ci_cmd(
     config = ContextObj.get(ctx).config
     if directory is None:
         directory = Path().resolve()
-    update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    update_context(
+        ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths, directory
+    )
     ci_mode = SupportedCI.from_ci_env()
 
     if scan_all:

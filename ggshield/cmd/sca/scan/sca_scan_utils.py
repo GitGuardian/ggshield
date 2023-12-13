@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import List, Optional, Set, Tuple, Type, Union
 
 import click
@@ -15,7 +15,7 @@ from pygitguardian.sca_models import (
 
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
-from ggshield.core.config.user_config import SCAConfig
+from ggshield.core.config import Config
 from ggshield.core.dirs import get_project_root_dir
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
@@ -31,15 +31,25 @@ from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
 from ggshield.verticals.sca.output.text_handler import SCATextOutputHandler
 
 
-def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
+def get_scan_params_from_config(config: Config, directory: Path) -> SCAScanParameters:
+    sca_config = config.user_config.sca
+    config_folder = config._config_path.resolve().parent
     return SCAScanParameters(
         minimum_severity=sca_config.minimum_severity,
         ignored_vulnerabilities=[
             SCAIgnoredVulnerability(
-                identifier=ignored_vuln.identifier, path=ignored_vuln.path
+                identifier=ignored_vuln.identifier,
+                path=str(
+                    PurePosixPath(
+                        (config_folder / ignored_vuln.path).relative_to(
+                            directory.resolve()
+                        )
+                    )
+                ),
             )
             for ignored_vuln in sca_config.ignored_vulnerabilities
-            if ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow()
+            if (ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow())
+            and directory.resolve() in (config_folder / ignored_vuln.path).parents
         ],
     )
 
@@ -59,7 +69,7 @@ def sca_scan_all(
     client = ctx_obj.client
     exclusion_regexes = ctx_obj.exclusion_regexes
 
-    check_directory_not_ignored(directory, exclusion_regexes)
+    check_directory_not_ignored(exclusion_regexes)
 
     sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
         directory=directory,
@@ -81,7 +91,7 @@ def sca_scan_all(
         str((directory / x).resolve().relative_to(root)) for x in sca_filepaths
     ]
 
-    scan_parameters = get_scan_params_from_config(config.user_config.sca)
+    scan_parameters = get_scan_params_from_config(config, directory)
 
     tar = _create_tar(root, relative_paths)
 
@@ -190,7 +200,7 @@ def sca_scan_diff(
     client = ctx.obj["client"]
     exclusion_regexes = ctx.obj["exclusion_regexes"]
 
-    check_directory_not_ignored(directory, exclusion_regexes)
+    check_directory_not_ignored(exclusion_regexes)
 
     if current_ref is None:
         current_ref = INDEX_REF if include_staged else "HEAD"
@@ -232,7 +242,7 @@ def sca_scan_diff(
         ref=current_ref, filepaths=current_files, wd=str(directory)
     )
 
-    scan_parameters = get_scan_params_from_config(config.user_config.sca)
+    scan_parameters = get_scan_params_from_config(config, directory)
 
     response = client.scan_diff(
         reference=previous_tar,

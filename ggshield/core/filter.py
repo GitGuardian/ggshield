@@ -3,6 +3,7 @@ import math
 import operator
 import re
 from collections import OrderedDict
+from pathlib import Path, PurePosixPath
 from typing import Dict, Iterable, List, Optional, Set
 
 from click import UsageError
@@ -155,14 +156,40 @@ def is_pattern_valid(pattern: str) -> bool:
     return bool(pattern) and not INVALID_PATTERNS_REGEX.search(pattern)
 
 
+def get_ignore_paths_from_sources(
+    cli_ignore_paths: Iterable[str],
+    config_ignore_paths: Optional[Iterable[str]] = None,
+    config_path: Optional[Path] = None,
+    directory: Optional[Path] = None,
+) -> Iterable[str]:
+    """
+    Create a list of paths to ignore from the sources provided.
+    The paths in config_ignore_paths are considered as
+    relative to folder of the config_path.
+    """
+    absolute_directory = (
+        directory.resolve() if directory is not None else Path().resolve()
+    )
+    ignore_paths = set(cli_ignore_paths)
+    if config_ignore_paths is not None and config_path is not None:
+        config_folder = config_path.parent.resolve()
+        ignore_paths.update(
+            {
+                str(
+                    PurePosixPath(
+                        (config_folder / path).relative_to(absolute_directory)
+                    )
+                )
+                for path in config_ignore_paths
+                if absolute_directory in (config_folder / path).parents
+                or absolute_directory == config_folder / path
+            }
+        )
+    return ignore_paths
+
+
 def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern]:
-    """
-    filter_set creates a set of paths of the ignored
-    entries from 3 sources:
-    .gitguardian.yaml
-    files in .git
-    files ignore in .gitignore
-    """
+    """Creates a set of regexes from the ignore paths provided."""
     res = set()
     for path in paths_ignore:
         if not is_pattern_valid(path):

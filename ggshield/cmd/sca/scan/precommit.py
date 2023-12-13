@@ -55,7 +55,7 @@ def scan_pre_commit_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(ctx, exit_zero, minimum_severity, ignore_paths, directory)
 
     if scan_all:
         result = sca_scan_all(ctx, directory, scan_mode=ScanMode.PRE_COMMIT_ALL)

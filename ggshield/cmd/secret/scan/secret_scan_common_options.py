@@ -13,7 +13,7 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.config.user_config import SecretConfig
-from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.filter import get_ignore_paths_from_sources, init_exclusion_regexes
 from ggshield.utils.click import RealPath
 from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
@@ -67,11 +67,16 @@ def _exclude_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[List[str]]
 ) -> Optional[List[str]]:
     ignored_paths = _get_secret_config(ctx).ignored_paths
-    if value is not None:
-        ignored_paths.update(value)
-
-    ignored_paths.update(IGNORED_DEFAULT_WILDCARDS)
-    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(ignored_paths)
+    if ctx.obj["exclusion_regexes"] != set():
+        if value is not None:
+            ctx.obj["exclusion_regexes"].update(init_exclusion_regexes(value))
+    else:
+        exclusion_ignore_paths = get_ignore_paths_from_sources(
+            cli_ignore_paths=value or [] + IGNORED_DEFAULT_WILDCARDS,
+            config_ignore_paths=ignored_paths,
+            config_path=ctx.obj["config"]._config_path,
+        )
+        ctx.obj["exclusion_regexes"] = init_exclusion_regexes(exclusion_ignore_paths)
     return value
 
 
