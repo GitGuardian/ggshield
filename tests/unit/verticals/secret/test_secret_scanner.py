@@ -14,8 +14,9 @@ from ggshield.core.scan import (
     Scannable,
     StringScannable,
 )
+from ggshield.core.ui.scanner_ui import ScannerUI
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.secret import SecretScanner, SecretScannerUI
+from ggshield.verticals.secret import SecretScanner
 from ggshield.verticals.secret.secret_scanner import handle_scan_chunk_error
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
@@ -89,7 +90,7 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
                 command_path="external",
             ),
         )
-        results = scanner.scan(commit.get_files())
+        results = scanner.scan(commit.get_files(), scanner_ui=Mock())
         for result in results.results:
             if result.scan.policy_breaks:
                 assert len(result.scan.policy_breaks[0].matches) == expected.matches
@@ -131,7 +132,7 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
     elif unscannable_type == "BINARY":
         mock.is_longer_than.side_effect = DecodeError
 
-    scanner_ui = Mock(spec=SecretScannerUI)
+    scanner_ui = Mock(spec=ScannerUI)
 
     scanner = SecretScanner(
         client=client,

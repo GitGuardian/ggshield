@@ -16,11 +16,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import get_files_from_paths
-from ggshield.verticals.secret import (
-    RichSecretScannerUI,
-    SecretScanCollection,
-    SecretScanner,
-)
+from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
@@ -120,9 +116,7 @@ def pypi_cmd(
             verbose=config.user_config.verbose,
         )
 
-        with RichSecretScannerUI(
-            len(files), dataset_type="PyPI Package", verbose=verbose
-        ) as ui:
+        with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.PYPI,
                 command_path=ctx.command_path,

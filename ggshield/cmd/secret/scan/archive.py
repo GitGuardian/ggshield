@@ -14,11 +14,7 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.click import RealPath
-from ggshield.verticals.secret import (
-    RichSecretScannerUI,
-    SecretScanCollection,
-    SecretScanner,
-)
+from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 @click.command()
@@ -55,9 +51,7 @@ def archive_cmd(
             ignore_git=True,
         )
 
-        with RichSecretScannerUI(
-            len(files), dataset_type="Archive", verbose=verbose
-        ) as ui:
+        with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,
