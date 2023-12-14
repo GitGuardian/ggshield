@@ -10,6 +10,7 @@ from ggshield.cmd.iac.scan.precommit import scan_pre_commit_cmd
 from ggshield.cmd.iac.scan.prepush import scan_pre_push_cmd
 from ggshield.cmd.iac.scan.prereceive import scan_pre_receive_cmd
 from ggshield.cmd.utils.common_options import directory_argument
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.text_utils import display_warning
 from ggshield.utils.click import DefaultCommandGroup
@@ -57,6 +58,7 @@ def scan_group_impl(ctx: click.Context) -> int:
     if ctx.invoked_subcommand is None:
         scan_all_cmd.invoke(ctx)
 
-    ctx.obj["client"] = create_client_from_config(ctx.obj["config"])
+    ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
 
     return 0
