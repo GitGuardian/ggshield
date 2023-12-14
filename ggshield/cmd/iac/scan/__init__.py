@@ -59,6 +59,6 @@ def scan_group_impl(ctx: click.Context) -> int:
         scan_all_cmd.invoke(ctx)
 
     ctx_obj = ContextObj.get(ctx)
-    ctx_obj.client = create_client_from_config(ctx_obj.config)
+    ctx_obj.client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
 
     return 0

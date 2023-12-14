@@ -46,7 +46,7 @@ def update_context(
 ) -> None:
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
-    ctx_obj.client = create_client_from_config(config)
+    ctx_obj.client = create_client_from_config(config, ctx_obj.ui)
 
     if ignore_paths is not None:
         config.user_config.sca.ignored_paths.update(ignore_paths)

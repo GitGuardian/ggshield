@@ -81,7 +81,7 @@ def create_cmd(
     if not name:
         name = _generate_random_honeytoken_name()
     ctx_obj = ContextObj.get(ctx)
-    client = create_client_from_config(ctx_obj.config)
+    client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
     response = client.create_honeytoken(name, type_, description)
     if not isinstance(response, (Detail, HoneytokenResponse)):
         raise UnexpectedError("Unexpected honeytoken response")
