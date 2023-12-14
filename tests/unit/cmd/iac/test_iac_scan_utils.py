@@ -53,9 +53,9 @@ def test_get_iac_tar(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("scan_type", [ScanMode.DIRECTORY_ALL, ScanMode.DIRECTORY_DIFF])
-def test_augment_unignored_issues(scan_type: ScanMode) -> None:
+def test_augment_unignored_issues(scan_type: ScanMode, tmp_path: Path) -> None:
     # GIVEN a config file with outdated ignore rules
-    config_path = "config.yaml"
+    config_path = tmp_path / "config.yaml"
     date_format = "%Y-%m-%d %H:%M:%S"
     date_2000 = "2000-01-01 00:00:00"
     date_2000_utc = datetime.strptime(date_2000, date_format).astimezone(timezone.utc)
