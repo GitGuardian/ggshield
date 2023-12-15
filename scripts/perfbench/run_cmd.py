@@ -26,7 +26,7 @@ DEFAULT_GGSHIELD_VERSIONS = ["prod", "current"]
 REPO_BENCHMARK_COMMANDS = [
     ("secret", "scan", "--exit-zero", "path", "-ry", "."),
     ("secret", "scan", "--exit-zero", "commit-range", "HEAD~6.."),
-    ("iac", "scan", "--exit-zero", "."),
+    ("iac", "scan", "all", "--exit-zero", "."),
 ]
 
 DOCKER_IMAGES = ["ubuntu:22.04", "busybox:1.36.0-musl"]
