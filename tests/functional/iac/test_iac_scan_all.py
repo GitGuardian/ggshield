@@ -137,3 +137,29 @@ def test_iac_scan_all_ignore_path(
     # THEN ignored files do not appear in result
     for filename in all_files:
         assert (filename in result.stdout) == (filename not in ignored_paths)
+
+
+def test_iac_scan_all_subdir_content(
+    tmp_path: Path,
+    scan_arg: Optional[str],
+) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND inner directory
+    inner_dir_path = tmp_path / "inner" / "dir"
+    inner_dir_path.mkdir(parents=True)
+
+    # AND a first commit with vulnerabilities
+    file1 = inner_dir_path / "file1.tf"
+    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    repo.add(file1)
+    repo.create_commit()
+
+    # WHEN scanning the inner dir
+    args = [str(inner_dir_path)]
+    result = _run_scan_iac(args=args, scan_arg=scan_arg, cwd=tmp_path, expected_code=1)
+
+    # THEN content is shown
+    assert 'resource "aws_alb_listener" "bad_example"' in result.stdout

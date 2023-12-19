@@ -18,6 +18,7 @@ from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
+from ggshield.core.dirs import get_project_root_dir
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_info
@@ -79,9 +80,12 @@ def iac_scan_all(
     if not paths:
         return IaCSkipScanResult()
 
+    root = get_project_root_dir(directory)
+    relative_paths = [str(x.resolve().relative_to(root)) for x in paths]
+
     if config.user_config.verbose:
         display_info("> Scanned files")
-        for filepath in paths:
+        for filepath in relative_paths:
             display_info(f"- {click.format_filename(filepath)}")
 
     client = ctx.obj["client"]
@@ -92,10 +96,10 @@ def iac_scan_all(
     )
     # If paths are not sorted, the tar bytes order will be different when calling the function twice
     # Different bytes order will cause different tarfile hash_key resulting in a GIM cache bypass.
-    paths.sort()
+    relative_paths.sort()
     scan = client.iac_directory_scan(
-        directory,
-        paths,
+        root,
+        relative_paths,
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,

@@ -20,6 +20,7 @@ from pygitguardian.iac_models import (
     IaCVulnerability,
 )
 
+from ggshield.core.dirs import get_project_root_dir
 from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
 from ggshield.core.scan import File
 from ggshield.core.text_utils import (
@@ -30,7 +31,7 @@ from ggshield.core.text_utils import (
     format_text,
     pluralize,
 )
-from ggshield.utils.git_shell import Filemode, NotAGitDirectory, get_git_root
+from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.iac.collection.iac_diff_scan_collection import (
     IaCDiffScanCollection,
 )
@@ -73,18 +74,6 @@ def group_incidents_by_filename(
 class IaCTextOutputHandler(IaCOutputHandler):
     nb_lines: ClassVar[int] = 3
 
-    def _get_source_basedir(self, path: str) -> Path:
-        """Vulnerability path are relative to either git root path or
-        path provided for the scan.
-
-        Returns the source basedir required to find file within filesystem.
-        """
-        try:
-            return get_git_root(wd=path).resolve()
-        except NotAGitDirectory:
-            # In case we are not in a Git repository
-            return Path(path).resolve()
-
     def _process_scan_impl(self, scan: IaCPathScanCollection) -> str:
         scan_buf = StringIO()
 
@@ -92,7 +81,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
         if scan.result is not None and isinstance(entities_without_ignored, List):
             scan_buf.write(iac_engine_version(scan.result.iac_engine_version))
             # List incidents if any
-            source_basedir = self._get_source_basedir(scan.id)
+            source_basedir = get_project_root_dir(Path(scan.id))
             for file_result in entities_without_ignored:
                 scan_buf.write(
                     self.process_iac_file_result(
@@ -121,7 +110,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
                     )
                 )
             else:
-                source_basedir = self._get_source_basedir(scan.id)
+                source_basedir = get_project_root_dir(Path(scan.id))
                 for filename, new, _, _ in group_incidents_by_filename(
                     entities_without_ignored
                 ):
@@ -163,7 +152,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
         )
         num_deleted = sum(len(e.incidents) for e in entities_without_ignored.deleted)
         total_vulns_count = num_new + num_unchanged + num_deleted
-        source_basedir = self._get_source_basedir(scan.id)
+        source_basedir = get_project_root_dir(Path(scan.id))
         if total_vulns_count == 0:
             scan_buf.write(no_iac_vulnerabilities())
         else:

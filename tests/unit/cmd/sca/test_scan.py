@@ -1,10 +1,13 @@
 import re
+import tarfile
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import click
 from click.testing import CliRunner
 from pygitguardian import GGClient
+from pygitguardian.client import _create_tar
 from pygitguardian.sca_models import (
     SCALocationVulnerability,
     SCAScanAllOutput,
@@ -474,3 +477,48 @@ def test_sca_scan_context_repository(
         and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
         for arg in scan_mock.call_args[0]
     )
+
+
+@patch("ggshield.cmd.sca.scan.sca_scan_utils._create_tar")
+@my_vcr.use_cassette("test_sca_scan_subdir_tar.yaml")
+def test_sca_scan_subdir_tar(
+    create_tar_mock: Mock,
+    tmp_path: Path,
+    cli_fs_runner: CliRunner,
+    pipfile_lock_with_vuln: str,
+) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND an inner directory with a vulnerability
+    inner_dir_path = tmp_path / "inner" / "dir"
+    inner_dir_path.mkdir(parents=True)
+    (inner_dir_path / "Pipfile.lock").write_text(pipfile_lock_with_vuln)
+
+    # AND another directory with a vulnerability
+    other_dir_path = tmp_path / "other"
+    other_dir_path.mkdir()
+    (other_dir_path / "Pipfile.lock").write_text(pipfile_lock_with_vuln)
+
+    repo.add(".")
+    repo.create_commit()
+
+    # WHEN scanning the inner dir
+    cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            str(inner_dir_path),
+        ],
+    )
+
+    # THEN tar is created with the correct structure
+    create_tar_mock.assert_called_once()
+    path, filenames = create_tar_mock.call_args.args
+    tarbytes = _create_tar(path, filenames)
+    fileobj = BytesIO(tarbytes)
+    with tarfile.open(fileobj=fileobj) as tar:
+        assert tar.getnames() == ["inner/dir/Pipfile.lock"]
