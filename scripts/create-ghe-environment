@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROGNAME=$(basename "$0")
+
+ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
+
+declare -A DISTRIB_FOR_GHE_VERSION
+DISTRIB_FOR_GHE_VERSION["3.8"]="buster"
+DISTRIB_FOR_GHE_VERSION["3.9"]="buster"
+DISTRIB_FOR_GHE_VERSION["3.10"]="buster"
+DISTRIB_FOR_GHE_VERSION["3.11"]="bookworm"
+
+die() {
+    echo "$PROGNAME: $*" >&2
+    exit 1
+}
+
+cleanup() {
+    if [ -n "${TEMP_DIR:-}" ] ; then
+        log_progress "Deleting $TEMP_DIR"
+        rm -rf "$TEMP_DIR"
+    fi
+}
+
+create_temp_dir() {
+    TEMP_DIR="$(mktemp --tmpdir --directory "$PROGNAME-XXXXXX")"
+    trap cleanup INT TERM EXIT
+}
+
+log_progress() {
+    echo "$PROGNAME: $*" >&2
+}
+
+select_distrib() {
+    local wanted_version="$1"
+    local distrib=${DISTRIB_FOR_GHE_VERSION[$wanted_version]:-}
+    if [ -z "$distrib" ] ; then
+        usage "'$wanted_version' is not a supported GitHub Enterprise version."
+    fi
+    echo "$distrib"
+}
+
+usage() {
+    if [ "$*" != "" ] ; then
+        echo "Error: $*" >&2
+        echo >&2
+    fi
+
+    cat << EOF
+Usage: $PROGNAME [OPTION ...] [GHE_VERSION]
+Creates a GitHub Enterprise pre-receive hook environment for GGShield.
+
+Expects GitGuardian API key to be set in \$GITGUARDIAN_API_KEY.
+
+GHE_VERSION must be one of: ${!DISTRIB_FOR_GHE_VERSION[@]}.
+
+Options:
+  -h, --help          display this usage message and exit
+EOF
+
+    exit 1
+}
+
+ghe_version=""
+while [ $# -gt 0 ] ; do
+    case "$1" in
+    -h|--help)
+        usage
+        ;;
+    -*)
+        usage "Unknown option '$1'"
+        ;;
+    *)
+        if [ -z "$ghe_version" ] ; then
+            ghe_version="$1"
+        else
+            usage "Too many arguments"
+        fi
+        ;;
+    esac
+    shift
+done
+
+if [ -z "$ghe_version" ] ; then
+    usage "Not enough arguments"
+fi
+
+if [ -z "${GITGUARDIAN_API_KEY:-}" ] ; then
+    die "\$GITGUARDIAN_API_KEY environment variable not set"
+fi
+
+distrib=$(select_distrib "$ghe_version")
+
+image_name=ggshield-ghe-$ghe_version
+container_name=ggshield-ghe
+archive_path="$PWD/$image_name.tar.gz"
+
+log_progress "Building custom image, based on $distrib"
+# Sanity check
+if ! grep -q -- "-slim as build\$" "$ROOT_DIR/Dockerfile" ; then
+    die "Dockerfile has changed, this script is outdated"
+fi
+
+# Modify the FROM command to use the distribution we want
+sed "s/-slim as build\$/-slim-$distrib as build/" "$ROOT_DIR/Dockerfile" \
+    | docker build --tag "$image_name" --file - "$ROOT_DIR"
+
+log_progress "Building container from image"
+docker container rm "$container_name" || true
+docker create --name "$container_name" "$image_name" /bin/true
+
+create_temp_dir
+log_progress "Creating chroot from container in $TEMP_DIR"
+cd "$TEMP_DIR"
+docker export "$container_name" | tar x
+
+log_progress "Customizing chroot"
+# Fix absolute symbolic link
+rm etc/localtime
+cp usr/share/zoneinfo/Etc/UTC etc/localtime
+
+echo "$GITGUARDIAN_API_KEY" > app/api_key
+
+log_progress "Storing chroot in $(basename "$archive_path")"
+tar czf "$archive_path" .
