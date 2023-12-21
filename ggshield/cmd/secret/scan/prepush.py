@@ -40,7 +40,8 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     """
     Scan as a pre-push git hook all commits that are about to be pushed.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
 
     if check_user_requested_skip():
         return 0
@@ -98,8 +99,9 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     )
 
     return_code = scan_commit_range(
-        client=ctx.obj["client"],
-        cache=ctx.obj["cache"],
+        client=ctx_obj.client,
+        cache=ctx_obj.cache,
+        ui=ctx_obj.ui,
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
         exclusion_regexes=ctx.obj["exclusion_regexes"],

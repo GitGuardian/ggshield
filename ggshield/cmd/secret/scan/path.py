@@ -13,11 +13,7 @@ from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.click import RealPath
-from ggshield.verticals.secret import (
-    RichSecretScannerUI,
-    SecretScanCollection,
-    SecretScanner,
-)
+from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 @click.command()
@@ -39,7 +35,8 @@ def path_cmd(
     """
     Scan files and directories.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     verbose = config.user_config.verbose
 
@@ -59,7 +56,7 @@ def path_cmd(
 
     target = paths[0] if len(paths) == 1 else Path.cwd()
     target_path = target if target.is_dir() else target.parent
-    with RichSecretScannerUI(len(files), dataset_type="Path", verbose=verbose) as ui:
+    with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
         scan_context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path=ctx.command_path,
@@ -73,7 +70,7 @@ def path_cmd(
             scan_context=scan_context,
             ignored_detectors=config.user_config.secret.ignored_detectors,
         )
-        results = scanner.scan(files, scanner_ui=ui)
+        results = scanner.scan(files, scanner_ui=scanner_ui)
     scan = SecretScanCollection(
         id=" ".join(str(x) for x in paths), type="path_scan", results=results
     )

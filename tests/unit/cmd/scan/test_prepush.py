@@ -160,6 +160,7 @@ class TestPrepush:
         scan_commit_range_mock.assert_called_once_with(
             client=ANY,
             cache=ANY,
+            ui=ANY,
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
@@ -348,6 +349,7 @@ class TestPrepush:
         scan_commit_range_mock.assert_called_once_with(
             client=ANY,
             cache=ANY,
+            ui=ANY,
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
@@ -388,6 +390,7 @@ class TestPrepush:
         scan_commit_range_mock.assert_called_once_with(
             client=ANY,
             cache=ANY,
+            ui=ANY,
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,

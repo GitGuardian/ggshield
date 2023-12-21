@@ -14,11 +14,7 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.click import RealPath
-from ggshield.verticals.secret import (
-    RichSecretScannerUI,
-    SecretScanCollection,
-    SecretScanner,
-)
+from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 @click.command()
@@ -42,7 +38,8 @@ def archive_cmd(
         except Exception as exn:
             raise UnexpectedError(f'Failed to unpack "{path}" archive: {exn}')
 
-        config = ContextObj.get(ctx).config
+        ctx_obj = ContextObj.get(ctx)
+        config = ctx_obj.config
         verbose = config.user_config.verbose
         files = get_files_from_paths(
             paths=[temp_path],
@@ -54,17 +51,15 @@ def archive_cmd(
             ignore_git=True,
         )
 
-        with RichSecretScannerUI(
-            len(files), dataset_type="Archive", verbose=verbose
-        ) as ui:
+        with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,
             )
 
             scanner = SecretScanner(
-                client=ctx.obj["client"],
-                cache=ctx.obj["cache"],
+                client=ctx_obj.client,
+                cache=ctx_obj.cache,
                 scan_context=scan_context,
                 ignored_matches=config.user_config.secret.ignored_matches,
                 ignored_detectors=config.user_config.secret.ignored_detectors,

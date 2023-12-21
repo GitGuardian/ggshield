@@ -17,9 +17,9 @@ from ggshield.core.scan import ScanContext, Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
 from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
+from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.files import is_path_binary
 
-from .rich_secret_scanner_ui import RichSecretScannerUI
 from .secret_scan_collection import SecretScanCollection
 from .secret_scanner import SecretScanner
 
@@ -330,6 +330,7 @@ def docker_scan_archive(
     archive_path: Path,
     client: GGClient,
     cache: Cache,
+    ui: GGShieldUI,
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
@@ -348,8 +349,10 @@ def docker_scan_archive(
 
     with DockerImage.open(archive_path) as docker_image:
         display_heading("Scanning Docker config")
-        with RichSecretScannerUI(1) as ui:
-            results = scanner.scan([docker_image.config_scannable], scanner_ui=ui)
+        with ui.create_scanner_ui(1) as scanner_ui:
+            results = scanner.scan(
+                [docker_image.config_scannable], scanner_ui=scanner_ui
+            )
 
         for info in docker_image.layer_infos:
             files = list(docker_image.get_layer_scannables(info))
@@ -362,8 +365,8 @@ def docker_scan_archive(
                 display_heading(f"Skipping layer {layer_id}: already scanned")
             else:
                 display_heading(f"Scanning layer {info.diff_id}")
-                with RichSecretScannerUI(file_count) as ui:
-                    layer_results = scanner.scan(files, scanner_ui=ui)
+                with ui.create_scanner_ui(file_count) as scanner_ui:
+                    layer_results = scanner.scan(files, scanner_ui=scanner_ui)
                 if not layer_results.has_policy_breaks:
                     layer_id_cache.add(layer_id)
                 results.extend(layer_results)

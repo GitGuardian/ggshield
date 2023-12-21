@@ -27,6 +27,8 @@ from ggshield.core.config import Config
 from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
 from ggshield.core.text_utils import display_warning
+from ggshield.core.ui.plain_text.plain_text_ggshield_ui import PlainTextGGShieldUI
+from ggshield.core.ui.rich.rich_ggshield_ui import RichGGShieldUI
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
 
@@ -61,6 +63,10 @@ def config_path_callback(
     if not ctx.obj:
         ctx.obj = ContextObj()
         ctx.obj.cache = Cache()
+        if sys.stderr.isatty():
+            ctx.obj.ui = RichGGShieldUI()
+        else:
+            ctx.obj.ui = PlainTextGGShieldUI()
 
     ctx.obj.config = Config(value)
     return value

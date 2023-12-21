@@ -1,6 +1,5 @@
 import json
-from functools import partial
-from typing import Any, Callable, Iterable, Iterator, List, TextIO
+from typing import Any, Iterable, Iterator, List, TextIO
 
 import click
 
@@ -11,40 +10,42 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.scan import ScanContext, ScanMode, Scannable, StringScannable
-from ggshield.core.text_utils import create_progress_bar, display_info
+from ggshield.core.ui.ggshield_ui import GGShieldProgress, GGShieldUI
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 def generate_files_from_docsets(
-    file: TextIO, verbose: bool = False
+    file: TextIO, ui: GGShieldUI, verbose: bool = False
 ) -> Iterator[Scannable]:
     for line in file:
         obj = json.loads(line)
         documents = obj["documents"]
         for document in documents:
             if verbose:
-                display_info(f"  * {document['id']}")
+                ui.display_info(f"  * {document['id']}")
             yield StringScannable(document["id"], document["content"])
 
 
 def create_scans_from_docset_files(
     scanner: SecretScanner,
     input_files: Iterable[TextIO],
-    progress_callback: Callable[..., None],
+    ui: GGShieldUI,
+    progress: GGShieldProgress,
     verbose: bool = False,
 ) -> List[SecretScanCollection]:
     scans: List[SecretScanCollection] = []
 
     for input_file in input_files:
         if verbose:
-            display_info(f"- {click.format_filename(input_file.name)}")
+            ui.display_info(f"- {click.format_filename(input_file.name)}")
 
-        files = generate_files_from_docsets(input_file, verbose)
-        results = scanner.scan(files)
+        files = generate_files_from_docsets(input_file, ui, verbose)
+        with ui.create_message_only_scanner_ui(verbose=verbose) as scanner_ui:
+            results = scanner.scan(files, scanner_ui=scanner_ui)
         scans.append(
             SecretScanCollection(id=input_file.name, type="docset", results=results)
         )
-        progress_callback(advance=1)
+        progress.advance(1)
 
     return scans
 
@@ -67,9 +68,10 @@ def docset_cmd(
     \b
     [1]: https://docs.gitguardian.com/ggshield-docs/integrations/other-data-sources/other-data-sources
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
-    with create_progress_bar(doc_type="files") as progress:
+    with ctx_obj.ui.create_progress(len(files)) as progress:
 
         scan_context = ScanContext(
             scan_mode=ScanMode.DOCSET,
@@ -82,12 +84,12 @@ def docset_cmd(
             scan_context=scan_context,
             ignored_detectors=config.user_config.secret.ignored_detectors,
         )
-        task_scan = progress.add_task("[green]Scanning content...", total=len(files))
         scans = create_scans_from_docset_files(
             scanner=scanner,
             input_files=files,
+            ui=ctx_obj.ui,
             verbose=config.user_config.verbose,
-            progress_callback=partial(progress.update, task_scan),
+            progress=progress,
         )
 
     return output_handler.process_scan(

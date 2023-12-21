@@ -25,6 +25,7 @@ from ggshield.core.git_hooks.prereceive import (
 )
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_error
+from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA
 from ggshield.verticals.secret.output import (
     SecretGitLabWebUIOutputHandler,
@@ -49,6 +50,7 @@ def _execute_prereceive(
     commit_list: List[str],
     command_path: str,
     client: GGClient,
+    ui: GGShieldUI,
     exclusion_regexes: Set[re.Pattern],
 ) -> None:
     try:
@@ -61,6 +63,7 @@ def _execute_prereceive(
         return_code = scan_commit_range(
             client=client,
             cache=ReadOnlyCache(),
+            ui=ui,
             commit_list=commit_list,
             output_handler=output_handler,
             exclusion_regexes=exclusion_regexes,
@@ -99,7 +102,8 @@ def prereceive_cmd(
     """
     Scan as a pre-receive git hook all commits about to enter the remote git repository.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
@@ -135,14 +139,15 @@ def prereceive_cmd(
 
     process = multiprocessing.Process(
         target=_execute_prereceive,
-        args=(
-            config,
-            output_handler,
-            commit_list,
-            ctx.command_path,
-            ctx.obj["client"],
-            ctx.obj["exclusion_regexes"],
-        ),
+        kwargs={
+            "config": config,
+            "output_handler": output_handler,
+            "commit_list": commit_list,
+            "command_path": ctx.command_path,
+            "client": ctx_obj.client,
+            "ui": ctx_obj.ui,
+            "exclusion_regexes": ctx_obj.exclusion_regexes,
+        },
     )
 
     process.start()

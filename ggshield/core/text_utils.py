@@ -1,15 +1,6 @@
-import sys
 from typing import Any, Dict, Optional, Union
 
 import click
-from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
 
 from .constants import IncidentStatus
 
@@ -112,17 +103,6 @@ def translate_validity(validity_id: Optional[str]) -> str:
     # If we don't have a text for the validity_id, return it as is. We assume the text
     # of the ID is more valuable than a generic "Unknown" string
     return _VALIDITY_TEXT_FOR_ID.get(validity_id, validity_id)
-
-
-def create_progress_bar(doc_type: str) -> Progress:
-    return Progress(
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        TextColumn(f"{{task.completed}} {doc_type} scanned out of {{task.total}}"),
-        TimeRemainingColumn(),
-        console=Console(file=sys.stderr),
-    )
 
 
 def clip_long_line(

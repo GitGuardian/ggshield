@@ -1,4 +1,5 @@
 from typing import List
+from unittest.mock import Mock
 
 import pytest
 from pygitguardian import GGClient
@@ -80,7 +81,7 @@ def test_make_indices_patch(
                 command_path="external",
             ),
         )
-        results = scanner.scan(files)
+        results = scanner.scan(files, scanner_ui=Mock())
         result = results.results[0]
 
     lines = get_lines_from_content(

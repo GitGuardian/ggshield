@@ -48,7 +48,7 @@ def test_request_headers(scan_mock: Mock, client):
             ),
             check_api_key=False,
         )
-        scanner.scan(c.get_files())
+        scanner.scan(c.get_files(), scanner_ui=Mock())
     scan_mock.assert_called_with(
         ANY,
         {

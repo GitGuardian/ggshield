@@ -1,7 +1,6 @@
 import itertools
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Optional, Set
 
@@ -14,8 +13,8 @@ from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
-from ggshield.core.text_utils import create_progress_bar, display_error
 from ggshield.core.types import IgnoredMatch
+from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
 
@@ -31,6 +30,7 @@ SCAN_THREADS = 4
 def scan_repo_path(
     client: GGClient,
     cache: Cache,
+    ui: GGShieldUI,
     output_handler: SecretOutputHandler,
     config: Config,
     scan_context: ScanContext,
@@ -44,6 +44,7 @@ def scan_repo_path(
             return scan_commit_range(
                 client=client,
                 cache=cache,
+                ui=ui,
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
                 exclusion_regexes=set(),
@@ -60,9 +61,10 @@ def scan_commits_content(
     commits: List[Commit],
     client: GGClient,
     cache: Cache,
+    ui: GGShieldUI,
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
-    progress_callback: Callable[..., None],
+    progress_callback: Callable[[int], None],
     commit_scanned_callback: Callable[[Commit], None],
     ignored_detectors: Optional[Set[str]] = None,
 ) -> SecretScanCollection:  # pragma: no cover
@@ -77,16 +79,16 @@ def scan_commits_content(
             ignored_detectors=ignored_detectors,
             check_api_key=False,  # Key has been checked in `scan_commit_range()`
         )
-        results = scanner.scan(
-            commit_files,
-            scan_threads=SCAN_THREADS,
-        )
+        with ui.create_message_only_scanner_ui() as scanner_ui:
+            results = scanner.scan(
+                commit_files, scan_threads=SCAN_THREADS, scanner_ui=scanner_ui
+            )
     except QuotaLimitReachedError:
         raise
     except Exception as exc:
         results = Results.from_exception(exc)
     finally:
-        progress_callback(advance=len(commits))
+        progress_callback(len(commits))
         for commit in commits:
             commit_scanned_callback(commit)
 
@@ -146,6 +148,7 @@ def get_commits_by_batch(
 def scan_commit_range(
     client: GGClient,
     cache: Cache,
+    ui: GGShieldUI,
     commit_list: List[str],
     output_handler: SecretOutputHandler,
     exclusion_regexes: Set[re.Pattern],
@@ -164,11 +167,7 @@ def scan_commit_range(
     check_client_api_key(client)
     max_documents = client.secret_scan_preferences.maximum_documents_per_scan
 
-    with create_progress_bar(doc_type="commits") as progress:
-        task_scan = progress.add_task(
-            "[green]Scanning Commits...", total=len(commit_list)
-        )
-
+    with ui.create_progress(len(commit_list)) as progress:
         commits_batch = get_commits_by_batch(
             commits=(
                 Commit.from_sha(sha, exclusion_regexes=exclusion_regexes)
@@ -180,7 +179,7 @@ def scan_commit_range(
 
         def commit_scanned_callback(commit: Commit):
             if verbose:
-                progress.console.print(f"Scanned {commit.sha}")
+                progress.ui.display_info(f"Scanned {commit.sha}")
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []
@@ -191,9 +190,10 @@ def scan_commit_range(
                         commits,
                         client,
                         cache,
+                        ui,
                         matches_ignore,
                         scan_context,
-                        partial(progress.update, task_scan),
+                        progress.advance,
                         commit_scanned_callback,
                         ignored_detectors,
                     )
@@ -209,8 +209,7 @@ def scan_commit_range(
                 for scan in scan_collection.scans_with_results:
                     if scan.results and scan.results.errors:
                         for error in scan.results.errors:
-                            # Prefix with `\n` since we are in the middle of a progress bar
-                            display_error(f"\n{error.description}")
+                            progress.ui.display_error(error.description)
                     scans.append(scan)
 
     return_code = output_handler.process_scan(

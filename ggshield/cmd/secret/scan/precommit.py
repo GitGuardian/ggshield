@@ -40,14 +40,16 @@ def precommit_cmd(
     """
     Scan as a pre-commit hook all changes that have been staged in a git repository.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
+    verbose = config.user_config.verbose
 
     if check_user_requested_skip():
         return 0
 
     output_handler = SecretTextOutputHandler(
         show_secrets=config.user_config.secret.show_secrets,
-        verbose=config.user_config.verbose,
+        verbose=verbose,
         output=None,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
     )
@@ -61,13 +63,14 @@ def precommit_cmd(
 
     commit = Commit.from_staged(ctx.obj["exclusion_regexes"])
     scanner = SecretScanner(
-        client=ctx.obj["client"],
-        cache=ctx.obj["cache"],
+        client=ctx_obj.client,
+        cache=ctx_obj.cache,
         scan_context=scan_context,
         ignored_matches=config.user_config.secret.ignored_matches,
         ignored_detectors=config.user_config.secret.ignored_detectors,
     )
-    results = scanner.scan(commit.get_files())
+    with ctx_obj.ui.create_scanner_ui(len(commit.urls), verbose=verbose) as scanner_ui:
+        results = scanner.scan(commit.get_files(), scanner_ui)
 
     return_code = output_handler.process_scan(
         SecretScanCollection(id="cached", type="pre-commit", results=results)

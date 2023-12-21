@@ -32,7 +32,8 @@ def range_cmd(
 
     Example: `ggshield secret scan commit-range HEAD~1...`
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     commit_list = get_list_commit_SHA(commit_range)
     if not commit_list:
         raise UsageError("invalid commit range")
@@ -46,8 +47,9 @@ def range_cmd(
     )
 
     return scan_commit_range(
-        client=ctx.obj["client"],
-        cache=ctx.obj["cache"],
+        client=ctx_obj.client,
+        cache=ctx_obj.cache,
+        ui=ctx_obj.ui,
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
         exclusion_regexes=ctx.obj["exclusion_regexes"],
