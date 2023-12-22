@@ -1,10 +1,14 @@
 import json
+import tarfile
+from io import BytesIO
 from pathlib import Path
+from typing import List
 from unittest.mock import ANY, Mock, patch
 
 import pytest
 import requests
 from click.testing import CliRunner
+from pygitguardian.client import _create_tar
 from pytest_mock import MockerFixture
 
 from ggshield.__main__ import cli
@@ -141,31 +145,29 @@ def test_iac_scan_all_error_response(
 
 
 def test_iac_scan_all_json_error_response(
-    cli_fs_runner: CliRunner, mocker: MockerFixture, cli_command
+    cli_fs_runner: CliRunner, mocker: MockerFixture, cli_command, tmp_path: Path
 ) -> None:
     mocker.patch(
         "ggshield.core.client.GGClient.request",
         return_value=create_json_response({"detail": "Not found (404)"}, 404),
     )
     cli_fs_runner.mix_stderr = False
-    with cli_fs_runner.isolated_filesystem():
+    setup_single_iac_vuln_repo(tmp_path)
 
-        setup_single_iac_vuln_repo(Path("."))
-
-        result = cli_fs_runner.invoke(
-            cli,
-            cli_command
-            + [
-                "--json",
-                ".",
-            ],
-        )
+    result = cli_fs_runner.invoke(
+        cli,
+        cli_command
+        + [
+            "--json",
+            str(tmp_path),
+        ],
+    )
     assert "Error scanning." in result.stderr
     assert "404:Not found (404)" in result.stderr
     assert json.loads(result.stdout) == {
         "entities_with_incidents": [],
         "iac_engine_version": "",
-        "id": ".",
+        "id": str(tmp_path),
         "total_incidents": 0,
         "type": "path_scan",
     }
@@ -310,3 +312,45 @@ def test_iac_scan_all_context_repository(
         and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
         for arg in scan_mock.call_args[0]
     )
+
+
+@patch("pygitguardian.client._create_tar")
+def test_iac_scan_all_subdir_tar(
+    create_tar_mock: Mock,
+    tmp_path: Path,
+    cli_fs_runner: CliRunner,
+    cli_command: List[str],
+) -> None:
+    # GIVEN a git repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND an inner directory with a vulnerability
+    inner_dir_path = tmp_path / "inner" / "dir"
+    inner_dir_path.mkdir(parents=True)
+    (inner_dir_path / "file1.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+
+    # AND another directory with a vulnerability
+    other_dir_path = tmp_path / "other"
+    other_dir_path.mkdir()
+    (other_dir_path / "file2.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+
+    repo.add(".")
+    repo.create_commit()
+
+    # WHEN scanning the inner dir
+    cli_fs_runner.invoke(
+        cli,
+        cli_command
+        + [
+            str(inner_dir_path),
+        ],
+    )
+
+    # THEN tar is created with the correct structure
+    create_tar_mock.assert_called_once()
+    path, filenames = create_tar_mock.call_args.args
+    tarbytes = _create_tar(path, filenames)
+    fileobj = BytesIO(tarbytes)
+    with tarfile.open(fileobj=fileobj) as tar:
+        assert tar.getnames() == ["inner/dir/file1.tf"]

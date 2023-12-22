@@ -22,7 +22,7 @@ def get_iac_files_from_path(
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
     ignore_git: bool = False,
-) -> List[str]:
+) -> List[Path]:
     """
     Returns IaC file paths found recursively in a given directory.
 
@@ -31,7 +31,7 @@ def get_iac_files_from_path(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """
-    paths = [
+    return [
         x.path
         for x in get_files_from_paths(
             paths=[path],
@@ -44,8 +44,6 @@ def get_iac_files_from_path(
         )
         if is_iac_file_path(x.path)
     ]
-
-    return [str(x.relative_to(path)) for x in paths]
 
 
 def is_iac_file_path(path: Path) -> bool:

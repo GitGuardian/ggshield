@@ -16,6 +16,7 @@ from pygitguardian.sca_models import (
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.config.user_config import SCAConfig
+from ggshield.core.dirs import get_project_root_dir
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
@@ -75,9 +76,14 @@ def sca_scan_all(
         empty_output.status_code = sca_filter_status_code
         return empty_output
 
+    root = get_project_root_dir(directory)
+    relative_paths = [
+        str((directory / x).resolve().relative_to(root)) for x in sca_filepaths
+    ]
+
     scan_parameters = get_scan_params_from_config(config.user_config.sca)
 
-    tar = _create_tar(directory, sca_filepaths)
+    tar = _create_tar(root, relative_paths)
 
     # Call to full scan API and get results
     scan_result = client.sca_scan_directory(
