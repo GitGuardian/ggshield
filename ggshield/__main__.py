@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import logging
+import multiprocessing
 import os
 import sys
 from pathlib import Path
@@ -178,6 +179,11 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     `args` is only used by unit-tests.
     """
+
+    # Required by pyinstaller when forking.
+    # See https://pyinstaller.org/en/latest/common-issues-and-pitfalls.html#multi-processing
+    multiprocessing.freeze_support()
+
     disable_logs()
     show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)

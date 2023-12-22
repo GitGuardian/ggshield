@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROGNAME=$(basename "$0")
+ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
+
+DEFAULT_STEPS="req build copy_files test create_archive"
+
+DIST_DIR=$PWD/dist
+
+REQUIREMENTS="pyinstaller"
+
+err() {
+    echo "$@" >&2
+}
+
+info() {
+    err "$PROGNAME: [INFO] $*"
+}
+
+die() {
+    err "$PROGNAME: [ERROR] $*"
+    exit 1
+}
+
+usage() {
+    if [ "$*" != "" ] ; then
+        err "Error: $*"
+        err
+    fi
+
+    cat << EOF
+Usage: $PROGNAME [OPTION ...] [STEPS]
+Build a standalone executable for ggshield.
+
+Default steps are: $DEFAULT_STEPS
+
+Options:
+  -h, --help      Display this usage message and exit.
+EOF
+
+    exit 1
+}
+
+read_version() {
+    VERSION=$(grep -o "[0-9]*\.[0-9]*\.[0-9]*" "$ROOT_DIR/ggshield/__init__.py")
+}
+
+init_system_vars() {
+    local arch
+    arch=$(uname -m)
+    if [ "$arch" = "aarch64" ] ; then
+        arch=arm64
+    fi
+
+    local out
+    out=$(uname)
+
+    case "$out" in
+    Linux)
+        EXE_EXT=""
+        TARGET="$arch-unknown-linux-gnu"
+        ARCHIVE_FORMAT=tar
+        ;;
+    Darwin)
+        EXE_EXT=""
+        TARGET="$arch-apple-darwin"
+        ARCHIVE_FORMAT=tar
+        ;;
+    MINGW*|MSYS*)
+        EXE_EXT=".exe"
+        TARGET="$arch-pc-windows-msvc"
+        ARCHIVE_FORMAT=zip
+        ;;
+    *)
+        die "Unknown OS. uname printed '$out'"
+        ;;
+    esac
+    ARCHIVE_DIR_NAME=ggshield-standalone-$VERSION-$TARGET
+}
+
+step_req() {
+    local fail=0
+    info "Checking requirements"
+    local requirements=$REQUIREMENTS
+    for exe in $requirements ; do
+        err -n "$exe: "
+        if command -v "$exe" > /dev/null ; then
+            err OK
+        else
+            err FAIL
+            fail=1
+        fi
+    done
+    if [ $fail -ne 0 ] ; then
+        die "Not all requirements are installed"
+    fi
+}
+
+step_build() {
+    rm -rf build/ggshield
+    rm -rf "$DIST_DIR/ggshield"
+    pyinstaller ggshield/__main__.py --name ggshield --noupx
+}
+
+step_copy_files() {
+    local pyinstaller_output_dir=$DIST_DIR/ggshield
+    if ! [ -d "$pyinstaller_output_dir" ] ; then
+        die "$pyinstaller_output_dir does not exist"
+    fi
+    local pyinstaller_ggshield=$pyinstaller_output_dir/ggshield$EXE_EXT
+    if ! [ -f "$pyinstaller_ggshield" ] ; then
+        die "Can't find '$pyinstaller_ggshield', maybe 'build' step did not run?"
+    fi
+
+    local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+    info "Copying files to $output_dir"
+    rm -rf "$output_dir"
+    cp -R "$pyinstaller_output_dir" "$output_dir"
+}
+
+step_test() {
+    info "test: running --help"
+    "$DIST_DIR/$ARCHIVE_DIR_NAME/ggshield${EXE_EXT}" --help > /dev/null
+    info "test: running --help: OK"
+}
+
+step_functests() {
+    PATH=$DIST_DIR/$ARCHIVE_DIR_NAME:$PATH pytest tests/functional
+}
+
+step_create_archive() {
+    local archive_path
+    case "$ARCHIVE_FORMAT" in
+    tar)
+        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+        tar -C "$DIST_DIR" -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+        ;;
+    zip)
+        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.zip"
+        env -C "$DIST_DIR" 7z a "$archive_path" "$ARCHIVE_DIR_NAME"
+        ;;
+    *)
+        die "Unsupported archive format $ARCHIVE_FORMAT"
+        ;;
+    esac
+    info "Archive created in $archive_path"
+}
+
+steps=""
+while [ $# -gt 0 ] ; do
+    case "$1" in
+    -h|--help)
+        usage
+        ;;
+    -*)
+        usage "Unknown option '$1'"
+        ;;
+    *)
+        steps="$steps $1"
+        ;;
+    esac
+    shift
+done
+
+if [ -z "$steps" ] ; then
+    steps=$DEFAULT_STEPS
+fi
+
+cd "$ROOT_DIR"
+read_version
+init_system_vars
+for step in $steps ; do
+    info "step $step"
+    "step_$step"
+done
