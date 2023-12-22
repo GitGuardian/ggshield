@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROGNAME=$(basename "$0")
+ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
+
+DEFAULT_STEPS="req build pack test archive"
+
+BUILD_DIR=$PWD/dist/nuitka
+DIST_DIR=$PWD/dist
+
+REQUIREMENTS=""
+
+err() {
+    echo "$@" >&2
+}
+
+info() {
+    err "$PROGNAME: [INFO] $*"
+}
+
+die() {
+    err "$PROGNAME: [ERROR] $*"
+    exit 1
+}
+
+usage() {
+    if [ "$*" != "" ] ; then
+        err "Error: $*"
+        err
+    fi
+
+    cat << EOF
+Usage: $PROGNAME [OPTION ...] [steps]
+Build a standalone executable for ggshield.
+
+Options:
+  -h, --help      Display this usage message and exit.
+EOF
+
+    exit 1
+}
+
+read_version() {
+    VERSION=$(grep -o "[0-9]*\.[0-9]*\.[0-9]*" "$ROOT_DIR/ggshield/__init__.py")
+}
+
+init_system_vars() {
+    local arch
+    arch=$(uname -m)
+
+    local out
+    out=$(uname)
+
+    case "$out" in
+    Linux)
+        EXE_EXT=""
+        TARGET="$arch-unknown-linux-gnu"
+        ;;
+    Darwin)
+        EXE_EXT=""
+        if [ "$arch" = "aarch64" ] ; then
+            arch=arm64
+        fi
+        TARGET="$arch-apple-darwin"
+        ;;
+    MINGW*|MSYS*)
+        EXE_EXT=".exe"
+        TARGET="$arch-pc-windows-msvc"
+        ;;
+    *)
+        die "Unknown OS. uname printed '$out'"
+        ;;
+    esac
+    ARCHIVE_DIR_NAME=ggshield-standalone-$VERSION-$TARGET
+}
+
+step_req() {
+    local fail=0
+    info "Checking requirements"
+    local requirements=$REQUIREMENTS
+    for exe in $requirements ; do
+        err -n "$exe: "
+        if command -v "$exe" > /dev/null ; then
+            err OK
+        else
+            err FAIL
+            fail=1
+        fi
+    done
+
+    err -n "nuitka: "
+    if python -m nuitka --version > /dev/null ; then
+        err OK
+    else
+        err FAIL
+        fail=1
+    fi
+
+    if [ $fail -ne 0 ] ; then
+        die "Not all requirements are installed"
+    fi
+}
+
+step_build() {
+    rm -rf "$BUILD_DIR"
+    mkdir -p "$BUILD_DIR"
+    # --no-deployment-flag=self-execution: required for `ggshield install -m
+    # local` to work without this flag nuitka thinks we are trying to execute
+    # ourselves using `python -m ggshield`.
+    #
+    # --assume-yes-for-downloads: required on Windows for the CI to download
+    # build dependencies
+    python -m nuitka \
+        --output-dir="$BUILD_DIR" \
+        --output-filename=ggshield \
+        --standalone \
+        --follow-imports \
+        --no-deployment-flag=self-execution \
+        --assume-yes-for-downloads \
+        ggshield/__main__.py
+}
+
+step_pack() {
+    local nuitka_output_dir=$BUILD_DIR/__main__.dist
+    if ! [ -d "$nuitka_output_dir" ] ; then
+        die "$nuitka_output_dir does not exist"
+    fi
+    local nuitkad_ggshield=$nuitka_output_dir/ggshield$EXE_EXT
+    if ! [ -f "$nuitkad_ggshield" ] ; then
+        die "Can't find '$nuitkad_ggshield', maybe 'build' step did not run?"
+    fi
+
+    info "Copying files"
+    local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+    rm -rf "$output_dir"
+    cp -R "$nuitka_output_dir" "$output_dir"
+}
+
+step_test() {
+    info "test: running --help"
+    "$DIST_DIR/$ARCHIVE_DIR_NAME/ggshield${EXE_EXT}" --help > /dev/null
+    info "test: running --help: OK"
+}
+
+step_functests() {
+    PATH=$DIST_DIR/$ARCHIVE_DIR_NAME:$PATH pytest tests/functional
+}
+
+step_archive() {
+    local archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+    tar -C "$DIST_DIR" -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+    info "Archive created in $archive_path"
+}
+
+steps=""
+while [ $# -gt 0 ] ; do
+    case "$1" in
+    -h|--help)
+        usage
+        ;;
+    -*)
+        usage "Unknown option '$1'"
+        ;;
+    *)
+        steps="$steps $1"
+        ;;
+    esac
+    shift
+done
+
+if [ -z "$steps" ] ; then
+    steps=$DEFAULT_STEPS
+fi
+
+cd "$ROOT_DIR"
+read_version
+init_system_vars
+for step in $steps ; do
+    info "step $step"
+    "step_$step"
+done
