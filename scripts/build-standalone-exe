@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROGNAME=$(basename "$0")
+ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
+
+DEFAULT_STEPS="req build pack"
+
+DIST_DIR=$PWD/dist
+UPX_SPEED_OPTION=--best
+USE_UPX=1
+
+REQUIREMENTS="pyoxidizer strip"
+
+err() {
+    echo "$@" >&2
+}
+
+info() {
+    err "$PROGNAME: [INFO] $*"
+}
+
+die() {
+    err "$PROGNAME: [ERROR] $*"
+    exit 1
+}
+
+usage() {
+    if [ "$*" != "" ] ; then
+        err "Error: $*"
+        err
+    fi
+
+    cat << EOF
+Usage: $PROGNAME [OPTION ...] [steps]
+Build a standalone executable for ggshield.
+
+Options:
+  -h, --help      Display this usage message and exit.
+  --fast          Use fast UPX compression. Useful for testing.
+  --no-upx        Do not compress the executable with UPX.
+EOF
+
+    exit 1
+}
+
+read_version() {
+    VERSION=$(grep -o "[0-9]*\.[0-9]*\.[0-9]*" "$ROOT_DIR/ggshield/__init__.py")
+}
+
+init_system_vars() {
+    ARCH=$(uname -m)
+
+    local out
+    out=$(uname)
+
+    case "$out" in
+    Linux)
+        LIB_EXT=".so"
+        EXE_EXT=""
+        TARGET="$ARCH-unknown-linux-gnu"
+        ;;
+    Darwin)
+        LIB_EXT=".dylib"
+        EXE_EXT=""
+        TARGET="$ARCH-apple-darwin"
+        ;;
+    MINGW*|MSYS*)
+        LIB_EXT=".dll"
+        EXE_EXT=".exe"
+        TARGET="$ARCH-pc-windows-msvc"
+        ;;
+    *)
+        die "Unknown OS. uname printed '$out'"
+        ;;
+    esac
+}
+
+step_req() {
+    local fail=0
+    info "Checking requirements"
+    local requirements=$REQUIREMENTS
+    if [ "$USE_UPX" -eq 1 ] ; then
+        requirements="$requirements upx"
+    fi
+    for exe in $requirements ; do
+        err -n "$exe: "
+        if command -v "$exe" > /dev/null ; then
+            err OK
+        else
+            err FAIL
+            fail=1
+        fi
+    done
+    if [ $fail -ne 0 ] ; then
+        die "Not all requirements are installed"
+    fi
+}
+
+step_build() {
+    pyoxidizer run --release
+}
+
+step_pack() {
+    local oxidize_output_dir=$PWD/build/$TARGET/release/install
+    if ! [ -d "$oxidize_output_dir" ] ; then
+        ls "$PWD/build"
+        die "$oxidize_output_dir does not exist"
+    fi
+    local oxidized_ggshield=$oxidize_output_dir/ggshield$EXE_EXT
+    if ! [ -f "$oxidized_ggshield" ] ; then
+        die "Can't find '$oxidized_ggshield', maybe 'build' step did not run?"
+    fi
+
+    local archive_dir_name=ggshield-standalone-$VERSION-$TARGET
+    local output_dir="$DIST_DIR/$archive_dir_name"
+
+    info "Copying files"
+    rm -rf "$output_dir"
+    mkdir -p "$output_dir"
+    cp -R "$oxidize_output_dir/prefix" "$oxidized_ggshield" "$output_dir"
+
+    info "Stripping all libs and the executable"
+    find "$output_dir" -name $LIB_EXT -exec strip '{}' ';'
+    strip "$output_dir/ggshield$EXE_EXT"
+
+    if [ "$USE_UPX" -eq 1 ] ; then
+        info "Compress executable"
+        upx $UPX_SPEED_OPTION "$output_dir/ggshield$EXE_EXT"
+    else
+        info "Skipped executable compression"
+    fi
+
+    info "Creating archive"
+    local archive_path="$DIST_DIR/$archive_dir_name.tar.gz"
+    tar -C "$DIST_DIR" -czf "$archive_path" "$archive_dir_name"
+    info "Archive created in $archive_path"
+}
+
+steps=""
+while [ $# -gt 0 ] ; do
+    case "$1" in
+    -h|--help)
+        usage
+        ;;
+    --fast)
+        UPX_SPEED_OPTION=-1
+        ;;
+    --no-upx)
+        USE_UPX=0
+        ;;
+    -*)
+        usage "Unknown option '$1'"
+        ;;
+    *)
+        steps="$steps $1"
+        ;;
+    esac
+    shift
+done
+
+if [ -z "$steps" ] ; then
+    steps=$DEFAULT_STEPS
+fi
+
+read_version
+init_system_vars
+for step in $steps ; do
+    info "step $step"
+    "step_$step"
+done
