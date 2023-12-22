@@ -12,6 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 from ggshield.cmd.iac.scan.iac_scan_utils import augment_unignored_issues
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.scan.scan_mode import ScanMode
 
@@ -49,13 +50,14 @@ def scan_pre_commit_cmd(
 
     if directory is None:
         directory = Path().resolve()
+    ctx_obj = ContextObj.get(ctx)
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
     if scan_all:
         result = iac_scan_all(ctx, directory, scan_mode=ScanMode.PRE_COMMIT_ALL)
-        augment_unignored_issues(ctx.obj["config"].user_config, result)
+        augment_unignored_issues(ctx_obj.config.user_config, result)
         return display_iac_scan_all_result(ctx, directory, result)
     result = iac_scan_diff(
         ctx, directory, "HEAD", include_staged=True, scan_mode=ScanMode.PRE_COMMIT_DIFF
     )
-    augment_unignored_issues(ctx.obj["config"].user_config, result)
+    augment_unignored_issues(ctx_obj.config.user_config, result)
     return display_iac_scan_diff_result(ctx, directory, result)

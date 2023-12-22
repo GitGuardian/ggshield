@@ -109,7 +109,8 @@ def test_sca_scan_all_ignore_path(client: GGClient, dummy_sca_repo: Repository) 
     """
     dummy_sca_repo.git("checkout", "branch_with_vuln")
     ctx = get_valid_ctx(client)
-    ctx.obj["exclusion_regexes"] = {
+    ctx_obj = ContextObj.get(ctx)
+    ctx_obj.exclusion_regexes = {
         re.compile(r"Pipfile"),
         re.compile(r"Pipfile.lock"),
         re.compile(r"dummy_file.py"),
@@ -162,7 +163,8 @@ def test_sca_scan_diff_ignore_path(
     """
     dummy_sca_repo.git("checkout", "branch_without_vuln")
     ctx = get_valid_ctx(client)
-    ctx.obj["exclusion_regexes"] = {
+    ctx_obj = ContextObj.get(ctx)
+    ctx_obj.exclusion_regexes = {
         re.compile(r"Pipfile"),
         re.compile(r"Pipfile.lock"),
     }
@@ -188,7 +190,8 @@ def test_sca_scan_diff_no_files(
     """
     dummy_sca_repo.git("checkout", "branch_without_vuln")
     ctx = get_valid_ctx(client)
-    ctx.obj["exclusion_regexes"] = {re.compile(r"Pipfile"), re.compile(r"\.py")}
+    ctx_obj = ContextObj.get(ctx)
+    ctx_obj.exclusion_regexes = {re.compile(r"Pipfile"), re.compile(r"\.py")}
     with ctx:
         sca_scan_diff(
             ctx=ctx,

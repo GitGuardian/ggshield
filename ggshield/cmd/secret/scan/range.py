@@ -52,7 +52,7 @@ def range_cmd(
         ui=ctx_obj.ui,
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
-        exclusion_regexes=ctx.obj["exclusion_regexes"],
+        exclusion_regexes=ctx_obj.exclusion_regexes,
         matches_ignore=config.user_config.secret.ignored_matches,
         scan_context=scan_context,
         ignored_detectors=config.user_config.secret.ignored_detectors,

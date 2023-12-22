@@ -53,7 +53,8 @@ def scan_all_cmd(
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     result = iac_scan_all(ctx, directory, scan_mode=ScanMode.DIRECTORY_ALL)
-    augment_unignored_issues(ctx.obj["config"].user_config, result)
+    ctx_obj = ContextObj.get(ctx)
+    augment_unignored_issues(ctx_obj.config.user_config, result)
     return display_iac_scan_all_result(ctx, directory, result)
 
 
@@ -63,14 +64,14 @@ def iac_scan_all(
     scan_mode: ScanMode,
     ci_mode: Optional[SupportedCI] = None,
 ) -> Union[IaCScanResult, IaCSkipScanResult, None]:
-    config = ContextObj.get(ctx).config
-    exclusion_regexes = ctx.obj["exclusion_regexes"]
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
 
-    check_directory_not_ignored(directory, exclusion_regexes)
+    check_directory_not_ignored(directory, ctx_obj.exclusion_regexes)
 
     paths = get_iac_files_from_path(
         path=directory,
-        exclusion_regexes=exclusion_regexes,
+        exclusion_regexes=ctx_obj.exclusion_regexes,
         # bypass verbose here: we want to display only IaC files
         verbose=False,
         # If the repository is a git repository, ignore untracked files
@@ -88,7 +89,7 @@ def iac_scan_all(
         for filepath in relative_paths:
             display_info(f"- {click.format_filename(filepath)}")
 
-    client = ctx.obj["client"]
+    client = ctx_obj.client
 
     scan_parameters = IaCScanParameters(
         list({ignored.policy for ignored in config.user_config.iac.ignored_policies}),
@@ -111,7 +112,7 @@ def iac_scan_all(
         ).get_http_headers(),
     )
 
-    if not scan.success or not isinstance(scan, IaCScanResult):
+    if not isinstance(scan, IaCScanResult):
         handle_scan_error(client, scan)
         return None
     return scan

@@ -43,7 +43,7 @@ def archive_cmd(
         verbose = config.user_config.verbose
         files = get_files_from_paths(
             paths=[temp_path],
-            exclusion_regexes=ctx.obj["exclusion_regexes"],
+            exclusion_regexes=ctx_obj.exclusion_regexes,
             recursive=True,
             yes=True,
             display_scanned_files=verbose,

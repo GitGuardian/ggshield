@@ -186,9 +186,10 @@ def sca_scan_diff(
     When set to None, the current state is the indexed files currently on disk.
     :return: SCAScanDiffOutput object.
     """
-    config = ContextObj.get(ctx).config
-    client = ctx.obj["client"]
-    exclusion_regexes = ctx.obj["exclusion_regexes"]
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
+    client = ctx_obj.client
+    exclusion_regexes = ctx_obj.exclusion_regexes
 
     check_directory_not_ignored(directory, exclusion_regexes)
 
