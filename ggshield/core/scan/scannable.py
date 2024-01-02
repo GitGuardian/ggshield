@@ -36,6 +36,8 @@ class Scannable(ABC):
 
     def __init__(self, filemode: Filemode = Filemode.FILE):
         self.filemode = filemode
+        self._content: Optional[str] = None
+        self._utf8_encoded_size: Optional[int] = None
 
     @property
     @abstractmethod
@@ -68,11 +70,28 @@ class Scannable(ABC):
         """
         raise NotImplementedError
 
-    @property
     @abstractmethod
+    def _read_content(self) -> None:
+        """Read the content of the scannable  if necessary, store it in `self._content`
+        and the UTF8 encoded size in `self._utf8_encoded_size`"""
+        raise NotImplementedError
+
+    @property
     def content(self) -> str:
         """Return the decoded content of the scannable"""
-        raise NotImplementedError
+        if self._content is None:
+            self._read_content()
+            if self._content is None:
+                raise ValueError("content is None after reading")
+        return self._content
+
+    @property
+    def utf8_encoded_size(self) -> int:
+        if self._utf8_encoded_size is None:
+            self._read_content()
+            if self._utf8_encoded_size is None:
+                raise ValueError("utf8_encoded_size is None after reading")
+        return self._utf8_encoded_size
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} url={self.url} filemode={self.filemode}>"
@@ -163,7 +182,11 @@ class StringScannable(Scannable):
         self._url = url
         self._path: Optional[Path] = None
         self._content = content
-        self._utf8_encoded_size = None
+
+    def _read_content(self) -> None:
+        assert self._content is not None
+        if self._utf8_encoded_size is None:
+            self._utf8_encoded_size = len(self._content.encode(errors="replace"))
 
     @property
     def url(self) -> str:
@@ -181,10 +204,6 @@ class StringScannable(Scannable):
         return self._path
 
     def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
-        if self._utf8_encoded_size is None:
-            self._utf8_encoded_size = len(self._content.encode(errors="replace"))
+        self._read_content()
+        assert self._utf8_encoded_size is not None
         return self._utf8_encoded_size > max_utf8_encoded_size
-
-    @property
-    def content(self) -> str:
-        return self._content

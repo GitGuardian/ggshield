@@ -27,6 +27,7 @@ from .secret_scan_collection import Error, Result, Results
 
 # GitGuardian API does not accept paths longer than this
 _API_PATH_MAX_LENGTH = 256
+_SIZE_METADATA_OVERHEAD = 10240  # 10 KB
 
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,8 @@ class SecretScanner:
         chunks_for_futures = {}
 
         chunk: List[Scannable] = []
+        max_payload_size = self.client.maximum_payload_size - _SIZE_METADATA_OVERHEAD
+        utf8_encoded_chunk_size = 0
         maximum_document_size = int(
             os.getenv(
                 "GG_MAX_DOC_SIZE",
@@ -143,11 +146,17 @@ class SecretScanner:
                 continue
 
             if content:
-                chunk.append(scannable)
-                if len(chunk) == maximum_documents_per_scan:
+                if (
+                    len(chunk) == maximum_documents_per_scan
+                    or utf8_encoded_chunk_size + scannable.utf8_encoded_size
+                    > max_payload_size
+                ):
                     future = self._scan_chunk(executor, chunk)
                     chunks_for_futures[future] = chunk
                     chunk = []
+                    utf8_encoded_chunk_size = 0
+                chunk.append(scannable)
+                utf8_encoded_chunk_size += scannable.utf8_encoded_size
             else:
                 scanner_ui.on_skipped(scannable, "")
         if chunk:
