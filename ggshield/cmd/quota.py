@@ -21,7 +21,7 @@ def quota_cmd(ctx: click.Context, **kwargs: Any) -> int:
     Show the remaining quota of API calls available for the entire workspace.
     """
     ctx_obj = ContextObj.get(ctx)
-    client: GGClient = create_client_from_config(ctx_obj.config)
+    client: GGClient = create_client_from_config(ctx_obj.config, ctx_obj.ui)
     response: Union[Detail, QuotaResponse] = client.quota_overview()
 
     if not isinstance(response, (Detail, QuotaResponse)):

@@ -44,13 +44,14 @@ def update_context(
     minimum_severity: str,
     ignore_paths: Sequence[str],
 ) -> None:
-    config = ContextObj.get(ctx).config
-    ctx.obj["client"] = create_client_from_config(config)
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
+    ctx_obj.client = create_client_from_config(config, ctx_obj.ui)
 
     if ignore_paths is not None:
         config.user_config.sca.ignored_paths.update(ignore_paths)
 
-    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(
+    ctx_obj.exclusion_regexes = init_exclusion_regexes(
         config.user_config.sca.ignored_paths
     )
 
