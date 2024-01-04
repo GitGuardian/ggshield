@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from subprocess import CalledProcessError
 from typing import List, Optional
@@ -97,3 +98,34 @@ def test_iac_scan_prepush_vuln_before_hook(
             local_repo.push()
             stdout = exc.value.stdout.decode()
             assert "vuln_before_hook.tf" in stdout
+
+
+def test_iac_scan_prepush_scan_is_diff_on_new_branch(tmp_path: Path) -> None:
+    # GIVEN a remote repository
+    remote_repo = Repository.create(tmp_path / "remote", bare=True)
+
+    # AND a local clone
+    local_repo = Repository.clone(remote_repo.path, tmp_path / "local")
+
+    # AND a commit on the remote repository
+    local_repo.create_commit()
+    local_repo.push()
+
+    # AND ggshield installed as a pre-push hook
+    create_local_hook(
+        tmp_path / "local" / ".git" / "hooks", "iac", "pre-push", ["--json"]
+    )
+
+    # AND a branch with a new commit
+    new_branch = "topic"
+    local_repo.create_branch(new_branch)
+    file = local_repo.path / "no_vuln.tf"
+    file.write_text(_IAC_NO_VULNERABILITIES)
+    local_repo.add("no_vuln.tf")
+    local_repo.create_commit()
+
+    # WHEN I try to push the new branch
+    local_repo.checkout(new_branch)
+    push_output = local_repo.git("push", "-u", "origin", new_branch)
+    # THEN the hook triggers a diff scan
+    assert json.loads(push_output.split("\n")[0])["type"] == "diff_scan"
