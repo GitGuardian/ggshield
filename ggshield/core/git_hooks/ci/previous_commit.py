@@ -117,18 +117,7 @@ def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
     # push_before_sha is also always EMPTY_SHA for the first commit of a new branch
     current_branch = os.getenv("CI_COMMIT_BRANCH")
     if current_branch:
-        new_commits = get_new_branch_ci_commits(current_branch, Path.cwd(), "origin")
-        if new_commits:
-            new_branch_before_sha = f"{new_commits[-1]}^1"
-            if verbose:
-                click.echo(
-                    f"new_branch_before_sha: {new_branch_before_sha}\n",
-                    err=True,
-                )
-            return new_branch_before_sha
-        else:
-            # New branch pushed with no commits
-            return "HEAD"
+        return get_new_branch_before_sha(current_branch, verbose)
 
     raise UnexpectedError(
         "Unable to get previous commit. Please submit an issue with the following info:\n"
@@ -280,6 +269,21 @@ def azure_pull_request_previous_commit_sha(verbose: bool) -> Optional[str]:
     if verbose:
         click.echo("Unable to find commit HEAD~1.")
     return None
+
+
+def get_new_branch_before_sha(branch_name: str, verbose: bool) -> str:
+    new_commits = get_new_branch_ci_commits(branch_name, Path.cwd(), "origin")
+    if new_commits:
+        new_branch_before_sha = f"{new_commits[-1]}^1"
+        if verbose:
+            click.echo(
+                f"new_branch_before_sha: {new_branch_before_sha}\n",
+                err=True,
+            )
+        return new_branch_before_sha
+    else:
+        # New branch pushed with no commits
+        return "HEAD"
 
 
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {
