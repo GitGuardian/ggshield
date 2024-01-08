@@ -34,9 +34,9 @@ def ignore_cmd(
     configuration file. If no local configuration file is found, a `.gitguardian.yaml` file is created.
     """
     if last_found:
-        config = ContextObj.get(ctx).config
-        cache = ctx.obj["cache"]
-        nb = ignore_last_found(config, cache)
+        ctx_obj = ContextObj.get(ctx)
+        config = ctx_obj.config
+        nb = ignore_last_found(config, ctx_obj.cache)
         path = config.config_path
         secrets_word = pluralize("secret", nb)
         click.echo(

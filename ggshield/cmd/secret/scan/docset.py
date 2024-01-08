@@ -78,8 +78,8 @@ def docset_cmd(
             command_path=ctx.command_path,
         )
         scanner = SecretScanner(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
+            client=ctx_obj.client,
+            cache=ctx_obj.cache,
             ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.user_config.secret.ignored_detectors,

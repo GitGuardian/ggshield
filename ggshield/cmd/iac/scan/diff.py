@@ -77,7 +77,8 @@ def scan_diff_cmd(
     result = iac_scan_diff(
         ctx, directory, ref, staged, scan_mode=ScanMode.DIRECTORY_DIFF
     )
-    augment_unignored_issues(ctx.obj["config"].user_config, result)
+    ctx_obj = ContextObj.get(ctx)
+    augment_unignored_issues(ctx_obj.config.user_config, result)
     return display_iac_scan_diff_result(ctx, directory, result)
 
 
@@ -107,9 +108,10 @@ def iac_scan_diff(
     :return: IacDiffScanResult if the scan was performed; IaCSkipScanResult if the scan
     was skipped (i.e. no IaC files were detected or changed between the two references)
     """
-    config = ContextObj.get(ctx).config
-    client = ctx.obj["client"]
-    exclusion_regexes = ctx.obj["exclusion_regexes"]
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
+    client = ctx_obj.client
+    exclusion_regexes = ctx_obj.exclusion_regexes
 
     check_directory_not_ignored(directory, exclusion_regexes)
 
@@ -194,7 +196,7 @@ def iac_scan_diff(
         ).get_http_headers(),
     )
 
-    if not scan.success or not isinstance(scan, IaCDiffScanResult):
+    if not isinstance(scan, IaCDiffScanResult):
         handle_scan_error(client, scan)
         return None
     return scan

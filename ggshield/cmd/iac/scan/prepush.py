@@ -12,6 +12,7 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 from ggshield.cmd.iac.scan.iac_scan_utils import augment_unignored_issues
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import all_option
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.scan.scan_mode import ScanMode
@@ -50,6 +51,7 @@ def scan_pre_push_cmd(
     if check_user_requested_skip():
         return 0
 
+    ctx_obj = ContextObj.get(ctx)
     directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
@@ -61,7 +63,7 @@ def scan_pre_push_cmd(
 
     if scan_all or has_no_remote_commit:
         result = iac_scan_all(ctx, directory, scan_mode=ScanMode.PRE_PUSH_ALL)
-        augment_unignored_issues(ctx.obj["config"].user_config, result)
+        augment_unignored_issues(ctx_obj.config.user_config, result)
         return display_iac_scan_all_result(ctx, directory, result)
     else:
         result = iac_scan_diff(
@@ -71,5 +73,5 @@ def scan_pre_push_cmd(
             include_staged=False,
             scan_mode=ScanMode.PRE_PUSH_DIFF,
         )
-        augment_unignored_issues(ctx.obj["config"].user_config, result)
+        augment_unignored_issues(ctx_obj.config.user_config, result)
         return display_iac_scan_diff_result(ctx, directory, result)

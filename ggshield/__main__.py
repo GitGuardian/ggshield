@@ -44,9 +44,10 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     exit_code guarantees that the return value of a scan is 0
     when exit_zero is enabled
     """
+    ctx_obj = ContextObj.get(ctx)
     if (
         exit_code == ExitCode.SCAN_FOUND_PROBLEMS
-        and ctx.obj["config"].user_config.exit_zero
+        and ctx_obj.config.user_config.exit_zero
     ):
         logger.debug("scan exit_code forced to 0")
         sys.exit(ExitCode.SUCCESS)
