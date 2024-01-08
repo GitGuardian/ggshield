@@ -12,6 +12,7 @@ from ggshield.utils.git_shell import (
     get_list_commit_SHA,
     get_new_branch_ci_commits,
     git,
+    is_valid_git_commit_ref,
 )
 
 from .supported_ci import SupportedCI
@@ -61,7 +62,7 @@ def github_previous_commit_sha(verbose: bool) -> Optional[str]:
         ref_type = os.getenv("GITHUB_REF_TYPE")
         ref_name = os.getenv("GITHUB_REF_NAME")
         if ref_type == "branch" and ref_name:
-            return get_new_branch_before_sha(ref_name, verbose)
+            return get_new_branch_parent_commit(ref_name, verbose)
 
         if verbose:
             click.echo("Could not find previous commit for current branch.")
@@ -124,7 +125,7 @@ def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
     # push_before_sha is also always EMPTY_SHA for the first commit of a new branch
     current_branch = os.getenv("CI_COMMIT_BRANCH")
     if current_branch:
-        return get_new_branch_before_sha(current_branch, verbose)
+        return get_new_branch_parent_commit(current_branch, verbose)
 
     raise UnexpectedError(
         "Unable to get previous commit. Please submit an issue with the following info:\n"
@@ -186,7 +187,7 @@ def jenkins_previous_commit_sha(verbose: bool) -> Optional[str]:
 
     if current_branch:
         try:
-            return get_new_branch_before_sha(current_branch, verbose)
+            return get_new_branch_parent_commit(current_branch, verbose)
         except subprocess.CalledProcessError:
             click.echo("Failed to retrieve initial commit from git history.")
 
@@ -232,7 +233,7 @@ def azure_previous_commit_sha(verbose: bool) -> Optional[str]:
     # New branch push
     current_branch = os.getenv("BUILD_SOURCEBRANCHNAME")
     if current_branch:
-        return get_new_branch_before_sha(current_branch, verbose)
+        return get_new_branch_parent_commit(current_branch, verbose)
 
     # Can't find previous SHA, return last commit
     head_commit = os.getenv("BUILD_SOURCEVERSION")
@@ -302,19 +303,27 @@ def azure_pull_request_previous_commit_sha(verbose: bool) -> Optional[str]:
     return None
 
 
-def get_new_branch_before_sha(branch_name: str, verbose: bool) -> str:
+def get_new_branch_parent_commit(branch_name: str, verbose: bool) -> Optional[str]:
+    """
+    Assuming `branch_name` is a branch newly pushed, this returns a reference
+    to the parent commit of all commits pushed on that branch.
+    """
     new_commits = get_new_branch_ci_commits(branch_name, Path.cwd(), "origin")
-    if new_commits:
-        new_branch_before_sha = f"{new_commits[-1]}^1"
-        if verbose:
-            click.echo(
-                f"new_branch_before_sha: {new_branch_before_sha}\n",
-                err=True,
-            )
-        return new_branch_before_sha
-    else:
-        # New branch pushed with no commits
-        return "HEAD"
+    # New branch pushed with no commits
+    if not new_commits:
+        ref = f"refs/remotes/origin/{branch_name}"
+        return ref if is_valid_git_commit_ref(ref) else "HEAD"
+    new_branch_before_sha = f"{new_commits[-1]}^1"
+    if verbose:
+        click.echo(
+            f"new_branch_before_sha: {new_branch_before_sha}\n",
+            err=True,
+        )
+    return (
+        new_branch_before_sha
+        if is_valid_git_commit_ref(new_branch_before_sha)
+        else None
+    )
 
 
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {

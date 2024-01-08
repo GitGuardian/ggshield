@@ -1,5 +1,7 @@
+import os
 from pathlib import Path
 from typing import Callable
+from unittest import mock
 
 import pytest
 from pytest import MonkeyPatch
@@ -48,7 +50,7 @@ def _setup_azure_ci_env_new_branch(
     monkeypatch.setenv("BUILD_SOURCEBRANCHNAME", branch_name)
 
 
-@pytest.mark.parametrize(
+parametrized_ci_provider = pytest.mark.parametrize(
     "setup_ci_env",
     [
         _setup_github_ci_env_new_branch,
@@ -58,10 +60,12 @@ def _setup_azure_ci_env_new_branch(
     ],
     ids=["github", "gitlab", "azure_devops", "jenkins"],
 )
+
+
+@parametrized_ci_provider
 @pytest.mark.parametrize("new_branch_commits_count", [0, 3])
 def test_get_previous_commit_from_ci_env_new_branch(
     monkeypatch: MonkeyPatch,
-    iac_single_vuln: str,
     tmp_path: Path,
     setup_ci_env: Callable[[MonkeyPatch, str, str], None],
     new_branch_commits_count: int,
@@ -77,25 +81,43 @@ def test_get_previous_commit_from_ci_env_new_branch(
     # Setup main branch
     remote_repository = Repository.create(tmp_path / "remote", bare=True)
     repository = Repository.clone(remote_repository.path, tmp_path / "local")
-    ignored_file = repository.path / "ignored_file.tf"
-    ignored_file.write_text(iac_single_vuln)
-    repository.add(ignored_file)
     expected_sha = repository.create_commit()
     repository.push()
 
     # Setup new branch
     repository.create_branch("new-branch")
     head_sha = "HEAD"
-    for i in range(new_branch_commits_count):
-        scanned_file = repository.path / f"scanned_file{i}.tf"
-        scanned_file.write_text(iac_single_vuln)
-        repository.add(scanned_file)
+    for _ in range(new_branch_commits_count):
         head_sha = repository.create_commit()
 
-    # Simulate CI env
-    setup_ci_env(monkeypatch, "new-branch", head_sha)
-
-    with cd(repository.path):
+    with cd(repository.path), mock.patch.dict(os.environ, clear=True):
+        # Simulate CI env
+        setup_ci_env(monkeypatch, "new-branch", head_sha)
         found_sha = get_previous_commit_from_ci_env(False)
+
+    assert found_sha is not None, "No previous commit SHA found"
     found_sha_evaluated = git(["rev-parse", found_sha], cwd=repository.path)
     assert found_sha_evaluated == expected_sha
+
+
+@parametrized_ci_provider
+def test_get_previous_commit_from_ci_env_new_repo(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    setup_ci_env: Callable[[MonkeyPatch, str, str], None],
+):
+    """
+    GIVEN   a new, empty repository
+    WHEN    calculating the commit sha previous to the first push,
+            in a simulated CI env
+    THEN    None is returned
+    """
+    remote_repository = Repository.create(tmp_path / "remote", bare=True)
+    repository = Repository.clone(remote_repository.path, tmp_path / "local")
+
+    repository.create_commit()
+
+    with cd(repository.path), mock.patch.dict(os.environ, clear=True):
+        # Simulate CI env
+        setup_ci_env(monkeypatch, "new-branch", "HEAD")
+        assert get_previous_commit_from_ci_env(False) is None
