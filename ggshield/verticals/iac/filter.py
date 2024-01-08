@@ -22,6 +22,7 @@ def get_iac_files_from_path(
     exclusion_regexes: Set[re.Pattern],
     verbose: bool,
     ignore_git: bool = False,
+    ignore_git_staged: bool = False,
 ) -> List[Path]:
     """
     Returns IaC file paths found recursively in a given directory.
@@ -41,6 +42,7 @@ def get_iac_files_from_path(
             display_binary_files=verbose,
             display_scanned_files=False,  # If True, this displays all files in the directory but we only want IaC files
             ignore_git=ignore_git,
+            ignore_git_staged=ignore_git_staged,
         )
         if is_iac_file_path(x.path)
     ]

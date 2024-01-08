@@ -15,7 +15,7 @@ from ggshield.cmd.utils.common_options import all_option
 from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.scan.scan_mode import ScanMode
-from ggshield.utils.git_shell import EMPTY_SHA
+from ggshield.utils.git_shell import is_valid_git_commit_ref
 
 
 @click.command()
@@ -54,9 +54,9 @@ def scan_pre_push_cmd(
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
 
     _, remote_commit = collect_commits_refs(prepush_args)
-    # Will happen if this is the first push on the branch
-    has_no_remote_commit = (
-        remote_commit is None or "~1" in remote_commit or remote_commit == EMPTY_SHA
+    # Will happen if this is the first push on the repo
+    has_no_remote_commit = remote_commit is None or not is_valid_git_commit_ref(
+        remote_commit
     )
 
     if scan_all or has_no_remote_commit:

@@ -75,6 +75,7 @@ def iac_scan_all(
         verbose=False,
         # If the repository is a git repository, ignore untracked files
         ignore_git=False,
+        ignore_git_staged=(scan_mode == ScanMode.PRE_PUSH_ALL),
     )
 
     if not paths:
