@@ -253,7 +253,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs:
-      [lint, build, test_github_iac_scan_action, test_github_secret_scan_action]
+      - lint
+      - build
+      - test_github_iac_scan_action
+      - test_github_sca_scan_action
+      - test_github_secret_scan_action
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -270,7 +274,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs:
-      [lint, build, test_github_iac_scan_action, test_github_secret_scan_action]
+      - lint
+      - build
+      - test_github_iac_scan_action
+      - test_github_sca_scan_action
+      - test_github_secret_scan_action
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
