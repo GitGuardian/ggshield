@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -14,8 +15,12 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.core.text_utils import display_info
 from ggshield.utils.git_shell import check_git_dir
 from ggshield.verticals.secret.repo import scan_commit_range
+
+
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -36,7 +41,8 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     mode_header = f"{ScanMode.CI.value}/{ci_mode.value}"
 
     if config.user_config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}", err=True)
+        display_info(f"Commits to scan: {len(commit_list)}")
+    logger.debug("commit_list=%s", commit_list)
 
     scan_context = ScanContext(
         scan_mode=mode_header,
