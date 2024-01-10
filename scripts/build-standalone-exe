@@ -138,9 +138,11 @@ step_pack() {
 }
 
 step_test() {
-    info "test: running --help"
-    "$DIST_DIR/$ARCHIVE_DIR_NAME/ggshield${EXE_EXT}" --help > /dev/null
-    info "test: running --help: OK"
+    for args in --help --version ; do
+        info "test: running $args"
+        "$DIST_DIR/$ARCHIVE_DIR_NAME/ggshield${EXE_EXT}" $args
+        info "test: running $args: OK"
+    done
 }
 
 step_functests() {
