@@ -8,6 +8,7 @@ from typing import Any, List, Optional
 
 import click
 
+from ggshield import __version__
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
 from ggshield.cmd.hmsl import hmsl_group
@@ -98,7 +99,7 @@ def config_path_callback(
     callback=config_path_callback,
 )
 @add_common_options()
-@click.version_option()
+@click.version_option(version=__version__)
 @click.pass_context
 def cli(
     ctx: click.Context,
