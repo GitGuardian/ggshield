@@ -60,7 +60,9 @@ jobs:
       - name: Check commit messages
         if: github.event_name == 'pull_request'
         run: |
-          if git log --format=%s "origin/$GITHUB_BASE_REF..origin/$GITHUB_HEAD_REF" | grep '^fixup!' ; then
+          PR_REF="${GITHUB_REF%/merge}/head"
+          git fetch origin "$PR_REF"
+          if git log --format=%s "origin/$GITHUB_BASE_REF..FETCH_HEAD" | grep '^fixup!' ; then
               echo 'Error: this pull request contains fixup commits. Squash them.'
               exit 1
           fi
