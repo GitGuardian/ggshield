@@ -490,16 +490,20 @@ def test_sca_scan_subdir_tar(
     cli_fs_runner: CliRunner,
     pipfile_lock_with_vuln: str,
 ) -> None:
-    # GIVEN a git repository
+    """
+    GIVEN a git repository
+    GIVEN an inner directory with a vulnerability
+    GIVEN another directory with a vulnerability
+    WHEN scanning the inner dir
+    THEN tar is created with the correct structure
+    """
     repo = Repository.create(tmp_path)
     repo.create_commit()
 
-    # AND an inner directory with a vulnerability
     inner_dir_path = tmp_path / "inner" / "dir"
     inner_dir_path.mkdir(parents=True)
     (inner_dir_path / "Pipfile.lock").write_text(pipfile_lock_with_vuln)
 
-    # AND another directory with a vulnerability
     other_dir_path = tmp_path / "other"
     other_dir_path.mkdir()
     (other_dir_path / "Pipfile.lock").write_text(pipfile_lock_with_vuln)
@@ -507,7 +511,6 @@ def test_sca_scan_subdir_tar(
     repo.add(".")
     repo.create_commit()
 
-    # WHEN scanning the inner dir
     cli_fs_runner.invoke(
         cli,
         [
@@ -518,7 +521,6 @@ def test_sca_scan_subdir_tar(
         ],
     )
 
-    # THEN tar is created with the correct structure
     create_tar_mock.assert_called_once()
     path, filenames = create_tar_mock.call_args.args
     tarbytes = _create_tar(path, filenames)
