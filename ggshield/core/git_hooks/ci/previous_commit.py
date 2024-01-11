@@ -55,7 +55,7 @@ def github_previous_commit_sha(verbose: bool) -> Optional[str]:
         return pull_req_base_sha
 
     if push_before_sha and push_before_sha != EMPTY_SHA:
-        return push_before_sha
+        return get_commit_except_forced_push(push_before_sha, verbose)
 
     if head_sha and event_name == "push":
         # New branch pushed, try to get sha from git state
@@ -120,7 +120,7 @@ def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
         return merge_req_base_sha
 
     if push_before_sha and push_before_sha != EMPTY_SHA:
-        return push_before_sha
+        return get_commit_except_forced_push(push_before_sha, verbose)
 
     # push_before_sha is also always EMPTY_SHA for the first commit of a new branch
     current_branch = os.getenv("CI_COMMIT_BRANCH")
@@ -182,8 +182,8 @@ def jenkins_previous_commit_sha(verbose: bool) -> Optional[str]:
     if target_branch:
         return get_last_commit_sha_of_branch(f"origin/{target_branch}")
 
-    if previous_commit:
-        return previous_commit
+    if previous_commit and previous_commit != EMPTY_SHA:
+        return get_commit_except_forced_push(previous_commit, verbose)
 
     if current_branch:
         try:
@@ -222,13 +222,13 @@ def azure_previous_commit_sha(verbose: bool) -> Optional[str]:
     if pull_req_base_sha is not None:
         return pull_req_base_sha
 
-    if push_before_sha is not None:
+    if push_before_sha is not None and push_before_sha != EMPTY_SHA:
         if verbose:
             click.echo(
                 "The number of commits of a push event is not available in Azure pipelines."
             )
             click.echo("Scanning only last commit.")
-        return push_before_sha
+        return get_commit_except_forced_push(push_before_sha, verbose)
 
     # New branch push
     current_branch = os.getenv("BUILD_SOURCEBRANCHNAME")
@@ -319,11 +319,20 @@ def get_new_branch_parent_commit(branch_name: str, verbose: bool) -> Optional[st
             f"new_branch_before_sha: {new_branch_before_sha}\n",
             err=True,
         )
-    return (
-        new_branch_before_sha
-        if is_valid_git_commit_ref(new_branch_before_sha)
-        else None
-    )
+    if is_valid_git_commit_ref(new_branch_before_sha):
+        return new_branch_before_sha
+    else:
+        if verbose:
+            click.echo("> This might be a new repository.", err=True)
+        return None
+
+
+def get_commit_except_forced_push(commit: str, verbose: bool) -> Optional[str]:
+    if not is_valid_git_commit_ref(commit):
+        if verbose:
+            click.echo("> This might be a forced push.", err=True)
+        return None
+    return commit
 
 
 PREVIOUS_COMMIT_SHA_FUNCTIONS = {

@@ -68,6 +68,12 @@ class Repository:
         self.git("config", "user.email", "ggshield-test@example.com")
         self._credentials_set = True
 
+    def remove_unreachable_commits(self):
+        # Remove all unreachable commits and their references.
+        # It is used to simulate the CI env which cannot access detached history.
+        self.git("reflog", "expire", "--expire-unreachable=now", "--all")
+        self.git("gc", "--prune=now")
+
 
 def create_pre_receive_repo(tmp_path) -> Repository:
     repo = Repository.create(tmp_path)
