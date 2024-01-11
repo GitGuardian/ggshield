@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
 
@@ -86,7 +86,7 @@ jobs:
           fetch-depth: 10
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -253,7 +253,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs:
-      [lint, build, test_github_iac_scan_action, test_github_secret_scan_action]
+      - lint
+      - build
+      - test_github_iac_scan_action
+      - test_github_sca_scan_action
+      - test_github_secret_scan_action
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -270,7 +274,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs:
-      [lint, build, test_github_iac_scan_action, test_github_secret_scan_action]
+      - lint
+      - build
+      - test_github_iac_scan_action
+      - test_github_sca_scan_action
+      - test_github_secret_scan_action
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
