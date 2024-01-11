@@ -2,7 +2,7 @@ from subprocess import CalledProcessError
 
 import pytest
 
-from tests.conftest import _IAC_NO_VULNERABILITIES, _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_NO_VULNERABILITIES, IAC_SINGLE_VULNERABILITY
 
 
 def test_iac_scan_prereceive(iac_repo_with_hook) -> None:
@@ -11,7 +11,7 @@ def test_iac_scan_prereceive(iac_repo_with_hook) -> None:
     vuln_file_name = "file1.tf"
     vuln_path = iac_repo_with_hook.path / vuln_file_name
 
-    vuln_path.write_text(_IAC_SINGLE_VULNERABILITY)
+    vuln_path.write_text(IAC_SINGLE_VULNERABILITY)
 
     iac_repo_with_hook.add(str(vuln_path))
     iac_repo_with_hook.create_commit()
@@ -33,7 +33,7 @@ def test_iac_scan_prereceive_no_vuln(iac_repo_with_hook) -> None:
     non_vuln_file_name = "file_no_vuln.tf"
     non_vuln_path = iac_repo_with_hook.path / non_vuln_file_name
 
-    non_vuln_path.write_text(_IAC_NO_VULNERABILITIES)
+    non_vuln_path.write_text(IAC_NO_VULNERABILITIES)
 
     iac_repo_with_hook.add(str(non_vuln_path))
     iac_repo_with_hook.create_commit()
@@ -65,7 +65,7 @@ def test_iac_scan_prereceive_all(iac_repo_with_hook_all) -> None:
     vuln_file_name = "file1.tf"
     vuln_path = iac_repo_with_hook_all.path / vuln_file_name
 
-    vuln_path.write_text(_IAC_SINGLE_VULNERABILITY)
+    vuln_path.write_text(IAC_SINGLE_VULNERABILITY)
 
     iac_repo_with_hook_all.add(str(vuln_path))
     iac_repo_with_hook_all.create_commit()

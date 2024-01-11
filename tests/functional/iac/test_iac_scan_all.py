@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import pytest
 
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
 
@@ -26,7 +26,7 @@ def _run_scan_iac(
 def test_iac_scan_all(tmp_path: Path, scan_arg) -> None:
     # GIVEN a folder containing a file with vulnerabilities
     test_file = tmp_path / "vulnerability.tf"
-    test_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    test_file.write_text(IAC_SINGLE_VULNERABILITY)
 
     # WHEN scanning it
     # THEN vulnerabilities are found
@@ -69,7 +69,7 @@ def test_iac_scan_all_ignore_all(tmp_path: Path, scan_arg) -> None:
     iac_file_name = "should_not_appear.tf"
 
     tracked_file = tmp_path / iac_file_name
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(tracked_file)
 
     repo.create_commit()
@@ -93,11 +93,11 @@ def test_iac_scan_all_only_tracked_iac(tmp_path: Path, scan_arg) -> None:
     repo = Repository.create(tmp_path)
 
     tracked_file = tmp_path / "should_appear.tf"
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(tracked_file)
 
     untracked_file = tmp_path / "should_not_appear.tf"
-    untracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    untracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     # Do NOT add this file to git
     # repo.add(untracked_file)
 
@@ -123,7 +123,7 @@ def test_iac_scan_all_ignore_path(
 
     for filename in all_files:
         file = tmp_path / filename
-        file.write_text(_IAC_SINGLE_VULNERABILITY)
+        file.write_text(IAC_SINGLE_VULNERABILITY)
         repo.add(file)
 
     # WHEN scanning with --ignore-path option
@@ -153,7 +153,7 @@ def test_iac_scan_all_subdir_content(
 
     # AND a first commit with vulnerabilities
     file1 = inner_dir_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
     repo.create_commit()
 

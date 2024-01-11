@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
 
@@ -14,7 +14,7 @@ def test_iac_scan_diff_no_change(tmp_path: Path) -> None:
 
     # AND a first commit with vulnerabilities
     file1 = tmp_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
     repo.create_commit()
 
@@ -34,7 +34,7 @@ def test_iac_scan_diff_unchanged(tmp_path: Path) -> None:
 
     # AND a first commit with vulnerabilities
     file1 = tmp_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
     repo.create_commit()
 
@@ -66,7 +66,7 @@ def test_iac_scan_diff_unchanged_inner_dir(tmp_path: Path) -> None:
 
     # AND a first commit with vulnerabilities
     file1 = inner_dir_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
     repo.create_commit()
 
@@ -86,7 +86,7 @@ def test_iac_scan_diff_unchanged_inner_dir(tmp_path: Path) -> None:
     assert "1 incident remaining" in result.stdout
     assert "0 new incidents detected" in result.stdout
     vulnerability_lines = [
-        line for line in _IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
+        line for line in IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
     ]
     for line in vulnerability_lines:
         assert line in result.stdout
@@ -99,13 +99,13 @@ def test_iac_scan_diff_new_vuln(tmp_path: Path) -> None:
 
     # AND a first commit with a vulnerability in file1.tf
     file1 = tmp_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
     repo.create_commit()
 
     # AND a second commit with another vulnerability in file2.tf
     file2 = tmp_path / "file2.tf"
-    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    file2.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file2)
     repo.create_commit()
 
@@ -135,13 +135,13 @@ def test_iac_scan_diff_new_vuln_inner_dir(tmp_path: Path) -> None:
 
     # AND a first commit with a vulnerability in file1.tf
     file1 = inner_dir_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
     repo.create_commit()
 
     # AND a second commit with another vulnerability in file2.tf
     file2 = inner_dir_path / "file2.tf"
-    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    file2.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file2)
     repo.create_commit()
 
@@ -159,7 +159,7 @@ def test_iac_scan_diff_new_vuln_inner_dir(tmp_path: Path) -> None:
     # AND details about the new vulnerability are shown
     assert "file2.tf" in result.stdout
     vulnerability_lines = [
-        line for line in _IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
+        line for line in IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
     ]
     for line in vulnerability_lines:
         assert line in result.stdout
@@ -172,11 +172,11 @@ def test_iac_scan_diff_removed_vuln(tmp_path: Path) -> None:
 
     # AND a first commit with a vulnerability in file1.tf and file2.tf
     file1 = tmp_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
 
     file2 = tmp_path / "file2.tf"
-    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    file2.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file2)
     repo.create_commit()
 
@@ -209,11 +209,11 @@ def test_iac_scan_diff_removed_vuln_inner_dir(tmp_path: Path) -> None:
 
     # AND a first commit with a vulnerability in file1.tf and file2.tf
     file1 = inner_dir_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
 
     file2 = inner_dir_path / "file2.tf"
-    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    file2.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file2)
     repo.create_commit()
 
@@ -234,7 +234,7 @@ def test_iac_scan_diff_removed_vuln_inner_dir(tmp_path: Path) -> None:
     assert "1 incident remaining" in result.stdout
     assert "0 new incidents detected" in result.stdout
     vulnerability_lines = [
-        line for line in _IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
+        line for line in IAC_SINGLE_VULNERABILITY.split("\n") if line != ""
     ]
     for line in vulnerability_lines:
         assert line in result.stdout
@@ -248,16 +248,16 @@ def test_iac_scan_diff_only_tracked_iac(tmp_path: Path) -> None:
     repo = Repository.create(tmp_path)
 
     tracked_file = tmp_path / "tracked_file.tf"
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(tracked_file)
 
     untracked_file = tmp_path / "untracked_file.tf"
-    untracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    untracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     # Do NOT add this file to git
     # repo.add(untracked_file)
 
     ignored_file = tmp_path / "ignored_file.tf"
-    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    ignored_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(ignored_file)
 
     repo.create_commit()
@@ -278,18 +278,18 @@ def test_iac_scan_diff_only_tracked_iac_with_ignore(tmp_path: Path) -> None:
     repo = Repository.create(tmp_path)
 
     tracked_file = tmp_path / "tracked_file.tf"
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(tracked_file)
 
     untracked_file = tmp_path / "untracked_file.tf"
-    untracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    untracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     # Do NOT add this file to git
     # repo.add(untracked_file)
 
     repo.create_commit()
 
     ignored_file = tmp_path / "ignored_file.tf"
-    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    ignored_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(ignored_file)
 
     # WHEN scanning it
@@ -307,13 +307,13 @@ def test_iac_scan_diff_staged(tmp_path: Path, staged: bool) -> None:
 
     # AND a vulnerability in a first commit
     tracked_file = tmp_path / "first.tf"
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(tracked_file)
     repo.create_commit()
 
     # AND a staged vulnerability
     untracked_file = tmp_path / "staged.tf"
-    untracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    untracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(untracked_file)
 
     # WHEN scanning it with or without --staged flag

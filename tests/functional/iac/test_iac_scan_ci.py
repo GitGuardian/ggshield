@@ -4,7 +4,7 @@ from typing import Optional
 import pytest
 
 from ggshield.utils.git_shell import EMPTY_SHA
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
 
@@ -13,9 +13,9 @@ from tests.repository import Repository
     "scan_arg,file_content,expected_code,expected_output",
     [
         (None, "Nothing to see here", 0, "No new incident"),
-        (None, _IAC_SINGLE_VULNERABILITY, 1, "[+] 1 new incident detected (HIGH: 1)"),
+        (None, IAC_SINGLE_VULNERABILITY, 1, "[+] 1 new incident detected (HIGH: 1)"),
         ("--all", "Nothing to see here", 0, "No incidents have been found"),
-        ("--all", _IAC_SINGLE_VULNERABILITY, 1, "1 incident detected"),
+        ("--all", IAC_SINGLE_VULNERABILITY, 1, "1 incident detected"),
     ],
 )
 def test_ci_diff_no_vuln(
@@ -37,7 +37,7 @@ def test_ci_diff_no_vuln(
 
     # AND an unstaged file with a vulnerability
     iac_file = tmp_path / "iac_file.tf"
-    iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    iac_file.write_text(IAC_SINGLE_VULNERABILITY)
 
     # WHEN scanning it
     args = ["ci"]
@@ -54,7 +54,7 @@ def test_ci_diff_no_vuln(
     # the committed file contains one
     assert "iac_file.tf" not in result.stdout
     assert ("test_file.tf" in result.stdout) == (
-        file_content == _IAC_SINGLE_VULNERABILITY
+        file_content == IAC_SINGLE_VULNERABILITY
     )
     assert expected_output in result.stdout
 
@@ -68,14 +68,14 @@ def test_gitlab_previous_commit_sha_for_merged_results_pipelines(
     local_tmp_path = tmp_path / "local"
     repository = Repository.clone(remote_repository.path, local_tmp_path)
     ignored_file = local_tmp_path / "ignored_file.tf"
-    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    ignored_file.write_text(IAC_SINGLE_VULNERABILITY)
     repository.add(ignored_file)
     repository.create_commit()
     repository.push()
 
     # AND a new commit containing another file with a vulnerability
     scanned_file = local_tmp_path / "scanned_file.tf"
-    scanned_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    scanned_file.write_text(IAC_SINGLE_VULNERABILITY)
     repository.add(scanned_file)
     last_sha = repository.create_commit()
 
@@ -105,14 +105,14 @@ def test_gitlab_new_branch(tmp_path: Path) -> None:
     # AND a local clone with a vulnerability on the same branch
     repository = Repository.clone(remote_repository.path, tmp_path / "local")
     ignored_file = repository.path / "ignored_file.tf"
-    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    ignored_file.write_text(IAC_SINGLE_VULNERABILITY)
     repository.add(ignored_file)
     repository.create_commit()
     repository.push()
     # AND another vulnerability on another branch
     repository.create_branch("branch2")
     scanned_file = repository.path / "scanned_file.tf"
-    scanned_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    scanned_file.write_text(IAC_SINGLE_VULNERABILITY)
     repository.add(scanned_file)
     repository.create_commit()
 
@@ -140,7 +140,7 @@ def test_gitlab_new_empty_branch(tmp_path: Path) -> None:
     # AND a local clone with a vulnerability on the same branch
     repository = Repository.clone(remote_repository.path, tmp_path / "local")
     ignored_file = repository.path / "ignored_file.tf"
-    ignored_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    ignored_file.write_text(IAC_SINGLE_VULNERABILITY)
     repository.add(ignored_file)
     repository.create_commit()
     repository.push()

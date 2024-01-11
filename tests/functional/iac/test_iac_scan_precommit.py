@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import run_ggshield_iac_scan
 from tests.repository import Repository
 
@@ -12,7 +12,7 @@ def test_iac_precommit_default(tmp_path: Path):
 
     # AND stage vulnerabilities
     file = tmp_path / "precommit.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file)
 
     # WHEN scanning the diff between current and HEAD with pre-commit
@@ -30,7 +30,7 @@ def test_iac_precommit_all(tmp_path: Path):
 
     # AND staged vulnerability
     file = tmp_path / "precommit.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file)
 
     # WHEN scanning all between current and HEAD with pre-commit --all
@@ -61,7 +61,7 @@ def test_iac_precommit_all_not_modified(tmp_path: Path):
 
     # AND a first commit with vulnerabilities
     file = tmp_path / "precommit.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file)
     repo.create_commit()
 

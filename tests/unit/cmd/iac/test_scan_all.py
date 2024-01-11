@@ -13,7 +13,7 @@ from pytest_mock import MockerFixture
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, my_vcr
 from tests.unit.request_mock import create_json_response
@@ -35,7 +35,7 @@ def setup_single_iac_vuln_repo(tmp_path: Path) -> str:
     iac_file_name = "iac_file_single_vulnerability.tf"
 
     tracked_file = tmp_path / iac_file_name
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(tracked_file)
 
     repo.create_commit()
@@ -221,11 +221,11 @@ def test_iac_scan_all_verbose(cli_fs_runner: CliRunner, cli_command) -> None:
         non_iac_file_name = "non_iac_file.txt"
 
         tracked_iac_file = path / iac_file_name
-        tracked_iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+        tracked_iac_file.write_text(IAC_SINGLE_VULNERABILITY)
         repo.add(tracked_iac_file)
 
         tracked_non_iac_file = path / non_iac_file_name
-        tracked_non_iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+        tracked_non_iac_file.write_text(IAC_SINGLE_VULNERABILITY)
         repo.add(tracked_non_iac_file)
 
         repo.create_commit()
@@ -254,7 +254,7 @@ def test_iac_scan_all_ignored_directory(
     path = Path(".")
     repo = Repository.create(path)
     iac_file = path / "iac_file.tf"
-    iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    iac_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(iac_file)
     repo.create_commit()
 
@@ -289,7 +289,7 @@ def test_iac_scan_all_context_repository(
     local_repo.git("remote", "add", "origin", remote_url)
 
     tracked_file = local_repo.path / "iac_file_single_vulnerability.tf"
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     local_repo.add(tracked_file)
     local_repo.create_commit()
 
@@ -328,12 +328,12 @@ def test_iac_scan_all_subdir_tar(
     # AND an inner directory with a vulnerability
     inner_dir_path = tmp_path / "inner" / "dir"
     inner_dir_path.mkdir(parents=True)
-    (inner_dir_path / "file1.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+    (inner_dir_path / "file1.tf").write_text(IAC_SINGLE_VULNERABILITY)
 
     # AND another directory with a vulnerability
     other_dir_path = tmp_path / "other"
     other_dir_path.mkdir()
-    (other_dir_path / "file2.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+    (other_dir_path / "file2.tf").write_text(IAC_SINGLE_VULNERABILITY)
 
     repo.add(".")
     repo.create_commit()
