@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import click
-from pygitguardian import GGClient
 from pygitguardian.models import Detail, HoneytokenResponse
 
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.click import RealPath
@@ -80,7 +80,8 @@ def create_cmd(
     # if name is not given, generate a random one
     if not name:
         name = _generate_random_honeytoken_name()
-    client: GGClient = create_client_from_config(ctx.obj["config"])
+    ctx_obj = ContextObj.get(ctx)
+    client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
     response = client.create_honeytoken(name, type_, description)
     if not isinstance(response, (Detail, HoneytokenResponse)):
         raise UnexpectedError("Unexpected honeytoken response")

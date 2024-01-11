@@ -57,6 +57,7 @@ def get_files_from_paths(
     display_scanned_files: bool,
     display_binary_files: bool,
     ignore_git: bool = False,
+    ignore_git_staged: bool = False,
 ) -> List[Scannable]:
     """
     Create a scan object from files content.
@@ -71,7 +72,11 @@ def get_files_from_paths(
     """
     try:
         filepaths = get_filepaths(
-            paths, exclusion_regexes, recursive, ignore_git=ignore_git
+            paths,
+            exclusion_regexes,
+            recursive,
+            ignore_git=ignore_git,
+            ignore_git_staged=ignore_git_staged,
         )
     except UnexpectedDirectoryError as error:
         raise click.UsageError(

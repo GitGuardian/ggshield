@@ -41,11 +41,11 @@ def path_cmd(
     verbose = config.user_config.verbose
 
     for path in paths:
-        check_directory_not_ignored(path, ctx.obj["exclusion_regexes"])
+        check_directory_not_ignored(path, ctx_obj.exclusion_regexes)
 
     files = get_files_from_paths(
         paths=paths,
-        exclusion_regexes=ctx.obj["exclusion_regexes"],
+        exclusion_regexes=ctx_obj.exclusion_regexes,
         recursive=recursive,
         yes=yes,
         display_scanned_files=verbose,
@@ -64,8 +64,8 @@ def path_cmd(
         )
 
         scanner = SecretScanner(
-            client=ctx.obj["client"],
-            cache=ctx.obj["cache"],
+            client=ctx_obj.client,
+            cache=ctx_obj.cache,
             ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.user_config.secret.ignored_detectors,

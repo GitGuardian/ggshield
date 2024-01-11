@@ -1,17 +1,24 @@
+from typing import Optional
+
 import requests
 import urllib3
-from pygitguardian import GGClient
+from pygitguardian import GGClient, GGClientCallbacks
 from requests import Session
 
 from .config import Config
 from .constants import DEFAULT_INSTANCE_URL
 from .errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
+from .ui.client_callbacks import ClientCallbacks
+from .ui.ggshield_ui import GGShieldUI
 
 
-def create_client_from_config(config: Config) -> GGClient:
+def create_client_from_config(
+    config: Config, ui: Optional[GGShieldUI] = None
+) -> GGClient:
     """
     Create a GGClient using parameters from Config.
     """
+    callbacks = ClientCallbacks(ui) if ui else None
     try:
         api_key = config.api_key
         api_url = config.api_url
@@ -36,12 +43,19 @@ https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
             raise
 
     return create_client(
-        api_key, api_url, allow_self_signed=config.user_config.allow_self_signed
+        api_key,
+        api_url,
+        allow_self_signed=config.user_config.allow_self_signed,
+        callbacks=callbacks,
     )
 
 
 def create_client(
-    api_key: str, api_url: str, *, allow_self_signed: bool = False
+    api_key: str,
+    api_url: str,
+    *,
+    allow_self_signed: bool = False,
+    callbacks: Optional[GGClientCallbacks] = None,
 ) -> GGClient:
     """
     Implementation of create_client_from_config(). Exposed as a function for specific
@@ -55,6 +69,7 @@ def create_client(
             user_agent="ggshield",
             timeout=60,
             session=session,
+            callbacks=callbacks,
         )
     except ValueError as e:
         # Can be raised by pygitguardian

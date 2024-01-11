@@ -11,10 +11,11 @@ The `kwargs` argument is required because due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
 from pathlib import Path
-from typing import Any, Callable, Optional, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar
 
 import click
 
+from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.debug_logs import setup_debug_logs
 from ggshield.core.config.user_config import UserConfig
 
@@ -33,7 +34,7 @@ ClickCallback = Callable[
 
 def get_config_from_context(ctx: click.Context) -> UserConfig:
     """Returns the UserConfig object stored in Click context"""
-    return cast(UserConfig, ctx.obj["config"].user_config)
+    return ContextObj.get(ctx).config.user_config
 
 
 def create_ctx_callback(name: str) -> ClickCallback:

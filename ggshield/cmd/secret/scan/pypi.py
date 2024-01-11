@@ -112,7 +112,7 @@ def pypi_cmd(
         files = get_files_from_package(
             archive_dir=temp_path,
             package_name=package_name,
-            exclusion_regexes=ctx.obj["exclusion_regexes"],
+            exclusion_regexes=ctx_obj.exclusion_regexes,
             verbose=config.user_config.verbose,
         )
 
@@ -123,8 +123,8 @@ def pypi_cmd(
             )
 
             scanner = SecretScanner(
-                client=ctx.obj["client"],
-                cache=ctx.obj["cache"],
+                client=ctx_obj.client,
+                cache=ctx_obj.cache,
                 ignored_matches=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
                 ignored_detectors=config.user_config.secret.ignored_detectors,

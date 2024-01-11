@@ -18,7 +18,7 @@ from ggshield.core.text_utils import STYLE, format_text
 def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """Show API status and version."""
     ctx_obj = ContextObj.get(ctx)
-    client = create_client_from_config(ctx_obj.config)
+    client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
     response: HealthCheckResponse = client.health_check()
 
     if not isinstance(response, HealthCheckResponse):

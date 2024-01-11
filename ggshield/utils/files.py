@@ -3,7 +3,7 @@ from pathlib import Path, PurePosixPath
 from typing import List, Set, Union
 
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
-from ggshield.utils.git_shell import git_ls, is_git_dir
+from ggshield.utils.git_shell import get_filepaths_from_ref, git_ls, is_git_dir
 
 
 class UnexpectedDirectoryError(ValueError):
@@ -25,6 +25,7 @@ def get_filepaths(
     exclusion_regexes: Set[re.Pattern],
     recursive: bool,
     ignore_git: bool,
+    ignore_git_staged: bool = False,
 ) -> Set[Path]:
     """
     Retrieve the filepaths from the command.
@@ -43,7 +44,12 @@ def get_filepaths(
                 raise UnexpectedDirectoryError(path)
 
             if not ignore_git and is_git_dir(path):
-                _targets = {path / target for target in git_ls(path)}
+                target_filepaths = (
+                    get_filepaths_from_ref("HEAD", wd=path)
+                    if ignore_git_staged
+                    else git_ls(path)
+                )
+                _targets = {path / x for x in target_filepaths}
             else:
                 _targets = path.rglob(r"*")
 

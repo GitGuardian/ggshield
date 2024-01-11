@@ -1,22 +1,50 @@
 # Changelog
 
+<a id='changelog-1.23.0'></a>
+
+## 1.23.0 — 2024-01-09
+
+### Added
+
+- GGShield output now adapts when the grace period of an IaC incident ignored by a developer has been expired.
+
+- GGShield now shows a warning message if it hits a rate-limit.
+
+### Changed
+
+- IaC incidents ignored on the GitGuardian app no longer show up in the scan results.
+
+### Fixed
+
+- IaC/SCA scans now properly find the parent commit SHA on GitLab push pipelines for new branches.
+
+- Error messages now appear above progress bars instead of overlapping them.
+
+#### IaC
+
+- File content are now displayed as intended when executing `ggshield iac scan all` on a subdirectory of a Git repository.
+
+- Pre-push scans are now diff scans when pushing a new branch, comparing to the last commit of the parent branch.
+
+- Pre-push scans on empty repositories no longer include staged files.
+
 <a id='changelog-1.22.0'></a>
 
 ## 1.22.0 — 2023-11-28
 
 ### Added
 
-- Secret: ggshield now prints the name of what is being scanned when called with `--verbose` (#212).
+- Secret: GGShield now prints the name of what is being scanned when called with `--verbose` (#212).
 
 - You can now use the `SKIP=ggshield` environment variable without the [pre-commit framework](https://pre-commit.com/) to skip pre-commit and pre-push scans.
 
 ### Changed
 
-- ggshield can now scan huge commits without running out of memory.
+- GGShield can now scan huge commits without running out of memory.
 
 ### Fixed
 
-- IAC and SCA: scans in GitLab merge request pipelines should now be performed on the intended commit ranges, instead of an empty range.
+- IaC and SCA: scans in GitLab merge request pipelines should now be performed on the intended commit ranges, instead of an empty range.
 
 <a id='changelog-1.21.0'></a>
 
@@ -24,7 +52,7 @@
 
 ### Added
 
-- Support for new options in gitguardian config file. IaC `ignored-paths` and `ignored_policies` can now be defined as objects with `comment` and `until` properties. If an `until` date is provided, the path/policy is only ignored up until this date. The old format is still supported. Check `.gitguardian.example.yaml` for a sample.
+- Support for new options in GitGuardian config file. IaC `ignored-paths` and `ignored_policies` can now be defined as objects with `comment` and `until` properties. If an `until` date is provided, the path/policy is only ignored up until this date. The old format is still supported. Check `.gitguardian.example.yaml` for a sample.
 
 ### Changed
 

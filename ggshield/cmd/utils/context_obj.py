@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Any, Optional, Set, cast
+from typing import Optional, Set, cast
 
 import click
 from pygitguardian import GGClient
@@ -90,11 +90,3 @@ class ContextObj:
         """The recommended way to get a ContextObj instance, see the class docstring for
         details"""
         return cast(ContextObj, ctx.obj)
-
-    # The two following methods are here for compatibility reasons: ctx.obj used to be
-    # a dict, and not all code has been ported to use it as an object.
-    def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
-
-    def __setitem__(self, key: str, value: Any) -> Any:
-        return setattr(self, key, value)

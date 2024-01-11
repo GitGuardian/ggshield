@@ -71,7 +71,8 @@ def _exclude_callback(
         ignored_paths.update(value)
 
     ignored_paths.update(IGNORED_DEFAULT_WILDCARDS)
-    ctx.obj["exclusion_regexes"] = init_exclusion_regexes(ignored_paths)
+    ctx_obj = ContextObj.get(ctx)
+    ctx_obj.exclusion_regexes = init_exclusion_regexes(ignored_paths)
     return value
 
 
@@ -143,6 +144,6 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     return output_handler_cls(
         show_secrets=config.user_config.secret.show_secrets,
         verbose=config.user_config.verbose,
-        output=ctx.obj.output,
+        output=ctx_obj.output,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
     )

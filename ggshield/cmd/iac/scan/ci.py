@@ -41,7 +41,8 @@ def scan_ci_cmd(
     The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
     in which case the scan is only successful if no IaC vulnerability (old and new) was found.
     """
-    config = ContextObj.get(ctx).config
+    ctx_obj = ContextObj.get(ctx)
+    config = ctx_obj.config
     if directory is None:
         directory = Path().resolve()
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
@@ -51,7 +52,7 @@ def scan_ci_cmd(
         result = iac_scan_all(
             ctx, directory, scan_mode=ScanMode.CI_ALL, ci_mode=ci_mode
         )
-        augment_unignored_issues(ctx.obj["config"].user_config, result)
+        augment_unignored_issues(config.user_config, result)
         return display_iac_scan_all_result(ctx, directory, result)
 
     current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
@@ -67,5 +68,5 @@ def scan_ci_cmd(
         scan_mode=ScanMode.CI_DIFF,
         ci_mode=ci_mode,
     )
-    augment_unignored_issues(ctx.obj["config"].user_config, result)
+    augment_unignored_issues(config.user_config, result)
     return display_iac_scan_diff_result(ctx, directory, result)
