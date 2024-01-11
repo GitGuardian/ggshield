@@ -66,6 +66,10 @@ class CommitScannable(Scannable):
         self._content = content
         self._utf8_encoded_size = None
 
+    def _read_content(self) -> None:
+        if self._content is not None and self._utf8_encoded_size is None:
+            self._utf8_encoded_size = len(self._content.encode(errors="replace"))
+
     @property
     def url(self) -> str:
         return CommitScannable.create_url(self._sha, self.path)
@@ -79,13 +83,9 @@ class CommitScannable(Scannable):
         return self._path
 
     def is_longer_than(self, max_utf8_encoded_size: int) -> bool:
-        if self._utf8_encoded_size is None:
-            self._utf8_encoded_size = len(self._content.encode(errors="replace"))
+        self._read_content()
+        assert self._utf8_encoded_size is not None
         return self._utf8_encoded_size > max_utf8_encoded_size
-
-    @property
-    def content(self) -> str:
-        return self._content
 
     @staticmethod
     def create_url(sha: Optional[str], path: Path) -> str:

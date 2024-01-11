@@ -64,8 +64,6 @@ class DockerContentScannable(Scannable):
         self._layer_id = layer_id
         self._tar_file = tar_file
         self._tar_info = tar_info
-        self._content: Optional[str] = None
-        self._utf8_encoded_size: Optional[int] = None
 
     @property
     def url(self) -> str:
@@ -100,8 +98,7 @@ class DockerContentScannable(Scannable):
             # BinaryIO. They are compatible, ignore the error.
         return result
 
-    @property
-    def content(self) -> str:
+    def _read_content(self) -> None:
         if self._content is None:
             file = self._tar_file.extractfile(self._tar_info)
             assert file is not None
@@ -109,7 +106,6 @@ class DockerContentScannable(Scannable):
             self._content, self._utf8_encoded_size = Scannable._decode_bytes(
                 byte_content
             )
-        return self._content
 
 
 @dataclass

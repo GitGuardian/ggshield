@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Set, Union
+from typing import Iterable, Iterator, List, Set, Union
 
 import click
 
@@ -15,8 +15,6 @@ class File(Scannable):
     def __init__(self, path: Union[str, Path]):
         super().__init__()
         self._path = Path(path)
-        self._content: Optional[str] = None
-        self._utf8_encoded_size: Optional[int] = None
 
     @property
     def url(self) -> str:
@@ -43,14 +41,12 @@ class File(Scannable):
             ) = Scannable._is_file_longer_than(fp, max_utf8_encoded_size)
         return result
 
-    @property
-    def content(self) -> str:
+    def _read_content(self) -> None:
         if self._content is None:
             with self.path.open("rb") as f:
                 self._content, self._utf8_encoded_size = Scannable._decode_bytes(
                     f.read()
                 )
-        return self._content
 
 
 def get_files_from_paths(
