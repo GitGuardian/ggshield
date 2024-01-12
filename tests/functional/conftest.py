@@ -15,6 +15,8 @@ from pygitguardian.config import DEFAULT_BASE_URI
 from tests.repository import Repository
 
 
+GGSHIELD_PATH = shutil.which("ggshield")
+
 FUNCTESTS_DATA_PATH = Path(__file__).parent / "data"
 
 # Path to the root of ggshield repository
@@ -170,3 +172,9 @@ def sca_repo_with_hook_all(tmp_path: Path) -> Repository:
     return repo_with_hook_content(
         tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("sca")
     )
+
+
+def pytest_report_header(config, start_path, startdir):
+    """This function is called by pytest, it lets us insert messages in its report
+    header"""
+    return f"ggshield path: {GGSHIELD_PATH}"
