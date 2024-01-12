@@ -28,7 +28,7 @@ work_dir_option = click.option(
     "--work-dir",
     help="Where to store benchmark script work files.",
     default=DEFAULT_WORK_DIR,
-    type=click.Path(),
+    type=click.Path(path_type=Path),
 )
 
 
