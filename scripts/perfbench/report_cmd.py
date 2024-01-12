@@ -1,4 +1,3 @@
-import json
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -7,12 +6,7 @@ from statistics import median, stdev
 from typing import Dict, Iterable, List, Optional, TextIO, Tuple
 
 import click
-from perfbench_utils import (
-    RawReportEntry,
-    find_latest_prod_version,
-    get_raw_report_path,
-    work_dir_option,
-)
+from perfbench_utils import RawReport, get_raw_report_path, work_dir_option
 
 
 # Do not report changes if the delta is less than this duration
@@ -28,15 +22,6 @@ class ReportRow:
     dataset: str
     # Mapping of version => [durations]
     durations_for_versions: Dict[str, List[float]] = field(default_factory=dict)
-
-
-def key_for_version(version: str) -> Tuple[int, ...]:
-    if version == "current":
-        # Make sure "current" is always last
-        return 999999, 0, 0
-    if version == "prod":
-        version = find_latest_prod_version()
-    return tuple(int(x) for x in version.split("."))
 
 
 def print_markdown_table(
@@ -144,23 +129,20 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
         )
 
     # Load raw report file, group report rows by command and dataset
-    version_set = set()
     row_dict: Dict[Tuple[str, str], ReportRow] = {}
+
     with report_path.open() as fp:
-        for line in fp:
-            dct = json.loads(line)
-            entry = RawReportEntry(**dct)
+        raw_report = RawReport.load(fp)
 
-            version_set.add(entry.version)
+    for entry in raw_report.entries:
+        row = row_dict.setdefault(
+            (entry.command, entry.dataset),
+            ReportRow(entry.command, entry.dataset),
+        )
+        durations = row.durations_for_versions.setdefault(entry.version, [])
+        durations.append(entry.duration)
 
-            row = row_dict.setdefault(
-                (entry.command, entry.dataset),
-                ReportRow(entry.command, entry.dataset),
-            )
-            durations = row.durations_for_versions.setdefault(entry.version, [])
-            durations.append(entry.duration)
-
-    sorted_versions = sorted(version_set, key=key_for_version)
+    sorted_versions = raw_report.versions
 
     # Create table rows
     table_rows = []
