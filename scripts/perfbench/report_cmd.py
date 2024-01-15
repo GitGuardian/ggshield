@@ -1,3 +1,4 @@
+import csv
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -22,6 +23,12 @@ class ReportRow:
     dataset: str
     # Mapping of version => [durations]
     durations_for_versions: Dict[str, List[float]] = field(default_factory=dict)
+
+
+@dataclass
+class Duration:
+    value: float
+    deviation: Optional[float]
 
 
 def print_markdown_table(
@@ -61,6 +68,23 @@ def print_markdown_table(
         print_row(row)
 
 
+def create_duration_row(
+    sorted_versions: List[str], durations_for_versions: Dict[str, List[float]]
+) -> List[Duration]:
+    row: List[Duration] = []
+    for version in sorted_versions:
+        durations_for_version = durations_for_versions[version]
+        value = median(durations_for_version)
+
+        if len(durations_for_version) > 1:
+            deviation = stdev(durations_for_version)
+        else:
+            deviation = None
+        row.append(Duration(value, deviation))
+
+    return row
+
+
 def create_duration_cells(
     sorted_versions: List[str],
     durations_for_versions: Dict[str, List[float]],
@@ -69,23 +93,24 @@ def create_duration_cells(
 ) -> Tuple[List[str], bool]:
     """Returns a list of cells, and a bool indicating whether we noticed a delta
     higher than MAX_DELTA_SECS"""
+
     cells: List[str] = []
     reference: Optional[float] = None
     fail = False
-    for version in sorted_versions:
-        durations_for_version = durations_for_versions[version]
-        duration = median(durations_for_version)
-        cell = f"{duration:.2f}s"
 
-        if len(durations_for_version) > 1:
-            deviation = stdev(durations_for_version)
-            cell += f" ±{deviation:.2f}"
+    durations = create_duration_row(sorted_versions, durations_for_versions)
+
+    for duration in durations:
+        cell = f"{duration.value:.2f}s"
+
+        if duration.deviation:
+            cell += f" ±{duration.deviation:.2f}"
         cells.append(cell)
 
         if reference is None:
-            reference = duration
+            reference = duration.value
         else:
-            delta = duration - reference
+            delta = duration.value - reference
             if abs(delta) > min_delta:
                 if delta > max_delta:
                     symbol = "▲" * 3
@@ -99,6 +124,74 @@ def create_duration_cells(
 
             cells.append(f"{delta:+.2f} {symbol}")
     return cells, fail
+
+
+def create_header_row(sorted_versions: List[str]) -> List[str]:
+    """Create headers (no delta column for reference)"""
+    headers = ["command", "dataset", sorted_versions[0]]
+    for version in sorted_versions[1:]:
+        headers.extend([version, "delta"])
+    return headers
+
+
+def print_csv_output(
+    sorted_versions: List[str],
+    rows: Iterable[ReportRow],
+):
+    writer = csv.writer(sys.stdout)
+
+    # Header row
+    headers = ["command", "dataset"]
+    for version in sorted_versions:
+        headers.extend([version, f"{version} (deviation)"])
+    writer.writerow(headers)
+
+    # Data
+    for row in sorted(rows, key=lambda x: (x.command, x.dataset)):
+        durations = create_duration_row(
+            sorted_versions,
+            row.durations_for_versions,
+        )
+        table_row = [row.command, row.dataset]
+        for duration in durations:
+            table_row.append(str(duration.value))
+            table_row.append(str(duration.deviation))
+        writer.writerow(table_row)
+
+
+def print_markdown_output(
+    sorted_versions: List[str],
+    rows: Iterable[ReportRow],
+    min_delta: float,
+    max_delta: float,
+):
+    # Create table rows
+    table_rows = []
+    has_failed = False
+    for row in sorted(rows, key=lambda x: (x.command, x.dataset)):
+        duration_cells, fail = create_duration_cells(
+            sorted_versions,
+            row.durations_for_versions,
+            min_delta,
+            max_delta,
+        )
+        has_failed |= fail
+        table_rows.append([row.command, row.dataset, *duration_cells])
+
+    # Create headers (no delta column for reference)
+    version_headers = [sorted_versions[0]]
+    for version in sorted_versions[1:]:
+        version_headers.extend([version, "delta"])
+
+    headers = ["command", "dataset", *version_headers]
+    print_markdown_table(
+        sys.stdout,
+        table_rows,
+        headers=headers,
+        alignments="LL" + "R" * len(version_headers),
+    )
+
+    sys.exit(1 if has_failed else 0)
 
 
 @click.command()
@@ -116,8 +209,15 @@ def create_duration_cells(
     " exit with error.",
     default=DEFAULT_MAX_DELTA_SECS,
 )
+@click.option(
+    "--csv",
+    "use_csv",
+    is_flag=True,
+)
 @work_dir_option
-def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
+def report_cmd(
+    min_delta: float, max_delta: float, use_csv: bool, work_dir: Path
+) -> None:
     """
     Generate a report from a benchmark run
     """
@@ -144,29 +244,7 @@ def report_cmd(min_delta: float, max_delta: float, work_dir: Path) -> None:
 
     sorted_versions = raw_report.versions
 
-    # Create table rows
-    table_rows = []
-    has_failed = False
-    for row in sorted(row_dict.values(), key=lambda x: (x.command, x.dataset)):
-        duration_cells, fail = create_duration_cells(
-            sorted_versions,
-            row.durations_for_versions,
-            min_delta,
-            max_delta,
-        )
-        has_failed |= fail
-        table_rows.append([row.command, row.dataset, *duration_cells])
-
-    # Create headers (no delta column for reference)
-    version_headers = [sorted_versions[0]]
-    for version in sorted_versions[1:]:
-        version_headers.extend([version, "delta"])
-
-    print_markdown_table(
-        sys.stdout,
-        table_rows,
-        headers=["command", "dataset", *version_headers],
-        alignments="LL" + "R" * len(version_headers),
-    )
-
-    sys.exit(1 if has_failed else 0)
+    if use_csv:
+        print_csv_output(sorted_versions, row_dict.values())
+    else:
+        print_markdown_output(sorted_versions, row_dict.values(), min_delta, max_delta)
