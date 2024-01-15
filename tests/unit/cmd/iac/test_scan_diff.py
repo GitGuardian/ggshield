@@ -6,7 +6,7 @@ from click.testing import CliRunner
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.utils.os import cd
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, my_vcr
 
@@ -100,7 +100,7 @@ def test_iac_scan_diff_file_error_response(tmp_path, cli_fs_runner: CliRunner) -
     THEN an error is thrown
     """
     file_path = Path(tmp_path / "iac_file_single_vulnerability.tf")
-    file_path.write_text(_IAC_SINGLE_VULNERABILITY)
+    file_path.write_text(IAC_SINGLE_VULNERABILITY)
 
     result = cli_fs_runner.invoke(
         cli,
@@ -170,7 +170,7 @@ def test_iac_scan_diff_ignored_directory(
     repo = Repository.create(path)
     initial_commit = repo.create_commit()
     iac_file = path / "iac_file.tf"
-    iac_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    iac_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(iac_file)
     repo.create_commit()
 
@@ -210,7 +210,7 @@ def test_iac_scan_diff_context_repository(
     local_repo.create_commit()
 
     tracked_file = local_repo.path / "iac_file_single_vulnerability.tf"
-    tracked_file.write_text(_IAC_SINGLE_VULNERABILITY)
+    tracked_file.write_text(IAC_SINGLE_VULNERABILITY)
     local_repo.add(tracked_file)
 
     cli_fs_runner.invoke(

@@ -5,7 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr
 
@@ -39,7 +39,7 @@ def test_iac_scan_exit_zero(
     repo = Repository.create(tmp_path)
     repo.create_commit()
     first_file = repo.path / "file.tf"
-    first_content = _IAC_SINGLE_VULNERABILITY
+    first_content = IAC_SINGLE_VULNERABILITY
     first_file.write_text(first_content)
     repo.add("file.tf")
     repo.create_commit()

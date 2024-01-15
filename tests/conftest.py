@@ -40,14 +40,14 @@ skipwindows = pytest.mark.skipif(
 )
 
 
-_IAC_SINGLE_VULNERABILITY = """
+IAC_SINGLE_VULNERABILITY = """
 resource "aws_alb_listener" "bad_example" {
   protocol = "HTTP"
 }
 """
 
 
-_IAC_MULTIPLE_VULNERABILITIES = """
+IAC_MULTIPLE_VULNERABILITIES = """
 resource "aws_security_group" "bad_example" {
   egress {
     cidr_blocks = ["0.0.0.0/0"]
@@ -61,7 +61,7 @@ resource "aws_security_group" "bad_example" {
 
 """
 
-_IAC_NO_VULNERABILITIES = """
+IAC_NO_VULNERABILITIES = """
 resource "aws_network_acl_rule" "bad_example" {
   egress         = false
   protocol       = "tcp"

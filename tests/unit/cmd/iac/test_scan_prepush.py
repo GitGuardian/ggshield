@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from ggshield.__main__ import cli
 from ggshield.utils.os import cd
-from tests.conftest import _IAC_NO_VULNERABILITIES, _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_NO_VULNERABILITIES, IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import my_vcr
 
@@ -33,7 +33,7 @@ def test_iac_scan_prepush_output(
     # AND a commit with a vulnerability
     sha = local_repo.create_commit()
     file = local_repo.path / "vuln.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     local_repo.add("vuln.tf")
     local_repo.create_commit()
 
@@ -73,7 +73,7 @@ def test_iac_scan_prepush_no_iac_changes(
     # AND a local clone
     local_repo = Repository.clone(remote_repo.path, tmp_path / "local")
     file = local_repo.path / "iac_before_hook.tf"
-    file.write_text(_IAC_NO_VULNERABILITIES)
+    file.write_text(IAC_NO_VULNERABILITIES)
     local_repo.add("iac_before_hook.tf")
     local_repo.create_commit()
     local_repo.push()

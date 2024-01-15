@@ -12,9 +12,9 @@ from ggshield.core.errors import ExitCode
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.verticals.iac.output.iac_text_output_handler import IaCTextOutputHandler
 from tests.conftest import (
-    _IAC_MULTIPLE_VULNERABILITIES,
-    _IAC_NO_VULNERABILITIES,
-    _IAC_SINGLE_VULNERABILITY,
+    IAC_MULTIPLE_VULNERABILITIES,
+    IAC_NO_VULNERABILITIES,
+    IAC_SINGLE_VULNERABILITY,
 )
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
 from tests.unit.verticals.iac.utils import (
@@ -26,9 +26,7 @@ from tests.unit.verticals.iac.utils import (
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
 def test_display_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
-    (tmp_path / "iac_file_single_vulnerability.tf").write_text(
-        _IAC_SINGLE_VULNERABILITY
-    )
+    (tmp_path / "iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
 
     result = cli_fs_runner.invoke(
         cli,
@@ -46,9 +44,7 @@ def test_display_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
 def test_exit_zero_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
-    (tmp_path / "iac_file_single_vulnerability.tf").write_text(
-        _IAC_SINGLE_VULNERABILITY
-    )
+    (tmp_path / "iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
     result = cli_fs_runner.invoke(
         cli,
         [
@@ -65,7 +61,7 @@ def test_exit_zero_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner
 @my_vcr.use_cassette("test_iac_scan_multiple_vulnerabilities")
 def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_multiple_vulnerabilities.tf").write_text(
-        _IAC_MULTIPLE_VULNERABILITIES
+        IAC_MULTIPLE_VULNERABILITIES
     )
 
     result = cli_fs_runner.invoke(
@@ -85,7 +81,7 @@ def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunn
 
 @my_vcr.use_cassette("test_iac_scan_no_vulnerabilities")
 def test_display_no_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
-    (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(_IAC_NO_VULNERABILITIES)
+    (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
 
     result = cli_fs_runner.invoke(
         cli,
@@ -106,11 +102,11 @@ def test_display_no_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
 @my_vcr.use_cassette("test_iac_scan_multiple_files")
 def test_display_multiple_files(cli_fs_runner: CliRunner):
     Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_single_vulnerability.tf").write_text(_IAC_SINGLE_VULNERABILITY)
+    Path("tmp/iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
     Path("tmp/iac_file_multiple_vulnerabilities.tf").write_text(
-        _IAC_MULTIPLE_VULNERABILITIES
+        IAC_MULTIPLE_VULNERABILITIES
     )
-    Path("tmp/iac_file_no_vulnerabilities.tf").write_text(_IAC_NO_VULNERABILITIES)
+    Path("tmp/iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
 
     result = cli_fs_runner.invoke(
         cli,

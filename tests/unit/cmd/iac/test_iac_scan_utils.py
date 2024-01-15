@@ -10,7 +10,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import augment_unignored_issues, get_i
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan.scan_mode import ScanMode
-from tests.conftest import _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import write_yaml
 from tests.unit.verticals.iac.utils import (
@@ -26,15 +26,15 @@ def test_get_iac_tar(tmp_path: Path) -> None:
     repo.create_commit()
 
     file1 = tmp_path / "file1.tf"
-    file1.write_text(_IAC_SINGLE_VULNERABILITY)
+    file1.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file1)
 
     file2 = tmp_path / "file2.tf"
-    file2.write_text(_IAC_SINGLE_VULNERABILITY)
+    file2.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file2)
 
     file3 = tmp_path / "file3.tf"
-    file3.write_text(_IAC_SINGLE_VULNERABILITY)
+    file3.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(file3)
 
     repo.create_commit()

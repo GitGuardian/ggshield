@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import pytest
 
-from tests.conftest import _IAC_NO_VULNERABILITIES, _IAC_SINGLE_VULNERABILITY
+from tests.conftest import IAC_NO_VULNERABILITIES, IAC_SINGLE_VULNERABILITY
 from tests.functional.utils import create_local_hook
 from tests.repository import Repository
 
@@ -24,7 +24,7 @@ def test_iac_scan_prepush(tmp_path: Path) -> None:
 
     # AND a vulnerability committed
     file = local_repo.path / "vuln.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     local_repo.add("vuln.tf")
     local_repo.create_commit()
 
@@ -73,7 +73,7 @@ def test_iac_scan_prepush_vuln_before_hook(
     # AND a local clone with a vulnerability
     local_repo = Repository.clone(remote_repo.path, tmp_path / "local")
     file = local_repo.path / "vuln_before_hook.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     local_repo.add("vuln_before_hook.tf")
     local_repo.create_commit()
     local_repo.push()
@@ -85,7 +85,7 @@ def test_iac_scan_prepush_vuln_before_hook(
 
     # AND changes to IaC files introducing no new vulnerability
     file = local_repo.path / "no_vuln.tf"
-    file.write_text(_IAC_NO_VULNERABILITIES)
+    file.write_text(IAC_NO_VULNERABILITIES)
     local_repo.add("no_vuln.tf")
     local_repo.create_commit()
 
@@ -120,7 +120,7 @@ def test_iac_scan_prepush_scan_is_diff_on_new_branch(tmp_path: Path) -> None:
     new_branch = "topic"
     local_repo.create_branch(new_branch)
     file = local_repo.path / "no_vuln.tf"
-    file.write_text(_IAC_NO_VULNERABILITIES)
+    file.write_text(IAC_NO_VULNERABILITIES)
     local_repo.add("no_vuln.tf")
     local_repo.create_commit()
 
@@ -152,7 +152,7 @@ def test_iac_scan_prepush_ignore_staged_files(
 
     # AND an IaC file introducing a new vulnerability
     file = local_repo.path / "vuln.tf"
-    file.write_text(_IAC_SINGLE_VULNERABILITY)
+    file.write_text(IAC_SINGLE_VULNERABILITY)
     local_repo.add("vuln.tf")
     if is_vuln_committed:
         local_repo.create_commit()
