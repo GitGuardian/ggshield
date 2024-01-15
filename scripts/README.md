@@ -1,6 +1,6 @@
 # Scripts
 
-This directory contains scripts to help with ggshield development.
+This directory contains scripts to help with GGShield development and special usage.
 
 ## build-packages/build-packages
 
@@ -23,3 +23,11 @@ The script aborts if the working-tree is not clean (can be bypassed with `--allo
 ## update-pipfile-lock/update-pipfile-lock
 
 Update Pipfile.lock, using the oldest supported version of Python.
+
+## create-ghe-environment
+
+Creates a GitHub Enterprise Server (GHES) [pre-receive hook environment][ghe] containing GGShield.
+
+To run this script you must have Docker installed. The script must be run on the same machine architecture as the GHES server on which the environment will be uploaded.
+
+[ghe]: https://docs.github.com/en/enterprise-server@3.11/admin/policies/enforcing-policy-with-pre-receive-hooks/creating-a-pre-receive-hook-environment
