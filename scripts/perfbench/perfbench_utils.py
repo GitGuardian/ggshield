@@ -1,7 +1,8 @@
+import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, List, Sequence, TextIO
 
 import click
 
@@ -11,12 +12,37 @@ DEFAULT_WORK_DIR = (Path(__file__).parent / ".perfbench").absolute()
 
 @dataclass
 class RawReportEntry:
-    """Represent the fields stored in the benchmark.jsonl file"""
+    """Represent an entry in the benchmark.json file"""
 
     version: str
     dataset: str
     command: str
     duration: float
+
+
+@dataclass
+class RawReport:
+    """Represent the fields stored in the benchmark.json file"""
+
+    versions: List[str]
+    entries: List[RawReportEntry] = field(default_factory=list)
+
+    def add_entry(self, entry: RawReportEntry) -> None:
+        self.entries.append(entry)
+
+    def save(self, fp: TextIO) -> None:
+        json.dump(
+            asdict(self),
+            fp,
+            sort_keys=True,
+            indent=True,
+        )
+
+    @staticmethod
+    def load(fp: TextIO) -> "RawReport":
+        dct = json.load(fp)
+        entries = [RawReportEntry(**x) for x in dct["entries"]]
+        return RawReport(dct["versions"], entries)
 
 
 def check_run(args: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess:
@@ -28,12 +54,12 @@ work_dir_option = click.option(
     "--work-dir",
     help="Where to store benchmark script work files.",
     default=DEFAULT_WORK_DIR,
-    type=click.Path(),
+    type=click.Path(path_type=Path),
 )
 
 
 def get_raw_report_path(work_dir: Path) -> Path:
-    return work_dir / "benchmark.jsonl"
+    return work_dir / "benchmark.json"
 
 
 def find_latest_prod_version() -> str:

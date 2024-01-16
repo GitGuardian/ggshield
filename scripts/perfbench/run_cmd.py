@@ -1,18 +1,16 @@
-import json
 import logging
 import os
 import subprocess
 import sys
 import time
-import typing
-from dataclasses import asdict
 from pathlib import Path
 from shutil import which
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import click
 from perfbench_utils import (
+    RawReport,
     RawReportEntry,
     check_run,
     find_latest_prod_version,
@@ -32,16 +30,6 @@ REPO_BENCHMARK_COMMANDS = [
 DOCKER_IMAGES = ["ubuntu:22.04", "busybox:1.36.0-musl"]
 
 
-class JSONLWriter:
-    def __init__(self, fp: typing.TextIO) -> None:
-        self.fp = fp
-
-    def add_entry(self, entry: Dict[str, Any]) -> None:
-        json.dump(entry, self.fp, sort_keys=True)
-        self.fp.write("\n")
-        self.fp.flush()
-
-
 def setup_ggshield(work_dir: Path, version: str) -> Path:
     """
     Install a version of ggshield in the work dir, return the path to the ggshield
@@ -57,6 +45,10 @@ def setup_ggshield(work_dir: Path, version: str) -> Path:
     if version == "prod":
         version = find_latest_prod_version()
         logging.info("Latest prod version is %s", version)
+
+    path = Path(version)
+    if path.is_file():
+        return path.resolve()
 
     ggshield_base_dir = work_dir / "ggshields" / version
     if ggshield_base_dir.exists():
@@ -89,7 +81,7 @@ def setup_ggshield(work_dir: Path, version: str) -> Path:
 
 
 def run_benchmark_command(
-    writer: JSONLWriter,
+    report: RawReport,
     version: str,
     dataset: str,
     ggshield_path: Path,
@@ -124,32 +116,30 @@ def run_benchmark_command(
         print(out.stdout, file=sys.stderr)
         sys.exit(1)
 
-    writer.add_entry(
-        asdict(
-            RawReportEntry(
-                version=version,
-                dataset=dataset,
-                command=command_str,
-                duration=duration,
-            )
+    report.add_entry(
+        RawReportEntry(
+            version=version,
+            dataset=dataset,
+            command=command_str,
+            duration=duration,
         )
     )
 
 
 def run_repo_command(
-    writer: JSONLWriter,
+    report: RawReport,
     version: str,
     ggshield_path: Path,
     repo_dir: Path,
     command: Tuple[str, ...],
 ) -> None:
     run_benchmark_command(
-        writer, version, repo_dir.name, ggshield_path, command, repo_dir
+        report, version, repo_dir.name, ggshield_path, command, repo_dir
     )
 
 
 def run_docker_command(
-    writer: JSONLWriter,
+    report: RawReport,
     version: str,
     ggshield_path: Path,
     docker_image: str,
@@ -160,7 +150,7 @@ def run_docker_command(
         # benchmark results
         env = dict(**os.environ, GG_CACHE_DIR=cache_dir)
         run_benchmark_command(
-            writer, version, docker_image, ggshield_path, command, env=env
+            report, version, docker_image, ggshield_path, command, env=env
         )
 
 
@@ -183,7 +173,7 @@ def pull_docker_image(docker_image: str):
     multiple=True,
     default=DEFAULT_GGSHIELD_VERSIONS,
     metavar="VERSION",
-    help="Versions of ggshield to benchmark. Use prod and current if not set.",
+    help="Versions of ggshield to benchmark. Use prod and current if not set. May be set multiple times.",
 )
 @click.option(
     "-r",
@@ -211,7 +201,14 @@ def run_cmd(
     only_docker: bool,
     repeats: int,
 ) -> None:
-    """Run the benchmark"""
+    """Run the benchmark.
+
+    Default values for VERSION are `prod` and `current`.
+
+    - `prod`: assumes $PWD is a checkout of ggshield repository. Look for the latest `vX.Y.Z` tag.
+    - `current`: uses the `ggshield` executable in $PATH.
+
+    The first version is the reference."""
     ggshield_paths = [(v, setup_ggshield(work_dir, v)) for v in versions]
 
     # Prepare repository list
@@ -235,27 +232,29 @@ def run_cmd(
             ]
 
     # Run the benchmark
-    report_path = get_raw_report_path(work_dir)
+    report = RawReport(versions=[x[0] for x in ggshield_paths])
 
-    with report_path.open("w") as fp:
-        writer = JSONLWriter(fp)
-
-        for repository_path in repository_paths:
-            for command in REPO_BENCHMARK_COMMANDS:
-                # Loop on `repeats` and then on `version` to ensure runs for the different
-                # versions are interleaved. This should avoid getting different results
-                # between versions if the performance of the API changes during the
-                # benchmark.
-                for _ in range(repeats):
-                    for version, ggshield_path in ggshield_paths:
-                        run_repo_command(
-                            writer, version, ggshield_path, repository_path, command
-                        )
-
-        for docker_image in DOCKER_IMAGES:
-            pull_docker_image(docker_image)
+    for repository_path in repository_paths:
+        for command in REPO_BENCHMARK_COMMANDS:
+            # Loop on `repeats` and then on `version` to ensure runs for the different
+            # versions are interleaved. This should avoid getting different results
+            # between versions if the performance of the API changes during the
+            # benchmark.
             for _ in range(repeats):
                 for version, ggshield_path in ggshield_paths:
-                    run_docker_command(writer, version, ggshield_path, docker_image)
+                    run_repo_command(
+                        report, version, ggshield_path, repository_path, command
+                    )
+
+    for docker_image in DOCKER_IMAGES:
+        pull_docker_image(docker_image)
+        for _ in range(repeats):
+            for version, ggshield_path in ggshield_paths:
+                run_docker_command(report, version, ggshield_path, docker_image)
+
+    # Save results
+    report_path = get_raw_report_path(work_dir)
+    with report_path.open("w") as fp:
+        report.save(fp)
 
     logging.info("Raw report has been generated in %s", report_path)
