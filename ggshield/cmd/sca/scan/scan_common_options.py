@@ -26,6 +26,22 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.filter import init_exclusion_regexes
 
 
+ignore_fixable = click.option(
+    "--ignore-fixable",
+    is_flag=True,
+    default=False,
+    help="Ignore incidents related to vulnerabilities that have a fix.",
+)
+
+
+ignore_not_fixable = click.option(
+    "--ignore-not-fixable",
+    is_flag=True,
+    default=False,
+    help="Ignore incidents that cannot be fixed for now.",
+)
+
+
 def add_sca_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
@@ -33,6 +49,8 @@ def add_sca_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         minimum_severity_option(cmd)
         ignore_path_option(cmd)
         json_option(cmd)
+        ignore_fixable(cmd)
+        ignore_not_fixable(cmd)
         return cmd
 
     return decorator
