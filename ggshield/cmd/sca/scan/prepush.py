@@ -37,6 +37,8 @@ def scan_pre_push_cmd(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
+    ignore_fixable: bool,
+    ignore_not_fixable: bool,
     scan_all: bool,
     **kwargs: Any,
 ) -> int:
@@ -56,7 +58,14 @@ def scan_pre_push_cmd(
     directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(
+        ctx,
+        exit_zero,
+        minimum_severity,
+        ignore_paths,
+        ignore_fixable,
+        ignore_not_fixable,
+    )
 
     _, remote_commit = collect_commits_refs(prepush_args)
     # Will happen if this is the first push on the branch

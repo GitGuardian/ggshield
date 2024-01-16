@@ -33,6 +33,8 @@ def scan_diff_cmd(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
+    ignore_fixable: bool,
+    ignore_not_fixable: bool,
     ref: str,
     staged: bool,
     directory: Optional[Path],
@@ -53,7 +55,14 @@ def scan_diff_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(
+        ctx,
+        exit_zero,
+        minimum_severity,
+        ignore_paths,
+        ignore_fixable,
+        ignore_not_fixable,
+    )
 
     output_handler = create_output_handler(ctx)
 

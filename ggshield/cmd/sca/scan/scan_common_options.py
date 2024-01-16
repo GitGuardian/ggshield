@@ -12,6 +12,7 @@ The `kwargs` argument is required due to the way click works,
 from typing import Callable, Sequence
 
 import click
+from click import UsageError
 
 from ggshield.cmd.utils.common_options import (
     AnyFunction,
@@ -61,9 +62,12 @@ def update_context(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
+    ignore_fixable: bool,
+    ignore_not_fixable: bool,
 ) -> None:
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
+
     ctx_obj.client = create_client_from_config(config, ctx_obj.ui)
 
     if ignore_paths is not None:
@@ -78,3 +82,14 @@ def update_context(
 
     if minimum_severity is not None:
         config.user_config.sca.minimum_severity = minimum_severity
+
+    if ignore_not_fixable and ignore_fixable:
+        raise UsageError(
+            "Cannot use simultaneously --ignore-not-fixable and --ignore-fixable flags."
+        )
+
+    if ignore_fixable:
+        config.user_config.sca.ignore_fixable = ignore_fixable
+
+    if ignore_not_fixable:
+        config.user_config.sca.ignore_not_fixable = ignore_not_fixable

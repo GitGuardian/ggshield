@@ -39,6 +39,8 @@ def scan_pre_receive_cmd(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
+    ignore_fixable: bool,
+    ignore_not_fixable: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -60,7 +62,14 @@ def scan_pre_receive_cmd(
     else:
         before, after = before_after
 
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(
+        ctx,
+        exit_zero,
+        minimum_severity,
+        ignore_paths,
+        ignore_fixable,
+        ignore_not_fixable,
+    )
 
     if scan_all:
         # In the pre-receive context, we do not have access to the files,
