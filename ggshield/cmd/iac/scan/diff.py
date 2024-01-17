@@ -118,9 +118,7 @@ def iac_scan_diff(
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:
         if previous_ref is None:
-            display_info(
-                "> No file to scan in reference. This might be a new repository."
-            )
+            display_info("> No file to scan in reference.")
         else:
             display_info(f"> Scanned files in reference {previous_ref}")
             filepaths = filter_iac_filepaths(
