@@ -154,6 +154,35 @@ PIPFILE_LOCK_WITH_VULN = """
 }
 """
 
+PIPFILE_LOCK_WITH_VULN_NO_FIX = """
+{
+    "_meta": {
+        "hash": {
+            "sha256": "2bf167f6a72aaa0f48f5876945f2a37874f3f114dad5e952cd7df9dfe8d9d281"
+        },
+        "pipfile-spec": 6,
+        "requires": {
+            "python_version": "3.10"
+        },
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "h2o": {
+            "hashes": [],
+            "index": "pypi",
+            "version": "==3.18.0.8"
+        }
+    },
+    "develop": {}
+}
+"""
+
 PIPFILE_NO_VULN = """
 [[source]]
 url = "https://pypi.org/simple"
@@ -227,6 +256,15 @@ def make_dummy_sca_repo():
         repo.create_commit("Empty commit to start with")
         (tmp_path / "Pipfile").write_text(PIPFILE_WITH_VULN)
         (tmp_path / "Pipfile.lock").write_text(PIPFILE_LOCK_WITH_VULN)
+        (tmp_path / "dummy_file.py").touch()
+        repo.add(".")
+        repo.create_commit("pipfile_with_vuln")
+
+        # Adds a branch with a vuln that has no fix
+        repo.create_branch("branch_with_vuln_no_fix", orphan=True)
+        clean_directory(tmp_path)
+        repo.create_commit("Empty commit to start with")
+        (tmp_path / "Pipfile.lock").write_text(PIPFILE_LOCK_WITH_VULN_NO_FIX)
         (tmp_path / "dummy_file.py").touch()
         repo.add(".")
         repo.create_commit("pipfile_with_vuln")

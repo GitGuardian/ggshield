@@ -34,6 +34,7 @@ def test_get_scan_params_from_config():
                 path="toto/Pipfile.lock",
             ),
         ],
+        ignore_fixable=True,
     )
 
     params = get_scan_params_from_config(config)
@@ -47,3 +48,5 @@ def test_get_scan_params_from_config():
     )
     for ignored in params.ignored_vulnerabilities:
         assert ignored.path == "toto/Pipfile.lock"
+    assert params.ignore_fixable is True
+    assert params.ignore_not_fixable is False

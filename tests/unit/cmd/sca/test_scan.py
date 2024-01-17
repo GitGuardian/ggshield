@@ -580,3 +580,113 @@ sca:
 
         assert result.exit_code == ExitCode.SUCCESS
         assert "GHSA-rrm6-wvj7-cwh2" not in result.stdout
+
+
+@my_vcr.use_cassette("test_sca_scan_all_ignore_fixable.yaml")
+def test_scan_all_ignore_fixable(
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo: Repository,
+):
+    """
+    GIVEN a directory with a fixable vuln
+    WHEN running the sca scan all command on this directory with the --ignore-fixable flag
+    THEN no incidents are returned
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            "--ignore-fixable",
+            str(dummy_sca_repo.path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.SUCCESS)
+    assert "No SCA vulnerability has been found." in result.stdout
+
+
+@my_vcr.use_cassette("test_sca_scan_diff_ignore_fixable.yaml")
+def test_scan_diff_ignore_fixable(
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo: Repository,
+) -> None:
+    """
+    GIVEN a directory which is ignored
+    WHEN running the sca scan diff command on this directory with the --ignore-fixable flag
+    THEN the scan succeeds
+    THEN no incidents are returned
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln")
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "diff",
+            "--ignore-fixable",
+            "--ref",
+            "branch_without_vuln",
+            str(dummy_sca_repo.path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.SUCCESS)
+    assert "No SCA vulnerability has been added." in result.stdout
+
+
+@my_vcr.use_cassette("test_sca_scan_all_ignore_not_fixable.yaml")
+def test_scan_all_ignore_not_fixable(
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo: Repository,
+):
+    """
+    GIVEN a directory with a fixable vuln
+    WHEN running the sca scan all command on this directory with the --ignore-not-fixable flag
+    THEN no incidents are returned
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln_no_fix")
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "all",
+            "--ignore-not-fixable",
+            str(dummy_sca_repo.path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.SUCCESS)
+    assert "No SCA vulnerability has been found." in result.stdout
+
+
+@my_vcr.use_cassette("test_sca_scan_diff_ignore_not_fixable.yaml")
+def test_scan_diff_ignore_not_fixable(
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_sca_repo: Repository,
+) -> None:
+    """
+    GIVEN a directory which is ignored
+    WHEN running the sca scan diff command on this directory with the --ignore-not-fixable flag
+    THEN the scan succeeds
+    THEN no incidents are returned
+    """
+    dummy_sca_repo.git("checkout", "branch_with_vuln_no_fix")
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "sca",
+            "scan",
+            "diff",
+            "--ignore-not-fixable",
+            "--ref",
+            "branch_without_vuln",
+            str(dummy_sca_repo.path),
+        ],
+    )
+
+    assert_invoke_exited_with(result, ExitCode.SUCCESS)
+    assert "No SCA vulnerability has been added." in result.stdout

@@ -41,6 +41,8 @@ def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
             for ignored_vuln in sca_config.ignored_vulnerabilities
             if ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow()
         ],
+        ignore_fixable=sca_config.ignore_fixable,
+        ignore_not_fixable=sca_config.ignore_not_fixable,
     )
 
 
