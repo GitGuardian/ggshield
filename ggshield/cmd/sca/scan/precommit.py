@@ -34,6 +34,8 @@ def scan_pre_commit_cmd(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
+    ignore_fixable: bool,
+    ignore_not_fixable: bool,
     scan_all: bool,
     directory: Optional[Path],
     **kwargs: Any,
@@ -55,7 +57,14 @@ def scan_pre_commit_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(
+        ctx,
+        exit_zero,
+        minimum_severity,
+        ignore_paths,
+        ignore_fixable,
+        ignore_not_fixable,
+    )
 
     if scan_all:
         result = sca_scan_all(ctx, directory, scan_mode=ScanMode.PRE_COMMIT_ALL)

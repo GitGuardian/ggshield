@@ -250,6 +250,8 @@ class SCAConfig(FilteredConfig):
     ignored_vulnerabilities: List[SCAConfigIgnoredVulnerability] = field(
         default_factory=list
     )
+    ignore_not_fixable: bool = False
+    ignore_fixable: bool = False
 
     @post_load
     def validate_ignored_vulns(self, data: Dict[str, Any], **kwargs: Any):

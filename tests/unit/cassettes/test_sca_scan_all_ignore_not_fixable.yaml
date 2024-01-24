@@ -1,0 +1,155 @@
+interactions:
+  - request:
+      body: '{"files": ["Pipfile.lock", "dummy_file.py"]}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '44'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.12.0 (Linux;py3.10.13) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
+    response:
+      body:
+        string: '{"sca_files":["Pipfile.lock"],"potential_siblings":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '54'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 24 Jan 2024 10:12:23 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - 16dcd71f
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '20'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.23.0
+        x-sca-last-vuln-fetch:
+          - '2024-01-24T10:03:14.219173+00:00'
+        x-secrets-engine-version:
+          - 2.104.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: !!binary |
+        LS04MGM4MjcwZDcxZDYzMGVlMjIwNmViZDI0OTY1ZTQ4Ng0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXSwgImlnbm9yZV9ub3RfZml4YWJs
+        ZSI6IHRydWUsICJpZ25vcmVfZml4YWJsZSI6IGZhbHNlfQ0KLS04MGM4MjcwZDcxZDYzMGVlMjIw
+        NmViZDI0OTY1ZTQ4Ng0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJkaXJl
+        Y3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAh+KwZQL/7dXNbqMwEABgzjwF4twF
+        2wFjKkXa4x57r6rIxfZiLX9rQ5SoyruvTaQWmlZ7aqu2810IYzNj7EySpEn684YffkkupAneBDp7
+        7YrQJnv67OMYEUyC6BC8g8mO3LjywfdEWNSOupVbXCCKSowzklDGMoqyMABf3o0elG5k0vTVn7eq
+        4Zua0rnHcZHj5dXDrt0DnOV5hikmqHD9TzEtggi9Z/8f+F5Lc9/wrqr78XLe/8Y/qfAhjJx418qR
+        x9fR+XYO1dzWq8gctTUnOXXxmNwrd0yK8oJwzpHKmMpZQcssV4RvClZkaqPcD4rgIpdlTipRCFUK
+        JZkoBWE4fkx8unqqOpy/kD/sICtXhS6GjPw7aSPt5aKG41j33W4vjdV95xe3STB6uYDtJ1PNSW5X
+        SdYp56kdb6VPNhwHHV9djk+m8cP1OA72Ok39tKQ3v1Or26GRLz3hVqjVcWetf3A0k1xNOT3e3YWL
+        ZcdCKj4147PjIf3lRvgzO7/b3bp6rDshD6+8TLzYuO3WbR1LUMIW2/dsNXvZ9IMvfgpP8C8BAAAA
+        AAAAAAAAAAAAAAAAAAAAfLh/AgtfWwAoAAANCi0tODBjODI3MGQ3MWQ2MzBlZTIyMDZlYmQyNDk2
+        NWU0ODYtLQ0K
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '807'
+        Content-Type:
+          - multipart/form-data; boundary=80c8270d71d630ee2206ebd24965e486
+        GGShield-Command-Id:
+          - ff3c717d-e4c1-457a-ab30-0d35b86ef582
+        GGShield-Command-Path:
+          - cli sca scan all
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.10.13
+        GGShield-Version:
+          - 1.23.0
+        User-Agent:
+          - pygitguardian/1.12.0 (Linux;py3.10.13) ggshield
+        mode:
+          - directory
+      method: POST
+      uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
+    response:
+      body:
+        string: '{"scanned_files":["Pipfile.lock"],"found_package_vulns":[]}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '59'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 24 Jan 2024 10:12:23 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - 16dcd71f
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '63'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.23.0
+        x-sca-last-vuln-fetch:
+          - '2024-01-24T10:03:14.219173+00:00'
+        x-secrets-engine-version:
+          - 2.104.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+version: 1

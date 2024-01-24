@@ -26,6 +26,8 @@ def scan_all_cmd(
     exit_zero: bool,
     minimum_severity: str,
     ignore_paths: Sequence[str],
+    ignore_fixable: bool,
+    ignore_not_fixable: bool,
     directory: Optional[Path],
     **kwargs: Any,
 ) -> int:
@@ -40,7 +42,14 @@ def scan_all_cmd(
         directory = Path().resolve()
 
     # Adds client and required parameters to the context
-    update_context(ctx, exit_zero, minimum_severity, ignore_paths)
+    update_context(
+        ctx,
+        exit_zero,
+        minimum_severity,
+        ignore_paths,
+        ignore_fixable,
+        ignore_not_fixable,
+    )
 
     result = sca_scan_all(ctx, directory)
     scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
