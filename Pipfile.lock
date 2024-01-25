@@ -14,13 +14,6 @@
         ]
     },
     "default": {
-        "appdirs": {
-            "hashes": [
-                "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41",
-                "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"
-            ],
-            "version": "==1.4.4"
-        },
         "certifi": {
             "hashes": [
                 "sha256:9b469f3a900bf28dc19b8cfbf8019bf47f7fdd1a65a1d4ffb98fc14166beb4d1",
@@ -264,6 +257,14 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==23.2"
+        },
+        "platformdirs": {
+            "hashes": [
+                "sha256:11c8f37bcca40db96d8144522d925583bdb7a31f7b0e37e3ed4318400a8e2380",
+                "sha256:906d548203468492d432bcb294d4bc2fff751bf84971fbb2c10918cc206ee420"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==4.1.0"
         },
         "pycparser": {
             "hashes": [
