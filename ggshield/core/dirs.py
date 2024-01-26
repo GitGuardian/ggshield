@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from appdirs import user_cache_dir, user_config_dir
+from platformdirs import user_cache_dir, user_config_dir
 
 from ggshield.utils.git_shell import NotAGitDirectory, get_git_root
 
