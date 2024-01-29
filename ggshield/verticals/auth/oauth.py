@@ -440,16 +440,15 @@ class RequestHandlerWrapper:
                     error_message = self.oauth_client.get_server_error_message(
                         error_param
                     )
-                    self_._write_error_response(400, error_message)
                     self.error_message = error_message
+                    self_._redirect_to_error_page()
                     return
 
                 try:
                     self.oauth_client.process_callback(callback_url)
                 except OAuthError as error:
-                    self_._write_error_response(400, error.message)
-                    # attach error message to the handler wrapper instance
                     self.error_message = error.message
+                    self_._redirect_to_error_page()
                 else:
                     self_._redirect(
                         urljoin(self.oauth_client.dashboard_url, "authenticated"),
@@ -474,6 +473,15 @@ class RequestHandlerWrapper:
                 self_.send_response(301)
                 self_.send_header("Location", redirect_url)
                 self_.end_headers()
+
+            def _redirect_to_error_page(
+                self_,  # type:ignore
+            ) -> None:
+                query = urlparse.urlencode({"message": self.error_message})
+                url = urljoin(
+                    self.oauth_client.dashboard_url, f"authentication-error?{query}"
+                )
+                self_._redirect(url)
 
             def log_message(self, format: str, *args: Any) -> None:
                 """Silence log message"""
