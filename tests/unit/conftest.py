@@ -19,9 +19,6 @@ from ggshield.core.url_utils import dashboard_to_api_url
 from tests.conftest import GG_VALID_TOKEN
 
 
-os.environ.setdefault("PYTHONBREAKPOINT", "ipdb.set_trace")
-
-
 def is_macos():
     return platform.system() == "Darwin"
 
