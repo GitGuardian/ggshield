@@ -1,5 +1,27 @@
 # Changelog
 
+<a id='changelog-1.24.0'></a>
+
+## 1.24.0 — 2024-01-30
+
+### Added
+
+- Adds two new flags for `ggshield sca scan` commands, `--ignore-fixable` and `--ignore-not-fixable` so that the user can filter the returned incidents depending on if incidents can be fixed or not. Both flags cannot be used simultaneously.
+
+### Changed
+
+- Number of documents in a chunk is now adapted to the server payload.
+- Moved some property from Scannable children classes up to Scannbable itself.
+
+### Fixed
+
+- IAC/SCA scans will scan new commits as intended for CI jobs on newly pushed branches.
+- IAC/SCA scans will scan new commits as intended for CI jobs on the first push to a new repository
+
+- In CI jobs, IAC/SCA scans on forced pushs no longer trigger an error but perform a scan on all commits instead.
+
+- Fixes `ggshield sca scan` commands not taking some user parameters into account.
+
 <a id='changelog-1.23.0'></a>
 
 ## 1.23.0 — 2024-01-09
