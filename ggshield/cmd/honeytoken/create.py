@@ -1,23 +1,15 @@
-import random
-import string
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import click
 from pygitguardian.models import Detail, HoneytokenResponse
 
+from ggshield.cmd.honeytoken.utils import generate_random_honeytoken_name
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.click import RealPath
-
-
-def _generate_random_honeytoken_name() -> str:
-    """Generate a honeytoken name based on a random string of eight alphanumeric characters"""
-    letters_and_digits = string.ascii_letters + string.digits
-    random_str = "".join(random.choice(letters_and_digits) for i in range(8))
-    return f"ggshield-{random_str}"
 
 
 def _dict_to_string(data: Dict, space: bool = False) -> str:
@@ -79,9 +71,10 @@ def create_cmd(
     """
     # if name is not given, generate a random one
     if not name:
-        name = _generate_random_honeytoken_name()
+        name = generate_random_honeytoken_name()
     ctx_obj = ContextObj.get(ctx)
     client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
+
     response = client.create_honeytoken(name, type_, description)
     if not isinstance(response, (Detail, HoneytokenResponse)):
         raise UnexpectedError("Unexpected honeytoken response")

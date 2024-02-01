@@ -9,7 +9,6 @@ from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_
 from tests.unit.request_mock import RequestMock, create_json_response
 
 
-@my_vcr.use_cassette("test_honeytoken_create_no_argument")
 def test_honeytokens_create_no_arg(cli_fs_runner: CliRunner) -> None:
     """
     GIVEN -
