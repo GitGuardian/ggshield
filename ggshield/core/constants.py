@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+from typing import Any
 
 from ggshield.utils.os import getenv_int
 
@@ -54,5 +55,7 @@ class IncidentSeverity(str, Enum):
             return 30
         return 100
 
-    def __lt__(self, other: "IncidentSeverity") -> bool:
+    def __lt__(self, other: Any) -> bool:
+        if not isinstance(other, IncidentSeverity):
+            return NotImplemented
         return self._weight() < other._weight()

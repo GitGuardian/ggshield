@@ -5,11 +5,11 @@ from pygitguardian.iac_models import (
     IaCScanResultSchema,
     IaCVulnerabilitySchema,
 )
-from pygitguardian.models import BaseSchema, FromDictMixin
+from pygitguardian.models import BaseSchema
 
 
 class IaCJSONVulnerabilitySchema(IaCVulnerabilitySchema):
-    class Meta:
+    class Meta(IaCVulnerabilitySchema.Meta):
         exclude = ("url", "status", "ignored_until", "ignore_reason", "ignore_comment")
 
 
@@ -22,11 +22,11 @@ class IaCJSONScanResultSchema(IaCScanResultSchema):
     entities_with_incidents = fields.List(fields.Nested(IaCJSONFileResultSchema))
     total_incidents = fields.Integer(dump_default=0)
 
-    class Meta:
+    class Meta(IaCScanResultSchema.Meta):
         exclude = ("source_found",)
 
 
-class IaCJSONScanDiffEntitiesSchema(BaseSchema, FromDictMixin):
+class IaCJSONScanDiffEntitiesSchema(BaseSchema):
     unchanged = fields.List(fields.Nested(IaCJSONFileResultSchema))
     new = fields.List(fields.Nested(IaCJSONFileResultSchema))
     deleted = fields.List(fields.Nested(IaCJSONFileResultSchema))
@@ -35,5 +35,5 @@ class IaCJSONScanDiffEntitiesSchema(BaseSchema, FromDictMixin):
 class IaCJSONScanDiffResultSchema(IaCDiffScanResultSchema):
     entities_with_incidents = fields.Nested(IaCJSONScanDiffEntitiesSchema)
 
-    class Meta:
+    class Meta(IaCDiffScanResultSchema.Meta):
         exclude = ("source_found",)

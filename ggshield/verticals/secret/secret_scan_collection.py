@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
 
 from pygitguardian.models import Match, ScanResult
 
@@ -34,7 +34,9 @@ class Result:
         lines = get_lines_from_content(file.content, self.filemode)
         self.enrich_matches(lines)
 
-    def __eq__(self, other: "Result"):
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Result):
+            return False
         return (
             self.filename == other.filename
             and self.filemode == other.filemode
