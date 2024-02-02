@@ -48,6 +48,9 @@ read_version() {
 init_system_vars() {
     local arch
     arch=$(uname -m)
+    if [ "$arch" = "aarch64" ] ; then
+        arch=arm64
+    fi
 
     local out
     out=$(uname)
@@ -56,17 +59,17 @@ init_system_vars() {
     Linux)
         EXE_EXT=""
         TARGET="$arch-unknown-linux-gnu"
+        ARCHIVE_FORMAT=tar
         ;;
     Darwin)
         EXE_EXT=""
-        if [ "$arch" = "aarch64" ] ; then
-            arch=arm64
-        fi
         TARGET="$arch-apple-darwin"
+        ARCHIVE_FORMAT=tar
         ;;
     MINGW*|MSYS*)
         EXE_EXT=".exe"
         TARGET="$arch-pc-windows-msvc"
+        ARCHIVE_FORMAT=zip
         ;;
     *)
         die "Unknown OS. uname printed '$out'"
@@ -150,8 +153,20 @@ step_functests() {
 }
 
 step_archive() {
-    local archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
-    tar -C "$DIST_DIR" -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+    local archive_path
+    case "$ARCHIVE_FORMAT" in
+    tar)
+        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+        tar -C "$DIST_DIR" -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+        ;;
+    zip)
+        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.zip"
+        env -C "$DIST_DIR" 7z a "$archive_path" "$ARCHIVE_DIR_NAME"
+        ;;
+    *)
+        die "Unsupported archive format $ARCHIVE_FORMAT"
+        ;;
+    esac
     info "Archive created in $archive_path"
 }
 
