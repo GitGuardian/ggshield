@@ -78,3 +78,17 @@ def test_scan_diff_json_output(tmp_path: Path, pipfile_lock_with_vuln) -> None:
     assert len(parsed_result["removed_vulns"]) == 0
     assert parsed_result["added_vulns"][0]["location"] == "Pipfile.lock"
     assert len(parsed_result["added_vulns"][0]["package_vulns"]) == 1
+    # Autoignore feature attributes are not included in the JSON output
+    assert "source_found" not in parsed_result
+    assert all(
+        [
+            key not in parsed_result["added_vulns"][0]["package_vulns"][0]["vulns"][0]
+            for key in [
+                "url",
+                "status",
+                "ignored_until",
+                "ignore_reason",
+                "ignore_comment",
+            ]
+        ]
+    )

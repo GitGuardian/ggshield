@@ -50,3 +50,20 @@ def test_scan_all_json_output(dummy_sca_repo: Repository) -> None:
     assert len(parsed_result["found_package_vulns"]) == 1
     assert parsed_result["found_package_vulns"][0]["location"] == "Pipfile.lock"
     assert len(parsed_result["found_package_vulns"][0]["package_vulns"]) == 1
+    # Autoignore feature attributes are not included in the JSON output
+    assert "source_found" not in parsed_result
+    assert all(
+        [
+            key
+            not in parsed_result["found_package_vulns"][0]["package_vulns"][0]["vulns"][
+                0
+            ]
+            for key in [
+                "url",
+                "status",
+                "ignored_until",
+                "ignore_reason",
+                "ignore_comment",
+            ]
+        ]
+    )
