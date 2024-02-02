@@ -4,7 +4,7 @@
 # If you change this version, you must also change:
 # - The image version in the root Dockerfile
 # - The version in .github/workflows/main.yml
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 ARG UID
 
