@@ -9,7 +9,7 @@ DEFAULT_STEPS="req build pack test archive"
 BUILD_DIR=$PWD/dist/nuitka
 DIST_DIR=$PWD/dist
 
-REQUIREMENTS=""
+REQUIREMENTS="strip"
 
 err() {
     echo "$@" >&2
@@ -138,6 +138,11 @@ step_pack() {
     local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
     rm -rf "$output_dir"
     cp -R "$nuitka_output_dir" "$output_dir"
+
+    info "Stripping libraries"
+    for pattern in '*.so' '*.so.*' '*.dll' '*.dylib' ; do
+        find "$output_dir" -name "$pattern" -exec strip '{}' ';'
+    done
 }
 
 step_test() {
