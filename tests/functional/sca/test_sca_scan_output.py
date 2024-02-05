@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import List, Type
+from typing import Any, List, Type
 
 import pytest
 from pygitguardian.sca_models import (
@@ -44,10 +44,16 @@ def generate_package_vuln(
 
 
 @pytest.mark.parametrize("verbose", [True, False])
+@pytest.mark.parametrize("source_found", [True, False])
 @pytest.mark.parametrize("handler_cls", [SCATextOutputHandler, SCAJsonOutputHandler])
 @pytest.mark.parametrize("scan_type", ["all", "diff"])
 def test_text_all_output_no_ignored(
-    verbose: bool, handler_cls: Type[SCAOutputHandler], scan_type: str, tmp_path: Path
+    verbose: bool,
+    source_found: bool,
+    handler_cls: Type[SCAOutputHandler],
+    scan_type: str,
+    tmp_path: Path,
+    capsys: Any,
 ):
     """
     GIVEN   - a location 1 with:
@@ -58,6 +64,7 @@ def test_text_all_output_no_ignored(
     WHEN    showing scan output
     THEN    - All ignored vulns are hidden
             - Packages and locations with no remaining vulns are hidden
+            - if source_found is False, a warning is displayed
     """
     output_path = tmp_path / "output"
 
@@ -104,7 +111,7 @@ def test_text_all_output_no_ignored(
             ".",
             SCAScanAllOutput(
                 scanned_files=["Pipfile.lock"],
-                source_found=True,
+                source_found=source_found,
                 found_package_vulns=locations,
             ),
         )
@@ -113,7 +120,7 @@ def test_text_all_output_no_ignored(
             ".",
             SCAScanDiffOutput(
                 scanned_files=["Pipfile.lock"],
-                source_found=True,
+                source_found=source_found,
                 added_vulns=locations,
                 removed_vulns=[],
             ),
@@ -132,3 +139,10 @@ def test_text_all_output_no_ignored(
     assert set(re.findall(r"\d/Pipfile.lock", output)) == {"1/Pipfile.lock"}
     assert set(re.findall(r"package\d", output)) == {"package1", "package2"}
     assert set(re.findall(r"vuln\d", output)) == {"vuln1", "vuln2", "vuln3"}
+
+    stderr = capsys.readouterr().err
+    is_warning_expected = verbose and not source_found
+    warning_text = (
+        "ggshield cannot fetch incidents monitored by the platform on this repository"
+    )
+    assert (warning_text in stderr) == is_warning_expected
