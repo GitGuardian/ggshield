@@ -33,9 +33,10 @@ class SCAJsonOutputHandler(SCAOutputHandler):
 
     @staticmethod
     def create_scan_all_dict(scan: SCAScanAllVulnerabilityCollection) -> Dict[str, Any]:
-        if scan.result is None:
+        result = scan.get_result_without_ignored()
+        if result is None:
             return {"scanned_files": [], "found_package_vulns": [], "total_vulns": 0}
-        scan_dict = scan.result.to_dict()
+        scan_dict = result.to_dict()
 
         scan_dict["total_vulns"] = 0
         for file in scan_dict["found_package_vulns"]:

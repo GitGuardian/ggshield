@@ -157,16 +157,17 @@ class SCATextOutputHandler(SCAOutputHandler):
 
         # We precise is not None as __bool__ have been overriden for pygitguardian
         # Base class
-        if scan.result is not None:
+        result_without_ignored = scan.get_result_without_ignored()
+        if result_without_ignored is not None:
             # List incidents if any
-            for file_result in get_sorted_locations(scan.result):
+            for file_result in get_sorted_locations(result_without_ignored):
                 scan_buf.write(self.file_header(file_result))
                 scan_buf.write(
                     self.process_file_result_incidents(file_result.added, prefix="")
                 )
 
             # Show no incidents if none
-            if len(scan.result.found_package_vulns) == 0:
+            if len(result_without_ignored.found_package_vulns) == 0:
                 scan_buf.write(no_sca_vulnerabilities())
         return scan_buf.getvalue()
 
