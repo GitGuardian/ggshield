@@ -6,6 +6,7 @@ import pytest
 from pygitguardian.sca_models import (
     SCALocationVulnerability,
     SCAScanAllOutput,
+    SCAScanDiffOutput,
     SCAVulnerability,
     SCAVulnerablePackageVersion,
 )
@@ -13,6 +14,7 @@ from pygitguardian.sca_models import (
 from ggshield.core.errors import ExitCode
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
+    SCAScanDiffVulnerabilityCollection,
 )
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
 from ggshield.verticals.sca.output.json_handler import SCAJsonOutputHandler
@@ -43,8 +45,9 @@ def generate_package_vuln(
 
 @pytest.mark.parametrize("verbose", [True, False])
 @pytest.mark.parametrize("handler_cls", [SCATextOutputHandler, SCAJsonOutputHandler])
+@pytest.mark.parametrize("scan_type", ["all", "diff"])
 def test_text_all_output_no_ignored(
-    verbose: bool, handler_cls: Type[SCAOutputHandler], tmp_path: Path
+    verbose: bool, handler_cls: Type[SCAOutputHandler], scan_type: str, tmp_path: Path
 ):
     """
     GIVEN   - a location 1 with:
@@ -58,53 +61,70 @@ def test_text_all_output_no_ignored(
     """
     output_path = tmp_path / "output"
 
-    collection = SCAScanAllVulnerabilityCollection(
-        ".",
-        SCAScanAllOutput(
-            scanned_files=["Pipfile.lock"],
-            source_found=True,
-            found_package_vulns=[
-                SCALocationVulnerability(
-                    location="1/Pipfile.lock",
-                    package_vulns=[
-                        # one package full
-                        generate_package_vuln(
-                            "package1",
-                            generate_vulnerability("vuln1"),
-                            generate_vulnerability("vuln2"),
-                        ),
-                        # one package with one ignored vuln
-                        generate_package_vuln(
-                            "package2",
-                            generate_vulnerability("vuln3"),
-                            generate_vulnerability("vuln4", is_ignored=True),
-                        ),
-                        # one package with all ignored vulns
-                        generate_package_vuln(
-                            "package3",
-                            generate_vulnerability("vuln5", is_ignored=True),
-                            generate_vulnerability("vuln6", is_ignored=True),
-                        ),
-                    ],
+    locations = [
+        SCALocationVulnerability(
+            location="1/Pipfile.lock",
+            package_vulns=[
+                # one package full
+                generate_package_vuln(
+                    "package1",
+                    generate_vulnerability("vuln1"),
+                    generate_vulnerability("vuln2"),
                 ),
-                # one location with only ignored vulns in packages
-                SCALocationVulnerability(
-                    location="2/Pipfile.lock",
-                    package_vulns=[
-                        generate_package_vuln(
-                            "package4", generate_vulnerability("vuln7", is_ignored=True)
-                        ),
-                        generate_package_vuln(
-                            "package5", generate_vulnerability("vuln8", is_ignored=True)
-                        ),
-                    ],
+                # one package with one ignored vuln
+                generate_package_vuln(
+                    "package2",
+                    generate_vulnerability("vuln3"),
+                    generate_vulnerability("vuln4", is_ignored=True),
+                ),
+                # one package with all ignored vulns
+                generate_package_vuln(
+                    "package3",
+                    generate_vulnerability("vuln5", is_ignored=True),
+                    generate_vulnerability("vuln6", is_ignored=True),
                 ),
             ],
         ),
-    )
+        # one location with only ignored vulns in packages
+        SCALocationVulnerability(
+            location="2/Pipfile.lock",
+            package_vulns=[
+                generate_package_vuln(
+                    "package4", generate_vulnerability("vuln7", is_ignored=True)
+                ),
+                generate_package_vuln(
+                    "package5", generate_vulnerability("vuln8", is_ignored=True)
+                ),
+            ],
+        ),
+    ]
+
+    if scan_type == "all":
+        collection = SCAScanAllVulnerabilityCollection(
+            ".",
+            SCAScanAllOutput(
+                scanned_files=["Pipfile.lock"],
+                source_found=True,
+                found_package_vulns=locations,
+            ),
+        )
+    else:
+        collection = SCAScanDiffVulnerabilityCollection(
+            ".",
+            SCAScanDiffOutput(
+                scanned_files=["Pipfile.lock"],
+                source_found=True,
+                added_vulns=locations,
+                removed_vulns=[],
+            ),
+        )
 
     output_handler = handler_cls(verbose=verbose, output=str(output_path))
-    exit_code = output_handler.process_scan_all_result(collection)
+    exit_code = (
+        output_handler.process_scan_all_result(collection)
+        if scan_type == "all"
+        else output_handler.process_scan_diff_result(collection)
+    )
 
     assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS
 
