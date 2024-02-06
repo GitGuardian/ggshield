@@ -7,7 +7,6 @@ from pygitguardian.client import GGClient
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
-from ggshield.core.scan import Scannable
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
 from ggshield.core.text_utils import display_info
@@ -16,21 +15,23 @@ from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepath
 
 
 # List of filepaths to ignore for SCA scans
-
-SCA_IGNORE_LIST = (
-    "__pycache__",
-    ".git",
-    ".hg",
-    ".svn",
-    ".tox",
-    ".venv",
-    "site-packages",
-    ".idea",
-    "node_modules",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".hypothesis",
-)
+SCA_EXCLUSION_REGEXES = {
+    re.compile(r".*/" + re.escape(pattern) + "/.*")
+    for pattern in (
+        "__pycache__",
+        ".git",
+        ".hg",
+        ".svn",
+        ".tox",
+        ".venv",
+        "site-packages",
+        ".idea",
+        "node_modules",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".hypothesis",
+    )
+}
 
 
 def get_all_files_from_sca_paths(
@@ -51,25 +52,16 @@ def get_all_files_from_sca_paths(
         x.path
         for x in get_files_from_paths(
             paths=[path],
-            exclusion_regexes=exclusion_regexes,
+            exclusion_regexes=exclusion_regexes | SCA_EXCLUSION_REGEXES,
             recursive=True,
             yes=True,
             display_binary_files=verbose,
             display_scanned_files=False,  # If True, this displays all files in the directory but we only want SCA files
             ignore_git=ignore_git,
         )
-        if is_not_excluded_from_sca(x)
     ]
 
     return [str(x.relative_to(path)) for x in paths]
-
-
-def is_not_excluded_from_sca(scannable: Scannable) -> bool:
-    """
-    Returns True if file is in an SCA accepted path, which means that none of
-    the directories of the path appear in SCA_IGNORE_LIST
-    """
-    return not any(part in SCA_IGNORE_LIST for part in scannable.path.parts)
 
 
 def sca_files_from_git_repo(
