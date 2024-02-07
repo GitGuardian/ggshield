@@ -327,6 +327,18 @@ def api_status_json_schema() -> Dict[str, Any]:
     return _load_json_schema("api-status.json")
 
 
+@pytest.fixture(scope="session")
+def sca_scan_all_json_schema() -> Dict[str, Any]:
+    """Load the JSON schema for `sca scan all` command."""
+    return _load_json_schema("sca/scan_all.json")
+
+
+@pytest.fixture(scope="session")
+def sca_scan_diff_json_schema() -> Dict[str, Any]:
+    """Load the JSON schema for `sca scan diff` command."""
+    return _load_json_schema("sca/scan_diff.json")
+
+
 def _load_json_schema(name: str) -> Dict[str, Any]:
     """Load a JSON schema and patch it to reject additional properties. We patch it this
     way to ensure all fields of ggshield JSON output are documented in the JSON schema.

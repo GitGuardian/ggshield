@@ -1,4 +1,7 @@
 import json
+from typing import Any, Dict
+
+import jsonschema
 
 from tests.functional.utils import assert_is_valid_json, run_ggshield
 from tests.repository import Repository
@@ -32,7 +35,9 @@ def test_sca_scan_all_without_dependency_file(dummy_sca_repo: Repository) -> Non
     assert "No file to scan." in result.stderr
 
 
-def test_scan_all_json_output(dummy_sca_repo: Repository) -> None:
+def test_scan_all_json_output(
+    dummy_sca_repo: Repository, sca_scan_all_json_schema: Dict[str, Any]
+) -> None:
     """
     GIVEN a repo with a vulnerability
     WHEN scanning it with the '--json' option
@@ -50,20 +55,4 @@ def test_scan_all_json_output(dummy_sca_repo: Repository) -> None:
     assert len(parsed_result["found_package_vulns"]) == 1
     assert parsed_result["found_package_vulns"][0]["location"] == "Pipfile.lock"
     assert len(parsed_result["found_package_vulns"][0]["package_vulns"]) == 1
-    # Autoignore feature attributes are not included in the JSON output
-    assert "source_found" not in parsed_result
-    assert all(
-        [
-            key
-            not in parsed_result["found_package_vulns"][0]["package_vulns"][0]["vulns"][
-                0
-            ]
-            for key in [
-                "url",
-                "status",
-                "ignored_until",
-                "ignore_reason",
-                "ignore_comment",
-            ]
-        ]
-    )
+    jsonschema.validate(parsed_result, sca_scan_all_json_schema)

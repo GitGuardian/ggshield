@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ggshield sca scan diff",
+  "type": "object",
+  "properties": {
+    "scanned_files": {
+      "type": "array",
+      "description": "List of files scanned",
+      "items": {
+        "type": "string"
+      }
+    },
+    "added_vulns": { "$ref": "#/$defs/locations_vulnerabilities" },
+    "removed_vulns": { "$ref": "#/$defs/locations_vulnerabilities" }
+  },
+  "required": ["scanned_files", "added_vulns", "removed_vulns"],
+  "$defs": {
+    "locations_vulnerabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "A file and its related vulnerabilities",
+        "properties": {
+          "location": {
+            "type": "string"
+          },
+          "package_vulns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "A vulnerability related to one package version",
+              "properties": {
+                "package_full_name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "ecosystem": {
+                  "type": "string"
+                },
+                "dependency_type": {
+                  "enum": ["direct", "transitive", null]
+                },
+                "vulns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "A single vulnerability",
+                    "properties": {
+                      "severity": {
+                        "type": "string"
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "identifier": {
+                        "type": "string"
+                      },
+                      "cve_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "created_at": {
+                        "type": ["string", "null"]
+                      },
+                      "fixed_version": {
+                        "type": ["string", "null"]
+                      }
+                    },
+                    "required": ["severity", "summary", "identifier", "cve_ids"]
+                  }
+                }
+              },
+              "required": ["package_full_name", "version", "ecosystem", "vulns"]
+            }
+          }
+        },
+        "required": ["location", "package_vulns"]
+      }
+    }
+  }
+}
