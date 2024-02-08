@@ -5,11 +5,8 @@ from typing import Set
 import pytest
 from pygitguardian import GGClient
 
-from ggshield.core.scan import StringScannable
-from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
-    is_not_excluded_from_sca,
     sca_files_from_git_repo,
 )
 from tests.repository import Repository
@@ -23,26 +20,6 @@ FILE_NAMES = [
     "foo/node_modules/file3.json",
     "foo/bar/file4.json",
 ]
-
-
-@pytest.mark.parametrize(
-    ("filepath", "expected_result"),
-    [
-        ("Pipfile", True),
-        ("foo/.venv/Pipfile", False),
-        ("foo/bar/.venvsomething", True),
-    ],
-)
-def test_is_excluded_from_sca(filepath: str, expected_result: bool):
-    """
-    GIVEN a StringScannable
-    WHEN calling is_excluded_from_sca
-    THEN we get True if the file is inside a directory from SCA_IGNORE_LIST
-    THEN we get False otherwise
-    """
-    scannable = StringScannable(filepath, "", Filemode.FILE)
-
-    assert is_not_excluded_from_sca(scannable) is expected_result
 
 
 def test_get_all_files_from_sca_paths(tmp_path):

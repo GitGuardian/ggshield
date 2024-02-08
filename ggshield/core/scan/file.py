@@ -102,7 +102,8 @@ def get_files_from_paths(
 
 
 def generate_files_from_paths(
-    paths: Iterable[Path], display_binary_files: bool
+    paths: Iterable[Path],
+    display_binary_files: bool,
 ) -> Iterator[Scannable]:
     """Loop on filepaths and return an iterator on scannable files."""
     for path in paths:
