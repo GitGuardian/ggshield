@@ -1,22 +1,17 @@
-from typing import Any, Dict, cast
+import json
+from typing import Any, Dict, List, cast
 
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
 )
 from ggshield.verticals.sca.output.handler import SCAOutputHandler
-from ggshield.verticals.sca.output.schemas import (
-    SCAJSONScanAllOutputSchema,
-    SCAJSONScanDiffOutputSchema,
-)
 
 
 class SCAJsonOutputHandler(SCAOutputHandler):
     def _process_scan_all_impl(self, scan: SCAScanAllVulnerabilityCollection) -> str:
-        scan_dict = self.create_scan_all_dict(scan)
-        schema = SCAJSONScanAllOutputSchema
-        serialized_result = schema.load(scan_dict)
-        text = schema.dumps(serialized_result)
+        scan_dict = SCAJsonOutputHandler.create_scan_all_dict(scan)
+        text = json.dumps(scan_dict)
         return cast(str, text)
 
     def _process_scan_diff_impl(self, scan: SCAScanDiffVulnerabilityCollection) -> str:
@@ -25,10 +20,16 @@ class SCAJsonOutputHandler(SCAOutputHandler):
             if scan.result is not None
             else {"scanned_files": [], "added_vulns": [], "removed_vulns": []}
         )
-        schema = SCAJSONScanDiffOutputSchema
-        serialized_result = schema.load(scan_dict)
-        text = schema.dumps(serialized_result)
-        return cast(str, text)
+
+        del scan_dict["source_found"]
+        SCAJsonOutputHandler.remove_vuln_keys_from_raw_packages(
+            scan_dict["added_vulns"]
+        )
+        SCAJsonOutputHandler.remove_vuln_keys_from_raw_packages(
+            scan_dict["removed_vulns"]
+        )
+
+        return json.dumps(scan_dict)
 
     @staticmethod
     def create_scan_all_dict(scan: SCAScanAllVulnerabilityCollection) -> Dict[str, Any]:
@@ -40,4 +41,24 @@ class SCAJsonOutputHandler(SCAOutputHandler):
         for file in scan_dict["found_package_vulns"]:
             scan_dict["total_vulns"] += len(file["package_vulns"])
 
+        del scan_dict["source_found"]
+        SCAJsonOutputHandler.remove_vuln_keys_from_raw_packages(
+            scan_dict["found_package_vulns"]
+        )
+
         return scan_dict
+
+    @staticmethod
+    def remove_vuln_keys_from_raw_packages(packages: List[Dict[str, Any]]) -> None:
+        """Deletes in-place elements from the raw response that should not appear in the output."""
+        for package in packages:
+            for package_vuln in package["package_vulns"]:
+                for vuln in package_vuln["vulns"]:
+                    for key_to_delete in (
+                        "url",
+                        "status",
+                        "ignored_until",
+                        "ignore_reason",
+                        "ignore_comment",
+                    ):
+                        del vuln[key_to_delete]
