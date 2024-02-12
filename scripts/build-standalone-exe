@@ -3,6 +3,7 @@ set -euo pipefail
 
 PROGNAME=$(basename "$0")
 ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
+RESOURCES_DIR="$ROOT_DIR/scripts/standalone-exe"
 
 DEFAULT_STEPS="req build copy_files test create_archive"
 
@@ -49,9 +50,18 @@ read_version() {
 init_system_vars() {
     local arch
     arch=$(uname -m)
-    if [ "$arch" = "aarch64" ] ; then
-        arch=arm64
-    fi
+
+    case "$arch" in
+    arm64)
+        HUMAN_ARCH=ARM-based
+        ;;
+    x86_64)
+        HUMAN_ARCH=Intel-based
+        ;;
+    *)
+        die "Unsupported architecture '$arch'"
+        ;;
+    esac
 
     local out
     out=$(uname)
@@ -60,15 +70,18 @@ init_system_vars() {
     Linux)
         EXE_EXT=""
         TARGET="$arch-unknown-linux-gnu"
+        HUMAN_OS=Linux
         ARCHIVE_FORMAT=tar
         ;;
     Darwin)
         EXE_EXT=""
+        HUMAN_OS=macOS
         TARGET="$arch-apple-darwin"
         ARCHIVE_FORMAT=tar
         ;;
     MINGW*|MSYS*)
         EXE_EXT=".exe"
+        HUMAN_OS=Windows
         TARGET="$arch-pc-windows-msvc"
         ARCHIVE_FORMAT=zip
         ;;
@@ -117,6 +130,11 @@ step_copy_files() {
     info "Copying files to $output_dir"
     rm -rf "$output_dir"
     cp -R "$pyinstaller_output_dir" "$output_dir"
+    sed \
+        -e "s/@HUMAN_OS@/$HUMAN_OS/" \
+        -e "s/@HUMAN_ARCH@/$HUMAN_ARCH/" \
+        "$RESOURCES_DIR/README.md" \
+        > "$output_dir/README.md"
 }
 
 step_test() {
