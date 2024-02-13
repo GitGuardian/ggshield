@@ -15,9 +15,10 @@ class SCAJsonOutputHandler(SCAOutputHandler):
         return cast(str, text)
 
     def _process_scan_diff_impl(self, scan: SCAScanDiffVulnerabilityCollection) -> str:
+        result_without_ignored = scan.get_result_without_ignored()
         scan_dict = (
-            scan.result.to_dict()
-            if scan.result is not None
+            result_without_ignored.to_dict()
+            if result_without_ignored is not None
             else {"scanned_files": [], "added_vulns": [], "removed_vulns": []}
         )
 
@@ -33,9 +34,10 @@ class SCAJsonOutputHandler(SCAOutputHandler):
 
     @staticmethod
     def create_scan_all_dict(scan: SCAScanAllVulnerabilityCollection) -> Dict[str, Any]:
-        if scan.result is None:
+        result = scan.get_result_without_ignored()
+        if result is None:
             return {"scanned_files": [], "found_package_vulns": [], "total_vulns": 0}
-        scan_dict = scan.result.to_dict()
+        scan_dict = result.to_dict()
 
         scan_dict["total_vulns"] = 0
         for file in scan_dict["found_package_vulns"]:
