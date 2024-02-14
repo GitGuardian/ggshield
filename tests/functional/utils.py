@@ -8,6 +8,7 @@ import pytest
 from pygitguardian.models import Match
 
 from ggshield.core.filter import censor_match
+from tests.functional.conftest import GGSHIELD_PATH
 
 
 PathLike = Union[Path, str]
@@ -20,7 +21,8 @@ def run_ggshield(
     env: Optional[Dict] = None,
 ) -> subprocess.CompletedProcess:
     env = env or dict()
-    cmd = ("ggshield", *args)
+    assert GGSHIELD_PATH is not None
+    cmd = (GGSHIELD_PATH, *args)
     cwd = None if cwd is None else str(cwd)
     result = subprocess.run(
         cmd,

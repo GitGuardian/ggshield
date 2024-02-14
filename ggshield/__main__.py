@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import logging
+import multiprocessing
 import os
 import sys
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import Any, List, Optional
 
 import click
 
+from ggshield import __version__
 from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
 from ggshield.cmd.hmsl import hmsl_group
@@ -97,7 +99,7 @@ def config_path_callback(
     callback=config_path_callback,
 )
 @add_common_options()
-@click.version_option()
+@click.version_option(version=__version__)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -178,6 +180,11 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     `args` is only used by unit-tests.
     """
+
+    # Required by pyinstaller when forking.
+    # See https://pyinstaller.org/en/latest/common-issues-and-pitfalls.html#multi-processing
+    multiprocessing.freeze_support()
+
     disable_logs()
     show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
