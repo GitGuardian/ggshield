@@ -274,12 +274,9 @@
             "version": "==2.21"
         },
         "pygitguardian": {
-            "hashes": [
-                "sha256:c3b57103b913fcd3e7bb85be378dc98c4c7d680349a603acd417d9a0fc338632",
-                "sha256:db2030e409373c4ee38a59a9a098e1910d2e5788d1416a5d3c2e0f44e1975d86"
-            ],
+            "git": "git+https://github.com/GitGuardian/py-gitguardian.git@master",
             "markers": "python_version >= '3.8'",
-            "version": "==1.13.0"
+            "ref": "d3634704188b7f95036b8753b4dbc77217ebcf12"
         },
         "pygments": {
             "hashes": [

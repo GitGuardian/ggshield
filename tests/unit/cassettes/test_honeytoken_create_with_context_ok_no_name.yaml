@@ -1,0 +1,62 @@
+interactions:
+  - request:
+      body:
+        '{"name": "ggshield-kF6V8gX3", "type": "AWS", "description": "description",
+        "project_extensions": "", "filename": null, "language": null}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '136'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.12.0 (Darwin;py3.11.7) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/honeytokens/with-context
+    response:
+      body:
+        string:
+          '{"content":"XXX","filename":"creds.yml","suggested_commit_message":"Add
+          AWS connection details","language":"yaml","gitguardian_url":"https://api.gitguardian.com/workspace/1/honeytokens/722da809-d8a0-42e0-87b2-f9454d104aa2","honeytoken_id":"722da809-d8a0-42e0-87b2-f9454d104aa2"}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '325'
+        Content-Type:
+          - application/json
+        Cross-Origin-Opener-Policy:
+          - same-origin
+        Date:
+          - Fri, 26 Jan 2024 15:37:08 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - nginx/1.24.0
+        Vary:
+          - Cookie
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-Request-ID:
+          - e579107c9d52ee9d189b2ee10dc8fd97
+        X-SCA-Engine-Version:
+          - 1.22.0
+        X-Secrets-Engine-Version:
+          - 2.104.0
+      status:
+        code: 200
+        message: OK
+version: 1

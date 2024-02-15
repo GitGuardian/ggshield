@@ -1,0 +1,58 @@
+interactions:
+  - request:
+      body:
+        '{"name": "ggshield-n8yFseW6", "type": "AWS", "description": "test_create_error",
+        "project_extensions": "", "filename": null, "language": "non_existing_language"}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '161'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.12.0 (Darwin;py3.11.7) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/honeytokens/with-context
+    response:
+      body:
+        string: '{"detail":"Language not recognized."}'
+      headers:
+        Access-Control-Expose-Headers:
+          - X-App-Version
+        Allow:
+          - POST, OPTIONS
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '37'
+        Content-Type:
+          - application/json
+        Cross-Origin-Opener-Policy:
+          - same-origin
+        Date:
+          - Fri, 26 Jan 2024 15:42:49 GMT
+        Referrer-Policy:
+          - same-origin
+        Server:
+          - nginx/1.24.0
+        Vary:
+          - Cookie
+        X-App-Version:
+          - dev
+        X-Content-Type-Options:
+          - nosniff
+        X-Frame-Options:
+          - DENY
+        X-SCA-Engine-Version:
+          - 1.22.0
+        X-Secrets-Engine-Version:
+          - 2.104.0
+      status:
+        code: 400
+        message: Bad Request
+version: 1
