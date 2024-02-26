@@ -211,6 +211,8 @@ jobs:
 
       - name: Functional tests
         shell: bash
+        # See note about steps requiring the GITGUARDIAN_API at the top of this file
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         run: |
           scripts/build-standalone-exe functests
         env:
