@@ -14,7 +14,7 @@ branding:
   color: 'blue'
 runs:
   using: 'docker'
-  image: 'docker://gitguardian/ggshield:v1.24.0'
+  image: 'docker://gitguardian/ggshield:v1.25.0'
   entrypoint: '/app/docker/actions-sca-entrypoint.sh'
   args:
     - ${{ inputs.args }}

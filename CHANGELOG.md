@@ -1,5 +1,17 @@
 # Changelog
 
+<a id='changelog-1.25.0'></a>
+
+## 1.25.0 — 2024-02-27
+
+### Added
+
+- It is now possible to create a honeytoken with context using the new `honeytoken create-with-context` command.
+
+### Changed
+
+- SCA incidents ignored on the GitGuardian app will no longer show up in the scan results, in text/JSON format.
+
 <a id='changelog-1.24.0'></a>
 
 ## 1.24.0 — 2024-01-30
