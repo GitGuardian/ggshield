@@ -16,6 +16,11 @@ from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
 from ggshield.core.cache import Cache
 from ggshield.core.url_utils import dashboard_to_api_url
+from ggshield.utils.git_shell import (
+    _get_git_path,
+    _git_rev_parse_absolute,
+    read_git_file,
+)
 from tests.conftest import GG_VALID_TOKEN
 
 
@@ -656,3 +661,10 @@ def make_fake_path_inaccessible(fs: FakeFilesystem, path: Union[str, Path]):
     # `force_unix_mode` is required for Windows.
     # See <https://pytest-pyfakefs.readthedocs.io/en/latest/usage.html#set-file-as-inaccessible-under-windows>
     fs.chmod(path, 0o0000, force_unix_mode=True)
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    _get_git_path.cache_clear()
+    _git_rev_parse_absolute.cache_clear()
+    read_git_file.cache_clear()
