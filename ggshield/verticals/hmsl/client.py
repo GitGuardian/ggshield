@@ -87,7 +87,7 @@ class HMSLClient:
 
     @property
     def quota(self) -> Quota:
-        """Return the remaining credits."""
+        """Return the remaining quotas for the day."""
         if self._quota is None:
             # Use the side effect of the call to set the remaining credits
             self.check_prefixes([])
