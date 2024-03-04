@@ -61,7 +61,7 @@ def get_all_files_from_sca_paths(
         )
     ]
 
-    return [str(x.relative_to(path)) for x in paths]
+    return [str(x.relative_to(path)) for x in sorted(paths)]
 
 
 def sca_files_from_git_repo(

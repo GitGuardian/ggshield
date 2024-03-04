@@ -15,12 +15,16 @@ from tests.repository import Repository
 from tests.unit.conftest import my_vcr, write_text
 
 
+# unsorted filenames
 FILE_NAMES = [
-    "file1.txt",
-    "file2.py",
+    "backend/setup.cfg",
+    "backend/pdm.lock",
+    ".gitlab/ci/ci_scripts/pdm.lock",
+    "front/yarn.lock",
+    "backend/pyproject.toml",
+    ".gitlab/ci/ci_scripts/pyproject.toml",
+    "front/package.json",
     ".venv/dockerfile.txt",
-    "foo/node_modules/file3.json",
-    "foo/bar/file4.json",
 ]
 
 
@@ -28,17 +32,32 @@ def test_get_all_files_from_sca_paths(tmp_path):
     """
     GIVEN a directory
     WHEN calling get_all_files_from_sca_paths
-    THEN we get the ones that are not excluded by is_excluded_from_sca
+    THEN we get the ones that are not excluded by is_excluded_from_sca in the right order
     """
     tmp_paths = [str(tmp_path / filename) for filename in FILE_NAMES]
     for path in tmp_paths:
         write_text(filename=path, content="")
 
     files = get_all_files_from_sca_paths(tmp_path, set(), True)
-    assert len(files) == 3
+    assert len(files) == 7
     assert Path(".venv/dockerfile.txt") not in [Path(filepath) for filepath in files]
-    assert Path("file2.py") in [Path(filepath) for filepath in files]
-    assert Path("foo/bar/file4.json") in [Path(filepath) for filepath in files]
+    assert Path("backend/pyproject.toml") in [Path(filepath) for filepath in files]
+    assert Path("front/package.json") in [Path(filepath) for filepath in files]
+
+    # test if the output is sorted
+    assert files == [
+        # we do this to handle windows paths
+        str(Path(filename))
+        for filename in [
+            ".gitlab/ci/ci_scripts/pdm.lock",
+            ".gitlab/ci/ci_scripts/pyproject.toml",
+            "backend/pdm.lock",
+            "backend/pyproject.toml",
+            "backend/setup.cfg",
+            "front/package.json",
+            "front/yarn.lock",
+        ]
+    ]
 
 
 @pytest.mark.parametrize(
