@@ -197,7 +197,7 @@ class TestPathScan:
         assert "No secrets have been found" in result.output
 
     @patch("ggshield.verticals.secret.secret_scanner.SecretScanner.scan")
-    def test_scan_ignored_directory(self, scan_mock, cli_fs_runner):
+    def test_scan_ignored_file(self, scan_mock, cli_fs_runner):
         self.create_files()
         config = """
 version: 2

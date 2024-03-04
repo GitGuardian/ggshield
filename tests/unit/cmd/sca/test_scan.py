@@ -386,7 +386,7 @@ CVE IDs: -"""  # noqa W291
 
 
 @patch("pygitguardian.GGClient.compute_sca_files")
-def test_scan_all_ignored_directory(
+def test_sca_scan_all_ignored_directory(
     compute_sca_files_mock: Mock,
     cli_fs_runner: click.testing.CliRunner,
     dummy_sca_repo: Repository,
@@ -404,10 +404,57 @@ def test_scan_all_ignored_directory(
             "scan",
             "all",
             "--ignore-path",
-            dummy_sca_repo.path.name,
+            f"{dummy_sca_repo.path.name}/",
             str(dummy_sca_repo.path),
         ],
     )
+
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "An ignored file or directory cannot be scanned." in result.stdout
+    compute_sca_files_mock.assert_not_called()
+
+
+@patch("pygitguardian.GGClient.compute_sca_files")
+def test_sca_scan_all_ignored_directory_config(
+    compute_sca_files_mock: Mock,
+    cli_fs_runner: CliRunner,
+    tmp_path: Path,
+    pipfile_lock_with_vuln: str,
+) -> None:
+    """
+    GIVEN a directory which is ignored in the config
+    WHEN running the sca scan all command on this directory
+    THEN an error is raised
+    """
+    repo = Repository.create(tmp_path)
+    dir = tmp_path / "dir"
+    dir.mkdir()
+    subdir = dir / "subdir"
+    subdir.mkdir()
+    pipfile_lock = subdir / "Pipfile.lock"
+    pipfile_lock.write_text(pipfile_lock_with_vuln)
+    repo.add(pipfile_lock)
+    repo.create_commit()
+
+    config = """
+version: 2
+sca:
+    ignored-paths:
+        - "dir/subdir/"
+
+"""
+    (tmp_path / ".gitguardian.yaml").write_text(config)
+
+    with cd(str(dir)):
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "sca",
+                "scan",
+                "all",
+                "subdir",
+            ],
+        )
 
     assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
     assert "An ignored file or directory cannot be scanned." in result.stdout
@@ -435,7 +482,7 @@ def test_sca_scan_diff_ignored_directory(
             "--ref",
             "branch_without_vuln",
             "--ignore-path",
-            dummy_sca_repo.path.name,
+            f"{dummy_sca_repo.path.name}/",
             str(dummy_sca_repo.path),
         ],
     )

@@ -29,7 +29,7 @@ from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
 from ggshield.core.text_utils import display_info
-from ggshield.utils.files import is_filepath_excluded
+from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import (
     Filemode,
     get_diff_files_status,
@@ -161,7 +161,7 @@ def iac_scan_diff(
             file
             for file, mode in files_status.items()
             if mode in modified_modes
-            and not is_filepath_excluded(file, exclusion_regexes)
+            and not is_path_excluded(file, exclusion_regexes)
             and is_iac_file_path(file)
         ]
 

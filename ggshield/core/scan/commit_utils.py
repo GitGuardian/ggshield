@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
-from ggshield.utils.files import is_filepath_excluded
+from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import Filemode
 
 from .scannable import Scannable
@@ -213,7 +213,7 @@ def parse_patch(
 
             diffs = re.split(r"^diff ", rest, flags=re.MULTILINE)
             for file_info, diff in zip(header.files, diffs):
-                if is_filepath_excluded(file_info.path, exclusion_regexes):
+                if is_path_excluded(file_info.path, exclusion_regexes):
                     continue
 
                 # extract document from diff: we must skip diff extended headers

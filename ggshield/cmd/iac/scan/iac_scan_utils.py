@@ -14,7 +14,7 @@ from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.tar_utils import INDEX_REF, tar_from_ref_and_filepaths
 from ggshield.core.text_utils import display_error
-from ggshield.utils.files import is_filepath_excluded
+from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 from ggshield.verticals.iac.collection.iac_scan_collection import IaCResult
 from ggshield.verticals.iac.filter import is_iac_file_path
@@ -62,7 +62,7 @@ def _accept_iac_file_on_path(
 ) -> bool:
     return is_iac_file_path(path) and (
         exclusion_regexes is None
-        or not is_filepath_excluded(directory / path, exclusion_regexes)
+        or not is_path_excluded(directory / path, exclusion_regexes)
     )
 
 
@@ -138,7 +138,7 @@ def augment_unignored_issues(
         file_path = file_result.filename
         file_ignored_until = None
         for outdated_ignored_path in outdated_ignored_paths_dicts:
-            if is_filepath_excluded(file_path, outdated_ignored_path["regex"]):
+            if is_path_excluded(file_path, outdated_ignored_path["regex"]):
                 if (
                     file_ignored_until is None
                     or file_ignored_until < outdated_ignored_path["until"]

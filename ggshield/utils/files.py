@@ -13,11 +13,17 @@ class UnexpectedDirectoryError(ValueError):
         self.path = path
 
 
-def is_filepath_excluded(
-    filepath: Union[str, Path], exclusion_regexes: Set[re.Pattern]
+def is_path_excluded(
+    path: Union[str, Path], exclusion_regexes: Set[re.Pattern]
 ) -> bool:
-    filepath = Path(filepath)
-    return any(r.search(str(PurePosixPath(filepath))) for r in exclusion_regexes)
+    path = Path(path)
+    if path.is_dir():
+        # The directory exclusion regexes have to end with a slash
+        # To check if path is excluded, we need to add a trailing slash
+        path_string = f"{PurePosixPath(path)}/"
+    else:
+        path_string = str(PurePosixPath(path))
+    return any(r.search(path_string) for r in exclusion_regexes)
 
 
 def get_filepaths(
@@ -54,7 +60,7 @@ def get_filepaths(
                 _targets = path.rglob(r"*")
 
             for file_path in _targets:
-                if not is_filepath_excluded(file_path, exclusion_regexes):
+                if not is_path_excluded(file_path, exclusion_regexes):
                     targets.add(file_path)
     return targets
 
