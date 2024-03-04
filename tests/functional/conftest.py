@@ -174,7 +174,7 @@ def sca_repo_with_hook_all(tmp_path: Path) -> Repository:
     )
 
 
-def pytest_report_header(config, start_path, startdir):
+def pytest_report_header(config, start_path: Path):
     """This function is called by pytest, it lets us insert messages in its report
     header"""
     return f"ggshield path: {GGSHIELD_PATH}"
