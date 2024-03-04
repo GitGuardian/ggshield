@@ -5,7 +5,9 @@ from typing import Set
 import pytest
 from pygitguardian import GGClient
 
+from ggshield.core.scan.file import get_files_from_paths
 from ggshield.verticals.sca.file_selection import (
+    SCA_EXCLUSION_REGEXES,
     get_all_files_from_sca_paths,
     sca_files_from_git_repo,
 )
@@ -37,6 +39,34 @@ def test_get_all_files_from_sca_paths(tmp_path):
     assert Path(".venv/dockerfile.txt") not in [Path(filepath) for filepath in files]
     assert Path("file2.py") in [Path(filepath) for filepath in files]
     assert Path("foo/bar/file4.json") in [Path(filepath) for filepath in files]
+
+
+@pytest.mark.parametrize(
+    ("file_path", "expected"),
+    [("front/file1.png", True), (".git/file2.png", False), ("file3.png", True)],
+)
+def test_get_ignored_files(tmp_path, capsysbinary, file_path, expected):
+    """
+    GIVEN a directory
+    WHEN calling sca scan a directory
+    THEN excluded directory are not inspected
+    """
+    write_text(filename=str(tmp_path / file_path), content="")
+
+    get_files_from_paths(
+        paths=[Path(tmp_path)],
+        exclusion_regexes=SCA_EXCLUSION_REGEXES,  # directories we don't want to traverse
+        recursive=True,
+        yes=True,
+        display_binary_files=True,
+        display_scanned_files=False,
+    )
+
+    captured = capsysbinary.readouterr()
+
+    # stderr shows us the ignored binary files
+    # (stderr should be empty if binary files are in directories we don't want to traverse)
+    assert (captured.err != bytes("", "utf-8")) is expected
 
 
 @pytest.mark.parametrize(

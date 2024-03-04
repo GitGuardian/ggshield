@@ -16,7 +16,7 @@ from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepath
 
 # List of filepaths to ignore for SCA scans
 SCA_EXCLUSION_REGEXES = {
-    re.compile(r".*/" + re.escape(pattern) + "/.*")
+    re.compile(re.escape(pattern) + "/.*")
     for pattern in (
         "__pycache__",
         ".git",
