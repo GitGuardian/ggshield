@@ -80,7 +80,6 @@ def print_default_instance_message(config: Config) -> None:
 )
 @click.option(
     "--scopes",
-    hidden=True,
     required=False,
     type=str,
     help=(
@@ -135,8 +134,14 @@ def login_cmd(
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
 
+    By default, the created token will have the `scan` scope. Use the `--scopes` option
+    to grant the token extra scopes. You can find the list of available scopes in
+    [GitGuardian API documentation][1].
+
     If a valid personal access token is already configured, this command simply displays
     a success message indicating that ggshield is already ready to use.
+
+    [1]: https://docs.gitguardian.com/api-docs/introduction#scopes
     """
     config = ContextObj.get(ctx).config
 
