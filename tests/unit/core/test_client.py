@@ -53,11 +53,15 @@ def test_retrieve_client_invalid_api_url():
     THEN it raises a UsageError
     """
     url = "no-scheme.com"
+    environ = os.environ.copy()
+    environ.pop("GITGUARDIAN_INSTANCE", None)
+    environ["GITGUARDIAN_API_URL"] = url
+
     with pytest.raises(
         click.UsageError,
         match=f"Invalid scheme for API URL '{url}', expected HTTPS",
     ):
-        with patch.dict(os.environ, {"GITGUARDIAN_API_URL": url}):
+        with patch.dict(os.environ, environ, clear=True):
             create_client_from_config(Config())
 
 

@@ -1,14 +1,18 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import pytest
 
 from ggshield.core.config.utils import (
+    find_local_config_path,
     remove_common_dict_items,
     remove_url_trailing_slash,
     replace_in_keys,
     update_from_other_instance,
 )
+from ggshield.utils.os import cd
+from tests.repository import Repository
 
 
 def test_replace_in_keys():
@@ -112,3 +116,21 @@ def test_remove_common_dict_items(
 def test_remove_url_trailing_slash():
     result = remove_url_trailing_slash("https://dashboard.gitguardian.com/")
     assert result == "https://dashboard.gitguardian.com"
+
+
+def test_find_config_in_root(tmp_path: Path):
+    """
+    GIVEN a repo with a config file in the root and a subdirectory
+    WHEN trying to find the local config while inside the subdirectory
+    THEN the config in the root is returned
+    """
+    Repository.create(tmp_path)
+
+    config_path = tmp_path / ".gitguardian.yml"
+    config_path.touch()
+
+    dir_path = tmp_path / "dir"
+    dir_path.mkdir()
+
+    with cd(str(dir_path)):
+        assert find_local_config_path() == config_path

@@ -10,7 +10,7 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
 from ggshield.core.text_utils import display_info
-from ggshield.utils.files import is_filepath_excluded
+from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 
 
@@ -85,7 +85,7 @@ def sca_files_from_git_repo(
         files=[
             str(path)
             for path in all_files
-            if not is_filepath_excluded(path, exclusion_regexes)
+            if not is_path_excluded(path, exclusion_regexes)
         ]
     )
     if isinstance(sca_files_result, Detail):

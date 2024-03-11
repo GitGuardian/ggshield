@@ -11,8 +11,9 @@ from ggshield.core.constants import (
     DEFAULT_CONFIG_FILENAME,
     USER_CONFIG_FILENAMES,
 )
-from ggshield.core.dirs import get_config_dir, get_user_home_dir
+from ggshield.core.dirs import get_config_dir, get_project_root_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
+from ggshield.utils.git_shell import GitExecutableNotFound
 
 
 def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
@@ -93,8 +94,12 @@ def find_global_config_path(*, to_write: bool = False) -> Optional[Path]:
 
 
 def find_local_config_path() -> Optional[Path]:
+    try:
+        project_root_dir = get_project_root_dir(Path())
+    except GitExecutableNotFound:
+        project_root_dir = Path()
     for filename in USER_CONFIG_FILENAMES:
-        path = Path(filename)
+        path = project_root_dir / filename
         if path.exists():
             return path
     return None

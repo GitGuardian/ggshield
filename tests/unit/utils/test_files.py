@@ -8,7 +8,7 @@ from typing import Set, Union
 import pytest
 
 from ggshield.core.tar_utils import get_empty_tar
-from ggshield.utils.files import is_filepath_excluded
+from ggshield.utils.files import is_path_excluded
 
 
 def test_get_empty_tar():
@@ -33,8 +33,8 @@ def test_get_empty_tar():
         (Path("dir/foo"), {"foo"}, True),
     ],
 )
-def test_is_filepath_excluded(
+def test_is_path_excluded(
     path: Union[str, Path], regexes: Set[str], excluded: bool
 ) -> None:
     regexes = {re.compile(x) for x in regexes}
-    assert is_filepath_excluded(path, regexes) == excluded
+    assert is_path_excluded(path, regexes) == excluded

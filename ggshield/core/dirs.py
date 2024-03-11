@@ -35,9 +35,7 @@ def get_cache_dir() -> Path:
 
 
 def get_project_root_dir(path: Path) -> Path:
-    """Vulnerability path are relative to either git root path or
-    path provided for the scan.
-
+    """
     Returns the source basedir required to find file within filesystem.
     """
     try:

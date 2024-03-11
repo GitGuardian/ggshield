@@ -183,7 +183,7 @@ def test_iac_scan_diff_ignored_directory(
             "--ref",
             initial_commit,
             "--ignore-path",
-            str(path),
+            f"{path.name}/",
             str(path),
         ],
     )

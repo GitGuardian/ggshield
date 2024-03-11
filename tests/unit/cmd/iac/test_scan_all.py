@@ -13,6 +13,7 @@ from pytest_mock import MockerFixture
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from ggshield.utils.os import cd
 from tests.conftest import IAC_SINGLE_VULNERABILITY
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, my_vcr
@@ -244,16 +245,15 @@ def test_iac_scan_all_verbose(cli_fs_runner: CliRunner, cli_command) -> None:
 
 @patch("pygitguardian.client.GGClient.iac_directory_scan")
 def test_iac_scan_all_ignored_directory(
-    iac_directory_scan_mock: Mock, cli_fs_runner: CliRunner, cli_command
+    iac_directory_scan_mock: Mock, cli_fs_runner: CliRunner, cli_command, tmp_path: Path
 ) -> None:
     """
     GIVEN a directory which is ignored
     WHEN running the iac scan all command on this directory
     THEN an error is raised
     """
-    path = Path(".")
-    repo = Repository.create(path)
-    iac_file = path / "iac_file.tf"
+    repo = Repository.create(tmp_path)
+    iac_file = tmp_path / "iac_file.tf"
     iac_file.write_text(IAC_SINGLE_VULNERABILITY)
     repo.add(iac_file)
     repo.create_commit()
@@ -265,10 +265,54 @@ def test_iac_scan_all_ignored_directory(
             "scan",
             "all",
             "--ignore-path",
-            str(path),
-            str(path),
+            f"{tmp_path.name}/",
+            str(tmp_path),
         ],
     )
+
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "An ignored file or directory cannot be scanned." in result.stdout
+    iac_directory_scan_mock.assert_not_called()
+
+
+@patch("pygitguardian.client.GGClient.iac_directory_scan")
+def test_iac_scan_all_ignored_directory_config(
+    iac_directory_scan_mock: Mock, cli_fs_runner: CliRunner, cli_command, tmp_path: Path
+) -> None:
+    """
+    GIVEN a directory which is ignored in the config
+    WHEN running the iac scan all command on this directory
+    THEN an error is raised
+    """
+    repo = Repository.create(tmp_path)
+    dir = tmp_path / "dir"
+    dir.mkdir()
+    subdir = dir / "subdir"
+    subdir.mkdir()
+    iac_file = subdir / "iac_file.tf"
+    iac_file.write_text(IAC_SINGLE_VULNERABILITY)
+    repo.add(iac_file)
+    repo.create_commit()
+
+    config = """
+version: 2
+iac:
+    ignored-paths:
+        - "dir/subdir/"
+
+"""
+    (tmp_path / ".gitguardian.yaml").write_text(config)
+
+    with cd(str(dir)):
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "iac",
+                "scan",
+                "all",
+                "subdir",
+            ],
+        )
 
     assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
     assert "An ignored file or directory cannot be scanned." in result.stdout

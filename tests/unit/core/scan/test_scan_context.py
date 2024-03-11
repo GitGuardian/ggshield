@@ -114,7 +114,9 @@ def test_ci_no_env(env, fake_url_repo: Repository) -> None:
     WHEN there is no repository url in the environment
     THEN the remote url is sent by default
     """
-    with mock.patch.dict(os.environ, env, clear=True):
+    # Copying the path is needed for windows to find git
+    environ = {"PATH": os.environ.get("PATH"), **env}
+    with mock.patch.dict(os.environ, environ, clear=True):
         context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path="ggshield secret scan path",
