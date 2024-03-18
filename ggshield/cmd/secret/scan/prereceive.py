@@ -38,11 +38,13 @@ from ggshield.verticals.secret.repo import scan_commit_range
 logger = logging.getLogger(__name__)
 
 
-REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from pushing secrets.
-  Since the secret was detected during the push BUT after the commit, you need to:
-  1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
-  2. push again."""
-
+if os.getenv("GITGUARDIAN_PRERECEIVE_MESSAGE") == "":
+    REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevented you from pushing secrets.
+        Since the secret was detected during the push BUT after the commit, you need to:
+        1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
+        2. push again."""
+else:
+    REMEDIATION_MESSAGE = os.getenv("GITGUARDIAN_PRERECEIVE_MESSAGE")
 
 def _execute_prereceive(
     config: Config,
