@@ -186,7 +186,7 @@ jobs:
 
       - name: Install standalone-specific dependencies
         run: |
-          python -m pip install --upgrade pyinstaller
+          python -m pip install pyinstaller==6.5.0
 
       - name: Build
         shell: bash
