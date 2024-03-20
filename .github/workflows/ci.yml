@@ -199,6 +199,7 @@ jobs:
           name: ggshield-standalone-${{ matrix.os }}
           path: |
             dist/ggshield-standalone-*.gz
+            dist/ggshield-standalone-*.pkg
             dist/ggshield-standalone-*.zip
 
       - name: Override base Docker image used for functional tests on Windows
