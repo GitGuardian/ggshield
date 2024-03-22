@@ -1,13 +1,12 @@
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import marshmallow_dataclass
 from marshmallow import ValidationError, post_load, pre_load
-from pygitguardian.models import FromDictMixin
 
 from ggshield.core.config.utils import (
     find_global_config_path,
@@ -16,13 +15,13 @@ from ggshield.core.config.utils import (
     remove_common_dict_items,
     replace_dash_in_keys,
     save_yaml_dict,
-    update_from_other_instance,
+    update_dict_from_other,
 )
+from ggshield.core.config.v1_config import convert_v1_config_dict
 from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
-from ggshield.core.url_utils import api_to_dashboard_url
 
 
 logger = logging.getLogger(__name__)
@@ -293,6 +292,10 @@ class UserConfig(FilteredConfig):
         """
         Save config to config_path
         """
+        dct = self.to_config_dict()
+        save_yaml_dict(dct, config_path)
+
+    def to_config_dict(self) -> Dict[str, Any]:
         dct = self.to_dict()
         default_dct = UserConfig.from_dict({}).to_dict()
 
@@ -300,7 +303,7 @@ class UserConfig(FilteredConfig):
 
         dct["version"] = CURRENT_CONFIG_VERSION
 
-        save_yaml_dict(dct, config_path)
+        return dct
 
     @classmethod
     def load(cls, config_path: Optional[Path] = None) -> Tuple["UserConfig", Path]:
@@ -311,59 +314,48 @@ class UserConfig(FilteredConfig):
 
         Returns a UserConfig instance, and the path where updates should be saved
         """
-        user_config = UserConfig()
+        deprecation_messages: List[str] = []
         if config_path:
             logger.debug("Loading custom config from %s", config_path)
-            user_config._update_from_file(config_path)
+            dct = _load_config_dict(config_path, deprecation_messages)
+            user_config = UserConfig.from_config_dict(dct)
+            user_config.deprecation_messages = deprecation_messages
             return user_config, config_path
 
+        user_config_dict: Dict[str, Any] = {}
         global_config_path = find_global_config_path()
         if global_config_path:
-            user_config._update_from_file(global_config_path)
+            dct = _load_config_dict(global_config_path, deprecation_messages)
+            update_dict_from_other(user_config_dict, dct)
             logger.debug("Loaded global config from %s", global_config_path)
         else:
             logger.debug("No global config")
 
         local_config_path = find_local_config_path()
         if local_config_path:
-            user_config._update_from_file(local_config_path)
+            dct = _load_config_dict(local_config_path, deprecation_messages)
+            update_dict_from_other(user_config_dict, dct)
             config_path = local_config_path
             logger.debug("Loaded local config from %s", local_config_path)
         else:
             logger.debug("No local config")
 
+        user_config = UserConfig.from_config_dict(user_config_dict)
+        user_config.deprecation_messages = deprecation_messages
+
         if config_path is None:
             config_path = Path(DEFAULT_LOCAL_CONFIG_PATH)
         return user_config, config_path
 
-    def _update_from_file(self, config_path: Path) -> None:
+    @staticmethod
+    def from_config_dict(data: Dict[str, Any]) -> "UserConfig":
+        """Create a UserConfig instance. In case of error, format it and raise
+        ParseError."""
         try:
-            data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
-            renamed_keys = replace_dash_in_keys(data)
-
-            config_version = data.pop("version", 1)
-            if config_version == 2:
-                if renamed_keys:
-                    _warn_about_dash_keys(config_path, renamed_keys)
-                _fix_ignore_known_secrets(data)
-                obj = UserConfig.from_dict(data)
-            elif config_version == 1:
-                self.deprecation_messages.append(
-                    f"{config_path} uses a deprecated configuration file format."
-                    " Run `ggshield config migrate` to migrate it to the latest version."
-                )
-                obj = UserV1Config.load_v1(data)
-            else:
-                raise UnexpectedError(
-                    f"Don't know how to load config version {config_version}"
-                )
+            return UserConfig.from_dict(data)
         except ValidationError as exc:
             message = format_validation_error(exc)
             raise ParseError(message) from exc
-        except ValueError as exc:
-            raise ParseError(str(exc)) from exc
-
-        update_from_other_instance(self, obj)
 
 
 UserConfig.SCHEMA = marshmallow_dataclass.class_schema(UserConfig)(
@@ -373,6 +365,40 @@ UserConfig.SCHEMA = marshmallow_dataclass.class_schema(UserConfig)(
         "iac.outdated_ignored_policies",
     )
 )
+
+
+def _load_config_dict(
+    config_path: Path, deprecation_messages: List[str]
+) -> Dict[str, Any]:
+    """
+    Load configuration from `config_path` as a dict.
+    Appends any deprecation message regarding this file to `deprecation_messages`.
+    """
+    try:
+        # load_yaml_dict() returns None if `config_path` does not exist. When this
+        # happens, initialize the config dict to an empty configuration file,
+        # but set the version to the latest version so that we don't get deprecation
+        # messages.
+        dct = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
+    except ValueError as exc:
+        raise ParseError(str(exc)) from exc
+
+    renamed_keys = replace_dash_in_keys(dct)
+
+    config_version = dct.pop("version", 1)
+    if config_version == 2:
+        if renamed_keys:
+            _warn_about_dash_keys(config_path, renamed_keys)
+        _fix_ignore_known_secrets(dct)
+    elif config_version == 1:
+        deprecation_messages.append(
+            f"{config_path} uses a deprecated configuration file format."
+            " Run `ggshield config migrate` to migrate it to the latest version."
+        )
+        dct = convert_v1_config_dict(dct, deprecation_messages)
+    else:
+        raise UnexpectedError(f"Don't know how to load config version {config_version}")
+    return dct
 
 
 def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
@@ -398,90 +424,3 @@ def _warn_about_dash_keys(config_path: Path, renamed_keys: Set[str]) -> None:
         display_warning(
             f"{config_path}: Config key {old_key} is deprecated, use {new_key} instead."
         )
-
-
-@dataclass
-class UserV1Config(FromDictMixin):
-    """
-    Can load a v1 .gitguardian.yaml file
-    """
-
-    instance: Optional[str] = None
-    all_policies: bool = False
-    exit_zero: bool = False
-    matches_ignore: List[Dict[str, Optional[str]]] = field(default_factory=list)
-    paths_ignore: Set[str] = field(default_factory=set)
-    verbose: bool = False
-    allow_self_signed: bool = False
-    max_commits_for_hook: int = 50
-    ignore_default_excludes: bool = False
-    show_secrets: bool = False
-    banlisted_detectors: Set[str] = field(default_factory=set)
-
-    @staticmethod
-    def load_v1(data: Dict[str, Any]) -> UserConfig:
-        """
-        Takes a dict representing a v1 .gitguardian.yaml and returns a v2 config object
-        """
-        # If data contains the old "api-url" key, turn it into an "instance" key,
-        # but only if there is no "instance" key
-        try:
-            api_url = data.pop("api_url")
-        except KeyError:
-            pass
-        else:
-            if "instance" not in data:
-                data["instance"] = api_to_dashboard_url(api_url, warn=True)
-
-        UserV1Config.matches_ignore_to_dict(data)
-
-        v1config = UserV1Config.from_dict(data)
-
-        deprecation_messages = []
-
-        if v1config.all_policies:
-            deprecation_messages.append(
-                "The `all_policies` option has been deprecated and is now ignored."
-            )
-
-        if v1config.ignore_default_excludes:
-            deprecation_messages.append(
-                "The `ignore_default_exclude` option has been deprecated and is now ignored."
-            )
-
-        ignored_matches = [
-            IgnoredMatch.from_dict(secret) for secret in v1config.matches_ignore
-        ]
-        secret = SecretConfig(
-            show_secrets=v1config.show_secrets,
-            ignored_detectors=v1config.banlisted_detectors,
-            ignored_matches=ignored_matches,
-            ignored_paths=v1config.paths_ignore,
-        )
-
-        return UserConfig(
-            instance=v1config.instance,
-            exit_zero=v1config.exit_zero,
-            verbose=v1config.verbose,
-            allow_self_signed=v1config.allow_self_signed,
-            max_commits_for_hook=v1config.max_commits_for_hook,
-            secret=secret,
-            deprecation_messages=deprecation_messages,
-        )
-
-    @staticmethod
-    def matches_ignore_to_dict(data: Dict[str, Any]) -> None:
-        """
-        v1 config format allowed to use just a hash of the secret for matches_ignore
-        field v2 does not. This function converts the hash-only matches.
-        """
-        matches_ignore = data.get("matches_ignore")
-        if not matches_ignore:
-            return
-
-        for idx, match in enumerate(matches_ignore):
-            if isinstance(match, str):
-                matches_ignore[idx] = {"name": "", "match": match}
-
-
-UserV1Config.SCHEMA = marshmallow_dataclass.class_schema(UserV1Config)()

@@ -1,4 +1,3 @@
-from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, Union, overload
 
@@ -108,25 +107,24 @@ def find_local_config_path() -> Optional[Path]:
     return None
 
 
-def update_from_other_instance(dst: Any, src: Any) -> None:
+def update_dict_from_other(dct: Dict[str, Any], other: Dict[str, Any]) -> None:
     """
-    Update `dst` with fields from `src` if they are set.
-    `src` must be the same class or a subclass of `dst`.
+    Merge values from `other` dict into `dct`. List entries are appended, sets are
+    updated, dicts are merged.
+
+    The merge happens in-place: `dct` is modified.
     """
-    assert isinstance(src, dst.__class__)
-    for field_ in fields(src):
-        name = field_.name
-        value = src.__dict__[name]
+    for key, value in other.items():
         if value is None:
             continue
         if isinstance(value, list):
-            dst.__dict__[name].extend(value)
+            dct.setdefault(key, []).extend(value)
         elif isinstance(value, set):
-            dst.__dict__[name].update(value)
-        elif is_dataclass(value):
-            update_from_other_instance(dst.__dict__[name], value)
+            dct.setdefault(key, set()).update(value)
+        elif isinstance(value, dict):
+            update_dict_from_other(dct.setdefault(key, {}), value)
         else:
-            dst.__dict__[name] = value
+            dct[key] = value
 
 
 def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:
