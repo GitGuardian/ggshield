@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROGNAME=$(basename "$0")
+
+usage() {
+    if [ "$*" != "" ] ; then
+        echo "Error: $*" >&2
+        echo >&2
+    fi
+
+    cat << EOF
+Usage: $PROGNAME [OPTION ...] URL DEST_FILENAME SHA256SUM
+Download a file and verify its checksum.
+
+Options:
+  -h, --help          display this usage message and exit
+EOF
+
+    exit 1
+}
+
+url=""
+filename=""
+sum=""
+while [ $# -gt 0 ] ; do
+    case "$1" in
+    -h|--help)
+        usage
+        ;;
+    -*)
+        usage "Unknown option '$1'"
+        ;;
+    *)
+        if [ -z "$url" ] ; then
+            url="$1"
+        elif [ -z "$filename" ] ; then
+            filename="$1"
+        elif [ -z "$sum" ] ; then
+            sum="$1"
+        else
+            usage "Too many arguments"
+        fi
+        ;;
+    esac
+    shift
+done
+
+if [ -z "$sum" ] ; then
+    usage "Not enough arguments"
+fi
+
+echo "Downloading $url to $filename"
+curl --fail --location \
+    --output "$filename" \
+    "$url"
+
+echo "Verifying integrity"
+echo "$sum  $filename" | sha256sum --check
