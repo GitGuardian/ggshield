@@ -159,11 +159,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-2022
-          - macos-14
+        include:
+          - os: ubuntu-latest
+          - os: windows-2022
+          - os: macos-latest
+            arch: x86_64
+          - os: macos-14
+            arch: aarch64
     steps:
       - uses: actions/checkout@v4
         with:
@@ -188,10 +190,46 @@ jobs:
         run: |
           python -m pip install pyinstaller==6.5.0
 
+      - name: Install macOS standalone-specific dependencies
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          VERSION=0.27.0
+
+          curl --fail --location \
+            --output rcodesign.tar.gz \
+            https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${VERSION}/apple-codesign-${VERSION}-${{ matrix.arch }}-apple-darwin.tar.gz
+
+          # TODO verify checksum
+          tar --strip-components=1 -xzf rcodesign.tar.gz
+          cp rcodesign /usr/local/bin
+
+      - name: Prepare macOS secrets
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          set -euo pipefail
+          SECRETS_DIR=$TMPDIR/secrets
+          mkdir "$SECRETS_DIR"
+          # Prepare our secret files
+          # The p12-file is base64-encoded because it's binary
+          echo "$MACOS_P12_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
+          echo "$MACOS_P12_PASSWORD" > "$SECRETS_DIR/cert.pwd"
+          echo "$MACOS_API_KEY_FILE" > "$SECRETS_DIR/rcodesign-notarize-key.json"
+
+          # Tell next steps where to find them
+          cat >> $GITHUB_ENV <<EOF
+          MACOS_P12_FILE=$SECRETS_DIR/cert.p12
+          MACOS_P12_PASSWORD_FILE=$SECRETS_DIR/cert.pwd
+          MACOS_API_KEY_FILE=$SECRETS_DIR/rcodesign-notarize-key.json
+          EOF
+        env:
+          MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
+          MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
+          MACOS_API_KEY_FILE: ${{ secrets.MACOS_API_KEY_FILE }}
+
       - name: Build
         shell: bash
         run: |
-          scripts/build-standalone-exe
+          scripts/build-standalone-exe --sign
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
