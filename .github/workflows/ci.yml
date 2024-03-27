@@ -174,8 +174,24 @@ jobs:
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
+        if: matrix.os != 'macos-14'
         with:
           python-version: '3.10'
+
+      - name: Set up Python 3.10 (Mac ARM)
+        if: matrix.os == 'macos-14'
+        run: |
+          VERSION=3.10.13
+          BUILD=20240224
+
+          curl --fail --location \
+            --output python.tar.zst \
+            https://github.com/indygreg/python-build-standalone/releases/download/${BUILD}/cpython-${VERSION}+${BUILD}-aarch64-apple-darwin-pgo+lto-full.tar.zst
+          # TODO verify checksum
+          tar xf python.tar.zst
+
+          # Make it available
+          echo PATH=$PWD/python/install/bin:$PATH >> $GITHUB_ENV
 
       - name: Install normal dependencies
         run: |
