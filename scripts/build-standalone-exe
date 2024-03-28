@@ -114,7 +114,7 @@ init_system_vars() {
         die "Unknown OS. uname printed '$out'"
         ;;
     esac
-    ARCHIVE_DIR_NAME=ggshield-standalone-$VERSION-$TARGET
+    ARCHIVE_DIR_NAME=ggshield-$VERSION-$TARGET
 }
 
 step_req() {
