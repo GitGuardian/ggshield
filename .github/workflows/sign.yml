@@ -1,0 +1,143 @@
+name: Sign
+
+# This is an on-demand workflow to test signing
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-standalone:
+    name: Standalone exe
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+          - os: macos-latest
+            arch: x86_64
+            sha256sum:
+              python: 6378dfd22f58bb553ddb02be28304d739cd730c1f95c15c74955c923a1bc3d6a
+              rcodesign: bca6e648afaddd48f1c3d5dd25aa516659992cbbd2ba7131ba6add739aa895d3
+          - os: macos-14
+            arch: aarch64
+            sha256sum:
+              python: 5fdc0f6a5b5a90fd3c528e8b1da8e3aac931ea8690126c2fdb4254c84a3ff04a
+              rcodesign: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Get enough commits to run `ggshield secret scan commit-range` on ourselves
+          fetch-depth: 10
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        if: "!startsWith(matrix.os, 'macos-')"
+        with:
+          python-version: '3.10'
+
+      - name: Install macOS specific dependencies
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          # scripts/download needs the `sha256sum` command
+          brew install coreutils
+
+          # Install Python. We don't use actions/setup-python because on M1
+          # macs it installs the Framework version of Python, and the binaries
+          # produced with that version do not pass Apple notarization step.
+          # (tested with actions/setup-python@v4 and @v5)
+          PYTHON_VERSION=3.10.13
+          PYTHON_BUILD=20240224
+
+          scripts/download \
+            https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${{ matrix.arch }}-apple-darwin-install_only.tar.gz \
+            python.tar.gz \
+            ${{ matrix.sha256sum.python }}
+
+          tar xf python.tar.gz
+
+          # Make Python available
+          echo PATH=$PWD/python/bin:$PATH >> $GITHUB_ENV
+
+          # Install rcodesign
+          RCODESIGN_VERSION=0.27.0
+
+          scripts/download \
+            https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${RCODESIGN_VERSION}/apple-codesign-${RCODESIGN_VERSION}-${{ matrix.arch }}-apple-darwin.tar.gz \
+            rcodesign.tar.gz \
+            ${{ matrix.sha256sum.rcodesign }}
+
+          tar --strip-components=1 -xzf rcodesign.tar.gz
+
+          # Make it available
+          cp rcodesign /usr/local/bin
+
+      - name: Install normal dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pipenv==2023.10.3
+          pipenv install --system --dev
+        env:
+          # Disable lock otherwise Windows-only dependencies like colorama are not installed
+          PIPENV_SKIP_LOCK: 1
+
+      - name: Install standalone-specific dependencies
+        run: |
+          python -m pip install pyinstaller==6.5.0
+
+      - name: Prepare macOS secrets
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          set -euo pipefail
+          SECRETS_DIR=$TMPDIR/secrets
+          mkdir "$SECRETS_DIR"
+          # Prepare our secret files
+          # The p12-file is base64-encoded because it's binary
+          echo "$MACOS_P12_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
+          echo "$MACOS_P12_PASSWORD" > "$SECRETS_DIR/cert.pwd"
+          echo "$MACOS_API_KEY_FILE" > "$SECRETS_DIR/rcodesign-notarize-key.json"
+
+          # Tell next steps where to find them
+          cat >> $GITHUB_ENV <<EOF
+          MACOS_P12_FILE=$SECRETS_DIR/cert.p12
+          MACOS_P12_PASSWORD_FILE=$SECRETS_DIR/cert.pwd
+          MACOS_API_KEY_FILE=$SECRETS_DIR/rcodesign-notarize-key.json
+          EOF
+        env:
+          MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
+          MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
+          MACOS_API_KEY_FILE: ${{ secrets.MACOS_API_KEY_FILE }}
+
+      - name: Build
+        shell: bash
+        run: |
+          scripts/build-standalone-exe --sign
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ggshield-standalone-${{ matrix.os }}
+          path: |
+            dist/ggshield-standalone-*.gz
+            dist/ggshield-standalone-*.pkg
+            dist/ggshield-standalone-*.zip
+
+      - name: Override base Docker image used for functional tests on Windows
+        if: matrix.os == 'windows-2022'
+        # This is required because GitHub Windows runner is not configured to
+        # run Linux-based Docker images
+        shell: bash
+        run: |
+          echo "GGTEST_DOCKER_IMAGE=mcr.microsoft.com/windows/nanoserver:ltsc2022" >> $GITHUB_ENV
+
+      - name: Functional tests
+        shell: bash
+        # See note about steps requiring the GITGUARDIAN_API at the top of this file
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        run: |
+          scripts/build-standalone-exe functests
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
+          TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
