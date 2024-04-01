@@ -45,7 +45,7 @@ class SecretConfig(FilteredConfig):
     ignored_matches: List[IgnoredMatch] = field(default_factory=list)
     ignored_paths: Set[str] = field(default_factory=set)
     ignore_known_secrets: bool = False
-    prereceive_remediation_message: str = """ A pre-receive hook set server side prevented you from pushing secrets.
+    prereceive_remediation_message: str = """A pre-receive hook set server side prevented you from pushing secrets.
         Since the secret was detected during the push BUT after the commit, you need to:
         1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
         2. push again."""
