@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.26.0'></a>
+
+## 1.26.0 — 2024-03-27
+
+### Added
+
+- `ggshield auth login` learned to create tokens with extra scopes using the `--scopes` option. Using `ggshield auth login --scopes honeytokens:write` would create a token suitable for the `ggshield honeytokens` commands.
+
 <a id='changelog-1.25.0'></a>
 
 ## 1.25.0 — 2024-02-27
