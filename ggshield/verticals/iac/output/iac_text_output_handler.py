@@ -462,9 +462,11 @@ def diff_scan_summary(
         format_text(
             f"[~] {num_unchanged} {label_incident(num_unchanged)} remaining",
             STYLE[
-                "iac_remaining_vulnerability"
-                if num_unchanged > 0
-                else "iac_dim_summary"
+                (
+                    "iac_remaining_vulnerability"
+                    if num_unchanged > 0
+                    else "iac_dim_summary"
+                )
             ],
         )
     )

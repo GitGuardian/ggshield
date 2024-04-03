@@ -105,9 +105,9 @@ def iac_scan_all(
         scan_parameters,
         ScanContext(
             command_path=ctx.command_path,
-            scan_mode=scan_mode
-            if ci_mode is None
-            else f"{scan_mode.value}/{ci_mode.value}",
+            scan_mode=(
+                scan_mode if ci_mode is None else f"{scan_mode.value}/{ci_mode.value}"
+            ),
             extra_headers={"Ci-Mode": str(ci_mode.value)} if ci_mode else None,
             target_path=directory,
         ).get_http_headers(),

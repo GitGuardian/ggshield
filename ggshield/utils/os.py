@@ -67,13 +67,11 @@ def cd(newdir: Union[str, Path]) -> Iterator[None]:
 
 
 @overload
-def getenv_int(key: str, default: None = None) -> Optional[int]:
-    ...
+def getenv_int(key: str, default: None = None) -> Optional[int]: ...
 
 
 @overload
-def getenv_int(key: str, default: int) -> int:
-    ...
+def getenv_int(key: str, default: int) -> int: ...
 
 
 def getenv_int(key: str, default: Optional[int] = None) -> Optional[int]:
@@ -84,13 +82,11 @@ def getenv_int(key: str, default: Optional[int] = None) -> Optional[int]:
 
 
 @overload
-def getenv_float(key: str, default: None = None) -> Optional[float]:
-    ...
+def getenv_float(key: str, default: None = None) -> Optional[float]: ...
 
 
 @overload
-def getenv_float(key: str, default: float) -> float:
-    ...
+def getenv_float(key: str, default: float) -> float: ...
 
 
 def getenv_float(key: str, default: Optional[float] = None) -> Optional[float]:
@@ -101,13 +97,11 @@ def getenv_float(key: str, default: Optional[float] = None) -> Optional[float]:
 
 
 @overload
-def getenv_bool(key: str, default: None = None) -> Optional[bool]:
-    ...
+def getenv_bool(key: str, default: None = None) -> Optional[bool]: ...
 
 
 @overload
-def getenv_bool(key: str, default: bool) -> bool:
-    ...
+def getenv_bool(key: str, default: bool) -> bool: ...
 
 
 def getenv_bool(key: str, default: Optional[bool] = None) -> Optional[bool]:

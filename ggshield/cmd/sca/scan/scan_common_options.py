@@ -9,6 +9,7 @@ To use it:
 The `kwargs` argument is required due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
+
 from typing import Callable, Sequence
 
 import click

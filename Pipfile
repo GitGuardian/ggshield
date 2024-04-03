@@ -8,7 +8,7 @@ verify_ssl = true
 ggshield = { editable = true, path = "." }
 
 [dev-packages]
-black = "==22.3.0"
+black = "==24.3.0"
 coverage = "*"
 flake8 = "*"
 flake8-isort = "*"
