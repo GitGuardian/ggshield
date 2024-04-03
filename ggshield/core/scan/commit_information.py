@@ -9,7 +9,7 @@ from .commit_utils import DIFF_EMPTY_COMMIT_INFO_BLOCK, HEADER_COMMON_ARGS, Patc
 
 
 _INFO_HEADER_REGEX = re.compile(
-    r"Author:\s(?P<author>.+?) <(?P<email>.*?)>\nDate:\s+(?P<date>.+)"
+    r"Author:\s(?P<author>.*?) <(?P<email>.*?)>\nDate:\s+(?P<date>.+)"
 )
 
 
