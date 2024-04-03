@@ -27,7 +27,7 @@ GG_VALID_TOKEN_IGNORE_SHA = (
 KNOWN_SECRET = os.environ.get("TEST_KNOWN_SECRET", "")
 
 # This secret must not be known by the dashboard running our tests
-UNKNOWN_SECRET = os.environ.get("TEST_UNKNOWN_SECRET", "ggtt-v-0frijog879")  # ggignore
+UNKNOWN_SECRET = os.environ.get("TEST_UNKNOWN_SECRET", "ggtt-v-0d4buhg879")  # ggignore
 
 
 def is_windows():
