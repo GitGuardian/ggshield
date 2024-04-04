@@ -8,19 +8,17 @@ from ggshield.core.config.utils import (
     find_local_config_path,
     remove_common_dict_items,
     remove_url_trailing_slash,
-    replace_in_keys,
+    replace_dash_in_keys,
     update_from_other_instance,
 )
 from ggshield.utils.os import cd
 from tests.repository import Repository
 
 
-def test_replace_in_keys():
+def test_replace_dash_in_keys():
     data = {"last-found-secrets": {"XXX"}}
-    replace_in_keys(data, "-", "_")
+    replace_dash_in_keys(data)
     assert data == {"last_found_secrets": {"XXX"}}
-    replace_in_keys(data, "_", "-")
-    assert data == {"last-found-secrets": {"XXX"}}
 
 
 @dataclass

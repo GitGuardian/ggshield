@@ -14,7 +14,7 @@ from ggshield.core.config.utils import (
     find_local_config_path,
     load_yaml_dict,
     remove_common_dict_items,
-    replace_in_keys,
+    replace_dash_in_keys,
     save_yaml_dict,
     update_from_other_instance,
 )
@@ -339,7 +339,7 @@ class UserConfig(FilteredConfig):
     def _update_from_file(self, config_path: Path) -> None:
         try:
             data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
-            replace_in_keys(data, old_char="-", new_char="_")
+            replace_dash_in_keys(data)
 
             config_version = data.pop("version", 1)
             if config_version == 2:
