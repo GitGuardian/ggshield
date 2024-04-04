@@ -543,8 +543,8 @@ class TestUserConfig:
         assert "Unrecognized key in config: iac_unknown" in captured.err
         assert "Unrecognized key in config: secret_invalid_key" in captured.err
         assert "Unrecognized key in config: match_invalid_key" in captured.err
-        assert "Unrecognized key in config: hashed-key" in captured.err
-        assert "Unrecognized key in config: nested-hashed" in captured.err
+        assert "Unrecognized key in config: hashed_key" in captured.err
+        assert "Unrecognized key in config: nested_hashed" in captured.err
 
     def test_can_load_ignored_known_secrets_from_root(self, local_config_path):
         """

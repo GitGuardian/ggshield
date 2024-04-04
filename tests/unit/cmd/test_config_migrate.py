@@ -32,14 +32,14 @@ show-secrets: true
 V2_CONFIG_DICT = {
     "version": 2,
     "secret": {
-        "ignored-paths": [
+        "ignored_paths": [
             "**/snap*",
             "**/migrations/**/*",
             ".gitlab/*",
             "LICENSE",
         ],
-        "show-secrets": True,
-        "ignored-matches": [
+        "show_secrets": True,
+        "ignored_matches": [
             {"name": "", "match": "vLXyx1iAhFo2xgb71tTa"},
             {"name": "generic password", "match": "05Panda_8463"},
             {
@@ -58,12 +58,12 @@ def normalize_config_dict(dct: Dict[str, Any]) -> Dict[str, Any]:
     """
     dct = deepcopy(dct)
     try:
-        dct["secret"]["ignored-paths"] = sorted(dct["secret"]["ignored-paths"])
+        dct["secret"]["ignored_paths"] = sorted(dct["secret"]["ignored_paths"])
     except KeyError:
         pass
     try:
-        dct["secret"]["ignored-matches"] = sorted(
-            dct["secret"]["ignored-matches"], key=itemgetter("match")
+        dct["secret"]["ignored_matches"] = sorted(
+            dct["secret"]["ignored_matches"], key=itemgetter("match")
         )
     except KeyError:
         pass

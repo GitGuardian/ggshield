@@ -439,7 +439,7 @@ def test_sca_scan_all_ignored_directory_config(
     config = """
 version: 2
 sca:
-    ignored-paths:
+    ignored_paths:
         - "dir/subdir/"
 
 """

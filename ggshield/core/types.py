@@ -19,9 +19,8 @@ class FilteredConfig(FromDictMixin, ToDictMixin):
         field_names = {field_.name for field_ in fields(cls)}
         filtered_fields = {}
         for key, item in data.items():
-            filtered_key = key.replace("-", "_")
-            if filtered_key in field_names:
-                filtered_fields[filtered_key] = item
+            if key in field_names:
+                filtered_fields[key] = item
             else:
                 display_warning(f"Unrecognized key in config: {key}")
 

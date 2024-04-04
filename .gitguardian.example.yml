@@ -4,7 +4,7 @@ version: 2
 # Set to true if the desired exit code for the CLI is always 0, otherwise the
 # exit code will be 1 if incidents are found.
 # The environment variable GITGUARDIAN_EXIT_ZERO=true can also be used toggle this behavior.
-exit-zero: false # default: false
+exit_zero: false # default: false
 
 verbose: false # default: false
 
@@ -12,34 +12,34 @@ verbose: false # default: false
 instance: https://dashboard.gitguardian.com # default: https://dashboard.gitguardian.com
 
 # Maximum commits to scan in a hook.
-max-commits-for-hook: 50 # default: 50
+max_commits_for_hook: 50 # default: 50
 
 # Accept self-signed certificates for the API.
-allow-self-signed: false # default: false
+allow_self_signed: false # default: false
 
 secret:
   # Exclude files and paths by globbing
-  ignored-paths:
+  ignored_paths:
     - '**/README.md'
     - 'doc/*'
     - 'LICENSE'
 
   # Ignore security incidents with the SHA256 of the occurrence obtained at output or the secret itself
-  ignored-matches:
+  ignored_matches:
     - name:
       match: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
     - name: credentials
       match: MY_TEST_CREDENTIAL
 
-  show-secrets: false # default: false
+  show_secrets: false # default: false
 
   # Detectors to ignore.
-  ignored-detectors: # default: []
+  ignored_detectors: # default: []
     - Generic Password
 
 iac:
   # Exclude files and paths by globbing
-  ignored-paths:
+  ignored_paths:
     - '**/README.md'
     - 'doc/*'
     - 'LICENSE'
@@ -50,7 +50,7 @@ iac:
       until: '2030-06-24T00:00:01Z'
 
   # IaC vulnerabilities to ignore
-  ignored-policies:
+  ignored_policies:
     - GG_IAC_0000
     - GG_IAC_0005
     - policy: 'GG_IAC_0003'
@@ -60,20 +60,20 @@ iac:
       until: '2030-06-24T00:00:01Z'
 
   # Minimum severity of the policies
-  minimum-severity: HIGH
+  minimum_severity: HIGH
 
 sca:
   # Exclude files and paths by globbing
-  ignored-paths:
+  ignored_paths:
     - '**/Pipfile'
     - '/back/**/package.json'
 
   # SCA vulnerabilities to ignore
-  ignored-vulnerabilities:
+  ignored_vulnerabilities:
     - identifier: 'GHSA-0000-aaaa-ZZZZ'
       path: 'Pipfile.lock' # Can be a regex
       comment: 'Check vulnerability later' # Optional
       until: '2023-05-01T00:00:00' # Optional, needs to follow ISO 8061 format 'YYYY-MM-DDTHH:MM:SS' (converted to UTC)
 
   # Minimum severity of the policies
-  minimum-severity: HIGH
+  minimum_severity: HIGH
