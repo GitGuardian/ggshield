@@ -56,7 +56,9 @@ class ScanContext:
 
         return {
             **{f"GGShield-{key}": str(value) for key, value in headers.items()},
-            "mode": self.scan_mode.value
-            if isinstance(self.scan_mode, ScanMode)
-            else self.scan_mode,
+            "mode": (
+                self.scan_mode.value
+                if isinstance(self.scan_mode, ScanMode)
+                else self.scan_mode
+            ),
         }

@@ -10,6 +10,7 @@ To use it:
 The `kwargs` argument is required because due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
+
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar
 

@@ -129,7 +129,7 @@ def simplify_git_url(url: str) -> str:
     - extension
     https://user:pass@mygitlab.corp.com:84/path/to/repo.git -> mygitlab.corp.com/toto/titi/tata
     """
-    for (pattern, replace) in (
+    for pattern, replace in (
         (r"https?://", ""),  # Scheme
         (r".+@", ""),  # Credentials
         (r":\d*/", "/"),  # Port

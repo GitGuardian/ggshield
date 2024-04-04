@@ -67,13 +67,11 @@ def get_global_path(filename: str) -> Path:
 
 
 @overload
-def find_global_config_path(*, to_write: Literal[False] = False) -> Optional[Path]:
-    ...
+def find_global_config_path(*, to_write: Literal[False] = False) -> Optional[Path]: ...
 
 
 @overload
-def find_global_config_path(*, to_write: Literal[True]) -> Path:
-    ...
+def find_global_config_path(*, to_write: Literal[True]) -> Path: ...
 
 
 def find_global_config_path(*, to_write: bool = False) -> Optional[Path]:
