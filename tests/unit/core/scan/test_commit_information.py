@@ -40,6 +40,22 @@ Date: Thu Sep 29 15:55:41 2022 +0000
                 [Path(x) for x in ("gone.txt", "new.txt")],
             ),
         ),
+        # This can happen, see:
+        # https://github.com/awslabs/amazon-eks-ami/commit/f40da388a.patch
+        (
+            """Author:  <>
+Date: Thu Sep 29 15:55:41 2022 +0000
+
+    A commit with no author
+"""
+            + ":000000 100644 0000000 8714891 A\0new.txt\0",
+            CommitInformation(
+                "",
+                "",
+                "Thu Sep 29 15:55:41 2022 +0000",
+                [Path("new.txt")],
+            ),
+        ),
         (
             """Author: ezra <ezra@lothal.sw>
 Date: Thu Sep 29 15:55:41 2022 +0000
