@@ -16,9 +16,24 @@ from tests.repository import Repository
 
 
 def test_replace_dash_in_keys():
-    data = {"last-found-secrets": {"XXX"}}
-    replace_dash_in_keys(data)
-    assert data == {"last_found_secrets": {"XXX"}}
+    """
+    GIVEN a dict with some keys using dash
+    WHEN replace_dash_in_keys() is called
+    THEN the dict keys all use underscore
+    AND replace_dash_in_keys() returned a set of all the modified keys
+    """
+    data = {
+        "use_underscore": 12,
+        "use-dash": "hello",
+        "container": {"sub-dash-key": "values-are-not-affected"},
+    }
+    modified = replace_dash_in_keys(data)
+    assert data == {
+        "use_underscore": 12,
+        "use_dash": "hello",
+        "container": {"sub_dash_key": "values-are-not-affected"},
+    }
+    assert modified == {"use-dash", "sub-dash-key"}
 
 
 @dataclass

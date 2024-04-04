@@ -339,10 +339,12 @@ class UserConfig(FilteredConfig):
     def _update_from_file(self, config_path: Path) -> None:
         try:
             data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
-            replace_dash_in_keys(data)
+            renamed_keys = replace_dash_in_keys(data)
 
             config_version = data.pop("version", 1)
             if config_version == 2:
+                if renamed_keys:
+                    _warn_about_dash_keys(config_path, renamed_keys)
                 _fix_ignore_known_secrets(data)
                 obj = UserConfig.from_dict(data)
             elif config_version == 1:
@@ -388,6 +390,14 @@ def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
         # Do not override if it's already there
         return
     secret_dct[_IGNORE_KNOWN_SECRETS_KEY] = value
+
+
+def _warn_about_dash_keys(config_path: Path, renamed_keys: Set[str]) -> None:
+    for old_key in sorted(renamed_keys):
+        new_key = old_key.replace("-", "_")
+        display_warning(
+            f"{config_path}: Config key {old_key} is deprecated, use {new_key} instead."
+        )
 
 
 @dataclass
