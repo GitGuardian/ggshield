@@ -1,8 +1,8 @@
 from ggshield.core.text_utils import STYLE, format_text
-from textwrap import TextWrapper
+import textwrap
 
 def pad_text(text: str, padding: str ='  '):
-   return TextWrapper(initial_indent=padding,subsequent_indent=padding).indent(text)
+   return textwrap.indent(text, padding)
         
 def remediation_message(
     remediation_steps: str, bypass_message: str, rewrite_git_history: bool = False
