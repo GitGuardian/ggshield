@@ -3,7 +3,6 @@ name: Sign
 # This is an on-demand workflow to test signing
 
 on:
-  pull_request:
   workflow_dispatch:
 
 jobs:
