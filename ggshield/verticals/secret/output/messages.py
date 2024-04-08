@@ -1,4 +1,10 @@
+import textwrap
+
 from ggshield.core.text_utils import STYLE, format_text
+
+
+def pad_text(text: str, padding: str = "  "):
+    return textwrap.indent(text, padding)
 
 
 def remediation_message(
@@ -16,7 +22,7 @@ def remediation_message(
 
     return f"""{line_start} How to remediate
 
-{remediation_steps}
+{pad_text(remediation_steps)}
 {rewrite_git_history_message}
 {line_start} [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
 {bypass_message}"""
