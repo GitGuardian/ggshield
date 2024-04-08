@@ -16,9 +16,9 @@ from ggshield.verticals.secret.output import SecretTextOutputHandler
 from ggshield.verticals.secret.output.messages import remediation_message
 
 
-REMEDIATION_STEPS = """  Since the secret was detected before the commit was made:
-  1. replace the secret with its reference (e.g. environment variable).
-  2. commit again."""
+REMEDIATION_STEPS = """Since the secret was detected before the commit was made:
+1. replace the secret with its reference (e.g. environment variable).
+2. commit again."""
 
 BYPASS_MESSAGE = """  - if you use the pre-commit framework:
 

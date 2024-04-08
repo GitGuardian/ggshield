@@ -26,9 +26,9 @@ from ggshield.verticals.secret.repo import scan_commit_range
 logger = logging.getLogger(__name__)
 
 
-REMEDIATION_STEPS = """  Since the secret was detected before the push BUT after the commit, you need to:
-  1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
-  2. push again."""
+REMEDIATION_STEPS = """Since the secret was detected before the push BUT after the commit, you need to:
+1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
+2. push again."""
 
 
 @click.command()
