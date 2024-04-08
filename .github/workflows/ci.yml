@@ -186,7 +186,7 @@ jobs:
 
       - name: Install standalone-specific dependencies
         run: |
-          python -m pip install --upgrade pyinstaller
+          python -m pip install pyinstaller==6.5.0
 
       - name: Build
         shell: bash
@@ -196,10 +196,11 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ggshield-standalone-${{ matrix.os }}
+          name: ggshield-${{ matrix.os }}
           path: |
-            dist/ggshield-standalone-*.gz
-            dist/ggshield-standalone-*.zip
+            dist/ggshield-*.gz
+            dist/ggshield-*.pkg
+            dist/ggshield-*.zip
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'

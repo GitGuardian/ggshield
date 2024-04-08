@@ -5,22 +5,39 @@ PROGNAME=$(basename "$0")
 ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
 RESOURCES_DIR="$ROOT_DIR/scripts/standalone-exe"
 
-DEFAULT_STEPS="req build copy_files test create_archive"
+DEFAULT_STEPS="req build copy_files test sign create_archive"
 
 DIST_DIR=$PWD/dist
 
 REQUIREMENTS="pyinstaller"
+
+# Whether we want a signed binary or not
+DO_SIGN=0
+
+MACOS_P12_FILE=${MACOS_P12_FILE:-}
+MACOS_P12_PASSWORD_FILE=${MACOS_P12_PASSWORD_FILE:-}
+
+# Path to a file used by rcodesign for notarizing.
+# Follow the instructions from
+# https://gregoryszorc.com/docs/apple-codesign/0.27.0/apple_codesign_getting_started.html#apple-codesign-app-store-connect-api-key
+# to generate one.
+MACOS_API_KEY_FILE=${MACOS_API_KEY_FILE:-}
+
+# Colors
+C_RED="\e[31;1m"
+C_GREEN="\e[32;1m"
+C_RESET="\e[0m"
 
 err() {
     echo "$@" >&2
 }
 
 info() {
-    err "$PROGNAME: [INFO] $*"
+    printf "$C_GREEN%s$C_RESET\n" "$PROGNAME: [INFO] $*" >&2
 }
 
 die() {
-    err "$PROGNAME: [ERROR] $*"
+    printf "$C_RED%s$C_RESET\n" "$PROGNAME: [ERROR] $*" >&2
     exit 1
 }
 
@@ -38,6 +55,9 @@ Default steps are: $DEFAULT_STEPS
 
 Options:
   -h, --help      Display this usage message and exit.
+  --sign          Sign the binary, on supported OSes.
+
+For more details, see doc/dev/standalone-executables.md.
 EOF
 
     exit 1
@@ -66,30 +86,35 @@ init_system_vars() {
     local out
     out=$(uname)
 
+    # directory containing ggshield executable, inside the archive
+    INSTALL_PREFIX=""
+
     case "$out" in
     Linux)
         EXE_EXT=""
         TARGET="$arch-unknown-linux-gnu"
         HUMAN_OS=Linux
-        ARCHIVE_FORMAT=tar
         ;;
     Darwin)
         EXE_EXT=""
         HUMAN_OS=macOS
         TARGET="$arch-apple-darwin"
-        ARCHIVE_FORMAT=tar
+        if [ "$DO_SIGN" -eq 1 ] ; then
+            REQUIREMENTS="$REQUIREMENTS rcodesign"
+            DEFAULT_STEPS="$DEFAULT_STEPS notarize"
+        fi
+        INSTALL_PREFIX=opt/gitguardian/ggshield-$VERSION
         ;;
     MINGW*|MSYS*)
         EXE_EXT=".exe"
         HUMAN_OS=Windows
         TARGET="$arch-pc-windows-msvc"
-        ARCHIVE_FORMAT=zip
         ;;
     *)
         die "Unknown OS. uname printed '$out'"
         ;;
     esac
-    ARCHIVE_DIR_NAME=ggshield-standalone-$VERSION-$TARGET
+    ARCHIVE_DIR_NAME=ggshield-$VERSION-$TARGET
 }
 
 step_req() {
@@ -113,6 +138,7 @@ step_req() {
 step_build() {
     rm -rf build/ggshield
     rm -rf "$DIST_DIR/ggshield"
+
     pyinstaller ggshield/__main__.py --name ggshield --noupx
 }
 
@@ -126,45 +152,121 @@ step_copy_files() {
         die "Can't find '$pyinstaller_ggshield', maybe 'build' step did not run?"
     fi
 
-    local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
-    info "Copying files to $output_dir"
-    rm -rf "$output_dir"
-    cp -R "$pyinstaller_output_dir" "$output_dir"
-    sed \
-        -e "s/@HUMAN_OS@/$HUMAN_OS/" \
-        -e "s/@HUMAN_ARCH@/$HUMAN_ARCH/" \
-        "$RESOURCES_DIR/README.md" \
-        > "$output_dir/README.md"
+    case "$HUMAN_OS" in
+    Linux|Windows)
+        local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+        info "Copying files to $output_dir"
+        rm -rf "$output_dir"
+        cp -R "$pyinstaller_output_dir" "$output_dir"
+
+        info "Generating README.md"
+        sed \
+            -e "s/@HUMAN_OS@/$HUMAN_OS/" \
+            -e "s/@HUMAN_ARCH@/$HUMAN_ARCH/" \
+            "$RESOURCES_DIR/README.md" \
+            > "$output_dir/README.md"
+        ;;
+    macOS)
+        local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX"
+        local bin_dir="$DIST_DIR/$ARCHIVE_DIR_NAME/usr/local/bin"
+        info "Copying files to $output_dir"
+        rm -rf "$output_dir" "$bin_dir"
+        mkdir -p "$(dirname $output_dir)"
+        cp -R "$pyinstaller_output_dir" "$output_dir"
+
+        info "Creating launcher symlink"
+        mkdir -p "$bin_dir"
+        ln -s "/$INSTALL_PREFIX/ggshield" "$bin_dir/ggshield"
+        ;;
+    esac
+}
+
+sign_file() {
+    if [ -z "$MACOS_P12_FILE" ] ; then
+        die "\$MACOS_P12_FILE must be set to sign"
+    fi
+    local file
+    file="$1"
+    info "- Signing $file"
+    rcodesign sign \
+        --p12-file "$MACOS_P12_FILE" \
+        --p12-password-file "$MACOS_P12_PASSWORD_FILE" \
+        --code-signature-flags runtime \
+        --for-notarization \
+        "$file"
+}
+
+list_files_to_sign() {
+    local archive_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+    echo "$archive_dir/$INSTALL_PREFIX/ggshield"
+    find "$archive_dir" -name '*.so' -o -name '*.dylib'
+}
+
+step_sign() {
+    if [ "$HUMAN_OS" != "macOS" ] ; then
+        info "Signing not supported on $HUMAN_OS, skipping step"
+        return
+    fi
+    if [ "$DO_SIGN" -eq 0 ] ; then
+        info "Skipping signing step"
+        return
+    fi
+    list_files_to_sign | while read path ; do
+        sign_file "$path"
+    done
 }
 
 step_test() {
     for args in --help --version ; do
         info "test: running $args"
-        "$DIST_DIR/$ARCHIVE_DIR_NAME/ggshield${EXE_EXT}" $args
+        "$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield${EXE_EXT}" $args
         info "test: running $args: OK"
     done
 }
 
 step_functests() {
-    PATH=$DIST_DIR/$ARCHIVE_DIR_NAME:$PATH pytest tests/functional
+    PATH=$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
 }
 
 step_create_archive() {
     local archive_path
-    case "$ARCHIVE_FORMAT" in
-    tar)
+    cd "$DIST_DIR"
+    case "$HUMAN_OS" in
+    Linux)
         archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
-        tar -C "$DIST_DIR" -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+        tar -czf "$archive_path" "$ARCHIVE_DIR_NAME"
         ;;
-    zip)
+    macOS)
+        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
+        
+        pkgbuild \
+            --identifier com.gitguardian.ggshield \
+            --version "$VERSION" \
+            --root "$DIST_DIR/$ARCHIVE_DIR_NAME" \
+            "$archive_path"
+
+        if [ "$DO_SIGN" -eq 1 ] ; then
+            sign_file "$archive_path"
+        fi
+        ;;
+    Windows)
         archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.zip"
-        env -C "$DIST_DIR" 7z a "$archive_path" "$ARCHIVE_DIR_NAME"
-        ;;
-    *)
-        die "Unsupported archive format $ARCHIVE_FORMAT"
+        7z a "$archive_path" "$ARCHIVE_DIR_NAME"
         ;;
     esac
+    cd -
     info "Archive created in $archive_path"
+}
+
+step_notarize() {
+    if [ "$DO_SIGN" -eq 0 ] ; then
+        info "Skipping notarize step"
+    fi
+    info "Notarizing"
+    rcodesign notary-submit \
+        --api-key-file "$MACOS_API_KEY_FILE" \
+        --staple \
+        "$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
 }
 
 steps=""
@@ -172,6 +274,9 @@ while [ $# -gt 0 ] ; do
     case "$1" in
     -h|--help)
         usage
+        ;;
+    --sign)
+        DO_SIGN=1
         ;;
     -*)
         usage "Unknown option '$1'"
@@ -183,14 +288,17 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
-if [ -z "$steps" ] ; then
-    steps=$DEFAULT_STEPS
-fi
-
 cd "$ROOT_DIR"
 read_version
 init_system_vars
+
+if [ -z "$steps" ] ; then
+    steps=$DEFAULT_STEPS
+fi
+info "Steps: $steps"
+
 for step in $steps ; do
     info "step $step"
     "step_$step"
 done
+info "Success!"
