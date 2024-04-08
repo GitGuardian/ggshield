@@ -37,6 +37,7 @@ from ggshield.verticals.secret.repo import scan_commit_range
 
 logger = logging.getLogger(__name__)
 
+
 def _execute_prereceive(
     config: Config,
     output_handler: SecretOutputHandler,

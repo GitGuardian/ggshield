@@ -1,9 +1,12 @@
-from ggshield.core.text_utils import STYLE, format_text
 import textwrap
 
-def pad_text(text: str, padding: str ='  '):
-   return textwrap.indent(text, padding)
-        
+from ggshield.core.text_utils import STYLE, format_text
+
+
+def pad_text(text: str, padding: str = "  "):
+    return textwrap.indent(text, padding)
+
+
 def remediation_message(
     remediation_steps: str, bypass_message: str, rewrite_git_history: bool = False
 ) -> str:
