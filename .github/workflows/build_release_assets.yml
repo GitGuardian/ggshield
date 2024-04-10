@@ -9,7 +9,7 @@ on:
 
 jobs:
   build_packages:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,9 +43,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
           - os: windows-2022
-          - os: macos-latest
+          - os: macos-13
             arch: x86_64
             sha256sum:
               python: 6378dfd22f58bb553ddb02be28304d739cd730c1f95c15c74955c923a1bc3d6a

@@ -20,7 +20,7 @@ on:
 jobs:
   lint:
     name: Lint package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2022]
+        os: [ubuntu-22.04, macos-13, windows-2022]
         python-version: ['3.8', '3.9', '3.10', '3.11']
     steps:
       - uses: actions/checkout@v4
@@ -160,8 +160,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
+          - ubuntu-22.04
+          - macos-13
           - windows-2022
           - macos-14
     steps:
@@ -223,7 +223,7 @@ jobs:
 
   build_packages:
     # This job ensures the build-packages script is tested on each build, not only at release time
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -265,7 +265,7 @@ jobs:
     name: Test GitHub action for `secret scan`
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -284,7 +284,7 @@ jobs:
     name: Test GitHub action for `iac scan`
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -303,7 +303,7 @@ jobs:
     name: Test GitHub action for `sca scan`
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -320,7 +320,7 @@ jobs:
 
   dockerhub-unstable:
     name: Push Docker image to Docker Hub
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs:
       - lint
@@ -341,7 +341,7 @@ jobs:
 
   github_packages-unstable:
     name: Push Docker image to GitHub Packages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs:
       - lint
