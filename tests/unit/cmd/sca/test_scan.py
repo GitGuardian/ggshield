@@ -629,6 +629,60 @@ sca:
         assert "GHSA-rrm6-wvj7-cwh2" not in result.stdout
 
 
+@my_vcr.use_cassette("test_sca_scan_subdir_with_ignored_vuln_with_until.yaml")
+def test_sca_scan_subdir_with_ignored_vuln_with_until(
+    tmp_path: Path,
+    cli_fs_runner: CliRunner,
+    pipfile_lock_with_vuln: str,
+) -> None:
+    """
+    GIVEN a git repository
+    GIVEN an inner directory with a vulnerability
+    GIVEN a .gitguardian.yaml file with an ignored vuln in the inner dir until a future date
+    WHEN scanning the inner dir
+    THEN the ignored vuln does not appear in the result
+    """
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    inner_dir_path = tmp_path / "inner" / "dir"
+    pipfile_path = inner_dir_path / "Pipfile.lock"
+
+    ignored_vuln_text = f"""
+version: 2
+
+sca:
+  ignored-vulnerabilities:
+    - identifier: 'GHSA-rrm6-wvj7-cwh2'
+      path: {str(pipfile_path.relative_to(tmp_path))}
+      comment: 'test ignored'
+      until: '2200-06-30T10:00:00'
+"""
+
+    # Write .gitguardian.yaml config file at the root of the repo
+    (tmp_path / ".gitguardian.yaml").write_text(ignored_vuln_text)
+    inner_dir_path.mkdir(parents=True)
+    pipfile_path.write_text(pipfile_lock_with_vuln)
+
+    repo.add(".gitguardian.yaml")
+    repo.add("inner/dir/Pipfile.lock")
+    repo.create_commit()
+
+    with cd(str(tmp_path)):
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "sca",
+                "scan",
+                "all",
+                str(inner_dir_path.relative_to(tmp_path)),
+            ],
+        )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        assert "GHSA-rrm6-wvj7-cwh2" not in result.stdout
+
+
 @my_vcr.use_cassette("test_sca_scan_all_ignore_fixable.yaml")
 def test_scan_all_ignore_fixable(
     cli_fs_runner: click.testing.CliRunner,

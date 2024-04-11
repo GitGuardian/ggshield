@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from pygitguardian.sca_models import SCAScanParameters
 
@@ -21,13 +21,13 @@ def test_get_scan_params_from_config():
             SCAConfigIgnoredVulnerability(
                 identifier="GHSA-toto-1234",
                 path="Pipfile.lock",
-                until=datetime(year=1970, month=1, day=1),
+                until=datetime(year=1970, month=1, day=1).replace(tzinfo=timezone.utc),
             ),
             # Ignored ones
             SCAConfigIgnoredVulnerability(
                 identifier="GHSA-4567-8765",
                 path="toto/Pipfile.lock",
-                until=datetime.utcnow() + timedelta(days=1),
+                until=datetime.now(tz=timezone.utc) + timedelta(days=1),
             ),
             SCAConfigIgnoredVulnerability(
                 identifier="GHSA-4567-other",

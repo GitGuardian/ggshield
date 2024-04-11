@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Set, Tuple, Type, Union
 
@@ -39,7 +39,8 @@ def get_scan_params_from_config(sca_config: SCAConfig) -> SCAScanParameters:
                 identifier=ignored_vuln.identifier, path=ignored_vuln.path
             )
             for ignored_vuln in sca_config.ignored_vulnerabilities
-            if ignored_vuln.until is None or ignored_vuln.until >= datetime.utcnow()
+            if ignored_vuln.until is None
+            or ignored_vuln.until >= datetime.now(tz=timezone.utc)
         ],
         ignore_fixable=sca_config.ignore_fixable,
         ignore_not_fixable=sca_config.ignore_not_fixable,
