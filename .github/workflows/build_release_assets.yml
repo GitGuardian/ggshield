@@ -1,20 +1,51 @@
-name: Sign
+name: Build release assets
 
-# This is an on-demand workflow to test signing
+# This workflow is used by the tag workflow to build all release assets. It
+# can also be triggered manually.
 
 on:
+  workflow_call:
   workflow_dispatch:
 
 jobs:
-  build-standalone:
-    name: Standalone exe
+  build_packages:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install packaging tools
+        shell: bash
+        run: |
+          curl -L https://github.com/goreleaser/nfpm/releases/download/v2.15.0/nfpm_amd64.deb -o nfpm_amd64.deb
+          sudo dpkg -i nfpm_amd64.deb
+
+          pip install shiv==1.0.1 build
+
+      - name: Create packages
+        shell: bash
+        run: scripts/build-packages/build-packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            dist
+            packages
+
+  build_standalone_binaries:
+    name: Build signed, standalone binaries
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          - os: ubuntu-22.04
           - os: windows-2022
-          - os: macos-latest
+          - os: macos-13
             arch: x86_64
             sha256sum:
               python: 6378dfd22f58bb553ddb02be28304d739cd730c1f95c15c74955c923a1bc3d6a
@@ -113,15 +144,6 @@ jobs:
         run: |
           scripts/build-standalone-exe --sign
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ggshield-${{ matrix.os }}
-          path: |
-            dist/ggshield-*.gz
-            dist/ggshield-*.pkg
-            dist/ggshield-*.zip
-
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
         # This is required because GitHub Windows runner is not configured to
@@ -140,3 +162,12 @@ jobs:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
           TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-binaries-${{ matrix.os }}
+          path: |
+            dist/ggshield-*.gz
+            dist/ggshield-*.pkg
+            dist/ggshield-*.zip
