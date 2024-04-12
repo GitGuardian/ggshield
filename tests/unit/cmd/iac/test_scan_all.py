@@ -297,7 +297,7 @@ def test_iac_scan_all_ignored_directory_config(
     config = """
 version: 2
 iac:
-    ignored-paths:
+    ignored_paths:
         - "dir/subdir/"
 
 """

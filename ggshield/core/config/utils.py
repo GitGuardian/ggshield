@@ -1,6 +1,6 @@
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union, overload
+from typing import Any, Dict, List, Literal, Optional, Set, Union, overload
 
 import yaml
 import yaml.parser
@@ -16,17 +16,22 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import GitExecutableNotFound
 
 
-def replace_in_keys(data: Union[List, Dict], old_char: str, new_char: str) -> None:
-    """Replace old_char with new_char in data keys."""
+def replace_dash_in_keys(data: Union[List, Dict]) -> Set[str]:
+    """Replace '-' with '_' in data keys."""
+    replaced = set()
+
     if isinstance(data, dict):
         for key, value in list(data.items()):
-            replace_in_keys(value, old_char=old_char, new_char=new_char)
-            if old_char in key:
-                new_key = key.replace(old_char, new_char)
+            replaced.update(replace_dash_in_keys(value))
+            if "-" in key:
+                new_key = key.replace("-", "_")
                 data[new_key] = data.pop(key)
+                replaced.add(key)
     elif isinstance(data, list):
         for element in data:
-            replace_in_keys(element, old_char=old_char, new_char=new_char)
+            replaced.update(replace_dash_in_keys(element))
+
+    return replaced
 
 
 def load_yaml_dict(path: Union[str, Path]) -> Optional[Dict[str, Any]]:

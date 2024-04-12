@@ -10,7 +10,7 @@ from ggshield.core.config.auth_config import (
     InstanceConfig,
     prepare_auth_config_dict_for_save,
 )
-from ggshield.core.config.utils import get_auth_config_filepath, replace_in_keys
+from ggshield.core.config.utils import get_auth_config_filepath
 from ggshield.core.errors import UnknownInstanceError
 from tests.unit.conftest import write_text, write_yaml
 from tests.unit.core.config.conftest import TEST_AUTH_CONFIG
@@ -39,7 +39,6 @@ class TestAuthConfig:
 
         config_data = config.auth_config.to_dict()
         config_data = prepare_auth_config_dict_for_save(config_data)
-        replace_in_keys(config_data, old_char="_", new_char="-")
         assert config_data == TEST_AUTH_CONFIG
 
     @pytest.mark.parametrize("n", [0, 2])

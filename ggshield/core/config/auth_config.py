@@ -9,7 +9,7 @@ from pygitguardian.models import FromDictMixin, ToDictMixin
 from ggshield.core.config.utils import (
     get_auth_config_filepath,
     load_yaml_dict,
-    replace_in_keys,
+    replace_dash_in_keys,
     save_yaml_dict,
 )
 from ggshield.core.errors import (
@@ -71,7 +71,7 @@ def prepare_auth_config_dict_for_parse(data: Dict[str, Any]) -> Dict[str, Any]:
 
     We replace `-` with `_` for compatibility reasons.
     """
-    replace_in_keys(data, "-", "_")
+    replace_dash_in_keys(data)
     data = deepcopy(data)
     try:
         instances = data["instances"]

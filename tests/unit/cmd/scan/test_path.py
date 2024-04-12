@@ -202,7 +202,7 @@ class TestPathScan:
         config = """
 version: 2
 secret:
-    ignored-paths:
+    ignored_paths:
         - "file1"
 
 """

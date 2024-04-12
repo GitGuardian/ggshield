@@ -8,19 +8,32 @@ from ggshield.core.config.utils import (
     find_local_config_path,
     remove_common_dict_items,
     remove_url_trailing_slash,
-    replace_in_keys,
+    replace_dash_in_keys,
     update_from_other_instance,
 )
 from ggshield.utils.os import cd
 from tests.repository import Repository
 
 
-def test_replace_in_keys():
-    data = {"last-found-secrets": {"XXX"}}
-    replace_in_keys(data, "-", "_")
-    assert data == {"last_found_secrets": {"XXX"}}
-    replace_in_keys(data, "_", "-")
-    assert data == {"last-found-secrets": {"XXX"}}
+def test_replace_dash_in_keys():
+    """
+    GIVEN a dict with some keys using dash
+    WHEN replace_dash_in_keys() is called
+    THEN the dict keys all use underscore
+    AND replace_dash_in_keys() returned a set of all the modified keys
+    """
+    data = {
+        "use_underscore": 12,
+        "use-dash": "hello",
+        "container": {"sub-dash-key": "values-are-not-affected"},
+    }
+    modified = replace_dash_in_keys(data)
+    assert data == {
+        "use_underscore": 12,
+        "use_dash": "hello",
+        "container": {"sub_dash_key": "values-are-not-affected"},
+    }
+    assert modified == {"use-dash", "sub-dash-key"}
 
 
 @dataclass

@@ -1,7 +1,7 @@
 version: 2
 
 secret:
-  ignored-matches:
+  ignored_matches:
     - match: 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
       name:
     - match: 139ed5c2b5ae84b0fbb1bfbce6015ac96e5af5050a16d0ffdba612440fb0ee4d
@@ -33,7 +33,7 @@ secret:
     - match: e90eaa00d17c03309b660e1879c70b815509422c2d4cf0980b2e1221dffa0381
       name: Test secret mentioned in commit 6282ceb9035c1bfcceec5f6372f69063cdd588f7
 
-  ignored-paths:
+  ignored_paths:
     - '**/README.md'
     - doc/*
     - LICENSE
@@ -43,12 +43,12 @@ secret:
     - 'tests/cassettes/*'
 
 iac:
-  ignored-policies:
+  ignored_policies:
     # We don't want to fix this vulnerability because many CI systems
     # (including GitHub action and Azure pipelines) expect the user inside the
     # container to be root.
     - GG_IAC_0079
 
 sca:
-  ignored-paths:
+  ignored_paths:
     - tests/

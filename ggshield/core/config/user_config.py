@@ -14,7 +14,7 @@ from ggshield.core.config.utils import (
     find_local_config_path,
     load_yaml_dict,
     remove_common_dict_items,
-    replace_in_keys,
+    replace_dash_in_keys,
     save_yaml_dict,
     update_from_other_instance,
 )
@@ -28,7 +28,7 @@ from ggshield.core.url_utils import api_to_dashboard_url
 logger = logging.getLogger(__name__)
 CURRENT_CONFIG_VERSION = 2
 
-_IGNORE_KNOWN_SECRETS_KEY = "ignore-known-secrets"
+_IGNORE_KNOWN_SECRETS_KEY = "ignore_known_secrets"
 
 GHSA_ID_PATTERN = re.compile("GHSA(-[a-zA-Z0-9]{4}){3}")
 POLICY_ID_PATTERN = re.compile("GG_IAC_[0-9]{4}")
@@ -300,7 +300,6 @@ class UserConfig(FilteredConfig):
 
         dct["version"] = CURRENT_CONFIG_VERSION
 
-        replace_in_keys(dct, old_char="_", new_char="-")
         save_yaml_dict(dct, config_path)
 
     @classmethod
@@ -340,12 +339,15 @@ class UserConfig(FilteredConfig):
     def _update_from_file(self, config_path: Path) -> None:
         try:
             data = load_yaml_dict(config_path) or {"version": CURRENT_CONFIG_VERSION}
+            renamed_keys = replace_dash_in_keys(data)
+
             config_version = data.pop("version", 1)
             if config_version == 2:
+                if renamed_keys:
+                    _warn_about_dash_keys(config_path, renamed_keys)
                 _fix_ignore_known_secrets(data)
                 obj = UserConfig.from_dict(data)
             elif config_version == 1:
-                replace_in_keys(data, old_char="-", new_char="_")
                 self.deprecation_messages.append(
                     f"{config_path} uses a deprecated configuration file format."
                     " Run `ggshield config migrate` to migrate it to the latest version."
@@ -378,21 +380,24 @@ def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
     specific key, it should have been stored in the "secret" mapping, not in the root
     one"""
 
-    underscore_key = _IGNORE_KNOWN_SECRETS_KEY.replace("-", "_")
-
-    for key in _IGNORE_KNOWN_SECRETS_KEY, underscore_key:
-        value = data.pop(key, None)
-        if value is not None:
-            break
-    else:
+    value = data.pop(_IGNORE_KNOWN_SECRETS_KEY, None)
+    if value is None:
         # No key to fix
         return
 
     secret_dct = data.setdefault("secret", {})
-    if _IGNORE_KNOWN_SECRETS_KEY in secret_dct or underscore_key in secret_dct:
+    if _IGNORE_KNOWN_SECRETS_KEY in secret_dct:
         # Do not override if it's already there
         return
     secret_dct[_IGNORE_KNOWN_SECRETS_KEY] = value
+
+
+def _warn_about_dash_keys(config_path: Path, renamed_keys: Set[str]) -> None:
+    for old_key in sorted(renamed_keys):
+        new_key = old_key.replace("-", "_")
+        display_warning(
+            f"{config_path}: Config key {old_key} is deprecated, use {new_key} instead."
+        )
 
 
 @dataclass

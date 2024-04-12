@@ -543,8 +543,32 @@ class TestUserConfig:
         assert "Unrecognized key in config: iac_unknown" in captured.err
         assert "Unrecognized key in config: secret_invalid_key" in captured.err
         assert "Unrecognized key in config: match_invalid_key" in captured.err
-        assert "Unrecognized key in config: hashed-key" in captured.err
-        assert "Unrecognized key in config: nested-hashed" in captured.err
+        assert "Unrecognized key in config: hashed_key" in captured.err
+        assert "Unrecognized key in config: nested_hashed" in captured.err
+
+    def test_user_config_dash_keys(self, local_config_path, capsys):
+        """
+        GIVEN a config containing keys separated with dashes
+        WHEN deserializing it
+        THEN the keys are loaded and a warning is raised for config keys
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "iac": {
+                    "ignored-paths": ["myglobalpath"],
+                },
+            },
+        )
+        cfg, _ = UserConfig.load(local_config_path)
+        captured = capsys.readouterr()
+
+        assert cfg.iac.ignored_paths[0].path == "myglobalpath"
+        assert (
+            f"{local_config_path}: Config key ignored-paths is deprecated, use ignored_paths instead."
+            in captured.err
+        )
 
     def test_can_load_ignored_known_secrets_from_root(self, local_config_path):
         """

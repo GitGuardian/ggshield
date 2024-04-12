@@ -239,7 +239,7 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
         # if the details had per file details
         display_error(
             f"Add the following {pluralize('file', len(details))}"
-            " to your paths-ignore:"
+            " to your ignored_paths:"
         )
         for i, inner_detail in enumerate(details):
             if inner_detail:
