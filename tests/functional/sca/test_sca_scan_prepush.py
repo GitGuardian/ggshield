@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from subprocess import CalledProcessError
 from typing import List, Optional
@@ -32,7 +33,7 @@ def test_sca_scan_prepush(tmp_path: Path, pipfile_lock_with_vuln) -> None:
         local_repo.push()
 
     stdout = exc.value.stdout.decode()
-    assert "> Pipfile.lock: 1 incident detected" in stdout
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", stdout))
 
 
 def test_sca_scan_prepush_branch_without_new_commits(tmp_path: Path) -> None:

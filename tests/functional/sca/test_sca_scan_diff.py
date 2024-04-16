@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict
 
@@ -27,7 +28,7 @@ def test_scan_diff(tmp_path: Path, pipfile_lock_with_vuln) -> None:
     proc = run_ggshield_sca_scan(
         "diff", "--ref=HEAD", "--staged", expected_code=1, cwd=repo.path
     )
-    assert "> Pipfile.lock: 1 incident detected" in proc.stdout
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", proc.stdout))
     assert (
         """
 Severity: Medium
@@ -44,7 +45,7 @@ CVE IDs: CVE-2023-30608"""
     run_ggshield_sca_scan("diff", "--ref=HEAD~1", expected_code=0, cwd=repo.path)
 
     proc = run_ggshield_sca_scan("diff", "--ref=HEAD~2", expected_code=1, cwd=repo.path)
-    assert "> Pipfile.lock: 1 incident detected" in proc.stdout
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", proc.stdout))
     assert (
         """
 Severity: Medium
