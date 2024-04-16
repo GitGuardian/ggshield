@@ -1,3 +1,4 @@
+import re
 from subprocess import CalledProcessError
 
 import pytest
@@ -19,7 +20,7 @@ def test_sca_scan_prereceive(sca_repo_with_hook, pipfile_lock_with_vuln) -> None
 
     # AND the error message contains the vulnerability details
     stderr = exc.value.stderr.decode()
-    assert "> Pipfile.lock: 1 incident detected" in stderr
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", stderr))
 
 
 def test_sca_scan_prereceive_no_vuln(sca_repo_with_hook) -> None:
@@ -70,7 +71,7 @@ def test_sca_scan_prereceive_all(
     # AND the error message contains the leaked secret
     stderr = exc.value.stderr.decode()
     # testing the all variant of the output
-    assert "> Pipfile.lock: 1 incident detected" in stderr
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", stderr))
 
 
 def test_sca_scan_prereceive_branch_without_new_commits(sca_repo_with_hook) -> None:

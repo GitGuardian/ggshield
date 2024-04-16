@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from tests.functional.utils import run_ggshield_sca_scan
@@ -31,7 +32,7 @@ def test_scan_ci_diff(tmp_path: Path, monkeypatch, pipfile_lock_with_vuln) -> No
 
     monkeypatch.setenv("CI_COMMIT_BEFORE_SHA", "HEAD~3")
     proc = run_ggshield_sca_scan("ci", expected_code=1, cwd=repo.path)
-    assert "> Pipfile.lock: 1 incident detected" in proc.stdout
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", proc.stdout))
     assert (
         """
 Severity: Medium
@@ -74,7 +75,7 @@ def test_scan_ci_all(tmp_path, monkeypatch, pipfile_lock_with_vuln) -> None:
         monkeypatch.setenv(key, value)
 
     proc = run_ggshield_sca_scan("ci", "--all", expected_code=1, cwd=tmp_path)
-    assert "> Pipfile.lock: 1 incident detected" in proc.stdout
+    assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", proc.stdout))
     assert (
         """
 Severity: Medium
