@@ -24,15 +24,20 @@ def test_replace_dash_in_keys():
     data = {
         "use_underscore": 12,
         "use-dash": "hello",
+        "dash-or-underscore": "dash",
+        "dash_or_underscore": "underscore",
         "container": {"sub-dash-key": "values-are-not-affected"},
     }
-    modified = replace_dash_in_keys(data)
+
+    dash_keys = replace_dash_in_keys(data)
+
     assert data == {
         "use_underscore": 12,
         "use_dash": "hello",
+        "dash_or_underscore": "underscore",
         "container": {"sub_dash_key": "values-are-not-affected"},
     }
-    assert modified == {"use-dash", "sub-dash-key"}
+    assert dash_keys == {"use-dash", "sub-dash-key", "dash-or-underscore"}
 
 
 def test_update_dict_from_other():

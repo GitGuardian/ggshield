@@ -84,7 +84,7 @@ class TestAuthConfig:
         THEN it works
         """
         raw_config = deepcopy(TEST_AUTH_CONFIG)
-        raw_config["instances"][0]["accounts"][0]["expire-at"] = None
+        raw_config["instances"][0]["accounts"][0]["expire_at"] = None
         write_yaml(get_auth_config_filepath(), raw_config)
 
         config = Config()

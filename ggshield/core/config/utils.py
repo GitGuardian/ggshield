@@ -16,21 +16,29 @@ from ggshield.utils.git_shell import GitExecutableNotFound
 
 
 def replace_dash_in_keys(data: Union[List, Dict]) -> Set[str]:
-    """Replace '-' with '_' in data keys."""
-    replaced = set()
+    """Replace '-' with '_' in data keys.
+
+    If a key exists in both dash and underscore versions, then only the underscore
+    version is kept.
+
+    Returns a set with the names of the renamed/removed dash keys."""
+    dash_keys = set()
 
     if isinstance(data, dict):
         for key, value in list(data.items()):
-            replaced.update(replace_dash_in_keys(value))
+            dash_keys.update(replace_dash_in_keys(value))
             if "-" in key:
+                dash_value = data.pop(key)
+                # If an underscore-version of the key exist, do not replace it
                 new_key = key.replace("-", "_")
-                data[new_key] = data.pop(key)
-                replaced.add(key)
+                if new_key not in data:
+                    data[new_key] = dash_value
+                dash_keys.add(key)
     elif isinstance(data, list):
         for element in data:
-            replaced.update(replace_dash_in_keys(element))
+            dash_keys.update(replace_dash_in_keys(element))
 
-    return replaced
+    return dash_keys
 
 
 def load_yaml_dict(path: Union[str, Path]) -> Optional[Dict[str, Any]]:

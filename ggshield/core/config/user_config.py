@@ -383,12 +383,12 @@ def _load_config_dict(
     except ValueError as exc:
         raise ParseError(str(exc)) from exc
 
-    renamed_keys = replace_dash_in_keys(dct)
+    dash_keys = replace_dash_in_keys(dct)
 
     config_version = dct.pop("version", 1)
     if config_version == 2:
-        if renamed_keys:
-            _warn_about_dash_keys(config_path, renamed_keys)
+        if dash_keys:
+            _warn_about_dash_keys(config_path, dash_keys)
         _fix_ignore_known_secrets(dct)
     elif config_version == 1:
         deprecation_messages.append(
@@ -418,8 +418,8 @@ def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
     secret_dct[_IGNORE_KNOWN_SECRETS_KEY] = value
 
 
-def _warn_about_dash_keys(config_path: Path, renamed_keys: Set[str]) -> None:
-    for old_key in sorted(renamed_keys):
+def _warn_about_dash_keys(config_path: Path, dash_keys: Set[str]) -> None:
+    for old_key in sorted(dash_keys):
         new_key = old_key.replace("-", "_")
         display_warning(
             f"{config_path}: Config key {old_key} is deprecated, use {new_key} instead."
