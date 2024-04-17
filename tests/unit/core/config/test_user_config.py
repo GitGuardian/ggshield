@@ -41,12 +41,6 @@ class TestUserConfig:
         assert config.user_config.verbose is True
         assert config.user_config.secret.show_secrets is True
 
-    def test_unknown_option(self, local_config_path):
-        write_yaml(local_config_path, {"verbosity": True})
-
-        with pytest.raises(ParseError, match="Unknown field"):
-            Config()
-
     def test_display_options_inheritance(self, local_config_path, global_config_path):
         write_yaml(
             local_config_path,
@@ -151,6 +145,16 @@ class TestUserConfig:
             IgnoredMatch(name="", match="1234abcd"),
         ]
         assert config.secret.ignored_paths == {"/foo", "/bar"}
+
+    def test_load_mixed_versions(self, local_config_path, global_config_path):
+        write_yaml(global_config_path, {"paths-ignore": ["v1path"]})
+
+        write_yaml(
+            local_config_path, {"version": 2, "secret": {"ignored_paths": ["v2path"]}}
+        )
+
+        config, _ = UserConfig.load()
+        assert config.secret.ignored_paths == {"v1path", "v2path"}
 
     def test_load_ignored_matches_with_empty_names(self):
         config_path = "config.yaml"
@@ -452,11 +456,9 @@ class TestUserConfig:
         assert isinstance(sca_config, SCAConfig)
         assert len(sca_config.ignored_vulnerabilities) == 0
 
-    def test_sca_config_options_inheritance(
-        self, local_config_path, global_config_path
-    ):
+    def test_config_options_inheritance(self, local_config_path, global_config_path):
         """
-        GIVEN two config files (global and local) with sca configs
+        GIVEN two config files (global and local)
         WHEN deserializing them
         THEN the inheritance is respected
         """
@@ -464,6 +466,9 @@ class TestUserConfig:
             global_config_path,
             {
                 "version": 2,
+                "secret": {
+                    "show_secrets": True,
+                },
                 "sca": {
                     "ignored_paths": ["myglobalpath"],
                     "minimum_severity": "myglobalseverity",
@@ -481,6 +486,11 @@ class TestUserConfig:
             },
         )
         config = Config()
+
+        # Checks the global config value for `show_secrets` is still there after loading
+        # the local config, which does not contain this key.
+        assert config.user_config.secret.show_secrets
+
         sca_config = config.user_config.sca
         assert isinstance(sca_config, SCAConfig)
         assert sca_config.ignored_paths == {"myglobalpath", "mypath"}

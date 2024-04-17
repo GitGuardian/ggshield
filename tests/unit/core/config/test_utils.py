@@ -1,6 +1,5 @@
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict
 
 import pytest
 
@@ -9,7 +8,7 @@ from ggshield.core.config.utils import (
     remove_common_dict_items,
     remove_url_trailing_slash,
     replace_dash_in_keys,
-    update_from_other_instance,
+    update_dict_from_other,
 )
 from ggshield.utils.os import cd
 from tests.repository import Repository
@@ -25,57 +24,54 @@ def test_replace_dash_in_keys():
     data = {
         "use_underscore": 12,
         "use-dash": "hello",
+        "dash-or-underscore": "dash",
+        "dash_or_underscore": "underscore",
         "container": {"sub-dash-key": "values-are-not-affected"},
     }
-    modified = replace_dash_in_keys(data)
+
+    dash_keys = replace_dash_in_keys(data)
+
     assert data == {
         "use_underscore": 12,
         "use_dash": "hello",
+        "dash_or_underscore": "underscore",
         "container": {"sub_dash_key": "values-are-not-affected"},
     }
-    assert modified == {"use-dash", "sub-dash-key"}
+    assert dash_keys == {"use-dash", "sub-dash-key", "dash-or-underscore"}
 
 
-@dataclass
-class ExampleSubConfig:
-    an_int: Optional[int] = None
-    an_str: Optional[str] = None
-
-
-@dataclass
-class ExampleConfig:
-    path: Optional[str] = None
-    backup: bool = True
-    subconf: ExampleSubConfig = field(default_factory=ExampleSubConfig)
-    a_list: List[str] = field(default_factory=list)
-    a_set: Set[str] = field(default_factory=set)
-
-
-def test_update_from_other_instance():
+def test_update_dict_from_other():
     """
-    GIVEN two dataclass instances
-    WHEN update_from_other_instance(dst_conf, src_conf) is called
+    GIVEN two dictionaries
+    WHEN update_dict_from_other(dst_conf, src_conf) is called
     THEN dst_conf is updated from src_conf fields
     """
 
-    dst_conf = ExampleConfig(path="dst_path")
-    dst_conf.subconf.an_int = 1
-    dst_conf.a_list = ["i1", "i2"]
-    dst_conf.a_set = {"i1", "i2"}
+    dst_conf = {
+        "subconf": {"an_int": 1},
+        "not_overridden_bool": True,
+        "overridden_bool": True,
+        "a_list": ["i1", "i2"],
+        "a_set": {"i1", "i2"},
+    }
 
-    src_conf = ExampleConfig(backup=False)
-    src_conf.subconf.an_str = "src_subconf_str"
-    src_conf.a_list = ["i2", "i3"]
-    src_conf.a_set = {"i2", "i3"}
+    src_conf = {
+        "overridden_bool": False,
+        "subconf": {
+            "an_str": "src_subconf_str",
+        },
+        "a_list": ["i2", "i3"],
+        "a_set": {"i2", "i3"},
+    }
 
-    update_from_other_instance(dst_conf, src_conf)
+    update_dict_from_other(dst_conf, src_conf)
 
-    assert dst_conf.path == "dst_path"
-    assert dst_conf.backup is False
-    assert dst_conf.subconf.an_int == 1
-    assert dst_conf.subconf.an_str == "src_subconf_str"
-    assert dst_conf.a_list == ["i1", "i2", "i2", "i3"]
-    assert dst_conf.a_set == {"i1", "i2", "i3"}
+    assert dst_conf["not_overridden_bool"] is True
+    assert dst_conf["overridden_bool"] is False
+    assert dst_conf["subconf"]["an_int"] == 1
+    assert dst_conf["subconf"]["an_str"] == "src_subconf_str"
+    assert dst_conf["a_list"] == ["i1", "i2", "i2", "i3"]
+    assert dst_conf["a_set"] == {"i1", "i2", "i3"}
 
 
 @pytest.mark.parametrize(
