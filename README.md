@@ -29,6 +29,8 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [Installing](#installing)
     - [Updating](#updating)
 - [Initial setup](#initial-setup)
+  - [Using `ggshield auth login`](#using-ggshield-auth-login)
+  - [Manual setup](#manual-setup)
 - [Getting started](#getting-started)
   - [Secrets](#secrets)
   - [Infra as Code Security (IaC)](#infra-as-code-security-iac)
@@ -95,11 +97,15 @@ $ pip install --user -U ggshield
 
 # Initial setup
 
+## Using `ggshield auth login`
+
 To use `ggshield` you need to authenticate against GitGuardian servers. To do so, use the `ggshield auth login` command. This command automates the provisioning of a personal access token and its configuration on the local workstation.
 
 You can learn more about it from [`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
 
-Alternatively, you can create your personal access token manually and you can store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
+## Manual setup
+
+You can also create your personal access token manually and store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
 
 # Getting started
 
