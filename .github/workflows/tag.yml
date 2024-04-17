@@ -74,11 +74,10 @@ jobs:
         run: |
           gh release upload \
             ${{ steps.tags.outputs.tag }} \
-            packages/ggshield-*.pkg
-
-            # TODO: going to be brought back in next commits
-            # packages/ggshield_*.deb \
-            # packages/ggshield-*.rpm \
+            packages/ggshield-*.pkg \
+            packages/ggshield_*.deb \
+            packages/ggshield-*.rpm \
+            packages/ggshield-*.gz
 
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
@@ -141,25 +140,26 @@ jobs:
 
           git push
 
-# TODO: going to be brought back in next commits
-#  push_to_cloudsmith:
-#    needs: build_release_assets
-#    runs-on: ubuntu-22.04
-#    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
-#
-#      - name: Download packages
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: packages
-#
-#      - name: Install Cloudsmith CLI
-#        run: pip install cloudsmith-cli
-#
-#      - name: Push to Cloudsmith
-#        run: |
-#          scripts/push-to-cloudsmith
-#        env:
-#          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+  push_to_cloudsmith:
+    needs: build_release_assets
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: os-packages-*
+          path: packages
+          merge-multiple: true
+
+      - name: Install Cloudsmith CLI
+        run: pip install cloudsmith-cli
+
+      - name: Push to Cloudsmith
+        run: |
+          scripts/push-to-cloudsmith
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}

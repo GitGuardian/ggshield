@@ -153,17 +153,17 @@ jobs:
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
           TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
 
-  build-standalone:
-    name: Standalone exe
+  build_os_packages:
+    name: Build packages
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os:
           - ubuntu-22.04
-          - macos-13
           - windows-2022
-          - macos-14
+          - macos-13 # x86-64
+          - macos-14 # arm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -175,32 +175,37 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install normal dependencies
+      - name: Install dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pipenv==2023.10.3
+          python -m pip install --upgrade \
+            pipenv==2023.10.3 \
+            pyinstaller==6.5.0
           pipenv install --system --dev
         env:
           # Disable lock otherwise Windows-only dependencies like colorama are not installed
           PIPENV_SKIP_LOCK: 1
 
-      - name: Install standalone-specific dependencies
+      - name: Install Linux specific dependencies
+        if: matrix.os == 'ubuntu-22.04'
         run: |
-          python -m pip install pyinstaller==6.5.0
+          NFPM_VERSION=2.36.1
+          NFPM_CHECKSUM=05c17a1e09c470807b149fdd7bcd8f600eea044f459fc3ce81aa230103c0baf5
+
+          scripts/download \
+            https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb \
+            nfpm.deb \
+            $NFPM_CHECKSUM
+
+          sudo dpkg -i nfpm.deb
 
       - name: Build
         shell: bash
         run: |
-          scripts/build-standalone-exe
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ggshield-${{ matrix.os }}
-          path: |
-            dist/ggshield-*.gz
-            dist/ggshield-*.pkg
-            dist/ggshield-*.zip
+          # Use --git-version to produce a package with a version number
+          # different from a release
+          scripts/build-os-packages/build-os-packages --git-version
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -215,51 +220,22 @@ jobs:
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
         if: ${{ !github.event.pull_request.head.repo.fork }}
         run: |
-          scripts/build-standalone-exe functests
+          scripts/build-os-packages/build-os-packages functests
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
           TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
 
-  build_packages:
-    # This job ensures the build-packages script is tested on each build, not only at release time
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          fetch-depth: 0
-
-      # Warning: changes on this step should be reflected in workflows/tag.yml
-      - name: Install packaging tools
-        shell: bash
-        run: |
-          curl -L https://github.com/goreleaser/nfpm/releases/download/v2.15.0/nfpm_amd64.deb -o nfpm_amd64.deb
-          sudo dpkg -i nfpm_amd64.deb
-
-          pip install shiv==1.0.1 build
-
-      # Append the abbreviated git sha1 to the version number to avoid confusing
-      # these packages with those produced at release time
-      - name: Fake version number
-        shell: bash
-        run: |
-          version=$(git describe --tags | sed -e 's/^v//' -e 's/-[0-9]*-g/+/')
-          echo "Set version number to '$version'"
-          sed -i "s/__version__ = .*/__version__ = \"$version\"/" ggshield/__init__.py
-
-      - name: Create packages
-        shell: bash
-        run: scripts/build-packages/build-packages
-
-      # Make packages downloadable from the workflow page
-      - name: Upload packages
-        uses: actions/upload-artifact@v3
-        with:
-          name: packages
+          name: os-packages-${{ matrix.os }}
           path: |
-            dist
-            packages
+            packages/ggshield-*.gz
+            packages/ggshield-*.pkg
+            packages/ggshield-*.zip
+            packages/ggshield-*.rpm
+            packages/ggshield_*.deb
 
   test_github_secret_scan_action:
     name: Test GitHub action for `secret scan`

@@ -8,23 +8,24 @@ description: 'CLI application that runs in your local environment or in a CI env
 
 arch: amd64
 platform: linux
-version: @VERSION@
+version: ${VERSION}
 version_schema: semver
 release: 1
 
 depends:
   - git
-  - python3
+
 contents:
-  - src: @GGSHIELD_WRAPPER@
+  - src: /usr/libexec/ggshield/ggshield
     dst: /usr/bin/ggshield
-    file_info:
-      mode: 0755
-  - src: @GGSHIELD_PYZ@
-    dst: /usr/lib/ggshield/ggshield.pyz
-    file_info:
-      mode: 0755
+    type: symlink
+
+  - src: ${PYINSTALLER_OUTPUT_DIR}
+    dst: /usr/libexec/ggshield
+    expand: true
+
   - src: README.md
     dst: /usr/share/doc/ggshield/README.md
+
   - src: LICENSE
     dst: /usr/share/doc/ggshield/LICENSE

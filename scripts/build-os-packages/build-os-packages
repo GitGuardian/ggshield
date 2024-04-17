@@ -15,6 +15,11 @@ REQUIREMENTS="pyinstaller"
 # Whether we want a signed binary or not
 DO_SIGN=0
 
+# Where to find the version:
+# - 0: read it from ggshield/__init__.py
+# - 1: generate it using `git describe`
+USE_GIT_VERSION=0
+
 MACOS_P12_FILE=${MACOS_P12_FILE:-}
 MACOS_P12_PASSWORD_FILE=${MACOS_P12_PASSWORD_FILE:-}
 
@@ -57,6 +62,7 @@ Default steps are: $DEFAULT_STEPS
 Options:
   -h, --help      Display this usage message and exit.
   --sign          Sign the binary, on supported OSes.
+  --git-version   Append "+COMMIT_SHA" to the version number.
 
 For more details, see doc/dev/os-packages.md.
 EOF
@@ -66,6 +72,12 @@ EOF
 
 read_version() {
     VERSION=$(grep -o "[0-9]*\.[0-9]*\.[0-9]*" "$ROOT_DIR/ggshield/__init__.py")
+    if [ "$USE_GIT_VERSION" -eq 1 ] ; then
+        local commit_sha
+        commit_sha=$(git rev-parse --short HEAD)
+        VERSION="$VERSION+$commit_sha"
+    fi
+    info "VERSION=$VERSION"
 }
 
 init_system_vars() {
@@ -95,6 +107,7 @@ init_system_vars() {
         EXE_EXT=""
         TARGET="$arch-unknown-linux-gnu"
         HUMAN_OS=Linux
+        REQUIREMENTS="$REQUIREMENTS nfpm"
         ;;
     Darwin)
         EXE_EXT=""
@@ -229,21 +242,38 @@ step_functests() {
     PATH=$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
 }
 
+create_linux_packages() {
+    for format in rpm deb ; do
+        info "Building $format"
+
+        PYINSTALLER_OUTPUT_DIR=$PYINSTALLER_OUTPUT_DIR \
+        VERSION=$VERSION \
+            nfpm package \
+                --packager $format \
+                --config "$SCRIPT_DIR/nfpm.yaml" \
+                --target "$PACKAGES_DIR"
+    done
+}
+
 step_create_archive() {
     local archive_path
-    cd "$PACKAGES_DIR"
     case "$HUMAN_OS" in
     Linux)
         archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+        pushd "$PACKAGES_DIR"
         tar -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+        popd
+        create_linux_packages
         ;;
     macOS)
         archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
+        pushd "$PACKAGES_DIR"
         pkgbuild \
             --identifier com.gitguardian.ggshield \
             --version "$VERSION" \
             --root "$PACKAGES_DIR/$ARCHIVE_DIR_NAME" \
             "$archive_path"
+        popd
 
         if [ "$DO_SIGN" -eq 1 ] ; then
             sign_file "$archive_path"
@@ -251,10 +281,11 @@ step_create_archive() {
         ;;
     Windows)
         archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.zip"
+        pushd "$PACKAGES_DIR"
         7z a "$archive_path" "$ARCHIVE_DIR_NAME"
+        popd
         ;;
     esac
-    cd -
     info "Archive created in $archive_path"
 }
 
@@ -277,6 +308,9 @@ while [ $# -gt 0 ] ; do
         ;;
     --sign)
         DO_SIGN=1
+        ;;
+    --git-version)
+        USE_GIT_VERSION=1
         ;;
     -*)
         usage "Unknown option '$1'"
