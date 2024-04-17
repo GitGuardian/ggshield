@@ -8,33 +8,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_packages:
+  build_wheel_sdist:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install packaging tools
-        shell: bash
         run: |
-          curl -L https://github.com/goreleaser/nfpm/releases/download/v2.15.0/nfpm_amd64.deb -o nfpm_amd64.deb
-          sudo dpkg -i nfpm_amd64.deb
-
-          pip install shiv==1.0.1 build
+          pip install build
 
       - name: Create packages
-        shell: bash
-        run: scripts/build-packages/build-packages
+        run: |
+          python -m build
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: packages
+          name: dist
           path: |
             dist
-            packages
 
   build_standalone_binaries:
     name: Build signed, standalone binaries
