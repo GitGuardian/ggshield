@@ -29,7 +29,7 @@ jobs:
           path: |
             dist
 
-  build_standalone_binaries:
+  build_os_packages:
     name: Build signed, standalone binaries
     runs-on: ${{ matrix.os }}
     strategy:
@@ -135,7 +135,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          scripts/build-standalone-exe --sign
+          scripts/build-os-packages/build-os-packages --sign
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -150,7 +150,7 @@ jobs:
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
         if: ${{ !github.event.pull_request.head.repo.fork }}
         run: |
-          scripts/build-standalone-exe functests
+          scripts/build-os-packages/build-os-packages functests
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
@@ -159,8 +159,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: standalone-binaries-${{ matrix.os }}
+          name: os-packages-${{ matrix.os }}
           path: |
-            dist/ggshield-*.gz
-            dist/ggshield-*.pkg
-            dist/ggshield-*.zip
+            packages/ggshield-*.gz
+            packages/ggshield-*.pkg
+            packages/ggshield-*.zip

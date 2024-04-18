@@ -55,11 +55,11 @@ jobs:
         run: |
           echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
-      - name: Download standalone binaries
+      - name: Download OS packages
         uses: actions/download-artifact@v4
         with:
-          pattern: standalone-binaries-*
-          path: standalone-binaries
+          pattern: os-packages-*
+          path: packages
           merge-multiple: true
 
       - name: Create release
@@ -74,7 +74,7 @@ jobs:
         run: |
           gh release upload \
             ${{ steps.tags.outputs.tag }} \
-            standalone-binaries/ggshield-*.pkg
+            packages/ggshield-*.pkg
 
             # TODO: going to be brought back in next commits
             # packages/ggshield_*.deb \

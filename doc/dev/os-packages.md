@@ -1,4 +1,4 @@
-# Building standalone executables
+# Building OS packages
 
 ## Introduction
 
@@ -6,11 +6,11 @@
 
 To solve those deployment issues, we provide standalone `ggshield` executables, that do not require a Python interpreter. This documentation explains how these executables are produced.
 
-The process of generating the executable is handled by the `scripts/build-standalone-exe` script. This script runs a series of "steps". It has a default list of steps, but you can tell it to run only specific steps using `scripts/build-standalone-exe step1 step2...`.
+The process of generating the packages is handled by the `scripts/build-os-packages/build-os-packages` script. This script runs a series of "steps". It has a default list of steps, but you can tell it to run only specific steps using `scripts/build-os-packages/build-os-packages step1 step2...`.
 
-All functions in the script starting with `step_` can be used as a step. This means you can get a list of all available steps with: `grep -o '^step_[a-z_]*' scripts/build-standalone-exe`.
+All functions in the script starting with `step_` can be used as a step. This means you can get a list of all available steps with: `grep -o '^step_[a-z_]*' scripts/build-os-packages/build-os-packages`.
 
-## Generating the executable
+## Generating the standalone executable
 
 We use [PyInstaller](https://pyinstaller.org) to generate `ggshield` standalone executable.
 

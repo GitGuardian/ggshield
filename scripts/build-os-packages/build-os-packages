@@ -2,12 +2,13 @@
 set -euo pipefail
 
 PROGNAME=$(basename "$0")
-ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
-RESOURCES_DIR="$ROOT_DIR/scripts/standalone-exe"
+SCRIPT_DIR=$(cd "$(dirname "$0")" ; pwd)
+ROOT_DIR=$(cd "$SCRIPT_DIR/../.." ; pwd)
 
 DEFAULT_STEPS="req build copy_files test sign create_archive"
 
-DIST_DIR=$PWD/dist
+PYINSTALLER_OUTPUT_DIR=$ROOT_DIR/dist/ggshield
+PACKAGES_DIR=$ROOT_DIR/packages
 
 REQUIREMENTS="pyinstaller"
 
@@ -49,7 +50,7 @@ usage() {
 
     cat << EOF
 Usage: $PROGNAME [OPTION ...] [STEPS]
-Build a standalone executable for ggshield.
+Build OS specific packages for ggshield.
 
 Default steps are: $DEFAULT_STEPS
 
@@ -57,7 +58,7 @@ Options:
   -h, --help      Display this usage message and exit.
   --sign          Sign the binary, on supported OSes.
 
-For more details, see doc/dev/standalone-executables.md.
+For more details, see doc/dev/os-packages.md.
 EOF
 
     exit 1
@@ -137,42 +138,42 @@ step_req() {
 
 step_build() {
     rm -rf build/ggshield
-    rm -rf "$DIST_DIR/ggshield"
+    rm -rf "$PYINSTALLER_OUTPUT_DIR"
 
     pyinstaller ggshield/__main__.py --name ggshield --noupx
 }
 
 step_copy_files() {
-    local pyinstaller_output_dir=$DIST_DIR/ggshield
-    if ! [ -d "$pyinstaller_output_dir" ] ; then
-        die "$pyinstaller_output_dir does not exist"
+    if ! [ -d "$PYINSTALLER_OUTPUT_DIR" ] ; then
+        die "$PYINSTALLER_OUTPUT_DIR does not exist"
     fi
-    local pyinstaller_ggshield=$pyinstaller_output_dir/ggshield$EXE_EXT
+    local pyinstaller_ggshield=$PYINSTALLER_OUTPUT_DIR/ggshield$EXE_EXT
     if ! [ -f "$pyinstaller_ggshield" ] ; then
         die "Can't find '$pyinstaller_ggshield', maybe 'build' step did not run?"
     fi
 
+    mkdir -p "$PACKAGES_DIR"
     case "$HUMAN_OS" in
     Linux|Windows)
-        local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+        local output_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
         info "Copying files to $output_dir"
         rm -rf "$output_dir"
-        cp -R "$pyinstaller_output_dir" "$output_dir"
+        cp -R "$PYINSTALLER_OUTPUT_DIR" "$output_dir"
 
         info "Generating README.md"
         sed \
             -e "s/@HUMAN_OS@/$HUMAN_OS/" \
             -e "s/@HUMAN_ARCH@/$HUMAN_ARCH/" \
-            "$RESOURCES_DIR/README.md" \
+            "$SCRIPT_DIR/README.md.tmpl" \
             > "$output_dir/README.md"
         ;;
     macOS)
-        local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX"
-        local bin_dir="$DIST_DIR/$ARCHIVE_DIR_NAME/usr/local/bin"
+        local output_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX"
+        local bin_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME/usr/local/bin"
         info "Copying files to $output_dir"
         rm -rf "$output_dir" "$bin_dir"
         mkdir -p "$(dirname $output_dir)"
-        cp -R "$pyinstaller_output_dir" "$output_dir"
+        cp -R "$PYINSTALLER_OUTPUT_DIR" "$output_dir"
 
         info "Creating launcher symlink"
         mkdir -p "$bin_dir"
@@ -197,7 +198,7 @@ sign_file() {
 }
 
 list_files_to_sign() {
-    local archive_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+    local archive_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
     echo "$archive_dir/$INSTALL_PREFIX/ggshield"
     find "$archive_dir" -name '*.so' -o -name '*.dylib'
 }
@@ -219,30 +220,29 @@ step_sign() {
 step_test() {
     for args in --help --version ; do
         info "test: running $args"
-        "$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield${EXE_EXT}" $args
+        "$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield${EXE_EXT}" $args
         info "test: running $args: OK"
     done
 }
 
 step_functests() {
-    PATH=$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
+    PATH=$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
 }
 
 step_create_archive() {
     local archive_path
-    cd "$DIST_DIR"
+    cd "$PACKAGES_DIR"
     case "$HUMAN_OS" in
     Linux)
-        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.tar.gz"
         tar -czf "$archive_path" "$ARCHIVE_DIR_NAME"
         ;;
     macOS)
-        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
-        
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
         pkgbuild \
             --identifier com.gitguardian.ggshield \
             --version "$VERSION" \
-            --root "$DIST_DIR/$ARCHIVE_DIR_NAME" \
+            --root "$PACKAGES_DIR/$ARCHIVE_DIR_NAME" \
             "$archive_path"
 
         if [ "$DO_SIGN" -eq 1 ] ; then
@@ -250,7 +250,7 @@ step_create_archive() {
         fi
         ;;
     Windows)
-        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.zip"
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.zip"
         7z a "$archive_path" "$ARCHIVE_DIR_NAME"
         ;;
     esac
@@ -266,7 +266,7 @@ step_notarize() {
     rcodesign notary-submit \
         --api-key-file "$MACOS_API_KEY_FILE" \
         --staple \
-        "$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
+        "$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
 }
 
 steps=""
