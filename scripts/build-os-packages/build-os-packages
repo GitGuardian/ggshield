@@ -153,7 +153,14 @@ step_build() {
     rm -rf build/ggshield
     rm -rf "$PYINSTALLER_OUTPUT_DIR"
 
-    pyinstaller ggshield/__main__.py --name ggshield --noupx
+    local extra_args=""
+    if [ "$HUMAN_OS" != Windows ] ; then
+        # Only strip on Linux and macOS: pyinstaller docs says it's not
+        # recommended on Windows.
+        extra_args="--strip"
+    fi
+
+    pyinstaller ggshield/__main__.py --name ggshield --noupx $extra_args
 }
 
 step_copy_files() {
