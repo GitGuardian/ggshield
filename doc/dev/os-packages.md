@@ -10,6 +10,24 @@ The process of generating the packages is handled by the `scripts/build-os-packa
 
 All functions in the script starting with `step_` can be used as a step. This means you can get a list of all available steps with: `grep -o '^step_[a-z_]*' scripts/build-os-packages/build-os-packages`.
 
+Here is a high-level overview of the main steps (square boxes are steps):
+
+```mermaid
+flowchart TD
+    src[/source code/] --> build --> pyinstaller_dir[/"pyinstaller output
+    (dist/ggshield)"/]
+    pyinstaller_dir --> copy_files --> archive_dir[/"dir ready to be archived
+    (packages/ggshield-$version-$target)"/]
+    archive_dir --> test["test (run functional tests on archive dir)"]
+    test --> signing{Called with --sign?} -->|yes| sign
+    signing -->|no| create_archive
+    sign --> create_archive --> pkg[/"pkg 🍏"/]
+    create_archive --> zip[/"zip 🪟"/]
+    create_archive --> tar.gz[/"tar.gz 🐧"/]
+    create_archive --> deb[/"deb 🐧"/]
+    create_archive --> rpm[/"rpm 🐧"/]
+```
+
 ## Generating the standalone executable
 
 We use [PyInstaller](https://pyinstaller.org) to generate `ggshield` standalone executable.
