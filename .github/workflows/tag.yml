@@ -9,6 +9,8 @@ jobs:
   build_release_assets:
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit
+    with:
+      release_mode: true
 
   push_to_pypi:
     needs: build_release_assets

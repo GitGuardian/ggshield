@@ -1,11 +1,21 @@
 name: Build release assets
 
-# This workflow is used by the tag workflow to build all release assets. It
-# can also be triggered manually.
+# This workflow is used by the ci and tag workflows to build all release
+# assets. It can also be triggered manually.
 
 on:
   workflow_call:
+    inputs:
+      release_mode:
+        description: 'Release mode (signed binaries, no commit sha in version number)'
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      release_mode:
+        description: 'Release mode (signed binaries, no commit sha in version number)'
+        type: boolean
+        default: false
 
 jobs:
   build_wheel_sdist:
@@ -122,7 +132,7 @@ jobs:
           sudo dpkg -i nfpm.deb
 
       - name: Prepare macOS secrets
-        if: startsWith(matrix.os, 'macos-')
+        if: startsWith(matrix.os, 'macos-') && inputs.release_mode
         run: |
           set -euo pipefail
           SECRETS_DIR=$TMPDIR/secrets
@@ -147,7 +157,12 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          scripts/build-os-packages/build-os-packages --sign
+          if [ "${{ inputs.release_mode }}" = "true" ] ; then
+            args="--sign"
+          else
+            args="--git-version"
+          fi
+          scripts/build-os-packages/build-os-packages $args
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
