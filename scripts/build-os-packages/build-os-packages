@@ -161,6 +161,12 @@ step_build() {
     fi
 
     pyinstaller ggshield/__main__.py --name ggshield --noupx $extra_args
+
+    if [ "$HUMAN_OS" != Windows ] ; then
+        # Libraries do not need to be executable
+        find "$PYINSTALLER_OUTPUT_DIR" \( -name "*.so.*" -o -name "*.so" -o -name "*.dylib" \) \
+            -exec chmod -x '{}' ';'
+    fi
 }
 
 step_copy_files() {
