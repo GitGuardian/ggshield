@@ -2,17 +2,23 @@
 set -euo pipefail
 
 PROGNAME=$(basename "$0")
-ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
-RESOURCES_DIR="$ROOT_DIR/scripts/standalone-exe"
+SCRIPT_DIR=$(cd "$(dirname "$0")" ; pwd)
+ROOT_DIR=$(cd "$SCRIPT_DIR/../.." ; pwd)
 
 DEFAULT_STEPS="req build copy_files test sign create_archive"
 
-DIST_DIR=$PWD/dist
+PYINSTALLER_OUTPUT_DIR=$ROOT_DIR/dist/ggshield
+PACKAGES_DIR=$ROOT_DIR/packages
 
 REQUIREMENTS="pyinstaller"
 
 # Whether we want a signed binary or not
 DO_SIGN=0
+
+# Where to find the version:
+# - 0: read it from ggshield/__init__.py
+# - 1: generate it using `git describe`
+USE_GIT_VERSION=0
 
 MACOS_P12_FILE=${MACOS_P12_FILE:-}
 MACOS_P12_PASSWORD_FILE=${MACOS_P12_PASSWORD_FILE:-}
@@ -49,15 +55,16 @@ usage() {
 
     cat << EOF
 Usage: $PROGNAME [OPTION ...] [STEPS]
-Build a standalone executable for ggshield.
+Build OS specific packages for ggshield.
 
 Default steps are: $DEFAULT_STEPS
 
 Options:
   -h, --help      Display this usage message and exit.
   --sign          Sign the binary, on supported OSes.
+  --git-version   Append "+COMMIT_SHA" to the version number.
 
-For more details, see doc/dev/standalone-executables.md.
+For more details, see doc/dev/os-packages.md.
 EOF
 
     exit 1
@@ -65,6 +72,12 @@ EOF
 
 read_version() {
     VERSION=$(grep -o "[0-9]*\.[0-9]*\.[0-9]*" "$ROOT_DIR/ggshield/__init__.py")
+    if [ "$USE_GIT_VERSION" -eq 1 ] ; then
+        local commit_sha
+        commit_sha=$(git rev-parse --short HEAD)
+        VERSION="$VERSION+$commit_sha"
+    fi
+    info "VERSION=$VERSION"
 }
 
 init_system_vars() {
@@ -94,6 +107,7 @@ init_system_vars() {
         EXE_EXT=""
         TARGET="$arch-unknown-linux-gnu"
         HUMAN_OS=Linux
+        REQUIREMENTS="$REQUIREMENTS nfpm"
         ;;
     Darwin)
         EXE_EXT=""
@@ -137,42 +151,55 @@ step_req() {
 
 step_build() {
     rm -rf build/ggshield
-    rm -rf "$DIST_DIR/ggshield"
+    rm -rf "$PYINSTALLER_OUTPUT_DIR"
 
-    pyinstaller ggshield/__main__.py --name ggshield --noupx
+    local extra_args=""
+    if [ "$HUMAN_OS" != Windows ] ; then
+        # Only strip on Linux and macOS: pyinstaller docs says it's not
+        # recommended on Windows.
+        extra_args="--strip"
+    fi
+
+    pyinstaller ggshield/__main__.py --name ggshield --noupx $extra_args
+
+    if [ "$HUMAN_OS" != Windows ] ; then
+        # Libraries do not need to be executable
+        find "$PYINSTALLER_OUTPUT_DIR" \( -name "*.so.*" -o -name "*.so" -o -name "*.dylib" \) \
+            -exec chmod -x '{}' ';'
+    fi
 }
 
 step_copy_files() {
-    local pyinstaller_output_dir=$DIST_DIR/ggshield
-    if ! [ -d "$pyinstaller_output_dir" ] ; then
-        die "$pyinstaller_output_dir does not exist"
+    if ! [ -d "$PYINSTALLER_OUTPUT_DIR" ] ; then
+        die "$PYINSTALLER_OUTPUT_DIR does not exist"
     fi
-    local pyinstaller_ggshield=$pyinstaller_output_dir/ggshield$EXE_EXT
+    local pyinstaller_ggshield=$PYINSTALLER_OUTPUT_DIR/ggshield$EXE_EXT
     if ! [ -f "$pyinstaller_ggshield" ] ; then
         die "Can't find '$pyinstaller_ggshield', maybe 'build' step did not run?"
     fi
 
+    mkdir -p "$PACKAGES_DIR"
     case "$HUMAN_OS" in
     Linux|Windows)
-        local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+        local output_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
         info "Copying files to $output_dir"
         rm -rf "$output_dir"
-        cp -R "$pyinstaller_output_dir" "$output_dir"
+        cp -R "$PYINSTALLER_OUTPUT_DIR" "$output_dir"
 
         info "Generating README.md"
         sed \
             -e "s/@HUMAN_OS@/$HUMAN_OS/" \
             -e "s/@HUMAN_ARCH@/$HUMAN_ARCH/" \
-            "$RESOURCES_DIR/README.md" \
+            "$SCRIPT_DIR/README.md.tmpl" \
             > "$output_dir/README.md"
         ;;
     macOS)
-        local output_dir="$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX"
-        local bin_dir="$DIST_DIR/$ARCHIVE_DIR_NAME/usr/local/bin"
+        local output_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX"
+        local bin_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME/usr/local/bin"
         info "Copying files to $output_dir"
         rm -rf "$output_dir" "$bin_dir"
         mkdir -p "$(dirname $output_dir)"
-        cp -R "$pyinstaller_output_dir" "$output_dir"
+        cp -R "$PYINSTALLER_OUTPUT_DIR" "$output_dir"
 
         info "Creating launcher symlink"
         mkdir -p "$bin_dir"
@@ -197,7 +224,7 @@ sign_file() {
 }
 
 list_files_to_sign() {
-    local archive_dir="$DIST_DIR/$ARCHIVE_DIR_NAME"
+    local archive_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
     echo "$archive_dir/$INSTALL_PREFIX/ggshield"
     find "$archive_dir" -name '*.so' -o -name '*.dylib'
 }
@@ -219,42 +246,59 @@ step_sign() {
 step_test() {
     for args in --help --version ; do
         info "test: running $args"
-        "$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield${EXE_EXT}" $args
+        "$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield${EXE_EXT}" $args
         info "test: running $args: OK"
     done
 }
 
 step_functests() {
-    PATH=$DIST_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
+    PATH=$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
+}
+
+create_linux_packages() {
+    for format in rpm deb ; do
+        info "Building $format"
+
+        PYINSTALLER_OUTPUT_DIR=$PYINSTALLER_OUTPUT_DIR \
+        VERSION=$VERSION \
+            nfpm package \
+                --packager $format \
+                --config "$SCRIPT_DIR/nfpm.yaml" \
+                --target "$PACKAGES_DIR"
+    done
 }
 
 step_create_archive() {
     local archive_path
-    cd "$DIST_DIR"
     case "$HUMAN_OS" in
     Linux)
-        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+        pushd "$PACKAGES_DIR"
         tar -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+        popd
+        create_linux_packages
         ;;
     macOS)
-        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
-        
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
+        pushd "$PACKAGES_DIR"
         pkgbuild \
             --identifier com.gitguardian.ggshield \
             --version "$VERSION" \
-            --root "$DIST_DIR/$ARCHIVE_DIR_NAME" \
+            --root "$PACKAGES_DIR/$ARCHIVE_DIR_NAME" \
             "$archive_path"
+        popd
 
         if [ "$DO_SIGN" -eq 1 ] ; then
             sign_file "$archive_path"
         fi
         ;;
     Windows)
-        archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.zip"
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.zip"
+        pushd "$PACKAGES_DIR"
         7z a "$archive_path" "$ARCHIVE_DIR_NAME"
+        popd
         ;;
     esac
-    cd -
     info "Archive created in $archive_path"
 }
 
@@ -266,7 +310,7 @@ step_notarize() {
     rcodesign notary-submit \
         --api-key-file "$MACOS_API_KEY_FILE" \
         --staple \
-        "$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
+        "$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
 }
 
 steps=""
@@ -277,6 +321,9 @@ while [ $# -gt 0 ] ; do
         ;;
     --sign)
         DO_SIGN=1
+        ;;
+    --git-version)
+        USE_GIT_VERSION=1
         ;;
     -*)
         usage "Unknown option '$1'"

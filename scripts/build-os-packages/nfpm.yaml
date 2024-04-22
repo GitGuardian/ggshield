@@ -1,0 +1,44 @@
+name: ggshield
+section: utils
+vendor: GitGuardian
+maintainer: GitGuardian <dev@gitguardian.com>
+license: MIT
+homepage: https://github.com/GitGuardian/ggshield
+description: |-
+  Detect leaked secrets and other potential security vulnerabilities
+  ggshield runs in your local environment or in a CI environment to help you
+  detect leaked secrets, as well as other potential security vulnerabilities or
+  policy breaks.
+
+arch: amd64
+platform: linux
+version: ${VERSION}
+version_schema: semver
+release: 1
+
+depends:
+  - git
+
+# Make sure files are not group-writable. lintian does not like that.
+umask: 0o022
+
+contents:
+  - src: ../libexec/ggshield/ggshield
+    dst: /usr/bin/ggshield
+    type: symlink
+
+  - src: ${PYINSTALLER_OUTPUT_DIR}
+    dst: /usr/libexec/ggshield
+    expand: true
+
+  - src: README.md
+    dst: /usr/share/doc/ggshield/README.md
+
+  - src: LICENSE
+    dst: /usr/share/doc/ggshield/LICENSE
+
+overrides:
+  deb:
+    depends:
+      - libc6
+      - git

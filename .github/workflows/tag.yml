@@ -9,6 +9,8 @@ jobs:
   build_release_assets:
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit
+    with:
+      release_mode: true
 
   push_to_pypi:
     needs: build_release_assets
@@ -21,10 +23,11 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Download packages
+      - name: Download wheel and sdist
         uses: actions/download-artifact@v4
         with:
-          name: packages
+          name: dist
+          path: dist
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -54,16 +57,11 @@ jobs:
         run: |
           echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
-      - name: Download packages
+      - name: Download OS packages
         uses: actions/download-artifact@v4
         with:
-          name: packages
-
-      - name: Download standalone binaries
-        uses: actions/download-artifact@v4
-        with:
-          pattern: standalone-binaries-*
-          path: standalone-binaries
+          pattern: os-packages-*
+          path: packages
           merge-multiple: true
 
       - name: Create release
@@ -78,10 +76,10 @@ jobs:
         run: |
           gh release upload \
             ${{ steps.tags.outputs.tag }} \
-            packages/ggshield-*.pyz \
+            packages/ggshield-*.pkg \
             packages/ggshield_*.deb \
             packages/ggshield-*.rpm \
-            standalone-binaries/ggshield-*.pkg
+            packages/ggshield-*.gz
 
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
@@ -155,7 +153,9 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: packages
+          pattern: os-packages-*
+          path: packages
+          merge-multiple: true
 
       - name: Install Cloudsmith CLI
         run: pip install cloudsmith-cli
