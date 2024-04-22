@@ -81,3 +81,23 @@ def test_scan_repo_quota_limit_reached(
     )
     # AND stdout is empty
     assert proc.stdout.strip() == ""
+
+
+def test_scan_repo_exclude_patterns(
+    leaky_repo: Repository,
+) -> None:
+    # GIVEN a repository with a past commit containing a leak
+    # AND a pattern to exclude the leak
+    # WHEN scanning the repo
+    # THEN the leak is not found
+
+    result = run_ggshield_scan(
+        "repo",
+        "--exclude",
+        "secret.conf",
+        str(leaky_repo.path),
+        expected_code=0,
+        cwd=leaky_repo.path,
+    )
+
+    assert "No secrets have been found" in result.stdout
