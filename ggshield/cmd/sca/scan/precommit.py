@@ -12,7 +12,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
-from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import all_option, directory_argument
 from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core.scan.scan_mode import ScanMode
@@ -27,7 +27,6 @@ from ggshield.verticals.sca.collection.collection import (
 @all_option
 @directory_argument
 @click.pass_context
-@display_beta_warning
 @exception_wrapper
 def scan_pre_commit_cmd(
     ctx: click.Context,
