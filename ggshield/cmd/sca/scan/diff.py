@@ -8,7 +8,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     add_sca_scan_common_options,
     update_context,
 )
-from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
+from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import (
     directory_argument,
     reference_option,
@@ -25,7 +25,6 @@ from ggshield.verticals.sca.collection.collection import (
 @directory_argument
 @reference_option
 @staged_option
-@display_beta_warning
 @click.pass_context
 @exception_wrapper
 def scan_diff_cmd(
