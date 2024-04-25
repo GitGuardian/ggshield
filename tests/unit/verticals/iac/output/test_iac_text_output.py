@@ -37,6 +37,7 @@ def test_display_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
             str(tmp_path),
         ],
     )
+    assert_beta_warning_displayed(result)
     assert_iac_version_displayed(result)
     assert_file_single_vulnerability_displayed(result)
     assert_documentation_url_displayed(result)
@@ -55,6 +56,7 @@ def test_exit_zero_single_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner
             str(tmp_path),
         ],
     )
+    assert_beta_warning_displayed(result)
     assert_invoke_ok(result)
 
 
@@ -74,6 +76,7 @@ def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunn
         ],
     )
 
+    assert_beta_warning_displayed(result)
     assert_iac_version_displayed(result)
     assert_file_multiple_vulnerabilities_displayed(result)
     assert_no_failures_displayed(result)
@@ -93,6 +96,7 @@ def test_display_no_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
         ],
     )
 
+    assert_beta_warning_displayed(result)
     assert_iac_version_displayed(result)
     assert "No incidents have been found" in result.stdout
     assert_no_failures_displayed(result)
@@ -118,6 +122,7 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
         ],
     )
 
+    assert_beta_warning_displayed(result)
     assert_iac_version_displayed(result)
     assert_file_single_vulnerability_displayed(result)
     assert_file_multiple_vulnerabilities_displayed(result)
@@ -257,6 +262,13 @@ def test_text_all_output_previously_ignored(scan_type: ScanMode, tmp_path: Path)
         )
         if scan_type == ScanMode.DIRECTORY_DIFF:
             assert "[+] 2 new incidents detected" in output
+
+
+def assert_beta_warning_displayed(result: Result):
+    assert (
+        "This feature is still in beta, its behavior may change in future versions."
+        in result.stdout
+    )
 
 
 def assert_iac_version_displayed(result: Result):

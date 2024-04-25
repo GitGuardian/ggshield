@@ -41,9 +41,8 @@ INCIDENT_SCHEMA = validators.Schema(
 
 
 @my_vcr.use_cassette("test_iac_scan_single_vulnerability")
-def test_display_single_vulnerabilities(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
+def test_display_single_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
 
     result = cli_fs_runner.invoke(
         cli,
@@ -52,19 +51,18 @@ def test_display_single_vulnerabilities(cli_fs_runner: CliRunner):
             "scan",
             "all",
             "--json",
-            "tmp",
+            str(tmp_path),
         ],
     )
 
-    json_result = load_json(result)
+    json_result = assert_has_beta_warning_and_load_json(result)
     assert_iac_version_displayed(json_result, 1)
     assert_file_single_vulnerability_displayed(json_result)
 
 
 @my_vcr.use_cassette("test_iac_scan_multiple_vulnerabilities")
-def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_multiple_vulnerabilities.tf").write_text(
+def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_multiple_vulnerabilities.tf").write_text(
         IAC_MULTIPLE_VULNERABILITIES
     )
 
@@ -75,19 +73,18 @@ def test_display_multiple_vulnerabilities(cli_fs_runner: CliRunner):
             "scan",
             "all",
             "--json",
-            "tmp",
+            str(tmp_path),
         ],
     )
 
-    json_result = load_json(result)
+    json_result = assert_has_beta_warning_and_load_json(result)
     assert_iac_version_displayed(json_result, 2)
     assert_file_multiple_vulnerabilities_displayed(json_result)
 
 
 @my_vcr.use_cassette("test_iac_scan_no_vulnerabilities")
-def test_display_no_vulnerability(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
+def test_display_no_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
 
     result = cli_fs_runner.invoke(
         cli,
@@ -96,23 +93,22 @@ def test_display_no_vulnerability(cli_fs_runner: CliRunner):
             "scan",
             "all",
             "--json",
-            "tmp",
+            str(tmp_path),
         ],
     )
 
-    json_result = load_json(result)
+    json_result = assert_has_beta_warning_and_load_json(result)
     assert_iac_version_displayed(json_result, 0)
     assert len(json_result["entities_with_incidents"]) == 0
 
 
 @my_vcr.use_cassette("test_iac_scan_multiple_files")
-def test_display_multiple_files(cli_fs_runner: CliRunner):
-    Path("tmp/").mkdir(exist_ok=True)
-    Path("tmp/iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
-    Path("tmp/iac_file_multiple_vulnerabilities.tf").write_text(
+def test_display_multiple_files(tmp_path: Path, cli_fs_runner: CliRunner):
+    (tmp_path / "iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
+    (tmp_path / "iac_file_multiple_vulnerabilities.tf").write_text(
         IAC_MULTIPLE_VULNERABILITIES
     )
-    Path("tmp/iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
+    (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
 
     result = cli_fs_runner.invoke(
         cli,
@@ -121,11 +117,11 @@ def test_display_multiple_files(cli_fs_runner: CliRunner):
             "scan",
             "all",
             "--json",
-            "tmp",
+            str(tmp_path),
         ],
     )
 
-    json_result = load_json(result)
+    json_result = assert_has_beta_warning_and_load_json(result)
     assert_iac_version_displayed(json_result, 3)
     assert_file_single_vulnerability_displayed(json_result)
     assert_file_multiple_vulnerabilities_displayed(json_result)
@@ -213,8 +209,17 @@ def test_json_all_output_no_ignored(verbose: bool, scan_type: ScanMode, tmp_path
     )
 
 
-def load_json(result: Result) -> Dict[str, Any]:
-    return json.loads(result.stdout)
+def assert_has_beta_warning_and_load_json(result: Result) -> Dict[str, Any]:
+    assert re.search(
+        r"This feature is still in beta, its behavior may change in future versions.\n",
+        result.stdout,
+    )
+    return json.loads(
+        result.stdout.replace(
+            "This feature is still in beta, its behavior may change in future versions.\n",
+            "",
+        )
+    )
 
 
 def assert_iac_version_displayed(json_result: Dict[str, Any], total_incidents: int):
