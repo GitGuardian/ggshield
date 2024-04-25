@@ -14,7 +14,7 @@ from ggshield.cmd.iac.scan.iac_scan_utils import (
     create_output_handler,
     handle_scan_error,
 )
-from ggshield.cmd.utils.common_decorators import exception_wrapper
+from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
@@ -33,6 +33,7 @@ from ggshield.verticals.iac.filter import get_iac_files_from_path
 @add_iac_scan_common_options()
 @directory_argument
 @click.pass_context
+@display_beta_warning
 @exception_wrapper
 def scan_all_cmd(
     ctx: click.Context,
