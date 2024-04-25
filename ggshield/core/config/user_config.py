@@ -30,6 +30,7 @@ CURRENT_CONFIG_VERSION = 2
 _IGNORE_KNOWN_SECRETS_KEY = "ignore_known_secrets"
 
 GHSA_ID_PATTERN = re.compile("GHSA(-[a-zA-Z0-9]{4}){3}")
+CVE_ID_PATTERN = re.compile(r"CVE-\d{4}-\d{4,}")
 POLICY_ID_PATTERN = re.compile("GG_IAC_[0-9]{4}")
 
 
@@ -203,10 +204,15 @@ def is_ghsa_valid(ghsa_id: str) -> bool:
     return bool(GHSA_ID_PATTERN.fullmatch(ghsa_id))
 
 
+def is_cve_id_valid(cve_id: str) -> bool:
+    return bool(CVE_ID_PATTERN.fullmatch(cve_id))
+
+
 def validate_vuln_identifier(value: str):
-    if not is_ghsa_valid(value):
+    if not (is_ghsa_valid(value) or is_cve_id_valid(value)):
         raise ValidationError(
-            f"The given GHSA id '{value}' do not match the pattern '{GHSA_ID_PATTERN.pattern}'"
+            f"The given identifier '{value}' do not match any of the allowed patterns"
+            f" '{GHSA_ID_PATTERN.pattern}' or '{CVE_ID_PATTERN.pattern}'"
         )
 
 
@@ -215,7 +221,7 @@ class SCAConfigIgnoredVulnerability(ConfigIgnoredElement):
     """
     A model of an ignored vulnerability for SCA. This allows to ignore all occurrences
     of a given vulnerability in a given dependency file.
-    - identifier: identifier (currently: GHSA id) of the vulnerability to ignore
+    - identifier: identifier (currently: either CVE id or GHSA id) of the vulnerability to ignore
     - path: the path to the file in which ignore the vulnerability
     - comment: The ignored reason
     - until: A datetime until which the vulnerability is ignored

@@ -33,6 +33,14 @@ def test_get_scan_params_from_config():
                 identifier="GHSA-4567-other",
                 path="toto/Pipfile.lock",
             ),
+            SCAConfigIgnoredVulnerability(
+                identifier="CVE-2023-3068",
+                path="toto/Pipfile.lock",
+            ),
+            SCAConfigIgnoredVulnerability(
+                identifier="CVE-2023-3068712",
+                path="toto/Pipfile.lock",
+            ),
         ],
         ignore_fixable=True,
     )
@@ -42,10 +50,13 @@ def test_get_scan_params_from_config():
     assert isinstance(params, SCAScanParameters)
     assert params.minimum_severity == "high"
 
-    assert len(params.ignored_vulnerabilities) == 2
-    assert {"GHSA-4567-8765", "GHSA-4567-other"} == set(
-        ignored.identifier for ignored in params.ignored_vulnerabilities
-    )
+    assert len(params.ignored_vulnerabilities) == 4
+    assert {
+        "GHSA-4567-8765",
+        "GHSA-4567-other",
+        "CVE-2023-3068",
+        "CVE-2023-3068712",
+    } == set(ignored.identifier for ignored in params.ignored_vulnerabilities)
     for ignored in params.ignored_vulnerabilities:
         assert ignored.path == "toto/Pipfile.lock"
     assert params.ignore_fixable is True
