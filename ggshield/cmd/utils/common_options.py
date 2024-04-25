@@ -18,6 +18,7 @@ import click
 
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.debug_logs import setup_debug_logs
+from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.config.user_config import UserConfig
 
 
@@ -187,13 +188,22 @@ def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     return decorator
 
 
+def _set_json_output_format(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    if value:
+        ctx_obj = ContextObj.get(ctx)
+        ctx_obj.output_format = OutputFormat.JSON
+    return value
+
+
 json_option = click.option(
     "--json",
     "json_output",
     is_flag=True,
     default=None,
     help="Use JSON output.",
-    callback=create_ctx_callback("use_json"),
+    callback=_set_json_output_format,
 )
 
 

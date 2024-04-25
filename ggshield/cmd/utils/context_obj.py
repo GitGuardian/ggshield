@@ -4,6 +4,7 @@ from typing import Optional, Pattern, Set, cast
 import click
 from pygitguardian import GGClient
 
+from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.ui.ggshield_ui import GGShieldUI
@@ -42,11 +43,14 @@ class ContextObj:
         # Set to false by the --no-check-for-updates option
         self.check_for_updates = True
 
-        # Set by the --json option
-        self.use_json = False
+        self.output_format = OutputFormat.TEXT
 
         # Set by the --output option
         self.output: Optional[Path] = None
+
+    @property
+    def use_json(self) -> bool:
+        return self.output_format == OutputFormat.JSON
 
     @property
     def config(self) -> Config:
