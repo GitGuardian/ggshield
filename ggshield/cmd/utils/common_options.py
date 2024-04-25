@@ -207,6 +207,23 @@ json_option = click.option(
 )
 
 
+def _set_output_format(
+    ctx: click.Context, param: click.Parameter, value: Optional[str]
+) -> Optional[str]:
+    if value:
+        ctx_obj = ContextObj.get(ctx)
+        ctx_obj.output_format = OutputFormat(value)
+    return value
+
+
+format_option = click.option(
+    "--format",
+    type=click.Choice([x.value for x in OutputFormat]),
+    help="Output format.",
+    callback=_set_output_format,
+)
+
+
 directory_argument = click.argument(
     "directory",
     type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),

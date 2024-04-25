@@ -8,6 +8,7 @@ from ggshield.cmd.utils.common_options import (
     create_config_callback,
     create_ctx_callback,
     exit_zero_option,
+    format_option,
     get_config_from_context,
     json_option,
 )
@@ -122,6 +123,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
         json_option(cmd)
+        format_option(cmd)
         _output_option(cmd)
         _show_secrets_option(cmd)
         exit_zero_option(cmd)
