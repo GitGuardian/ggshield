@@ -117,8 +117,12 @@ class SecretScanner:
         chunks_for_futures = {}
 
         chunk: List[Scannable] = []
-        max_payload_size = self.client.maximum_payload_size - _SIZE_METADATA_OVERHEAD
-        utf8_encoded_chunk_size = 0
+        max_payload_size = int(
+            os.getenv(
+                "GG_MAX_PAYLOAD_SIZE",
+                self.client.maximum_payload_size - _SIZE_METADATA_OVERHEAD,
+            )
+        )
         maximum_document_size = int(
             os.getenv(
                 "GG_MAX_DOC_SIZE",
@@ -134,6 +138,8 @@ class SecretScanner:
         logging.debug("max_doc_size=%d", maximum_document_size)
         logging.debug("max_docs=%d", maximum_documents_per_scan)
         logging.debug("max_payload_size=%d", max_payload_size)
+
+        utf8_encoded_chunk_size = 0
         for scannable in scannables:
             try:
                 if scannable.is_longer_than(maximum_document_size):
