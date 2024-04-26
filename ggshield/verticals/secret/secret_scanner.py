@@ -147,6 +147,13 @@ class SecretScanner:
                         scannable, f"content is over {maximum_document_size:,} bytes"
                     )
                     continue
+                if scannable.is_longer_than(max_payload_size):
+                    logger.debug("Skipping file longer than max_payload_size")
+                    scanner_ui.on_skipped(
+                        scannable,
+                        f"content is over {max_payload_size:,} bytes (max payload size)",
+                    )
+                    continue
                 content = scannable.content
             except DecodeError:
                 scanner_ui.on_skipped(scannable, "can't detect encoding")
