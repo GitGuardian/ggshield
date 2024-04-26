@@ -133,6 +133,7 @@ class SecretScanner:
         )
         logging.debug("max_doc_size=%d", maximum_document_size)
         logging.debug("max_docs=%d", maximum_documents_per_scan)
+        logging.debug("max_payload_size=%d", max_payload_size)
         for scannable in scannables:
             try:
                 if scannable.is_longer_than(maximum_document_size):
@@ -151,6 +152,11 @@ class SecretScanner:
                     or utf8_encoded_chunk_size + scannable.utf8_encoded_size
                     > max_payload_size
                 ):
+                    logger.debug(
+                        "sending chunk len(chunk)=%d utf8_encoded_chunk_size=%d",
+                        len(chunk),
+                        utf8_encoded_chunk_size,
+                    )
                     future = self._scan_chunk(executor, chunk)
                     chunks_for_futures[future] = chunk
                     chunk = []
