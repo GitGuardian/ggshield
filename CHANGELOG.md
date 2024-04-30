@@ -1,5 +1,37 @@
 # Changelog
 
+<a id='changelog-1.27.0'></a>
+
+## 1.27.0 — 2024-04-30
+
+### Removed
+
+- The `This feature is still in beta, its behavior may change in future versions` warning is no longer displayed for sca commands.
+
+### Added
+
+- It is now possible to customize the remediation message printed by GGShield pre-receive hook. This can be done by setting the message in the `secret.prereceive_remediation_message` configuration key. Thanks a lot to @Renizmy for this feature.
+
+- We now provide signed .pkg files for macOS.
+
+- Add `This feature is still in beta, its behavior may change in future versions` warning to iac scan all
+
+### Changed
+
+- Linux .deb and .rpm packages now use the binaries produced by pyinstaller. They no longer depend on Python.
+
+### Deprecated
+
+- Dash-separated configuration keys are now deprecated, they should be replaced with underscore-separated keys. For example `show-secrets` should become `show_secrets`. GGShield still supports reading from dash-separate configuration keys, but it prints a warning when it finds one.
+
+### Fixed
+
+- GGShield commands working with commits no longer fail when parsing a commit without any author.
+
+- Configuration keys defined in the global configuration file are no longer ignored if a local configuration file exists.
+
+- The option `--exclude PATTERN` is no longer ignored by the command `ggshield secret scan repo`.
+
 <a id='changelog-1.26.0'></a>
 
 ## 1.26.0 — 2024-03-27
