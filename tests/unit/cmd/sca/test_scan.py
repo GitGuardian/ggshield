@@ -12,6 +12,7 @@ from pygitguardian.sca_models import (
     SCALocationVulnerability,
     SCAScanAllOutput,
     SCAScanDiffOutput,
+    SCAScanParameters,
     SCAVulnerability,
     SCAVulnerablePackageVersion,
 )
@@ -577,7 +578,11 @@ def test_sca_scan_subdir_tar(
 
 
 @my_vcr.use_cassette("test_sca_scan_subdir_with_ignored_vuln.yaml")
+@patch(
+    "ggshield.cmd.sca.scan.sca_scan_utils.SCAScanParameters", wraps=SCAScanParameters
+)
 def test_sca_scan_subdir_with_ignored_vuln(
+    sca_scan_params_mock: Mock,
     tmp_path: Path,
     cli_fs_runner: CliRunner,
     pipfile_lock_with_vuln: str,
@@ -624,6 +629,9 @@ sca:
                 str(inner_dir_path.relative_to(tmp_path)),
             ],
         )
+
+        ignored_vulns = sca_scan_params_mock.call_args.kwargs["ignored_vulnerabilities"]
+        assert [i.identifier for i in ignored_vulns] == ["GHSA-rrm6-wvj7-cwh2"]
 
         assert result.exit_code == ExitCode.SUCCESS
         assert "GHSA-rrm6-wvj7-cwh2" not in result.stdout
