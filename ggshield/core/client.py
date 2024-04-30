@@ -4,6 +4,7 @@ import requests
 import urllib3
 from pygitguardian import GGClient, GGClientCallbacks
 from requests import Session
+from requests.adapters import HTTPAdapter
 
 from .config import Config
 from .constants import DEFAULT_INSTANCE_URL
@@ -81,6 +82,15 @@ def create_session(allow_self_signed: bool = False) -> Session:
     if allow_self_signed:
         urllib3.disable_warnings()
         session.verify = False
+
+    retries = urllib3.Retry(
+        total=5,
+        backoff_factor=0.2,
+        status_forcelist=[502, 503, 504],
+        allowed_methods={"POST"},
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+
     return session
 
 
