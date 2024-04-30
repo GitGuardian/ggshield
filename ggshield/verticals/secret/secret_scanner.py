@@ -96,11 +96,30 @@ class SecretScanner:
             for x in chunk
         ]
 
+        def multi_content_scan_wrapper(
+            documents: List[Dict[str, str]]
+        ) -> Detail | MultiScanResult:
+            try:
+                response = self.client.multi_content_scan(
+                    documents, self.headers, ignore_known_secrets=True
+                )
+            except Exception as exc:
+                logging.error("Request failed: exception=%s", exc)
+                raise
+            if response.success:
+                logging.debug("Request OK")
+            else:
+                assert isinstance(response, Detail)
+                logging.error("Request failed: detail=%s", response.detail)
+                for doc in documents:
+                    logging.error(
+                        "- filename=%s len=%d", doc["filename"], len(doc["document"])
+                    )
+            return response
+
         return executor.submit(
-            self.client.multi_content_scan,
+            multi_content_scan_wrapper,
             documents,
-            self.headers,
-            ignore_known_secrets=True,
         )
 
     def _start_scans(
