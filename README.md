@@ -23,12 +23,18 @@ Only metadata such as call time, request size and scan mode is stored from scans
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Installation](#installation)
-  - [macOS - Using Homebrew](#macos---using-homebrew)
-  - [Linux packages](#linux-packages)
-  - [Other Operating Systems - Using pipx or pip](#other-operating-systems---using-pipx-or-pip)
-    - [Installing](#installing)
-    - [Updating](#updating)
+  - [Requirements](#requirements)
+  - [macOS](#macos)
+    - [Using Homebrew](#using-homebrew)
+    - [Using a standalone .pkg package](#using-a-standalone-pkg-package)
+  - [Linux](#linux)
+    - [Deb and RPM packages](#deb-and-rpm-packages)
+  - [All operating systems](#all-operating-systems)
+    - [Using pipx](#using-pipx)
+    - [Using pip](#using-pip)
 - [Initial setup](#initial-setup)
+  - [Using `ggshield auth login`](#using-ggshield-auth-login)
+  - [Manual setup](#manual-setup)
 - [Getting started](#getting-started)
   - [Secrets](#secrets)
   - [Infra as Code Security (IaC)](#infra-as-code-security-iac)
@@ -42,15 +48,44 @@ Only metadata such as call time, request size and scan mode is stored from scans
 
 # Installation
 
-## macOS - Using Homebrew
+<!--
+Any change made in this section must be replicated in the "Step 1: Install
+ggshield" section of the "Getting started" page of ggshield public
+documentation.
+-->
 
-You can install `ggshield` using Homebrew by running the following command:
+## Requirements
+
+`ggshield` works on macOS, Linux and Windows.
+
+It requires **Python 3.8 and newer** (except for standalone packages) and git.
+
+Some commands require additional programs:
+
+- docker: to scan docker images.
+- pip: to scan pypi packages.
+
+## macOS
+
+### Using Homebrew
+
+You can install `ggshield` using Homebrew:
 
 ```shell
 $ brew install gitguardian/tap/ggshield
 ```
 
-## Linux packages
+Upgrading is handled by Homebrew.
+
+### Using a standalone .pkg package
+
+Alternatively, you can download and install a standalone .pkg package from [`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
+
+This package _does not_ require installing Python, but you have to manually download new versions.
+
+## Linux
+
+### Deb and RPM packages
 
 Deb and RPM packages are available on [Cloudsmith](https://cloudsmith.io/~gitguardian/repos/ggshield/packages/).
 
@@ -59,47 +94,51 @@ Setup instructions:
 - [Deb packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-deb)
 - [RPM packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-rpm)
 
-## Other Operating Systems - Using pipx or pip
+Upgrading is handled by the package manager.
 
-### Installing
+## All operating systems
 
-The recommended way to install `ggshield` is to use [pipx](https://pypa.github.io/pipx/), which will install it an isolated environment:
+`ggshield` can be installed on all supported operating systems via its [PyPI package](https://pypi.org/project/ggshield).
+
+### Using pipx
+
+The recommended way to install `ggshield` from PyPI is to use [pipx](https://pypa.github.io/pipx/), which will install it in an isolated environment:
 
 ```shell
 $ pipx install ggshield
 ```
 
-Alternatively, you can install with pip as a user package. This will not work if your Python installation is declared as externally managed (for example when using the system Python on operating systems like Debian 12):
-
-```shell
-$ pip install --user -U ggshield
-```
-
-`ggshield` supports **Python 3.8 and newer**.
-
-The package should run on MacOS, Linux and Windows.
-
-### Updating
-
-To update `ggshield` when installed with pipx:
+To upgrade your installation, run:
 
 ```shell
 $ pipx upgrade ggshield
 ```
 
-If you installed `ggshield` with pip, you can add the option `-U/--upgrade` to the pip install command to update:
+### Using pip
+
+You can also install `ggshield` from PyPI using pip, but this is not recommended because the installation is not isolated, so other applications or packages installed this way may affect your `ggshield` installation. This method will also not work if your Python installation is declared as externally managed (for example when using the system Python on operating systems like Debian 12):
 
 ```shell
-$ pip install --user -U ggshield
+$ pip install --user ggshield
+```
+
+To upgrade your installation, run:
+
+```shell
+$ pip install --user --upgrade ggshield
 ```
 
 # Initial setup
+
+## Using `ggshield auth login`
 
 To use `ggshield` you need to authenticate against GitGuardian servers. To do so, use the `ggshield auth login` command. This command automates the provisioning of a personal access token and its configuration on the local workstation.
 
 You can learn more about it from [`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
 
-Alternatively, you can create your personal access token manually and you can store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
+## Manual setup
+
+You can also create your personal access token manually and store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
 
 # Getting started
 
