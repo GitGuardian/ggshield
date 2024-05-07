@@ -6,3 +6,4 @@ class OutputFormat(Enum):
 
     TEXT = "text"
     JSON = "json"
+    SARIF = "sarif"

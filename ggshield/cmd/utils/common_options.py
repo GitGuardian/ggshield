@@ -12,7 +12,7 @@ The `kwargs` argument is required because due to the way click works,
 """
 
 from pathlib import Path
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar
 
 import click
 
@@ -216,11 +216,24 @@ def _set_output_format(
     return value
 
 
-format_option = click.option(
-    "--format",
-    type=click.Choice([x.value for x in OutputFormat]),
-    help="Output format.",
-    callback=_set_output_format,
+def _create_format_option(
+    formats: List[OutputFormat],
+) -> Callable[[click.decorators.FC], click.decorators.FC]:
+    return click.option(
+        "--format",
+        type=click.Choice([x.value for x in formats]),
+        help="Output format.",
+        callback=_set_output_format,
+    )
+
+
+# If a command only supports text and json formats, it should use this option
+text_json_format_option = _create_format_option([OutputFormat.TEXT, OutputFormat.JSON])
+
+
+# If a command supports text, sarif and json formats, it should use this option
+text_json_sarif_format_option = _create_format_option(
+    [OutputFormat.TEXT, OutputFormat.JSON, OutputFormat.SARIF]
 )
 
 
