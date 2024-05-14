@@ -293,8 +293,8 @@ def flatten_policy_breaks_by_line(
     policy_breaks: List[PolicyBreak],
 ) -> Dict[int, List[Match]]:
     """
-    flatten_policy_breaks_by_line flatens a list of occurrences with the
-    same ignore SHA into a dict of incidents.
+    flatten_policy_breaks_by_line turns a list of policy breaks into a dictionary
+    mapping a line number to a list of matches starting at that line.
     """
     flat_match_dict: Dict[int, List[Match]] = dict()
     for policy_break in policy_breaks:
