@@ -114,7 +114,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
         else:
             content = censor_content(result.content, policy_breaks)
 
-        lines = get_lines_from_content(content, result.filemode, is_patch)
+        lines = get_lines_from_content(content, result.filemode)
         padding = get_padding(lines)
         offset = get_offset(padding, is_patch)
 

@@ -69,7 +69,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
         if not self.show_secrets:
             content = censor_content(result.content, result.scan.policy_breaks)
-        lines = get_lines_from_content(content, result.filemode, is_patch)
+        lines = get_lines_from_content(content, result.filemode)
 
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(

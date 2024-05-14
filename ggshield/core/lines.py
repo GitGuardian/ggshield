@@ -72,19 +72,16 @@ class Line(NamedTuple):
         )
 
 
-def get_lines_from_content(
-    content: str, filemode: Filemode, is_patch: bool
-) -> List[Line]:
+def get_lines_from_content(content: str, filemode: Filemode) -> List[Line]:
     """
     Return the secrets and the lines with line number.
 
     :param content: Content to scan
     :param filemode: Filemode of the content
-    :param is_patch: Is the content a patch
     """
 
     # Patch
-    if is_patch:
+    if filemode != Filemode.FILE:
         return list(get_lines_from_patch(content, filemode))
 
     # File

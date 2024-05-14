@@ -87,7 +87,6 @@ def test_make_indices_patch(
     lines = get_lines_from_content(
         content=result.content,
         filemode=result.filemode,
-        is_patch=is_patch,
     )
     matches = [
         match
