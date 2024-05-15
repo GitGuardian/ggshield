@@ -10,7 +10,7 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
 from ggshield.core.text_utils import display_info
-from ggshield.utils.files import is_path_excluded
+from ggshield.utils.files import ListFilesMode, is_path_excluded
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 
 
@@ -53,11 +53,14 @@ def get_all_files_from_sca_paths(
         for x in get_files_from_paths(
             paths=[path],
             exclusion_regexes=exclusion_regexes | SCA_EXCLUSION_REGEXES,
-            recursive=True,
             yes=True,
             display_binary_files=verbose,
             display_scanned_files=False,  # If True, this displays all files in the directory but we only want SCA files
-            ignore_git=ignore_git,
+            list_files_mode=(
+                ListFilesMode.ALL
+                if ignore_git
+                else ListFilesMode.GIT_COMMITTED_OR_STAGED
+            ),
         )
     ]
 

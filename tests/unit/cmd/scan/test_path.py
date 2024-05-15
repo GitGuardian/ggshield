@@ -365,8 +365,73 @@ class TestScanDirectory:
         assert all(
             string in result.output
             for string in ["Do you want to continue", "not_committed"]
-        ), "not_committed files not should have been ignored"
+        ), "not_committed files should not have been ignored"
         assert result.exception is None
+
+    def test_scan_path_use_gitignore(
+        self, tmp_path: Path, cli_runner: CliRunner
+    ) -> None:
+        """
+        GIVEN a directory containing a gitignore
+        WHEN executing a scan with --use-gitignore option
+        THEN ggshield should not scan the ignored files
+        """
+
+        # We can't use cassettes for this test because we want to scan 2 files.
+        # Depending on the order of the files, the request and response will be different.
+
+        local_repo = Repository.create(tmp_path)
+
+        # files in repo
+        ignored_secret = local_repo.path / "ignored_file_secret"
+        found_secret = local_repo.path / "found_file_secret"
+        ignored_secret.write_text(VALID_SECRET_PATCH)
+        found_secret.write_text(VALID_SECRET_PATCH)
+
+        gitignore = local_repo.path / ".gitignore"
+        gitignore.write_text("ignored_file_secret")
+
+        # Submodule
+        submodule_path = tmp_path / "submodule_repo"
+        local_submodule = Repository.create(submodule_path)
+        staged_sm_file = local_submodule.path / "committed_sm_file"
+        staged_sm_file.write_text("This is a file with no secrets.")
+        local_submodule.git("add", str(staged_sm_file))
+        local_submodule.create_commit(message="Initial commit")
+
+        # Add submodule to the repository
+        local_repo.git("submodule", "add", str(submodule_path))
+
+        # Unstaged file in the submodule
+        submodule_unstaged_file = local_submodule.path / "unstaged_sm_file"
+        submodule_unstaged_file.write_text("This is a file with no secrets.")
+
+        # Scan with --use-gitignore
+        with cli_runner.isolated_filesystem(temp_dir=tmp_path):
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "secret",
+                    "scan",
+                    "path",
+                    "--recursive",
+                    "--use-gitignore",
+                    str(local_repo.path),
+                    "--verbose",
+                ],
+            )
+
+        assert_invoke_ok(result)
+        # All files should have been scanned, including the unstaged one
+        assert all(
+            string in result.output
+            for string in [
+                "Do you want to continue",
+                "found_file_secret",
+                "unstaged_sm_file",
+                "committed_sm_file",
+            ]
+        )
 
     @pytest.mark.parametrize(
         "ignored_detectors, nb_secret",

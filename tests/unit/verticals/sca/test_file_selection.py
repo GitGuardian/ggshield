@@ -75,7 +75,6 @@ def test_get_ignored_files(tmp_path, capsysbinary, file_path, expected):
     get_files_from_paths(
         paths=[Path(tmp_path)],
         exclusion_regexes=SCA_EXCLUSION_REGEXES,  # directories we don't want to traverse
-        recursive=True,
         yes=True,
         display_binary_files=True,
         display_scanned_files=False,

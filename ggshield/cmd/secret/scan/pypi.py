@@ -16,6 +16,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
@@ -71,11 +72,10 @@ def get_files_from_package(
     return get_files_from_paths(
         paths=[archive_dir],
         exclusion_regexes=exclusion_regexes,
-        recursive=True,
         yes=True,
         display_scanned_files=verbose,
         display_binary_files=verbose,
-        ignore_git=True,
+        list_files_mode=ListFilesMode.ALL,
     )
 
 

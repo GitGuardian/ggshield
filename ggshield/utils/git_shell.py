@@ -234,6 +234,32 @@ def git_ls(wd: Optional[Union[str, Path]] = None) -> List[str]:
     return git(cmd, timeout=600, cwd=wd).split("\n")
 
 
+def _get_submodules_paths(wd: Optional[Union[str, Path]] = None) -> List[str]:
+    cmd = ["submodule", "status"]
+    return [
+        submodule.split()[1]
+        for submodule in git(cmd, timeout=600, cwd=wd).splitlines()
+        if submodule
+    ]
+
+
+def git_ls_unstaged(wd: Optional[Union[str, Path]] = None) -> List[str]:
+    # git command to get list of unstaged files in repo
+    cmd = ["ls-files", "--others", "--exclude-standard"]
+    unstaged_files = git(cmd, timeout=600, cwd=wd).splitlines()
+
+    # --recurse-submodules is not compatible with --others so we
+    # need to iterate over submodules to get the list of unstaged files
+    for submodule in _get_submodules_paths(wd=wd):
+        unstaged_files.extend(
+            str(Path(submodule) / unstaged_file)
+            for unstaged_file in git_ls_unstaged(
+                wd=wd / Path(submodule) if wd else Path(submodule)
+            )
+        )
+    return unstaged_files
+
+
 def is_valid_git_commit_ref(ref: str, wd: Optional[Union[str, Path]] = None) -> bool:
     """
     Check if a reference is valid and can be resolved to a commit

@@ -19,6 +19,7 @@ from ggshield.utils.git_shell import (
     get_repository_url_from_path,
     get_staged_filepaths,
     git,
+    git_ls_unstaged,
     is_git_dir,
     is_valid_git_commit_ref,
     simplify_git_url,
@@ -415,3 +416,29 @@ def test_get_default_branch_without_remote(tmp_path):
 
     # THEN the default branch is the initial branch
     assert default_branch == "foo"
+
+
+def test_git_ls_unstaged(tmp_path):
+    # GIVEN a repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # AND a submodule
+    submodule = Repository.create(repo.path / "submodule")
+    submodule.create_commit()
+
+    repo.git("submodule", "add", submodule.path)
+
+    # AND unstaged files
+    repo_file = repo.path / "repo_file"
+    submodule_file = repo.path / "submodule" / "submodule_file"
+    repo_file.write_text("Content")
+    submodule_file.write_text("Content")
+
+    # WHEN listing unstaged files
+    unstaged_files = git_ls_unstaged(wd=repo.path)
+
+    # THEN unstaged files in repo and submodule are returned
+    # as relative to repo.path
+    expected_paths = {x.relative_to(repo.path) for x in (repo_file, submodule_file)}
+    assert {Path(x) for x in unstaged_files} == expected_paths

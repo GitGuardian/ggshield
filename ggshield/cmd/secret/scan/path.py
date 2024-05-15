@@ -13,6 +13,7 @@ from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.click import RealPath
+from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
@@ -22,6 +23,9 @@ from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan.")
+@click.option(
+    "--use-gitignore", is_flag=True, help="Honor content of .gitignore files."
+)
 @add_secret_scan_common_options()
 @click.pass_context
 @exception_wrapper
@@ -30,6 +34,7 @@ def path_cmd(
     paths: List[Path],
     recursive: bool,
     yes: bool,
+    use_gitignore: bool,
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
@@ -46,14 +51,17 @@ def path_cmd(
     files = get_files_from_paths(
         paths=paths,
         exclusion_regexes=ctx_obj.exclusion_regexes,
-        recursive=recursive,
         yes=yes,
         display_scanned_files=verbose,
         display_binary_files=verbose,
-        # when scanning a path explicitly we should not care if it is a git repository or not
-        ignore_git=True,
+        list_files_mode=(
+            ListFilesMode.FILES_ONLY
+            if not recursive
+            else (
+                ListFilesMode.ALL_BUT_GITIGNORED if use_gitignore else ListFilesMode.ALL
+            )
+        ),
     )
-
     target = paths[0] if len(paths) == 1 else Path.cwd()
     target_path = target if target.is_dir() else target.parent
     with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:

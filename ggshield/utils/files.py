@@ -1,9 +1,33 @@
 import re
+from enum import Enum, auto
 from pathlib import Path, PurePosixPath
 from typing import List, Set, Union
 
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
-from ggshield.utils.git_shell import get_filepaths_from_ref, git_ls, is_git_dir
+from ggshield.utils.git_shell import (
+    get_filepaths_from_ref,
+    git_ls,
+    git_ls_unstaged,
+    is_git_dir,
+)
+
+
+class ListFilesMode(Enum):
+    """
+    Control `get_filepaths()` behavior:
+
+    - FILES_ONLY: list specified paths. Expect them to be plain files, raise an exception if one of them is not.
+    - ALL: list all specified paths. If one of the path is a directory, list all its paths recursively.
+    - ALL_BUT_GITIGNORED: like ALL, except those ignored by git (listed in .gitignore).
+    - GIT_COMMITTED_OR_STAGED: list all committed files and all staged files.
+    - GIT_COMMITTED: list only committed files.
+    """
+
+    FILES_ONLY = auto()
+    GIT_COMMITTED = auto()
+    GIT_COMMITTED_OR_STAGED = auto()
+    ALL_BUT_GITIGNORED = auto()
+    ALL = auto()
 
 
 class UnexpectedDirectoryError(ValueError):
@@ -29,15 +53,12 @@ def is_path_excluded(
 def get_filepaths(
     paths: List[Path],
     exclusion_regexes: Set[re.Pattern],
-    recursive: bool,
-    ignore_git: bool,
-    ignore_git_staged: bool = False,
+    list_files_mode: ListFilesMode,
 ) -> Set[Path]:
     """
     Retrieve the filepaths from the command.
 
     :param paths: List of file/dir paths from the command
-    :param recursive: Recursive option
     :param ignore_git: Ignore that the folder is a git repository
     :raise: UnexpectedDirectoryError if directory is given without --recursive option
     """
@@ -46,16 +67,19 @@ def get_filepaths(
         if path.is_file():
             targets.add(path)
         elif path.is_dir():
-            if not recursive:
+            if list_files_mode == ListFilesMode.FILES_ONLY:
                 raise UnexpectedDirectoryError(path)
 
-            if not ignore_git and is_git_dir(path):
+            _targets = set()
+            if list_files_mode != ListFilesMode.ALL and is_git_dir(path):
                 target_filepaths = (
                     get_filepaths_from_ref("HEAD", wd=path)
-                    if ignore_git_staged
+                    if list_files_mode == ListFilesMode.GIT_COMMITTED
                     else git_ls(path)
                 )
                 _targets = {path / x for x in target_filepaths}
+                if list_files_mode == ListFilesMode.ALL_BUT_GITIGNORED:
+                    _targets.update({path / x for x in git_ls_unstaged(path)})
             else:
                 _targets = path.rglob(r"*")
 
