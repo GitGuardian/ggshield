@@ -18,10 +18,10 @@ PATCH_LINE_PREFIX = "{} {} | "
 
 
 class LineCategory(Enum):
-    addition = auto()
-    data = auto()
-    deletion = auto()
-    empty = auto()
+    ADDITION = auto()
+    DATA = auto()
+    DELETION = auto()
+    EMPTY = auto()
 
 
 class Line(NamedTuple):
@@ -49,7 +49,7 @@ class Line(NamedTuple):
             raise TypeError("line category invalid")
 
         # File
-        if self.category == LineCategory.data:
+        if self.category == LineCategory.DATA:
             return FILE_LINE_PREFIX.format(
                 format_text(
                     format_line_count(self.pre_index, padding), line_count_style
@@ -60,10 +60,10 @@ class Line(NamedTuple):
         pre_index = format_line_count(self.pre_index, padding)
         post_index = format_line_count(self.post_index, padding)
 
-        if self.category == LineCategory.addition:
+        if self.category == LineCategory.ADDITION:
             pre_index = " " * padding
 
-        elif self.category == LineCategory.deletion:
+        elif self.category == LineCategory.DELETION:
             post_index = " " * padding
 
         return PATCH_LINE_PREFIX.format(
@@ -92,7 +92,7 @@ def get_lines_from_file(content: str) -> Iterable[Line]:
     """Return the lines with line number from a file."""
     for line_count, line_content in enumerate(content.split("\n")):
         yield Line(
-            content=line_content, category=LineCategory.data, pre_index=line_count + 1
+            content=line_content, category=LineCategory.DATA, pre_index=line_count + 1
         )
 
 
@@ -133,17 +133,17 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
                 post_index -= 1
                 line_pre_index = None
                 line_post_index = None
-                category = LineCategory.empty
+                category = LineCategory.EMPTY
         elif line_type == "+":
             post_index += 1
             line_post_index = post_index
             line_content = line[1:]
-            category = LineCategory.addition
+            category = LineCategory.ADDITION
         elif line_type == "-":
             pre_index += 1
             line_pre_index = pre_index
             line_content = line[1:]
-            category = LineCategory.deletion
+            category = LineCategory.DELETION
         elif line_type == "\\":
             # This type of line shouldn't contain any secret; no need to set indices
             line_content = line[1:]
