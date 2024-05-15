@@ -6,7 +6,7 @@ from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
 from ggshield.core.lines import get_lines_from_content
-from ggshield.core.match_indices import MatchIndices, find_match_indices
+from ggshield.core.match_span import MatchSpan
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.verticals.secret import SecretScanner
 from tests.unit.conftest import (
@@ -20,52 +20,52 @@ from tests.unit.conftest import (
 
 
 @pytest.mark.parametrize(
-    ["name", "content", "is_patch", "expected_indices_list"],
+    ["name", "content", "is_patch", "expected_spans"],
     [
         pytest.param(
             "single_add",
             _SINGLE_ADD_PATCH,
             True,
-            [MatchIndices(1, 1, 10, 79)],
+            [MatchSpan(1, 1, 10, 79)],
             id="add",
         ),
         pytest.param(
             "single_move",
             _SINGLE_MOVE_PATCH,
             True,
-            [MatchIndices(2, 2, 10, 79)],
+            [MatchSpan(2, 2, 10, 79)],
             id="move",
         ),
         pytest.param(
             "single_delete",
             _SINGLE_DELETE_PATCH,
             True,
-            [MatchIndices(2, 2, 10, 79)],
+            [MatchSpan(2, 2, 10, 79)],
             id="delete",
         ),
         pytest.param(
             "single_file",
             _SECRET_RAW_FILE,
             False,
-            [MatchIndices(0, 0, 11, 80)],
+            [MatchSpan(0, 0, 11, 80)],
             id="file",
         ),
         pytest.param(
             "no_newline_before_secret",
             _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
             True,
-            [MatchIndices(5, 5, 10, 79)],
+            [MatchSpan(5, 5, 10, 79)],
             id="no_newline_before_secret",
         ),
     ],
 )
-def test_make_indices_patch(
+def test_from_span(
     client: GGClient,
     cache: Cache,
     name: str,
     content: str,
     is_patch: bool,
-    expected_indices_list: List[MatchIndices],
+    expected_spans: List[MatchSpan],
 ):
     if is_patch:
         commit = Commit.from_patch(content)
@@ -93,11 +93,8 @@ def test_make_indices_patch(
         for policy_break in result.scan.policy_breaks
         for match in policy_break.matches
     ]
-    for expected_indices, match in zip(expected_indices_list, matches):
-        match_indices = find_match_indices(match, lines, is_patch=is_patch)
-        assert expected_indices.line_index_start == match_indices.line_index_start
-        assert expected_indices.line_index_end == match_indices.line_index_end
-        assert expected_indices.index_start == match_indices.index_start
-        assert expected_indices.index_end == match_indices.index_end
+    for expected_span, match in zip(expected_spans, matches):
+        span = MatchSpan.from_match(match, lines, is_patch=is_patch)
+        assert span == expected_span
 
-    assert len(expected_indices_list) == len(matches)
+    assert len(expected_spans) == len(matches)
