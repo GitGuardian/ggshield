@@ -6,10 +6,8 @@ from typing import ClassVar, Dict, List, Optional, Set, Tuple
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
-from ggshield.core.match_span import MatchSpan
 from ggshield.core.text_utils import (
     STYLE,
     clip_long_line,
@@ -105,21 +103,19 @@ class SecretTextOutputHandler(SecretOutputHandler):
         # policy breaks and matches are modified in the functions leak_dictionary_by_ignore_sha and censor_content.
         # Previously process_result was executed only once, so it did not create any issue.
         # In the future we could rework those functions such that they do not change what is in the result.
-        policy_breaks = deepcopy(result.scan.policy_breaks)
+        result = Result(file=result.file, scan=deepcopy(result.scan))
         is_patch = result.filemode != Filemode.FILE
-        sha_dict = leak_dictionary_by_ignore_sha(policy_breaks)
+        sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
 
         if self.show_secrets:
             content = result.content
         else:
-            content = censor_content(result.content, policy_breaks)
+            content = censor_content(result.content, result.scan.policy_breaks)
 
         lines = get_lines_from_content(content, result.filemode)
+        result.enrich_matches(lines)  # important to keep this call after censor content
         padding = get_padding(lines)
         offset = get_offset(padding, is_patch)
-
-        if len(lines) == 0:
-            raise UnexpectedError("Parsing of scan result failed.")
 
         number_of_displayed_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():
@@ -134,11 +130,6 @@ class SecretTextOutputHandler(SecretOutputHandler):
                 result_buf.write(
                     policy_break_header(policy_breaks, ignore_sha, known_secret)
                 )
-
-                for policy_break in policy_breaks:
-                    policy_break.matches = SecretTextOutputHandler.make_matches(
-                        policy_break.matches, lines, is_patch
-                    )
 
                 result_buf.write(
                     leak_message_located(
@@ -156,28 +147,6 @@ class SecretTextOutputHandler(SecretOutputHandler):
             file_info_line = file_info(result.filename, number_of_displayed_secrets)
 
         return file_info_line + result_buf.getvalue()
-
-    @staticmethod
-    def make_matches(
-        matches: List[Match], lines: List[Line], is_patch: bool
-    ) -> List[Match]:
-        res = []
-        for match in matches:
-            if match.index_start is None or match.index_end is None:
-                res.append(match)
-                continue
-            span = MatchSpan.from_match(match, lines, is_patch)
-            res.append(
-                Match(
-                    match=match.match,
-                    match_type=match.match_type,
-                    index_start=span.column_index_start,
-                    index_end=span.column_index_end,
-                    line_start=span.line_index_start,
-                    line_end=span.line_index_end,
-                )
-            )
-        return res
 
 
 def leak_message_located(
@@ -257,7 +226,6 @@ def leak_message_located(
                                 match_line, 0, len(match_line), max_width
                             )
                         leak_msg.write(formatted_line)
-
                         detector_position = (
                             min(detector_position[0], secret_position[0]),
                             max(detector_position[1], secret_position[1]),
