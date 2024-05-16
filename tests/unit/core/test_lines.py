@@ -16,31 +16,31 @@ def test_line_validation():
     "input, padding, want",
     [
         pytest.param(
-            Line(content="", category=LineCategory.data, pre_index=300),
+            Line(content="", category=LineCategory.DATA, pre_index=300),
             3,
             "\x1b[37m\x1b[22m\x1b[2m300\x1b[0m | ",
             id="file: padding==index",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.data, pre_index=299),
+            Line(content="", category=LineCategory.DATA, pre_index=299),
             5,
             "\x1b[37m\x1b[22m\x1b[2m  299\x1b[0m | ",
             id="file: padding!=index",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.addition, post_index=297),
+            Line(content="", category=LineCategory.ADDITION, post_index=297),
             3,
             "\x1b[37m\x1b[22m\x1b[2m   \x1b[0m \x1b[37m\x1b[22m\x1b[2m297\x1b[0m | ",
             id="addition",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.deletion, pre_index=26),
+            Line(content="", category=LineCategory.DELETION, pre_index=26),
             3,
             "\x1b[37m\x1b[22m\x1b[2m 26\x1b[0m \x1b[37m\x1b[22m\x1b[2m   \x1b[0m | ",
             id="deletion",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.empty, pre_index=294, post_index=29),
+            Line(content="", category=LineCategory.EMPTY, pre_index=294, post_index=29),
             3,
             "\x1b[37m\x1b[22m\x1b[2m294\x1b[0m \x1b[37m\x1b[22m\x1b[2m 29\x1b[0m | ",
             id="addition",

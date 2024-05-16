@@ -9,7 +9,7 @@ from pygitguardian.models import Match, PolicyBreak
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
-from ggshield.core.match_indices import find_match_indices
+from ggshield.core.match_span import MatchSpan
 from ggshield.core.text_utils import (
     STYLE,
     clip_long_line,
@@ -114,7 +114,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
         else:
             content = censor_content(result.content, policy_breaks)
 
-        lines = get_lines_from_content(content, result.filemode, is_patch)
+        lines = get_lines_from_content(content, result.filemode)
         padding = get_padding(lines)
         offset = get_offset(padding, is_patch)
 
@@ -166,15 +166,15 @@ class SecretTextOutputHandler(SecretOutputHandler):
             if match.index_start is None or match.index_end is None:
                 res.append(match)
                 continue
-            indices = find_match_indices(match, lines, is_patch)
+            span = MatchSpan.from_match(match, lines, is_patch)
             res.append(
                 Match(
                     match=match.match,
                     match_type=match.match_type,
-                    index_start=indices.index_start,
-                    index_end=indices.index_end,
-                    line_start=indices.line_index_start,
-                    line_end=indices.line_index_end,
+                    index_start=span.column_index_start,
+                    index_end=span.column_index_end,
+                    line_start=span.line_index_start,
+                    line_end=span.line_index_end,
                 )
             )
         return res
@@ -293,8 +293,8 @@ def flatten_policy_breaks_by_line(
     policy_breaks: List[PolicyBreak],
 ) -> Dict[int, List[Match]]:
     """
-    flatten_policy_breaks_by_line flatens a list of occurrences with the
-    same ignore SHA into a dict of incidents.
+    flatten_policy_breaks_by_line turns a list of policy breaks into a dictionary
+    mapping a line number to a list of matches starting at that line.
     """
     flat_match_dict: Dict[int, List[Match]] = dict()
     for policy_break in policy_breaks:

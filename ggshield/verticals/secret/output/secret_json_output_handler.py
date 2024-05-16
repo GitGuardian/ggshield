@@ -5,7 +5,7 @@ from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content
-from ggshield.core.match_indices import find_match_indices
+from ggshield.core.match_span import MatchSpan
 from ggshield.utils.git_shell import Filemode
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
@@ -69,7 +69,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
         if not self.show_secrets:
             content = censor_content(result.content, result.scan.policy_breaks)
-        lines = get_lines_from_content(content, result.filemode, is_patch)
+        lines = get_lines_from_content(content, result.filemode)
 
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(
@@ -135,9 +135,9 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             if match.index_start is None or match.index_end is None:
                 res.append(match)
                 continue
-            indices = find_match_indices(match, lines, is_patch)
-            line_start = lines[indices.line_index_start]
-            line_end = lines[indices.line_index_end]
+            span = MatchSpan.from_match(match, lines, is_patch)
+            line_start = lines[span.line_index_start]
+            line_end = lines[span.line_index_end]
             line_index_start = line_start.pre_index or line_start.post_index
             line_index_end = line_end.pre_index or line_end.post_index
 
@@ -145,8 +145,8 @@ class SecretJSONOutputHandler(SecretOutputHandler):
                 ExtendedMatch(
                     match=match.match,
                     match_type=match.match_type,
-                    index_start=indices.index_start,
-                    index_end=indices.index_end,
+                    index_start=span.column_index_start,
+                    index_end=span.column_index_end,
                     line_start=line_index_start,
                     line_end=line_index_end,
                     pre_line_start=line_start.pre_index,

@@ -228,9 +228,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
 
         try:
             file = File(file_path)
-            lines: List[Line] = get_lines_from_content(
-                file.content, Filemode.FILE, False
-            )
+            lines: List[Line] = get_lines_from_content(file.content, Filemode.FILE)
         except Exception:
             lines = []
 
@@ -279,9 +277,7 @@ class IaCTextOutputHandler(IaCOutputHandler):
 
         try:
             file = File(file_path)
-            lines: List[Line] = get_lines_from_content(
-                file.content, Filemode.FILE, False
-            )
+            lines: List[Line] = get_lines_from_content(file.content, Filemode.FILE)
         except Exception:
             lines = []
 
