@@ -337,6 +337,21 @@ def test_sca_text_handler_ordering(patch_scan_all, cli_fs_runner):
                     ),
                 ],
             ),
+            SCALocationVulnerability(
+                location="mal/Pipfile.lock",
+                package_vulns=[
+                    SCAVulnerablePackageVersion(
+                        package_full_name="mal",
+                        version="1.0.0",
+                        ecosystem="pypi",
+                        vulns=[
+                            SCAVulnerability(
+                                severity="malicious", summary="", identifier=""
+                            )
+                        ],
+                    ),
+                ],
+            ),
         ],
     )
 
@@ -351,7 +366,17 @@ def test_sca_text_handler_ordering(patch_scan_all, cli_fs_runner):
 
     assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
     assert (
-        """> toto/Pipfile.lock: 2 incidents detected
+        """
+> mal/Pipfile.lock: 1 incident detected
+
+>>> : Incident 1 (SCA): mal@1.0.0
+Severity: Malicious
+Summary: 
+No fix is currently available.
+Identifier: 
+CVE IDs: -
+
+> toto/Pipfile.lock: 2 incidents detected
 
 >>> : Incident 1 (SCA): bar@2.5.6
 Severity: Critical
@@ -381,7 +406,9 @@ Severity: Low
 Summary: 
 No fix is currently available.
 Identifier: 
-CVE IDs: -"""  # noqa W291
+CVE IDs: -
+
+"""  # noqa W291
         in result.stdout
     )
 

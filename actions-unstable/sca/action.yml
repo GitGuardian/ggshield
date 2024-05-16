@@ -10,7 +10,7 @@ inputs:
         --exit-zero                     Always return a 0 (non-error) status code, even if issues
                                         are found. The env var GITGUARDIAN_EXIT_ZERO can also be used
                                         to set this option.
-        --minimum-severity              [LOW|MEDIUM|HIGH|CRITICAL]
+        --minimum-severity              [LOW|MEDIUM|HIGH|CRITICAL|MALICIOUS]
                                         Minimum severity of the policies
         --ignore-path, --ipa PATH       Do not scan the specified paths.
     required: false
