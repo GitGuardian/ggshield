@@ -445,3 +445,41 @@ def get_diff_files_status(
 def read_git_file(ref: str, path: Path, wd: Optional[Union[str, Path]] = None) -> str:
     # Use as_posix to handle git and Windows
     return git(["show", f"{ref}:{path.as_posix()}"], cwd=wd)
+
+
+def get_remotes(wd: Optional[Union[str, Path]] = None) -> List[str]:
+    """List all configured git remotes."""
+    if not wd:
+        wd = Path.cwd()
+    return git(["remote"], cwd=wd).splitlines()
+
+
+def get_default_branch(wd: Optional[Union[str, Path]] = None) -> str:
+    """
+    Return the default branch of the repository.
+
+    Try to get the default branch from a remote, either origin or the first remote,
+    otherwise return the config init.defaultBranch.
+    """
+    if not wd:
+        wd = Path.cwd()
+
+    remotes = get_remotes(wd)
+    remote = None
+    if "origin" in remotes:
+        remote = "origin"
+    elif len(remotes) > 0:
+        remote = remotes[0]
+
+    default_branch = None
+    if remote is not None:
+        for line in git(["remote", "show", remote], cwd=wd).splitlines():
+            line = line.strip()
+            if line.startswith("HEAD branch: "):
+                default_branch = remote + "/" + line[len("HEAD branch: ") :]
+                break
+
+    if default_branch is None:
+        return git(["config", "init.defaultBranch"], cwd=wd).strip()
+
+    return default_branch

@@ -4,6 +4,7 @@ from typing import Any, Optional
 import click
 
 from ggshield.cmd.secret.scan.archive import archive_cmd
+from ggshield.cmd.secret.scan.changes import changes_cmd
 from ggshield.cmd.secret.scan.ci import ci_cmd
 from ggshield.cmd.secret.scan.docker import docker_name_cmd
 from ggshield.cmd.secret.scan.dockerarchive import docker_archive_cmd
@@ -26,6 +27,7 @@ from ggshield.core.text_utils import display_error
 @click.group(
     commands={
         "commit-range": range_cmd,
+        "changes": changes_cmd,
         "pre-commit": precommit_cmd,
         "pre-push": prepush_cmd,
         "pre-receive": prereceive_cmd,

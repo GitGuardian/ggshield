@@ -156,6 +156,7 @@ def scan_commit_range(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
+    include_staged: bool = False,
     verbose: bool = False,
 ) -> ExitCode:
     """
@@ -168,19 +169,30 @@ def scan_commit_range(
     check_client_api_key(client)
     max_documents = client.secret_scan_preferences.maximum_documents_per_scan
 
-    with ui.create_progress(len(commit_list)) as progress:
-        commits_batch = get_commits_by_batch(
-            commits=(
+    with ui.create_progress(len(commit_list) + int(include_staged)) as progress:
+        commits_iters: list[Iterable[Commit]] = []
+        if include_staged:
+            commits_iters.append(
+                (Commit.from_staged(exclusion_regexes=exclusion_regexes),)
+            )
+        commits_iters.append(
+            (
                 Commit.from_sha(sha, exclusion_regexes=exclusion_regexes)
                 for sha in commit_list
-            ),
+            )
+        )
+        commits_batch = get_commits_by_batch(
+            commits=itertools.chain(*commits_iters),
             batch_max_size=max_documents,
         )
         scans: List[SecretScanCollection] = []
 
         def commit_scanned_callback(commit: Commit):
             if verbose:
-                progress.ui.display_info(f"Scanned {commit.sha}")
+                if include_staged and commit.sha is None:
+                    progress.ui.display_info("Scanned staged changes")
+                else:
+                    progress.ui.display_info(f"Scanned {commit.sha}")
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []

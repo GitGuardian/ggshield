@@ -12,8 +12,10 @@ from ggshield.utils.git_shell import (
     NotAGitDirectory,
     check_git_dir,
     check_git_ref,
+    get_default_branch,
     get_filepaths_from_ref,
     get_new_branch_ci_commits,
+    get_remotes,
     get_repository_url_from_path,
     get_staged_filepaths,
     git,
@@ -375,3 +377,41 @@ def test_tar_from_ref_and_filepaths(tmp_path):
         filenames = tar.getnames()
         # THEN only first file in in tar
         assert filenames == [first_file_name]
+
+
+def test_get_remotes(tmp_path):
+    # GIVEN a repository with two remotes
+    repo = Repository.create(tmp_path)
+    repo.git("remote", "add", "origin", "https://a_remote_repo")
+    repo.git("remote", "add", "upstream", "https://another_remote_repo")
+
+    # wHEN listing remotes
+    remotes = get_remotes(repo.path)
+
+    # THEN all the remotes are listed
+    assert set(remotes) == {"origin", "upstream"}
+
+
+def test_get_default_branch_with_remote(tmp_path):
+    # GIVEN a repository with a remote
+    remote_repository = Repository.create(tmp_path / "remote", initial_branch="foo")
+    remote_repository.create_commit()
+    local_repository = Repository.clone(remote_repository.path, tmp_path / "local")
+
+    # WHEN getting the default branch
+    default_branch = get_default_branch(local_repository.path)
+
+    # THEN the default branch is the remote initial branch
+    assert default_branch == "origin/foo"
+
+
+def test_get_default_branch_without_remote(tmp_path):
+    # GIVEN a repository without a remote
+    local_repository = Repository.create(tmp_path / "remote", initial_branch="foo")
+    local_repository.git("config", "--local", "init.defaultBranch", "foo")
+
+    # WHEN getting the default branch
+    default_branch = get_default_branch(local_repository.path)
+
+    # THEN the default branch is the initial branch
+    assert default_branch == "foo"
