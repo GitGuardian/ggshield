@@ -1,7 +1,7 @@
 import shutil
 from copy import deepcopy
 from io import StringIO
-from typing import ClassVar, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import Match, PolicyBreak
@@ -25,12 +25,13 @@ from .secret_output_handler import SecretOutputHandler
 # MAX_SECRET_SIZE controls the max length of |-----| under a secret
 # avoids occupying a lot of space in a CI terminal.
 MAX_SECRET_SIZE = 80
+# The number of lines to display before and after a secret in the patch
+NB_CONTEXT_LINES = 3
 
 
 class SecretTextOutputHandler(SecretOutputHandler):
-    nb_lines: ClassVar[int] = 3
-
-    def _process_scan_impl(self, scan: SecretScanCollection, top: bool = True) -> str:
+    def _process_scan_impl(self, scan: SecretScanCollection) -> str:
+        """Output Secret Scan Collection in text format"""
         processed_scan_results = self.process_scan_results(scan)
 
         scan_buf = StringIO()
@@ -61,6 +62,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
     def process_scan_results(
         self, scan: SecretScanCollection, show_only_known_secrets: bool = False
     ) -> str:
+        """Iterate through the scans and sub-scan results to prepare the display."""
         results_buf = StringIO()
         if scan.results:
             current_result_buf = StringIO()
@@ -92,8 +94,6 @@ class SecretTextOutputHandler(SecretOutputHandler):
         Build readable message on the found incidents.
 
         :param result: The result from scanning API
-        :param nb_lines: The number of lines to display before and after a secret in the
-        patch
         :param show_secrets: Option to show secrets value
         :param show_only_known_secrets: If True, display only known secrets, and only new secrets otherwise
         :return: The formatted message to display
@@ -137,7 +137,6 @@ class SecretTextOutputHandler(SecretOutputHandler):
                         lines,
                         padding,
                         offset,
-                        self.nb_lines,
                         clip_long_lines=not self.verbose,
                     )
                 )
@@ -154,22 +153,21 @@ def leak_message_located(
     lines: List[Line],
     padding: int,
     offset: int,
-    nb_lines: int,
     clip_long_lines: bool = False,
 ) -> str:
     """
     Display leak message of an incident with location in content.
 
     :param lines: The lines list
-    :param line_index: The last index in the line
-    :param detector_line: The list of detectors object in the line
+    :param flat_matches_dict  a dictionary mapping a line number to a list of matches
+    starting at that line.
     :param padding: The line padding
     :param offset: The offset due to the line display
     """
     leak_msg = StringIO()
     max_width = shutil.get_terminal_size()[0] - offset if clip_long_lines else 0
 
-    lines_to_display = get_lines_to_display(flat_matches_dict, lines, nb_lines)
+    lines_to_display = get_lines_to_display(flat_matches_dict, lines)
 
     old_line_number: Optional[int] = None
     for line_number in sorted(lines_to_display):
@@ -193,7 +191,7 @@ def leak_message_located(
 
                     # Iterate on the different (and consecutive) lines of the secret
                     for match_line_index, match_line in enumerate(
-                        flat_match.match.splitlines(False)
+                        flat_match.match.splitlines()
                     ):
                         multiline_line_number = line_number + match_line_index
                         leak_msg.write(
@@ -423,7 +421,8 @@ def secrets_engine_version() -> str:
 
 
 def get_lines_to_display(
-    flat_matches_dict: Dict[int, List[Match]], lines: List, nb_lines: int
+    flat_matches_dict: Dict[int, List[Match]],
+    lines: List,
 ) -> Set[int]:
     """Retrieve the line indexes to display in the content with no secrets."""
     lines_to_display: Set[int] = set()
@@ -433,12 +432,16 @@ def get_lines_to_display(
             assert match.line_start is not None
             assert match.line_end is not None
             lines_to_display.update(
-                range(max(match.line_start - nb_lines + 1, 0), match.line_start + 1)
+                range(
+                    max(match.line_start - NB_CONTEXT_LINES + 1, 0),
+                    match.line_start + 1,
+                )
             )
             if match.line_end + 1 <= len(lines):
                 lines_to_display.update(
                     range(
-                        match.line_end + 1, min(match.line_end + nb_lines, len(lines))
+                        match.line_end + 1,
+                        min(match.line_end + NB_CONTEXT_LINES, len(lines)),
                     )
                 )
 

@@ -4,8 +4,6 @@ from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.core.lines import Line, get_lines_from_content
-from ggshield.utils.git_shell import Filemode
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
 from .schemas import JSONScanCollectionSchema
@@ -61,22 +59,17 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "total_occurrences": 0,
             "total_incidents": 0,
         }
-        content = result.content
-        is_patch = result.filemode != Filemode.FILE
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
-            content = censor_content(result.content, result.scan.policy_breaks)
-        lines = get_lines_from_content(content, result.filemode)
+            censor_content(result.content, result.scan.policy_breaks)
 
         result.enrich_matches()  # important to keep this call after censor content
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(
                 ignore_sha,
                 policy_breaks,
-                lines,
-                is_patch,
             )
             result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
@@ -100,8 +93,6 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         self,
         ignore_sha: str,
         policy_breaks: List[PolicyBreak],
-        lines: List[Line],
-        is_patch: bool,
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
             "occurrences": [],
