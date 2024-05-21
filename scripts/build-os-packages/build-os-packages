@@ -20,15 +20,6 @@ DO_SIGN=0
 # - 1: generate it using `git describe`
 USE_GIT_VERSION=0
 
-MACOS_P12_FILE=${MACOS_P12_FILE:-}
-MACOS_P12_PASSWORD_FILE=${MACOS_P12_PASSWORD_FILE:-}
-
-# Path to a file used by rcodesign for notarizing.
-# Follow the instructions from
-# https://gregoryszorc.com/docs/apple-codesign/0.27.0/apple_codesign_getting_started.html#apple-codesign-app-store-connect-api-key
-# to generate one.
-MACOS_API_KEY_FILE=${MACOS_API_KEY_FILE:-}
-
 # Colors
 C_RED="\e[31;1m"
 C_GREEN="\e[32;1m"
@@ -45,6 +36,15 @@ info() {
 die() {
     printf "$C_RED%s$C_RESET\n" "$PROGNAME: [ERROR] $*" >&2
     exit 1
+}
+
+check_var() {
+    local name="$1"
+    set +u
+    if [ -z "${!name}" ] ; then
+        die "\$$name must be set"
+    fi
+    set -u
 }
 
 usage() {
@@ -113,10 +113,6 @@ init_system_vars() {
         EXE_EXT=""
         HUMAN_OS=macOS
         TARGET="$arch-apple-darwin"
-        if [ "$DO_SIGN" -eq 1 ] ; then
-            REQUIREMENTS="$REQUIREMENTS rcodesign"
-            DEFAULT_STEPS="$DEFAULT_STEPS notarize"
-        fi
         INSTALL_PREFIX=opt/gitguardian/ggshield-$VERSION
         ;;
     MINGW*|MSYS*)
@@ -129,6 +125,26 @@ init_system_vars() {
         ;;
     esac
     ARCHIVE_DIR_NAME=ggshield-$VERSION-$TARGET
+}
+
+load_os_specific_code() {
+    case "$HUMAN_OS" in
+    macOS)
+        . "$SCRIPT_DIR/macos-functions.bash"
+        ;;
+    *)
+        ;;
+    esac
+}
+
+add_os_specific_sign_requirements() {
+    case "$HUMAN_OS" in
+    macOS)
+        macos_add_sign_dependencies
+        ;;
+    *)
+        ;;
+    esac
 }
 
 step_req() {
@@ -208,39 +224,19 @@ step_copy_files() {
     esac
 }
 
-sign_file() {
-    if [ -z "$MACOS_P12_FILE" ] ; then
-        die "\$MACOS_P12_FILE must be set to sign"
-    fi
-    local file
-    file="$1"
-    info "- Signing $file"
-    rcodesign sign \
-        --p12-file "$MACOS_P12_FILE" \
-        --p12-password-file "$MACOS_P12_PASSWORD_FILE" \
-        --code-signature-flags runtime \
-        --for-notarization \
-        "$file"
-}
-
-list_files_to_sign() {
-    local archive_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
-    echo "$archive_dir/$INSTALL_PREFIX/ggshield"
-    find "$archive_dir" -name '*.so' -o -name '*.dylib'
-}
-
 step_sign() {
-    if [ "$HUMAN_OS" != "macOS" ] ; then
-        info "Signing not supported on $HUMAN_OS, skipping step"
-        return
-    fi
     if [ "$DO_SIGN" -eq 0 ] ; then
         info "Skipping signing step"
         return
     fi
-    list_files_to_sign | while read path ; do
-        sign_file "$path"
-    done
+    case "$HUMAN_OS" in
+    macOS)
+        macos_sign
+        ;;
+    *)
+        info "Signing not supported on $HUMAN_OS, skipping step"
+        ;;
+    esac
 }
 
 step_test() {
@@ -289,7 +285,7 @@ step_create_archive() {
         popd
 
         if [ "$DO_SIGN" -eq 1 ] ; then
-            sign_file "$archive_path"
+            macos_sign_file "$archive_path"
         fi
         ;;
     Windows)
@@ -300,17 +296,6 @@ step_create_archive() {
         ;;
     esac
     info "Archive created in $archive_path"
-}
-
-step_notarize() {
-    if [ "$DO_SIGN" -eq 0 ] ; then
-        info "Skipping notarize step"
-    fi
-    info "Notarizing"
-    rcodesign notary-submit \
-        --api-key-file "$MACOS_API_KEY_FILE" \
-        --staple \
-        "$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
 }
 
 steps=""
@@ -338,6 +323,7 @@ done
 cd "$ROOT_DIR"
 read_version
 init_system_vars
+load_os_specific_code
 
 if [ -z "$steps" ] ; then
     steps=$DEFAULT_STEPS
