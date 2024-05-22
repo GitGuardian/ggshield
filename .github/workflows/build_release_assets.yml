@@ -112,7 +112,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade \
             pipenv==2023.10.3 \
-            pyinstaller==6.5.0
+            pyinstaller==6.7.0
           pipenv install --system --dev
         env:
           # Disable lock otherwise Windows-only dependencies like colorama are not installed
