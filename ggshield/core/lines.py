@@ -1,6 +1,7 @@
 import re
 from enum import Enum, auto
-from typing import Iterable, List, NamedTuple, Optional
+from types import SimpleNamespace
+from typing import Iterable, List, Optional
 
 from ggshield.core.text_utils import STYLE, format_line_count, format_text
 from ggshield.utils.git_shell import Filemode
@@ -24,7 +25,7 @@ class LineCategory(Enum):
     EMPTY = auto()
 
 
-class Line(NamedTuple):
+class Line(SimpleNamespace):
     """
     Line object making easier to handle line
     by line display.
@@ -39,6 +40,18 @@ class Line(NamedTuple):
     category: Optional[LineCategory] = None
     pre_index: Optional[int] = None
     post_index: Optional[int] = None
+    is_part_of_patch: bool = False
+
+    def __hash__(self):
+        return hash(
+            (
+                self.content,
+                self.category,
+                self.pre_index,
+                self.post_index,
+                self.is_part_of_patch,
+            )
+        )
 
     def build_line_count(self, padding: int, is_secret: bool = False) -> str:
         """Return the formatted line count."""
@@ -70,6 +83,15 @@ class Line(NamedTuple):
             format_text(pre_index, line_count_style),
             format_text(post_index, line_count_style),
         )
+
+    @property
+    def number(self) -> int:
+        index = self.pre_index or self.post_index
+        if index:
+            index += int(self.is_part_of_patch)
+        else:
+            index = -1
+        return index
 
 
 def get_lines_from_content(content: str, filemode: Filemode) -> List[Line]:
@@ -154,6 +176,7 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
                 category=category,
                 pre_index=line_pre_index,
                 post_index=line_post_index,
+                is_part_of_patch=True,
             )
 
 

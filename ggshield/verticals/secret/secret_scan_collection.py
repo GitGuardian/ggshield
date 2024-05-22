@@ -1,18 +1,18 @@
 from dataclasses import dataclass, field
 from os import PathLike
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
-from pygitguardian.models import Match, ScanResult
+from pygitguardian.models import ScanResult
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.filter import get_ignore_sha, leak_dictionary_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.scan.scannable import Scannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 
-class Result(NamedTuple):
+class Result:
     """
     Return model for a scan which zips the information
     between the Scan result and its input file.
@@ -21,22 +21,41 @@ class Result(NamedTuple):
     # TODO: Rename `file` to `scannable`?
     file: Scannable  # filename that was scanned
     scan: ScanResult  # Result of content scan
+    sha_policy_break_to_extended_matches: Dict[str, List[ExtendedMatch]] = field(
+        default_factory=dict
+    )
+    sha_lines_to_display: Dict[str, List[Line]] = field(default_factory=dict)
 
-    def enrich_matches(self, lines: Optional[List[Line]] = None) -> None:
-        if not lines:
-            content = self.content
-            lines = get_lines_from_content(content, self.filemode)
+    def __init__(self, file: Scannable, scan: ScanResult):
+        self.file = file
+        self.scan = scan
+        lines = get_lines_from_content(file.content, file.filemode)
         if len(lines) == 0:
             raise UnexpectedError("Parsing of scan result failed.")
-        is_patch = self.filemode != Filemode.FILE
+        is_patch = file.filemode != Filemode.FILE
+        self.sha_policy_break_to_extended_matches = {}
+        self.sha_lines_to_display = {}
         for policy_break in self.scan.policy_breaks:
-            policy_break.matches = cast(
-                List[Match],
-                [
-                    ExtendedMatch.from_match(match, lines, is_patch)
-                    for match in policy_break.matches
-                ],
+            sha = get_ignore_sha(policy_break)
+            self.sha_policy_break_to_extended_matches[sha] = [
+                ExtendedMatch.from_match(match, lines, is_patch)
+                for match in policy_break.matches
+            ]
+            set_lines = set()
+            for extended_match in self.sha_policy_break_to_extended_matches[sha]:
+                for line in extended_match.context_lines:
+                    set_lines.add(line)
+            self.sha_lines_to_display[sha] = sorted(
+                list(set_lines), key=lambda li: li.number
             )
+
+    def __eq__(self, other: "Result") -> bool:
+        return self.file == other.file and self.scan == other.scan
+
+    def censor(self) -> None:
+        for list_extended_matches in self.sha_policy_break_to_extended_matches.values():
+            for extended_match in list_extended_matches:
+                extended_match.censor()
 
     @property
     def filename(self) -> str:

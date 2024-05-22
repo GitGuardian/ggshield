@@ -10,7 +10,7 @@ from ggshield.core.scan.commit_information import CommitInformation
 from ggshield.core.scan.commit_utils import CommitScannable
 from ggshield.verticals.secret import Result, Results
 from ggshield.verticals.secret.repo import get_commits_by_batch, scan_commits_content
-from tests.unit.conftest import TWO_POLICY_BREAKS
+from tests.unit.conftest import _ONE_LINE_AND_MULTILINE_PATCH_CONTENT, TWO_POLICY_BREAKS
 
 
 @pytest.mark.parametrize(
@@ -89,7 +89,7 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     THEN the total number of policy breaks is 4
     """
     path = Path("filename")
-    content = "content"
+    content = f"{_ONE_LINE_AND_MULTILINE_PATCH_CONTENT}\n content"
     commit_1_files = [CommitScannable("some_sha_1", path, content)]
     commit_1 = Commit(
         sha="some_sha_1",
@@ -159,9 +159,15 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
     THEN the files and policy breaks are associated with the correct commits
     """
     sha1 = "some_sha_1"
-    file1_1 = CommitScannable(sha1, Path("filename1"), "document1")
-    file1_2 = CommitScannable(sha1, Path("filename2"), "document2")
-    file1_3 = CommitScannable(sha1, Path("filename3"), "document3")
+    file1_1 = CommitScannable(
+        sha1, Path("filename1"), f"{_ONE_LINE_AND_MULTILINE_PATCH_CONTENT}\n document1"
+    )
+    file1_2 = CommitScannable(
+        sha1, Path("filename2"), f"{_ONE_LINE_AND_MULTILINE_PATCH_CONTENT}\n document2"
+    )
+    file1_3 = CommitScannable(
+        sha1, Path("filename3"), f"{_ONE_LINE_AND_MULTILINE_PATCH_CONTENT}\n document3"
+    )
     file1_list = [file1_1, file1_2, file1_3]
 
     commit_1 = Commit(
@@ -176,8 +182,12 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
     )
 
     sha2 = "some_sha_2"
-    file2_1 = CommitScannable(sha2, Path("filename2"), "document2")
-    file2_2 = CommitScannable(sha2, Path("filename3"), "document3")
+    file2_1 = CommitScannable(
+        sha2, Path("filename2"), f"{_ONE_LINE_AND_MULTILINE_PATCH_CONTENT}\n document2"
+    )
+    file2_2 = CommitScannable(
+        sha2, Path("filename3"), f"{_ONE_LINE_AND_MULTILINE_PATCH_CONTENT}\n document3"
+    )
     file2_list = [file2_1, file2_2]
 
     commit_2 = Commit(

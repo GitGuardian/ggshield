@@ -3,7 +3,8 @@ from typing import Any, Dict, List, cast
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
-from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
 from .schemas import JSONScanCollectionSchema
@@ -63,13 +64,11 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
-            censor_content(result.content, result.scan.policy_breaks)
+            result.censor()
 
-        result.enrich_matches()  # important to keep this call after censor content
         for ignore_sha, policy_breaks in sha_dict.items():
-            flattened_dict = self.flattened_policy_break(
-                ignore_sha,
-                policy_breaks,
+            flattened_dict = self.flattened_matches(
+                ignore_sha, policy_breaks, result.sha_policy_break_to_extended_matches
             )
             result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
@@ -89,10 +88,11 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         return error_dict
 
-    def flattened_policy_break(
+    def flattened_matches(
         self,
         ignore_sha: str,
         policy_breaks: List[PolicyBreak],
+        sha_policy_break_to_extended_matches: Dict[str, List[ExtendedMatch]],
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
             "occurrences": [],
@@ -109,7 +109,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             flattened_dict["known_secret"] = policy_breaks[0].known_secret
             flattened_dict["incident_url"] = policy_breaks[0].incident_url
 
-        for policy_break in policy_breaks:
-            flattened_dict["occurrences"].extend(policy_break.matches)
+        for list_matches in sha_policy_break_to_extended_matches.values():
+            flattened_dict["occurrences"].extend([match for match in list_matches])
 
         return flattened_dict
