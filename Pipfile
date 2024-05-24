@@ -23,9 +23,7 @@ snapshottest = "*"
 typing-extensions = "*"
 import-linter = "*"
 jsonschema = "*"
-
 vcrpy = ">=5.1.0"
-
 pyfakefs = ">=5.2.0"
 scriv = { version = "*", extras = ["toml"] }
 pyright = "==1.1.313"

@@ -115,6 +115,15 @@ class APIKeyCheckError(AuthError):
         super().__init__(instance, message)
 
 
+class RepositoryNotTrackedError(UnexpectedError):
+    """
+    Raised when a repository is not tracked in the GitGuardian platform
+    """
+
+    def __init__(self):
+        super().__init__("Repository not tracked in the platform.")
+
+
 def format_validation_error(exc: ValidationError) -> str:
     """
     Take a Marshmallow ValidationError and turn it into a more user-friendly message
