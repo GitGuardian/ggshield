@@ -4,7 +4,7 @@ from io import StringIO
 from typing import Dict, List, Optional, Set, Tuple
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import Match, PolicyBreak
+from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
@@ -18,6 +18,7 @@ from ggshield.core.text_utils import (
 )
 from ggshield.utils.git_shell import Filemode
 
+from ..extended_match import ExtendedMatch
 from ..secret_scan_collection import Result, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
@@ -149,7 +150,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
 
 
 def leak_message_located(
-    flat_matches_dict: Dict[int, List[Match]],
+    flat_matches_dict: Dict[int, List[ExtendedMatch]],
     lines: List[Line],
     padding: int,
     offset: int,
@@ -182,9 +183,10 @@ def leak_message_located(
         if line_number in flat_matches_dict:
             for flat_match in sorted(
                 flat_matches_dict[line_number],
-                key=lambda x: x.index_start,  # type: ignore
+                key=lambda x: x.span.column_index_start,
             ):
-                is_multiline = flat_match.line_start != flat_match.line_end
+                span = flat_match.span
+                is_multiline = span.line_index_start != span.line_index_end
 
                 if is_multiline:
                     detector_position = float("inf"), float("-inf")
@@ -205,14 +207,14 @@ def leak_message_located(
                             # before
                             formatted_line, secret_position = format_line_with_secret(
                                 line_content,
-                                flat_match.index_start,
+                                span.column_index_start,
                                 len(line_content),
                                 max_width,
                             )
-                        elif multiline_line_number == flat_match.line_end:
+                        elif multiline_line_number == span.line_index_end:
                             # The last line of the secret may contain something else
                             # after
-                            last_line_content = lines[flat_match.line_end].content
+                            last_line_content = lines[span.line_index_end].content
                             formatted_line, secret_position = format_line_with_secret(
                                 last_line_content, 0, len(match_line), max_width
                             )
@@ -233,8 +235,8 @@ def leak_message_located(
                     leak_msg.write(line.build_line_count(padding, is_secret=True))
                     formatted_line, detector_position = format_line_with_secret(
                         line_content,
-                        flat_match.index_start,
-                        flat_match.index_end,
+                        span.column_index_start,
+                        span.column_index_end,
                         max_width,
                     )
                     leak_msg.write(formatted_line)
@@ -257,24 +259,25 @@ def leak_message_located(
 
 def flatten_policy_breaks_by_line(
     policy_breaks: List[PolicyBreak],
-) -> Dict[int, List[Match]]:
+) -> Dict[int, List[ExtendedMatch]]:
     """
     flatten_policy_breaks_by_line turns a list of policy breaks into a dictionary
     mapping a line number to a list of matches starting at that line.
     """
-    flat_match_dict: Dict[int, List[Match]] = dict()
+    flat_match_dict: Dict[int, List[ExtendedMatch]] = dict()
     for policy_break in policy_breaks:
         for match in policy_break.matches:
-            assert match.line_start is not None
-            assert match.line_end is not None
-            flat_match_list = flat_match_dict.get(match.line_start)
+            assert isinstance(match, ExtendedMatch)
+            span = match.span
+
+            flat_match_list = flat_match_dict.get(span.line_index_start)
             if flat_match_list and not any(
-                match.index_start == flat_match.index_start
-                for flat_match in flat_match_list
+                x.span.column_index_start == span.column_index_start
+                for x in flat_match_list
             ):
                 flat_match_list.append(match)
             else:
-                flat_match_dict[match.line_start] = [match]
+                flat_match_dict[span.line_index_start] = [match]
 
     return flat_match_dict
 
@@ -421,7 +424,7 @@ def secrets_engine_version() -> str:
 
 
 def get_lines_to_display(
-    flat_matches_dict: Dict[int, List[Match]],
+    flat_matches_dict: Dict[int, List[ExtendedMatch]],
     lines: List,
 ) -> Set[int]:
     """Retrieve the line indexes to display in the content with no secrets."""
@@ -429,19 +432,18 @@ def get_lines_to_display(
 
     for line in sorted(flat_matches_dict):
         for match in flat_matches_dict[line]:
-            assert match.line_start is not None
-            assert match.line_end is not None
+            span = match.span
             lines_to_display.update(
                 range(
-                    max(match.line_start - NB_CONTEXT_LINES + 1, 0),
-                    match.line_start + 1,
+                    max(span.line_index_start - NB_CONTEXT_LINES + 1, 0),
+                    span.line_index_start + 1,
                 )
             )
-            if match.line_end + 1 <= len(lines):
+            if span.line_index_end + 1 <= len(lines):
                 lines_to_display.update(
                     range(
-                        match.line_end + 1,
-                        min(match.line_end + NB_CONTEXT_LINES, len(lines)),
+                        span.line_index_end + 1,
+                        min(span.line_index_end + NB_CONTEXT_LINES, len(lines)),
                     )
                 )
 
