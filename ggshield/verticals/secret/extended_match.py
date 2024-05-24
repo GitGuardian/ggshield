@@ -39,12 +39,14 @@ class ExtendedMatch(Match):
 
     def __init__(
         self,
+        span: MatchSpan,
         pre_line_start: Optional[int] = None,
         pre_line_end: Optional[int] = None,
         post_line_start: Optional[int] = None,
         post_line_end: Optional[int] = None,
         **kwargs: Any,
     ):
+        self.span = span
         self.pre_line_start = pre_line_start
         self.pre_line_end = pre_line_end
         self.post_line_start = post_line_start
@@ -64,6 +66,7 @@ class ExtendedMatch(Match):
         line_index_start += int(is_patch) - 1  # convert to 0-based
         line_index_end += int(is_patch) - 1
         return cls(
+            span=span,
             match=match.match,
             match_type=match.match_type,
             index_start=span.column_index_start,
