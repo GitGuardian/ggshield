@@ -432,6 +432,11 @@ index 0000000..b80e3df
 +this is a patch without secret
 """
 
+"""
+Indices for _SECRET_RAW_FILE
+                    0         1         2         3         4         5         6         7         8
+                    012345678901234567890123456789012345678901234567890123456789012345678901234567890
+"""
 _SECRET_RAW_FILE = '+sg_key = "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";\n'
 
 _SINGLE_ADD_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
@@ -447,6 +452,11 @@ index 0000000..3c9af3f
 +++ b/test
 @@ -0,0 +1 @@
 +sg_key = "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";
+"""
+"""
+Indices for _SINGLE_ADD_PATCH. Shifted by one character because this is a patch.
+ 0         1         2         3         4         5         6         7         8
+ 012345678901234567890123456789012345678901234567890123456789012345678901234567890
 """
 
 _SINGLE_MOVE_PATCH = """

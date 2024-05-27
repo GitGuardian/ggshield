@@ -12,6 +12,9 @@ class MatchSpan(NamedTuple):
     column_index_start and column_index_end are positions within the line.
 
     All indices are 0-based.
+
+    Contrary to Match, column_index_end points to the character *after* the last
+    character of the match.
     """
 
     line_index_start: int
