@@ -283,7 +283,10 @@ def sca_incident_severity_line(vulnerability: OutputIncidentData) -> str:
     """
     Returns the severity line, with associated style
     """
-    if vulnerability.severity.lower() == IncidentSeverity.CRITICAL:
+    if vulnerability.severity.lower() == IncidentSeverity.MALICIOUS:
+        severity_string = IncidentSeverity.MALICIOUS.value.capitalize()
+        style = STYLE["sca_vulnerability_critical"]
+    elif vulnerability.severity.lower() == IncidentSeverity.CRITICAL:
         severity_string = IncidentSeverity.CRITICAL.value.capitalize()
         style = STYLE["sca_vulnerability_critical"]
     elif vulnerability.severity.lower() == IncidentSeverity.HIGH:

@@ -83,7 +83,25 @@ def test_sca_scan_pre_commit_with_added_vulns(
                         ],
                     )
                 ],
-            )
+            ),
+            SCALocationVulnerability(
+                location="Pipfile.lock",
+                package_vulns=[
+                    SCAVulnerablePackageVersion(
+                        package_full_name="mal_toto",
+                        version="2.0.0",
+                        ecosystem="pypi",
+                        vulns=[
+                            SCAVulnerability(
+                                severity="malicious",
+                                summary="a malicious vuln",
+                                cve_ids=["CVE-2024"],
+                                identifier="MAL-abcd-1234-xxxx",
+                            )
+                        ],
+                    )
+                ],
+            ),
         ],
         removed_vulns=[
             SCALocationVulnerability(
@@ -128,10 +146,22 @@ def test_sca_scan_pre_commit_with_added_vulns(
         assert result.exit_code == ExitCode.SCAN_FOUND_PROBLEMS
 
         # Output on added vuln
-        assert "> Pipfile.lock: 1 incident detected" in result.stdout
+        assert "> Pipfile.lock: 2 incidents detected" in result.stdout
+
         assert (
             """
->>> NEW: Incident 1 (SCA): toto@1.2.3
+>>> NEW: Incident 1 (SCA): mal_toto@2.0.0
+Severity: Malicious
+Summary: a malicious vuln
+No fix is currently available.
+Identifier: MAL-abcd-1234-xxxx
+CVE IDs: CVE-2024"""
+            in result.stdout
+        )
+
+        assert (
+            """
+>>> NEW: Incident 2 (SCA): toto@1.2.3
 Severity: Critical
 Summary: a vuln
 No fix is currently available.
@@ -144,7 +174,7 @@ CVE IDs: CVE-2023"""
             # Output on removed vuln
             assert (
                 """
->>> REMOVED: Incident 2 (SCA): bar@4.5.6
+>>> REMOVED: Incident 3 (SCA): bar@4.5.6
 Severity: Low
 Identifier: GHSA-efgh-5678-xxxx
 CVE IDs: CVE-2023-bis"""

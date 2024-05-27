@@ -33,6 +33,7 @@ class IncidentStatus(str, Enum):
 
 
 class IncidentSeverity(str, Enum):
+    MALICIOUS = "malicious"
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -41,6 +42,8 @@ class IncidentSeverity(str, Enum):
 
     def _weight(self) -> int:
         """returns a weight to define `__lt__` method"""
+        if self == IncidentSeverity.MALICIOUS:
+            return -10
         if self == IncidentSeverity.CRITICAL:
             return 0
         if self == IncidentSeverity.HIGH:
