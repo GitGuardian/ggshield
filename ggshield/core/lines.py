@@ -26,13 +26,41 @@ class LineCategory(Enum):
 
 class Line(NamedTuple):
     """
-    Line object making easier to handle line
-    by line display.
+    Represent a line in a document.
 
     - content: Content of the line
     - category: The line category [+|-| ] (addition, deletion, untouched)
     - pre_index: Line index (deletion for patches, line index for files)
     - post_index: Line index (addition for patches)
+
+    pre_index and post_index are 1-based.
+
+    For files: pre_index is the line number, post_index is None.
+
+    For patches: pre_index and post_index are line numbers relative to the *document
+    modified by the patch*, not to the patch itself. This means that for a patch like
+    this:
+
+    ```
+    diff --git a/foo.py b/foo.py
+    index c53e550a..7ed9d026 100644
+    --- a/foo.py
+    +++ b/foo.py
+    @@ -56,8 +56,8 @@
+     Hello
+    -world
+    +beautiful
+    +WORLD
+    ```
+
+    The values of content, pre_index, post_index and category are:
+
+    content                 pre_index  post_index  category
+    "@@ -56,8 +56,8 @@"     None        None        EMPTY
+    "Hello"                 56          56          DATA
+    "world"                 57          None        DELETION
+    "beautiful"             None        57          ADDITION
+    "WORLD"                 None        58          ADDITION
     """
 
     content: str
