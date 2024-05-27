@@ -75,3 +75,14 @@ class ExtendedMatch(Match):
             pre_line_end=line_end.pre_index,
             post_line_end=line_end.post_index,
         )
+
+    def __repr__(self) -> str:
+        return ", ".join(
+            [
+                super().__repr__(),
+                f"pre_line_start:{self.pre_line_start}",
+                f"pre_line_end:{self.pre_line_end}",
+                f"post_line_start:{self.post_line_start}",
+                f"post_line_end:{self.post_line_end}",
+            ]
+        )
