@@ -1,6 +1,7 @@
 import json
 from collections import namedtuple
 from copy import deepcopy
+from typing import Any, Dict, List
 from unittest.mock import Mock
 
 import pytest
@@ -20,7 +21,6 @@ from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
 )
-from ggshield.verticals.secret.output.schemas import JSONScanCollectionSchema
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -60,7 +60,7 @@ SCHEMA_WITH_INCIDENTS = S(
     Partial(
         {
             "secrets_engine_version": validators.Match(r"\d\.\d{1,3}\.\d"),
-            "results": validators.All(
+            "entities_with_incidents": validators.All(
                 [
                     {
                         "filename": str,
@@ -100,6 +100,90 @@ SCHEMA_WITH_INCIDENTS = S(
         }
     )
 )
+
+
+MATCH_INDICES_FOR_PATCH = {
+    _MULTIPLE_SECRETS_PATCH: [
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 2,
+            "post_line_end": 2,
+        }
+    ],
+    UNCHECKED_SECRET_PATCH: [
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 2,
+            "post_line_end": 2,
+        }
+    ],
+    VALID_SECRET_PATCH: [
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 2,
+            "post_line_end": 2,
+        }
+    ],
+    _ONE_LINE_AND_MULTILINE_PATCH: [
+        {
+            "line_start": 1,
+            "line_end": 9,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 1,
+            "post_line_end": 9,
+        }
+    ],
+    _SINGLE_ADD_PATCH: [
+        {
+            "line_start": 1,
+            "line_end": 1,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 1,
+            "post_line_end": 1,
+        }
+    ],
+    _SINGLE_DELETE_PATCH: [
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "pre_line_start": 2,
+            "pre_line_end": 2,
+            "post_line_start": None,
+            "post_line_end": None,
+        }
+    ],
+    _SINGLE_MOVE_PATCH: [
+        {
+            "line_start": 150,
+            "line_end": 150,
+            "pre_line_start": 150,
+            "pre_line_end": 150,
+            "post_line_start": 151,
+            "post_line_end": 151,
+        }
+    ],
+}
+
+
+def check_occurrences_indices(occurrences: List[Dict[str, Any]], patch: str) -> None:
+    """
+    Check `occurrences` contains the expected indices for patch `patch`.
+    """
+    match_indices_list = MATCH_INDICES_FOR_PATCH[patch]
+    for occurrence, expected_indices in zip(occurrences, match_indices_list):
+        current_indices = {k: occurrence.get(k) for k in expected_indices.keys()}
+        assert current_indices == expected_indices
 
 
 @pytest.mark.parametrize(
@@ -147,13 +231,18 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
         )
 
         assert exit_code == expected_exit_code
-        assert SCHEMA_WITHOUT_INCIDENTS == JSONScanCollectionSchema().loads(
-            json_flat_results
-        )
+        json_dict = json.loads(json_flat_results)
+        assert SCHEMA_WITHOUT_INCIDENTS == json_dict
         if expected_exit_code:
-            assert SCHEMA_WITH_INCIDENTS == JSONScanCollectionSchema().loads(
-                json_flat_results
-            )
+            assert SCHEMA_WITH_INCIDENTS == json_dict
+
+            occurrences = [
+                occurrence
+                for result in json_dict["entities_with_incidents"]
+                for incident in result["incidents"]
+                for occurrence in incident["occurrences"]
+            ]
+            check_occurrences_indices(occurrences, input_patch)
 
         # all ignore sha should be in the output
         assert all(
