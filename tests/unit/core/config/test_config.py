@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
+from click import UsageError
 
 from ggshield.core.config import AccountConfig, Config, InstanceConfig
 from ggshield.core.config.utils import get_auth_config_filepath, load_yaml_dict
@@ -312,3 +313,19 @@ class TestConfig:
 
         dct = load_yaml_dict(local_config_path)
         assert dct["instance"] == "https://after.com"
+
+    @pytest.mark.parametrize(
+        "instance_url",
+        ["", "http://api.gitguardian.com/", "https://api.gitguardian.com/abc"],
+    )
+    def test_invalid_instance_url(self, monkeypatch, instance_url):
+        """
+        GIVEN an invalid instance url
+        WHEN loading the config
+        THEN it raises a UsageError
+        """
+
+        monkeypatch.setitem(os.environ, "GITGUARDIAN_API_URL", instance_url)
+        with pytest.raises(UsageError):
+            config = Config()
+            config.instance_name

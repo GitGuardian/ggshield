@@ -930,3 +930,22 @@ class TestAuthLoginWeb:
         assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_called()
         self._assert_open_url(host=expected_web_host)
+
+    @pytest.mark.parametrize(
+        "instance_url",
+        [
+            "https://dashboard.gitguardian.com/abc",
+        ],
+    )
+    def test_invalid_instance_url(self, instance_url, cli_fs_runner, monkeypatch):
+        """
+        GIVEN an invalid instance URL
+        WHEN running the login command
+        THEN it fails
+        """
+        monkeypatch.setenv("GITGUARDIAN_INSTANCE", instance_url)
+
+        self.prepare_mocks(monkeypatch)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.USAGE_ERROR, output
+        self._webbrowser_open_mock.assert_not_called()
