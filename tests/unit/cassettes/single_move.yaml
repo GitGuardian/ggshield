@@ -9,25 +9,25 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.6.0 (Linux;py3.10.6)
+          - pygitguardian/1.14.0 (Linux;py3.10.12)
       method: GET
       uri: https://api.gitguardian.com/v1/metadata
     response:
       body:
-        string: '{"version":"v2.30.2","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"public_api__ggshield_auth_flow_enabled":true,"general__onboarding_segmentation_v1_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576}}'
+        string: '{"version":"v2.70.0","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576}}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - GET, HEAD, OPTIONS
         content-length:
-          - '446'
+          - '433'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 22 May 2023 12:28:28 GMT
+          - Mon, 27 May 2024 15:22:13 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -37,17 +37,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.30.2
+          - v2.70.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '30'
+          - '25'
         x-frame-options:
           - DENY
           - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.34.0
+        x-sca-last-vuln-fetch:
+          - '2024-05-27T15:11:50.088483+00:00'
         x-secrets-engine-version:
-          - 2.89.0
+          - 2.113.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -55,8 +59,8 @@ interactions:
         message: OK
   - request:
       body:
-        '[{"filename": "test", "document": "@@ -1 +1,2 @@\n+something\n sg_key =
-        \"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\";\n"}]'
+        '[{"filename": "commit://patch/test", "document": "@@ -150 +150,2 @@\n+something\n
+        sg_key = \"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\";\n"}]'
       headers:
         Accept:
           - '*/*'
@@ -65,11 +69,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '151'
+          - '170'
         Content-Type:
           - application/json
         GGShield-Command-Id:
-          - bccd6a6b-8cb3-4d3e-b0da-6f731d1c0a2f
+          - dcc2f472-042a-4e82-b723-15255e9053e4
         GGShield-Command-Path:
           - external
         GGShield-OS-Name:
@@ -77,11 +81,11 @@ interactions:
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.6
+          - 3.10.12
         GGShield-Version:
-          - 1.15.1
+          - 1.27.0
         User-Agent:
-          - pygitguardian/1.6.0 (Linux;py3.10.6)
+          - pygitguardian/1.14.0 (Linux;py3.10.12)
         mode:
           - path
       method: POST
@@ -90,20 +94,20 @@ interactions:
       body:
         string:
           '[{"policy_break_count":1,"policies":["File extensions","Filenames","Secrets
-          detection"],"policy_breaks":[{"type":"SendGrid Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":36,"index_end":104,"line_start":3,"line_end":3}],"validity":"no_checker"}]}]'
+          detection"],"policy_breaks":[{"type":"SendGrid Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":40,"index_end":108,"line_start":3,"line_end":3}],"incident_url":"https://dashboard.gitguardian.com/workspace/8/incidents/8137385","known_secret":true,"validity":"no_checker"}]}]'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '355'
+          - '456'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Mon, 22 May 2023 12:28:28 GMT
+          - Mon, 27 May 2024 15:22:14 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -113,17 +117,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.30.2
+          - v2.70.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '49'
+          - '91'
         x-frame-options:
           - DENY
           - SAMEORIGIN
+        x-sca-engine-version:
+          - 1.34.0
+        x-sca-last-vuln-fetch:
+          - '2024-05-27T15:11:50.088483+00:00'
         x-secrets-engine-version:
-          - 2.89.0
+          - 2.113.0
         x-xss-protection:
           - 1; mode=block
       status:
