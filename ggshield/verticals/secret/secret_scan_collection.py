@@ -1,15 +1,12 @@
 from dataclasses import dataclass, field
 from os import PathLike
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
-from pygitguardian.models import Match, ScanResult
+from pygitguardian.models import ScanResult
 
-from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import leak_dictionary_by_ignore_sha
-from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.scan.scannable import Scannable
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 
 class Result(NamedTuple):
@@ -21,22 +18,6 @@ class Result(NamedTuple):
     # TODO: Rename `file` to `scannable`?
     file: Scannable  # filename that was scanned
     scan: ScanResult  # Result of content scan
-
-    def enrich_matches(self, lines: Optional[List[Line]] = None) -> None:
-        if not lines:
-            content = self.content
-            lines = get_lines_from_content(content, self.filemode)
-        if len(lines) == 0:
-            raise UnexpectedError("Parsing of scan result failed.")
-        is_patch = self.filemode != Filemode.FILE
-        for policy_break in self.scan.policy_breaks:
-            policy_break.matches = cast(
-                List[Match],
-                [
-                    ExtendedMatch.from_match(match, lines, is_patch)
-                    for match in policy_break.matches
-                ],
-            )
 
     @property
     def filename(self) -> str:
