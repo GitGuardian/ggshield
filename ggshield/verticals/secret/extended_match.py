@@ -58,10 +58,10 @@ class ExtendedMatch(Match):
         cls, match: Match, lines: List[Line], is_patch: bool
     ) -> "ExtendedMatch":
         span = MatchSpan.from_match(match, lines, is_patch)
-        line_start = lines[span.line_index_start]
-        line_end = lines[span.line_index_end]
-        line_index_start = line_start.pre_index or line_start.post_index
-        line_index_end = line_end.pre_index or line_end.post_index
+        start_line = lines[span.line_index_start]
+        end_line = lines[span.line_index_end]
+        line_index_start = start_line.pre_index or start_line.post_index
+        line_index_end = end_line.pre_index or end_line.post_index
         assert line_index_start is not None and line_index_end is not None
         line_index_start += int(is_patch) - 1  # convert to 0-based
         line_index_end += int(is_patch) - 1
@@ -73,10 +73,10 @@ class ExtendedMatch(Match):
             index_end=span.column_index_end,
             line_start=line_index_start,
             line_end=line_index_end,
-            pre_line_start=line_start.pre_index,
-            post_line_start=line_start.post_index,
-            pre_line_end=line_end.pre_index,
-            post_line_end=line_end.post_index,
+            pre_line_start=start_line.pre_index,
+            post_line_start=start_line.post_index,
+            pre_line_end=end_line.pre_index,
+            post_line_end=end_line.post_index,
         )
 
     def __repr__(self) -> str:
