@@ -2,6 +2,8 @@ version: 2
 
 secret:
   ignored_matches:
+    - match: a288e2a549678ef0b9aa0f9446be30388918f2a4647d7327bea8802ba9c3ac89
+      name: fake secret partially censored
     - match: 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
       name:
     - match: 139ed5c2b5ae84b0fbb1bfbce6015ac96e5af5050a16d0ffdba612440fb0ee4d

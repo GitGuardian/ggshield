@@ -275,7 +275,7 @@ _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "294790898041575",
                         "index_start": 31,
-                        "index_end": 46,
+                        "index_end": 45,
                         "type": "client_id",
                     },
                     {
