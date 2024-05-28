@@ -1,6 +1,6 @@
 from pygitguardian.models import Match
 
-from ggshield.core.lines import get_lines_from_content
+from ggshield.core.lines import Line, LineCategory, get_lines_from_content
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 from tests.unit.conftest import _SINGLE_MOVE_PATCH
@@ -12,6 +12,7 @@ PLAIN_CONTENT = """/*
 token=ABCD
 
 # Some more content
+# Even more content
 """
 
 
@@ -37,6 +38,17 @@ def test_from_match_for_plain_content():
     # 0-based *columns*, and index_end points to the character *after* the match :/
     assert ex_match.index_start == 6
     assert ex_match.index_end == 10
+    assert ex_match.lines_before_secret == [
+        Line(content="01234567890", category=LineCategory.DATA, pre_index=2),
+        Line(content="*/", category=LineCategory.DATA, pre_index=3),
+    ]
+    assert ex_match.lines_after_secret == [
+        Line(content="", category=LineCategory.DATA, pre_index=5),
+        Line(content="# Some more content", category=LineCategory.DATA, pre_index=6),
+    ]
+    assert ex_match.lines_with_secret == [
+        Line(content="token=ABCD", category=LineCategory.DATA, pre_index=4),
+    ]
 
 
 def test_from_match_for_a_patch():
@@ -65,3 +77,25 @@ def test_from_match_for_a_patch():
     assert ex_match.line_end == 150
     assert ex_match.index_start == 10
     assert ex_match.index_end == 79
+    assert ex_match.lines_before_secret == [
+        Line(
+            content="@@ -150 +150,2 @",
+            category=LineCategory.EMPTY,
+            pre_index=None,
+            post_index=None,
+        ),
+        Line(
+            content="something",
+            category=LineCategory.ADDITION,
+            pre_index=None,
+            post_index=150,
+        ),
+    ]
+    assert ex_match.lines_with_secret == [
+        Line(
+            content='sg_key = "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";',
+            category=None,
+            pre_index=150,
+            post_index=151,
+        )
+    ]

@@ -6,10 +6,10 @@ from ggshield.core.lines import Line, LineCategory, get_offset, get_padding
 
 
 def test_line_validation():
-    line_to_test = Line("hello", category=" ")  # type: ignore
+    line_to_test = Line(content="hello", category=" ")  # type: ignore
     with pytest.raises(TypeError):
         line_to_test.build_line_count(0, False)
-    Line("hello", category=None).build_line_count(0)
+    Line(content="hello", category=None).build_line_count(0)
 
 
 @pytest.mark.parametrize(

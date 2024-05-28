@@ -38,6 +38,11 @@ class Result(NamedTuple):
                 ],
             )
 
+    def censor(self) -> None:
+        for policy_break in self.scan.policy_breaks:
+            for extended_match in policy_break.matches:
+                cast(ExtendedMatch, extended_match).censor()
+
     @property
     def filename(self) -> str:
         return self.file.filename

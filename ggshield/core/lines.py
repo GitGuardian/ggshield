@@ -1,6 +1,7 @@
 import re
 from enum import Enum, auto
-from typing import Iterable, List, NamedTuple, Optional
+from types import SimpleNamespace
+from typing import Iterable, List, Optional
 
 from ggshield.core.text_utils import STYLE, format_line_count, format_text
 from ggshield.utils.git_shell import Filemode
@@ -21,10 +22,10 @@ class LineCategory(Enum):
     ADDITION = auto()
     DATA = auto()
     DELETION = auto()
-    EMPTY = auto()
+    EMPTY = auto()  # Used for empty lines and patch headers.
 
 
-class Line(NamedTuple):
+class Line(SimpleNamespace):
     """
     Represent a line in a document.
 
@@ -67,6 +68,16 @@ class Line(NamedTuple):
     category: Optional[LineCategory] = None
     pre_index: Optional[int] = None
     post_index: Optional[int] = None
+
+    def __hash__(self):
+        return hash(
+            (
+                self.content,
+                self.category,
+                self.pre_index,
+                self.post_index,
+            )
+        )
 
     def build_line_count(self, padding: int, is_secret: bool = False) -> str:
         """Return the formatted line count."""
