@@ -24,6 +24,16 @@ class LineCategory(Enum):
     DELETION = auto()
     EMPTY = auto()  # Used for empty lines and patch headers.
 
+    @property
+    def symbol(self) -> str:
+        if self == LineCategory.ADDITION:
+            return "+"
+        if self == LineCategory.DELETION:
+            return "-"
+        if self == LineCategory.EMPTY:
+            return ""
+        return " "
+
 
 class Line(SimpleNamespace):
     """
@@ -97,12 +107,6 @@ class Line(SimpleNamespace):
         # Patch
         pre_index = format_line_count(self.pre_index, padding)
         post_index = format_line_count(self.post_index, padding)
-
-        if self.category == LineCategory.ADDITION:
-            pre_index = " " * padding
-
-        elif self.category == LineCategory.DELETION:
-            post_index = " " * padding
 
         return PATCH_LINE_PREFIX.format(
             format_text(pre_index, line_count_style),
