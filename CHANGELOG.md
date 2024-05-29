@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.28.0'></a>
+
+## 1.28.0 — 2024-05-29
+
+### Added
+
+- The SCA config `ignored_vulnerabilities` option now supports taking a CVE id as identifier.
+
 <a id='changelog-1.27.0'></a>
 
 ## 1.27.0 — 2024-04-30
