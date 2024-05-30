@@ -198,6 +198,22 @@ _MULTI_SECRET_ONE_LINE_PATCH = """@@ -0,0 +1 @@
 
 """
 
+_MULTI_SECRET_ONE_LINE_FULL_PATCH = (
+    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
+new file mode 100644
+index 0000000..3c9af3f
+--- /dev/null
++++ b/test
+"""
+    + _MULTI_SECRET_ONE_LINE_PATCH
+)
+
 _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
         "policies": ["File extensions", "Filenames", "Secrets detection"],
@@ -209,13 +225,13 @@ _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "294790898041575",
                         "index_start": 31,
-                        "index_end": 46,
+                        "index_end": 45,
                         "type": "client_id",
                     },
                     {
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4372",
                         "index_start": 68,
-                        "index_end": 100,
+                        "index_end": 99,
                         "type": "client_secret",
                     },
                 ],
@@ -242,13 +258,13 @@ _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "294790898041575",
                         "index_start": 26,
-                        "index_end": 41,
+                        "index_end": 40,
                         "type": "client_id",
                     },
                     {
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4372",
                         "index_start": 44,
-                        "index_end": 76,
+                        "index_end": 75,
                         "type": "client_secret",
                     },
                 ],
@@ -281,7 +297,7 @@ _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4372",
                         "index_start": 69,
-                        "index_end": 101,
+                        "index_end": 100,
                         "type": "client_secret",
                     },
                 ],
@@ -341,7 +357,7 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                         "match": "294790898041573",
                         "line_start": 2,
                         "line_end": 2,
-                        "index_start": 34,
+                        "index_start": 35,
                         "index_end": 49,
                         "type": "client_id",
                     },
@@ -349,7 +365,7 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4371",
                         "line_start": 2,
                         "line_end": 2,
-                        "index_start": 52,
+                        "index_start": 53,
                         "index_end": 84,
                         "type": "client_secret",
                     },

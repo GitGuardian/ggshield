@@ -4,7 +4,7 @@ from marshmallow import fields, post_dump
 from pygitguardian.models import Match, MatchSchema
 
 from ggshield.core.filter import censor_string
-from ggshield.core.lines import Line
+from ggshield.core.lines import Line, LineCategory
 from ggshield.core.match_span import MatchSpan
 
 
@@ -69,6 +69,7 @@ class ExtendedMatch(Match):
         cls, match: Match, lines: List[Line], is_patch: bool
     ) -> "ExtendedMatch":
         span = MatchSpan.from_match(match, lines, is_patch)
+
         start_line = lines[span.line_index_start]
         end_line = lines[span.line_index_end]
         line_index_start = start_line.pre_index or start_line.post_index
@@ -76,15 +77,34 @@ class ExtendedMatch(Match):
         assert line_index_start is not None and line_index_end is not None
         line_index_start += int(is_patch) - 1  # convert to 0-based
         line_index_end += int(is_patch) - 1
+
+        lines_with_secret = lines[span.line_index_start : span.line_index_end + 1]
+
+        match_split_lines = match.match.splitlines()
+        assert len(match_split_lines) == len(lines_with_secret)
+        if is_patch and len(lines_with_secret) > 1:
+            # The secret is multi-line and in patch, we can have the first character to remove
+            stripped_match = "\n".join(
+                (
+                    str_line_match[1:]
+                    if index > 0 and line.category != LineCategory.DATA
+                    else str_line_match
+                )
+                for index, (str_line_match, line) in enumerate(
+                    zip(match_split_lines, lines_with_secret)
+                )
+            )
+        else:
+            stripped_match = match.match
         return cls(
             span=span,
-            match=match.match,
+            match=stripped_match,
             lines_before_secret=lines[
                 max(
                     span.line_index_start - NB_CONTEXT_LINES + 1, 0
                 ) : span.line_index_start
             ],
-            lines_with_secret=lines[span.line_index_start : span.line_index_end + 1],
+            lines_with_secret=lines_with_secret,
             lines_after_secret=lines[
                 span.line_index_end
                 + 1 : min(span.line_index_end + NB_CONTEXT_LINES, len(lines))
