@@ -22,18 +22,21 @@ class Result(NamedTuple):
     file: Scannable  # filename that was scanned
     scan: ScanResult  # Result of content scan
 
+    @property
+    def is_on_patch(self) -> bool:
+        return self.file.filemode != Filemode.FILE
+
     def enrich_matches(self, lines: Optional[List[Line]] = None) -> None:
         if not lines:
             content = self.content
             lines = get_lines_from_content(content, self.filemode)
         if len(lines) == 0:
             raise UnexpectedError("Parsing of scan result failed.")
-        is_patch = self.filemode != Filemode.FILE
         for policy_break in self.scan.policy_breaks:
             policy_break.matches = cast(
                 List[Match],
                 [
-                    ExtendedMatch.from_match(match, lines, is_patch)
+                    ExtendedMatch.from_match(match, lines, self.is_on_patch)
                     for match in policy_break.matches
                 ],
             )

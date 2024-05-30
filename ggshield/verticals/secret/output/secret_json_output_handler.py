@@ -3,7 +3,7 @@ from typing import Any, Dict, List, cast
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
-from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
+from ggshield.core.filter import leak_dictionary_by_ignore_sha
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
 from .schemas import JSONScanCollectionSchema
@@ -61,11 +61,11 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
+        result.enrich_matches()
 
         if not self.show_secrets:
-            censor_content(result.content, result.scan.policy_breaks)
+            result.censor()
 
-        result.enrich_matches()  # important to keep this call after censor content
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(
                 ignore_sha,
