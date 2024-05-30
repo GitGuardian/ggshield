@@ -10,6 +10,7 @@ from ggshield.core.match_span import MatchSpan
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.verticals.secret import SecretScanner
 from tests.unit.conftest import (
+    _MULTI_SECRET_ONE_LINE_FULL_PATCH,
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,
     _SINGLE_ADD_PATCH,
@@ -56,6 +57,13 @@ from tests.unit.conftest import (
             True,
             [MatchSpan(5, 5, 10, 79)],
             id="no_newline_before_secret",
+        ),
+        pytest.param(
+            "multiple_secret_one_line",
+            _MULTI_SECRET_ONE_LINE_FULL_PATCH,
+            True,
+            [MatchSpan(1, 1, 16, 31), MatchSpan(1, 1, 53, 85)],
+            id="multiple_secret_one_line",
         ),
     ],
 )

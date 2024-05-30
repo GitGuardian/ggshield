@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Tuple
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
-from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.core.lines import Line, get_lines_from_content, get_offset, get_padding
+from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.lines import Line, get_offset, get_padding
 from ggshield.core.text_utils import (
     STYLE,
     clip_long_line,
@@ -16,7 +16,6 @@ from ggshield.core.text_utils import (
     pluralize,
     translate_validity,
 )
-from ggshield.utils.git_shell import Filemode
 
 from ..extended_match import ExtendedMatch
 from ..secret_scan_collection import Result, SecretScanCollection
@@ -105,18 +104,11 @@ class SecretTextOutputHandler(SecretOutputHandler):
         # Previously process_result was executed only once, so it did not create any issue.
         # In the future we could rework those functions such that they do not change what is in the result.
         result = Result(file=result.file, scan=deepcopy(result.scan))
-        is_patch = result.filemode != Filemode.FILE
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
 
-        if self.show_secrets:
-            content = result.content
-        else:
-            content = censor_content(result.content, result.scan.policy_breaks)
-
-        lines = get_lines_from_content(content, result.filemode)
-        result.enrich_matches(lines)  # important to keep this call after censor content
-        padding = get_padding(lines)
-        offset = get_offset(padding, is_patch)
+        result.enrich_matches()
+        if not self.show_secrets:
+            result.censor()
 
         number_of_displayed_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():
@@ -135,9 +127,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
                 result_buf.write(
                     leak_message_located(
                         flatten_policy_breaks_by_line(policy_breaks),
-                        padding,
-                        offset,
-                        is_patch,
+                        result.is_on_patch,
                         clip_long_lines=not self.verbose,
                     )
                 )
@@ -151,8 +141,6 @@ class SecretTextOutputHandler(SecretOutputHandler):
 
 def leak_message_located(
     flat_matches: List[Tuple[Line, List[ExtendedMatch]]],
-    padding: int,
-    offset: int,
     is_patch: bool = False,
     clip_long_lines: bool = False,
 ) -> str:
@@ -166,6 +154,16 @@ def leak_message_located(
     :param clip_long_lines: Whether to clip long lines
     """
     leak_msg = StringIO()
+    all_lines = []
+    for line, list_matches in flat_matches:
+        if not list_matches:
+            all_lines.append(line)
+        for match in list_matches:
+            all_lines.extend(
+                match.lines_with_secret,
+            )
+    padding = get_padding(all_lines)
+    offset = get_offset(padding, is_patch)
     max_width = shutil.get_terminal_size()[0] - offset if clip_long_lines else 0
 
     old_line_number: Optional[int] = None
@@ -193,13 +191,12 @@ def leak_message_located(
         else:
             # The current line number matches a found secret
             assert line_number is not None  # we cannot have secret in patch hunks
-            assert line.category is not None
             for match in matches:
                 span = match.span
                 if len(match.lines_with_secret) == 1:
                     # The secret is on just one line
                     leak_msg.write(line.build_line_count(padding, is_secret=True))
-                    if is_patch:
+                    if is_patch and line.category is not None:
                         leak_msg.write(
                             line.category.symbol
                         )  # write first symbol of line
@@ -218,9 +215,9 @@ def leak_message_located(
                         leak_msg.write(
                             line_of_secret.build_line_count(padding, is_secret=True)
                         )
-                        if is_patch:
+                        if is_patch and line_of_secret.category is not None:
                             leak_msg.write(
-                                line.category.symbol
+                                line_of_secret.category.symbol
                             )  # write first symbol of line
                         secret_start = span.column_index_start if index == 0 else 0
                         secret_end = (
@@ -258,8 +255,8 @@ def flatten_policy_breaks_by_line(
 ) -> List[Tuple[Line, List[ExtendedMatch]]]:
     """
     flatten_policy_breaks_by_line turns a list of policy breaks into a list of
-    tuples mapping a line to a list of matches starting at that line.
-    The list is sorted by line number.
+    tuples of (line, list of matches) mapping a line to a list of matches starting
+    at that line. The list is sorted by line number.
     """
     flat_match_dict: Dict[Line, List[ExtendedMatch]] = dict()
     for policy_break in policy_breaks:

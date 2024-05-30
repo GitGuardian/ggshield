@@ -193,21 +193,3 @@ def censor_string(text: str) -> str:
 
 def censor_match(match: Match) -> str:
     return censor_string(match.match)
-
-
-def censor_content(content: str, policy_breaks: List[PolicyBreak]) -> str:
-    for policy_break in policy_breaks:
-        for match in policy_break.matches:
-            if match.index_start is None:
-                continue
-
-            match.match = censor_match(match)
-
-            content = "".join(
-                (
-                    content[: match.index_start],
-                    match.match,
-                    content[len(match.match) + match.index_start :],
-                )
-            )
-    return content
