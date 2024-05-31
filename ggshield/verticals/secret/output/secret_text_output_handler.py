@@ -1,5 +1,4 @@
 import shutil
-from copy import deepcopy
 from io import StringIO
 from typing import Dict, List, Optional, Tuple
 
@@ -100,13 +99,8 @@ class SecretTextOutputHandler(SecretOutputHandler):
         """
         result_buf = StringIO()
 
-        # policy breaks and matches are modified in the functions leak_dictionary_by_ignore_sha and censor_content.
-        # Previously process_result was executed only once, so it did not create any issue.
-        # In the future we could rework those functions such that they do not change what is in the result.
-        result = Result(file=result.file, scan=deepcopy(result.scan))
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
 
-        result.enrich_matches()
         if not self.show_secrets:
             result.censor()
 

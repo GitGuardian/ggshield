@@ -93,7 +93,7 @@ def scan_commits_content(
         for commit in commits:
             commit_scanned_callback(commit)
 
-    result_for_urls = {result.file.url: result for result in results.results}
+    result_for_urls = {result.file_url: result for result in results.results}
     scans = []
     for commit in commits:
         results_for_commit_files = [

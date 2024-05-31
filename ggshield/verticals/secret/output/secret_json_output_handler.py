@@ -53,7 +53,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
     def process_result(self, result: Result) -> Dict[str, Any]:
         result_dict: Dict[str, Any] = {
-            "filename": result.file.path,
+            "filename": result.filepath,
             "mode": result.filemode.name,
             "incidents": [],
             "total_occurrences": 0,
@@ -61,7 +61,6 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
-        result.enrich_matches()
 
         if not self.show_secrets:
             result.censor()
