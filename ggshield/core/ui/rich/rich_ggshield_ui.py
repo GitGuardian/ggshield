@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import Any
 
@@ -6,6 +7,8 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
 from typing_extensions import Self
 
+from ggshield.cmd.utils import debug_logs
+from ggshield.cmd.utils.debug_logs import setup_debug_logs
 from ggshield.core.ui.scanner_ui import ScannerUI
 
 from ..ggshield_ui import GGShieldProgress, GGShieldUI
@@ -43,6 +46,7 @@ class RichGGShieldUI(GGShieldUI):
 
     def __init__(self):
         self.console = Console(file=sys.stderr)
+        setup_debug_logs(console=self.console)
 
     def create_scanner_ui(
         self,
@@ -62,12 +66,12 @@ class RichGGShieldUI(GGShieldUI):
 
     def display_info(self, message: str) -> None:
         message = rich.markup.escape(message)
-        self.console.print(message)
+        logging.log(debug_logs.VERBOSE, message)
 
     def display_warning(self, message: str) -> None:
         message = rich.markup.escape(message)
-        self.console.print(f"[yellow]Warning:[/] {message}")
+        logging.warning(message)
 
     def display_error(self, message: str) -> None:
         message = rich.markup.escape(message)
-        self.console.print(f"[red]Error:[/] {message}")
+        logging.error(message)

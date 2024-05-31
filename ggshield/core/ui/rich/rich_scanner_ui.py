@@ -1,10 +1,15 @@
+import logging
 from typing import Any, Sequence
 
 from typing_extensions import Self
 
+from ggshield.cmd.utils.debug_logs import VERBOSE
 from ggshield.core.scan import Scannable
 from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.core.ui.scanner_ui import ScannerUI
+
+
+logger = logging.getLogger(__name__)
 
 
 class RichMessageOnlyScannerUI(ScannerUI):
@@ -27,14 +32,13 @@ class RichMessageOnlyScannerUI(ScannerUI):
         pass
 
     def on_scanned(self, scannables: Sequence[Scannable]) -> None:
-        if self.verbose:
-            for scannable in scannables:
-                self.ui.display_info(f"Scanned {scannable.path}")
+        for scannable in scannables:
+            logger.log(VERBOSE, f"Scanned {scannable.path}")
 
     def on_skipped(self, scannable: Scannable, reason: str) -> None:
         if reason:
             message = f"Skipped {scannable.path}: {reason}"
-            self.ui.display_info(message)
+            logger.info(message)
 
 
 class RichProgressScannerUI(RichMessageOnlyScannerUI):

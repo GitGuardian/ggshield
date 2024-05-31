@@ -105,6 +105,7 @@ def cli(
     ctx: click.Context,
     **kwargs: Any,
 ) -> None:
+    setup_debug_logs()
     load_dot_env()
 
     config = ContextObj.get(ctx).config
@@ -113,7 +114,7 @@ def cli(
 
     if config.user_config.debug:
         # if `debug` is set in the configuration file, then setup logs now.
-        setup_debug_logs(filename=None)
+        setup_debug_logs(level=logging.DEBUG, filename=None)
 
 
 def _set_color(ctx: click.Context):

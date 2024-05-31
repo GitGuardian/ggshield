@@ -1,4 +1,5 @@
 import itertools
+import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -18,6 +19,7 @@ from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
 
+from ...cmd.utils.debug_logs import VERBOSE
 from .output import SecretOutputHandler
 from .secret_scan_collection import Results, SecretScanCollection
 from .secret_scanner import SecretScanner
@@ -25,6 +27,9 @@ from .secret_scanner import SecretScanner
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
 SCAN_THREADS = 4
+
+
+logger = logging.getLogger(__name__)
 
 
 def scan_repo_path(
@@ -179,8 +184,7 @@ def scan_commit_range(
         scans: List[SecretScanCollection] = []
 
         def commit_scanned_callback(commit: Commit):
-            if verbose:
-                progress.ui.display_info(f"Scanned {commit.sha}")
+            logger.log(VERBOSE, f"Scanned {commit.sha}")
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []

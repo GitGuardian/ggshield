@@ -11,13 +11,14 @@ The `kwargs` argument is required because due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
 
+import logging
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar
 
 import click
 
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.cmd.utils.debug_logs import setup_debug_logs
+from ggshield.cmd.utils.debug_logs import VERBOSE, setup_debug_logs
 from ggshield.core.config.user_config import UserConfig
 
 
@@ -74,13 +75,24 @@ def create_config_callback(*option_names: str) -> ClickCallback:
     return callback
 
 
+def verbose_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    obj = get_config_from_context(ctx)
+    if value is not None:
+        obj.verbose = True
+    if obj.verbose:
+        setup_debug_logs(level=VERBOSE, filename=None)
+    return value
+
+
 _verbose_option = click.option(
     "-v",
     "--verbose",
     is_flag=True,
     default=None,
     help="Verbose display mode.",
-    callback=create_config_callback("verbose"),
+    callback=verbose_callback,
 )
 
 
@@ -88,7 +100,7 @@ def debug_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[bool]
 ) -> Optional[bool]:
     if value is not None:
-        setup_debug_logs(filename=None)
+        setup_debug_logs(level=logging.DEBUG, filename=None)
     return value
 
 
@@ -109,7 +121,7 @@ def log_file_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[str]
 ) -> Optional[str]:
     if value is not None:
-        setup_debug_logs(filename=None if value == "-" else value)
+        setup_debug_logs(level=logging.DEBUG, filename=None if value == "-" else value)
     return value
 
 
