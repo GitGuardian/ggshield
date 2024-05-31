@@ -1,4 +1,3 @@
-import logging
 from typing import Any, TextIO, cast
 
 import click
@@ -12,6 +11,7 @@ from ggshield.cmd.hmsl.hmsl_common_options import (
 from ggshield.cmd.hmsl.hmsl_utils import check_secrets
 from ggshield.cmd.utils.common_options import add_common_options, json_option
 from ggshield.core.text_utils import display_info
+from ggshield.utils.logger import Logger
 from ggshield.verticals.hmsl.collection import (
     InputType,
     NamingStrategy,
@@ -20,7 +20,7 @@ from ggshield.verticals.hmsl.collection import (
 )
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 @click.command()

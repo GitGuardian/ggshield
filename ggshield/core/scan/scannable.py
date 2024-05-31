@@ -1,5 +1,4 @@
 import codecs
-import logging
 import urllib.parse
 from abc import ABC, abstractmethod
 from io import SEEK_END, SEEK_SET
@@ -10,9 +9,10 @@ import charset_normalizer
 from charset_normalizer import CharsetMatch
 
 from ggshield.utils.git_shell import Filemode
+from ggshield.utils.logger import Logger
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 # Our worse encoding (UTF-32) would take 4 bytes to encode ASCII, where UTF-8 would take

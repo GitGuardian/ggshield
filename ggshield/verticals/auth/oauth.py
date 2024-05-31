@@ -1,6 +1,5 @@
 import functools
 import json
-import logging
 import os
 import urllib.parse as urlparse
 import webbrowser
@@ -23,6 +22,7 @@ from ggshield.core.config import Config, InstanceConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.url_utils import urljoin
 from ggshield.utils.datetime import get_pretty_date
+from ggshield.utils.logger import Logger
 
 
 CLIENT_ID = "ggshield_oauth"
@@ -34,7 +34,7 @@ SCAN_SCOPE = "scan"
 # https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 USABLE_PORT_RANGE = (29170, 29998)
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 def get_error_param(parsed_url: urlparse.ParseResult) -> Optional[str]:

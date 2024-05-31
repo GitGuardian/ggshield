@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import click
@@ -6,10 +5,11 @@ import click
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.text_utils import STYLE, format_text
+from ggshield.utils.logger import Logger
 from ggshield.verticals.hmsl import get_client
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 @click.command()

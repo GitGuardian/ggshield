@@ -7,12 +7,12 @@ from rich.console import Console
 from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
 
+from ggshield.utils.logger import Logger
 
-VERBOSE = logging.INFO - 1
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(process)x:%(thread)x %(name)s:%(funcName)s:%(lineno)d %(message)s"
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 def disable_logs() -> None:
@@ -29,9 +29,9 @@ class GGShieldHighlighter(RegexHighlighter):
     highlights = [
         "|".join(
             [
+                # FIXME use match groups which make sense
                 r"(?P<call>(GET|POST) /[^\"]+)",
                 r"(?P<url>(file|https|http|ws|wss)://[-0-9a-zA-Z$_+!`(),.?/;:&=%#~]*)",
-                r"(?P<path>\B(/[-\w._+]+)*\/)(?P<filename>[-\w._+]*)?",
                 r"(?P<number>command=\[[^]]+\])",
                 r"(?P<ipv4>\$[A-Z0-9_]+)",
             ]
@@ -56,8 +56,6 @@ def setup_debug_logs(
     global _console
     # Re-enable logging, reverting the call to disable_logs()
     logging.disable(logging.NOTSET)
-
-    logging.addLevelName(VERBOSE, "VERBOSE")
 
     if level:
         _log_level = level

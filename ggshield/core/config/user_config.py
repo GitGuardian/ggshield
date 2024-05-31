@@ -1,4 +1,3 @@
-import logging
 import re
 from dataclasses import field
 from datetime import datetime, timezone
@@ -22,9 +21,10 @@ from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
 from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
+from ggshield.utils.logger import Logger
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 CURRENT_CONFIG_VERSION = 2
 
 _IGNORE_KNOWN_SECRETS_KEY = "ignore_known_secrets"

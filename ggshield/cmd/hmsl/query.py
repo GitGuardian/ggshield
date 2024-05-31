@@ -1,5 +1,4 @@
 import json
-import logging
 from dataclasses import asdict
 from typing import Any, List, TextIO, Tuple, cast
 
@@ -11,10 +10,11 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.text_utils import display_info, pluralize
+from ggshield.utils.logger import Logger
 from ggshield.verticals.hmsl import HASH_REGEX, PREFIX_REGEX, get_client
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 @click.command()

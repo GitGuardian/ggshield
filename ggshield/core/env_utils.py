@@ -1,4 +1,3 @@
-import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -7,10 +6,11 @@ from dotenv import load_dotenv
 
 from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import get_git_root, is_git_dir
+from ggshield.utils.logger import Logger
 from ggshield.utils.os import getenv_bool
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 def _find_dot_env() -> Optional[Path]:

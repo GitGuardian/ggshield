@@ -1,4 +1,3 @@
-import logging
 import os
 import sys
 from typing import Optional, Tuple
@@ -8,10 +7,11 @@ import click
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import EMPTY_SHA, git
+from ggshield.utils.logger import Logger
 from ggshield.utils.os import getenv_float, getenv_int
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 # GitHub timeouts every pre-receive hook after 5s with an error.

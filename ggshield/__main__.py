@@ -32,10 +32,11 @@ from ggshield.core.text_utils import display_warning
 from ggshield.core.ui.plain_text.plain_text_ggshield_ui import PlainTextGGShieldUI
 from ggshield.core.ui.rich.rich_ggshield_ui import RichGGShieldUI
 from ggshield.utils.click import RealPath
+from ggshield.utils.logger import Logger
 from ggshield.utils.os import getenv_bool
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 @scan_group.result_callback()

@@ -1,9 +1,9 @@
-import logging
 from typing import Dict, Generator, List, Tuple
 from urllib.parse import urlparse
 
 import requests
 
+from ggshield.utils.logger import Logger
 from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.exceptions import (
     VaultForbiddenItemError,
     VaultInvalidUrlError,
@@ -16,7 +16,7 @@ from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.models import (
 )
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 class VaultAPIClient:

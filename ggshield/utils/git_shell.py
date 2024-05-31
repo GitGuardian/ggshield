@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import subprocess
@@ -8,6 +7,7 @@ from pathlib import Path
 from shutil import which
 from typing import Dict, List, Optional, Union
 
+from ggshield.utils.logger import Logger
 from ggshield.utils.os import getenv_int
 
 
@@ -16,7 +16,7 @@ EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 COMMAND_TIMEOUT = getenv_int("GG_GIT_TIMEOUT", 45)
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 class GitError(Exception):

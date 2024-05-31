@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 from typing import Any, List
 
@@ -19,11 +18,12 @@ from ggshield.utils.git_shell import (
     check_git_dir,
     get_list_commit_SHA,
 )
+from ggshield.utils.logger import Logger
 from ggshield.verticals.secret.output.messages import remediation_message
 from ggshield.verticals.secret.repo import scan_commit_range
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 REMEDIATION_STEPS = """Since the secret was detected before the push BUT after the commit, you need to:

@@ -1,10 +1,11 @@
 import json
-import logging
 from pathlib import Path
 from typing import Set
 
+from ggshield.utils.logger import Logger
 
-logger = logging.getLogger(__name__)
+
+logger = Logger(__name__)
 
 
 class IDCache:

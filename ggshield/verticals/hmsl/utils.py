@@ -1,4 +1,3 @@
-import logging
 import re
 import time
 from typing import Optional
@@ -14,10 +13,11 @@ from ggshield.core.errors import (
     MissingTokenError,
     UnknownInstanceError,
 )
+from ggshield.utils.logger import Logger
 from ggshield.verticals.hmsl.client import HMSLClient
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 # Tools for parsing env files

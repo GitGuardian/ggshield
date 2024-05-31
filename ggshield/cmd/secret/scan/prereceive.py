@@ -1,4 +1,3 @@
-import logging
 import multiprocessing
 import os
 import re
@@ -27,6 +26,7 @@ from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_error
 from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA
+from ggshield.utils.logger import Logger
 from ggshield.verticals.secret.output import (
     SecretGitLabWebUIOutputHandler,
     SecretOutputHandler,
@@ -35,7 +35,7 @@ from ggshield.verticals.secret.output.messages import remediation_message
 from ggshield.verticals.secret.repo import scan_commit_range
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 def _execute_prereceive(

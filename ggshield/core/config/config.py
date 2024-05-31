@@ -1,4 +1,3 @@
-import logging
 import os
 from pathlib import Path
 from typing import Any, Optional
@@ -14,9 +13,10 @@ from ggshield.core.url_utils import (
     clean_url,
     dashboard_to_api_url,
 )
+from ggshield.utils.logger import Logger
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 class Config:

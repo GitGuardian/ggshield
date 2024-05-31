@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -15,13 +14,14 @@ from ggshield.cmd.utils.common_options import all_option
 from ggshield.core.git_hooks.prereceive import get_breakglass_option, parse_stdin
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.utils.git_shell import EMPTY_TREE, check_git_ref, is_valid_git_commit_ref
+from ggshield.utils.logger import Logger
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
 )
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 REMEDIATION_MESSAGE = """  A pre-receive hook set server side prevents you from pushing SCA vulnerabilities.
 Apply the recommended remediation steps to remove the vulnerability."""

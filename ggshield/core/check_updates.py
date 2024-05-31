@@ -1,4 +1,3 @@
-import logging
 import time
 from typing import Optional, Tuple
 
@@ -6,11 +5,12 @@ import requests
 
 from ggshield import __version__
 from ggshield.core.dirs import get_cache_dir
+from ggshield.utils.logger import Logger
 
 from .config.utils import load_yaml_dict, save_yaml_dict
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 CACHE_FILE = get_cache_dir() / "update_check.yaml"
 
 CHECK_AT_KEY = "check-at"

@@ -1,4 +1,3 @@
-import logging
 import os
 import platform
 import sys
@@ -7,8 +6,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Iterator, Optional, Tuple, Union, overload
 
+from ggshield.utils.logger import Logger
 
-logger = logging.getLogger(__name__)
+
+logger = Logger(__name__)
 
 
 @lru_cache(None)

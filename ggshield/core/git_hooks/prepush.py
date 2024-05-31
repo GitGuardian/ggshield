@@ -1,13 +1,13 @@
-import logging
 import os
 import sys
 from typing import List, Optional, Tuple
 
 from ggshield.core.text_utils import display_warning
 from ggshield.utils.git_shell import EMPTY_SHA, git, is_valid_git_commit_ref
+from ggshield.utils.logger import Logger
 
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 
 OUTDATED_HOOK_MESSAGE = """The installed pre-push hook did not pass its command-line arguments to ggshield. This can cause the hook to fail if the name of the remote you are pushing to is not "origin".
