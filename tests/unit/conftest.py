@@ -14,6 +14,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import ScanResult, SecretIncident
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
+from ggshield.core import log_utils
 from ggshield.core.cache import Cache
 from ggshield.core.url_utils import dashboard_to_api_url
 from ggshield.utils.git_shell import (
@@ -750,3 +751,15 @@ SECRET_INCIDENT_MOCK = SecretIncident.from_dict(
         "occurrences": [],
     }
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_debug_logs():
+    """
+    log_utils has global side effects. Reset them to ensure a test touching the log
+    configuration does not affect the other tests.
+    """
+    try:
+        yield
+    finally:
+        log_utils.reset_debug_logs()

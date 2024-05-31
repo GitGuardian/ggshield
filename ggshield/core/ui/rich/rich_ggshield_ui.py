@@ -3,9 +3,13 @@ from typing import Any
 
 import rich.markup
 from rich.console import Console
+from rich.highlighter import RegexHighlighter
+from rich.logging import RichHandler
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
+from rich.theme import Theme
 from typing_extensions import Self
 
+from ggshield.core.log_utils import set_log_handler
 from ggshield.core.ui.scanner_ui import ScannerUI
 
 from ..ggshield_ui import GGShieldProgress, GGShieldUI
@@ -36,13 +40,49 @@ class RichGGShieldProgress(GGShieldProgress):
         self.progress.__exit__(*args)
 
 
+class LogHighlighter(RegexHighlighter):
+    """Rich highlighter used by our Rich logging handler"""
+
+    base_style = "log."
+    highlights = [
+        r'(?P<attrib_name>[\w_-]{1,50})=(?P<attrib_value>"?[.\w_-]+"?)?',
+        "|".join(
+            [
+                r"(?P<http_call>(GET|POST) /[^\"]+)",
+                r"(?P<url>(file|https|http|ws|wss)://[-0-9a-zA-Z$_+!`(),.?/;:&=%#~]*)",
+                r"=\[(?P<attrib_value>[^]]+)",
+                r"(?P<env_var>\$[A-Z0-9_]+)",
+            ]
+        ),
+    ]
+
+
 class RichGGShieldUI(GGShieldUI):
     """
     Implementation of GGShieldUI using rich, for a more user-friendly terminal output.
     """
 
     def __init__(self):
-        self.console = Console(file=sys.stderr)
+        self.console = Console(
+            file=sys.stderr,
+            theme=Theme(
+                {
+                    "log.attrib_name": "dim yellow",
+                    "log.attrib_value": "green",
+                    "log.http_call": "magenta",
+                    "log.url": "blue underline",
+                    "log.command": "green",
+                    "log.env_var": "red",
+                }
+            ),
+        )
+
+        handler = RichHandler(
+            highlighter=LogHighlighter(),
+            console=self.console,
+            keywords=[],
+        )
+        set_log_handler(handler)
 
     def create_scanner_ui(
         self,

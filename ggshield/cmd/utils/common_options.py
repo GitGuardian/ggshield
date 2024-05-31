@@ -17,9 +17,9 @@ from typing import Any, Callable, List, Optional, TypeVar
 import click
 
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.cmd.utils.debug_logs import setup_debug_logs
 from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.config.user_config import UserConfig
+from ggshield.core.log_utils import setup_debug_logs
 
 
 AnyFunction = Callable[..., Any]
@@ -89,7 +89,7 @@ def debug_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[bool]
 ) -> Optional[bool]:
     if value is not None:
-        setup_debug_logs(filename=None)
+        setup_debug_logs()
     return value
 
 
