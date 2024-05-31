@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from os import PathLike
+from pathlib import Path
 from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
 
 from pygitguardian.models import Match, ScanResult
@@ -12,24 +13,41 @@ from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 
-class Result(NamedTuple):
+class Result:
     """
     Return model for a scan which zips the information
     between the Scan result and its input file.
     """
 
-    # TODO: Rename `file` to `scannable`?
-    file: Scannable  # filename that was scanned
+    filename: str  # Name of the file/patch scanned
+    filemode: Filemode
+    filepath: Path
+    file_url: str
     scan: ScanResult  # Result of content scan
+
+    def __init__(self, file: Scannable, scan: ScanResult):
+        self.filename = file.filename
+        self.filemode = file.filemode
+        self.filepath = file.path
+        self.file_url = file.url
+        self.scan = scan
+        lines = get_lines_from_content(file.content, self.filemode)
+        self.enrich_matches(lines)
+
+    def __eq__(self, other: "Result"):
+        return (
+            self.filename == other.filename
+            and self.filemode == other.filemode
+            and self.filepath == other.filepath
+            and self.file_url == other.file_url
+            and self.scan == other.scan
+        )
 
     @property
     def is_on_patch(self) -> bool:
-        return self.file.filemode != Filemode.FILE
+        return self.filemode != Filemode.FILE
 
-    def enrich_matches(self, lines: Optional[List[Line]] = None) -> None:
-        if not lines:
-            content = self.content
-            lines = get_lines_from_content(content, self.filemode)
+    def enrich_matches(self, lines: List[Line]) -> None:
         if len(lines) == 0:
             raise UnexpectedError("Parsing of scan result failed.")
         for policy_break in self.scan.policy_breaks:
@@ -45,18 +63,6 @@ class Result(NamedTuple):
         for policy_break in self.scan.policy_breaks:
             for extended_match in policy_break.matches:
                 cast(ExtendedMatch, extended_match).censor()
-
-    @property
-    def filename(self) -> str:
-        return self.file.filename
-
-    @property
-    def filemode(self) -> Filemode:
-        return self.file.filemode
-
-    @property
-    def content(self) -> str:
-        return self.file.content
 
     @property
     def has_policy_breaks(self) -> bool:

@@ -45,6 +45,7 @@ class ExtendedMatch(Match):
     def __init__(
         self,
         span: MatchSpan,
+        content_match: str,
         lines_before_secret: List[Line],
         lines_with_secret: List[Line],
         lines_after_secret: List[Line],
@@ -55,6 +56,7 @@ class ExtendedMatch(Match):
         **kwargs: Any,
     ):
         self.span = span
+        self.content_match = content_match
         self.lines_before_secret = lines_before_secret
         self.lines_with_secret = lines_with_secret
         self.lines_after_secret = lines_after_secret
@@ -97,8 +99,14 @@ class ExtendedMatch(Match):
         else:
             stripped_match = match.match
         return cls(
-            span=span,
             match=stripped_match,
+            content_match=match.match,  # for backward compatibility
+            # content_match still contails the patch symbols and is used
+            # to get the policy breaks shas
+            index_start=match.index_start,
+            index_end=match.index_end,
+            span=span,
+            stripped_match=stripped_match,
             lines_before_secret=lines[
                 max(
                     span.line_index_start - NB_CONTEXT_LINES + 1, 0
@@ -110,8 +118,6 @@ class ExtendedMatch(Match):
                 + 1 : min(span.line_index_end + NB_CONTEXT_LINES, len(lines))
             ],
             match_type=match.match_type,
-            index_start=span.column_index_start,
-            index_end=span.column_index_end,
             line_start=line_index_start,
             line_end=line_index_end,
             pre_line_start=start_line.pre_index,

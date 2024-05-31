@@ -5,7 +5,6 @@ import pytest
 from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
-from ggshield.core.lines import get_lines_from_content
 from ggshield.core.match_span import MatchSpan
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.verticals.secret import SecretScanner
@@ -92,17 +91,12 @@ def test_from_span(
         results = scanner.scan(files, scanner_ui=Mock())
         result = results.results[0]
 
-    lines = get_lines_from_content(
-        content=result.content,
-        filemode=result.filemode,
-    )
     matches = [
         match
         for policy_break in result.scan.policy_breaks
         for match in policy_break.matches
     ]
     for expected_span, match in zip(expected_spans, matches):
-        span = MatchSpan.from_match(match, lines, is_patch=is_patch)
-        assert span == expected_span
+        assert match.span == expected_span
 
     assert len(expected_spans) == len(matches)

@@ -36,8 +36,8 @@ def test_from_match_for_plain_content():
     assert ex_match.line_end == 3
     # ExtendedMatch.from_match() "hijacks" index_start and index_end: they become
     # 0-based *columns*, and index_end points to the character *after* the match :/
-    assert ex_match.index_start == 6
-    assert ex_match.index_end == 10
+    assert ex_match.span.column_index_start == 6
+    assert ex_match.span.column_index_end == 10
     assert ex_match.lines_before_secret == [
         Line(content="01234567890", category=LineCategory.DATA, pre_index=2),
         Line(content="*/", category=LineCategory.DATA, pre_index=3),
@@ -75,8 +75,8 @@ def test_from_match_for_a_patch():
 
     assert ex_match.line_start == 150
     assert ex_match.line_end == 150
-    assert ex_match.index_start == 10
-    assert ex_match.index_end == 79
+    assert ex_match.span.column_index_start == 10
+    assert ex_match.span.column_index_end == 79
     assert ex_match.lines_before_secret == [
         Line(
             content="@@ -150 +150,2 @",
