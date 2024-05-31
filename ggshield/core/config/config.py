@@ -13,6 +13,7 @@ from ggshield.core.url_utils import (
     api_to_dashboard_url,
     clean_url,
     dashboard_to_api_url,
+    validate_instance_url,
 )
 
 
@@ -68,6 +69,7 @@ class Config:
         except KeyError:
             pass
         else:
+            validate_instance_url(url)
             return remove_url_trailing_slash(url)
 
         try:

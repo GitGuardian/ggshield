@@ -2,6 +2,7 @@ import re
 from typing import Any, List, Optional, Tuple
 
 import click
+import requests
 
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -189,7 +190,14 @@ def token_login(config: Config, instance: Optional[str]) -> None:
 
     # enforce using the token (and not use config default)
     client = create_client(api_key=token, api_url=config.api_url)
-    response = client.get(endpoint="token")
+    try:
+        response = client.get(endpoint="token")
+    except requests.exceptions.ConnectionError as e:
+        if "Failed to resolve" in str(e):
+            raise click.UsageError(f"Invalid instance: {instance}.")
+        else:
+            raise UnexpectedError(f"Failed to connect to {instance}.") from e
+
     if not response.ok:
         raise UnexpectedError("Authentication failed with token.")
 

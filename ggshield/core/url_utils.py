@@ -24,24 +24,33 @@ def clean_url(url: str, warn: bool = False) -> ParseResult:
     return parsed_url
 
 
+def validate_instance_url(url: str, warn: bool = False) -> ParseResult:
+    """
+    Validate a dashboard URL
+    """
+    parsed_url = clean_url(url, warn=warn)
+    if parsed_url.scheme != "https" and not (
+        parsed_url.netloc.startswith("localhost")
+        or parsed_url.netloc.startswith("127.0.0.1")
+    ):
+        raise UsageError(f"Invalid scheme for dashboard URL '{url}', expected HTTPS")
+    if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
+        if parsed_url.path:
+            raise UsageError(
+                f"Invalid dashboard URL '{url}', got an unexpected path '{parsed_url.path}'"
+            )
+
+    return parsed_url
+
+
 def dashboard_to_api_url(dashboard_url: str, warn: bool = False) -> str:
     """
     Convert a dashboard URL to an API URL.
     handles the SaaS edge case where the host changes instead of the path
     """
-    parsed_url = clean_url(dashboard_url, warn=warn)
-    if parsed_url.scheme != "https" and not (
-        parsed_url.netloc.startswith("localhost")
-        or parsed_url.netloc.startswith("127.0.0.1")
-    ):
-        raise UsageError(
-            f"Invalid scheme for dashboard URL '{dashboard_url}', expected HTTPS"
-        )
+    parsed_url = validate_instance_url(dashboard_url, warn=warn)
+
     if any(parsed_url.netloc.endswith("." + domain) for domain in GITGUARDIAN_DOMAINS):
-        if parsed_url.path:
-            raise UsageError(
-                f"Invalid dashboard URL '{dashboard_url}', got an unexpected path '{parsed_url.path}'"
-            )
         parsed_url = parsed_url._replace(
             netloc=parsed_url.netloc.replace("dashboard", "api")
         )
