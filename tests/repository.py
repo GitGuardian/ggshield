@@ -28,8 +28,8 @@ class Repository:
             raise exc
 
     @classmethod
-    def create(cls, path: Path, bare=False) -> "Repository":
-        cmd = ["init", str(path), "--initial-branch", "main"]
+    def create(cls, path: Path, bare=False, initial_branch="main") -> "Repository":
+        cmd = ["init", str(path), "--initial-branch", initial_branch]
         if bare:
             cmd.append("--bare")
         git(cmd)

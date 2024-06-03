@@ -15,6 +15,7 @@ class ScanMode(Enum):
     DIRECTORY = "directory"
     DIFF = "diff"
     DOCSET = "docset"
+    CHANGE = "change"
     # IAC/SCA scan modes
     DIRECTORY_ALL = "directory_all"
     DIRECTORY_DIFF = "directory_diff"
