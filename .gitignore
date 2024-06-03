@@ -129,3 +129,4 @@ test-secret-files.json
 
 # cache
 .cache_ggshield
+*.msi

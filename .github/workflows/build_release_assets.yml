@@ -154,6 +154,43 @@ jobs:
           MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
           MACOS_API_KEY_FILE: ${{ secrets.MACOS_API_KEY_FILE }}
 
+      - name: Setup Windows environment
+        if: startsWith(matrix.os, 'windows-') && inputs.release_mode
+        shell: bash
+        run: |
+          signtool_install_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
+          smctl_install_dir="/c/Program Files/DigiCert/DigiCert Keylocker Tools"
+
+          # Add signtool dir to $PATH
+          if [ ! -x "$signtool_install_dir/signtool.exe" ] ; then
+            echo "signtool.exe is not in '$signtool_install_dir'"
+            exit 1
+          fi
+          echo "$signtool_install_dir" >> $GITHUB_PATH
+
+          # Add smctl dir to $PATH
+          # Don't test if smctl is there: it is installed by the next step
+          echo "$smctl_install_dir" >> $GITHUB_PATH
+
+          # Create our certificate file
+          cert_file="$TMPDIR/cert.p12"
+          echo "${{ secrets.SM_CLIENT_CERT_FILE }}" | base64 --decode > "$cert_file"
+
+          # Add secrets to env
+          cat >> $GITHUB_ENV <<EOF
+          WINDOWS_CERT_FINGERPRINT=${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+          SM_API_KEY=${{ secrets.SM_API_KEY }}
+          SM_HOST=${{ secrets.SM_HOST }}
+          SM_CLIENT_CERT_FILE=$cert_file
+          SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          EOF
+
+      - name: Install Windows dependencies
+        if: startsWith(matrix.os, 'windows-') && inputs.release_mode
+        shell: bash
+        run: |
+          scripts/build-os-packages/install-keylockertools
+
       - name: Build
         shell: bash
         run: |

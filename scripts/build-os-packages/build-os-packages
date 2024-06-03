@@ -132,6 +132,9 @@ load_os_specific_code() {
     macOS)
         . "$SCRIPT_DIR/macos-functions.bash"
         ;;
+    Windows)
+        . "$SCRIPT_DIR/windows-functions.bash"
+        ;;
     *)
         ;;
     esac
@@ -141,6 +144,9 @@ add_os_specific_sign_requirements() {
     case "$HUMAN_OS" in
     macOS)
         macos_add_sign_dependencies
+        ;;
+    Windows)
+        windows_add_sign_dependencies
         ;;
     *)
         ;;
@@ -233,6 +239,9 @@ step_sign() {
     macOS)
         macos_sign
         ;;
+    Windows)
+        windows_sign
+        ;;
     *)
         info "Signing not supported on $HUMAN_OS, skipping step"
         ;;
@@ -324,6 +333,9 @@ cd "$ROOT_DIR"
 read_version
 init_system_vars
 load_os_specific_code
+if [ "$DO_SIGN" -eq 1 ] ; then
+    add_os_specific_sign_requirements
+fi
 
 if [ -z "$steps" ] ; then
     steps=$DEFAULT_STEPS

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOWNLOAD_URL=https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download
+KEYLOCKER_TOOLS_MSI_PATH=Keylockertools-windows-x64.msi
+
+if command -v smctl.exe > /dev/null ; then
+    echo "Skipping installation of Keylockertools, smctl is already there"
+else
+    curl \
+        -H "x-api-key:$SM_API_KEY" \
+        -o "$KEYLOCKER_TOOLS_MSI_PATH" \
+        --continue-at - \
+        "$DOWNLOAD_URL"
+
+    # double '/' so that Git Bash does not turn them into paths
+    msiexec //passive //i "$KEYLOCKER_TOOLS_MSI_PATH"
+fi
+
+if ! command -v smctl.exe > /dev/null ; then
+    echo "smctl.exe not found after installation. Make sure its installation dir is in \$PATH"
+    exit 1
+fi
+
+set -x # Log commands before running them
+smksp_registrar list
+smctl keypair ls
+certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+
+# Synchronize certificates with Windows certificate store
+smctl windows certsync
+
+smctl healthcheck --tools
