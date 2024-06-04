@@ -13,6 +13,7 @@ from ggshield.cmd.secret.scan.pypi import (
     save_package_to_tmp,
 )
 from ggshield.core.errors import UnexpectedError
+from ggshield.utils.files import ListFilesMode
 
 
 class TestPipDownload:
@@ -111,9 +112,8 @@ class TestListPackageFiles:
             get_files_from_paths_mock.assert_called_once_with(
                 paths=[tmp_path],
                 exclusion_regexes=expected_exclusion_regexes,
-                recursive=True,
                 yes=True,
                 display_scanned_files=verbose,
                 display_binary_files=verbose,
-                ignore_git=True,
+                list_files_mode=ListFilesMode.ALL,
             )

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Set
 
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.utils.files import ListFilesMode
 
 
 IAC_EXTENSIONS = {
@@ -37,12 +38,18 @@ def get_iac_files_from_path(
         for x in get_files_from_paths(
             paths=[path],
             exclusion_regexes=exclusion_regexes,
-            recursive=True,
             yes=True,
             display_binary_files=verbose,
-            display_scanned_files=False,  # If True, this displays all files in the directory but we only want IaC files
-            ignore_git=ignore_git,
-            ignore_git_staged=ignore_git_staged,
+            display_scanned_files=False,
+            list_files_mode=(
+                ListFilesMode.ALL
+                if ignore_git
+                else (
+                    ListFilesMode.GIT_COMMITTED
+                    if ignore_git_staged
+                    else ListFilesMode.GIT_COMMITTED_OR_STAGED
+                )
+            ),
         )
         if is_iac_file_path(x.path)
     ]

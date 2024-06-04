@@ -14,6 +14,7 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.click import RealPath
+from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
@@ -44,11 +45,10 @@ def archive_cmd(
         files = get_files_from_paths(
             paths=[temp_path],
             exclusion_regexes=ctx_obj.exclusion_regexes,
-            recursive=True,
             yes=True,
             display_scanned_files=verbose,
             display_binary_files=verbose,
-            ignore_git=True,
+            list_files_mode=ListFilesMode.ALL,
         )
 
         with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:

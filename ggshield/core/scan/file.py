@@ -4,7 +4,12 @@ from typing import Iterable, Iterator, List, Set, Union
 
 import click
 
-from ggshield.utils.files import UnexpectedDirectoryError, get_filepaths, is_path_binary
+from ggshield.utils.files import (
+    ListFilesMode,
+    UnexpectedDirectoryError,
+    get_filepaths,
+    is_path_binary,
+)
 
 from .scannable import Scannable
 
@@ -52,18 +57,15 @@ class File(Scannable):
 def get_files_from_paths(
     paths: List[Path],
     exclusion_regexes: Set[re.Pattern],
-    recursive: bool,
     yes: bool,
     display_scanned_files: bool,
     display_binary_files: bool,
-    ignore_git: bool = False,
-    ignore_git_staged: bool = False,
+    list_files_mode: ListFilesMode = ListFilesMode.GIT_COMMITTED_OR_STAGED,
 ) -> List[Scannable]:
     """
     Create a scan object from files content.
 
     :param paths: List of file/dir paths from the command
-    :param recursive: Recursive option
     :param yes: Skip confirmation option
     :param display_scanned_files: In some parts of the code (e.g. SCA), we might want
     to display a processed list instead and set this to False
@@ -74,9 +76,7 @@ def get_files_from_paths(
         filepaths = get_filepaths(
             paths,
             exclusion_regexes,
-            recursive,
-            ignore_git=ignore_git,
-            ignore_git_staged=ignore_git_staged,
+            list_files_mode=list_files_mode,
         )
     except UnexpectedDirectoryError as error:
         raise click.UsageError(
