@@ -115,6 +115,19 @@ class APIKeyCheckError(AuthError):
         super().__init__(instance, message)
 
 
+class NotAMergeRequestError(_ExitError):
+    """
+    Raised when the command is not run in a Merge Request, while
+    it expects it to.
+    """
+
+    def __init__(self):
+        super().__init__(
+            ExitCode.USAGE_ERROR,
+            "This command expects to be run from a merge request.",
+        )
+
+
 def format_validation_error(exc: ValidationError) -> str:
     """
     Take a Marshmallow ValidationError and turn it into a more user-friendly message
