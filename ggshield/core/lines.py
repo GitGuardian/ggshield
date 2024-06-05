@@ -159,7 +159,6 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
 
 def get_padding(lines: List[Line]) -> int:
     """Return the number of digit of the maximum line number."""
-    # value can be None
     return max(len(str(lines[-1].pre_index or 0)), len(str(lines[-1].post_index or 0)))
 
 
