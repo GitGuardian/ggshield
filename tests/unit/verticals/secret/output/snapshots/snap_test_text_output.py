@@ -16,7 +16,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +Facebook = 294*********575 | ce3f9f********************5e4372;
                   |__client_id__|
   1 | +Facebook = 294*********575 | ce3f9f********************5e4372;
@@ -34,7 +34,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
                   |__client_id__|
   1 | +Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -54,7 +54,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +Facebook = 294*********575 | ce3f9f********************5e4372;
                   |__client_id__|
   1 | +Facebook = 294*********575 | ce3f9f********************5e4372;
@@ -74,7 +74,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
                   |__client_id__|
   1 | +Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -92,7 +92,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f*************…
                        |__client_id__|
   1 | +…= 294*********575; FacebookAppSecret = ce3f9f********************5e4372;
@@ -110,7 +110,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01d…
                        |__client_id__|
   1 | +…= 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -130,7 +130,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f********************5e4372;
                        |__client_id__|
   1 | +FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f********************5e4372;
@@ -150,7 +150,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
                        |__client_id__|
   1 | +FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -168,7 +168,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +2 @
+    | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294*********575;
                        |__client_id__|
   2 | +FacebookAppSecret = ce3f9f********************5e4372;
@@ -186,7 +186,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +2 @
+    | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294790898041575;
                        |__client_id__|
   2 | +FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -206,7 +206,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +2 @
+    | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294*********575;
                        |__client_id__|
   2 | +FacebookAppSecret = ce3f9f********************5e4372;
@@ -226,7 +226,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
 
-    | @@ -0,0 +2 @
+    | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294790898041575;
                        |__client_id__|
   2 | +FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -244,12 +244,12 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 ----…
                         |__client_id__|
-  1 | +… 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRI…
+  1 | +… 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRIV…
                            |_________client_secret________|
-  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiE*****************************+******
+  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
   3 | +****************************************************************
 
 >> Secret detected: RSA Private Key
@@ -258,17 +258,17 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +…**573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
-  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiE*****************************+******
+  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
   3 | +****************************************************************
   4 | +****************************************************************
   5 | +***********+****************************************************
   6 | +****************+***********************************************
   7 | +**********************+*****************************************
-  8 | +****+*****wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
+  8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +-----END RSA PRIVATE KEY----- token: SG._Yytrtvlj***********************…
-       |_________________________________apikey________________________________|
+      |_________________________________apikey_________________________________|
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
@@ -277,7 +277,7 @@ snapshots[
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
 
   7 | +**********************+*****************************************
-  8 | +****+*****wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
+  8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +…-- token: SG._Yytrtvlj******************************************-**rRJLGFLBLf0M
                   |_______________________________apikey______________________________|
 """
@@ -293,10 +293,10 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 ----…
                         |__client_id__|
-  1 | +… 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRI…
+  1 | +… 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIV…
                            |_________client_secret________|
   2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
   3 | +bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I
@@ -307,7 +307,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +…41573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
   2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
   3 | +bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I
@@ -317,7 +317,7 @@ snapshots[
   7 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
   8 | +RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +-----END RSA PRIVATE KEY----- token: SG._YytrtvljkWqCrkMa3r5hw.yijiPf2qx…
-       |_________________________________apikey________________________________|
+      |_________________________________apikey_________________________________|
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
@@ -344,12 +344,12 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
                         |__client_id__|
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
                                           |_________client_secret________|
-  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiE*****************************+******
+  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
   3 | +****************************************************************
 
 >> Secret detected: RSA Private Key
@@ -358,17 +358,17 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
-  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiE*****************************+******
+  2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
   3 | +****************************************************************
   4 | +****************************************************************
   5 | +***********+****************************************************
   6 | +****************+***********************************************
   7 | +**********************+*****************************************
-  8 | +****+*****wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
+  8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +-----END RSA PRIVATE KEY----- token: SG._Yytrtvlj******************************************-**rRJLGFLBLf0M
-       
+      
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
@@ -377,7 +377,7 @@ secrets-engine-version: 3.14.159
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
 
   7 | +**********************+*****************************************
-  8 | +****+*****wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
+  8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +-----END RSA PRIVATE KEY----- token: SG._Yytrtvlj******************************************-**rRJLGFLBLf0M
                                             |_______________________________apikey______________________________|
 """
@@ -395,7 +395,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
                         |__client_id__|
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -409,7 +409,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-    | @@ -0,0 +1,29 @
+    | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
   2 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
   3 | +bKO9LFtMiVPy700oMWLScwAN5OAiqVLMvHUCAwEAAQJANLr8nmEWuV6t2hAwhK5I
@@ -419,7 +419,7 @@ secrets-engine-version: 3.14.159
   7 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
   8 | +RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
   9 | +-----END RSA PRIVATE KEY----- token: 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
-       
+      
 
 >> Secret detected: SendGrid Key
    Occurrences: 1
@@ -444,18 +444,18 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-      | @@ -0,0 +1,29 @
+      | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
     2 | +- text: -----BEGIN RSA PRIVATE KEY-----
-    3 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiE*****************************+******
+    3 | +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
     4 | +****************************************************************
     5 | +****************************************************************
     6 | +***********+****************************************************
     7 | +****************+***********************************************
     8 | +**********************+*****************************************
-    9 | +****+*****wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
+    9 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
    10 | +-----END RSA PRIVATE KEY-----
-         |____________________________apikey____________________________|
+        |_____________________________apikey____________________________|
 """
 
 snapshots[
@@ -469,7 +469,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-      | @@ -0,0 +1,29 @
+      | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
     2 | +- text: -----BEGIN RSA PRIVATE KEY-----
     3 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
@@ -480,7 +480,7 @@ snapshots[
     8 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
     9 | +RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
    10 | +-----END RSA PRIVATE KEY-----
-         |____________________________apikey____________________________|
+        |_____________________________apikey____________________________|
 """
 
 snapshots[
@@ -496,18 +496,18 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-      | @@ -0,0 +1,29 @
+      | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
     2 | +- text: -----BEGIN RSA PRIVATE KEY-----
-    3 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiE*****************************+******
+    3 | +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
     4 | +****************************************************************
     5 | +****************************************************************
     6 | +***********+****************************************************
     7 | +****************+***********************************************
     8 | +**********************+*****************************************
-    9 | +****+*****wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
+    9 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
    10 | +-----END RSA PRIVATE KEY-----
-         |____________________________apikey____________________________|
+        |_____________________________apikey____________________________|
 """
 
 snapshots[
@@ -523,7 +523,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
 
-      | @@ -0,0 +1,29 @
+      | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
     2 | +- text: -----BEGIN RSA PRIVATE KEY-----
     3 | +MIIBOgIBAAJBAIIRkYjxjE3KIZiEc8k4sWWGNsPYRNE0u0bl5oFVApPLm+uXQ/4l
@@ -534,7 +534,7 @@ secrets-engine-version: 3.14.159
     8 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
     9 | +RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
    10 | +-----END RSA PRIVATE KEY-----
-         |____________________________apikey____________________________|
+        |_____________________________apikey____________________________|
 """
 
 snapshots[
@@ -548,7 +548,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +github_token: 368ac3e**************************37ddf91
                      |________________apikey________________|
 """
@@ -564,7 +564,7 @@ snapshots[
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
                      |________________apikey________________|
 """
@@ -582,7 +582,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +github_token: 368ac3e**************************37ddf91
                      |________________apikey________________|
 """
@@ -600,7 +600,7 @@ secrets-engine-version: 3.14.159
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
 
-    | @@ -0,0 +1 @
+    | @@ -0,0 +1 @@
   1 | +github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
                      |________________apikey________________|
 """

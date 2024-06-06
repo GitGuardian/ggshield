@@ -175,8 +175,6 @@ def leak_message_located(
         if not matches:
             # The current line is just here for context
             leak_msg.write(line.build_line_count(padding, is_secret=False))
-            if is_patch and line.category is not None:
-                leak_msg.write(line.category.symbol)  # write first symbol of line
             if clip_long_lines:
                 line_content = clip_long_line(
                     line_content, max_width - int(is_patch), after=True
@@ -190,10 +188,6 @@ def leak_message_located(
                 if len(match.lines_with_secret) == 1:
                     # The secret is on just one line
                     leak_msg.write(line.build_line_count(padding, is_secret=True))
-                    if is_patch and line.category is not None:
-                        leak_msg.write(
-                            line.category.symbol
-                        )  # write first symbol of line
                     formatted_line, detector_position = format_line_with_secret(
                         line_content,
                         span.column_index_start,
@@ -209,10 +203,6 @@ def leak_message_located(
                         leak_msg.write(
                             line_of_secret.build_line_count(padding, is_secret=True)
                         )
-                        if is_patch and line_of_secret.category is not None:
-                            leak_msg.write(
-                                line_of_secret.category.symbol
-                            )  # write first symbol of line
                         secret_start = span.column_index_start if index == 0 else 0
                         secret_end = (
                             span.column_index_end
@@ -235,9 +225,7 @@ def leak_message_located(
                     line_number += len(match.lines_with_secret) - 1
                 detector_position = int(detector_position[0]), int(detector_position[1])
                 detector = format_detector(match.match_type, *detector_position)
-                leak_msg.write(
-                    (" " if is_patch else "") + display_detector(detector, offset)
-                )
+                leak_msg.write(display_detector(detector, offset))
 
         old_line_number = line_number
 
@@ -343,7 +331,7 @@ def format_line_with_secret(
 
     # Clip the context if it is too long
     if max_width:
-        context_max_length = max_width - int(is_patch) - secret_length
+        context_max_length = max_width - secret_length
         if len(context_before) + len(context_after) > context_max_length:
             # Both before and after context are too long, cut them to the same size
             if (
@@ -351,7 +339,10 @@ def format_line_with_secret(
                 and len(context_after) > context_max_length // 2
             ):
                 context_before = clip_long_line(
-                    context_before, context_max_length // 2, before=True
+                    context_before,
+                    context_max_length // 2,
+                    before=True,
+                    is_patch=is_patch,
                 )
                 context_after = clip_long_line(
                     context_after, context_max_length // 2, after=True
@@ -360,7 +351,10 @@ def format_line_with_secret(
             # available
             elif len(context_before) > context_max_length // 2:
                 context_before = clip_long_line(
-                    context_before, context_max_length - len(context_after), before=True
+                    context_before,
+                    context_max_length - len(context_after),
+                    before=True,
+                    is_patch=is_patch,
                 )
             # Only the after context is too long, same idea
             elif len(context_after) > context_max_length // 2:
