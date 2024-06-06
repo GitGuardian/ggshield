@@ -1,9 +1,7 @@
-import os
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import click
-from click import UsageError
 
 from ggshield.cmd.sca.scan.sca_scan_utils import (
     create_output_handler,
@@ -15,12 +13,15 @@ from ggshield.cmd.sca.scan.scan_common_options import (
     update_context,
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
-from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.core.errors import handle_exception
-from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
+from ggshield.core.git_hooks.ci.get_scan_ci_parameters import (
+    NotAMergeRequestError,
+    get_scan_ci_parameters,
+)
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan.scan_mode import ScanMode
+from ggshield.utils.git_shell import git
 from ggshield.verticals.sca.collection.collection import (
     SCAScanAllVulnerabilityCollection,
     SCAScanDiffVulnerabilityCollection,
@@ -31,7 +32,6 @@ from ggshield.verticals.sca.collection.collection import (
 @add_sca_scan_common_options()
 @click.pass_context
 @directory_argument
-@all_option
 @exception_wrapper
 def scan_ci_cmd(
     ctx: click.Context,
@@ -41,7 +41,6 @@ def scan_ci_cmd(
     ignore_fixable: bool,
     ignore_not_fixable: bool,
     directory: Optional[Path],
-    scan_all: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -65,34 +64,44 @@ def scan_ci_cmd(
     )
 
     config = ContextObj.get(ctx).config
+    ci_mode = SupportedCI.from_ci_env()
+    output_handler = create_output_handler(ctx)
+
     try:
-        if not (
-            os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")
-        ):
-            raise UsageError("`sca scan ci` should only be used in a CI environment.")
-
-        output_handler = create_output_handler(ctx)
-        if scan_all:
-            result = sca_scan_all(ctx, directory, scan_mode=ScanMode.CI_ALL)
-            scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
-            return output_handler.process_scan_all_result(scan)
-
-        current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
-            config.user_config.verbose
+        # we will work with branch names and deep commits, so we run a git fetch to ensure the
+        # branch names and commit sha are locally available
+        git(["fetch"], cwd=directory)
+        params = get_scan_ci_parameters(
+            ci_mode, wd=directory, verbose=config.user_config.verbose
         )
+        if params is None:
+            click.echo(
+                "No commit found in merge request, skipping scan.",
+                err=True,
+            )
+            return 0
 
-        ci_mode = SupportedCI.from_ci_env()
+        current_commit, reference_commit = params
         scan_mode = f"{ScanMode.CI_DIFF.value}/{ci_mode.value}"
         result = sca_scan_diff(
             ctx=ctx,
             directory=directory,
-            previous_ref=previous_commit,
+            previous_ref=reference_commit,
             current_ref=current_commit,
             scan_mode=scan_mode,
             ci_mode=ci_mode.name,
         )
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)
-
-    except Exception as error:
-        return handle_exception(error, config.user_config.verbose)
+    except NotAMergeRequestError:
+        click.echo(
+            (
+                "WARNING: scan ci expects to be run in a merge-request pipeline.\n"
+                "No target branch could be identified, will perform a scan all instead.\n"
+                "This is a fallback behaviour, that will be removed in a future version."
+            ),
+            err=True,
+        )
+        result = sca_scan_all(ctx, directory=directory, scan_mode=ScanMode.CI_ALL)
+        scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
+        return output_handler.process_scan_all_result(scan)

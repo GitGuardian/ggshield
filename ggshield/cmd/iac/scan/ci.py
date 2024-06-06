@@ -11,16 +11,19 @@ from ggshield.cmd.iac.scan.iac_scan_common_options import (
 )
 from ggshield.cmd.iac.scan.iac_scan_utils import augment_unignored_issues
 from ggshield.cmd.utils.common_decorators import display_beta_warning, exception_wrapper
-from ggshield.cmd.utils.common_options import all_option, directory_argument
+from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.core.git_hooks.ci import get_current_and_previous_state_from_ci_env
+from ggshield.core.git_hooks.ci.get_scan_ci_parameters import (
+    NotAMergeRequestError,
+    get_scan_ci_parameters,
+)
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan.scan_mode import ScanMode
+from ggshield.utils.git_shell import git
 
 
 @click.command()
 @add_iac_scan_common_options()
-@all_option
 @directory_argument
 @click.pass_context
 @display_beta_warning
@@ -31,7 +34,6 @@ def scan_ci_cmd(
     minimum_severity: str,
     ignore_policies: Sequence[str],
     ignore_paths: Sequence[str],
-    scan_all: bool,
     directory: Optional[Path] = None,
     **kwargs: Any,
 ) -> int:
@@ -41,32 +43,51 @@ def scan_ci_cmd(
     The scan is successful if no *new* IaC vulnerability was found, unless `--all` is used,
     in which case the scan is only successful if no IaC vulnerability (old and new) was found.
     """
-    ctx_obj = ContextObj.get(ctx)
-    config = ctx_obj.config
     if directory is None:
         directory = Path().resolve()
+
     update_context(ctx, exit_zero, minimum_severity, ignore_policies, ignore_paths)
+    config = ContextObj.get(ctx).config
     ci_mode = SupportedCI.from_ci_env()
 
-    if scan_all:
+    try:
+        # we will work with branch names and deep commits, so we run a git fetch to ensure the
+        # branch names and commit sha are locally available
+        git(["fetch"], cwd=directory)
+        params = get_scan_ci_parameters(
+            ci_mode, wd=directory, verbose=config.user_config.verbose
+        )
+        if params is None:
+            click.echo(
+                "No commit found in merge request, skipping scan.",
+                err=True,
+            )
+            return 0
+
+        current_commit, reference_commit = params
+
+        result = iac_scan_diff(
+            ctx,
+            directory,
+            reference_commit,
+            current_ref=current_commit,
+            include_staged=True,
+            scan_mode=ScanMode.CI_DIFF,
+            ci_mode=ci_mode,
+        )
+        augment_unignored_issues(config.user_config, result)
+        return display_iac_scan_diff_result(ctx, directory, result)
+    except NotAMergeRequestError:
+        click.echo(
+            (
+                "WARNING: scan ci expects to be run in a merge-request pipeline.\n"
+                "No target branch could be identified, will perform a scan all instead.\n"
+                "This is a fallback behaviour, that will be removed in a future version."
+            ),
+            err=True,
+        )
         result = iac_scan_all(
             ctx, directory, scan_mode=ScanMode.CI_ALL, ci_mode=ci_mode
         )
         augment_unignored_issues(config.user_config, result)
         return display_iac_scan_all_result(ctx, directory, result)
-
-    current_commit, previous_commit = get_current_and_previous_state_from_ci_env(
-        config.user_config.verbose
-    )
-
-    result = iac_scan_diff(
-        ctx,
-        directory,
-        previous_commit,
-        current_ref=current_commit,
-        include_staged=True,
-        scan_mode=ScanMode.CI_DIFF,
-        ci_mode=ci_mode,
-    )
-    augment_unignored_issues(config.user_config, result)
-    return display_iac_scan_diff_result(ctx, directory, result)
