@@ -189,7 +189,11 @@ def token_login(config: Config, instance: Optional[str]) -> None:
         raise UnexpectedError("No API token was provided.")
 
     # enforce using the token (and not use config default)
-    client = create_client(api_key=token, api_url=config.api_url)
+    client = create_client(
+        api_key=token,
+        api_url=config.api_url,
+        allow_self_signed=config.user_config.allow_self_signed,
+    )
     try:
         response = client.get(endpoint="token")
     except requests.exceptions.ConnectionError as e:
