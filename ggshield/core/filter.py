@@ -86,8 +86,8 @@ def remove_results_from_ignore_detectors(
 
 def get_ignore_sha(policy_break: PolicyBreak) -> str:
     hashable = "".join(
-        [  # for retro compatibility use content_match if it exists (Extended Match) and for Match use match
-            f"{getattr(match, 'content_match', None) or match.match},{match.match_type}"
+        [
+            f"{match.match},{match.match_type}"
             for match in sorted(
                 policy_break.matches, key=operator.attrgetter("match_type")
             )

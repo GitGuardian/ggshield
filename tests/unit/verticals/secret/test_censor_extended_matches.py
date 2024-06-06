@@ -1,6 +1,6 @@
 from pygitguardian.models import Match
 
-from ggshield.core.lines import Line, LineCategory, get_lines_from_content
+from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 from tests.unit.conftest import _SINGLE_MOVE_PATCH
@@ -37,22 +37,22 @@ def test_censor_match_for_a_patch():
     )
     assert ex_match.lines_before_secret == [
         Line(
-            content="@@ -150 +150,2 @",
-            category=LineCategory.EMPTY,
+            content="@@ -150 +150,2 @@",
+            is_patch=True,
             pre_index=None,
             post_index=None,
         ),
         Line(
-            content="something",
-            category=LineCategory.ADDITION,
+            content="+something",
+            is_patch=True,
             pre_index=None,
             post_index=150,
         ),
     ]
     assert ex_match.lines_with_secret == [
         Line(
-            content='sg_key = "SG._Yytrtvlj******************************************-**rRJLGFLBLf0M";',
-            category=None,
+            content=' sg_key = "SG._Yytrtvlj******************************************-**rRJLGFLBLf0M";',
+            is_patch=True,
             pre_index=150,
             post_index=151,
         )
@@ -97,20 +97,18 @@ def test_censor_match_for_plain_content_multiple_on_one_line():
         == [
             Line(
                 content="01234567890",
-                category=LineCategory.DATA,
+                is_patch=False,
                 pre_index=2,
             ),
-            Line(content="*/", category=LineCategory.DATA, pre_index=3),
+            Line(content="*/", is_patch=False, pre_index=3),
         ]
     )
     assert (
         ex_match1.lines_after_secret
         == ex_match2.lines_after_secret
         == [
-            Line(content="", category=LineCategory.DATA, pre_index=5),
-            Line(
-                content="# Some more content", category=LineCategory.DATA, pre_index=6
-            ),
+            Line(content="", is_patch=False, pre_index=5),
+            Line(content="# Some more content", is_patch=False, pre_index=6),
         ]
     )
     assert (
@@ -119,7 +117,7 @@ def test_censor_match_for_plain_content_multiple_on_one_line():
         == [
             Line(
                 content="token1=A**D token2=E**H",
-                category=LineCategory.DATA,
+                is_patch=False,
                 pre_index=4,
             ),
         ]

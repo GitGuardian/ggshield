@@ -111,12 +111,24 @@ def clip_long_line(
     before: bool = False,
     after: bool = False,
     min_length: int = 10,
+    is_patch: bool = False,
 ) -> str:
     """
     Add a "…" character before and/or after the given string
     if it exceeds a maximum length.
     """
     ellipsis = "…"
+
+    if is_patch:
+        # If we are clipping a patch, move the first character out of `content` so that
+        # we can keep it visible. It's important because this character is the patch
+        # symbol.
+        prefix = content[:1]
+        content = content[1:]
+        max_length -= 1
+    else:
+        prefix = ""
+
     content_length = len(content)
     if content_length > max_length:
         if before and after and content_length > max_length + 1:
@@ -133,7 +145,7 @@ def clip_long_line(
             content = content[: max(max_length - 1, min_length)] + ellipsis
         elif before:
             content = ellipsis + content[min(-max_length + 1, -min_length) :]
-    return content
+    return prefix + content
 
 
 def file_info(

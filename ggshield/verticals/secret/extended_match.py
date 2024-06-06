@@ -4,7 +4,7 @@ from marshmallow import fields, post_dump
 from pygitguardian.models import Match, MatchSchema
 
 from ggshield.core.filter import censor_string
-from ggshield.core.lines import Line, LineCategory
+from ggshield.core.lines import Line
 from ggshield.core.match_span import MatchSpan
 
 
@@ -45,7 +45,6 @@ class ExtendedMatch(Match):
     def __init__(
         self,
         span: MatchSpan,
-        content_match: str,
         lines_before_secret: List[Line],
         lines_with_secret: List[Line],
         lines_after_secret: List[Line],
@@ -56,7 +55,6 @@ class ExtendedMatch(Match):
         **kwargs: Any,
     ):
         self.span = span
-        self.content_match = content_match
         self.lines_before_secret = lines_before_secret
         self.lines_with_secret = lines_with_secret
         self.lines_after_secret = lines_after_secret
@@ -70,7 +68,7 @@ class ExtendedMatch(Match):
     def from_match(
         cls, match: Match, lines: List[Line], is_patch: bool
     ) -> "ExtendedMatch":
-        span = MatchSpan.from_match(match, lines, is_patch)
+        span = MatchSpan.from_match(match, lines)
 
         start_line = lines[span.line_index_start]
         end_line = lines[span.line_index_end]
@@ -84,29 +82,11 @@ class ExtendedMatch(Match):
 
         match_split_lines = match.match.splitlines()
         assert len(match_split_lines) == len(lines_with_secret)
-        if is_patch and len(lines_with_secret) > 1:
-            # The secret is multi-line and in patch, we can have the first character to remove
-            stripped_match = "\n".join(
-                (
-                    str_line_match[1:]
-                    if index > 0 and line.category != LineCategory.DATA
-                    else str_line_match
-                )
-                for index, (str_line_match, line) in enumerate(
-                    zip(match_split_lines, lines_with_secret)
-                )
-            )
-        else:
-            stripped_match = match.match
         return cls(
-            match=stripped_match,
-            content_match=match.match,  # for backward compatibility
-            # content_match still contails the patch symbols and is used
-            # to get the policy breaks shas
+            match=match.match,
             index_start=match.index_start,
             index_end=match.index_end,
             span=span,
-            stripped_match=stripped_match,
             lines_before_secret=lines[
                 max(
                     span.line_index_start - NB_CONTEXT_LINES + 1, 0

@@ -1,8 +1,8 @@
 import re
-from enum import Enum, auto
 from types import SimpleNamespace
 from typing import Iterable, List, Optional
 
+from ggshield.core.errors import ParseError
 from ggshield.core.text_utils import STYLE, format_line_count, format_text
 from ggshield.utils.git_shell import Filemode
 
@@ -18,29 +18,11 @@ FILE_LINE_PREFIX = "{} | "
 PATCH_LINE_PREFIX = "{} {} | "
 
 
-class LineCategory(Enum):
-    ADDITION = auto()
-    DATA = auto()
-    DELETION = auto()
-    EMPTY = auto()  # Used for empty lines and patch headers.
-
-    @property
-    def symbol(self) -> str:
-        if self == LineCategory.ADDITION:
-            return "+"
-        if self == LineCategory.DELETION:
-            return "-"
-        if self == LineCategory.EMPTY:
-            return ""
-        return " "
-
-
 class Line(SimpleNamespace):
     """
     Represent a line in a document.
 
     - content: Content of the line
-    - category: The line category [+|-| ] (addition, deletion, untouched)
     - pre_index: Line index (deletion for patches, line index for files)
     - post_index: Line index (addition for patches)
 
@@ -64,18 +46,18 @@ class Line(SimpleNamespace):
     +WORLD
     ```
 
-    The values of content, pre_index, post_index and category are:
+    The values of content, pre_index, and post_index are:
 
-    content                 pre_index  post_index  category
-    "@@ -56,8 +56,8 @@"     None        None        EMPTY
-    "Hello"                 56          56          DATA
-    "world"                 57          None        DELETION
-    "beautiful"             None        57          ADDITION
-    "WORLD"                 None        58          ADDITION
+    content                 pre_index  post_index
+    "@@ -56,8 +56,8 @@"     None        None
+    " Hello"                56          56
+    "-world"                57          None
+    "+beautiful"            None        57
+    "+WORLD"                None        58
     """
 
     content: str
-    category: Optional[LineCategory] = None
+    is_patch: bool = False
     pre_index: Optional[int] = None
     post_index: Optional[int] = None
 
@@ -83,7 +65,7 @@ class Line(SimpleNamespace):
         return hash(
             (
                 self.content,
-                self.category,
+                self.is_patch,
                 self.pre_index,
                 self.post_index,
             )
@@ -94,11 +76,9 @@ class Line(SimpleNamespace):
         line_count_style = (
             STYLE["line_count_secret"] if is_secret else STYLE["line_count"]
         )
-        if self.category is not None and not isinstance(self.category, LineCategory):
-            raise TypeError("line category invalid")
 
         # File
-        if self.category == LineCategory.DATA:
+        if not self.is_patch:
             return FILE_LINE_PREFIX.format(
                 format_text(
                     format_line_count(self.pre_index, padding), line_count_style
@@ -134,9 +114,7 @@ def get_lines_from_content(content: str, filemode: Filemode) -> List[Line]:
 def get_lines_from_file(content: str) -> Iterable[Line]:
     """Return the lines with line number from a file."""
     for line_count, line_content in enumerate(content.split("\n")):
-        yield Line(
-            content=line_content, category=LineCategory.DATA, pre_index=line_count + 1
-        )
+        yield Line(content=line_content, is_patch=False, pre_index=line_count + 1)
 
 
 def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
@@ -146,14 +124,14 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
     post_index = 0
 
     for line in content.split("\n"):
-        line_type = line[:1]
-        line_content = ""
+        if not line:
+            continue
+        line_type = line[0]
+        line_content = line
         line_pre_index = None
         line_post_index = None
-        category = None
 
         if line_type == " ":
-            line_content = line[1:]
             pre_index += 1
             post_index += 1
             line_pre_index = pre_index
@@ -164,40 +142,37 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
                 continue
             pre_index = int(m.groupdict()["pre_index"])
             post_index = int(m.groupdict()["post_index"])
-            line_content = m.groupdict()["line_content"][:-1]
+            line_content = m.groupdict()["line_content"]
 
             if filemode == Filemode.NEW or filemode == Filemode.DELETE:
                 pre_index = 1
                 post_index = 1
 
             if line_content:
-                line_type = " "
                 pre_index -= 1
                 post_index -= 1
                 line_pre_index = None
                 line_post_index = None
-                category = LineCategory.EMPTY
         elif line_type == "+":
             post_index += 1
             line_post_index = post_index
-            line_content = line[1:]
-            category = LineCategory.ADDITION
         elif line_type == "-":
             pre_index += 1
             line_pre_index = pre_index
-            line_content = line[1:]
-            category = LineCategory.DELETION
         elif line_type == "\\":
             # This type of line shouldn't contain any secret; no need to set indices
-            line_content = line[1:]
-
-        if line_type and line_content is not None:
-            yield Line(
-                content=line_content,
-                category=category,
-                pre_index=line_pre_index,
-                post_index=line_post_index,
+            pass
+        else:
+            raise ParseError(
+                f'Failed to parse patch line. Unexpected first character in "{line}"'
             )
+
+        yield Line(
+            content=line_content,
+            is_patch=True,
+            pre_index=line_pre_index,
+            post_index=line_post_index,
+        )
 
 
 def get_padding(lines: List[Line]) -> int:

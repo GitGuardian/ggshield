@@ -470,9 +470,9 @@ index 0000000..3c9af3f
 +sg_key = "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";
 """
 """
-Indices for _SINGLE_ADD_PATCH. Shifted by one character because this is a patch.
- 0         1         2         3         4         5         6         7         8
- 012345678901234567890123456789012345678901234567890123456789012345678901234567890
+Indices for _SINGLE_ADD_PATCH.
+0         1         2         3         4         5         6         7         8
+012345678901234567890123456789012345678901234567890123456789012345678901234567890
 """
 
 _SINGLE_MOVE_PATCH = """
