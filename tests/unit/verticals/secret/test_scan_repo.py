@@ -160,13 +160,13 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
     """
     sha1 = "some_sha_1"
     file1_1 = CommitScannable(
-        sha1, Path("filename1"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + "document1"
+        sha1, Path("filename1"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + " document1"
     )
     file1_2 = CommitScannable(
-        sha1, Path("filename2"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + "document2"
+        sha1, Path("filename2"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + " document2"
     )
     file1_3 = CommitScannable(
-        sha1, Path("filename3"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + "document3"
+        sha1, Path("filename3"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + " document3"
     )
     file1_list = [file1_1, file1_2, file1_3]
 
@@ -183,10 +183,10 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
 
     sha2 = "some_sha_2"
     file2_1 = CommitScannable(
-        sha2, Path("filename2"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + "document2"
+        sha2, Path("filename2"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + " document2"
     )
     file2_2 = CommitScannable(
-        sha2, Path("filename3"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + "document3"
+        sha2, Path("filename3"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT + " document3"
     )
     file2_list = [file2_1, file2_2]
 

@@ -2,6 +2,7 @@ import re
 from types import SimpleNamespace
 from typing import Iterable, List, Optional
 
+from ggshield.core.errors import ParseError
 from ggshield.core.text_utils import STYLE, format_line_count, format_text
 from ggshield.utils.git_shell import Filemode
 
@@ -123,13 +124,14 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
     post_index = 0
 
     for line in content.split("\n"):
-        line_type = line[:1]
-        line_content = ""
+        if not line:
+            continue
+        line_type = line[0]
+        line_content = line
         line_pre_index = None
         line_post_index = None
 
         if line_type == " ":
-            line_content = line
             pre_index += 1
             post_index += 1
             line_pre_index = pre_index
@@ -147,7 +149,6 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
                 post_index = 1
 
             if line_content:
-                line_type = " "
                 pre_index -= 1
                 post_index -= 1
                 line_pre_index = None
@@ -155,22 +156,23 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
         elif line_type == "+":
             post_index += 1
             line_post_index = post_index
-            line_content = line
         elif line_type == "-":
             pre_index += 1
             line_pre_index = pre_index
-            line_content = line
         elif line_type == "\\":
             # This type of line shouldn't contain any secret; no need to set indices
-            line_content = line
-
-        if line_type and line_content is not None:
-            yield Line(
-                content=line_content,
-                is_patch=True,
-                pre_index=line_pre_index,
-                post_index=line_post_index,
+            pass
+        else:
+            raise ParseError(
+                f'Failed to parse patch line. Unexpected first character in "{line}"'
             )
+
+        yield Line(
+            content=line_content,
+            is_patch=True,
+            pre_index=line_pre_index,
+            post_index=line_post_index,
+        )
 
 
 def get_padding(lines: List[Line]) -> int:
