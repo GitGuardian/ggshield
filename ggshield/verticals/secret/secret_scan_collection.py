@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from os import PathLike
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import Dict, Iterable, List, NamedTuple, Optional, Self, Tuple, Union, cast
 
 from pygitguardian.models import ScanResult
 
@@ -35,6 +35,36 @@ class Result(NamedTuple):
     def has_policy_breaks(self) -> bool:
         return self.scan.has_policy_breaks
 
+    def without_removed_secrets(self) -> Self:
+        """Remove from scan the policy breaks that were removed from the content when scanning a patch"""
+        if self.filemode == Filemode.DELETE:
+            policy_breaks = []
+        elif self.filemode == Filemode.MODIFY:
+            policy_breaks = []
+            content_splitlines = self.content.splitlines()
+            for policy_break in self.scan.policy_breaks:
+                if any(
+                    not content_splitlines[line_number - 1].startswith("-")
+                    for match in policy_break.matches
+                    for line_number in range(
+                        cast(int, match.line_start), cast(int, match.line_end) + 1
+                    )
+                    if match.line_start is not None
+                    and match.line_end is not None
+                    and 0 <= line_number - 1 < len(content_splitlines)
+                ):
+                    policy_breaks.append(policy_break)
+        else:
+            policy_breaks = self.scan.policy_breaks
+        return Result(
+            file=self.file,
+            scan=ScanResult(
+                policy_break_count=len(policy_breaks),
+                policy_breaks=policy_breaks,
+                policies=self.scan.policies,
+            ),
+        )
+
 
 class Error(NamedTuple):
     files: List[Tuple[str, Filemode]]
@@ -68,6 +98,12 @@ class Results:
     @property
     def has_policy_breaks(self) -> bool:
         return any(x.has_policy_breaks for x in self.results)
+
+    def without_removed_secrets(self) -> Self:
+        return Results(
+            results=[result.without_removed_secrets() for result in self.results],
+            errors=self.errors,
+        )
 
 
 class SecretScanCollection:
@@ -143,3 +179,17 @@ class SecretScanCollection:
             for scan in self.scans:
                 if scan.results:
                     yield from scan.results.results
+
+    def without_removed_secrets(self) -> Self:
+        return SecretScanCollection(
+            id=self.id,
+            type=self.type,
+            results=self.results.without_removed_secrets() if self.results else None,
+            scans=(
+                [scan.without_removed_secrets() for scan in self.scans]
+                if self.scans
+                else None
+            ),
+            optional_header=self.optional_header,
+            extra_info=self.extra_info,
+        )

@@ -20,11 +20,13 @@ class SecretOutputHandler(ABC):
         verbose: bool,
         output: Optional[Path] = None,
         ignore_known_secrets: bool = False,
+        ignore_removed_secrets: bool = True,
     ):
         self.show_secrets = show_secrets
         self.verbose = verbose
         self.output = output
         self.ignore_known_secrets = ignore_known_secrets
+        self.ignore_removed_secrets = ignore_removed_secrets
 
     def process_scan(self, scan: SecretScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`
@@ -32,6 +34,9 @@ class SecretOutputHandler(ABC):
         :param scan: The scan collection to process
         :return: The exit code
         """
+        if self.ignore_removed_secrets:
+            scan = scan.without_removed_secrets()
+
         text = self._process_scan_impl(scan)
         if self.output:
             self.output.write_text(text)
