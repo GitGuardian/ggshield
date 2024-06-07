@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pipenv==2023.10.3 pre-commit
+          python -m pip install pipenv==2023.12.1 pre-commit
           pipenv install --dev --skip-lock
 
       - uses: actions/cache@v3
@@ -101,7 +101,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pipenv==2023.10.3
+          python -m pip install --upgrade pipenv==2023.12.1
           pipenv install --system --dev
           # Hack: workaround urllib3 still being installed on windows-2022 builder
           pip install --force-reinstall 'urllib3<2'
