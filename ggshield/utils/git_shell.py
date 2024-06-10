@@ -509,3 +509,16 @@ def get_default_branch(wd: Optional[Union[str, Path]] = None) -> str:
         return git(["config", "init.defaultBranch"], cwd=wd).strip()
 
     return default_branch
+
+
+def get_commits_not_in_branch(
+    target_branch: str, current_tip: str = "HEAD", wd: Optional[Union[str, Path]] = None
+) -> List[str]:
+    """
+    This function lists commits, starting from `current_tip`, that do not belong to `target_branch`.
+    It is used to list commits associated with a merge request
+    Commits are returned in descending order (most recent commit first)
+    """
+    cmd = ["log", current_tip, "--not", target_branch, "--format=%H"]
+    output = git(cmd, cwd=wd)
+    return output.splitlines()
