@@ -2,7 +2,6 @@ import hashlib
 import math
 import operator
 import re
-from collections import OrderedDict
 from typing import Dict, Iterable, List, Optional, Set
 
 from click import UsageError
@@ -103,14 +102,8 @@ def group_policy_breaks_by_ignore_sha(
     """
     Group policy breaks by their ignore sha.
     """
-    policy_breaks.sort(
-        key=lambda x: min(
-            match.index_start if match.index_start else -1 for match in x.matches
-        )
-    )
-    sha_dict: Dict[str, List[PolicyBreak]] = OrderedDict()
+    sha_dict: Dict[str, List[PolicyBreak]] = {}
     for policy_break in policy_breaks:
-        policy_break.matches.sort(key=lambda x: x.index_start if x.index_start else -1)
         ignore_sha = get_ignore_sha(policy_break)
         sha_dict.setdefault(ignore_sha, []).append(policy_break)
 

@@ -54,6 +54,12 @@ _FILTERED_MULTILINE_SECRET = """-----BEGIN RSA PRIVATE KEY-----
             id="_MULTIPLE_SECRETS_SCAN_RESULT",
         ),
         pytest.param(
+            _MULTIPLE_SECRETS_SCAN_RESULT.policy_breaks,
+            True,
+            {"41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8"},
+            id="_MULTIPLE_SECRETS_SCAN_RESULT-duplicated",
+        ),
+        pytest.param(
             _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT.policy_breaks,
             False,
             {
