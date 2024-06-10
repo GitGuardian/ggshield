@@ -101,3 +101,54 @@ def test_scan_repo_exclude_patterns(
     )
 
     assert "No secrets have been found" in result.stdout
+
+
+@pytest.mark.parametrize("ignore_removed_secrets", [True, False])
+@pytest.mark.parametrize("file_deleted", [True, False])
+def test_scan_repo_ignore_removed_secrets(
+    tmp_path_factory: pytest.TempPathFactory,
+    ignore_removed_secrets: bool,
+    file_deleted: bool,
+) -> None:
+    # GIVEN a repository with a past commits adding and removing a leak
+    # WHEN scanning the repo
+    # THEN only the commit adding the leak raises an incident
+
+    repo = Repository.create(
+        tmp_path_factory.mktemp("test_scan_repo_ignore_removed_secrets")
+    )
+
+    secret_file = repo.path / "secret.conf"
+    secret_file.write_text(LEAK_CONTENT)
+    repo.add("secret.conf")
+    add_sha = repo.create_commit()
+
+    for _ in range(2):
+        repo.create_commit()
+
+    if file_deleted:
+        os.remove(secret_file)
+    else:
+        secret_file.write_text("removed")
+    repo.add("secret.conf")
+    remove_sha = repo.create_commit()
+
+    params = ["repo", "--json", str(repo.path)]
+    if ignore_removed_secrets:
+        params.append("--ignore-removed-secrets")
+
+    result = run_ggshield_scan(
+        *params,
+        expected_code=1,
+        cwd=repo.path,
+    )
+    result_json = json.loads(result.stdout)
+
+    assert result_json["total_incidents"] == (1 if ignore_removed_secrets else 2)
+    assert result_json["total_occurrences"] == (1 if ignore_removed_secrets else 2)
+
+    leaky_sha = {
+        scan["id"] for scan in result_json["scans"] if scan["total_incidents"] > 0
+    }
+    assert add_sha in leaky_sha
+    assert (remove_sha in leaky_sha) is (not ignore_removed_secrets)

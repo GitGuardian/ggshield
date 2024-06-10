@@ -96,6 +96,14 @@ _ignore_known_secrets_option = click.option(
     callback=create_config_callback("secret", "ignore_known_secrets"),
 )
 
+_ignore_removed_secrets_option = click.option(
+    "--ignore-removed-secrets",
+    is_flag=True,
+    default=None,
+    help="Ignore secrets which are removed by the scanned commit.",
+    callback=create_config_callback("secret", "ignore_removed_secrets"),
+)
+
 
 def _banlist_detectors_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[List[str]]
@@ -127,6 +135,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         exit_zero_option(cmd)
         _exclude_option(cmd)
         _ignore_known_secrets_option(cmd)
+        _ignore_removed_secrets_option(cmd)
         _banlist_detectors_option(cmd)
         return cmd
 
@@ -146,4 +155,5 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
         verbose=config.user_config.verbose,
         output=ctx_obj.output,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
+        ignore_removed_secrets=config.user_config.secret.ignore_removed_secrets,
     )
