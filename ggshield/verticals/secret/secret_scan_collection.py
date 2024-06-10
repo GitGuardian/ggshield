@@ -21,15 +21,15 @@ class Result:
 
     filename: str  # Name of the file/patch scanned
     filemode: Filemode
-    filepath: Path
-    file_url: str
+    path: Path
+    url: str
     scan: ScanResult  # Result of content scan
 
     def __init__(self, file: Scannable, scan: ScanResult):
         self.filename = file.filename
         self.filemode = file.filemode
-        self.filepath = file.path
-        self.file_url = file.url
+        self.path = file.path
+        self.url = file.url
         self.scan = scan
         lines = get_lines_from_content(file.content, self.filemode)
         self.enrich_matches(lines)
@@ -38,8 +38,8 @@ class Result:
         return (
             self.filename == other.filename
             and self.filemode == other.filemode
-            and self.filepath == other.filepath
-            and self.file_url == other.file_url
+            and self.path == other.path
+            and self.url == other.url
             and self.scan == other.scan
         )
 
