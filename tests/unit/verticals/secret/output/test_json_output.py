@@ -8,7 +8,7 @@ import pytest
 from pytest_voluptuous import Partial, S
 from voluptuous import Optional, Required, validators
 
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import (
@@ -248,7 +248,9 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
         assert all(
             ignore_sha in json_flat_results
             for result in results.results
-            for ignore_sha in leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
+            for ignore_sha in group_policy_breaks_by_ignore_sha(
+                result.scan.policy_breaks
+            )
         )
 
 
