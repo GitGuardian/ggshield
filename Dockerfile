@@ -19,7 +19,7 @@ RUN \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install pipenv==2023.10.3
+RUN pip3 install pipenv==2023.12.1
 
 COPY . .
 
