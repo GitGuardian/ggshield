@@ -4,7 +4,7 @@ from unittest import mock
 import click
 import pytest
 
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
@@ -141,7 +141,9 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # all ignore sha should be in the output
     assert all(
         ignore_sha in output
-        for ignore_sha in leak_dictionary_by_ignore_sha(result_input.scan.policy_breaks)
+        for ignore_sha in group_policy_breaks_by_ignore_sha(
+            result_input.scan.policy_breaks
+        )
     )
 
 

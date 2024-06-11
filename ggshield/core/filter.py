@@ -2,7 +2,6 @@ import hashlib
 import math
 import operator
 import re
-from collections import OrderedDict
 from typing import Dict, Iterable, List, Optional, Set
 
 from click import UsageError
@@ -97,28 +96,14 @@ def get_ignore_sha(policy_break: PolicyBreak) -> str:
     return hashlib.sha256(hashable.encode("UTF-8")).hexdigest()
 
 
-def leak_dictionary_by_ignore_sha(
+def group_policy_breaks_by_ignore_sha(
     policy_breaks: List[PolicyBreak],
 ) -> Dict[str, List[PolicyBreak]]:
     """
-    leak_dictionary_by_ignore_sha sorts matches and incidents by
-    first appearance in file.
-
-    sort incidents by first appearance on file,
-    file wide matches have no index
-    so give it -1 so they get bumped to the top
-
-    :return: Dictionary with line number as index and a list of
-    matches that start on said line.
+    Group policy breaks by their ignore sha.
     """
-    policy_breaks.sort(
-        key=lambda x: min(
-            match.index_start if match.index_start else -1 for match in x.matches
-        )
-    )
-    sha_dict: Dict[str, List[PolicyBreak]] = OrderedDict()
+    sha_dict: Dict[str, List[PolicyBreak]] = {}
     for policy_break in policy_breaks:
-        policy_break.matches.sort(key=lambda x: x.index_start if x.index_start else -1)
         ignore_sha = get_ignore_sha(policy_break)
         sha_dict.setdefault(ignore_sha, []).append(policy_break)
 
@@ -193,21 +178,3 @@ def censor_string(text: str) -> str:
 
 def censor_match(match: Match) -> str:
     return censor_string(match.match)
-
-
-def censor_content(content: str, policy_breaks: List[PolicyBreak]) -> str:
-    for policy_break in policy_breaks:
-        for match in policy_break.matches:
-            if match.index_start is None:
-                continue
-
-            match.match = censor_match(match)
-
-            content = "".join(
-                (
-                    content[: match.index_start],
-                    match.match,
-                    content[len(match.match) + match.index_start :],
-                )
-            )
-    return content

@@ -198,6 +198,22 @@ _MULTI_SECRET_ONE_LINE_PATCH = """@@ -0,0 +1 @@
 
 """
 
+_MULTI_SECRET_ONE_LINE_FULL_PATCH = (
+    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+Author: GitGuardian Owl <owl@example.com>
+Date:   Thu Aug 18 18:20:21 2022 +0200
+
+A message
+
+:000000 100644 0000000 e965047 A\0test\0\0diff --git a/test b/test
+new file mode 100644
+index 0000000..3c9af3f
+--- /dev/null
++++ b/test
+"""
+    + _MULTI_SECRET_ONE_LINE_PATCH
+)
+
 _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
         "policies": ["File extensions", "Filenames", "Secrets detection"],
@@ -209,13 +225,13 @@ _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "294790898041575",
                         "index_start": 31,
-                        "index_end": 46,
+                        "index_end": 45,
                         "type": "client_id",
                     },
                     {
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4372",
                         "index_start": 68,
-                        "index_end": 100,
+                        "index_end": 99,
                         "type": "client_secret",
                     },
                 ],
@@ -242,13 +258,13 @@ _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "294790898041575",
                         "index_start": 26,
-                        "index_end": 41,
+                        "index_end": 40,
                         "type": "client_id",
                     },
                     {
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4372",
                         "index_start": 44,
-                        "index_end": 76,
+                        "index_end": 75,
                         "type": "client_secret",
                     },
                 ],
@@ -275,13 +291,13 @@ _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                     {
                         "match": "294790898041575",
                         "index_start": 31,
-                        "index_end": 46,
+                        "index_end": 45,
                         "type": "client_id",
                     },
                     {
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4372",
                         "index_start": 69,
-                        "index_end": 101,
+                        "index_end": 100,
                         "type": "client_secret",
                     },
                 ],
@@ -341,7 +357,7 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                         "match": "294790898041573",
                         "line_start": 2,
                         "line_end": 2,
-                        "index_start": 34,
+                        "index_start": 35,
                         "index_end": 49,
                         "type": "client_id",
                     },
@@ -349,7 +365,7 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                         "match": "ce3f9f0362bbe5ab01dfc8ee565e4371",
                         "line_start": 2,
                         "line_end": 2,
-                        "index_start": 52,
+                        "index_start": 53,
                         "index_end": 84,
                         "type": "client_secret",
                     },
@@ -432,6 +448,11 @@ index 0000000..b80e3df
 +this is a patch without secret
 """
 
+"""
+Indices for _SECRET_RAW_FILE
+                    0         1         2         3         4         5         6         7         8
+                    012345678901234567890123456789012345678901234567890123456789012345678901234567890
+"""
 _SECRET_RAW_FILE = '+sg_key = "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";\n'
 
 _SINGLE_ADD_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
@@ -448,6 +469,11 @@ index 0000000..3c9af3f
 @@ -0,0 +1 @@
 +sg_key = "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";
 """
+"""
+Indices for _SINGLE_ADD_PATCH.
+0         1         2         3         4         5         6         7         8
+012345678901234567890123456789012345678901234567890123456789012345678901234567890
+"""
 
 _SINGLE_MOVE_PATCH = """
 commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
@@ -460,7 +486,7 @@ A message
 index 3c9af3f..b0ce1c7 100644
 --- a/test
 +++ b/test
-@@ -1 +1,2 @@
+@@ -150 +150,2 @@
 +something
  sg_key = "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";
 """

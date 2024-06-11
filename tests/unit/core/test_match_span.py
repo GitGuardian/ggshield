@@ -5,11 +5,11 @@ import pytest
 from pygitguardian import GGClient
 
 from ggshield.core.cache import Cache
-from ggshield.core.lines import get_lines_from_content
 from ggshield.core.match_span import MatchSpan
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.verticals.secret import SecretScanner
 from tests.unit.conftest import (
+    _MULTI_SECRET_ONE_LINE_FULL_PATCH,
     _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
     _SECRET_RAW_FILE,
     _SINGLE_ADD_PATCH,
@@ -26,21 +26,21 @@ from tests.unit.conftest import (
             "single_add",
             _SINGLE_ADD_PATCH,
             True,
-            [MatchSpan(1, 1, 10, 79)],
+            [MatchSpan(1, 1, 11, 80)],
             id="add",
         ),
         pytest.param(
             "single_move",
             _SINGLE_MOVE_PATCH,
             True,
-            [MatchSpan(2, 2, 10, 79)],
+            [MatchSpan(2, 2, 11, 80)],
             id="move",
         ),
         pytest.param(
             "single_delete",
             _SINGLE_DELETE_PATCH,
             True,
-            [MatchSpan(2, 2, 10, 79)],
+            [MatchSpan(2, 2, 11, 80)],
             id="delete",
         ),
         pytest.param(
@@ -54,8 +54,15 @@ from tests.unit.conftest import (
             "no_newline_before_secret",
             _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
             True,
-            [MatchSpan(5, 5, 10, 79)],
+            [MatchSpan(5, 5, 11, 80)],
             id="no_newline_before_secret",
+        ),
+        pytest.param(
+            "multiple_secret_one_line",
+            _MULTI_SECRET_ONE_LINE_FULL_PATCH,
+            True,
+            [MatchSpan(1, 1, 17, 32), MatchSpan(1, 1, 54, 86)],
+            id="multiple_secret_one_line",
         ),
     ],
 )
@@ -84,17 +91,12 @@ def test_from_span(
         results = scanner.scan(files, scanner_ui=Mock())
         result = results.results[0]
 
-    lines = get_lines_from_content(
-        content=result.content,
-        filemode=result.filemode,
-    )
     matches = [
         match
         for policy_break in result.scan.policy_breaks
         for match in policy_break.matches
     ]
     for expected_span, match in zip(expected_spans, matches):
-        span = MatchSpan.from_match(match, lines, is_patch=is_patch)
-        assert span == expected_span
+        assert match.span == expected_span
 
     assert len(expected_spans) == len(matches)

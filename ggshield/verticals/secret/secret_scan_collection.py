@@ -1,35 +1,68 @@
 from dataclasses import dataclass, field
 from os import PathLike
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from pathlib import Path
+from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
 
-from pygitguardian.models import ScanResult
+from pygitguardian.models import Match, ScanResult
 
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.errors import UnexpectedError
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
+from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.scan.scannable import Scannable
 from ggshield.utils.git_shell import Filemode
+from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 
-class Result(NamedTuple):
+class Result:
     """
     Return model for a scan which zips the information
     between the Scan result and its input file.
     """
 
-    # TODO: Rename `file` to `scannable`?
-    file: Scannable  # filename that was scanned
+    filename: str  # Name of the file/patch scanned
+    filemode: Filemode
+    path: Path
+    url: str
     scan: ScanResult  # Result of content scan
 
-    @property
-    def filename(self) -> str:
-        return self.file.filename
+    def __init__(self, file: Scannable, scan: ScanResult):
+        self.filename = file.filename
+        self.filemode = file.filemode
+        self.path = file.path
+        self.url = file.url
+        self.scan = scan
+        lines = get_lines_from_content(file.content, self.filemode)
+        self.enrich_matches(lines)
+
+    def __eq__(self, other: "Result"):
+        return (
+            self.filename == other.filename
+            and self.filemode == other.filemode
+            and self.path == other.path
+            and self.url == other.url
+            and self.scan == other.scan
+        )
 
     @property
-    def filemode(self) -> Filemode:
-        return self.file.filemode
+    def is_on_patch(self) -> bool:
+        return self.filemode != Filemode.FILE
 
-    @property
-    def content(self) -> str:
-        return self.file.content
+    def enrich_matches(self, lines: List[Line]) -> None:
+        if len(lines) == 0:
+            raise UnexpectedError("Parsing of scan result failed.")
+        for policy_break in self.scan.policy_breaks:
+            policy_break.matches = cast(
+                List[Match],
+                [
+                    ExtendedMatch.from_match(match, lines, self.is_on_patch)
+                    for match in policy_break.matches
+                ],
+            )
+
+    def censor(self) -> None:
+        for policy_break in self.scan.policy_breaks:
+            for extended_match in policy_break.matches:
+                cast(ExtendedMatch, extended_match).censor()
 
     @property
     def has_policy_breaks(self) -> bool:
@@ -125,7 +158,7 @@ class SecretScanCollection:
 
         known_secrets_count = 0
         new_secrets_count = 0
-        sha_dict = leak_dictionary_by_ignore_sha(policy_breaks)
+        sha_dict = group_policy_breaks_by_ignore_sha(policy_breaks)
 
         for ignore_sha, policy_breaks in sha_dict.items():
             if policy_breaks[0].known_secret:

@@ -1,7 +1,8 @@
 import re
-from enum import Enum, auto
-from typing import Iterable, List, NamedTuple, Optional
+from types import SimpleNamespace
+from typing import Iterable, List, Optional
 
+from ggshield.core.errors import ParseError
 from ggshield.core.text_utils import STYLE, format_line_count, format_text
 from ggshield.utils.git_shell import Filemode
 
@@ -17,39 +18,67 @@ FILE_LINE_PREFIX = "{} | "
 PATCH_LINE_PREFIX = "{} {} | "
 
 
-class LineCategory(Enum):
-    ADDITION = auto()
-    DATA = auto()
-    DELETION = auto()
-    EMPTY = auto()
-
-
-class Line(NamedTuple):
+class Line(SimpleNamespace):
     """
-    Line object making easier to handle line
-    by line display.
+    Represent a line in a document.
 
     - content: Content of the line
-    - category: The line category [+|-| ] (addition, deletion, untouched)
     - pre_index: Line index (deletion for patches, line index for files)
     - post_index: Line index (addition for patches)
+
+    pre_index and post_index are 1-based.
+
+    For files: pre_index is the line number, post_index is None.
+
+    For patches: pre_index and post_index are line numbers relative to the *document
+    modified by the patch*, not to the patch itself. This means that for a patch like
+    this:
+
+    ```
+    diff --git a/foo.py b/foo.py
+    index c53e550a..7ed9d026 100644
+    --- a/foo.py
+    +++ b/foo.py
+    @@ -56,8 +56,8 @@
+     Hello
+    -world
+    +beautiful
+    +WORLD
+    ```
+
+    The values of content, pre_index, and post_index are:
+
+    content                 pre_index  post_index
+    "@@ -56,8 +56,8 @@"     None        None
+    " Hello"                56          56
+    "-world"                57          None
+    "+beautiful"            None        57
+    "+WORLD"                None        58
     """
 
     content: str
-    category: Optional[LineCategory] = None
+    is_patch: bool = False
     pre_index: Optional[int] = None
     post_index: Optional[int] = None
+
+    def __hash__(self):
+        return hash(
+            (
+                self.content,
+                self.is_patch,
+                self.pre_index,
+                self.post_index,
+            )
+        )
 
     def build_line_count(self, padding: int, is_secret: bool = False) -> str:
         """Return the formatted line count."""
         line_count_style = (
             STYLE["line_count_secret"] if is_secret else STYLE["line_count"]
         )
-        if self.category is not None and not isinstance(self.category, LineCategory):
-            raise TypeError("line category invalid")
 
         # File
-        if self.category == LineCategory.DATA:
+        if not self.is_patch:
             return FILE_LINE_PREFIX.format(
                 format_text(
                     format_line_count(self.pre_index, padding), line_count_style
@@ -59,12 +88,6 @@ class Line(NamedTuple):
         # Patch
         pre_index = format_line_count(self.pre_index, padding)
         post_index = format_line_count(self.post_index, padding)
-
-        if self.category == LineCategory.ADDITION:
-            pre_index = " " * padding
-
-        elif self.category == LineCategory.DELETION:
-            post_index = " " * padding
 
         return PATCH_LINE_PREFIX.format(
             format_text(pre_index, line_count_style),
@@ -91,9 +114,7 @@ def get_lines_from_content(content: str, filemode: Filemode) -> List[Line]:
 def get_lines_from_file(content: str) -> Iterable[Line]:
     """Return the lines with line number from a file."""
     for line_count, line_content in enumerate(content.split("\n")):
-        yield Line(
-            content=line_content, category=LineCategory.DATA, pre_index=line_count + 1
-        )
+        yield Line(content=line_content, is_patch=False, pre_index=line_count + 1)
 
 
 def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
@@ -103,14 +124,14 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
     post_index = 0
 
     for line in content.split("\n"):
-        line_type = line[:1]
-        line_content = ""
+        if not line:
+            continue
+        line_type = line[0]
+        line_content = line
         line_pre_index = None
         line_post_index = None
-        category = None
 
         if line_type == " ":
-            line_content = line[1:]
             pre_index += 1
             post_index += 1
             line_pre_index = pre_index
@@ -121,45 +142,41 @@ def get_lines_from_patch(content: str, filemode: Filemode) -> Iterable[Line]:
                 continue
             pre_index = int(m.groupdict()["pre_index"])
             post_index = int(m.groupdict()["post_index"])
-            line_content = m.groupdict()["line_content"][:-1]
+            line_content = m.groupdict()["line_content"]
 
             if filemode == Filemode.NEW or filemode == Filemode.DELETE:
                 pre_index = 1
                 post_index = 1
 
             if line_content:
-                line_type = " "
                 pre_index -= 1
                 post_index -= 1
                 line_pre_index = None
                 line_post_index = None
-                category = LineCategory.EMPTY
         elif line_type == "+":
             post_index += 1
             line_post_index = post_index
-            line_content = line[1:]
-            category = LineCategory.ADDITION
         elif line_type == "-":
             pre_index += 1
             line_pre_index = pre_index
-            line_content = line[1:]
-            category = LineCategory.DELETION
         elif line_type == "\\":
             # This type of line shouldn't contain any secret; no need to set indices
-            line_content = line[1:]
-
-        if line_type and line_content is not None:
-            yield Line(
-                content=line_content,
-                category=category,
-                pre_index=line_pre_index,
-                post_index=line_post_index,
+            pass
+        else:
+            raise ParseError(
+                f'Failed to parse patch line. Unexpected first character in "{line}"'
             )
+
+        yield Line(
+            content=line_content,
+            is_patch=True,
+            pre_index=line_pre_index,
+            post_index=line_post_index,
+        )
 
 
 def get_padding(lines: List[Line]) -> int:
     """Return the number of digit of the maximum line number."""
-    # value can be None
     return max(len(str(lines[-1].pre_index or 0)), len(str(lines[-1].post_index or 0)))
 
 

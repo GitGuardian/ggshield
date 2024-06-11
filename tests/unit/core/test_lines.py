@@ -2,45 +2,38 @@ from typing import List
 
 import pytest
 
-from ggshield.core.lines import Line, LineCategory, get_offset, get_padding
-
-
-def test_line_validation():
-    line_to_test = Line("hello", category=" ")  # type: ignore
-    with pytest.raises(TypeError):
-        line_to_test.build_line_count(0, False)
-    Line("hello", category=None).build_line_count(0)
+from ggshield.core.lines import Line, get_offset, get_padding
 
 
 @pytest.mark.parametrize(
     "input, padding, want",
     [
         pytest.param(
-            Line(content="", category=LineCategory.DATA, pre_index=300),
+            Line(content="", is_patch=False, pre_index=300),
             3,
             "\x1b[37m\x1b[22m\x1b[2m300\x1b[0m | ",
             id="file: padding==index",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.DATA, pre_index=299),
+            Line(content="", is_patch=False, pre_index=299),
             5,
             "\x1b[37m\x1b[22m\x1b[2m  299\x1b[0m | ",
             id="file: padding!=index",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.ADDITION, post_index=297),
+            Line(content="", is_patch=True, post_index=297),
             3,
             "\x1b[37m\x1b[22m\x1b[2m   \x1b[0m \x1b[37m\x1b[22m\x1b[2m297\x1b[0m | ",
             id="addition",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.DELETION, pre_index=26),
+            Line(content="", is_patch=True, pre_index=26),
             3,
             "\x1b[37m\x1b[22m\x1b[2m 26\x1b[0m \x1b[37m\x1b[22m\x1b[2m   \x1b[0m | ",
             id="deletion",
         ),
         pytest.param(
-            Line(content="", category=LineCategory.EMPTY, pre_index=294, post_index=29),
+            Line(content="", is_patch=True, pre_index=294, post_index=29),
             3,
             "\x1b[37m\x1b[22m\x1b[2m294\x1b[0m \x1b[37m\x1b[22m\x1b[2m 29\x1b[0m | ",
             id="addition",

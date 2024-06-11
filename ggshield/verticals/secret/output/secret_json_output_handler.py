@@ -1,15 +1,12 @@
 from typing import Any, Dict, List, cast
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import Match, PolicyBreak
+from pygitguardian.models import PolicyBreak
 
-from ggshield.core.filter import censor_content, leak_dictionary_by_ignore_sha
-from ggshield.core.lines import Line, get_lines_from_content
-from ggshield.core.match_span import MatchSpan
-from ggshield.utils.git_shell import Filemode
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
-from .schemas import ExtendedMatch, JSONScanCollectionSchema
+from .schemas import JSONScanCollectionSchema
 from .secret_output_handler import SecretOutputHandler
 
 
@@ -56,27 +53,22 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
     def process_result(self, result: Result) -> Dict[str, Any]:
         result_dict: Dict[str, Any] = {
-            "filename": result.file.path,
+            "filename": result.path,
             "mode": result.filemode.name,
             "incidents": [],
             "total_occurrences": 0,
             "total_incidents": 0,
         }
-        content = result.content
-        is_patch = result.filemode != Filemode.FILE
-        sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
+        sha_dict = group_policy_breaks_by_ignore_sha(result.scan.policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
-            content = censor_content(result.content, result.scan.policy_breaks)
-        lines = get_lines_from_content(content, result.filemode)
+            result.censor()
 
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.flattened_policy_break(
                 ignore_sha,
                 policy_breaks,
-                lines,
-                is_patch,
             )
             result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
@@ -100,8 +92,6 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         self,
         ignore_sha: str,
         policy_breaks: List[PolicyBreak],
-        lines: List[Line],
-        is_patch: bool,
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
             "occurrences": [],
@@ -119,40 +109,6 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             flattened_dict["incident_url"] = policy_breaks[0].incident_url
 
         for policy_break in policy_breaks:
-            matches = SecretJSONOutputHandler.make_matches(
-                policy_break.matches, lines, is_patch
-            )
-            flattened_dict["occurrences"].extend(matches)
+            flattened_dict["occurrences"].extend(policy_break.matches)
 
         return flattened_dict
-
-    @staticmethod
-    def make_matches(
-        matches: List[Match], lines: List[Line], is_patch: bool
-    ) -> List[ExtendedMatch]:
-        res = []
-        for match in matches:
-            if match.index_start is None or match.index_end is None:
-                res.append(match)
-                continue
-            span = MatchSpan.from_match(match, lines, is_patch)
-            line_start = lines[span.line_index_start]
-            line_end = lines[span.line_index_end]
-            line_index_start = line_start.pre_index or line_start.post_index
-            line_index_end = line_end.pre_index or line_end.post_index
-
-            res.append(
-                ExtendedMatch(
-                    match=match.match,
-                    match_type=match.match_type,
-                    index_start=span.column_index_start,
-                    index_end=span.column_index_end,
-                    line_start=line_index_start,
-                    line_end=line_index_end,
-                    pre_line_start=line_start.pre_index,
-                    post_line_start=line_start.post_index,
-                    pre_line_end=line_end.pre_index,
-                    post_line_end=line_end.post_index,
-                )
-            )
-        return res

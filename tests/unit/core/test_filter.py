@@ -7,27 +7,15 @@ from pygitguardian.models import Match, PolicyBreak, ScanResult
 from snapshottest import Snapshot
 
 from ggshield.core.filter import (
-    censor_content,
     censor_match,
     get_ignore_sha,
     remove_ignored_from_result,
 )
 from ggshield.core.types import IgnoredMatch
 from tests.unit.conftest import (
-    _MULTI_SECRET_ONE_LINE_PATCH,
-    _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
-    _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT,
-    _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
-    _MULTI_SECRET_TWO_LINES_PATCH,
-    _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
     _MULTILINE_SECRET,
-    _MULTIPLE_SECRETS_PATCH_CONTENT,
     _MULTIPLE_SECRETS_SCAN_RESULT,
-    _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
     _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
-    _SIMPLE_SECRET_MULTILINE_PATCH,
-    _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
-    _SIMPLE_SECRET_PATCH,
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
     _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT,
 )
@@ -64,6 +52,12 @@ _FILTERED_MULTILINE_SECRET = """-----BEGIN RSA PRIVATE KEY-----
             False,
             {"41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8"},
             id="_MULTIPLE_SECRETS_SCAN_RESULT",
+        ),
+        pytest.param(
+            _MULTIPLE_SECRETS_SCAN_RESULT.policy_breaks,
+            True,
+            {"41b8889e5e794b21cb1349d8eef1815960bf5257330fd40243a4895f26c2b5c8"},
+            id="_MULTIPLE_SECRETS_SCAN_RESULT-duplicated",
         ),
         pytest.param(
             _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT.policy_breaks,
@@ -183,57 +177,3 @@ def test_censor_match(input_match: Match, expected_value: str) -> None:
     value = censor_match(input_match)
     assert len(value) == len(input_match.match)
     assert value == expected_value
-
-
-@pytest.mark.parametrize(
-    "content, policy_breaks",
-    [
-        pytest.param(
-            _MULTIPLE_SECRETS_PATCH_CONTENT,
-            _MULTIPLE_SECRETS_SCAN_RESULT.policy_breaks,
-            id="_MULTIPLE_SECRETS",
-        ),
-        pytest.param(
-            _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
-            _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT.policy_breaks,
-            id="_ONE_LINE_AND_MULTILINE_PATCH_SCAN_CONTENT",
-        ),
-        pytest.param(
-            _MULTI_SECRET_ONE_LINE_PATCH,
-            _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT.policy_breaks,
-            id="_MULTI_SECRET_ONE_LINE_PATCH",
-        ),
-        pytest.param(
-            _SIMPLE_SECRET_PATCH,
-            _SIMPLE_SECRET_PATCH_SCAN_RESULT.policy_breaks,
-            id="_SIMPLE_SECRET_PATCH",
-        ),
-        pytest.param(
-            _SIMPLE_SECRET_MULTILINE_PATCH,
-            _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT.policy_breaks,
-            id="_SIMPLE_SECRET_MULTILINE_PATCH",
-        ),
-        pytest.param(
-            _SIMPLE_SECRET_PATCH,
-            _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT.policy_breaks,
-            id="_SIMPLE_SECRET_WITH_FILENAME_PATCH",
-        ),
-        pytest.param(
-            _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
-            _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT.policy_breaks,
-            id="_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY",
-        ),
-        pytest.param(
-            _MULTI_SECRET_TWO_LINES_PATCH,
-            _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT.policy_breaks,
-            id="_MULTI_SECRET_TWO_LINES_PATCH",
-        ),
-    ],
-)
-def test_censor_content(content: str, policy_breaks: List[PolicyBreak]) -> None:
-    copy_policy_breaks = copy.deepcopy(policy_breaks)
-    new_content = censor_content(content, copy_policy_breaks)
-    assert len(new_content) == len(content)
-    for policy_break in policy_breaks:
-        for match in policy_break.matches:
-            assert match.match not in new_content
