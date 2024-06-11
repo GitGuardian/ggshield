@@ -1,14 +1,16 @@
 import json
+import operator
 from collections import namedtuple
 from copy import deepcopy
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, TypedDict
 from unittest.mock import Mock
 
 import pytest
 from pytest_voluptuous import Partial, S
-from voluptuous import Optional, Required, validators
+from voluptuous import Optional as VOptional
+from voluptuous import Required, validators
 
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import (
@@ -73,7 +75,7 @@ SCHEMA_WITH_INCIDENTS = S(
                         ),
                         "total_incidents": validators.All(int, min=1),
                         "total_occurrences": validators.All(int, min=1),
-                        Optional("validity"): validators.Any(
+                        VOptional("validity"): validators.Any(
                             "valid",
                             "failed_to_check",
                             "invalid",
@@ -102,7 +104,19 @@ SCHEMA_WITH_INCIDENTS = S(
 )
 
 
-MATCH_INDICES_FOR_PATCH = {
+class ExpectedIndicesDict(TypedDict):
+    line_start: int
+    line_end: int
+    pre_line_start: Optional[int]
+    pre_line_end: Optional[int]
+    post_line_start: Optional[int]
+    post_line_end: Optional[int]
+
+
+MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
+    # The "* 4" is there because this is a 4-matches secret, but the JSON output uses
+    # the line_start and line_end from the server, which uses the line numbers of the
+    # first match for all matches!
     _MULTIPLE_SECRETS_PATCH: [
         {
             "line_start": 2,
@@ -112,7 +126,8 @@ MATCH_INDICES_FOR_PATCH = {
             "post_line_start": 2,
             "post_line_end": 2,
         }
-    ],
+    ]
+    * 4,
     UNCHECKED_SECRET_PATCH: [
         {
             "line_start": 2,
@@ -141,7 +156,15 @@ MATCH_INDICES_FOR_PATCH = {
             "pre_line_end": None,
             "post_line_start": 1,
             "post_line_end": 9,
-        }
+        },
+        {
+            "line_start": 9,
+            "line_end": 9,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 9,
+            "post_line_end": 9,
+        },
     ],
     _SINGLE_ADD_PATCH: [
         {
@@ -176,14 +199,22 @@ MATCH_INDICES_FOR_PATCH = {
 }
 
 
+def create_occurrence_indices_dict(occurrence: Dict[str, Any]) -> ExpectedIndicesDict:
+    return {k: occurrence.get(k) for k in ExpectedIndicesDict.__annotations__.keys()}
+
+
 def check_occurrences_indices(occurrences: List[Dict[str, Any]], patch: str) -> None:
     """
     Check `occurrences` contains the expected indices for patch `patch`.
     """
     match_indices_list = MATCH_INDICES_FOR_PATCH[patch]
-    for occurrence, expected_indices in zip(occurrences, match_indices_list):
-        current_indices = {k: occurrence.get(k) for k in expected_indices.keys()}
-        assert current_indices == expected_indices
+
+    line_start_getter = operator.itemgetter("line_start")
+
+    occurrences_indices_list = [create_occurrence_indices_dict(x) for x in occurrences]
+    assert sorted(occurrences_indices_list, key=line_start_getter) == sorted(
+        match_indices_list, key=line_start_getter
+    )
 
 
 @pytest.mark.parametrize(
@@ -248,7 +279,9 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
         assert all(
             ignore_sha in json_flat_results
             for result in results.results
-            for ignore_sha in leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
+            for ignore_sha in group_policy_breaks_by_ignore_sha(
+                result.scan.policy_breaks
+            )
         )
 
 

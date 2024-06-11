@@ -6,7 +6,7 @@ from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cas
 from pygitguardian.models import Match, ScanResult
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.scan.scannable import Scannable
 from ggshield.utils.git_shell import Filemode
@@ -158,7 +158,7 @@ class SecretScanCollection:
 
         known_secrets_count = 0
         new_secrets_count = 0
-        sha_dict = leak_dictionary_by_ignore_sha(policy_breaks)
+        sha_dict = group_policy_breaks_by_ignore_sha(policy_breaks)
 
         for ignore_sha, policy_breaks in sha_dict.items():
             if policy_breaks[0].known_secret:

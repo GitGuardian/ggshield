@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
-from ggshield.core.filter import leak_dictionary_by_ignore_sha
+from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.lines import Line, get_offset, get_padding
 from ggshield.core.text_utils import (
     STYLE,
@@ -99,7 +99,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
         """
         result_buf = StringIO()
 
-        sha_dict = leak_dictionary_by_ignore_sha(result.scan.policy_breaks)
+        sha_dict = group_policy_breaks_by_ignore_sha(result.scan.policy_breaks)
 
         if not self.show_secrets:
             result.censor()
