@@ -131,8 +131,8 @@ class SecretScanner:
                 self.client.secret_scan_preferences.maximum_documents_per_scan,
             )
         )
-        logging.debug("max_doc_size=%d", maximum_document_size)
-        logging.debug("max_docs=%d", maximum_documents_per_scan)
+        logger.debug("max_doc_size=%d", maximum_document_size)
+        logger.debug("max_docs=%d", maximum_documents_per_scan)
         for scannable in scannables:
             try:
                 if scannable.is_longer_than(maximum_document_size):
