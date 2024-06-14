@@ -3,7 +3,7 @@ import logging
 import os
 from ast import literal_eval
 from concurrent.futures import Future
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 import click
 from pygitguardian import GGClient
@@ -86,7 +86,7 @@ class SecretScanner:
 
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[Scannable]
-    ) -> Future:
+    ) -> Future[Union[Detail, MultiScanResult]]:
         """
         Sends a chunk of files to scan to the API
         """
@@ -108,7 +108,7 @@ class SecretScanner:
         executor: concurrent.futures.ThreadPoolExecutor,
         scannables: Iterable[Scannable],
         scanner_ui: ScannerUI,
-    ) -> Dict[Future, List[Scannable]]:
+    ) -> Dict[Future[Union[Detail, MultiScanResult]], List[Scannable]]:
         """
         Start all scans, return a tuple containing:
         - a mapping of future to the list of files it is scanning
@@ -167,7 +167,9 @@ class SecretScanner:
     def _collect_results(
         self,
         scanner_ui: ScannerUI,
-        chunks_for_futures: Dict[Future, List[Scannable]],
+        chunks_for_futures: Dict[
+            Future[Union[Detail, MultiScanResult]], List[Scannable]
+        ],
     ) -> Results:
         """
         Receive scans as they complete, report progress and collect them and return
@@ -194,6 +196,7 @@ class SecretScanner:
                 )
 
             if not scan.success:
+                assert isinstance(scan, Detail)
                 handle_scan_chunk_error(scan, chunk)
                 continue
 
