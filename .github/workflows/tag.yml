@@ -79,6 +79,7 @@ jobs:
             packages/ggshield-*.pkg \
             packages/ggshield_*.deb \
             packages/ggshield-*.rpm \
+            packages/ggshield-*.zip \
             packages/ggshield-*.gz
 
   push_to_docker_hub:
