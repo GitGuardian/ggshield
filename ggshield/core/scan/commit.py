@@ -52,7 +52,7 @@ class Commit:
     @staticmethod
     def from_sha(
         sha: str,
-        exclusion_regexes: Optional[Set[re.Pattern]] = None,
+        exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
         cwd: Optional[Path] = None,
     ) -> "Commit":
         info = CommitInformation.from_sha(sha, cwd=cwd)
@@ -76,7 +76,8 @@ class Commit:
 
     @staticmethod
     def from_staged(
-        exclusion_regexes: Optional[Set[re.Pattern]] = None, cwd: Optional[Path] = None
+        exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
+        cwd: Optional[Path] = None,
     ) -> "Commit":
         def parser(commit: "Commit") -> Iterable[Scannable]:
             patch = git(["diff", "--staged"] + PATCH_COMMON_ARGS, cwd=cwd)
@@ -93,7 +94,7 @@ class Commit:
     @staticmethod
     def from_patch(
         patch: str,
-        exclusion_regexes: Optional[Set[re.Pattern]] = None,
+        exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
     ) -> "Commit":
         """This one is for tests"""
         info = CommitInformation.from_patch_header(patch)

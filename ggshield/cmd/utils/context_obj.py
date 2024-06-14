@@ -38,7 +38,7 @@ class ContextObj:
 
         # Depending on the vertical, this is set by configuration options or
         # command-line parameters
-        self.exclusion_regexes: Set[re.Pattern] = set()
+        self.exclusion_regexes: Set[re.Pattern[str]] = set()
 
         # Set to false by the --no-check-for-updates option
         self.check_for_updates = True

@@ -36,7 +36,7 @@ SCA_EXCLUSION_REGEXES = {
 
 def get_all_files_from_sca_paths(
     path: Path,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
     verbose: bool,
     ignore_git: bool = False,
 ) -> List[str]:
@@ -71,7 +71,7 @@ def sca_files_from_git_repo(
     directory: Path,
     ref: str,
     client: GGClient,
-    exclusion_regexes: Optional[Set[re.Pattern]] = None,
+    exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
     verbose: bool = False,
 ) -> Set[Path]:
     """Returns SCA files from the git repository at

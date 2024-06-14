@@ -115,7 +115,7 @@ class SecretScanCollection:
 
     def __init__(
         self,
-        id: Union[str, PathLike],
+        id: Union[str, PathLike[str]],
         type: str,
         results: Optional[Results] = None,
         scans: Optional[List["SecretScanCollection"]] = None,

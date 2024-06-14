@@ -111,7 +111,7 @@ def sca_scan_all(
 
 def get_sca_scan_all_filepaths(
     directory: Path,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
     verbose: bool,
     client: GGClient,
 ) -> Tuple[List[str], int]:

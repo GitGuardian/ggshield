@@ -12,7 +12,7 @@ from ggshield.core.text_utils import display_warning
 class FilteredConfig(FromDictMixin, ToDictMixin):
     @classmethod
     @pre_load(pass_many=False)
-    def filter_fields(cls, data: Dict, **kwargs: Any) -> Dict:
+    def filter_fields(cls, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """
         Remove and alert on unknown fields.
         """

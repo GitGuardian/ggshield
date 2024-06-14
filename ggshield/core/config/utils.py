@@ -15,7 +15,7 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import GitExecutableNotFound
 
 
-def replace_dash_in_keys(data: Union[List, Dict]) -> Set[str]:
+def replace_dash_in_keys(data: Union[List[Any], Dict[str, Any]]) -> Set[str]:
     """Replace '-' with '_' in data keys.
 
     If a key exists in both dash and underscore versions, then only the underscore
@@ -135,7 +135,9 @@ def update_dict_from_other(dct: Dict[str, Any], other: Dict[str, Any]) -> None:
             dct[key] = value
 
 
-def remove_common_dict_items(dct: Dict, reference_dct: Dict) -> Dict:
+def remove_common_dict_items(
+    dct: Dict[str, Any], reference_dct: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Returns a copy of `dct` with all items already in `reference_dct` removed.
     """

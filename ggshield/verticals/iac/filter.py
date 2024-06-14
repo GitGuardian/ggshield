@@ -20,7 +20,7 @@ IAC_FILENAME_KEYWORDS = {"tfvars", "dockerfile"}
 
 def get_iac_files_from_path(
     path: Path,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
     verbose: bool,
     ignore_git: bool = False,
     ignore_git_staged: bool = False,

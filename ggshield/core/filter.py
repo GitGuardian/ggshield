@@ -140,7 +140,7 @@ def is_pattern_valid(pattern: str) -> bool:
     return bool(pattern) and not INVALID_PATTERNS_REGEX.search(pattern)
 
 
-def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern]:
+def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern[str]]:
     """
     filter_set creates a set of paths of the ignored
     entries from 3 sources:

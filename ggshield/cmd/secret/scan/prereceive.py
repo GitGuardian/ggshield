@@ -45,7 +45,7 @@ def _execute_prereceive(
     command_path: str,
     client: GGClient,
     ui: GGShieldUI,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
 ) -> None:
     try:
         scan_context = ScanContext(

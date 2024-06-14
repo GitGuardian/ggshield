@@ -56,7 +56,7 @@ class File(Scannable):
 
 def get_files_from_paths(
     paths: List[Path],
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
     yes: bool,
     display_scanned_files: bool,
     display_binary_files: bool,

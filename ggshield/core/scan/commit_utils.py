@@ -188,7 +188,7 @@ class PatchHeader:
 
 
 def parse_patch(
-    sha: Optional[str], patch: str, exclusion_regexes: Optional[Set[re.Pattern]]
+    sha: Optional[str], patch: str, exclusion_regexes: Optional[Set[re.Pattern[str]]]
 ) -> Iterable[Scannable]:
     """
     Parse a patch generated with `git show` or `git diff` using PATCH_COMMON_ARGS.

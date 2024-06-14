@@ -38,7 +38,7 @@ class UnexpectedDirectoryError(ValueError):
 
 
 def is_path_excluded(
-    path: Union[str, Path], exclusion_regexes: Set[re.Pattern]
+    path: Union[str, Path], exclusion_regexes: Set[re.Pattern[str]]
 ) -> bool:
     path = Path(path)
     if path.is_dir():
@@ -52,7 +52,7 @@ def is_path_excluded(
 
 def get_filepaths(
     paths: List[Path],
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
     list_files_mode: ListFilesMode,
 ) -> Set[Path]:
     """

@@ -12,7 +12,7 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.utils.click import RealPath
 
 
-def _dict_to_string(data: Dict, space: bool = False) -> str:
+def _dict_to_string(data: Dict[str, str], space: bool = False) -> str:
     """Returns a string with 'key=value' for each key-value pair in the dictionary."""
     space_char = " " if space else ""
     return "\n".join([f"{k}{space_char}={space_char}{v}" for k, v in data.items()])

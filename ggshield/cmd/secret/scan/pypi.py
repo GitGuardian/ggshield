@@ -54,7 +54,7 @@ def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
 def get_files_from_package(
     archive_dir: Path,
     package_name: str,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[re.Pattern[str]],
     verbose: bool,
 ) -> List[Scannable]:
     archive: Path = next(archive_dir.iterdir())
