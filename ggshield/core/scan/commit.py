@@ -1,6 +1,5 @@
-import re
 from pathlib import Path
-from typing import Callable, Iterable, Optional, Sequence, Set
+from typing import Callable, Iterable, Optional, Pattern, Sequence, Set
 
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.git_shell import git
@@ -52,7 +51,7 @@ class Commit:
     @staticmethod
     def from_sha(
         sha: str,
-        exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
+        exclusion_regexes: Optional[Set[Pattern[str]]] = None,
         cwd: Optional[Path] = None,
     ) -> "Commit":
         info = CommitInformation.from_sha(sha, cwd=cwd)
@@ -76,7 +75,7 @@ class Commit:
 
     @staticmethod
     def from_staged(
-        exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
+        exclusion_regexes: Optional[Set[Pattern[str]]] = None,
         cwd: Optional[Path] = None,
     ) -> "Commit":
         def parser(commit: "Commit") -> Iterable[Scannable]:
@@ -94,7 +93,7 @@ class Commit:
     @staticmethod
     def from_patch(
         patch: str,
-        exclusion_regexes: Optional[Set[re.Pattern[str]]] = None,
+        exclusion_regexes: Optional[Set[Pattern[str]]] = None,
     ) -> "Commit":
         """This one is for tests"""
         info = CommitInformation.from_patch_header(patch)

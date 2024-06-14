@@ -1,10 +1,9 @@
 import logging
 import multiprocessing
 import os
-import re
 import sys
 from pathlib import Path
-from typing import Any, List, Set
+from typing import Any, List, Pattern, Set
 
 import click
 from pygitguardian import GGClient
@@ -45,7 +44,7 @@ def _execute_prereceive(
     command_path: str,
     client: GGClient,
     ui: GGShieldUI,
-    exclusion_regexes: Set[re.Pattern[str]],
+    exclusion_regexes: Set[Pattern[str]],
 ) -> None:
     try:
         scan_context = ScanContext(

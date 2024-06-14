@@ -1,8 +1,7 @@
 import itertools
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, List, Optional, Set
+from typing import Callable, Iterable, Iterator, List, Optional, Pattern, Set
 
 from click import UsageError
 from pygitguardian import GGClient
@@ -32,7 +31,7 @@ def scan_repo_path(
     cache: Cache,
     ui: GGShieldUI,
     output_handler: SecretOutputHandler,
-    exclusion_regexes: Set[re.Pattern[str]],
+    exclusion_regexes: Set[Pattern[str]],
     config: Config,
     scan_context: ScanContext,
     repo_path: Path,
@@ -152,7 +151,7 @@ def scan_commit_range(
     ui: GGShieldUI,
     commit_list: List[str],
     output_handler: SecretOutputHandler,
-    exclusion_regexes: Set[re.Pattern[str]],
+    exclusion_regexes: Set[Pattern[str]],
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,

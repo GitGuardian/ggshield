@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from re import Pattern
-from typing import Iterable, Optional, Set, Type, Union
+from typing import Iterable, Optional, Pattern, Set, Type, Union
 
 import click
 from pygitguardian import GGClient

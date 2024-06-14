@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from os import PathLike
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
 
@@ -115,7 +114,7 @@ class SecretScanCollection:
 
     def __init__(
         self,
-        id: Union[str, PathLike[str]],
+        id: Union[str, Path],
         type: str,
         results: Optional[Results] = None,
         scans: Optional[List["SecretScanCollection"]] = None,

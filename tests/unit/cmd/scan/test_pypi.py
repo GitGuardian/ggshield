@@ -2,7 +2,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Set
+from typing import Pattern, Set
 from unittest.mock import Mock, patch
 
 import pytest
@@ -67,7 +67,7 @@ class TestPipDownload:
 
 class TestListPackageFiles:
     package_name: str = "what-ever-non-existing"
-    exclusion_regexes: Set[re.Pattern[str]] = {re.compile("i am a regex")}
+    exclusion_regexes: Set[Pattern[str]] = {re.compile("i am a regex")}
 
     @pytest.mark.parametrize(
         "extension,verbose",

@@ -1,7 +1,6 @@
-import re
 from enum import Enum, auto
 from pathlib import Path, PurePosixPath
-from typing import List, Set, Union
+from typing import List, Pattern, Set, Union
 
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 from ggshield.utils.git_shell import (
@@ -38,7 +37,7 @@ class UnexpectedDirectoryError(ValueError):
 
 
 def is_path_excluded(
-    path: Union[str, Path], exclusion_regexes: Set[re.Pattern[str]]
+    path: Union[str, Path], exclusion_regexes: Set[Pattern[str]]
 ) -> bool:
     path = Path(path)
     if path.is_dir():
@@ -52,7 +51,7 @@ def is_path_excluded(
 
 def get_filepaths(
     paths: List[Path],
-    exclusion_regexes: Set[re.Pattern[str]],
+    exclusion_regexes: Set[Pattern[str]],
     list_files_mode: ListFilesMode,
 ) -> Set[Path]:
     """
