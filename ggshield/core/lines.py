@@ -1,5 +1,5 @@
 import re
-from types import SimpleNamespace
+from dataclasses import dataclass
 from typing import Iterable, List, Optional
 
 from ggshield.core.errors import ParseError
@@ -18,7 +18,8 @@ FILE_LINE_PREFIX = "{} | "
 PATCH_LINE_PREFIX = "{} {} | "
 
 
-class Line(SimpleNamespace):
+@dataclass
+class Line:
     """
     Represent a line in a document.
 
@@ -61,7 +62,7 @@ class Line(SimpleNamespace):
     pre_index: Optional[int] = None
     post_index: Optional[int] = None
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(
             (
                 self.content,

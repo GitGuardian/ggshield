@@ -2,7 +2,7 @@ import hashlib
 import math
 import operator
 import re
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Pattern, Set
 
 from click import UsageError
 from pygitguardian.models import Match, PolicyBreak, ScanResult
@@ -140,7 +140,7 @@ def is_pattern_valid(pattern: str) -> bool:
     return bool(pattern) and not INVALID_PATTERNS_REGEX.search(pattern)
 
 
-def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[re.Pattern]:
+def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[Pattern[str]]:
     """
     filter_set creates a set of paths of the ignored
     entries from 3 sources:

@@ -1,9 +1,10 @@
 import concurrent.futures
 import logging
 import os
+import sys
 from ast import literal_eval
 from concurrent.futures import Future
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 import click
 from pygitguardian import GGClient
@@ -31,6 +32,12 @@ _SIZE_METADATA_OVERHEAD = 10240  # 10 KB
 
 
 logger = logging.getLogger(__name__)
+
+
+if sys.version_info >= (3, 10):
+    ScanFuture = Future[Union[Detail, MultiScanResult]]
+else:
+    ScanFuture = Future
 
 
 class SecretScanner:
@@ -86,7 +93,7 @@ class SecretScanner:
 
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[Scannable]
-    ) -> Future:
+    ) -> ScanFuture:
         """
         Sends a chunk of files to scan to the API
         """
@@ -108,7 +115,7 @@ class SecretScanner:
         executor: concurrent.futures.ThreadPoolExecutor,
         scannables: Iterable[Scannable],
         scanner_ui: ScannerUI,
-    ) -> Dict[Future, List[Scannable]]:
+    ) -> Dict[ScanFuture, List[Scannable]]:
         """
         Start all scans, return a tuple containing:
         - a mapping of future to the list of files it is scanning
@@ -167,7 +174,7 @@ class SecretScanner:
     def _collect_results(
         self,
         scanner_ui: ScannerUI,
-        chunks_for_futures: Dict[Future, List[Scannable]],
+        chunks_for_futures: Dict[ScanFuture, List[Scannable]],
     ) -> Results:
         """
         Receive scans as they complete, report progress and collect them and return
@@ -194,6 +201,7 @@ class SecretScanner:
                 )
 
             if not scan.success:
+                assert isinstance(scan, Detail)
                 handle_scan_chunk_error(scan, chunk)
                 continue
 

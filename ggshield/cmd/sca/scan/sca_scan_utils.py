@@ -1,7 +1,6 @@
-import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Type, Union
+from typing import List, Optional, Pattern, Set, Tuple, Type, Union
 
 import click
 from pygitguardian.client import GGClient, _create_tar
@@ -111,7 +110,7 @@ def sca_scan_all(
 
 def get_sca_scan_all_filepaths(
     directory: Path,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[Pattern[str]],
     verbose: bool,
     client: GGClient,
 ) -> Tuple[List[str], int]:

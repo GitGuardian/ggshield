@@ -9,9 +9,8 @@ from ggshield.verticals.iac.collection.iac_scan_collection import (
 )
 
 
-class IaCPathScanCollection(IaCScanCollection):
+class IaCPathScanCollection(IaCScanCollection[IaCScanResult]):
     type = CollectionType.PathScan
-    result: Optional[IaCScanResult]
 
     @property
     def has_results(self) -> bool:

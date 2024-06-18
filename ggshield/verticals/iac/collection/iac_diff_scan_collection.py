@@ -9,9 +9,8 @@ from ggshield.verticals.iac.collection.iac_scan_collection import (
 )
 
 
-class IaCDiffScanCollection(IaCScanCollection):
+class IaCDiffScanCollection(IaCScanCollection[IaCDiffScanResult]):
     type = CollectionType.DiffScan
-    result: Optional[IaCDiffScanResult]
 
     @property
     def has_results(self) -> bool:

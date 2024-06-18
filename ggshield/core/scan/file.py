@@ -1,6 +1,5 @@
-import re
 from pathlib import Path
-from typing import Iterable, Iterator, List, Set, Union
+from typing import Iterable, Iterator, List, Pattern, Set, Union
 
 import click
 
@@ -56,7 +55,7 @@ class File(Scannable):
 
 def get_files_from_paths(
     paths: List[Path],
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[Pattern[str]],
     yes: bool,
     display_scanned_files: bool,
     display_binary_files: bool,

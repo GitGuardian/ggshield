@@ -13,6 +13,7 @@ from ggshield.verticals.iac.collection.iac_path_scan_collection import (
 )
 from ggshield.verticals.iac.collection.iac_scan_collection import (
     CollectionType,
+    IaCResultT,
     IaCScanCollection,
 )
 
@@ -111,7 +112,7 @@ class IaCOutputHandler(ABC):
         """
         raise NotImplementedError()
 
-    def _get_exit_code(self, scan: IaCScanCollection) -> ExitCode:
+    def _get_exit_code(self, scan: IaCScanCollection[IaCResultT]) -> ExitCode:
         if scan.result is None or scan.type == CollectionType.Unknown:
             return ExitCode.UNEXPECTED_ERROR
         if scan.has_results:
@@ -119,7 +120,7 @@ class IaCOutputHandler(ABC):
         return ExitCode.SUCCESS
 
     def _handle_process_scan_result(
-        self, scan: IaCScanCollection, text: str
+        self, scan: IaCScanCollection[IaCResultT], text: str
     ) -> ExitCode:
         source_found = scan.result is not None and scan.result.source_found
         if self.verbose and not source_found:

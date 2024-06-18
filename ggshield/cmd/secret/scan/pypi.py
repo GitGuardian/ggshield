@@ -4,7 +4,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, List, Pattern, Set
 
 import click
 
@@ -54,16 +54,15 @@ def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
 def get_files_from_package(
     archive_dir: Path,
     package_name: str,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[Pattern[str]],
     verbose: bool,
 ) -> List[Scannable]:
     archive: Path = next(archive_dir.iterdir())
-    unpack_kwargs: Dict[str, str] = (
-        {"format": "zip"} if archive.suffix == ".whl" else {}
-    )
+    # unpack_archive does not know .whl files are zip files
+    archive_format = "zip" if archive.suffix == ".whl" else None
 
     try:
-        shutil.unpack_archive(str(archive), extract_dir=archive_dir, **unpack_kwargs)
+        shutil.unpack_archive(archive, extract_dir=archive_dir, format=archive_format)
     except Exception as exn:
         raise UnexpectedError(f'Failed to unpack package "{package_name}": {exn}.')
 

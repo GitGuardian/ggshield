@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Generic, List, Optional, TypeVar, Union
 
 from pygitguardian.iac_models import (
     IaCDiffScanEntities,
@@ -13,22 +13,24 @@ from pygitguardian.iac_models import (
 IaCResult = Union[IaCScanResult, IaCDiffScanResult]
 
 
+IaCResultT = TypeVar("IaCResultT", IaCDiffScanResult, IaCScanResult)
+
+
 class CollectionType(Enum):
     Unknown = "unknown"
     PathScan = "path_scan"
     DiffScan = "diff_scan"
 
 
-class IaCScanCollection(ABC):
-    type = CollectionType.Unknown
-    id: str
+class IaCScanCollection(ABC, Generic[IaCResultT]):
+    type: CollectionType = CollectionType.Unknown
     # Can be None if the scan failed
-    result: Optional[IaCResult]
+    result: Optional[IaCResultT]
 
     def __init__(
         self,
         id: str,
-        result: Optional[IaCResult],
+        result: Optional[IaCResultT],
     ):
         self.id = id
         self.result = result
@@ -53,7 +55,7 @@ class IaCScanCollection(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_result_without_ignored(self) -> Optional[IaCResult]:
+    def get_result_without_ignored(self) -> Optional[IaCResultT]:
         """
         Removes vulnerabilities marked as ignored.
         Removes files that only have ignored vulnerabilities.

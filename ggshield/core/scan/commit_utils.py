@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Set
+from typing import Iterable, List, Optional, Pattern, Set
 
 from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import Filemode
@@ -188,7 +188,7 @@ class PatchHeader:
 
 
 def parse_patch(
-    sha: Optional[str], patch: str, exclusion_regexes: Optional[Set[re.Pattern]]
+    sha: Optional[str], patch: str, exclusion_regexes: Optional[Set[Pattern[str]]]
 ) -> Iterable[Scannable]:
     """
     Parse a patch generated with `git show` or `git diff` using PATCH_COMMON_ARGS.

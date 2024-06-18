@@ -1,6 +1,5 @@
-import re
 from pathlib import Path
-from typing import List, Set
+from typing import List, Pattern, Set
 
 from ggshield.core.scan.file import get_files_from_paths
 from ggshield.utils.files import ListFilesMode
@@ -20,7 +19,7 @@ IAC_FILENAME_KEYWORDS = {"tfvars", "dockerfile"}
 
 def get_iac_files_from_path(
     path: Path,
-    exclusion_regexes: Set[re.Pattern],
+    exclusion_regexes: Set[Pattern[str]],
     verbose: bool,
     ignore_git: bool = False,
     ignore_git_staged: bool = False,

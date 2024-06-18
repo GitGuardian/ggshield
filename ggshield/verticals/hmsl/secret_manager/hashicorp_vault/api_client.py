@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Generator, List, Tuple
+from typing import Any, Dict, Generator, List, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -37,7 +37,7 @@ class VaultAPIClient:
 
     def _make_request(
         self, endpoint: str, method: str = "GET", api_version: str = "v1"
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """ "
         Make request to the API.
         """
@@ -70,7 +70,7 @@ class VaultAPIClient:
                 version=value["options"]["version"],
             )
 
-    def list_kv_items(self, mount: VaultKvMount, path: str):
+    def list_kv_items(self, mount: VaultKvMount, path: str) -> List[str]:
         logger.debug(f"Listing kv items for mount {mount.name} at {path}")
 
         api_endpoint = (

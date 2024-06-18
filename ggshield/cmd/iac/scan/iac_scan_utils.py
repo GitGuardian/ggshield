@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from re import Pattern
-from typing import Iterable, Optional, Set, Type, Union
+from typing import Iterable, Optional, Pattern, Set, Type, Union
 
 import click
 from pygitguardian import GGClient
@@ -58,7 +57,7 @@ def get_git_filepaths(directory: Path, ref: str) -> Iterable[Path]:
 
 
 def _accept_iac_file_on_path(
-    path: Path, directory: Path, exclusion_regexes: Optional[Set[Pattern]] = None
+    path: Path, directory: Path, exclusion_regexes: Optional[Set[Pattern[str]]] = None
 ) -> bool:
     return is_iac_file_path(path) and (
         exclusion_regexes is None
@@ -69,7 +68,7 @@ def _accept_iac_file_on_path(
 def filter_iac_filepaths(
     directory: Path,
     filepaths: Iterable[Path],
-    exclusion_regexes: Optional[Set[Pattern]] = None,
+    exclusion_regexes: Optional[Set[Pattern[str]]] = None,
 ) -> Iterable[Path]:
     # You can filter based on file's content here
     # using read_git_file (result will be cached)
@@ -84,7 +83,9 @@ def filter_iac_filepaths(
     ]
 
 
-def get_iac_tar(directory: Path, ref: str, exclusion_regexes: Set[Pattern]) -> bytes:
+def get_iac_tar(
+    directory: Path, ref: str, exclusion_regexes: Set[Pattern[str]]
+) -> bytes:
     filepaths = get_git_filepaths(directory, ref)
     filtered_paths = filter_iac_filepaths(
         directory=directory,
