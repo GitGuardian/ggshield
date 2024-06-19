@@ -1,6 +1,6 @@
 interactions:
   - request:
-      body: '{"files": ["dummy_file.py", "Pipfile", "package-lock.json", "Pipfile.lock"]}'
+      body: '{"files": ["Pipfile", "Pipfile.lock", "dummy_file.py", "package-lock.json"]}'
       headers:
         Accept:
           - '*/*'
@@ -13,12 +13,12 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.10.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
       body:
-        string: '{"sca_files":["Pipfile","package-lock.json","Pipfile.lock"],"potential_siblings":[]}'
+        string: '{"sca_files":["Pipfile","Pipfile.lock","package-lock.json"],"potential_siblings":[]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 26 Sep 2023 13:21:28 GMT
+          - Wed, 19 Jun 2024 12:57:47 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.39.1
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '15'
+          - '26'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.17.0
+          - 1.38.0
+        x-sca-last-vuln-fetch:
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.97.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -61,24 +63,25 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS0wMjYwYzA5ZDEyYzZjODk5ZjA0NzQ2MWYwNjI4MzQwZg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS03YjIyYWY5NDdlNzg0MjQyYjIxNjk1ZWFmOTg4ZmU3OA0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
-        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXX0NCi0tMDI2MGMwOWQxMmM2Yzg5
-        OWYwNDc0NjFmMDYyODM0MGYNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0i
-        ZGlyZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIANjaEmUC/+2YTW/iMBCGOedX
-        oJzb4O84lZD2uMfeEaoce1yyDSSNA6Ja8d83Dm0hhaonWm3r5xLisWcSOzOjl2SSTH7dqu1vUAaa
-        0UVAe967IkTZ4bcfx4hgMhpvR5/A2rWq6cKPfiZEjpdtsYQpFhlPKWNSJlhQzlgajQLfntuitkUJ
-        F43hk1qIPsdxyvHxtYcwPMKMI8Y5p9TnPyesy3/0mfm/VZsCmrxUK72o2tN5H9n/U6LZzFXrRsN8
-        Hq2bcjwdx4u2rd3NZFI/1UVSNfcTVyzrEuJoA01hn+6c89PaZg3RSi3BL/FT4yia1Uo/qHtw88g9
-        lrVqXG+dTlHCEuonGNhcHyZFswYe10Xjf9dP7aJa3XUxXFGt/DKaYBSHInRZktD/Q/9/2/9T3PV/
-        EVLvB/BcjK/LSj8kf1y1+oL+73N+2P9T3JWE0P9D/Q/1P+i/wOX1X+Lr/xfpP8yQeFP/RWcP9f9T
-        9N/faNwR3y2hVfHNeH/bDy2UWwxG+lG3UISLbjwmucUitUKlRCmFLJOWy1RkjFuiaCpTZqnFmBll
-        OGScaJMamxkL0mSGSBy/Ot5dHaLW+w/y2tWguyjiyPQiFk8faige/cPtxeO5AHu5653MBk6GLvup
-        Xt56Z728vTq1d4LZm98TzGdWHCR0t7CX0Mfm3evdPDp67NiAVeuyHR7Pi8I+3Q1/cGde8Oj4bhAl
-        VCPQJNOGk1yDyjXOWXcwPM2AYmwpsEzgPJMGp4wgbLggRBGaSw6UnXu3Z9ci00oiJpnIc3/6BDSV
-        CBgVSElFGTK5pBZpbamyGiDv8p8Zi0j3+aREyHjgeT4MFBcrA9t3ziQ+Ov/X/xyGe3vY0Q2UVe33
-        bhftQqcLBAKBQCAQCAQCgUAg8I35B9qNp50AKAAADQotLTAyNjBjMDlkMTJjNmM4OTlmMDQ3NDYx
-        ZjA2MjgzNDBmLS0NCg==
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXSwgImlnbm9yZV9ub3RfZml4YWJs
+        ZSI6IGZhbHNlLCAiaWdub3JlX2ZpeGFibGUiOiBmYWxzZX0NCi0tN2IyMmFmOTQ3ZTc4NDI0MmIy
+        MTY5NWVhZjk4OGZlNzgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iZGly
+        ZWN0b3J5IjsgZmlsZW5hbWU9ImRpcmVjdG9yeSINCg0KH4sIAMvVcmYC/+2YS0/jMBDHe86nqHKG
+        1G87SJX2uEfuVYUcP2ggTUKcItCq333tFGhDi/aygHbr3yWJHzO2J5P5t9ksm/24lk8/jdSmm3wK
+        YMdHVwAw2d+HdggQRJPp0+QL2Lhedt795DxBYrruy7WZQw6FAFAwluUUUwZFMon891yXrS0r86k+
+        QlIzNuQ45BQeXgcQgRNIGCaUIg6xz3+KfEJOwVfm/11Ty34l69uutPbEefyp/x8lWSxcs+mUWS6T
+        TVdN59N01fetu5rN2ue2zJrudubKdVuZNHk0fu/PN86FYX23MUkt1yZMCUPTJFm0Ut3LW+OWiXuo
+        Wtm5oXc+BxnJSBigzePlflCy6MzDpuzCffvcr5r6xvtwZVOHaTiDII0foc8li/U/1v9Y/8+9/mdV
+        o+6/qf5DAti7+s8gxrH+f0n9/5VMPenN2vQyvZruHoemlXSrUcvQ6lYSUebbU1RYyLhlkiMpJbBE
+        WCo4ywm1SGIuOLHYQki01NTkFCnNtc21NULnGgmYvhneXuy9trsX8tK1Rnkv7KDrVSwcL2osHsLi
+        duLhlIOd3AlGFiMjY5PD0CBvgrFB3lwc93vBFLo/EkwnZuwllJ84SKjD7u3b0zI5WHaqjZWbqh+H
+        51VhHZ9GCNyJDR6E7wpghBUwCuVKU1QoIwsFC+IDQ3luMIQWG5IzWORCQ04QgJoyhCTChaAGk1N7
+        ezHNciUFIIKwogjRR0ZhAQzBDEghMQG6ENgCpSyWVhlT+Pwn2gLkXx+OmEhHlpdjR2lZa/P0QUzS
+        g/i/ac7x2e5P9NFUTRvObptsz7jSRf0X9d+R/mPQ6z8U9d8Z8PJj/DLov+zONfU3/P8Tcn6s/zjg
+        KOq/SCQSiUQikUgkEolEIpG/wW8X48KQACgAAA0KLS03YjIyYWY5NDdlNzg0MjQyYjIxNjk1ZWFm
+        OTg4ZmU3OC0tDQo=
       headers:
         Accept:
           - '*/*'
@@ -87,11 +90,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '982'
+          - '1037'
         Content-Type:
-          - multipart/form-data; boundary=0260c09d12c6c899f047461f0628340f
+          - multipart/form-data; boundary=7b22af947e784242b21695eaf988fe78
         GGShield-Command-Id:
-          - 96712a45-8b1c-4bb7-87ab-e3733a9bffcb
+          - cbee4c4d-2209-4ab7-afbf-86d7e631ef41
         GGShield-Command-Path:
           - cli sca scan pre-commit
         GGShield-OS-Name:
@@ -99,34 +102,33 @@ interactions:
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.13
+          - 3.10.12
         GGShield-Version:
-          - 1.18.1
+          - 1.28.0
         User-Agent:
-          - pygitguardian/1.10.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
         mode:
-          - directory
+          - pre_commit_all
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
     response:
       body:
         string:
-          '{"scanned_files":["Pipfile","Pipfile.lock","package-lock.json"],"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.3","ecosystem":"pypi","dependency_type":"direct","vulns":[{"cve_ids":["CVE-2023-30608"],"identifier":"GHSA-rrm6-wvj7-cwh2","severity":"medium","created_at":"2023-04-21T20:24:21Z","fixed_version":"0.4.4","summary":"sqlparse
-          contains a regular expression that is vulnerable to Regular Expression Denial
-          of Service"}]}]}]}'
+          '{"scanned_files":["Pipfile","Pipfile.lock","package-lock.json"],"source_found":false,"found_package_vulns":[{"location":"Pipfile.lock","package_vulns":[{"package_full_name":"sqlparse","version":"0.4.4","ecosystem":"pypi","dependency_type":"direct","vulns":[{"cve_ids":["CVE-2024-4340"],"identifier":"GHSA-2m57-hf25-phgg","severity":"high","created_at":"2024-04-15T20:21:25Z","fixed_version":"0.5.0","summary":"sqlparse
+          parsing heavily nested list leads to Denial of Service","url":null,"status":null,"ignored_until":null,"ignore_reason":null,"ignore_comment":null}]}]}]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '497'
+          - '570'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 26 Sep 2023 13:21:29 GMT
+          - Wed, 19 Jun 2024 12:57:48 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -136,19 +138,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.39.1
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '135'
+          - '88'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.17.0
+          - 1.38.0
+        x-sca-last-vuln-fetch:
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.97.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:

@@ -114,7 +114,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-sqlparse = "==0.4.3"
+sqlparse = "==0.4.4"
 
 [dev-packages]
 
@@ -147,7 +147,7 @@ PIPFILE_LOCK_WITH_VULN = """
                 "sha256:69ca804846bb114d2ec380e4360a8a340db83f0ccf3afceeb1404df028f57268"
             ],
             "index": "pypi",
-            "version": "==0.4.3"
+            "version": "==0.4.4"
         }
     },
     "develop": {}
@@ -190,7 +190,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-sqlparse = "==0.4.4"
+sqlparse = "==0.5.0"
 
 [dev-packages]
 
@@ -223,7 +223,7 @@ PIPFILE_LOCK_NO_VULN = """
                 "sha256:d446183e84b8349fa3061f0fe7f06ca94ba65b426946ffebe6e3e8295332420c"
             ],
             "index": "pypi",
-            "version": "==0.4.4"
+            "version": "==0.5.0"
         }
     },
     "develop": {}
