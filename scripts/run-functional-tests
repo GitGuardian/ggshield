@@ -16,6 +16,9 @@ build_wheel() {
     # Remove existing .whl files to make sure there is only one .whl. This way we
     # can use a glob to refer to it.
     rm -rf dist/*.whl
+    # Remove build dir so that `python -m build` does not try to run
+    # `build/__main__.py`.
+    rm -rf build
     python -m build --wheel
 }
 
@@ -36,8 +39,15 @@ create_venv() {
 
 install_packages() {
     log_progress "Installing packages"
+
+    # Get the path to the generated .whl. We don't know its exact name,
+    # so use `ls` to find it. There should be only one file since we
+    # remove all the existing .whl files in `build_wheel()`.
+    local whl_path
+    whl_path="$(ls dist/*.whl)"
+
     # Install ggshield and test dependencies
-    pip install "dist/`ls dist`[all]" pytest pytest-voluptuous jsonschema
+    pip install "$whl_path" pytest pytest-voluptuous jsonschema
 }
 
 run_tests() {
