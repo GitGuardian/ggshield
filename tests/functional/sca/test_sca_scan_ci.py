@@ -31,11 +31,11 @@ def test_scan_ci(tmp_path: Path, pipfile_lock_with_vuln) -> None:
     assert bool(re.search(r"> Pipfile\.lock: \d+ incidents? detected", proc.stdout))
     assert (
         """
-Severity: Medium
-Summary: sqlparse contains a regular expression that is vulnerable to Regular Expression Denial of Service
-A fix is available at version 0.4.4
-Identifier: GHSA-rrm6-wvj7-cwh2
-CVE IDs: CVE-2023-30608"""
+Severity: High
+Summary: sqlparse parsing heavily nested list leads to Denial of Service
+A fix is available at version 0.5.0
+Identifier: GHSA-2m57-hf25-phgg
+CVE IDs: CVE-2024-4340"""
         in proc.stdout
     )
 

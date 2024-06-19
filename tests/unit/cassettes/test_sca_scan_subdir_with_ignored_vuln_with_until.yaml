@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.12.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Thu, 11 Jan 2024 14:13:34 GMT
+          - Wed, 19 Jun 2024 12:57:54 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,21 +41,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - 6843176f
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '53'
+          - '19'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.22.0
+          - 1.38.0
         x-sca-last-vuln-fetch:
-          - '2024-01-11T14:02:55.794006+00:00'
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.103.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -63,23 +63,24 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1kNTc5ODg4NmUzNTBkZDE5ZDI0ODMyYzU1NDliYTY0MQ0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        LS05MjljMzU0YTI2NjQyNzA1MDAwZTcyYzE5NTcxMGY3ZA0KQ29udGVudC1EaXNwb3NpdGlvbjog
         Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
         ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbeyJpZGVudGlmaWVyIjogIkdIU0Et
-        cnJtNi13dmo3LWN3aDIiLCAicGF0aCI6ICJpbm5lci9kaXIvUGlwZmlsZS5sb2NrIn1dfQ0KLS1k
-        NTc5ODg4NmUzNTBkZDE5ZDI0ODMyYzU1NDliYTY0MQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9y
-        bS1kYXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgAjvef
-        ZQL/7dVPb5swFABwzvkUEecO/A/bRIq04469T1Vl7OcFjQC1SZRqyncfpFMbllS9bJW6vd+FYJtn
-        4+dHsjzLP9+awxcwDkLyV5Anr10J4eLl99ROCaMsWR6Sd7CLgwnj9Mn/ienldqi3sKaKiFIzQUVG
-        NFFE6UWC/nl120LIXR3y27r3dQNZ09nvf77+pTzVOFUFPb9OqCAyoaIQSikuqUwIG78AMlmS96z/
-        g9nXEKrGtHbTDZfj3ur/oBY/FstRer+FwaSr5dPtqWlj4mbWcmqNG8MKObanrPJUKi+NYsYY4oX2
-        hVayFIVnhiuthOeeUuGMK6AsmHXK+dJ50K50TNP0OfDx5mXW/ukYfoo92HEWedYV4GFXB4iXi+of
-        h03X3u8hxLprp8XxjJLrE8RuF+wpyNdZkHnI09DWbGEK1j/2dXpz2b8LzdS9GYY+rvJ8GpZ14Vse
-        623fwLUnxhXW/vE+xunBIexgNuT4fHe3OFt26sCbXTPM0xMfmt6ECJe7MSXuyguepW9FOOOWgGWl
-        dQWrLJjK0kqMiSlUCZxSz0GUklaldlSJsSBdIRkzjFe6AC6uvduv0LK0RhOhhayqKfsMLNcEBJfE
-        aMMFcZXmnljrufEWoBrrXzhP2Hh8FJM6nUW+m0+U1q2Dwys5Sc/yv16TTGT87Aj8tqN7aLp+2rvj
-        4oj/dAghhBBCCCGEEEIIIYQQQgghhD64n62uB5MAKAAADQotLWQ1Nzk4ODg2ZTM1MGRkMTlkMjQ4
-        MzJjNTU0OWJhNjQxLS0NCg==
+        Mm01Ny1oZjI1LXBoZ2ciLCAicGF0aCI6ICJpbm5lci9kaXIvUGlwZmlsZS5sb2NrIn1dLCAiaWdu
+        b3JlX25vdF9maXhhYmxlIjogZmFsc2UsICJpZ25vcmVfZml4YWJsZSI6IGZhbHNlfQ0KLS05Mjlj
+        MzU0YTI2NjQyNzA1MDAwZTcyYzE5NTcxMGY3ZA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1k
+        YXRhOyBuYW1lPSJkaXJlY3RvcnkiOyBmaWxlbmFtZT0iZGlyZWN0b3J5Ig0KDQofiwgA0tVyZgL/
+        7dVPb5swFABwzvkUEecO/A/bRIq04469T1Vl7OeGjQC1SZVqyncfpFMbllS9bJWqvt/FYJtn42dD
+        lmf512uz/wbGQUj+C/LktZIQzl6up3pKGCXJcp+8g10cTBiHTz4nJpfbod7CmiqqNaFa8axkpJSL
+        BH0CddtCyF0d8uu693UDWdPZn//+/EspppKqgp6WEyqITKiQXBQFU2z8FjBCmEiW5D3P/4+uNcPG
+        tHeh9h7O+73V/kEtfi2Wo/R2C4NJV8un22PVxsTNrOZYGzeGFXKsT1nlqVReGsWMMcQL7QutZCkK
+        zwxXWgnPPaXCGVdAWTDrlPOl86Bd6Zim6XPgw9XLqP3TNvwSe7DjKPKkKcD9rg4QzyfVPw6brr19
+        gBDrrp0mxzNKLg8Qu12wxyDfZ0HmIY9dW7OFKVj/2Nfp1Xn7LjRT82YY+rjK86lb1oW7PNbbvoFL
+        T4wzrP3jbYzTg0PYwazL4fnuZnEy7dSBN7tmmKcn3je9CRHOV2NK3IUXPEnfavzlckvAstK6glUW
+        TGVpJcbEFKoETqnnIEpJq1I7qgQj1BWSMcN4pQvg4tK7/QktS2s0EVrIqpqyz8ByTUBwSYw2XBBX
+        ae6JtZ4bbwGq8fwL5wkbt49iUqezyDfzgdK6dbB/JSfpSf7Xa5KJTJxsgb9W9AGarp/W7rA44L8O
+        IYQQQgghhBBCCCGEEEIIIYTQB/cbuNrKQAAoAAANCi0tOTI5YzM1NGEyNjY0MjcwNTAwMGU3MmMx
+        OTU3MTBmN2QtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -88,11 +89,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '928'
+          - '981'
         Content-Type:
-          - multipart/form-data; boundary=d5798886e350dd19d24832c5549ba641
+          - multipart/form-data; boundary=929c354a26642705000e72c195710f7d
         GGShield-Command-Id:
-          - 117db605-4f1d-48de-b70a-588f4edb6277
+          - 43b9812d-797c-4713-81c5-646bd6f5c8be
         GGShield-Command-Path:
           - cli sca scan all
         GGShield-OS-Name:
@@ -100,31 +101,31 @@ interactions:
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.13
+          - 3.10.12
         GGShield-Version:
-          - 1.23.0
+          - 1.28.0
         User-Agent:
-          - pygitguardian/1.12.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
         mode:
           - directory
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_all/
     response:
       body:
-        string: '{"scanned_files":["inner/dir/Pipfile.lock"],"found_package_vulns":[]}'
+        string: '{"scanned_files":["inner/dir/Pipfile.lock"],"source_found":false,"found_package_vulns":[]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '69'
+          - '90'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Thu, 11 Jan 2024 14:13:34 GMT
+          - Wed, 19 Jun 2024 12:57:55 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -134,21 +135,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - 6843176f
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '93'
+          - '75'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.22.0
+          - 1.38.0
         x-sca-last-vuln-fetch:
-          - '2024-01-11T14:02:55.794006+00:00'
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.103.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:

@@ -251,11 +251,11 @@ def test_sca_scan_all_cmd(
     assert "> Pipfile.lock: 1 incident detected" in result.stdout
     assert (
         """
-Severity: Medium
-Summary: sqlparse contains a regular expression that is vulnerable to Regular Expression Denial of Service
-A fix is available at version 0.4.4
-Identifier: GHSA-rrm6-wvj7-cwh2
-CVE IDs: CVE-2023-30608"""
+Severity: High
+Summary: sqlparse parsing heavily nested list leads to Denial of Service
+A fix is available at version 0.5.0
+Identifier: GHSA-2m57-hf25-phgg
+CVE IDs: CVE-2024-4340"""
         in result.stdout
     )
 
@@ -632,7 +632,7 @@ version: 2
 
 sca:
   ignored-vulnerabilities:
-    - identifier: 'GHSA-rrm6-wvj7-cwh2'
+    - identifier: 'GHSA-2m57-hf25-phgg'
       path: {str(pipfile_path.relative_to(tmp_path))}
       comment: 'test ignored'
 """
@@ -658,10 +658,10 @@ sca:
         )
 
         ignored_vulns = sca_scan_params_mock.call_args.kwargs["ignored_vulnerabilities"]
-        assert [i.identifier for i in ignored_vulns] == ["GHSA-rrm6-wvj7-cwh2"]
+        assert [i.identifier for i in ignored_vulns] == ["GHSA-2m57-hf25-phgg"]
 
         assert result.exit_code == ExitCode.SUCCESS
-        assert "GHSA-rrm6-wvj7-cwh2" not in result.stdout
+        assert "GHSA-2m57-hf25-phgg" not in result.stdout
 
 
 @my_vcr.use_cassette("test_sca_scan_subdir_with_ignored_vuln_with_until.yaml")
@@ -688,7 +688,7 @@ version: 2
 
 sca:
   ignored-vulnerabilities:
-    - identifier: 'GHSA-rrm6-wvj7-cwh2'
+    - identifier: 'GHSA-2m57-hf25-phgg'
       path: {str(pipfile_path.relative_to(tmp_path))}
       comment: 'test ignored'
       until: '2200-06-30T10:00:00'
@@ -715,7 +715,7 @@ sca:
         )
 
         assert result.exit_code == ExitCode.SUCCESS
-        assert "GHSA-rrm6-wvj7-cwh2" not in result.stdout
+        assert "GHSA-2m57-hf25-phgg" not in result.stdout
 
 
 @my_vcr.use_cassette("test_sca_scan_all_ignore_fixable.yaml")

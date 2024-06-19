@@ -13,7 +13,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.10.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -31,7 +31,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 26 Sep 2023 13:21:25 GMT
+          - Wed, 19 Jun 2024 12:56:26 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -41,19 +41,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.39.1
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '12'
+          - '22'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.17.0
+          - 1.38.0
+        x-sca-last-vuln-fetch:
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.97.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -73,7 +75,7 @@ interactions:
         Content-Type:
           - application/json
         User-Agent:
-          - pygitguardian/1.10.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
       method: POST
       uri: https://api.gitguardian.com/v1/sca/compute_sca_files/
     response:
@@ -91,7 +93,7 @@ interactions:
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 26 Sep 2023 13:21:25 GMT
+          - Wed, 19 Jun 2024 12:56:26 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -101,19 +103,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.39.1
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '35'
+          - '16'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.17.0
+          - 1.38.0
+        x-sca-last-vuln-fetch:
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.97.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:
@@ -121,30 +125,34 @@ interactions:
         message: OK
   - request:
       body: !!binary |
-        LS1jY2MzYjNlNGUzNmY2OWQ5NjFiOGYxYzZlY2M5ZmI5Zg0KQ29udGVudC1EaXNwb3NpdGlvbjog
-        Zm9ybS1kYXRhOyBuYW1lPSJyZWZlcmVuY2UiOyBmaWxlbmFtZT0icmVmZXJlbmNlIg0KDQofiwgA
-        1toSZQL/7ZTLbqswEIaz5iki1m3iG2Ai5R26Rygy9rhBJYFiqE50lHc/hpxcaFN11W4638Z4PJ4x
-        Hs//VDa2rGBR1fpl9k0QTyzEOHrej1SQ6Px9slPCSDKbk9kP0LtOtT797HcS/A3mnnCzg06Fq/lp
-        Opq2ym0nltHqtopFsbeHrLA0TmysEqaUIlZIG8kkTkVkmeKJTITlllJhlIkgjZg2ibGpsSBNapik
-        4SXw8eGatTk9yEfXgPZZ4pulFl77sgX38VDNodvW+80btK6s98Ph+IKS+wlc3bd6DJJNgkxDjq57
-        tYMhWHNoyvDh43rfVsPytusat1ouB7dF3T4vXblrKri3w5+wtIeNc8PGru1h4nK8zPLg5tihAav6
-        qpuWx71WjWodfLyNoXB3fvCmfCvCGdcENEu1iVihQRWaFsIXJkpS4JRaDiKNaZFKQxPBCDVRzJhi
-        vJARcHHv3/6HjlOtJBFSxEUxVJ+B5pKA4DFRUnFBTCG5JVpbrqwGKHz/C2MJ888nYbEMJ5HzaaKw
-        3Bv480lNwpv6r9dkIRb85gm8u9E3qOpmuLtjcJz9Xp5O7fatOb7Qf8IEmeo/SVgkUP9/RP+z7CSI
-        eR54OZuvP5ez4Cpe3m0Ur0Eghy1jMwZB1ij9op7B5cFZnYbVSy8Gme+7x6tTkJ0lPQ+mEj5sGyV8
-        hiAIgiAIgiAIgiAIgiAIgiAIgiAIgiDIl/wD78ooVQAoAAANCi0tY2NjM2IzZTRlMzZmNjlkOTYx
-        YjhmMWM2ZWNjOWZiOWYNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iY3Vy
-        cmVudCI7IGZpbGVuYW1lPSJjdXJyZW50Ig0KDQofiwgA1toSZQL/7ZTLbqswEIaz5iki1m3iG2Ai
-        5R26Rygy9rhBJYFiqE50lHc/hpxcaFN11W4638Z4PJ4xHs//VDa2rGBR1fpl9k0QTyzEOHrej1SQ
-        6Px9slPCSDKbk9kP0LtOtT797HcS/A3mnnCzg06Fq/lpOpq2ym0nltHqtopFsbeHrLA0TmysEqaU
-        IlZIG8kkTkVkmeKJTITlllJhlIkgjZg2ibGpsSBNapik4SXw8eGatTk9yEfXgPZZ4pulFl77sgX3
-        8VDNodvW+80btK6s98Ph+IKS+wlc3bd6DJJNgkxDjq57tYMhWHNoyvDh43rfVsPytusat1ouB7dF
-        3T4vXblrKri3w5+wtIeNc8PGru1h4nK8zPLg5tihAav6qpuWx71WjWodfLyNoXB3fvCmfCvCGdcE
-        NEu1iVihQRWaFsIXJkpS4JRaDiKNaZFKQxPBCDVRzJhivJARcHHv3/6HjlOtJBFSxEUxVJ+B5pKA
-        4DFRUnFBTCG5JVpbrqwGKHz/C2MJ888nYbEMJ5HzaaKw3Bv480lNwpv6r9dkIRb85gm8u9E3qOpm
-        uLtjcJz9Xp5O7fatOb7Qf8IEmeo/SVgkUP9/RP+z7CSIeR54OZuvP5ez4Cpe3m0Ur0Eghy1jMwZB
-        1ij9op7B5cFZnYbVSy8Gme+7x6tTkJ0lPQ+mEj5sGyV8hiAIgiAIgiAIgiAIgiAIgiAIgiAIgiDI
-        l/wD78ooVQAoAAANCi0tY2NjM2IzZTRlMzZmNjlkOTYxYjhmMWM2ZWNjOWZiOWYtLQ0K
+        LS00YTc1YjZmMGJiOTllMDc1ZjFkYWU0NmM0M2M4NzkxNg0KQ29udGVudC1EaXNwb3NpdGlvbjog
+        Zm9ybS1kYXRhOyBuYW1lPSJzY2FuX3BhcmFtZXRlcnMiDQoNCnsibWluaW11bV9zZXZlcml0eSI6
+        ICJMT1ciLCAiaWdub3JlZF92dWxuZXJhYmlsaXRpZXMiOiBbXSwgImlnbm9yZV9ub3RfZml4YWJs
+        ZSI6IGZhbHNlLCAiaWdub3JlX2ZpeGFibGUiOiBmYWxzZX0NCi0tNGE3NWI2ZjBiYjk5ZTA3NWYx
+        ZGFlNDZjNDNjODc5MTYNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icmVm
+        ZXJlbmNlIjsgZmlsZW5hbWU9InJlZmVyZW5jZSINCg0KH4sIAHrVcmYC/+2VzW6jMBDHc+YpIp/b
+        xF+AiZR36D2KImOPG1QSKIZoo1XefTHZJmGTHtvVaud3AWbGM8bD/HkpaleUMPlKaE8i5XDt+fNK
+        ubzen+0pj+VkSiffQOdb3fQlJ/8n0Wrlq64xsF5HXVNOl1OybdvaL+bz+lgXs6p5nftiV5dAogM0
+        hTtuvA9hbdNBtNc7CEtCKImiVa3Nm34Fv478e1nrxg/e5ZLO5EyGAAuH52tQtGrgvSuacF8f2221
+        3/Q1fFHtwzIxY5RMkC/l5Tz/s7Iyb39p/pmk8Xj+GeU0xfn/lvn/GU17yGYHrSaL6flxMG21344s
+        g9VvNY+T3k547liSukSnXGtNnVQuVmmSydhxLVKVSiccY9JqG0MWc2NT6zLrQNnMcsXIJfHp6Vq1
+        Pn+Qz74G01dJblwfYnG/qbF4hM0N4vGwwFnuQpLVKMk45RAa5C0kG+Tt6d7fC2ZwfyaYD1ZcJbRf
+        OEjorft0eVpHN9smFpzuynbcng+FvT+N0LgHL3jTvgUVXBgKhmfGxjw3oHPDctk3Jk4zEIw5ATJL
+        WJ4py1LJKbNxwrnmIlcxCPno3X6nTjKjFZVKJnkeus/BCEVBioRqpYWkNlfCUWOc0M4A5P38S+so
+        7z+flCeKjDKvx4VIsbfw45OekJv+X/4547O9nugByqoOZ3eKTvgbQBAEQRAEQRAEQRAEQRAEQRAE
+        QRAEQf5xfgFUjceBACgAAA0KLS00YTc1YjZmMGJiOTllMDc1ZjFkYWU0NmM0M2M4NzkxNg0KQ29u
+        dGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJjdXJyZW50IjsgZmlsZW5hbWU9ImN1
+        cnJlbnQiDQoNCh+LCAB61XJmAv/tlc1uozAQx3PmKSKf28RfgImUd+g9iiJjjxtUEiiGaKNV3n0x
+        2SZhkx7b1WrndwFmxjPGw/x5KWpXlDD5SmhPIuVw7fnzSrm83p/tKY/lZEon30DnW930JSf/J9Fq
+        5auuMbBeR11TTpdTsm3b2i/m8/pYF7OqeZ37YleXQKIDNIU7brwPYW3TQbTXOwhLQiiJolWtzZt+
+        Bb+O/HtZ68YP3uWSzuRMhgALh+drULRq4L0rmnBfH9tttd/0NXxR7cMyMWOUTJAv5eU8/7OyMm9/
+        af6ZpPF4/hnlNMX5/5b5/xlNe8hmB60mi+n5cTBttd+OLIPVbzWPk95OeO5YkrpEp1xrTZ1ULlZp
+        ksnYcS1SlUonHGPSahtDFnNjU+sy60DZzHLFyCXx6elatT5/kM++BtNXSW5cH2Jxv6mxeITNDeLx
+        sMBZ7kKS1SjJOOUQGuQtJBvk7ene3wtmcH8mmA9WXCW0XzhI6K37dHlaRzfbJhac7sp23J4Phb0/
+        jdC4By94074FFVwYCoZnxsY8N6Bzw3LZNyZOMxCMOQEyS1ieKctSySmzccK55iJXMQj56N1+p04y
+        oxWVSiZ5HrrPwQhFQYqEaqWFpDZXwlFjnNDOAOT9/EvrKO8/n5Qniowyr8eFSLG38OOTnpCb/l/+
+        OeOzvZ7oAcqqDmd3ik74G0AQBEEQBEEQBEEQBEEQBEEQBEEQBEH+cX4BVI3HgQAoAAANCi0tNGE3
+        NWI2ZjBiYjk5ZTA3NWYxZGFlNDZjNDNjODc5MTYtLQ0K
       headers:
         Accept:
           - '*/*'
@@ -153,11 +161,11 @@ interactions:
         Connection:
           - keep-alive
         Content-Length:
-          - '1362'
+          - '1572'
         Content-Type:
-          - multipart/form-data; boundary=ccc3b3e4e36f69d961b8f1c6ecc9fb9f
+          - multipart/form-data; boundary=4a75b6f0bb99e075f1dae46c43c87916
         GGShield-Command-Id:
-          - c6146ffe-223b-4f75-90af-b3985347768a
+          - 0b05aae6-c92b-427e-93a3-b600b0aeae2c
         GGShield-Command-Path:
           - cli sca scan diff
         GGShield-OS-Name:
@@ -165,31 +173,31 @@ interactions:
         GGShield-OS-Version:
           - '22.04'
         GGShield-Python-Version:
-          - 3.10.13
+          - 3.10.12
         GGShield-Version:
-          - 1.18.1
+          - 1.28.0
         User-Agent:
-          - pygitguardian/1.10.0 (Linux;py3.10.13) ggshield
+          - pygitguardian/1.14.0 (Linux;py3.10.12) ggshield
         mode:
           - diff
       method: POST
       uri: https://api.gitguardian.com/v1/sca/sca_scan_diff/
     response:
       body:
-        string: '{"scanned_files":["Pipfile","Pipfile.lock"],"added_vulns":[],"removed_vulns":[]}'
+        string: '{"scanned_files":["Pipfile","Pipfile.lock"],"source_found":false,"added_vulns":[],"removed_vulns":[]}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '80'
+          - '101'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Tue, 26 Sep 2023 13:21:26 GMT
+          - Wed, 19 Jun 2024 12:56:27 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -199,19 +207,21 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.39.1
+          - v2.74.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '398'
+          - '102'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-sca-engine-version:
-          - 1.17.0
+          - 1.38.0
+        x-sca-last-vuln-fetch:
+          - '2024-06-19T11:06:19.178538+00:00'
         x-secrets-engine-version:
-          - 2.97.0
+          - 2.115.0
         x-xss-protection:
           - 1; mode=block
       status:
