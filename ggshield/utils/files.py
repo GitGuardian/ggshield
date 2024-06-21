@@ -1,6 +1,7 @@
 from enum import Enum, auto
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import List, Pattern, Set, Union
+from urllib.parse import quote
 
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 from ggshield.utils.git_shell import (
@@ -92,3 +93,16 @@ def is_path_binary(path: Union[str, Path]) -> bool:
     ext = Path(path).suffix
     # `[1:]` because `ext` starts with a "." but extensions in `BINARY_EXTENSIONS` do not
     return ext[1:] in BINARY_EXTENSIONS
+
+
+def url_for_path(path: PurePath) -> str:
+    if not path.is_absolute():
+        return quote(path.as_posix())
+
+    # Allow ':'. This is required to represent the Windows drive in an URL.
+    path_str = quote(path.as_posix(), safe="/:")
+    if path_str[0] == "/":
+        return f"file://{path_str}"
+    else:
+        # This happens for Windows paths: `path_str` is something like "c:/foo/bar"
+        return f"file:///{path_str}"

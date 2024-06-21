@@ -190,7 +190,7 @@ def test_file_repr():
     """
     if is_windows():
         str_path = r"c:\Windows"
-        expected_url = "file://c:/Windows"
+        expected_url = "file:///c:/Windows"
     else:
         str_path = "/usr"
         expected_url = "file:///usr"

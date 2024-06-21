@@ -8,6 +8,7 @@ from ggshield.utils.files import (
     UnexpectedDirectoryError,
     get_filepaths,
     is_path_binary,
+    url_for_path,
 )
 
 from .scannable import Scannable
@@ -22,7 +23,7 @@ class File(Scannable):
 
     @property
     def url(self) -> str:
-        return f"file://{self._path.absolute().as_posix()}"
+        return url_for_path(self._path)
 
     @property
     def filename(self) -> str:

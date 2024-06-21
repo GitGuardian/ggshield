@@ -2,13 +2,18 @@ import re
 import sys
 import tarfile
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Set, Union
 
 import pytest
 
 from ggshield.core.tar_utils import get_empty_tar
-from ggshield.utils.files import ListFilesMode, get_filepaths, is_path_excluded
+from ggshield.utils.files import (
+    ListFilesMode,
+    get_filepaths,
+    is_path_excluded,
+    url_for_path,
+)
 from tests.repository import Repository
 
 
@@ -98,3 +103,19 @@ def test_get_filepaths_git_repo(tmp_path: Path):
             list_files_mode=ListFilesMode.ALL_BUT_GITIGNORED,
         )
     ) == {committed_file, staged_file, unstaged_file, gitignore}
+
+
+@pytest.mark.parametrize(
+    "path,expected_url",
+    [
+        (PurePosixPath("/simple/path"), "file:///simple/path"),
+        (PureWindowsPath(r"c:\Windows"), "file:///c:/Windows"),
+        (PurePosixPath("relative/path"), "relative/path"),
+        (PureWindowsPath(r"relative\win\path"), "relative/win/path"),
+        (PurePosixPath("/path/with spaces"), "file:///path/with%20spaces"),
+        (PurePosixPath("/étoile"), "file:///%C3%A9toile"),
+    ],
+)
+def test_url_for_path(path: PurePath, expected_url: str):
+    url = url_for_path(path)
+    assert url == expected_url
