@@ -26,6 +26,10 @@ jsonschema = "*"
 
 vcrpy = ">=5.1.0"
 
+# Dependency of pytest-voluptuous. Pin it because 0.15.0 does not
+# support Python 3.8 anymore.
+voluptuous = "<0.15.0"
+
 pyfakefs = ">=5.2.0"
 scriv = { version = "*", extras = ["toml"] }
 pyright = "==1.1.367"
