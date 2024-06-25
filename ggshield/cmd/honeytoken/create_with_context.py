@@ -90,7 +90,7 @@ def create_with_context_cmd(
     The prerequisites to use this command are the following:
 
     - you have the necessary permissions as a user (for now, Honeytoken is
-    restricted to users with a manager role),
+    restricted to users with a "Manager" access level),
 
     - the personal access token used by ggshield has the `honeytokens:write`
     scope.
