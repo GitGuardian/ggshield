@@ -26,6 +26,8 @@
 
 ### Fixed
 
+- GGShield now consumes less memory when scanning large repositories.
+
 - Errors thrown during `ggshield auth login` flow with an invalid instance URL are handled and the stack trace is no longer displayed on the console.
 
 - Patch symbols at the start of lines are now always displayed, even for single line secrets.
