@@ -1,12 +1,46 @@
 # Changelog
 
+<a id='changelog-1.29.0'></a>
+
+## 1.29.0 — 2024-06-25
+
+### Removed
+
+- The `--all` option of the `ggshield sca scan ci` and `ggshield iac scan ci` commands has been removed.
+
+### Added
+
+- `ggshield secret scan path` now provides a `--use-gitignore` option to honor `.gitignore` and related files (#801).
+
+- A new secret scan command, `ggshield secret scan changes`, has been added to scan changes between the current state of a repository checkout and its default branch.
+
+- GGShield is now available as a standalone executable on Windows.
+
+### Changed
+
+- The behavior of the `ggshield sca scan ci` and `ggshield iac scan ci` commands have changed. These commands are now expected to run in merge-request CI pipelines only, and will compute the diff exactly associated with the merge request.
+
+### Deprecated
+
+- Running `ggshield sca scan ci` or `ggshield iac scan ci` outside of a merge request CI pipeline is now deprecated.
+
+### Fixed
+
+- Errors thrown during `ggshield auth login` flow with an invalid instance URL are handled and the stack trace is no longer displayed on the console.
+
+- Patch symbols at the start of lines are now always displayed, even for single line secrets.
+
+- The `ggshield auth login` command now respects the `--allow-self-signed` flag.
+
+- GGShield now exits with a proper error message instead of crashing when it receives an HTTP response without `Content-Type` header.
+
 <a id='changelog-1.28.0'></a>
 
 ## 1.28.0 — 2024-05-29
 
 ### Added
 
-- The SCA config `ignored_vulnerabilities` option now supports taking a CVE id as identifier.
+- The SCA config `ignored_vulnerabilities` option now supports taking a CVE ID as identifier.
 
 <a id='changelog-1.27.0'></a>
 
@@ -22,7 +56,7 @@
 
 - We now provide signed .pkg files for macOS.
 
-- Add `This feature is still in beta, its behavior may change in future versions` warning to iac scan all
+- Add a `This feature is still in beta, its behavior may change in future versions` warning to `ggshield iac scan all` command.
 
 ### Changed
 
@@ -238,7 +272,7 @@
 
 ### Removed
 
-- ggshield now refuses to install on python < 3.8
+- ggshield now refuses to install on python < 3.8.
 
 ### Added
 
