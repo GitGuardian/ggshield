@@ -202,7 +202,7 @@ json_option = click.option(
     "json_output",
     is_flag=True,
     default=None,
-    help="Use JSON output.",
+    help="Shorthand for `--format json`.",
     callback=_set_json_output_format,
 )
 
@@ -222,7 +222,7 @@ def _create_format_option(
     return click.option(
         "--format",
         type=click.Choice([x.value for x in formats]),
-        help="Output format.",
+        help="Format to use for the output.",
         callback=_set_output_format,
     )
 

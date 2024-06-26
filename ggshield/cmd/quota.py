@@ -5,7 +5,11 @@ import click
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, Quota, QuotaResponse
 
-from ggshield.cmd.utils.common_options import add_common_options, json_option
+from ggshield.cmd.utils.common_options import (
+    add_common_options,
+    json_option,
+    text_json_format_option,
+)
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.quota import format_quota_color
 from ggshield.core.client import create_client_from_config
@@ -13,6 +17,7 @@ from ggshield.core.errors import UnexpectedError
 
 
 @click.command()
+@text_json_format_option
 @json_option
 @add_common_options()
 @click.pass_context

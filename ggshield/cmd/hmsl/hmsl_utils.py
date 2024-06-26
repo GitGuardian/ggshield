@@ -14,7 +14,6 @@ from ggshield.verticals.hmsl.output import show_results
 def check_secrets(
     ctx: click.Context,
     prepared_secrets: PreparedSecrets,
-    json_output: bool,
     full_hashes: bool,
 ):
     """
@@ -22,8 +21,8 @@ def check_secrets(
     """
     # Query the API
     display_info("Querying HasMySecretLeaked...")
-    config = ContextObj.get(ctx).config
-    client = get_client(config, hmsl_command_path=ctx.command_path)
+    ctx_obj = ContextObj.get(ctx)
+    client = get_client(ctx_obj.config, hmsl_command_path=ctx.command_path)
     found: Iterable[Secret] = []
     error: Optional[Exception] = None
     try:
@@ -35,6 +34,8 @@ def check_secrets(
     )
 
     # Display results and error
-    show_results(found, prepared_secrets.mapping, json_output, error)
+    show_results(
+        found, prepared_secrets.mapping, json_output=ctx_obj.use_json, error=error
+    )
     if error:
         raise UnexpectedError(str(error))

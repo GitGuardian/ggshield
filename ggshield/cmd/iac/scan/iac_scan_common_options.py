@@ -21,6 +21,7 @@ from ggshield.cmd.utils.common_options import (
     ignore_path_option,
     json_option,
     minimum_severity_option,
+    text_json_format_option,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
@@ -62,6 +63,7 @@ def add_iac_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _ignore_policy_option(cmd)
         ignore_path_option(cmd)
         json_option(cmd)
+        text_json_format_option(cmd)
         return cmd
 
     return decorator
