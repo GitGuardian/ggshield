@@ -506,25 +506,6 @@ index b0ce1c7..deba01f 100644
 -sg_key = "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";
 """
 
-_PATCH_WITH_NONEWLINE_BEFORE_SECRET = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
-Author: GitGuardian Owl <owl@example.com>
-Date:   Thu Aug 18 18:20:21 2022 +0200
-
-A message
-
-:000000 100644 0000000 e965047 M\0artifactory\0\0diff --git a/artifactory b/artifactory
-index 2ace9c7..4c7699d 100644
---- a/artifactory
-+++ b/artifactory
-@@ -1,3 +1,3 @@
- some line
- some other line
--deleted line
-\\ No newline at end of file
-+sg_key = "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"
-\\ No newline at end of file
-"""
-
 TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
     {
         "policy_breaks": [
