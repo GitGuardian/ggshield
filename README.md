@@ -25,10 +25,12 @@ Only metadata such as call time, request size and scan mode is stored from scans
 - [Installation](#installation)
   - [Requirements](#requirements)
   - [macOS](#macos)
-    - [Using Homebrew](#using-homebrew)
-    - [Using a standalone .pkg package](#using-a-standalone-pkg-package)
+    - [Homebrew](#homebrew)
+    - [Standalone .pkg package](#standalone-pkg-package)
   - [Linux](#linux)
     - [Deb and RPM packages](#deb-and-rpm-packages)
+  - [Windows](#windows)
+    - [Standalone .zip archive](#standalone-zip-archive)
   - [All operating systems](#all-operating-systems)
     - [Using pipx](#using-pipx)
     - [Using pip](#using-pip)
@@ -67,7 +69,7 @@ Some commands require additional programs:
 
 ## macOS
 
-### Using Homebrew
+### Homebrew
 
 You can install `ggshield` using Homebrew:
 
@@ -77,7 +79,7 @@ $ brew install gitguardian/tap/ggshield
 
 Upgrading is handled by Homebrew.
 
-### Using a standalone .pkg package
+### Standalone .pkg package
 
 Alternatively, you can download and install a standalone .pkg package from [`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
 
@@ -95,6 +97,16 @@ Setup instructions:
 - [RPM packages](https://cloudsmith.io/~gitguardian/repos/ggshield/setup/#formats-rpm)
 
 Upgrading is handled by the package manager.
+
+## Windows
+
+### Standalone .zip archive
+
+We provide a standalone .zip archive on [`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
+
+Unpack the archive on your disk, then add the directory containing the `ggshield.exe` file to `%PATH%`.
+
+This archive _does not_ require installing Python, but you have to manually download new versions.
 
 ## All operating systems
 
