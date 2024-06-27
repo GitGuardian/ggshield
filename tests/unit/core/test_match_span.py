@@ -1,102 +1,93 @@
 from typing import List
-from unittest.mock import Mock
 
 import pytest
-from pygitguardian import GGClient
+from pygitguardian.models import ScanResult
 
-from ggshield.core.cache import Cache
+from ggshield.core.lines import get_lines_from_content
 from ggshield.core.match_span import MatchSpan
-from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
-from ggshield.verticals.secret import SecretScanner
+from ggshield.utils.git_shell import Filemode
 from tests.unit.conftest import (
-    _MULTI_SECRET_ONE_LINE_FULL_PATCH,
-    _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
-    _SECRET_RAW_FILE,
-    _SINGLE_ADD_PATCH,
-    _SINGLE_DELETE_PATCH,
-    _SINGLE_MOVE_PATCH,
-    my_vcr,
+    _MULTI_SECRET_ONE_LINE_PATCH,
+    _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
+    _MULTI_SECRET_TWO_LINES_PATCH,
+    _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
+    _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
+    _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
+    _SIMPLE_SECRET_MULTILINE_PATCH,
+    _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
+    _SIMPLE_SECRET_PATCH,
+    _SIMPLE_SECRET_PATCH_SCAN_RESULT,
 )
 
 
 @pytest.mark.parametrize(
-    ["name", "content", "is_patch", "expected_spans"],
+    ["content", "scan_result", "expected_spans"],
     [
         pytest.param(
-            "single_add",
-            _SINGLE_ADD_PATCH,
-            True,
-            [MatchSpan(1, 1, 11, 80)],
-            id="add",
+            _SIMPLE_SECRET_PATCH,
+            _SIMPLE_SECRET_PATCH_SCAN_RESULT,
+            [MatchSpan(1, 1, 15, 56)],
+            id="1match",
         ),
         pytest.param(
-            "single_move",
-            _SINGLE_MOVE_PATCH,
-            True,
-            [MatchSpan(2, 2, 11, 80)],
-            id="move",
+            _MULTI_SECRET_ONE_LINE_PATCH,
+            _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
+            [
+                MatchSpan(1, 1, 17, 32),
+                MatchSpan(1, 1, 54, 86),
+            ],
+            id="multimatch-1line",
         ),
         pytest.param(
-            "single_delete",
-            _SINGLE_DELETE_PATCH,
-            True,
-            [MatchSpan(2, 2, 11, 80)],
-            id="delete",
+            _MULTI_SECRET_TWO_LINES_PATCH,
+            _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
+            [
+                MatchSpan(1, 1, 17, 32),
+                MatchSpan(2, 2, 21, 53),
+            ],
+            id="multimatch-2lines",
         ),
         pytest.param(
-            "single_file",
-            _SECRET_RAW_FILE,
-            False,
-            [MatchSpan(0, 0, 11, 80)],
-            id="file",
+            _SIMPLE_SECRET_MULTILINE_PATCH,
+            _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
+            [
+                MatchSpan(2, 10, 9, 32),
+            ],
+            id="1match-multiline",
         ),
         pytest.param(
-            "no_newline_before_secret",
-            _PATCH_WITH_NONEWLINE_BEFORE_SECRET,
-            True,
-            [MatchSpan(5, 5, 11, 80)],
-            id="no_newline_before_secret",
-        ),
-        pytest.param(
-            "multiple_secret_one_line",
-            _MULTI_SECRET_ONE_LINE_FULL_PATCH,
-            True,
-            [MatchSpan(1, 1, 17, 32), MatchSpan(1, 1, 54, 86)],
-            id="multiple_secret_one_line",
+            _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
+            _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
+            [
+                MatchSpan(1, 1, 18, 33),
+                MatchSpan(1, 1, 36, 68),
+                MatchSpan(1, 9, 69, 30),
+                MatchSpan(9, 9, 38, 107),
+            ],
+            id="1line-1multiline",
         ),
     ],
 )
-def test_from_span(
-    client: GGClient,
-    cache: Cache,
-    name: str,
+def test_from_match(
     content: str,
-    is_patch: bool,
+    scan_result: ScanResult,
     expected_spans: List[MatchSpan],
 ):
-    if is_patch:
-        commit = Commit.from_patch(content)
-        files = commit.get_files()
-    else:
-        files = [StringScannable(content=content, url="test_file")]
-    with my_vcr.use_cassette(name):
-        scanner = SecretScanner(
-            client=client,
-            cache=cache,
-            scan_context=ScanContext(
-                scan_mode=ScanMode.PATH,
-                command_path="external",
-            ),
-        )
-        results = scanner.scan(files, scanner_ui=Mock())
-        result = results.results[0]
+    """
+    GIVEN a patch content
+    AND its scan result
+    WHEN MatchSpan.from_match() is called on all the result matches
+    THEN the created MatchSpans are equal to the expected spans
+    """
+    lines = get_lines_from_content(content, filemode=Filemode.NEW)
 
     matches = [
         match
-        for policy_break in result.scan.policy_breaks
+        for policy_break in scan_result.policy_breaks
         for match in policy_break.matches
     ]
-    for expected_span, match in zip(expected_spans, matches):
-        assert match.span == expected_span
+    for idx, (expected_span, match) in enumerate(zip(expected_spans, matches)):
+        span = MatchSpan.from_match(match, lines)
+        assert span == expected_span, f"Error on match[{idx}]"
 
     assert len(expected_spans) == len(matches)
