@@ -8,7 +8,11 @@ from ggshield.cmd.hmsl.hmsl_common_options import (
     naming_strategy_option,
 )
 from ggshield.cmd.hmsl.hmsl_utils import check_secrets
-from ggshield.cmd.utils.common_options import add_common_options, json_option
+from ggshield.cmd.utils.common_options import (
+    add_common_options,
+    json_option,
+    text_json_format_option,
+)
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import display_error, display_info, pluralize
@@ -88,6 +92,7 @@ def _split_vault_mount_and_path(initial_path: str) -> Tuple[str, str]:
     type=str,
 )
 @add_common_options()
+@text_json_format_option
 @json_option
 @full_hashes_option
 @naming_strategy_option
@@ -100,7 +105,6 @@ def check_hashicorp_vault_cmd(
     vault_path: str,
     full_hashes: bool,
     naming_strategy: NamingStrategy,
-    json_output: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -168,7 +172,6 @@ def check_hashicorp_vault_cmd(
     check_secrets(
         ctx=ctx,
         prepared_secrets=prepared_secrets,
-        json_output=json_output,
         full_hashes=full_hashes,
     )
 

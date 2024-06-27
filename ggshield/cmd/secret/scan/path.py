@@ -18,9 +18,7 @@ from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 @click.command()
-@click.argument(
-    "paths", nargs=-1, type=RealPath(exists=True, resolve_path=True), required=True
-)
+@click.argument("paths", nargs=-1, type=RealPath(exists=True), required=True)
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan.")
 @click.option(

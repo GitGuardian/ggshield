@@ -22,6 +22,7 @@ from ggshield.cmd.utils.common_options import (
     ignore_path_option,
     json_option,
     minimum_severity_option,
+    text_json_format_option,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
@@ -51,6 +52,7 @@ def add_sca_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         minimum_severity_option(cmd)
         ignore_path_option(cmd)
         json_option(cmd)
+        text_json_format_option(cmd)
         ignore_fixable(cmd)
         ignore_not_fixable(cmd)
         return cmd

@@ -4,7 +4,11 @@ from typing import Any
 import click
 from pygitguardian.models import HealthCheckResponse
 
-from ggshield.cmd.utils.common_options import add_common_options, json_option
+from ggshield.cmd.utils.common_options import (
+    add_common_options,
+    json_option,
+    text_json_format_option,
+)
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
@@ -12,6 +16,7 @@ from ggshield.core.text_utils import STYLE, format_text
 
 
 @click.command()
+@text_json_format_option
 @json_option
 @add_common_options()
 @click.pass_context

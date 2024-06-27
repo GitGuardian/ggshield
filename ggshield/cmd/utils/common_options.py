@@ -12,12 +12,13 @@ The `kwargs` argument is required because due to the way click works,
 """
 
 from pathlib import Path
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar
 
 import click
 
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.debug_logs import setup_debug_logs
+from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.config.user_config import UserConfig
 
 
@@ -187,13 +188,52 @@ def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     return decorator
 
 
+def _set_json_output_format(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    if value:
+        ctx_obj = ContextObj.get(ctx)
+        ctx_obj.output_format = OutputFormat.JSON
+    return value
+
+
 json_option = click.option(
     "--json",
     "json_output",
     is_flag=True,
     default=None,
-    help="Use JSON output.",
-    callback=create_ctx_callback("use_json"),
+    help="Shorthand for `--format json`.",
+    callback=_set_json_output_format,
+)
+
+
+def _set_output_format(
+    ctx: click.Context, param: click.Parameter, value: Optional[str]
+) -> Optional[str]:
+    if value:
+        ctx_obj = ContextObj.get(ctx)
+        ctx_obj.output_format = OutputFormat(value)
+    return value
+
+
+def _create_format_option(
+    formats: List[OutputFormat],
+) -> Callable[[click.decorators.FC], click.decorators.FC]:
+    return click.option(
+        "--format",
+        type=click.Choice([x.value for x in formats]),
+        help="Format to use for the output.",
+        callback=_set_output_format,
+    )
+
+
+# If a command only supports text and json formats, it should use this option
+text_json_format_option = _create_format_option([OutputFormat.TEXT, OutputFormat.JSON])
+
+
+# If a command supports text, sarif and json formats, it should use this option
+text_json_sarif_format_option = _create_format_option(
+    [OutputFormat.TEXT, OutputFormat.JSON, OutputFormat.SARIF]
 )
 
 

@@ -94,12 +94,13 @@ class Commit:
     def from_patch(
         patch: str,
         exclusion_regexes: Optional[Set[Pattern[str]]] = None,
+        sha: str = PATCH_PREFIX,
     ) -> "Commit":
         """This one is for tests"""
         info = CommitInformation.from_patch_header(patch)
 
         def parser(commit: "Commit") -> Iterable[Scannable]:
-            yield from parse_patch(PATCH_PREFIX, patch, exclusion_regexes)
+            yield from parse_patch(sha, patch, exclusion_regexes)
 
         return Commit(sha=None, patch_parser=parser, info=info)
 
