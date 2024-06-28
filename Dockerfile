@@ -1,7 +1,7 @@
 # Keep image in sync with scripts/update-pipfile-lock/Dockerfile
 FROM python:3.10-slim as build
 
-LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
+LABEL maintainer="GitGuardian <support@gitguardian.com>"
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
@@ -15,9 +15,10 @@ WORKDIR /app
 RUN \
     apt-get update \
     && apt-get dist-upgrade -y --no-install-recommends \
-    && apt-get install -y --no-install-recommends git openssh-client \
+    && apt-get install -y --no-install-recommends git openssh-client ca-certificates curl gnupg  \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*\
+    && curl -fsSL https://get.docker.com | sh
 
 RUN pip3 install pipenv==2023.12.1
 
