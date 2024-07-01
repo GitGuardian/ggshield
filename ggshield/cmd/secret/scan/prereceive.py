@@ -67,7 +67,11 @@ def _execute_prereceive(
         if return_code:
             click.echo(
                 remediation_message(
-                    remediation_steps=config.user_config.secret.prereceive_remediation_message,
+                    remediation_steps=(
+                        config.user_config.secret.prereceive_remediation_message
+                        if config.user_config.secret.prereceive_remediation_message
+                        else client.remediation_messages.pre_receive
+                    ),
                     bypass_message=BYPASS_MESSAGE,
                     rewrite_git_history=True,
                 ),
