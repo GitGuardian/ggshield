@@ -443,15 +443,11 @@ class TestPrepush:
   2. push again.
 
   To prevent having to rewrite git history in the future, setup ggshield as a pre-commit hook:
-     https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit
+    https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit
 
 > [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
   - if you use the pre-commit framework:
 
-     SKIP=ggshield-push git push
-
-  - otherwise (warning: the following command bypasses all pre-push hooks):
-
-     git push --no-verify"""
+    SKIP=ggshield-push git push"""
             in result.output
         )
