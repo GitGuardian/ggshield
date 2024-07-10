@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Union
 
+import pytest
 from click.testing import CliRunner
 from pytest_voluptuous import S
 
@@ -110,11 +111,40 @@ def test_honeytoken_create_ok(cli_fs_runner: CliRunner, monkeypatch) -> None:
     assert_invoke_ok(result)
 
 
-def test_honeytoken_create_error_403(cli_fs_runner: CliRunner, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "subcommand, endpoint",
+    [
+        ("create", "/honeytokens"),
+        ("create-with-context", "/honeytokens/with-context"),
+    ],
+)
+@pytest.mark.parametrize(
+    "response_message, expected_stdout",
+    [
+        (
+            "Token is missing the following scope: honeytokens:read",
+            "ggshield does not have permissions to create honeytokens",
+        ),
+        (
+            "The account has an IP allowlist enabled, and your IP address "
+            "is not permitted to access this resource.",
+            "The account has an IP allowlist enabled, and your IP address "
+            "is not permitted to access this resource.",
+        ),
+    ],
+)
+def test_honeytoken_create_error_403(
+    cli_fs_runner: CliRunner,
+    monkeypatch,
+    subcommand: str,
+    endpoint: str,
+    response_message: str,
+    expected_stdout: str,
+) -> None:
     """
-    GIVEN a token without honeytoken scope
-    WHEN running the honeytoken command with all needed arguments
-    THEN the return code is UNEXPECTED_ERROR and the error message match the needed message
+    GIVEN a command that will cause a 403 status code
+    WHEN running the honeytoken command
+    THEN the return code is UNEXPECTED_ERROR and the error message matches the expected message
     """
 
     mock = RequestMock()
@@ -124,9 +154,10 @@ def test_honeytoken_create_error_403(cli_fs_runner: CliRunner, monkeypatch) -> N
         assert body["type"] == "AWS"
 
     mock.add_POST(
-        "/honeytokens",
+        endpoint,
         create_json_response(
-            {"detail": "Token is missing the following scope: honeytokens:read"}, 403
+            {"detail": response_message},
+            403,
         ),
         json_checker=payload_checker,
     )
@@ -135,11 +166,11 @@ def test_honeytoken_create_error_403(cli_fs_runner: CliRunner, monkeypatch) -> N
         cli,
         [
             "honeytoken",
-            "create",
+            subcommand,
             "--type",
             "AWS",
         ],
     )
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     mock.assert_all_requests_happened()
-    assert "ggshield does not have permissions to create honeytokens" in result.stdout
+    assert expected_stdout in result.stdout
