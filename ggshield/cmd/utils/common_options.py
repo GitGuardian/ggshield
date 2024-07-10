@@ -158,12 +158,21 @@ exit_zero_option = click.option(
 )
 
 
-minimum_severity_option = click.option(
+minimum_severity_option_iac = click.option(
     "--minimum-severity",
     "minimum_severity",
     type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL")),
     help="Minimum severity of the policies.",
 )
+
+
+minimum_severity_option_sca = click.option(
+    "--minimum-severity",
+    "minimum_severity",
+    type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL", "MALICIOUS")),
+    help="Minimum severity of the vulnerabilities.",
+)
+
 
 ignore_path_option = click.option(
     "--ignore-path",
