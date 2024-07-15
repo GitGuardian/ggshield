@@ -21,7 +21,7 @@ from ggshield.cmd.utils.common_options import (
     exit_zero_option,
     ignore_path_option,
     json_option,
-    minimum_severity_option,
+    minimum_severity_option_sca,
     text_json_format_option,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -49,7 +49,7 @@ def add_sca_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
         exit_zero_option(cmd)
-        minimum_severity_option(cmd)
+        minimum_severity_option_sca(cmd)
         ignore_path_option(cmd)
         json_option(cmd)
         text_json_format_option(cmd)
