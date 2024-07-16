@@ -117,7 +117,11 @@ def create_with_context_cmd(
     if not isinstance(response, (Detail, HoneytokenWithContextResponse)):
         raise UnexpectedError("Unexpected honeytoken response")
 
-    if isinstance(response, Detail) and response.status_code == 403:
+    if (
+        isinstance(response, Detail)
+        and response.status_code == 403
+        and "allowlist" not in response.detail
+    ):
         raise UnexpectedError(
             """ggshield does not have permissions to create honeytokens on your workspace. Make sure that:
 
