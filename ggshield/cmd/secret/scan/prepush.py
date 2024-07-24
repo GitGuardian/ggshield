@@ -11,7 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
-from ggshield.core.git_hooks.prepush import BYPASS_MESSAGE, collect_commits_refs
+from ggshield.core.git_hooks.prepush import collect_commits_refs
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import (
     EMPTY_SHA,
@@ -19,16 +19,10 @@ from ggshield.utils.git_shell import (
     check_git_dir,
     get_list_commit_SHA,
 )
-from ggshield.verticals.secret.output.messages import remediation_message
 from ggshield.verticals.secret.repo import scan_commit_range
 
 
 logger = logging.getLogger(__name__)
-
-
-REMEDIATION_STEPS = """Since the secret was detected before the push BUT after the commit, you need to:
-1. rewrite the git history making sure to replace the secret with its reference (e.g. environment variable).
-2. push again."""
 
 
 @click.command()
@@ -111,11 +105,7 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     )
     if return_code:
         click.echo(
-            remediation_message(
-                remediation_steps=REMEDIATION_STEPS,
-                bypass_message=BYPASS_MESSAGE,
-                rewrite_git_history=True,
-            ),
+            ctx_obj.client.remediation_messages.pre_push,
             err=True,
         )
     return return_code

@@ -17,7 +17,6 @@ from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prereceive import (
-    BYPASS_MESSAGE,
     get_breakglass_option,
     get_prereceive_timeout,
     parse_stdin,
@@ -30,7 +29,6 @@ from ggshield.verticals.secret.output import (
     SecretGitLabWebUIOutputHandler,
     SecretOutputHandler,
 )
-from ggshield.verticals.secret.output.messages import remediation_message
 from ggshield.verticals.secret.repo import scan_commit_range
 
 
@@ -66,10 +64,9 @@ def _execute_prereceive(
         )
         if return_code:
             click.echo(
-                remediation_message(
-                    remediation_steps=config.user_config.secret.prereceive_remediation_message,
-                    bypass_message=BYPASS_MESSAGE,
-                    rewrite_git_history=True,
+                (
+                    config.user_config.secret.prereceive_remediation_message
+                    or client.remediation_messages.pre_receive
                 ),
                 err=True,
             )
