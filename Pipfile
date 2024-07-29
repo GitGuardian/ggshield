@@ -24,7 +24,7 @@ typing-extensions = "*"
 import-linter = "*"
 jsonschema = "*"
 
-vcrpy = ">=5.1.0"
+vcrpy = "==5.1.0"
 
 # Dependency of pytest-voluptuous. Pin it because 0.15.0 does not
 # support Python 3.8 anymore.
