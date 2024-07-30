@@ -1,8 +1,8 @@
 # Changelog
 
-<a id='changelog-1.30.0'></a>
+<a id='changelog-1.30.1'></a>
 
-## 1.30.0 — 2024-07-30
+## 1.30.1 — 2024-07-30
 
 ### Added
 
@@ -13,6 +13,12 @@
 ### Changed
 
 - ggshield now has the ability to display custom remediation messages on pre-commit, pre-push and pre-receive. These messages are defined in the platform and fetched from the `/metadata` endpoint of the API. If no messages are set up on the platform, default remediation messages will be displayed as before.
+
+<a id='changelog-1.30.0'></a>
+
+## 1.30.0 — 2024-07-30
+
+Yanked: release process issue.
 
 <a id='changelog-1.29.0'></a>
 
