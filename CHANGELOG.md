@@ -1,5 +1,19 @@
 # Changelog
 
+<a id='changelog-1.30.0'></a>
+
+## 1.30.0 — 2024-07-30
+
+### Added
+
+- `ggshield secret scan` commands can now output results in [SARIF format](https://sarifweb.azurewebsites.net/), using the new `--format sarif` option (#869).
+
+- `ggshield sca scan ci` and `ggshield sca scan all` now support the `MALICIOUS` value for `--minimum-severity`
+
+### Changed
+
+- ggshield now has the ability to display custom remediation messages on pre-commit, pre-push and pre-receive. These messages are defined in the platform and fetched from the `/metadata` endpoint of the API. If no messages are set up on the platform, default remediation messages will be displayed as before.
+
 <a id='changelog-1.29.0'></a>
 
 ## 1.29.0 — 2024-06-25
