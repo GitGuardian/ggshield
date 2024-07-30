@@ -1,8 +1,9 @@
-## Reporting a vulnerability
+## Security
 
-By preference:
+GitGuardian takes the security of our software products and services seriously, and that includes all source code repositories managed through our GitHub organization.
 
-- Send an email to support@gitguardian.com
-- Send an email to a core contributor directly
+If you believe you have found a security vulnerability in any GitGuardian-owned repository, please report it using our [Vulnerability Disclosure Portal](https://vdp.gitguardian.com).
 
-If you get no response in the next 2 business days, try another avenue of communication, we are very committed to providing quick follow-up on vulnerability reports.
+## Preferred Languages
+
+We prefer all communications to be in English or French.
