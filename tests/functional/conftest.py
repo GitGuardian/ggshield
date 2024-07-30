@@ -54,7 +54,11 @@ class AbstractGGAPIHandler(http.server.BaseHTTPRequestHandler, metaclass=abc.ABC
         self.send_response(response.status_code)
 
         for name, value in response.headers.items():
-            self.send_header(name, value)
+            if name != "content-encoding" and name != "transfer-encoding":
+                # Forward headers, but not content-encoding nor transfer-encoding
+                # because our response is not compressed and/or chunked content, even if
+                # we received it that way
+                self.send_header(name, value)
         self.end_headers()
 
         self.wfile.write(response.content)
