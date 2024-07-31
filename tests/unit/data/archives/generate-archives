@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This script creates the bad.zip and bad.tar archives.
+#
+# They both contain the following files:
+#
+# ../bad-relative
+# /tmp/bad-absolute
+# fine
+# subdir/bad-relative-symlink -> ../bad-relative
+# subdir/bad-absolute-symlink -> /tmp/bad-absolute
+# subdir/fine-symlink -> ../fine
+#
+# It also createst good.zip, good.whl and good.tar, which only contain:
+# 
+# fine
+# subdir/fine-symlink -> ../fine
+
+cd "$(dirname "$0")"
+BAD_ZIP=$PWD/bad.zip
+BAD_TAR=$PWD/bad.tar
+
+GOOD_ZIP=$PWD/good.zip
+GOOD_WHL=$PWD/good.whl
+GOOD_TAR=$PWD/good.tar
+
+rm -f "$BAD_ZIP" "$BAD_TAR" "$GOOD_ZIP" "$GOOD_TAR" "$GOOD_WHL"
+
+rm -rf work
+mkdir -p work/archive-root
+
+echo fine > work/archive-root/fine
+echo bad-relative > work/bad-relative
+echo bad-abs > /tmp/bad-absolute
+
+mkdir -p work/archive-root/subdir
+(
+    cd work/archive-root/subdir
+    ln -s ../../bad-relative bad-relative-symlink
+    ln -s /tmp/bad-absolute bad-absolute-symlink
+
+    ln -s ../fine fine-symlink
+)
+
+(
+    cd work/archive-root
+
+    # Use `7z` because `zip` cannot generate zip containing files outside the
+    # current directory.
+    # Redirect to /dev/null because 7z is super chatty.
+    ZIP_CMD="7z a"
+    7z a -spf -snl "$BAD_ZIP" ../bad-relative /tmp/bad-absolute . > /dev/null
+    7z a "$GOOD_ZIP" fine subdir/fine-symlink > /dev/null
+
+    # A .whl is a .zip with a different extension
+    cp "$GOOD_ZIP" "$GOOD_WHL"
+
+    tar cf "$BAD_TAR" --absolute-names . ../bad-relative /tmp/bad-absolute
+    tar cf "$GOOD_TAR" fine subdir/fine-symlink
+)
+
+rm -rf work
+
+echo "Generated:
+$BAD_ZIP
+$BAD_TAR
+$GOOD_ZIP
+$GOOD_WHL
+$GOOD_TAR"
