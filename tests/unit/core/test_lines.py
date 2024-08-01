@@ -2,7 +2,8 @@ from typing import List
 
 import pytest
 
-from ggshield.core.lines import Line, get_offset, get_padding
+from ggshield.core.lines import Line, get_lines_from_patch, get_offset, get_padding
+from ggshield.utils.git_shell import Filemode
 
 
 @pytest.mark.parametrize(
@@ -72,3 +73,33 @@ def test_get_padding(lines: List[Line], want: int) -> None:
 )
 def test_get_offset(padding: int, is_patch: bool, want: int) -> None:
     assert get_offset(padding, is_patch) == want
+
+
+NO_NEWLINE_BEFORE_SECRET = """
+@@ -1,3 +1,3 @@
+ some line
+ some other line
+-deleted line
+\\ No newline at end of file
++token = "foo"
+\\ No newline at end of file
+"""
+
+
+def test_get_lines_from_patch_does_not_fail_on_patches_without_eof_newlines():
+    """
+    GIVEN a patch with the "No newline at end of file" indicator
+    WHEN parsed with get_lines_from_patch()
+    THEN it does not fail
+    AND returns the correct lines
+    """
+    lines = list(get_lines_from_patch(NO_NEWLINE_BEFORE_SECRET, Filemode.MODIFY))
+    assert [x.content for x in lines] == [
+        "@@ -1,3 +1,3 @@",
+        " some line",
+        " some other line",
+        "-deleted line",
+        "\\ No newline at end of file",
+        '+token = "foo"',
+        "\\ No newline at end of file",
+    ]
