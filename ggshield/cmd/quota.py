@@ -23,7 +23,7 @@ from ggshield.core.errors import UnexpectedError
 @click.pass_context
 def quota_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
-    Show the remaining quota of API calls available for the entire workspace.
+    Show the remaining quotas of API calls available for the entire workspace.
     """
     ctx_obj = ContextObj.get(ctx)
     client: GGClient = create_client_from_config(ctx_obj.config, ctx_obj.ui)
