@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -13,6 +12,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.utils.archive import safe_unpack
 from ggshield.utils.click import RealPath
 from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -35,7 +35,7 @@ def archive_cmd(
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         temp_path = Path(temp_dir)
         try:
-            shutil.unpack_archive(path, extract_dir=temp_path)
+            safe_unpack(path, extract_dir=temp_path)
         except Exception as exn:
             raise UnexpectedError(f'Failed to unpack "{path}" archive: {exn}')
 

@@ -1,5 +1,4 @@
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -16,6 +15,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.utils.archive import safe_unpack
 from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
@@ -58,11 +58,9 @@ def get_files_from_package(
     verbose: bool,
 ) -> List[Scannable]:
     archive: Path = next(archive_dir.iterdir())
-    # unpack_archive does not know .whl files are zip files
-    archive_format = "zip" if archive.suffix == ".whl" else None
 
     try:
-        shutil.unpack_archive(archive, extract_dir=archive_dir, format=archive_format)
+        safe_unpack(archive, extract_dir=archive_dir)
     except Exception as exn:
         raise UnexpectedError(f'Failed to unpack package "{package_name}": {exn}.')
 

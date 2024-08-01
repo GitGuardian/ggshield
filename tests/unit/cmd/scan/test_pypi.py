@@ -78,10 +78,10 @@ class TestListPackageFiles:
         ],
     )
     @patch("ggshield.cmd.secret.scan.pypi.get_files_from_paths")
-    @patch("shutil.unpack_archive")
+    @patch("ggshield.cmd.secret.scan.pypi.safe_unpack")
     def test_unpack_archive_format(
         self,
-        unpack_archive_mock: Mock,
+        safe_unpack_mock: Mock,
         get_files_from_paths_mock: Mock,
         extension: str,
         verbose: bool,
@@ -97,10 +97,9 @@ class TestListPackageFiles:
                 verbose=verbose,
             )
 
-            unpack_archive_mock.assert_called_once_with(
+            safe_unpack_mock.assert_called_once_with(
                 archive_path,
                 extract_dir=tmp_path,
-                format="zip" if extension == "whl" else None,
             )
 
             expected_exclusion_regexes = self.exclusion_regexes
