@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.30.2'></a>
+
+## 1.30.2 — 2024-08-05
+
+### Security
+
+- Fixed a bug where `ggshield secret scan archive` could be passed a maliciously crafted tar archive to overwrite user files.
+
 <a id='changelog-1.30.1'></a>
 
 ## 1.30.1 — 2024-07-30
