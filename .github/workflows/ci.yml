@@ -151,6 +151,9 @@ jobs:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
           TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
+          TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
+          TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
+          TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
 
   build_os_packages:
     uses: ./.github/workflows/build_release_assets.yml
