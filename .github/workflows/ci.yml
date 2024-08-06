@@ -190,7 +190,6 @@ jobs:
         with:
           args: .
         env:
-          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
 
@@ -209,7 +208,6 @@ jobs:
         with:
           args: .
         env:
-          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
 
