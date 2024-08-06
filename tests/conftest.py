@@ -18,9 +18,11 @@ ROOT_DIR = Path(__file__).parent.parent
 JSON_SCHEMAS_DIR = ROOT_DIR / "doc/schemas"
 
 # This is a test token, it is always reported as a valid secret
-GG_VALID_TOKEN = "ggtt-v-12345azert"  # ggignore
-GG_VALID_TOKEN_IGNORE_SHA = (
-    "56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd"
+# Use your own value if needed
+GG_VALID_TOKEN = os.getenv("TEST_GG_VALID_TOKEN", "ggtt-v-12345azert")  # ggignore
+GG_VALID_TOKEN_IGNORE_SHA = os.getenv(
+    "TEST_GG_VALID_TOKEN_IGNORE_SHA",
+    "56c126cef75e3d17c3de32dac60bab688ecc384a054c2c85b688c1dd7ac4eefd",
 )
 
 # This secret must be a secret known by the dashboard running functional tests
