@@ -282,29 +282,56 @@ step_create_archive() {
         tar -czf "$archive_path" "$ARCHIVE_DIR_NAME"
         popd
         create_linux_packages
+        info "Archive created in $archive_path"
         ;;
     macOS)
-        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
+        # Create pkg file
+        pkg_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
         pushd "$PACKAGES_DIR"
         pkgbuild \
             --identifier com.gitguardian.ggshield \
             --version "$VERSION" \
             --root "$PACKAGES_DIR/$ARCHIVE_DIR_NAME" \
-            "$archive_path"
+            "$pkg_path"
         popd
 
         if [ "$DO_SIGN" -eq 1 ] ; then
-            macos_sign_file "$archive_path"
+            macos_sign_file "$pkg_path"
         fi
+
+        # Create tar.gz
+        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.tar.gz"
+
+        # $PACKAGE_DIR/$ARCHIVE_DIR_NAME currently contains the following file tree:
+        #
+        #   $INSTALL_PREFIX
+        #     ggshield
+        #     internal/
+        #   usr/local/bin
+        #     ggshield -> /$INSTALL_PREFIX/ggshield
+        #
+        # We don't want the tar.gz to contain a file tree like this, it must contain a
+        # tree similar to the Linux tar.gz, with a root dir called $ARCHIVE_DIR_NAME
+        # containing what is currently in $INSTALL_PREFIX. To set this up, we move
+        # $INSTALL_PREFIX to a temporary directory and create the tar.gz from there.
+        # (we can't use `tar --transform`: it's not supported on macOS)
+        rm -rf "$PACKAGES_DIR/tmp"
+        mkdir "$PACKAGES_DIR/tmp"
+        pushd "$PACKAGES_DIR/tmp"
+        mv "$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX" "$ARCHIVE_DIR_NAME"
+        tar -czf "$archive_path" "$ARCHIVE_DIR_NAME"
+        popd
+
+        info "Archive created in $pkg_path & $archive_path"
         ;;
     Windows)
         archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.zip"
         pushd "$PACKAGES_DIR"
         7z a "$archive_path" "$ARCHIVE_DIR_NAME"
         popd
+        info "Archive created in $archive_path"
         ;;
     esac
-    info "Archive created in $archive_path"
 }
 
 steps=""
