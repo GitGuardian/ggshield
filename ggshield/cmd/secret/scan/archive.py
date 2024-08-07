@@ -8,6 +8,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
@@ -42,14 +43,13 @@ def archive_cmd(
         ctx_obj = ContextObj.get(ctx)
         config = ctx_obj.config
         verbose = config.user_config.verbose
-        files = get_files_from_paths(
+        files, binary_paths = get_files_from_paths(
             paths=[temp_path],
             exclusion_regexes=ctx_obj.exclusion_regexes,
-            yes=True,
-            display_scanned_files=verbose,
-            display_binary_files=verbose,
             list_files_mode=ListFilesMode.ALL,
         )
+        if verbose:
+            print_file_list(files, binary_paths)
 
         with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
             scan_context = ScanContext(

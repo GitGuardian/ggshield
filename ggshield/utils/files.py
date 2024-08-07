@@ -47,11 +47,9 @@ def get_filepaths(
     list_files_mode: ListFilesMode,
 ) -> Set[Path]:
     """
-    Retrieve the filepaths from the command.
+    Retrieve a set of the files inside `paths`.
 
-    :param paths: List of file/dir paths from the command
-    :param ignore_git: Ignore that the folder is a git repository
-    :raise: UnexpectedDirectoryError if directory is given without --recursive option
+    Note: only plain files are returned, not directories.
     """
     targets: Set[Path] = set()
     for path in paths:
@@ -72,7 +70,9 @@ def get_filepaths(
                 _targets = path.rglob(r"*")
 
             for file_path in _targets:
-                if not is_path_excluded(file_path, exclusion_regexes):
+                if not file_path.is_dir() and not is_path_excluded(
+                    file_path, exclusion_regexes
+                ):
                     targets.add(file_path)
     return targets
 

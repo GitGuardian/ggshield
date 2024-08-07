@@ -3,7 +3,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, List, Pattern, Set
+from typing import Any, List, Pattern, Set, Tuple
 
 import click
 
@@ -11,6 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
@@ -55,8 +56,7 @@ def get_files_from_package(
     archive_dir: Path,
     package_name: str,
     exclusion_regexes: Set[Pattern[str]],
-    verbose: bool,
-) -> List[Scannable]:
+) -> Tuple[List[Scannable], List[Path]]:
     archive: Path = next(archive_dir.iterdir())
 
     try:
@@ -69,9 +69,6 @@ def get_files_from_package(
     return get_files_from_paths(
         paths=[archive_dir],
         exclusion_regexes=exclusion_regexes,
-        yes=True,
-        display_scanned_files=verbose,
-        display_binary_files=verbose,
         list_files_mode=ListFilesMode.ALL,
     )
 
@@ -106,12 +103,13 @@ def pypi_cmd(
         temp_path = Path(temp_dir)
         save_package_to_tmp(temp_dir=temp_path, package_name=package_name)
 
-        files = get_files_from_package(
+        files, binary_paths = get_files_from_package(
             archive_dir=temp_path,
             package_name=package_name,
             exclusion_regexes=ctx_obj.exclusion_regexes,
-            verbose=config.user_config.verbose,
         )
+        if verbose:
+            print_file_list(files, binary_paths)
 
         with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
             scan_context = ScanContext(
