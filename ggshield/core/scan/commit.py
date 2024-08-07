@@ -1,5 +1,7 @@
+from collections import defaultdict
+from itertools import chain
 from pathlib import Path
-from typing import Callable, Iterable, Optional, Pattern, Sequence, Set
+from typing import Callable, Iterable, List, Optional, Pattern, Sequence, Set, Tuple
 
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.git_shell import git
@@ -72,6 +74,57 @@ class Commit:
                 yield from parse_patch(sha, patch, exclusion_regexes)
 
         return Commit(sha, parser, info)
+
+    @staticmethod
+    def from_merge(
+        exclusion_regexes: Optional[Set[Pattern[str]]] = None,
+        merge_branch: str = "MERGE_HEAD",
+        cwd: Optional[Path] = None,
+    ) -> "Commit":
+
+        def get_file_sha_from_ls_tree(
+            ref: str,
+            list_diff_files: List[str] = [],
+        ) -> Iterable[Tuple[str, str]]:
+            ls_tree = git(["ls-tree", "-z", ref] + list_diff_files, cwd=cwd)
+            for line in ls_tree.split("\x00")[:-1]:
+                mode, type, sha, path = line.split()
+                yield (path, sha)
+
+        # Get files modified and staged
+        diff_output = git(["diff", "--name-only", "--staged", "-z"], cwd=cwd)
+        list_diff_files = diff_output.split("\x00")[:-1]  # remove the trailing \x00
+
+        dict_path_to_shas = defaultdict(set)
+        for path, sha in chain(
+            get_file_sha_from_ls_tree("HEAD", list_diff_files),
+            get_file_sha_from_ls_tree(merge_branch, list_diff_files),
+        ):
+            dict_path_to_shas[path].add(sha)
+
+        ls_files = git(["ls-files", "--stage", "-z"] + list_diff_files, cwd=cwd)
+        files_to_scan = set()
+        for line in ls_files.split("\x00")[:-1]:
+            _, sha, _, path = line.split()
+            if path not in dict_path_to_shas:
+                files_to_scan.add(path)  # The file is newly added
+            elif sha not in dict_path_to_shas[path]:
+                files_to_scan.add(
+                    path
+                )  # The file is different from both HEAD and MERGE_HEAD
+
+        def parser_merge(commit: "Commit") -> Iterable[Scannable]:
+            patch = git(
+                ["diff", "--staged"] + PATCH_COMMON_ARGS + list(files_to_scan), cwd=cwd
+            )
+            yield from parse_patch(
+                STAGED_PREFIX,
+                DIFF_EMPTY_COMMIT_INFO_BLOCK + patch,
+                exclusion_regexes,
+            )
+
+        info = CommitInformation.from_staged(cwd)
+        return Commit(sha=None, patch_parser=parser_merge, info=info)
 
     @staticmethod
     def from_staged(
