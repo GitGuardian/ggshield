@@ -13,6 +13,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import get_files_from_paths
+from ggshield.core.text_utils import display_heading
 from ggshield.utils.archive import safe_unpack
 from ggshield.utils.click import RealPath
 from ggshield.utils.files import ListFilesMode
@@ -35,6 +36,7 @@ def archive_cmd(
     """
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         temp_path = Path(temp_dir)
+        display_heading("Unpacking archive")
         try:
             safe_unpack(path, extract_dir=temp_path)
         except Exception as exn:
@@ -50,6 +52,7 @@ def archive_cmd(
         )
         if verbose:
             print_file_list(files, binary_paths)
+        display_heading("Starting scan")
 
         with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
             scan_context = ScanContext(
