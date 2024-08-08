@@ -46,6 +46,13 @@ def path_cmd(
     for path in paths:
         check_directory_not_ignored(path, ctx_obj.exclusion_regexes)
 
+    if not recursive:
+        if path := next((x for x in paths if x.is_dir()), None):
+            raise click.UsageError(
+                f"{click.format_filename(path)} is a directory."
+                " Use --recursive to scan directories."
+            )
+
     files = get_files_from_paths(
         paths=paths,
         exclusion_regexes=ctx_obj.exclusion_regexes,
@@ -53,11 +60,7 @@ def path_cmd(
         display_scanned_files=verbose,
         display_binary_files=verbose,
         list_files_mode=(
-            ListFilesMode.FILES_ONLY
-            if not recursive
-            else (
-                ListFilesMode.ALL_BUT_GITIGNORED if use_gitignore else ListFilesMode.ALL
-            )
+            ListFilesMode.ALL_BUT_GITIGNORED if use_gitignore else ListFilesMode.ALL
         ),
     )
     target = paths[0] if len(paths) == 1 else Path.cwd()

@@ -5,7 +5,6 @@ import click
 
 from ggshield.utils.files import (
     ListFilesMode,
-    UnexpectedDirectoryError,
     get_filepaths,
     is_path_binary,
     url_for_path,
@@ -72,17 +71,11 @@ def get_files_from_paths(
     :param display_binary_files: Display all ignored binary files
     :param ignore_git: Ignore that the folder is a git repository
     """
-    try:
-        filepaths = get_filepaths(
-            paths,
-            exclusion_regexes,
-            list_files_mode=list_files_mode,
-        )
-    except UnexpectedDirectoryError as error:
-        raise click.UsageError(
-            f"{click.format_filename(error.path)} is a directory."
-            " Use --recursive to scan directories."
-        )
+    filepaths = get_filepaths(
+        paths,
+        exclusion_regexes,
+        list_files_mode=list_files_mode,
+    )
 
     files = list(generate_files_from_paths(filepaths, display_binary_files))
 
