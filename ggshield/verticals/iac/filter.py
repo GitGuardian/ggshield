@@ -32,26 +32,20 @@ def get_iac_files_from_path(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files added to git are scanned
     """
-    return [
-        x.path
-        for x in get_files_from_paths(
-            paths=[path],
-            exclusion_regexes=exclusion_regexes,
-            yes=True,
-            display_binary_files=verbose,
-            display_scanned_files=False,
-            list_files_mode=(
-                ListFilesMode.ALL
-                if ignore_git
-                else (
-                    ListFilesMode.GIT_COMMITTED
-                    if ignore_git_staged
-                    else ListFilesMode.GIT_COMMITTED_OR_STAGED
-                )
-            ),
-        )
-        if is_iac_file_path(x.path)
-    ]
+    files, _ = get_files_from_paths(
+        paths=[path],
+        exclusion_regexes=exclusion_regexes,
+        list_files_mode=(
+            ListFilesMode.ALL
+            if ignore_git
+            else (
+                ListFilesMode.GIT_COMMITTED
+                if ignore_git_staged
+                else ListFilesMode.GIT_COMMITTED_OR_STAGED
+            )
+        ),
+    )
+    return [x.path for x in files if is_iac_file_path(x.path)]
 
 
 def is_iac_file_path(path: Path) -> bool:

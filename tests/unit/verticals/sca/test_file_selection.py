@@ -64,27 +64,22 @@ def test_get_all_files_from_sca_paths(tmp_path):
     ("file_path", "expected"),
     [("front/file1.png", True), (".git/file2.png", False), ("file3.png", True)],
 )
-def test_get_ignored_files(tmp_path, capsysbinary, file_path, expected):
+def test_get_ignored_files(tmp_path, file_path, expected):
     """
     GIVEN a directory
     WHEN calling sca scan a directory
     THEN excluded directory are not inspected
     """
-    write_text(filename=str(tmp_path / file_path), content="")
+    binary_path = tmp_path / file_path
+    write_text(filename=str(binary_path), content="")
 
-    get_files_from_paths(
-        paths=[Path(tmp_path)],
+    _, binary_paths = get_files_from_paths(
+        paths=[tmp_path],
         exclusion_regexes=SCA_EXCLUSION_REGEXES,  # directories we don't want to traverse
-        yes=True,
-        display_binary_files=True,
-        display_scanned_files=False,
     )
 
-    captured = capsysbinary.readouterr()
-
-    # stderr shows us the ignored binary files
-    # (stderr should be empty if binary files are in directories we don't want to traverse)
-    assert (captured.err != bytes("", "utf-8")) is expected
+    expected_paths = [binary_path] if expected else []
+    assert binary_paths == expected_paths
 
 
 @pytest.mark.parametrize(
