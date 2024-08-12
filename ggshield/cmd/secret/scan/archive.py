@@ -12,7 +12,7 @@ from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
-from ggshield.core.scan.file import get_files_from_paths
+from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.text_utils import display_heading
 from ggshield.utils.archive import safe_unpack
 from ggshield.utils.click import RealPath
@@ -45,7 +45,7 @@ def archive_cmd(
         ctx_obj = ContextObj.get(ctx)
         config = ctx_obj.config
         verbose = config.user_config.verbose
-        files, binary_paths = get_files_from_paths(
+        files, binary_paths = create_files_from_paths(
             paths=[temp_path],
             exclusion_regexes=ctx_obj.exclusion_regexes,
             list_files_mode=ListFilesMode.ALL,

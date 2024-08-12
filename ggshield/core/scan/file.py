@@ -46,14 +46,14 @@ class File(Scannable):
                 )
 
 
-def get_files_from_paths(
+def create_files_from_paths(
     paths: List[Path],
     exclusion_regexes: Set[Pattern[str]],
     list_files_mode: ListFilesMode = ListFilesMode.GIT_COMMITTED_OR_STAGED,
 ) -> Tuple[List[Scannable], List[Path]]:
     """
-    Returns a tuple of a list of scannables for the files, and a list of ignored binary
-    paths
+    Create File instances for `paths` and return them, as well as a list of the ignored
+    paths found in `paths`.
     """
     filepaths = list_files(
         paths,

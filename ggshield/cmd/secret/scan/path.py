@@ -12,7 +12,7 @@ from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
-from ggshield.core.scan.file import get_files_from_paths
+from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.text_utils import display_heading
 from ggshield.utils.click import RealPath
 from ggshield.utils.files import ListFilesMode
@@ -55,7 +55,7 @@ def path_cmd(
                 " Use --recursive to scan directories."
             )
 
-    files, binary_paths = get_files_from_paths(
+    files, binary_paths = create_files_from_paths(
         paths=paths,
         exclusion_regexes=ctx_obj.exclusion_regexes,
         list_files_mode=(

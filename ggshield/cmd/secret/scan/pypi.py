@@ -15,7 +15,7 @@ from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
-from ggshield.core.scan.file import get_files_from_paths
+from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.text_utils import display_heading
 from ggshield.utils.archive import safe_unpack
 from ggshield.utils.files import ListFilesMode
@@ -67,7 +67,7 @@ def get_files_from_package(
 
     exclusion_regexes.add(re.compile(re.escape(archive.name)))
 
-    return get_files_from_paths(
+    return create_files_from_paths(
         paths=[archive_dir],
         exclusion_regexes=exclusion_regexes,
         list_files_mode=ListFilesMode.ALL,
