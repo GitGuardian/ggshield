@@ -67,7 +67,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             result.censor()
 
         for ignore_sha, policy_breaks in sha_dict.items():
-            flattened_dict = self.flattened_policy_break(
+            flattened_dict = self.serialized_policy_break(
                 ignore_sha,
                 policy_breaks,
             )
@@ -89,7 +89,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         return error_dict
 
-    def flattened_policy_break(
+    def serialized_policy_break(
         self,
         ignore_sha: str,
         policy_breaks: List[PolicyBreak],
@@ -110,36 +110,38 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             flattened_dict["incident_url"] = policy_breaks[0].incident_url
 
         for policy_break in policy_breaks:
-            flattened_dict["occurrences"].extend(self.flatten_matches(policy_break))
+            flattened_dict["occurrences"].extend(
+                self.serialize_policy_break_matches(policy_break)
+            )
 
         return flattened_dict
 
-    def flatten_matches(
+    def serialize_policy_break_matches(
         self,
         policy_break: PolicyBreak,
     ) -> List[Dict[str, Any]]:
         """
-        flatten_policy_breaks_by_line turns a list of policy breaks into a list of
-        tuples of (line, list of matches) mapping a line to a list of matches starting
-        at that line. The list is sorted by line number.
+        Serialize policy_break matches. The method uses MatchSpan to get the start and
+        end index of the match.
+        Returns a list of matches.
         """
-        flattened_dict: List[Dict[str, Any]] = []
+        matches_list: List[Dict[str, Any]] = []
         for match in policy_break.matches:
             assert isinstance(match, ExtendedMatch)
 
-            flattened_match_dict: Dict[str, Any] = {
+            match_dict: Dict[str, Any] = {
                 "match": match.match,
-                "type": match.match_type,
+                "match_type": match.match_type,
                 "line_start": match.line_start,
                 "line_end": match.line_end,
                 "index_start": match.span.column_index_start,
                 "index_end": match.span.column_index_end,
             }
             if match.pre_line_start is not None and match.pre_line_end is not None:
-                flattened_match_dict["pre_line_start"] = match.pre_line_start
-                flattened_match_dict["pre_line_end"] = match.pre_line_end
+                match_dict["pre_line_start"] = match.pre_line_start
+                match_dict["pre_line_end"] = match.pre_line_end
             if match.post_line_start is not None and match.post_line_end is not None:
-                flattened_match_dict["post_line_start"] = match.post_line_start
-                flattened_match_dict["post_line_end"] = match.post_line_end
-            flattened_dict.append(flattened_match_dict)
-        return flattened_dict
+                match_dict["post_line_start"] = match.post_line_start
+                match_dict["post_line_end"] = match.post_line_end
+            matches_list.append(match_dict)
+        return matches_list
