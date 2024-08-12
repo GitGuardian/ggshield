@@ -36,7 +36,7 @@ def test_get_all_files_from_sca_paths(tmp_path):
     for path in tmp_paths:
         write_text(filename=path, content="")
 
-    files = get_all_files_from_sca_paths(tmp_path, set(), True)
+    files = get_all_files_from_sca_paths(tmp_path, set())
     assert len(files) == 7
     assert Path(".venv/dockerfile.txt") not in [Path(filepath) for filepath in files]
     assert Path("backend/pyproject.toml") in [Path(filepath) for filepath in files]

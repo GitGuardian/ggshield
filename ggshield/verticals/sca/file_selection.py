@@ -39,17 +39,13 @@ SCA_EXCLUSION_REGEXES = {
 
 
 def get_all_files_from_sca_paths(
-    path: Path,
-    exclusion_regexes: Set[Pattern[str]],
-    verbose: bool,
-    ignore_git: bool = False,
+    path: Path, exclusion_regexes: Set[Pattern[str]], ignore_git: bool = False
 ) -> List[str]:
     """
-    Create a Files object from a path, recursively, ignoring non SCA files
+    Recurse on `path` and return a list of SCA paths.
 
     :param path: path to scan
     :param exclusion_regexes: list of regexes, used to exclude some filepaths
-    :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
     """
     paths = list_files(

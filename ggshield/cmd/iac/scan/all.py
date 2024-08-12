@@ -73,8 +73,6 @@ def iac_scan_all(
     paths = get_iac_files_from_path(
         path=directory,
         exclusion_regexes=ctx_obj.exclusion_regexes,
-        # bypass verbose here: we want to display only IaC files
-        verbose=False,
         # If the repository is a git repository, ignore untracked files
         ignore_git=False,
         ignore_git_staged=(scan_mode == ScanMode.PRE_PUSH_ALL),

@@ -122,7 +122,6 @@ def get_sca_scan_all_filepaths(
     all_filepaths = get_all_files_from_sca_paths(
         path=directory,
         exclusion_regexes=exclusion_regexes,
-        verbose=verbose,
         # If the repository is a git repository, ignore untracked files
         ignore_git=True,
     )
