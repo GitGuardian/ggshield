@@ -5,9 +5,7 @@ from typing import Set
 import pytest
 from pygitguardian import GGClient
 
-from ggshield.core.scan.file import get_files_from_paths
 from ggshield.verticals.sca.file_selection import (
-    SCA_EXCLUSION_REGEXES,
     get_all_files_from_sca_paths,
     sca_files_from_git_repo,
 )
@@ -58,28 +56,6 @@ def test_get_all_files_from_sca_paths(tmp_path):
             "front/yarn.lock",
         ]
     ]
-
-
-@pytest.mark.parametrize(
-    ("file_path", "expected"),
-    [("front/file1.png", True), (".git/file2.png", False), ("file3.png", True)],
-)
-def test_get_ignored_files(tmp_path, file_path, expected):
-    """
-    GIVEN a directory
-    WHEN calling sca scan a directory
-    THEN excluded directory are not inspected
-    """
-    binary_path = tmp_path / file_path
-    write_text(filename=str(binary_path), content="")
-
-    _, binary_paths = get_files_from_paths(
-        paths=[tmp_path],
-        exclusion_regexes=SCA_EXCLUSION_REGEXES,  # directories we don't want to traverse
-    )
-
-    expected_paths = [binary_path] if expected else []
-    assert binary_paths == expected_paths
 
 
 @pytest.mark.parametrize(

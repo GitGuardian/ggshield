@@ -10,11 +10,12 @@ import pytest
 from ggshield.core.tar_utils import get_empty_tar
 from ggshield.utils.files import (
     ListFilesMode,
-    get_filepaths,
     is_path_excluded,
+    list_files,
     url_for_path,
 )
 from tests.repository import Repository
+from tests.unit.conftest import write_text
 
 
 def test_get_empty_tar():
@@ -46,7 +47,7 @@ def test_is_path_excluded(
     assert is_path_excluded(path, regexes) == excluded
 
 
-def test_get_filepaths_git_repo(tmp_path: Path):
+def test_list_files_git_repo(tmp_path: Path):
     """
     GIVEN a git repo
     WHEN calling get_filepaths
@@ -81,7 +82,7 @@ def test_get_filepaths_git_repo(tmp_path: Path):
     local_repo.add(staged_file)
 
     assert set(
-        get_filepaths(
+        list_files(
             paths=[local_repo.path],
             exclusion_regexes={},
             list_files_mode=ListFilesMode.GIT_COMMITTED_OR_STAGED,
@@ -89,7 +90,7 @@ def test_get_filepaths_git_repo(tmp_path: Path):
     ) == {committed_file, staged_file, gitignore}
 
     assert set(
-        get_filepaths(
+        list_files(
             paths=[local_repo.path],
             exclusion_regexes={},
             list_files_mode=ListFilesMode.GIT_COMMITTED,
@@ -97,12 +98,35 @@ def test_get_filepaths_git_repo(tmp_path: Path):
     ) == {committed_file, gitignore}
 
     assert set(
-        get_filepaths(
+        list_files(
             paths=[local_repo.path],
             exclusion_regexes={},
             list_files_mode=ListFilesMode.ALL_BUT_GITIGNORED,
         )
     ) == {committed_file, staged_file, unstaged_file, gitignore}
+
+
+@pytest.mark.parametrize(
+    ("file_path", "expected"),
+    [("front/file1.png", True), ("ignore/file2.png", False), ("file3.png", True)],
+)
+def test_get_ignored_files(tmp_path, file_path, expected):
+    """
+    GIVEN a directory
+    WHEN listing its content
+    THEN subdirectories matching the exclusion regexes are not inspected
+    """
+    file_path = tmp_path / file_path
+    write_text(filename=str(file_path), content="")
+
+    file_paths = list_files(
+        paths=[tmp_path],
+        exclusion_regexes={re.compile("ignore/.*")},
+        list_files_mode=ListFilesMode.GIT_COMMITTED_OR_STAGED,
+    )
+
+    expected_paths = {file_path} if expected else set()
+    assert file_paths == expected_paths
 
 
 @pytest.mark.parametrize(

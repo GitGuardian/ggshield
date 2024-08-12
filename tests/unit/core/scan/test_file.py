@@ -6,7 +6,7 @@ import charset_normalizer
 import pytest
 
 from ggshield.core.scan import DecodeError, File
-from ggshield.core.scan.file import get_files_from_paths
+from ggshield.core.scan.file import create_files_from_paths
 from tests.conftest import is_windows
 
 
@@ -229,7 +229,7 @@ def test_get_files_from_paths(
     path = tmp_path / filename
     path.write_bytes(input_content)
 
-    files, _ = get_files_from_paths([path], exclusion_regexes=set())
+    files, _ = create_files_from_paths([path], exclusion_regexes=set())
 
     file = files[0]
     assert file.filename == str(path)

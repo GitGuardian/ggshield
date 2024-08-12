@@ -7,10 +7,14 @@ from pygitguardian.client import GGClient
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
-from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
 from ggshield.core.text_utils import display_info
-from ggshield.utils.files import ListFilesMode, is_path_excluded
+from ggshield.utils.files import (
+    ListFilesMode,
+    is_path_binary,
+    is_path_excluded,
+    list_files,
+)
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 
 
@@ -48,14 +52,14 @@ def get_all_files_from_sca_paths(
     :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
     """
-    files, _ = get_files_from_paths(
+    paths = list_files(
         paths=[path],
         exclusion_regexes=exclusion_regexes | SCA_EXCLUSION_REGEXES,
         list_files_mode=(
             ListFilesMode.ALL if ignore_git else ListFilesMode.GIT_COMMITTED_OR_STAGED
         ),
     )
-    return sorted(str(x.path.relative_to(path)) for x in files)
+    return sorted(str(x.relative_to(path)) for x in paths if not is_path_binary(x))
 
 
 def sca_files_from_git_repo(

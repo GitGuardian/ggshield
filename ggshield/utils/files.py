@@ -41,7 +41,7 @@ def is_path_excluded(
     return any(r.search(path_string) for r in exclusion_regexes)
 
 
-def get_filepaths(
+def list_files(
     paths: List[Path],
     exclusion_regexes: Set[Pattern[str]],
     list_files_mode: ListFilesMode,

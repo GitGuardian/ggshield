@@ -1,12 +1,7 @@
 from pathlib import Path
 from typing import List, Pattern, Set, Tuple, Union
 
-from ggshield.utils.files import (
-    ListFilesMode,
-    get_filepaths,
-    is_path_binary,
-    url_for_path,
-)
+from ggshield.utils.files import ListFilesMode, is_path_binary, list_files, url_for_path
 
 from .scannable import Scannable
 
@@ -60,7 +55,7 @@ def get_files_from_paths(
     Returns a tuple of a list of scannables for the files, and a list of ignored binary
     paths
     """
-    filepaths = get_filepaths(
+    filepaths = list_files(
         paths,
         exclusion_regexes,
         list_files_mode=list_files_mode,
