@@ -75,8 +75,6 @@ class ExtendedMatch(Match):
         line_index_start = start_line.pre_index or start_line.post_index
         line_index_end = end_line.pre_index or end_line.post_index
         assert line_index_start is not None and line_index_end is not None
-        line_index_start += int(is_patch) - 1  # convert to 0-based
-        line_index_end += int(is_patch) - 1
 
         lines_with_secret = lines[span.line_index_start : span.line_index_end + 1]
 
@@ -100,10 +98,10 @@ class ExtendedMatch(Match):
             match_type=match.match_type,
             line_start=line_index_start,
             line_end=line_index_end,
-            pre_line_start=start_line.pre_index,
-            post_line_start=start_line.post_index,
-            pre_line_end=end_line.pre_index,
-            post_line_end=end_line.post_index,
+            pre_line_start=start_line.pre_index if is_patch else None,
+            post_line_start=start_line.post_index if is_patch else None,
+            pre_line_end=end_line.pre_index if is_patch else None,
+            post_line_end=end_line.post_index if is_patch else None,
         )
 
     def censor(self) -> None:
