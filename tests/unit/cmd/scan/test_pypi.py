@@ -69,32 +69,26 @@ class TestListPackageFiles:
     package_name: str = "what-ever-non-existing"
     exclusion_regexes: Set[Pattern[str]] = {re.compile("i am a regex")}
 
-    @pytest.mark.parametrize(
-        "extension,verbose",
-        [
-            ("whl", True),
-            ("whl", False),
-            ("tar.gz", True),
-        ],
-    )
-    @patch("ggshield.cmd.secret.scan.pypi.get_files_from_paths")
+    @pytest.mark.parametrize("extension", ["whl", "tar.gz"])
+    @patch("ggshield.cmd.secret.scan.pypi.create_files_from_paths")
     @patch("ggshield.cmd.secret.scan.pypi.safe_unpack")
     def test_unpack_archive_format(
         self,
         safe_unpack_mock: Mock,
-        get_files_from_paths_mock: Mock,
+        create_files_from_paths_mock: Mock,
         extension: str,
-        verbose: bool,
         tmp_path,
     ):
+        # TODO: rewrite this test: it tests implementation details instead of the
+        # function outcome
         archive_path = tmp_path / f"{self.package_name}.{extension}"
+        create_files_from_paths_mock.return_value = ([], [])
 
         with patch.object(Path, "iterdir", return_value=iter([archive_path])):
             get_files_from_package(
                 archive_dir=tmp_path,
                 package_name=self.package_name,
                 exclusion_regexes=self.exclusion_regexes,
-                verbose=verbose,
             )
 
             safe_unpack_mock.assert_called_once_with(
@@ -107,11 +101,8 @@ class TestListPackageFiles:
                 re.compile(f"{self.package_name}.{extension}")
             )
 
-            get_files_from_paths_mock.assert_called_once_with(
+            create_files_from_paths_mock.assert_called_once_with(
                 paths=[tmp_path],
                 exclusion_regexes=expected_exclusion_regexes,
-                yes=True,
-                display_scanned_files=verbose,
-                display_binary_files=verbose,
                 list_files_mode=ListFilesMode.ALL,
             )

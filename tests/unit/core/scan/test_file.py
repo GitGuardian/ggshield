@@ -6,7 +6,7 @@ import charset_normalizer
 import pytest
 
 from ggshield.core.scan import DecodeError, File
-from ggshield.core.scan.file import generate_files_from_paths
+from ggshield.core.scan.file import create_files_from_paths
 from tests.conftest import is_windows
 
 
@@ -217,19 +217,19 @@ def test_file_path():
         ("zero-bytes-are-kept.txt", b"Zero\0byte", "Zero\0byte"),
     ],
 )
-def test_generate_files_from_paths(
+def test_create_files_from_paths(
     tmp_path, filename: str, input_content: bytes, expected_content: str
 ):
     """
     GIVEN a file
-    WHEN calling generate_files_from_paths() on it
+    WHEN calling create_files_from_paths() on it
     THEN it returns the expected File instance
     AND the content of the File instance is what is expected
     """
     path = tmp_path / filename
     path.write_bytes(input_content)
 
-    files = list(generate_files_from_paths([path], display_binary_files=False))
+    files, _ = create_files_from_paths([path], exclusion_regexes=set())
 
     file = files[0]
     assert file.filename == str(path)

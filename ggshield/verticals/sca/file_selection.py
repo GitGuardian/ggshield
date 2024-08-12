@@ -7,10 +7,14 @@ from pygitguardian.client import GGClient
 from pygitguardian.models import Detail
 
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
-from ggshield.core.scan.file import get_files_from_paths
 from ggshield.core.tar_utils import INDEX_REF
 from ggshield.core.text_utils import display_info
-from ggshield.utils.files import ListFilesMode, is_path_excluded
+from ggshield.utils.files import (
+    ListFilesMode,
+    is_path_binary,
+    is_path_excluded,
+    list_files,
+)
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 
 
@@ -35,36 +39,23 @@ SCA_EXCLUSION_REGEXES = {
 
 
 def get_all_files_from_sca_paths(
-    path: Path,
-    exclusion_regexes: Set[Pattern[str]],
-    verbose: bool,
-    ignore_git: bool = False,
+    path: Path, exclusion_regexes: Set[Pattern[str]], ignore_git: bool = False
 ) -> List[str]:
     """
-    Create a Files object from a path, recursively, ignoring non SCA files
+    Recurse on `path` and return a list of SCA paths.
 
     :param path: path to scan
     :param exclusion_regexes: list of regexes, used to exclude some filepaths
-    :param verbose: Option that displays filepaths as they are scanned
     :param ignore_git: Ignore that the folder is a git repository. If False, only files tracked by git are scanned
     """
-    paths = [
-        x.path
-        for x in get_files_from_paths(
-            paths=[path],
-            exclusion_regexes=exclusion_regexes | SCA_EXCLUSION_REGEXES,
-            yes=True,
-            display_binary_files=verbose,
-            display_scanned_files=False,  # If True, this displays all files in the directory but we only want SCA files
-            list_files_mode=(
-                ListFilesMode.ALL
-                if ignore_git
-                else ListFilesMode.GIT_COMMITTED_OR_STAGED
-            ),
-        )
-    ]
-
-    return [str(x.relative_to(path)) for x in sorted(paths)]
+    paths = list_files(
+        paths=[path],
+        exclusion_regexes=exclusion_regexes | SCA_EXCLUSION_REGEXES,
+        list_files_mode=(
+            ListFilesMode.ALL if ignore_git else ListFilesMode.GIT_COMMITTED_OR_STAGED
+        ),
+    )
+    return sorted(str(x.relative_to(path)) for x in paths if not is_path_binary(x))
 
 
 def sca_files_from_git_repo(
