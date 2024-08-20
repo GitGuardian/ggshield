@@ -12,6 +12,7 @@ from voluptuous import Required, validators
 
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
+from ggshield.core.scan.file import File
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import (
     Result,
@@ -24,12 +25,15 @@ from ggshield.verticals.secret.output import (
     SecretOutputHandler,
 )
 from tests.unit.conftest import (
+    _MULTILINE_SECRET_FILE,
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
+    _ONE_LINE_AND_MULTILINE_FILE,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
     _SINGLE_ADD_PATCH,
     _SINGLE_DELETE_PATCH,
+    _SINGLE_LINE_SECRET_FILE,
     _SINGLE_MOVE_PATCH,
     TWO_POLICY_BREAKS,
     UNCHECKED_SECRET_PATCH,
@@ -72,6 +76,7 @@ SCHEMA_WITH_INCIDENTS = S(
                             "NEW",
                             "DELETE",
                             "PERMISSION_CHANGE",
+                            "FILE",
                         ),
                         "total_incidents": validators.All(int, min=1),
                         "total_occurrences": validators.All(int, min=1),
@@ -91,6 +96,23 @@ SCHEMA_WITH_INCIDENTS = S(
                                     Required("incident_url"): validators.Match(
                                         r"^($|https://)"
                                     ),
+                                    "occurrences": validators.All(
+                                        [
+                                            {
+                                                "match": str,
+                                                "type": str,
+                                                "line_start": int,
+                                                "line_end": int,
+                                                "index_start": int,
+                                                "index_end": int,
+                                                "pre_line_start": VOptional(int),
+                                                "pre_line_end": VOptional(int),
+                                                "post_line_start": VOptional(int),
+                                                "post_line_end": VOptional(int),
+                                            }
+                                        ],
+                                        validators.Length(min=1),
+                                    ),
                                 }
                             ],
                             validators.Length(min=1),
@@ -107,31 +129,63 @@ SCHEMA_WITH_INCIDENTS = S(
 class ExpectedIndicesDict(TypedDict):
     line_start: int
     line_end: int
+    index_start: int
+    index_end: int
     pre_line_start: Optional[int]
     pre_line_end: Optional[int]
     post_line_start: Optional[int]
     post_line_end: Optional[int]
 
 
-MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
-    # The "* 4" is there because this is a 4-matches secret, but the JSON output uses
-    # the line_start and line_end from the server, which uses the line numbers of the
-    # first match for all matches!
+MATCH_INDICES: Dict[str, List[ExpectedIndicesDict]] = {
     _MULTIPLE_SECRETS_PATCH: [
         {
             "line_start": 2,
             "line_end": 2,
+            "index_start": 79,
+            "index_end": 89,
             "pre_line_start": None,
             "pre_line_end": None,
             "post_line_start": 2,
             "post_line_end": 2,
-        }
-    ]
-    * 4,
+        },
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "index_start": 116,
+            "index_end": 120,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 2,
+            "post_line_end": 2,
+        },
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "index_start": 139,
+            "index_end": 143,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 2,
+            "post_line_end": 2,
+        },
+        {
+            "line_start": 2,
+            "line_end": 2,
+            "index_start": 174,
+            "index_end": 184,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": 2,
+            "post_line_end": 2,
+        },
+    ],
     UNCHECKED_SECRET_PATCH: [
         {
             "line_start": 2,
             "line_end": 2,
+            "index_start": 11,
+            "index_end": 280,
             "pre_line_start": None,
             "pre_line_end": None,
             "post_line_start": 2,
@@ -142,6 +196,8 @@ MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
         {
             "line_start": 2,
             "line_end": 2,
+            "index_start": 11,
+            "index_end": 28,
             "pre_line_start": None,
             "pre_line_end": None,
             "post_line_start": 2,
@@ -152,6 +208,8 @@ MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
         {
             "line_start": 1,
             "line_end": 9,
+            "index_start": 69,
+            "index_end": 30,
             "pre_line_start": None,
             "pre_line_end": None,
             "post_line_start": 1,
@@ -160,6 +218,8 @@ MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
         {
             "line_start": 9,
             "line_end": 9,
+            "index_start": 38,
+            "index_end": 107,
             "pre_line_start": None,
             "pre_line_end": None,
             "post_line_start": 9,
@@ -170,6 +230,8 @@ MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
         {
             "line_start": 1,
             "line_end": 1,
+            "index_start": 11,
+            "index_end": 80,
             "pre_line_start": None,
             "pre_line_end": None,
             "post_line_start": 1,
@@ -180,6 +242,8 @@ MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
         {
             "line_start": 2,
             "line_end": 2,
+            "index_start": 11,
+            "index_end": 80,
             "pre_line_start": 2,
             "pre_line_end": 2,
             "post_line_start": None,
@@ -190,11 +254,59 @@ MATCH_INDICES_FOR_PATCH: Dict[str, List[ExpectedIndicesDict]] = {
         {
             "line_start": 150,
             "line_end": 150,
+            "index_start": 11,
+            "index_end": 80,
             "pre_line_start": 150,
             "pre_line_end": 150,
             "post_line_start": 151,
             "post_line_end": 151,
         }
+    ],
+    _MULTILINE_SECRET_FILE: [
+        {
+            "line_start": 1,
+            "line_end": 9,
+            "index_start": 0,
+            "index_end": 29,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": None,
+            "post_line_end": None,
+        },
+    ],
+    _SINGLE_LINE_SECRET_FILE: [
+        {
+            "line_start": 1,
+            "line_end": 1,
+            "index_start": 10,
+            "index_end": 279,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": None,
+            "post_line_end": None,
+        }
+    ],
+    _ONE_LINE_AND_MULTILINE_FILE: [
+        {
+            "line_start": 2,
+            "line_end": 10,
+            "index_start": 68,
+            "index_end": 29,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": None,
+            "post_line_end": None,
+        },
+        {
+            "line_start": 10,
+            "line_end": 10,
+            "index_start": 37,
+            "index_end": 106,
+            "pre_line_start": None,
+            "pre_line_end": None,
+            "post_line_start": None,
+            "post_line_end": None,
+        },
     ],
 }
 
@@ -203,12 +315,12 @@ def create_occurrence_indices_dict(occurrence: Dict[str, Any]) -> ExpectedIndice
     return {k: occurrence.get(k) for k in ExpectedIndicesDict.__annotations__.keys()}
 
 
-def check_occurrences_indices(occurrences: List[Dict[str, Any]], patch: str) -> None:
+def check_occurrences_indices(
+    occurrences: List[Dict[str, Any]], match_indices_list: List[ExpectedIndicesDict]
+) -> None:
     """
     Check `occurrences` contains the expected indices for patch `patch`.
     """
-    match_indices_list = MATCH_INDICES_FOR_PATCH[patch]
-
     line_start_getter = operator.itemgetter("line_start")
 
     occurrences_indices_list = [create_occurrence_indices_dict(x) for x in occurrences]
@@ -218,16 +330,19 @@ def check_occurrences_indices(occurrences: List[Dict[str, Any]], patch: str) -> 
 
 
 @pytest.mark.parametrize(
-    "name,input_patch,expected_exit_code",
+    "name,input,expected_exit_code,is_patch",
     [
-        ("multiple_secrets", _MULTIPLE_SECRETS_PATCH, 1),
-        ("simple_secret", UNCHECKED_SECRET_PATCH, 1),
-        ("test_scan_file_secret_with_validity", VALID_SECRET_PATCH, 1),
-        ("one_line_and_multiline_patch", _ONE_LINE_AND_MULTILINE_PATCH, 1),
-        ("no_secret", _NO_SECRET_PATCH, 0),
-        ("single_add", _SINGLE_ADD_PATCH, 1),
-        ("single_delete", _SINGLE_DELETE_PATCH, 1),
-        ("single_move", _SINGLE_MOVE_PATCH, 1),
+        ("multiple_secrets", _MULTIPLE_SECRETS_PATCH, 1, True),
+        ("simple_secret", UNCHECKED_SECRET_PATCH, 1, True),
+        ("test_scan_file_secret_with_validity", VALID_SECRET_PATCH, 1, True),
+        ("one_line_and_multiline_patch", _ONE_LINE_AND_MULTILINE_PATCH, 1, True),
+        ("no_secret", _NO_SECRET_PATCH, 0, True),
+        ("single_add", _SINGLE_ADD_PATCH, 1, True),
+        ("single_delete", _SINGLE_DELETE_PATCH, 1, True),
+        ("single_move", _SINGLE_MOVE_PATCH, 1, True),
+        ("multiline_secret", _MULTILINE_SECRET_FILE, 1, False),
+        ("single_line_secret", _SINGLE_LINE_SECRET_FILE, 1, False),
+        ("one_line_and_multiline_secrets", _ONE_LINE_AND_MULTILINE_FILE, 1, False),
     ],
     ids=[
         "_MULTIPLE_SECRETS",
@@ -238,10 +353,23 @@ def check_occurrences_indices(occurrences: List[Dict[str, Any]], patch: str) -> 
         "_SINGLE_ADD_PATCH",
         "_SINGLE_DELETE_PATCH",
         "_SINGLE_MOVE_PATCH",
+        "_MULTILINE_SECRET_FILE",
+        "_SINGLE_LINE_SECRET_FILE",
+        "_ONE_LINE_AND_MULTILINE_FILE",
     ],
 )
-def test_json_output(client, cache, name, input_patch, expected_exit_code):
-    c = Commit.from_patch(input_patch)
+def test_json_output_for_patch(
+    client, cache, name, input, expected_exit_code, is_patch, tmp_path
+):
+    if is_patch:
+        commit = Commit.from_patch(input)
+        scannables = commit.get_files()
+    else:
+        test_file = tmp_path / "file"
+        with open(test_file, "w", newline="\n") as f:
+            f.write(input)
+        scannables = [File(path=test_file)]
+
     handler = SecretJSONOutputHandler(verbose=True, show_secrets=False)
 
     with my_vcr.use_cassette(name):
@@ -253,7 +381,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
                 command_path="external",
             ),
         )
-        results = scanner.scan(c.get_files(), scanner_ui=Mock())
+        results = scanner.scan(scannables, scanner_ui=Mock())
 
         scan = SecretScanCollection(id="path", type="test", results=deepcopy(results))
         json_flat_results = handler._process_scan_impl(scan)
@@ -273,7 +401,7 @@ def test_json_output(client, cache, name, input_patch, expected_exit_code):
                 for incident in result["incidents"]
                 for occurrence in incident["occurrences"]
             ]
-            check_occurrences_indices(occurrences, input_patch)
+            check_occurrences_indices(occurrences, MATCH_INDICES[input])
 
         # all ignore sha should be in the output
         assert all(

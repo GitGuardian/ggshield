@@ -69,7 +69,6 @@ def test_scan_path_json_output(
     if show_secrets:
         args.append("--show-secrets")
     result = run_ggshield_scan(*args, cwd=tmp_path, expected_code=1)
-
     # THEN the output is a valid JSON
     parsed_result = json.loads(result.stdout)
     # AND there is one incident with one occurrence

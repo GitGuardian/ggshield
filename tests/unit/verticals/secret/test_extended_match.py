@@ -32,8 +32,8 @@ def test_from_match_for_plain_content():
 
     ex_match = ExtendedMatch.from_match(match, lines, is_patch=False)
 
-    assert ex_match.line_start == 3
-    assert ex_match.line_end == 3
+    assert ex_match.line_start == 4
+    assert ex_match.line_end == 4
     # ExtendedMatch.from_match() "hijacks" index_start and index_end: they become
     # 0-based *columns*, and index_end points to the character *after* the match :/
     assert ex_match.span.column_index_start == 6

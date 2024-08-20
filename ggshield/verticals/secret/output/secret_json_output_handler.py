@@ -4,6 +4,7 @@ from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
+from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 from ..secret_scan_collection import Error, Result, SecretScanCollection
 from .schemas import JSONScanCollectionSchema
@@ -66,7 +67,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             result.censor()
 
         for ignore_sha, policy_breaks in sha_dict.items():
-            flattened_dict = self.flattened_policy_break(
+            flattened_dict = self.serialized_policy_break(
                 ignore_sha,
                 policy_breaks,
             )
@@ -88,7 +89,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         return error_dict
 
-    def flattened_policy_break(
+    def serialized_policy_break(
         self,
         ignore_sha: str,
         policy_breaks: List[PolicyBreak],
@@ -109,6 +110,38 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             flattened_dict["incident_url"] = policy_breaks[0].incident_url
 
         for policy_break in policy_breaks:
-            flattened_dict["occurrences"].extend(policy_break.matches)
+            flattened_dict["occurrences"].extend(
+                self.serialize_policy_break_matches(policy_break)
+            )
 
         return flattened_dict
+
+    def serialize_policy_break_matches(
+        self,
+        policy_break: PolicyBreak,
+    ) -> List[Dict[str, Any]]:
+        """
+        Serialize policy_break matches. The method uses MatchSpan to get the start and
+        end index of the match.
+        Returns a list of matches.
+        """
+        matches_list: List[Dict[str, Any]] = []
+        for match in policy_break.matches:
+            assert isinstance(match, ExtendedMatch)
+
+            match_dict: Dict[str, Any] = {
+                "match": match.match,
+                "match_type": match.match_type,
+                "line_start": match.line_start,
+                "line_end": match.line_end,
+                "index_start": match.span.column_index_start,
+                "index_end": match.span.column_index_end,
+            }
+            if match.pre_line_start is not None and match.pre_line_end is not None:
+                match_dict["pre_line_start"] = match.pre_line_start
+                match_dict["pre_line_end"] = match.pre_line_end
+            if match.post_line_start is not None and match.post_line_end is not None:
+                match_dict["post_line_start"] = match.post_line_start
+                match_dict["post_line_end"] = match.post_line_end
+            matches_list.append(match_dict)
+        return matches_list
