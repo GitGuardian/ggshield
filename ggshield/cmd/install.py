@@ -1,7 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import click
 from click import UsageError
@@ -41,11 +41,23 @@ fi
     help="Type of hook to install.",
     default="pre-commit",
 )
+@click.option(
+    "--option",
+    "-o",
+    type=click.STRING,
+    help="Name of options to pass to hook script",
+    multiple=True,
+)
 @click.option("--force", "-f", is_flag=True, help="Overwrite any existing hook script.")
 @click.option("--append", "-a", is_flag=True, help="Append to existing script.")
 @add_common_options()
 def install_cmd(
-    mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any
+    mode: str,
+    hook_type: str,
+    force: bool,
+    append: bool,
+    option: List[str],
+    **kwargs: Any,
 ) -> int:
     """
     Installs ggshield as a pre-commit or pre-push hook.
@@ -54,14 +66,18 @@ def install_cmd(
     for the current repository (locally) or for all repositories (globally).
     """
     return_code = (
-        install_global(hook_type=hook_type, force=force, append=append)
+        install_global(hook_type=hook_type, force=force, append=append, options=option)
         if mode == "global"
-        else install_local(hook_type=hook_type, force=force, append=append)
+        else install_local(
+            hook_type=hook_type, force=force, append=append, options=option
+        )
     )
     return return_code
 
 
-def install_global(hook_type: str, force: bool, append: bool) -> int:
+def install_global(
+    hook_type: str, force: bool, append: bool, options: List[str]
+) -> int:
     """Global pre-commit/pre-push hook installation."""
     hook_dir_path = get_global_hook_dir_path()
 
@@ -75,6 +91,7 @@ def install_global(hook_type: str, force: bool, append: bool) -> int:
         local_hook_support=True,
         hook_type=hook_type,
         append=append,
+        options=options,
     )
 
 
@@ -87,7 +104,7 @@ def get_global_hook_dir_path() -> Optional[Path]:
     return Path(click.format_filename(out)).expanduser()
 
 
-def install_local(hook_type: str, force: bool, append: bool) -> int:
+def install_local(hook_type: str, force: bool, append: bool, options: List[str]) -> int:
     """Local pre-commit/pre-push hook installation."""
     check_git_dir()
     return create_hook(
@@ -96,6 +113,7 @@ def install_local(hook_type: str, force: bool, append: bool) -> int:
         local_hook_support=False,
         hook_type=hook_type,
         append=append,
+        options=options,
     )
 
 
@@ -105,6 +123,7 @@ def create_hook(
     local_hook_support: bool,
     hook_type: str,
     append: bool,
+    options: List[str],
 ) -> int:
     """Create hook directory (if needed) and pre-commit/pre-push file."""
     hook_dir_path.mkdir(parents=True, exist_ok=True)
@@ -132,7 +151,9 @@ def create_hook(
             f.write(LOCAL_HOOK_SNIPPET.format(hook_type=hook_type))
             f.write("\n")
 
-        f.write(f'ggshield secret scan {hook_type} "$@"\n')
+        f.write(
+            f'ggshield secret scan {hook_type}{""if not options else " "+" ".join(options)} "$@"\n'
+        )
         os.chmod(hook_path, 0o700)
 
     click.echo(

@@ -15,6 +15,10 @@ SAMPLE_PRE_COMMIT = """#!/bin/sh
 ggshield secret scan pre-commit "$@"
 """
 
+SAMPLE_PRE_COMMIT_WITH_OPTION = """#!/bin/sh
+ggshield secret scan pre-commit --merge-skip-unchanged "$@"
+"""
+
 SAMPLE_PRE_PUSH = """#!/bin/sh
 ggshield secret scan pre-push "$@"
 """
@@ -78,6 +82,29 @@ class TestInstallLocal:
         hook_path = Path(".git/hooks/pre-commit")
         hook_str = hook_path.read_text()
         assert hook_str == SAMPLE_PRE_COMMIT
+
+        assert f"pre-commit successfully added in {hook_path}\n" in result.output
+        assert_invoke_ok(result)
+
+    @patch("ggshield.cmd.install.check_git_dir")
+    def test_precommit_install_with_option(
+        self,
+        check_dir_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN None
+        WHEN the command is run with an option
+        THEN it should create a pre-commit git hook script
+        """
+
+        result = cli_fs_runner.invoke(
+            cli,
+            ["install", "-m", "local", "-o", "--merge-skip-unchanged"],
+        )
+        hook_path = Path(".git/hooks/pre-commit")
+        hook_str = hook_path.read_text()
+        assert hook_str == SAMPLE_PRE_COMMIT_WITH_OPTION
 
         assert f"pre-commit successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
