@@ -409,3 +409,50 @@ def test_from_staged(tmp_path):
 
     paths_and_modes = [(x.path, x.filemode) for x in files]
     assert paths_and_modes == [(Path("NEW.md"), Filemode.NEW)]
+
+
+def test_from_merge(tmp_path):
+    """
+    GIVEN a Commit instance created from a git merge (after conflict)
+    WHEN Commit.get_files() is called
+    THEN it returns files with correct names and modes
+    """
+    repo = Repository.create(tmp_path, initial_branch="master")
+
+    Path(tmp_path / "inital.md").write_text("Initial")
+    repo.add(".")
+    repo.create_commit("Initial commit on master")
+
+    repo.create_branch("feature_branch")
+    repo.checkout("master")
+    conflict_file = tmp_path / "conflict.md"
+    conflict_file.write_text("Hello")
+    Path(tmp_path / "Other.md").write_text("Other")
+    repo.add(".")
+    repo.create_commit("Commit on master")
+
+    repo.checkout("feature_branch")
+    conflict_file.write_text("World")
+    Path(tmp_path / "Another.md").write_text("Another")
+    repo.add(".")
+    repo.create_commit("Commit on feature_branch")
+
+    # Create merge commit with conflict
+    with pytest.raises(subprocess.CalledProcessError) as exc:
+        repo.git("merge", "master")
+
+    # check stdout for conflict message
+    stdout = exc.value.stdout.decode()
+    assert "CONFLICT" in stdout
+
+    conflict_file.write_text("Hello World !")
+    Path(tmp_path / "new.md").write_text("Something added at conflict")
+    repo.add(".")
+    commit = Commit.from_merge(cwd=tmp_path)
+    files = list(commit.get_files())
+
+    paths_and_modes = [(x.path, x.filemode) for x in files]
+    assert paths_and_modes == [
+        (Path("conflict.md"), Filemode.MODIFY),
+        (Path("new.md"), Filemode.NEW),
+    ]
