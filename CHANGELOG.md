@@ -1,5 +1,17 @@
 # Changelog
 
+<a id='changelog-1.31.0'></a>
+
+## 1.31.0 — 2024-08-27
+
+### Added
+
+- We now provide tar.gz archives for macOS, in addition to pkg files.
+
+### Fixed
+
+- JSON output: fixed incorrect values for line and index when scanning a file and not a patch.
+
 <a id='changelog-1.30.2'></a>
 
 ## 1.30.2 — 2024-08-05
