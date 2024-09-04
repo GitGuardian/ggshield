@@ -1,10 +1,10 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Pattern, Set
+from typing import Iterable, List, Optional, Pattern, Set, Tuple
 
 from ggshield.utils.files import is_path_excluded
-from ggshield.utils.git_shell import Filemode
+from ggshield.utils.git_shell import Filemode, git
 
 from .scannable import Scannable
 
@@ -235,3 +235,37 @@ def parse_patch(
             else:
                 msg = f"Could not parse patch: {exc}"
             raise PatchParseError(msg)
+
+
+def get_file_sha_in_ref(
+    ref: str,
+    files: List[str],
+    cwd: Optional[Path] = None,
+) -> Iterable[Tuple[str, str]]:
+    """
+    Helper function to get the shas of files in the git reference.
+    """
+    output = git(["ls-tree", "-z", ref] + files, cwd=cwd)
+    for line in output.split("\0")[:-1]:
+        _, _, sha, path = line.split()
+        yield (path, sha)
+
+
+def get_file_sha_stage(
+    files: List[str], cwd: Optional[Path] = None
+) -> Iterable[Tuple[str, str]]:
+    """
+    Helper function to get the shas currently staged of files.
+    """
+    output = git(["ls-files", "--stage", "-z"] + files, cwd=cwd)
+    for line in output.split("\0")[:-1]:
+        _, sha, _, path = line.split()
+        yield (path, sha)
+
+
+def get_diff_files(cwd: Optional[Path] = None) -> List[str]:
+    """
+    Helper function to get the files modified and staged.
+    """
+    output = git(["diff", "--name-only", "--staged", "-z"], cwd=cwd)
+    return output.split("\0")[:-1]  # remove the trailing \0
