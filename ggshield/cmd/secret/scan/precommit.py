@@ -40,8 +40,7 @@ def check_is_merge_with_conflict(cwd: Path) -> bool:
 
 @click.command()
 @click.option(
-    "--merge-skip-unchanged",
-    "-m",
+    "--skip-unchanged-merge-files",
     is_flag=True,
     help="When scanning a merge commit, skip files that were not modified by the merge"
     " (assumes the merged commits are secret free).",
@@ -52,7 +51,7 @@ def check_is_merge_with_conflict(cwd: Path) -> bool:
 @exception_wrapper
 def precommit_cmd(
     ctx: click.Context,
-    merge_skip_unchanged: bool,
+    skip_unchanged_merge_files: bool,
     precommit_args: List[str],
     **kwargs: Any,
 ) -> int:  # pragma: no cover
@@ -81,9 +80,9 @@ def precommit_cmd(
     )
 
     # Get the commit object
-    if merge_skip_unchanged and check_is_merge_with_conflict(Path.cwd()):
+    if skip_unchanged_merge_files and check_is_merge_with_conflict(Path.cwd()):
         commit = Commit.from_merge(ctx_obj.exclusion_regexes)
-    elif merge_skip_unchanged and check_is_merge_without_conflict():
+    elif skip_unchanged_merge_files and check_is_merge_without_conflict():
         merge_branch = get_merge_branch_from_reflog()
         commit = Commit.from_merge(ctx_obj.exclusion_regexes, merge_branch)
     else:

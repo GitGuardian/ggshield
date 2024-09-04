@@ -178,13 +178,13 @@ def generate_repo_with_merge_commit(
         cwd=repo.path,
     )
     if merge_skip_unchanged:
-        # rewrite the git hook file to add the option --merge-skip-unchanged
+        # rewrite the git hook file to add the option --skip-unchanged-merge-files
         hook_path = Path(
             f"{root_dir}/.git/hooks/pre-commit",
         )
         with open(hook_path, "r") as f:
             hook = f.read()
-        hook = hook.replace(r"pre-commit", r"pre-commit --merge-skip-unchanged")
+        hook = hook.replace(r"pre-commit", r"pre-commit --skip-unchanged-merge-files")
         with open(hook_path, "w") as f:
             f.write(hook)
 
