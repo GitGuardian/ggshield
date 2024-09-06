@@ -68,8 +68,10 @@ def precommit_cmd(
     output_handler = SecretTextOutputHandler(
         show_secrets=config.user_config.secret.show_secrets,
         verbose=verbose,
+        client=ctx_obj.client,
         output=None,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
+        with_incident_details=config.user_config.secret.with_incident_details,
     )
     check_git_dir()
 

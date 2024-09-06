@@ -3,6 +3,7 @@ This module centralizes GGShield error handling. For more details, have a look
 at doc/dev/error-handling.md.
 """
 
+import logging
 import platform
 import traceback
 from enum import IntEnum
@@ -10,9 +11,13 @@ from typing import Any, Dict
 
 import click
 from marshmallow import ValidationError
+from pygitguardian.models import Detail
 
 from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import GitError, InvalidGitRefError
+
+
+logger = logging.getLogger(__name__)
 
 
 class ExitCode(IntEnum):
@@ -182,3 +187,15 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
             display_error("Re-run the command with --verbose to get a stack trace.")
 
     return exit_code
+
+
+def handle_api_error(detail: Detail) -> None:
+    # Use %s for status_code because it can be None. Logger is OK with an int being
+    # passed for a %s placeholder.
+    logger.error("status_code=%s detail=%s", detail.status_code, detail.detail)
+    if detail.status_code == 401:
+        raise click.UsageError(detail.detail)
+    if detail.status_code is None:
+        raise UnexpectedError(f"Scanning failed: {detail.detail}")
+    if detail.status_code == 403 and detail.detail == "Quota limit reached.":
+        raise QuotaLimitReachedError()

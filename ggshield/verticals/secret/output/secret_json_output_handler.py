@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, cast
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak
+from pygitguardian.models import PolicyBreak, SecretIncident
 
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.verticals.secret.extended_match import ExtendedMatch
@@ -12,14 +12,11 @@ from .secret_output_handler import SecretOutputHandler
 
 
 class SecretJSONOutputHandler(SecretOutputHandler):
-    def _process_scan_impl(self, scan: SecretScanCollection) -> str:
-        scan_dict = self.create_scan_dict(scan, top=True)
-        text = JSONScanCollectionSchema().dumps(scan_dict)
-        # dumps() return type is not defined, so cast `text`, otherwise mypy complains
-        return cast(str, text)
-
     def create_scan_dict(
-        self, scan: SecretScanCollection, top: bool = True
+        self,
+        scan: SecretScanCollection,
+        incident_details: Dict[str, SecretIncident],
+        top: bool = True,
     ) -> Dict[str, Any]:
         scan_dict: Dict[str, Any] = {
             "id": scan.id,
@@ -35,7 +32,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
         if scan.results:
             for result in scan.results.results:
-                result_dict = self.process_result(result)
+                result_dict = self.process_result(result, incident_details)
                 scan_dict.setdefault("results", []).append(result_dict)
                 scan_dict["total_incidents"] += result_dict["total_incidents"]
                 scan_dict["total_occurrences"] += result_dict["total_occurrences"]
@@ -46,13 +43,30 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
         if scan.scans:
             for inner_scan in scan.scans_with_results:
-                inner_scan_dict = self.create_scan_dict(inner_scan, top=False)
+                inner_scan_dict = self.create_scan_dict(
+                    inner_scan, top=False, incident_details=incident_details
+                )
                 scan_dict.setdefault("scans", []).append(inner_scan_dict)
                 scan_dict["total_incidents"] += inner_scan_dict["total_incidents"]
                 scan_dict["total_occurrences"] += inner_scan_dict["total_occurrences"]
         return scan_dict
 
-    def process_result(self, result: Result) -> Dict[str, Any]:
+    def _process_scan_impl(self, scan: SecretScanCollection) -> str:
+        if self.with_incident_details:
+            assert self.client
+            incident_details = scan.get_incident_details(self.client)
+        else:
+            incident_details = {}
+        scan_dict = self.create_scan_dict(
+            scan, top=True, incident_details=incident_details
+        )
+        text = JSONScanCollectionSchema().dumps(scan_dict)
+        # dumps() return type is not defined, so cast `text`, otherwise mypy complains
+        return cast(str, text)
+
+    def process_result(
+        self, result: Result, incident_details: Dict[str, SecretIncident]
+    ) -> Dict[str, Any]:
         result_dict: Dict[str, Any] = {
             "filename": result.path,
             "mode": result.filemode.name,
@@ -68,8 +82,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
         for ignore_sha, policy_breaks in sha_dict.items():
             flattened_dict = self.serialized_policy_break(
-                ignore_sha,
-                policy_breaks,
+                ignore_sha, policy_breaks, incident_details
             )
             result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
@@ -93,6 +106,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         self,
         ignore_sha: str,
         policy_breaks: List[PolicyBreak],
+        incident_details: Dict[str, SecretIncident],
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
             "occurrences": [],
@@ -108,6 +122,10 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         if policy_breaks[0].known_secret:
             flattened_dict["known_secret"] = policy_breaks[0].known_secret
             flattened_dict["incident_url"] = policy_breaks[0].incident_url
+            assert policy_breaks[0].incident_url
+            details = incident_details.get(policy_breaks[0].incident_url)
+            if details is not None:
+                flattened_dict["incident_details"] = details
 
         for policy_break in policy_breaks:
             flattened_dict["occurrences"].extend(

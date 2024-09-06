@@ -1,5 +1,5 @@
 from marshmallow import fields
-from pygitguardian.models import BaseSchema
+from pygitguardian.models import BaseSchema, SecretIncidentSchema
 
 from ggshield.verticals.secret.extended_match import ExtendedMatchSchema
 
@@ -12,6 +12,7 @@ class FlattenedPolicyBreak(BaseSchema):
     ignore_sha = fields.String(required=True)
     total_occurrences = fields.Integer(required=True)
     incident_url = fields.String(required=True, dump_default="")
+    incident_details = fields.Nested(SecretIncidentSchema)
     known_secret = fields.Bool(required=True, dump_default=False)
 
 

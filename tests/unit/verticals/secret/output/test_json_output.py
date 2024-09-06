@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, TypedDict
 from unittest.mock import Mock
 
 import pytest
+from pygitguardian import GGClient
+from pygitguardian.models import SecretIncident
 from pytest_voluptuous import Partial, S
 from voluptuous import Optional as VOptional
 from voluptuous import Required, validators
@@ -35,6 +37,7 @@ from tests.unit.conftest import (
     _SINGLE_DELETE_PATCH,
     _SINGLE_LINE_SECRET_FILE,
     _SINGLE_MOVE_PATCH,
+    SECRET_INCIDENT_MOCK,
     TWO_POLICY_BREAKS,
     UNCHECKED_SECRET_PATCH,
     VALID_SECRET_PATCH,
@@ -495,3 +498,86 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         assert not incident_for_policy_break_type[policy_break.break_type][
             "incident_url"
         ]
+
+
+@pytest.mark.parametrize("with_incident_details", [True, False])
+@pytest.mark.parametrize(
+    "secrets_types", ["only_new_secrets", "only_known_secrets", "mixed_secrets"]
+)
+def test_with_incident_details(
+    with_incident_details,
+    secrets_types,
+):
+    """
+    GIVEN policy breaks
+    WHEN generating json output
+    THEN if ignore_known_secrets is used, include "known_secret" field for the known policy breaks in the json output
+    """
+    client_mock = Mock(spec=GGClient)
+    client_mock.retrieve_secret_incident.return_value = SECRET_INCIDENT_MOCK
+    output_handler = SecretJSONOutputHandler(
+        verbose=True,
+        show_secrets=False,
+        client=client_mock,
+        with_incident_details=with_incident_details,
+    )
+
+    result: Result = Result(
+        StringScannable(
+            content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
+            url="leak.txt",
+            filemode=Filemode.NEW,
+        ),
+        scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
+    )
+
+    all_policy_breaks = result.scan.policy_breaks
+
+    known_policy_breaks = []
+
+    if with_incident_details:
+        if secrets_types == "only_known_secrets":
+            known_policy_breaks = all_policy_breaks
+        elif secrets_types == "mixed_secrets":
+            # set only first policy break as known
+            known_policy_breaks = all_policy_breaks[:1]
+
+    for index, policy_break in enumerate(known_policy_breaks):
+        policy_break.known_secret = True
+        policy_break.incident_url = (
+            f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
+        )
+
+    # call output handler
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="outer_scan",
+            type="outer_scan",
+            results=Results(results=[], errors=[]),
+            scans=[
+                SecretScanCollection(
+                    id="scan",
+                    type="test",
+                    results=Results(results=[result], errors=[]),
+                    optional_header="> This is an example header",
+                )
+            ],
+        )
+    )
+
+    incidents = json.loads(output)["scans"][0]["entities_with_incidents"][0][
+        "incidents"
+    ]
+
+    if with_incident_details:
+        assert client_mock.retrieve_secret_incident.call_count == len(
+            known_policy_breaks
+        )
+        for incident in incidents:
+            if incident["known_secret"]:
+                assert incident["incident_details"]
+                SecretIncident(**incident["incident_details"])
+            else:
+                assert "incident_details" not in incident
+    else:
+        assert client_mock.retrieve_secret_incident.call_count == 0

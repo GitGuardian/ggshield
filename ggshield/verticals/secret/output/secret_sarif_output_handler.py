@@ -2,7 +2,7 @@ import json
 from typing import Any, Dict, Iterable, List, cast
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak
+from pygitguardian.models import PolicyBreak, SecretIncident
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.filter import get_ignore_sha
@@ -19,6 +19,11 @@ SCHEMA_URL = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas
 class SecretSARIFOutputHandler(SecretOutputHandler):
 
     def _process_scan_impl(self, scan: SecretScanCollection) -> str:
+        incident_details = (
+            scan.get_incident_details(self.client)
+            if self.with_incident_details and self.client
+            else {}
+        )
         dct = {
             "version": "2.1.0",
             "$schema": SCHEMA_URL,
@@ -38,26 +43,31 @@ class SecretSARIFOutputHandler(SecretOutputHandler):
                             }
                         ],
                     },
-                    "results": list(_create_sarif_results(scan.get_all_results())),
+                    "results": list(
+                        _create_sarif_results(scan.get_all_results(), incident_details)
+                    ),
                 }
             ],
         }
         return json.dumps(dct)
 
 
-def _create_sarif_results(results: Iterable[Result]) -> Iterable[Dict[str, Any]]:
+def _create_sarif_results(
+    results: Iterable[Result], incident_details: Dict[str, SecretIncident]
+) -> Iterable[Dict[str, Any]]:
     """
     Creates SARIF result dicts for our Result instances. Creates one SARIF result dict
     per policy break.
     """
     for result in results:
         for policy_break in result.scan.policy_breaks:
-            yield _create_sarif_result_dict(result.url, policy_break)
+            yield _create_sarif_result_dict(result.url, policy_break, incident_details)
 
 
 def _create_sarif_result_dict(
     url: str,
     policy_break: PolicyBreak,
+    incident_details: Dict[str, SecretIncident],
 ) -> Dict[str, Any]:
     # Prepare message with links to the related location for each match
     matches_str = ", ".join(
@@ -93,6 +103,9 @@ def _create_sarif_result_dict(
     }
     if policy_break.incident_url:
         dct["hostedViewerUri"] = policy_break.incident_url
+        details = incident_details.get(policy_break.incident_url)
+        if details is not None:
+            dct["properties"] = {"incidentDetails": details.to_dict()}
     return dct
 
 
