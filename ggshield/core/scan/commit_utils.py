@@ -19,7 +19,6 @@ PATCH_PREFIX = "patch"
 HEADER_COMMON_ARGS = [
     "--raw",  # shows a header with the files touched by the commit
     "-z",  # separate file names in the raw header with \0
-    "-m",  # split multi-parent (aka merge) commits into several one-parent commits
 ]
 
 # Command line arguments passed to `git show` and `git diff` to get parsable patches
@@ -33,6 +32,12 @@ PATCH_COMMON_ARGS = [
 DIFF_EMPTY_COMMIT_INFO_BLOCK = """Author:   <>\nDate:  \n:"""
 
 _RX_HEADER_FILE_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
+
+# Match the path in a "---a/file_path" or a "+++ b/file_path".
+# Note that for some reason, git sometimes append an \t at the end (happens with the
+# "I'm unusual!" file in the test suite). We ignore it.
+OLD_NAME_RX = re.compile(r"^--- a/(.*?)\t?$", flags=re.MULTILINE)
+NEW_NAME_RX = re.compile(r"^\+\+\+ b/(.*?)\t?$", flags=re.MULTILINE)
 
 
 class PatchParseError(Exception):
@@ -192,49 +197,108 @@ def parse_patch(
 ) -> Iterable[Scannable]:
     """
     Parse a patch generated with `git show` or `git diff` using PATCH_COMMON_ARGS.
+    Returns a list of Scannable.
 
-    If the patch represents a merge commit, then `patch` actually contains multiple
-    commits, one per parent, because we call `git show` with the `-m` option to force it
-    to generate one single-parent commit per parent. This makes later code simpler and
-    ensures we see *all* the changes.
+    A patch looks like this:
+
+    ```
+    commit $SHA
+    Author: $NAME <$EMAIL>
+    Date:   $DATE
+
+        $SUBJECT
+
+        $BODY1
+        $BODY2
+        ...
+
+    $AFFECTED_FILE_LINE\0$DIFF1
+    $DIFF2
+    ...
+    ```
+
+    For a non-merge commit, $DIFFn looks like this:
+
+    ```
+    diff --git $A_NAME $B_NAME
+    $META_INFO
+    $META_INFO
+    ...
+    --- $A_NAME
+    +++ $A_NAME
+    @@ $FROM $TO @@
+    $ACTUAL_CHANGES
+    @@ $FROM $TO @@
+    $MORE_CHANGES
+    ```
+
+    $A_NAME and $B_NAME may be /dev/null in case of creation or removal. When they are
+    not, they start with "a/" and "b/" respectively.
+
+    For a 2-parent merge commit with resolved conflicts, $DIFFn looks like this:
+
+    ```
+    diff --cc $NAME
+    $META_INFO
+    $META_INFO
+    ...
+    --- $A_NAME
+    +++ $B_NAME
+    @@@ $FROM1 $FROM2 $TO @@@
+    $ACTUAL_CHANGES
+    ```
+
+    Note that:
+    - The diff line only contains one name, without any "a/" or "b/" prefixes.
+    - The hunk starts with 3 "@" instead of 2. For a commit with N parents, there are
+      actually N+1 "@" characters.
     """
     if exclusion_regexes is None:
         exclusion_regexes = set()
 
-    for commit in patch.split("\0commit "):
-        tokens = commit.split("\0diff ", 1)
-        if len(tokens) == 1:
-            # No diff, carry on to next commit
-            continue
-        header_str, rest = tokens
+    tokens = patch.split("\0diff ", 1)
+    if len(tokens) == 1:
+        # No diff, we are done
+        return
+    header_str, rest = tokens
 
-        try:
-            header = PatchHeader.from_string(header_str)
+    try:
+        header = PatchHeader.from_string(header_str)
 
-            diffs = re.split(r"^diff ", rest, flags=re.MULTILINE)
-            for file_info, diff in zip(header.files, diffs):
-                if is_path_excluded(file_info.path, exclusion_regexes):
-                    continue
+        diffs = re.split(r"^diff ", rest, flags=re.MULTILINE)
+        for diff in diffs:
+            # Split diff into header and content
+            try:
+                # + 1 because we match the "\n" in "\n@@"
+                content_start = diff.index("\n@@") + 1
+            except ValueError:
+                # No content
+                continue
+            diff_header = diff[:content_start]
+            content = diff[content_start:]
 
-                # extract document from diff: we must skip diff extended headers
-                # (lines like "old mode 100644", "--- a/foo", "+++ b/foo"...)
-                try:
-                    end_of_headers = diff.index("\n@@")
-                except ValueError:
-                    # No content
-                    continue
-                # +1 because we searched for the '\n'
-                content = diff[end_of_headers + 1 :]
+            # Find diff path in diff header
+            match = NEW_NAME_RX.search(diff_header)
+            if not match:
+                # Must have been deleted. find the old path in this case
+                match = OLD_NAME_RX.search(diff_header)
+                if not match:
+                    raise PatchParseError(
+                        f"Could not find old path in {repr(diff_header)}"
+                    )
+            path = Path(match.group(1))
+            if is_path_excluded(path, exclusion_regexes):
+                continue
 
-                yield CommitScannable(
-                    sha, file_info.path, content, filemode=file_info.mode
-                )
-        except Exception as exc:
-            if sha:
-                msg = f"Could not parse patch (sha: {sha}): {exc}"
-            else:
-                msg = f"Could not parse patch: {exc}"
-            raise PatchParseError(msg)
+            file_info = next(x for x in header.files if x.path == path)
+
+            yield CommitScannable(sha, file_info.path, content, filemode=file_info.mode)
+    except Exception as exc:
+        if sha:
+            msg = f"Could not parse patch (sha: {sha}): {exc}"
+        else:
+            msg = f"Could not parse patch: {exc}"
+        raise PatchParseError(msg)
 
 
 def get_file_sha_in_ref(
