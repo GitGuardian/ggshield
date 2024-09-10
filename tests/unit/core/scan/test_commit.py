@@ -24,7 +24,7 @@ Date:   Fri Oct 18 13:20:00 2012 +0100
     + ":100644 100644 6546aef b41653f M\0data/utils/email_sender.py\0"
     + """\0diff --git a/ggshield/tests/cassettes/test_files_yes.yaml b/ggshield/tests/cassettes/test_files_yes.yaml
 deleted file mode 100644
-index 0000000..0000000
+index 1233aef..0000000
 --- a/ggshield/tests/cassettes/test_files_yes.yaml
 +++ /dev/null
 @@ -1,45 +0,0 @@
@@ -32,7 +32,7 @@ index 0000000..0000000
 
 diff --git a/tests/test_scannable.py b/tests/test_scannable.py
 new file mode 100644
-index 0000000..0000000
+index 0000000..19465ef
 --- /dev/null
 +++ b/tests/test_scannable.py
 @@ -0,0 +1,112 @@
@@ -44,7 +44,7 @@ new mode 100755
 
 diff --git a/.env b/.env
 new file mode 100644
-index 0000000..0000000
+index 0000000..12356ef
 --- /dev/null
 +++ b/.env
 @@ -0,0 +1,112 @@
@@ -56,7 +56,7 @@ rename from ggshield/tests/test_config.py
 rename to tests/test_config.py
 
 diff --git a/data/utils/email_sender.py b/data/utils/email_sender.py
-index 56dc0d42..fdf48995 100644
+index 6546aef..b41653f 100644
 --- a/data/utils/email_sender.py
 +++ b/data/utils/email_sender.py
 @@ -49,6 +49,7 @@ def send_email(config, subject, content, tos, seperate):
