@@ -159,13 +159,13 @@ class TestUserConfig:
     def test_load_ignored_matches_with_empty_names(self):
         config_path = "config.yaml"
         # Use write_text() here because write_yaml() cannot generate a key with a really
-        # empty value, like we need for secret.ignored-matches[0].name
+        # empty value, like we need for secret.ignored_matches[0].name
         write_text(
             config_path,
             """
             version: 2
             secret:
-              ignored-matches:
+              ignored_matches:
                 - name:
                   match: abcd
                 - name: ""
@@ -535,7 +535,7 @@ class TestUserConfig:
                 "iac": {"ignored_paths": ["myglobalpath"], "iac_unknown": [""]},
                 "secret": {
                     "secret_invalid_key": "invalid key",
-                    "ignored-matches": [
+                    "ignored_matches": [
                         {
                             "name": "",
                             "match": "one",

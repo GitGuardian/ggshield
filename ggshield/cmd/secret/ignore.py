@@ -12,11 +12,11 @@ from ggshield.core.types import IgnoredMatch
 
 @click.command()
 @click.argument(
-    "hash",
+    "secret_sha",
     nargs=1,
     type=str,
     required=False,
-    metavar="HASH",
+    metavar="SECRET_SHA",
 )
 @click.option(
     "--last-found",
@@ -27,12 +27,13 @@ from ggshield.core.types import IgnoredMatch
     "--name",
     type=str,
     help="Name of the secret to ignore.",
+    metavar="NAME",
 )
 @add_common_options()
 @click.pass_context
 def ignore_cmd(
     ctx: click.Context,
-    hash: str,
+    secret_sha: str,
     name: str,
     last_found: bool,
     **kwargs: Any,
@@ -46,7 +47,7 @@ def ignore_cmd(
 
     Option `--last-found` ignores all secrets found during the last scan.
 
-    The command adds the ignored secrets to the `secrets.ignored-matches` section of your local
+    The command adds the ignored secrets to the `secrets.ignored_matches` section of your local
     configuration file. If no local configuration file is found, a `.gitguardian.yaml` file is created.
     """
 
@@ -55,20 +56,24 @@ def ignore_cmd(
     path = config.config_path
 
     if last_found:
-        if hash or name:
+        if secret_sha or name:
             raise click.UsageError(
-                "Option `--last-found` cannot be used with `HASH` or `--name`."
+                "Option `--last-found` cannot be used with `SECRET_SHA` or `--name`."
             )
         nb = ignore_last_found(config, ctx_obj.cache)
     else:
-        match = IgnoredMatch(name=name if name else "", match=hash)
-        config.add_ignored_match(match)
+        if not name:
+            raise click.UsageError(
+                "Option `--name` is required when ignoring a secret."
+            )
+        ignored_match = IgnoredMatch(name=name, match=secret_sha)
+        config.add_ignored_match(ignored_match)
         nb = 1
 
     config.save()
     secrets_word = pluralize("secret", nb)
     click.echo(
-        f"Added {nb} {secrets_word} to the secret.ignored-matches section of {path}."
+        f"Added {nb} {secrets_word} to the secret.ignored_matches section of {path}."
     )
 
 
