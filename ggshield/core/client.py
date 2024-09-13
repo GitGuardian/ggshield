@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 import requests
@@ -66,7 +67,7 @@ def create_client(
         return GGClient(
             api_key=api_key,
             base_uri=api_url,
-            user_agent="ggshield",
+            user_agent=os.getenv("GG_USER_AGENT", "ggshield"),
             timeout=60,
             session=session,
             callbacks=callbacks,
