@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+from pygitguardian import GGClient
 
 from ggshield.core.errors import ExitCode
 from ggshield.verticals.secret import SecretScanCollection
@@ -11,6 +12,7 @@ from ggshield.verticals.secret import SecretScanCollection
 class SecretOutputHandler(ABC):
     show_secrets: bool = False
     verbose: bool = False
+    client: Optional[GGClient] = None
     output: Optional[Path] = None
     use_stderr: bool = False
 
@@ -18,13 +20,17 @@ class SecretOutputHandler(ABC):
         self,
         show_secrets: bool,
         verbose: bool,
+        client: Optional[GGClient] = None,
         output: Optional[Path] = None,
         ignore_known_secrets: bool = False,
+        with_incident_details: bool = False,
     ):
         self.show_secrets = show_secrets
         self.verbose = verbose
+        self.client = client
         self.output = output
         self.ignore_known_secrets = ignore_known_secrets
+        self.with_incident_details = with_incident_details
 
     def process_scan(self, scan: SecretScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`

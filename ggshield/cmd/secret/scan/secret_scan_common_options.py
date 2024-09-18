@@ -120,6 +120,13 @@ _banlist_detectors_option = click.option(
     metavar="DETECTOR",
 )
 
+_with_incident_details_option = click.option(
+    "--with-incident-details",
+    is_flag=True,
+    help="Display full details about the dashboard incident if one is found (JSON and SARIF formats only).",
+    callback=create_config_callback("secret", "with_incident_details"),
+)
+
 
 def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
@@ -132,6 +139,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _exclude_option(cmd)
         _ignore_known_secrets_option(cmd)
         _banlist_detectors_option(cmd)
+        _with_incident_details_option(cmd)
         return cmd
 
     return decorator
@@ -153,6 +161,8 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     return output_handler_cls(
         show_secrets=config.user_config.secret.show_secrets,
         verbose=config.user_config.verbose,
+        client=ctx_obj.client,
         output=ctx_obj.output,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
+        with_incident_details=config.user_config.secret.with_incident_details,
     )

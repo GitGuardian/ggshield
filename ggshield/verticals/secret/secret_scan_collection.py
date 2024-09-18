@@ -2,9 +2,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
 
-from pygitguardian.models import Match, ScanResult
+from pygitguardian import GGClient
+from pygitguardian.models import Detail, Match, ScanResult, SecretIncident
 
-from ggshield.core.errors import UnexpectedError
+from ggshield.core.errors import UnexpectedError, handle_api_error
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.scan.scannable import Scannable
@@ -177,3 +178,20 @@ class SecretScanCollection:
             for scan in self.scans:
                 if scan.results:
                     yield from scan.results.results
+
+    def get_incident_details(self, client: GGClient) -> Dict[str, SecretIncident]:
+        incident_details: dict[str, SecretIncident] = {}
+        for result in self.get_all_results():
+            for policy_break in result.scan.policy_breaks:
+                url = policy_break.incident_url
+                if url and url not in incident_details:
+                    incident_id = int(url.split("/")[-1])
+                    resp = client.retrieve_secret_incident(
+                        incident_id, with_occurrences=0
+                    )
+                    if type(resp) == SecretIncident:
+                        incident_details[url] = resp
+                    else:
+                        assert isinstance(resp, Detail)
+                        handle_api_error(resp)
+        return incident_details

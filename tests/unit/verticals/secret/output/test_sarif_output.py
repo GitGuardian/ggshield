@@ -3,7 +3,8 @@ from typing import Any, Dict, TypedDict
 from unittest import mock
 
 import pytest
-from pygitguardian.models import PolicyBreak, ScanResult
+from pygitguardian import GGClient
+from pygitguardian.models import PolicyBreak, ScanResult, SecretIncident
 from pytest_voluptuous import S
 from voluptuous import Optional as VOptional
 from voluptuous import validators
@@ -19,6 +20,7 @@ from tests.unit.conftest import (
     _MULTIPLE_SECRETS_SCAN_RESULT,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
+    SECRET_INCIDENT_MOCK,
 )
 
 
@@ -88,6 +90,9 @@ SARIF_RESULT_DICT_SCHEMA = S(
         ],
         "partialFingerprints": {"secret/v1": str},
         VOptional("hostedViewerUri"): str,
+        VOptional("properties"): {
+            VOptional("incidentDetails"): dict,
+        },
     }
 )
 
@@ -144,18 +149,42 @@ def test_sarif_output_no_secrets(init_secrets_engine_version):
         ),
     ],
 )
+@pytest.mark.parametrize("with_incident_details", [True, False])
+@pytest.mark.parametrize("known_incidents", [True, False])
 def test_sarif_output_for_flat_scan_with_secrets(
-    init_secrets_engine_version, patch: str, scan_result: ScanResult
+    init_secrets_engine_version,
+    patch: str,
+    scan_result: ScanResult,
+    with_incident_details: bool,
+    known_incidents: bool,
 ):
     """
     GIVEN a patch containing secrets and a scan result
     WHEN SecretSARIFOutputHandler runs on it
     THEN it outputs a SARIF document pointing to the secrets
     """
-    handler = SecretSARIFOutputHandler(verbose=True, show_secrets=False)
+    client_mock = mock.Mock(spec=GGClient)
+    client_mock.retrieve_secret_incident.return_value = SECRET_INCIDENT_MOCK
+
+    handler = SecretSARIFOutputHandler(
+        verbose=True,
+        show_secrets=False,
+        client=client_mock,
+        with_incident_details=with_incident_details,
+    )
 
     commit = Commit.from_patch(patch)
     scannable = next(commit.get_files())
+
+    for index, policy_break in enumerate(scan_result.policy_breaks):
+        if known_incidents:
+            policy_break.known_secret = True
+            policy_break.incident_url = (
+                f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
+            )
+        else:
+            policy_break.known_secret = False
+            policy_break.incident_url = None
 
     result = Result(file=scannable, scan=scan_result)
     results = Results(results=[result])
@@ -170,7 +199,12 @@ def test_sarif_output_for_flat_scan_with_secrets(
 
     # Check each found secret is correctly represented
     for sarif_result, policy_break in zip(sarif_results, scan_result.policy_breaks):
-        check_sarif_result(sarif_result, scannable.content, policy_break)
+        check_sarif_result(
+            sarif_result,
+            scannable.content,
+            policy_break,
+            with_incident_details and known_incidents,
+        )
 
     assert len(sarif_results) == len(scan_result.policy_breaks)
 
@@ -234,7 +268,10 @@ def test_sarif_output_for_nested_scan(init_secrets_engine_version):
 
 
 def check_sarif_result(
-    sarif_result: Dict[str, Any], content: str, policy_break: PolicyBreak
+    sarif_result: Dict[str, Any],
+    content: str,
+    policy_break: PolicyBreak,
+    contains_incident_details: bool = False,
 ):
     """Check sarif_result contains a representation of policy_break, applied to content"""
 
@@ -255,6 +292,15 @@ def check_sarif_result(
         region = location["physicalLocation"]["region"]
         matched_text = get_content_from_region(content, region)
         actual_matches[match_name] = matched_text
+
+    if contains_incident_details:
+        assert (
+            "properties" in sarif_result
+            and "incidentDetails" in sarif_result["properties"]
+        )
+        SecretIncident(**sarif_result["properties"]["incidentDetails"])
+    else:
+        assert "incidentDetails" not in sarif_result
 
     assert actual_matches == expected_matches
 

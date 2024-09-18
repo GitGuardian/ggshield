@@ -11,7 +11,7 @@ import yaml
 from click.testing import CliRunner, Result
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pygitguardian import GGClient
-from pygitguardian.models import ScanResult
+from pygitguardian.models import ScanResult, SecretIncident
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
 from ggshield.core.cache import Cache
@@ -702,3 +702,51 @@ def clear_cache():
     _get_git_path.cache_clear()
     _git_rev_parse_absolute.cache_clear()
     read_git_file.cache_clear()
+
+
+SECRET_INCIDENT_MOCK = SecretIncident.from_dict(
+    {
+        "id": 42,
+        "date": "2024-09-04T16:00:48.956235+00:00",
+        "detector": {
+            "name": "detector",
+            "display_name": "Detector",
+            "nature": "specific",
+            "family": "Api",
+            "detector_group_name": "detector_group",
+            "detector_group_display_name": "Detector Group",
+        },
+        "secret_hash": "NpQakTjuW7LlWWgeHOR5VewWfLbUtKn1bZ3EDrLLw7aMf26zyCrzdQOwnLqJOGTb",
+        "hmsl_hash": "0483663d03dc4ea2c2bfb73d0a4a8bc6f2035d911f3a7d210a16e8314413c29e",
+        "gitguardian_url": "https://dashboard.staging.gitguardian.tech/workspace/1/incidents/42",
+        "regression": False,
+        "status": "TRIGGERED",
+        "assignee_id": None,
+        "assignee_email": None,
+        "occurrences_count": 1,
+        "secret_presence": {
+            "files_requiring_code_fix": 1,
+            "files_pending_merge": 0,
+            "files_fixed": 0,
+            "outside_vcs": 0,
+            "removed_outside_vcs": 0,
+            "in_vcs": 1,
+            "removed_in_vcs": 0,
+        },
+        "ignore_reason": None,
+        "triggered_at": "2024-09-04T16:00:48.956235+00:00",
+        "ignored_at": None,
+        "ignorer_id": None,
+        "ignorer_api_token_id": None,
+        "resolver_id": None,
+        "resolver_api_token_id": None,
+        "secret_revoked": False,
+        "severity": "high",
+        "validity": "invalid",
+        "resolved_at": None,
+        "share_url": None,
+        "tags": [],
+        "feedback_list": [],
+        "occurrences": [],
+    }
+)
