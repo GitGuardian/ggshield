@@ -1,5 +1,3 @@
 ### Added
 
-- The command `ggshield secret scan pre-commit` has a new flag `--skip-unchanged-merge-files`. It is off by default, if activated,
-  in the case of merge commit, it skips the scan of files that were not modified by merge. This is done for efficiency
-  but is less secure.
+- When scanning a merge commit, `ggshield secret scan pre-commit` now skips files that merged without conflicts. This makes merging the default branch into a topic branch much faster. You can use the `--scan-all-merge-files` option to go back to the previous behavior.

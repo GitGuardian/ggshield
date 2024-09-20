@@ -25,7 +25,7 @@ from tests.functional.utils_create_merge_repo import (
     ],
 )
 @pytest.mark.parametrize(
-    "merge_skip_unchanged",
+    "scan_all_merge_files",
     [
         True,
         False,
@@ -36,20 +36,20 @@ def test_merge_commit_no_conflict(
     tmp_path: Path,
     with_conflict: bool,
     secret_location: SecretLocation,
-    merge_skip_unchanged: bool,
+    scan_all_merge_files: bool,
 ) -> None:
 
     if (
         secret_location == SecretLocation.MASTER_BRANCH
         and with_conflict
-        and not merge_skip_unchanged
+        and scan_all_merge_files
     ):
         with pytest.raises(CalledProcessError):
             generate_repo_with_merge_commit(
                 tmp_path,
                 with_conflict=with_conflict,
                 secret_location=secret_location,
-                merge_skip_unchanged=merge_skip_unchanged,
+                scan_all_merge_files=scan_all_merge_files,
             )
 
         # AND the error message contains the Gitlab Token
@@ -60,7 +60,7 @@ def test_merge_commit_no_conflict(
             tmp_path,
             with_conflict=with_conflict,
             secret_location=secret_location,
-            merge_skip_unchanged=merge_skip_unchanged,
+            scan_all_merge_files=scan_all_merge_files,
         )
 
 
