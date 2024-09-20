@@ -1,11 +1,9 @@
-# Keep image in sync with scripts/update-pipfile-lock/Dockerfile
 FROM python:3.10-slim as build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
-ENV PIPENV_VENV_IN_PROJECT true
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONFAULTHANDLER 1
 ENV PATH /app/.venv/bin:$PATH
@@ -19,11 +17,9 @@ RUN \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install pipenv==2023.12.1
-
 COPY . .
 
-RUN pipenv install --ignore-pipfile --deploy
+RUN pip install .
 
 WORKDIR /data
 VOLUME [ "/data" ]

@@ -36,8 +36,8 @@ jobs:
         run: |
           python --version
           python -m pip install --upgrade pip
-          python -m pip install pipenv==2023.12.1
-          pipenv install --system --skip-lock
+          python -m pip install --upgrade pdm
+          pdm sync --global --project . --prod
 
       - name: Setup benchmark
         run: |

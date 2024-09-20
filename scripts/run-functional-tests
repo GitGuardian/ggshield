@@ -8,7 +8,7 @@ ENV_DIR=.functestenv
 log_progress() {
     local cstart="\e[35m"
     local cend="\e[0m"
-    echo -e "${cstart}$*${cend}"
+    echo -e "${cstart}run-functional-tests: $*${cend}"
 }
 
 build_wheel() {
@@ -16,10 +16,7 @@ build_wheel() {
     # Remove existing .whl files to make sure there is only one .whl. This way we
     # can use a glob to refer to it.
     rm -rf dist/*.whl
-    # Remove build dir so that `python -m build` does not try to run
-    # `build/__main__.py`.
-    rm -rf build
-    python -m build --wheel
+    pdm build --no-sdist
 }
 
 create_venv() {
