@@ -24,7 +24,7 @@ Date:   Fri Oct 18 13:20:00 2012 +0100
     + ":100644 100644 6546aef b41653f M\0data/utils/email_sender.py\0"
     + """\0diff --git a/ggshield/tests/cassettes/test_files_yes.yaml b/ggshield/tests/cassettes/test_files_yes.yaml
 deleted file mode 100644
-index 0000000..0000000
+index 1233aef..0000000
 --- a/ggshield/tests/cassettes/test_files_yes.yaml
 +++ /dev/null
 @@ -1,45 +0,0 @@
@@ -32,7 +32,7 @@ index 0000000..0000000
 
 diff --git a/tests/test_scannable.py b/tests/test_scannable.py
 new file mode 100644
-index 0000000..0000000
+index 0000000..19465ef
 --- /dev/null
 +++ b/tests/test_scannable.py
 @@ -0,0 +1,112 @@
@@ -44,7 +44,7 @@ new mode 100755
 
 diff --git a/.env b/.env
 new file mode 100644
-index 0000000..0000000
+index 0000000..12356ef
 --- /dev/null
 +++ b/.env
 @@ -0,0 +1,112 @@
@@ -56,7 +56,7 @@ rename from ggshield/tests/test_config.py
 rename to tests/test_config.py
 
 diff --git a/data/utils/email_sender.py b/data/utils/email_sender.py
-index 56dc0d42..fdf48995 100644
+index 6546aef..b41653f 100644
 --- a/data/utils/email_sender.py
 +++ b/data/utils/email_sender.py
 @@ -49,6 +49,7 @@ def send_email(config, subject, content, tos, seperate):
@@ -343,22 +343,18 @@ def scenario_type_change(repo: Repository) -> None:
             ),
             (
                 scenario_merge,
-                [
-                    ("longfile", Filemode.MODIFY),
-                    ("longfile", Filemode.MODIFY),
-                    ("longfile", Filemode.MODIFY),
-                ],
+                [],  # no conflict -> nothing to scan
             ),
             (
                 scenario_merge_with_changes,
                 [
-                    ("conflicted", Filemode.MODIFY),
                     ("conflicted", Filemode.MODIFY),
                 ],
             ),
             (
                 scenario_type_change,
                 [
+                    ("f2", Filemode.NEW),
                     ("f2", Filemode.NEW),
                 ],
             ),
@@ -390,6 +386,56 @@ def test_from_sha(
     assert paths_and_modes == [
         (Path(name), mode) for name, mode in expected_paths_and_modes
     ]
+
+
+def test_from_sha_gets_right_content_for_conflicts(tmp_path):
+    """
+    GIVEN a merge commit with a conflict, loaded with Commit.from_sha()
+    WHEN Commit.get_files() is called
+    THEN it returns the right content
+    """
+    repo = Repository.create(tmp_path)
+    scenario_merge_with_changes(repo)
+
+    sha = repo.get_top_sha()
+    commit = Commit.from_sha(sha, cwd=tmp_path)
+
+    files = list(commit.get_files())
+    assert len(files) == 1
+    content = files[0].content
+
+    # Content contains the old line,
+    assert "--Hello" in content
+    # the new line from main,
+    assert "- Hello from main" in content
+    # the new line from b1,
+    assert " -Hello from b1" in content
+    # and the result of the conflict resolution
+    assert "++Solve conflict" in content
+
+
+def test_from_sha_files_matches_content(tmp_path):
+    """
+    GIVEN a commit with many files
+    WHEN Commit.get_files() is called
+    THEN the reported file names match their expected content
+    """
+    repo = Repository.create(tmp_path)
+
+    for idx in range(50):
+        path = tmp_path / str(idx)
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(f"{idx}\n")
+        repo.add(path)
+    repo.create_commit()
+
+    sha = repo.get_top_sha()
+    commit = Commit.from_sha(sha, cwd=tmp_path)
+    files = list(commit.get_files())
+
+    for file in files:
+        last_line = file.content.splitlines()[-1]
+        assert last_line == f"+{file.path.name}"
 
 
 def test_from_staged(tmp_path):

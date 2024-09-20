@@ -30,7 +30,7 @@ class CommitInformation:
         Output format looks like this:
 
         ```
-        commit: $SHA
+        commit $SHA
         Author: $NAME <$EMAIL>
         Date: $DATE
 
