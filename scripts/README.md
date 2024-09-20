@@ -20,10 +20,6 @@ The script aborts if the `VERSION` environment variable is not set. It must be s
 
 The script aborts if the working-tree is not clean (can be bypassed with `--allow-dirty`) or is not on the `main` branch (can be bypassed by defining the `RELEASE_BRANCH` environment variable).
 
-## update-pipfile-lock/update-pipfile-lock
-
-Update Pipfile.lock, using the oldest supported version of Python.
-
 ## create-ghe-environment
 
 Creates a GitHub Enterprise Server (GHES) [pre-receive hook environment][ghe] containing GGShield.
