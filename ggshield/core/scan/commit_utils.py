@@ -39,6 +39,10 @@ _RX_HEADER_FILE_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
 OLD_NAME_RX = re.compile(r"^--- a/(.*?)\t?$", flags=re.MULTILINE)
 NEW_NAME_RX = re.compile(r"^\+\+\+ b/(.*?)\t?$", flags=re.MULTILINE)
 
+MULTI_PARENT_HUNK_HEADER_RX = re.compile(
+    r"^(?P<at>@@+) (?P<from>-\d+(?:,\d+)?) .* (?P<to>\+\d+(?:,\d+)?) @@+$"
+)
+
 
 class PatchParseError(Exception):
     """
@@ -292,6 +296,9 @@ def parse_patch(
 
             file_info = next(x for x in header.files if x.path == path)
 
+            if content.startswith("@@@"):
+                content = convert_multi_parent_diff(content)
+
             yield CommitScannable(sha, file_info.path, content, filemode=file_info.mode)
     except Exception as exc:
         if sha:
@@ -299,6 +306,57 @@ def parse_patch(
         else:
             msg = f"Could not parse patch: {exc}"
         raise PatchParseError(msg)
+
+
+def convert_multi_parent_diff(content: str) -> str:
+    """
+    ggshield output handlers currently do not work with multi-parent diffs, so convert
+    them into single-parent diffs
+    """
+    lines = content.splitlines()
+
+    # Process header
+    hunk_header, parent_count = process_multi_parent_hunk_header(lines.pop(0))
+    out_lines = [hunk_header]
+
+    # Process content
+    for line in lines:
+        columns = line[:parent_count]
+        text = line[parent_count:]
+        if columns.startswith("-"):
+            # Removed from first parent, keep it
+            text = f"-{text}"
+        elif columns.startswith("+"):
+            # Added by first parent, keep it
+            text = f"+{text}"
+        elif "+" in columns:
+            # Added by another parent, keep it but consider it unchanged
+            text = f" {text}"
+        elif "-" in columns:
+            # Removed from another parent, skip it
+            continue
+        else:
+            # Unchanged
+            text = f" {text}"
+        out_lines.append(text)
+
+    return "\n".join(out_lines)
+
+
+def process_multi_parent_hunk_header(header: str) -> Tuple[str, int]:
+    match = MULTI_PARENT_HUNK_HEADER_RX.match(header)
+    if not match:
+        raise PatchParseError(  # pragma: no cover
+            f"Failed to parse multi-parent hunk header '{header}'"
+        )
+
+    from_ = match.group("from")
+    to = match.group("to")
+
+    # Parent count is the number of '@' at the beginning of the header, minus 1
+    parent_count = len(match.group("at")) - 1
+
+    return f"@@ {from_} {to} @@", parent_count
 
 
 def get_file_sha_in_ref(

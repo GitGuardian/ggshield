@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 import pytest
 
-from ggshield.core.scan.commit_utils import PatchFileInfo
+from ggshield.core.scan.commit_utils import PatchFileInfo, convert_multi_parent_diff
 from ggshield.utils.git_shell import Filemode
 
 
@@ -46,3 +46,66 @@ def test_patch_file_info_from_string(
         mode=mode,
     )
     assert PatchFileInfo.from_string(line) == expected_info
+
+
+@pytest.mark.parametrize(
+    ("diff", "expected"),
+    [
+        (
+            """
+@@@ -1,1 -1,1 +1,2 @@@
+- baz
+ -bar
+++hello
+++world
+""",
+            """
+@@ -1,1 +1,2 @@
+-baz
++hello
++world
+""",
+        ),
+        (
+            """
+@@@ -1,8 -1,7 +1,8 @@@
+  Some longer content.
+
+--With more text.
+++
+++% This is the result of the merge.
+ +# This text comes from the main branch.
+- # It spawns...
+- # 3 lines.
++ > This is some text from the commit branch.
+ -> It spawns 2 lines.
+
+  To get interesting indices.
+""",
+            """
+@@ -1,8 +1,8 @@
+ Some longer content.
+ 
+-With more text.
++
++% This is the result of the merge.
+ # This text comes from the main branch.
+-# It spawns...
+-# 3 lines.
++> This is some text from the commit branch.
+ 
+ To get interesting indices.
+""",  # noqa:W293
+        ),
+    ],
+)
+def test_convert_multi_parent_diff(diff: str, expected: str):
+    """
+    GIVEN a multi parent diff
+    WHEN convert_multi_parent_diff() is called on it
+    THEN it returns the expected result
+    """
+    diff = diff.strip()
+    expected = expected.strip()
+    result = convert_multi_parent_diff(diff)
+    assert result == expected
