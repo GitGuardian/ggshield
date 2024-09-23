@@ -121,7 +121,7 @@ def generate_repo_with_merge_commit(
     nb_files_per_commit: int = DEFAULT_FILE_COUNT,
     with_conflict: bool = False,
     secret_location: SecretLocation = SecretLocation.NO_SECRET,
-    merge_skip_unchanged: bool = True,
+    scan_all_merge_files: bool = False,
 ) -> None:
     Path(root_dir).mkdir(parents=True, exist_ok=True)
     repo = Repository.create(root_dir, initial_branch="master")
@@ -177,14 +177,14 @@ def generate_repo_with_merge_commit(
         "pre-commit",
         cwd=repo.path,
     )
-    if merge_skip_unchanged:
+    if scan_all_merge_files:
         # rewrite the git hook file to add the option --skip-unchanged-merge-files
         hook_path = Path(
             f"{root_dir}/.git/hooks/pre-commit",
         )
         with open(hook_path, "r") as f:
             hook = f.read()
-        hook = hook.replace(r"pre-commit", r"pre-commit --skip-unchanged-merge-files")
+        hook = hook.replace(r"pre-commit", r"pre-commit --scan-all-merge-files")
         with open(hook_path, "w") as f:
             f.write(hook)
 

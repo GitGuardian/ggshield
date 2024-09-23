@@ -40,10 +40,9 @@ def check_is_merge_with_conflict(cwd: Path) -> bool:
 
 @click.command()
 @click.option(
-    "--skip-unchanged-merge-files",
+    "--scan-all-merge-files",
     is_flag=True,
-    help="When scanning a merge commit, skip files that were not modified by the merge"
-    " (assumes the merged commits are secret free).",
+    help="When scanning a merge commit, scan all files, including those that merged without conflicts.",
 )
 @click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
 @add_secret_scan_common_options()
@@ -51,7 +50,7 @@ def check_is_merge_with_conflict(cwd: Path) -> bool:
 @exception_wrapper
 def precommit_cmd(
     ctx: click.Context,
-    skip_unchanged_merge_files: bool,
+    scan_all_merge_files: bool,
     precommit_args: List[str],
     **kwargs: Any,
 ) -> int:  # pragma: no cover
@@ -82,9 +81,9 @@ def precommit_cmd(
     )
 
     # Get the commit object
-    if skip_unchanged_merge_files and check_is_merge_with_conflict(Path.cwd()):
+    if not scan_all_merge_files and check_is_merge_with_conflict(Path.cwd()):
         commit = Commit.from_merge(ctx_obj.exclusion_regexes)
-    elif skip_unchanged_merge_files and check_is_merge_without_conflict():
+    elif not scan_all_merge_files and check_is_merge_without_conflict():
         merge_branch = get_merge_branch_from_reflog()
         commit = Commit.from_merge(ctx_obj.exclusion_regexes, merge_branch)
     else:
