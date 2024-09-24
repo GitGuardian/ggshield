@@ -1,5 +1,21 @@
 # Changelog
 
+<a id='changelog-1.32.0'></a>
+
+## 1.32.0 — 2024-09-24
+
+### Added
+
+- When scanning a merge commit, `ggshield secret scan pre-commit` now skips files that merged without conflicts. This makes merging the default branch into a topic branch much faster. You can use the `--scan-all-merge-files` option to go back to the previous behavior.
+
+- `ggshield secret scan` commands now provide the `--with-incident-details` option to output more information about known incidents (JSON and SARIF outputs only).
+
+- It is now possible to ignore a secret manually using `ggshield secret ignore SECRET_SHA --name NAME`.
+
+### Fixed
+
+- The git commit parser has been reworked, fixing cases where commands scanning commits would fail.
+
 <a id='changelog-1.31.0'></a>
 
 ## 1.31.0 — 2024-08-27
