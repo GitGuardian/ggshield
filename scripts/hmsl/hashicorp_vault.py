@@ -15,6 +15,8 @@ CONTAINER_NAME = "hashicorp-vault-ggshield"
 ROOT_TOKEN = "my_vault_token"
 RESTRICTED_TOKEN = "restricted_token"
 
+READY_TRIES = 20
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -29,8 +31,7 @@ def wait_for_server_to_be_ready() -> None:
 
     If timeout elapsed, a RuntimeError is raised.
     """
-    tries = 0
-    while tries < 10:
+    for tries in range(READY_TRIES):
         check_cmd_ret = subprocess.run(
             [
                 "docker",
@@ -46,11 +47,12 @@ def wait_for_server_to_be_ready() -> None:
 
         if "(healthy)" in json_status["Status"]:
             logger.debug("Server is healthy")
-            return True
+            return
 
-        logger.debug("Server not healthy yet, waiting...")
+        logger.debug(
+            "Server not healthy yet, waiting... (%d / %d)", tries + 1, READY_TRIES
+        )
         time.sleep(0.500)
-        tries += 1
 
     raise RuntimeError("Hashicorp Vault server is not ready")
 
