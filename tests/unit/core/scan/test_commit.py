@@ -404,14 +404,16 @@ def test_from_sha_gets_right_content_for_conflicts(tmp_path):
     assert len(files) == 1
     content = files[0].content
 
-    # Content contains the old line,
-    assert "--Hello" in content
-    # the new line from main,
-    assert "- Hello from main" in content
-    # the new line from b1,
-    assert " -Hello from b1" in content
-    # and the result of the conflict resolution
-    assert "++Solve conflict" in content
+    # Content has been turned into a single-parent diff
+    assert (
+        content
+        == """
+@@ -1,2 +1,1 @@
+-Hello
+-Hello from main
++Solve conflict
+""".strip()
+    )
 
 
 def test_from_sha_files_matches_content(tmp_path):

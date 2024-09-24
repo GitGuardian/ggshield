@@ -22,6 +22,7 @@ from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH,
+    _SIMPLE_SECRET_TOKEN,
     GG_TEST_TOKEN,
     UNCHECKED_SECRET_PATCH,
     my_vcr,
@@ -192,3 +193,47 @@ def test_handle_scan_quota_limit_reached():
     detail = Detail(detail="Quota limit reached.", status_code=403)
     with pytest.raises(QuotaLimitReachedError):
         handle_scan_chunk_error(detail, Mock())
+
+
+def test_scan_merge_commit(client, cache):
+    """
+    GIVEN a merge commit in which a secret was inserted
+    WHEN it is scanned
+    THEN the secret is found
+    """
+    commit = Commit.from_patch(
+        f"""
+commit ca68e177596982fa38f181aa9944340a359748d2
+Merge: 2c023f8 502d03c
+Author: Aurelien Gateau <aurelien.gateau@gitguardian.com>
+Date:   Thu Sep 5 18:39:58 2024 +0200
+
+    Merge branch 'feature'
+\0::100644 100644 100644 7601807 5716ca5 8c27e55 MM\0f\0\0diff --cc f
+index 7601807,5716ca5..8c27e55
+--- a/f
++++ b/f
+@@@ -1,1 -1,1 +1,2 @@@
+- baz
+ -bar
+++username=owly
+++password={_SIMPLE_SECRET_TOKEN}
+"""
+    )
+
+    with my_vcr.use_cassette("test_scan_merge_commit"):
+        scanner = SecretScanner(
+            client=client,
+            cache=cache,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.PATH,
+                command_path="external",
+            ),
+        )
+        results = scanner.scan(commit.get_files(), scanner_ui=Mock())
+        scan = results.results[0].scan
+        assert len(scan.policy_breaks) == 1
+
+        matches = {m.match_type: m.match for m in scan.policy_breaks[0].matches}
+        assert matches["username"] == "owly"
+        assert matches["password"] == _SIMPLE_SECRET_TOKEN
