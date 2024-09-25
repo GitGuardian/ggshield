@@ -1,8 +1,6 @@
 import logging
-import os
 from pathlib import Path
 from subprocess import CalledProcessError
-from unittest.mock import patch
 
 import pytest
 
@@ -106,7 +104,7 @@ def test_scan_prereceive_push_force(tmp_path: Path) -> None:
 
 
 def test_scan_prereceive_timeout(
-    tmp_path: Path, slow_gitguardian_api: str, caplog
+    tmp_path: Path, monkeypatch, slow_gitguardian_api: str, caplog
 ) -> None:
     # GIVEN a remote repository
     remote_repo = Repository.create(tmp_path / "remote", bare=True)
@@ -128,9 +126,9 @@ def test_scan_prereceive_timeout(
 
     # WHEN I try to push
     # THEN the hook timeouts and allows the push
-    with patch.dict(
-        os.environ, {**os.environ, "GITGUARDIAN_API_URL": slow_gitguardian_api}
-    ), caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.WARNING):
+        monkeypatch.setenv("GITGUARDIAN_API_URL", slow_gitguardian_api)
+        monkeypatch.delenv("GITGUARDIAN_INSTANCE", raising=False)
         local_repo.push()
 
     # AND the error message contains timeout message
