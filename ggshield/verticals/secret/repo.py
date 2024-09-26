@@ -12,6 +12,7 @@ from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
+from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
 from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
@@ -98,6 +99,13 @@ def scan_commits_content(
         results_for_commit_files = [
             result_for_urls[u] for u in commit.urls if u in result_for_urls
         ]
+
+        optional_header = (
+            format_text(f"\ncommit {commit.sha}\n", STYLE["commit_info"])
+            + f"Author: {commit.info.author} <{commit.info.email}>\n"
+            + f"Date: {commit.info.date}\n"
+        )
+
         scans.append(
             SecretScanCollection(
                 commit.sha or "unknown",
@@ -106,7 +114,7 @@ def scan_commits_content(
                     results=results_for_commit_files,
                     errors=results.errors,
                 ),
-                optional_header=commit.optional_header,
+                optional_header=optional_header,
                 extra_info={
                     "author": commit.info.author,
                     "email": commit.info.email,
