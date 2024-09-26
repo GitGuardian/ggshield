@@ -54,7 +54,6 @@ def _execute_prereceive(
         return_code = scan_commit_range(
             client=client,
             cache=ReadOnlyCache(),
-            ui=ui,
             commit_list=commit_list,
             output_handler=output_handler,
             exclusion_regexes=exclusion_regexes,

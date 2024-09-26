@@ -21,8 +21,7 @@ def generate_files_from_docsets(
         obj = json.loads(line)
         documents = obj["documents"]
         for document in documents:
-            if verbose:
-                ui.display_info(f"  * {document['id']}")
+            ui.display_verbose(f"  * {document['id']}")
             yield StringScannable(document["id"], document["content"])
 
 
@@ -36,8 +35,7 @@ def create_scans_from_docset_files(
     scans: List[SecretScanCollection] = []
 
     for input_file in input_files:
-        if verbose:
-            ui.display_info(f"- {click.format_filename(input_file.name)}")
+        ui.display_verbose(f"- {click.format_filename(input_file.name)}")
 
         files = generate_files_from_docsets(input_file, ui, verbose)
         with ui.create_message_only_scanner_ui(verbose=verbose) as scanner_ui:

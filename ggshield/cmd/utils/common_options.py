@@ -17,8 +17,9 @@ from typing import Any, Callable, List, Optional, TypeVar
 import click
 
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.cmd.utils.debug_logs import setup_debug_logs
+from ggshield.cmd.utils.debug import setup_debug_mode
 from ggshield.cmd.utils.output_format import OutputFormat
+from ggshield.core import ui
 from ggshield.core.config.user_config import UserConfig
 
 
@@ -89,7 +90,8 @@ def debug_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[bool]
 ) -> Optional[bool]:
     if value is not None:
-        setup_debug_logs(filename=None)
+        ui.set_level(ui.Level.DEBUG)
+        setup_debug_mode()
     return value
 
 
@@ -110,7 +112,7 @@ def log_file_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[str]
 ) -> Optional[str]:
     if value is not None:
-        setup_debug_logs(filename=None if value == "-" else value)
+        setup_debug_mode(filename=None if value == "-" else value)
     return value
 
 

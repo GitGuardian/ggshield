@@ -10,7 +10,7 @@ class TestDocsetScan:
     def test_generate_files_from_docsets(self):
         input_file = open(DOCSET_EXAMPLE_PATH)
         ui = PlainTextGGShieldUI()
-        files = list(generate_files_from_docsets(input_file, ui.create_progress(1)))
+        files = list(generate_files_from_docsets(input_file, ui))
         assert {f.filename for f in files} == {
             "https://github.com/owner/repo/issues/1",
             "https://github.com/owner/repo/issues/3",

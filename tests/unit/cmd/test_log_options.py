@@ -7,7 +7,7 @@ from tests.unit.conftest import assert_invoke_ok
 
 
 @pytest.mark.parametrize("use_debug", [True, False])
-def test_log_to_stderr_option(cli_fs_runner, use_debug: True):
+def test_log_to_stderr_option(cli_fs_runner, use_debug: bool):
     """
     GIVEN a directory with a configuration file
     WHEN ggshield is called with --debug

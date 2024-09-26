@@ -14,6 +14,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import ScanResult, SecretIncident
 from requests.utils import DEFAULT_CA_BUNDLE_PATH, extract_zipped_paths
 
+from ggshield.cmd.utils.debug import reset_debug_mode
 from ggshield.core.cache import Cache
 from ggshield.core.url_utils import dashboard_to_api_url
 from ggshield.utils.git_shell import (
@@ -702,6 +703,18 @@ def clear_cache():
     _get_git_path.cache_clear()
     _git_rev_parse_absolute.cache_clear()
     read_git_file.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_debug_mode():
+    """
+    Enabling debug mode has global side effects. Reset it to ensure a test touching the
+    log or debug configuration does not affect other tests.
+    """
+    try:
+        yield
+    finally:
+        reset_debug_mode()
 
 
 SECRET_INCIDENT_MOCK = SecretIncident.from_dict(
