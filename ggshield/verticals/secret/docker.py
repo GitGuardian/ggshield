@@ -299,7 +299,7 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
     command = ["docker", "save", image_name, "-o", str(destination_path)]
 
     try:
-        display_info("Saving docker image... ", nl=False)
+        display_info("Saving docker image...")
         subprocess.run(
             command,
             check=True,

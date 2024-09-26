@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, Union
 
 import click
 
+from . import ui
 from .constants import IncidentStatus
 
 
@@ -70,19 +71,19 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
 
 
 def display_error(msg: str) -> None:
-    click.echo(format_text(msg, STYLE["error"]), err=True)
+    ui.display_error(msg)
 
 
 def display_warning(msg: str) -> None:
-    click.echo(format_text(msg, STYLE["warning"]), err=True)
+    ui.display_warning(msg)
 
 
-def display_info(msg: str, nl: bool = True) -> None:
-    click.echo(msg, nl=nl, err=True)
+def display_info(msg: str) -> None:
+    ui.display_info(msg)
 
 
-def display_heading(msg: str, nl: bool = True) -> None:
-    click.echo(format_text(msg, STYLE["heading"]), nl=nl, err=True)
+def display_heading(msg: str) -> None:
+    ui.display_heading(msg)
 
 
 _VALIDITY_TEXT_FOR_ID = {
