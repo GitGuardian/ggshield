@@ -20,8 +20,8 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
-from ggshield.core.text_utils import display_error
 
 
 @click.group(
@@ -91,7 +91,7 @@ def get_max_commits_for_hook() -> Optional[int]:
         if max_commits is not None:
             return int(max_commits)
     except BaseException as e:
-        display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
+        ui.display_error(f"Unable to parse GITGUARDIAN_MAX_COMMITS_FOR_HOOK: {str(e)}")
         return None
 
     return None

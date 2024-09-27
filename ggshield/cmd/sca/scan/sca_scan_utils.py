@@ -14,13 +14,13 @@ from pygitguardian.sca_models import (
 
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
+from ggshield.core import ui
 from ggshield.core.config.user_config import SCAConfig
 from ggshield.core.dirs import get_project_root_dir
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar, tar_from_ref_and_filepaths
-from ggshield.core.text_utils import display_error, display_info
 from ggshield.verticals.sca.file_selection import (
     get_all_files_from_sca_paths,
     sca_files_from_git_repo,
@@ -71,7 +71,7 @@ def sca_scan_all(
     )
 
     if len(sca_filepaths) == 0:
-        display_info("No file to scan.")
+        ui.display_info("No file to scan.")
         # Not an error, return an empty SCAScanAllOutput
         # with the status code returned by first call
         empty_output = SCAScanAllOutput(scanned_files=[], found_package_vulns=[])
@@ -101,8 +101,8 @@ def sca_scan_all(
     if not isinstance(scan_result, SCAScanAllOutput):
         if scan_result.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
-        display_error("Error scanning.")
-        display_error(str(scan_result))
+        ui.display_error("Error scanning.")
+        ui.display_error(str(scan_result))
         raise UnexpectedError("Unexpected error while performing SCA scan all.")
 
     return scan_result
@@ -133,17 +133,17 @@ def get_sca_scan_all_filepaths(
     if response.status_code is None or not isinstance(response, ComputeSCAFilesResult):
         if response.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
-        display_error("Error while filtering SCA related files.")
-        display_error(str(response))
+        ui.display_error("Error while filtering SCA related files.")
+        ui.display_error(str(response))
         raise UnexpectedError("Unexpected error while filtering SCA related files.")
 
     # Only sca_files field is useful in the case of a full_scan,
     # all the potential files already exist in `all_filepaths`
     sca_files = response.sca_files
     if verbose:
-        display_info("> Scanned files:")
+        ui.display_info("> Scanned files:")
         for filename in sca_files:
-            display_info(f"- {click.format_filename(filename)}")
+            ui.display_info(f"- {click.format_filename(filename)}")
 
     return sca_files, response.status_code
 
@@ -197,7 +197,7 @@ def sca_scan_diff(
     if current_ref is None:
         current_ref = INDEX_REF if include_staged else "HEAD"
     if current_ref == previous_ref:
-        display_info("SCA scan diff comparing identical versions, scan skipped.")
+        ui.display_info("SCA scan diff comparing identical versions, scan skipped.")
         return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
 
     if previous_ref is None:
@@ -220,7 +220,7 @@ def sca_scan_diff(
     )
 
     if len(previous_files) == 0 and len(current_files) == 0:
-        display_info("No file to scan.")
+        ui.display_info("No file to scan.")
         return SCAScanDiffOutput(scanned_files=[], added_vulns=[], removed_vulns=[])
 
     if previous_ref is None:
@@ -251,8 +251,8 @@ def sca_scan_diff(
     if not isinstance(response, SCAScanDiffOutput):
         if response.status_code == 401:
             raise APIKeyCheckError(client.base_uri, "Invalid API key.")
-        display_error("Error while scanning diff.")
-        display_error(str(response))
+        ui.display_error("Error while scanning diff.")
+        ui.display_error(str(response))
         raise UnexpectedError("Unexpected error while scanning diff.")
 
     return response

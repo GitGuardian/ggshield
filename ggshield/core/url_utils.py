@@ -2,8 +2,8 @@ from urllib.parse import ParseResult, urlparse
 
 from click import UsageError
 
+from . import ui
 from .constants import ON_PREMISE_API_URL_PATH_PREFIX
-from .text_utils import display_warning
 
 
 GITGUARDIAN_DOMAINS = ["gitguardian.com", "gitguardian.tech"]
@@ -20,7 +20,7 @@ def clean_url(url: str, warn: bool = False) -> ParseResult:
     if parsed_url.path.endswith("/v1"):
         parsed_url = parsed_url._replace(path=parsed_url.path[:-3])
         if warn:
-            display_warning("Unexpected /v1 path in your URL configuration")
+            ui.display_warning("Unexpected /v1 path in your URL configuration")
     return parsed_url
 
 

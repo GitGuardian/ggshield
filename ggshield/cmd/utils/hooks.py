@@ -1,11 +1,11 @@
 import os
 
-from ggshield.core.text_utils import display_warning
+from ggshield.core import ui
 
 
 def check_user_requested_skip() -> bool:
     if get_skip_env_var():
-        display_warning("Skipping ggshield hook based on SKIP environment variable.")
+        ui.display_warning("Skipping ggshield hook based on SKIP environment variable.")
         return True
     return False
 

@@ -17,7 +17,6 @@ from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
-from ggshield.core.text_utils import display_heading
 from ggshield.utils.archive import safe_unpack
 from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -37,7 +36,7 @@ def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
     ]
 
     try:
-        display_heading("Downloading package")
+        ui.display_heading("Downloading package")
         subprocess.run(
             command,
             check=True,
@@ -60,7 +59,7 @@ def get_files_from_package(
 ) -> Tuple[List[Scannable], List[Path]]:
     archive: Path = next(archive_dir.iterdir())
 
-    display_heading("Unpacking package")
+    ui.display_heading("Unpacking package")
     try:
         safe_unpack(archive, extract_dir=archive_dir)
     except Exception as exn:
@@ -112,7 +111,7 @@ def pypi_cmd(
         )
         if verbose:
             print_file_list(files, binary_paths)
-        display_heading("Starting scan")
+        ui.display_heading("Starting scan")
 
         with ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
             scan_context = ScanContext(

@@ -2,7 +2,6 @@ from typing import Any, Dict, Optional, Union
 
 import click
 
-from . import ui
 from .constants import IncidentStatus
 
 
@@ -68,22 +67,6 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
         return " " * padding
 
     return " " * max(0, padding - len(str(line_count))) + str(line_count)
-
-
-def display_error(msg: str) -> None:
-    ui.display_error(msg)
-
-
-def display_warning(msg: str) -> None:
-    ui.display_warning(msg)
-
-
-def display_info(msg: str) -> None:
-    ui.display_info(msg)
-
-
-def display_heading(msg: str) -> None:
-    ui.display_heading(msg)
 
 
 _VALIDITY_TEXT_FOR_ID = {

@@ -13,6 +13,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
@@ -22,7 +23,6 @@ from ggshield.core.git_hooks.prereceive import (
     parse_stdin,
 )
 from ggshield.core.scan import ScanContext, ScanMode
-from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import get_list_commit_SHA
 from ggshield.verticals.secret.output import (
     SecretGitLabWebUIOutputHandler,
@@ -139,7 +139,7 @@ def prereceive_cmd(
     process.start()
     process.join(timeout=get_prereceive_timeout())
     if process.is_alive() or process.exitcode is None:
-        display_error("\nPre-receive hook took too long")
+        ui.display_error("\nPre-receive hook took too long")
         process.kill()
         return 0
 

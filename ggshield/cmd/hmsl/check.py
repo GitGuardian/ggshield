@@ -15,7 +15,7 @@ from ggshield.cmd.utils.common_options import (
     json_option,
     text_json_format_option,
 )
-from ggshield.core.text_utils import display_info
+from ggshield.core import ui
 from ggshield.verticals.hmsl.collection import (
     InputType,
     NamingStrategy,
@@ -51,13 +51,13 @@ def check_cmd(
     """
 
     # Collect secrets
-    display_info("Collecting secrets...")
+    ui.display_info("Collecting secrets...")
     input = cast(TextIO, click.open_file(path, "r"))
     secrets = list(collect(input, input_type))
     # full_hashes is True because we need the hashes to decrypt the secrets.
     # They will correctly be truncated by our client later.
     prepared_data = prepare(secrets, naming_strategy, full_hashes=True)
-    display_info(f"Collected {len(prepared_data.payload)} secrets.")
+    ui.display_info(f"Collected {len(prepared_data.payload)} secrets.")
 
     check_secrets(
         ctx=ctx,

@@ -5,8 +5,8 @@ from typing import Optional, Tuple
 
 import click
 
+from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import EMPTY_SHA, git
 from ggshield.utils.os import getenv_float, getenv_int
 
@@ -26,7 +26,7 @@ def get_prereceive_timeout() -> float:
     try:
         return getenv_float("GITGUARDIAN_TIMEOUT", PRERECEIVE_TIMEOUT)
     except BaseException as e:
-        display_error(f"Unable to parse GITGUARDIAN_TIMEOUT: {str(e)}")
+        ui.display_error(f"Unable to parse GITGUARDIAN_TIMEOUT: {str(e)}")
         return PRERECEIVE_TIMEOUT
 
 

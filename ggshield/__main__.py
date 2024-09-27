@@ -28,7 +28,6 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
-from ggshield.core.text_utils import display_warning
 from ggshield.core.ui import log_utils
 from ggshield.core.ui.rich import RichGGShieldUI
 from ggshield.utils.click import RealPath
@@ -140,7 +139,7 @@ def _set_color(ctx: click.Context):
 
 def _display_deprecation_message(cfg: Config) -> None:
     for message in cfg.user_config.deprecation_messages:
-        display_warning(message)
+        ui.display_warning(message)
 
 
 def _check_for_updates(check_for_updates: bool) -> None:
@@ -150,7 +149,7 @@ def _check_for_updates(check_for_updates: bool) -> None:
     if check_for_updates and "PYTEST_CURRENT_TEST" not in os.environ:
         latest_version = check_updates.check_for_updates()
         if latest_version:
-            display_warning(
+            ui.display_warning(
                 f"A new version of ggshield (v{latest_version}) has been released "
                 f"(https://github.com/GitGuardian/ggshield)."
             )
