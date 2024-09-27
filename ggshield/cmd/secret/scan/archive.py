@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import create_files_from_paths
@@ -54,7 +55,7 @@ def archive_cmd(
             print_file_list(files, binary_paths)
         display_heading("Starting scan")
 
-        with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as ui:
+        with ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,
@@ -67,7 +68,7 @@ def archive_cmd(
                 ignored_matches=config.user_config.secret.ignored_matches,
                 ignored_detectors=config.user_config.secret.ignored_detectors,
             )
-            results = scanner.scan(files, scanner_ui=ui)
+            results = scanner.scan(files, scanner_ui=scanner_ui)
 
         scan = SecretScanCollection(id=path, type="archive_scan", results=results)
 

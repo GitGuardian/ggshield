@@ -9,14 +9,13 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.scan import ScanContext, ScanMode, Scannable, StringScannable
-from ggshield.core.ui.ggshield_ui import GGShieldProgress, GGShieldUI
+from ggshield.core.ui.ggshield_ui import GGShieldProgress
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
-def generate_files_from_docsets(
-    file: TextIO, ui: GGShieldUI, verbose: bool = False
-) -> Iterator[Scannable]:
+def generate_files_from_docsets(file: TextIO) -> Iterator[Scannable]:
     for line in file:
         obj = json.loads(line)
         documents = obj["documents"]
@@ -28,7 +27,6 @@ def generate_files_from_docsets(
 def create_scans_from_docset_files(
     scanner: SecretScanner,
     input_files: Iterable[TextIO],
-    ui: GGShieldUI,
     progress: GGShieldProgress,
     verbose: bool = False,
 ) -> List[SecretScanCollection]:
@@ -37,7 +35,7 @@ def create_scans_from_docset_files(
     for input_file in input_files:
         ui.display_verbose(f"- {click.format_filename(input_file.name)}")
 
-        files = generate_files_from_docsets(input_file, ui, verbose)
+        files = generate_files_from_docsets(input_file)
         with ui.create_message_only_scanner_ui(verbose=verbose) as scanner_ui:
             results = scanner.scan(files, scanner_ui=scanner_ui)
         scans.append(
@@ -69,7 +67,7 @@ def docset_cmd(
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
     output_handler = create_output_handler(ctx)
-    with ctx_obj.ui.create_progress(len(files)) as progress:
+    with ui.create_progress(len(files)) as progress:
 
         scan_context = ScanContext(
             scan_mode=ScanMode.DOCSET,
@@ -85,9 +83,8 @@ def docset_cmd(
         scans = create_scans_from_docset_files(
             scanner=scanner,
             input_files=files,
-            ui=ctx_obj.ui,
-            verbose=config.user_config.verbose,
             progress=progress,
+            verbose=config.user_config.verbose,
         )
 
     return output_handler.process_scan(

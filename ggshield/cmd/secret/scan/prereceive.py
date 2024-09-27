@@ -23,7 +23,6 @@ from ggshield.core.git_hooks.prereceive import (
 )
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import display_error
-from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA
 from ggshield.verticals.secret.output import (
     SecretGitLabWebUIOutputHandler,
@@ -41,7 +40,6 @@ def _execute_prereceive(
     commit_list: List[str],
     command_path: str,
     client: GGClient,
-    ui: GGShieldUI,
     exclusion_regexes: Set[Pattern[str]],
 ) -> None:
     try:
@@ -134,7 +132,6 @@ def prereceive_cmd(
             "commit_list": commit_list,
             "command_path": ctx.command_path,
             "client": ctx_obj.client,
-            "ui": ctx_obj.ui,
             "exclusion_regexes": ctx_obj.exclusion_regexes,
         },
     )

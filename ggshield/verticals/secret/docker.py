@@ -10,6 +10,7 @@ from typing import Any, Dict, Generator, Iterable, List, Optional, Set
 from click import UsageError
 from pygitguardian import GGClient
 
+from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
@@ -17,7 +18,6 @@ from ggshield.core.scan import ScanContext, Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
 from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.files import is_path_binary
 
 from .secret_scan_collection import SecretScanCollection
@@ -326,7 +326,6 @@ def docker_scan_archive(
     archive_path: Path,
     client: GGClient,
     cache: Cache,
-    ui: GGShieldUI,
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
