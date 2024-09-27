@@ -99,7 +99,7 @@ def create_with_context_cmd(
     if not name:
         name = generate_random_honeytoken_name()
     ctx_obj = ContextObj.get(ctx)
-    client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
+    client = create_client_from_config(ctx_obj.config)
 
     response = client.create_honeytoken_with_context(
         name=name,

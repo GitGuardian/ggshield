@@ -70,7 +70,7 @@ def scan_group_impl(ctx: click.Context) -> int:
     """Implementation for scan_group(). Must be a separate function so that its code can
     be reused from the deprecated `cmd.scan` package."""
     ctx_obj = ContextObj.get(ctx)
-    ctx_obj.client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     return_code = 0
 
     config = ctx_obj.config
