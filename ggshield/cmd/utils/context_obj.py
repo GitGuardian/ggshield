@@ -7,7 +7,6 @@ from pygitguardian import GGClient
 from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.ui.ggshield_ui import GGShieldUI
 
 
 class ContextObj:
@@ -34,7 +33,6 @@ class ContextObj:
         self._config: Optional[Config] = None
         self._client: Optional[GGClient] = None
         self._cache: Optional[Cache] = None
-        self._ui: Optional[GGShieldUI] = None
 
         # Depending on the vertical, this is set by configuration options or
         # command-line parameters
@@ -78,15 +76,6 @@ class ContextObj:
     @cache.setter
     def cache(self, value: Cache) -> None:
         self._cache = value
-
-    @property
-    def ui(self) -> GGShieldUI:
-        assert self._ui
-        return self._ui
-
-    @ui.setter
-    def ui(self, value: GGShieldUI) -> None:
-        self._ui = value
 
     @staticmethod
     def get(ctx: click.Context) -> "ContextObj":

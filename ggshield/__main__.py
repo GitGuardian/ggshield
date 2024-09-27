@@ -66,7 +66,6 @@ def config_path_callback(
     if not ctx.obj:
         ctx.obj = ContextObj()
         ctx.obj.cache = Cache()
-        ctx.obj.ui = ui
 
     ctx.obj.config = Config(value)
     return value
