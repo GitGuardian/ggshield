@@ -189,7 +189,12 @@ def git(
 ) -> str:
     """Calls git with the given arguments, returns stdout as a string"""
     env = os.environ.copy()
+    # Ensure git messages are in English
     env["LANG"] = "C"
+    # Ensure git behavior is not affected by the user git configuration, but give us a
+    # way to set some configuration (useful for safe.directory)
+    env["GIT_CONFIG_GLOBAL"] = os.getenv("GG_GIT_CONFIG", "")
+    env["GIT_CONFIG_SYSTEM"] = ""
 
     if cwd is None:
         cwd = Path.cwd()
