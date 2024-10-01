@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.32.1'></a>
+
+## 1.32.1 — 2024-10-01
+
+### Fixed
+
+- Fixed a case where ggshield commit parser could fail because of the local git configuration.
+
 <a id='changelog-1.32.0'></a>
 
 ## 1.32.0 — 2024-09-24
