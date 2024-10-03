@@ -65,7 +65,7 @@ def _execute_prereceive(
             )
         sys.exit(return_code)
     except Exception as error:
-        sys.exit(handle_exception(error, config.user_config.verbose))
+        sys.exit(handle_exception(error))
 
 
 @click.command()
@@ -115,8 +115,7 @@ def prereceive_cmd(
         )
         commit_list = commit_list[-config.user_config.max_commits_for_hook :]
 
-    if config.user_config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}", err=True)
+    ui.display_verbose(f"Commits to scan: {len(commit_list)}")
 
     process = multiprocessing.Process(
         target=_execute_prereceive,

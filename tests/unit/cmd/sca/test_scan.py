@@ -63,10 +63,7 @@ def test_get_sca_scan_all_filepaths(client: GGClient, tmp_path) -> None:
     write_text(filename=str(tmp_path / ".venv" / "Pipfile"), content="")
 
     result = get_sca_scan_all_filepaths(
-        directory=tmp_path,
-        exclusion_regexes=set(),
-        verbose=False,
-        client=client,
+        directory=tmp_path, exclusion_regexes=set(), client=client
     )
 
     assert result == (["Pipfile"], 200)

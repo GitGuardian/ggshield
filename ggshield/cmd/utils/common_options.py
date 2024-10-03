@@ -66,7 +66,13 @@ def create_config_callback(*option_names: str) -> ClickCallback[ArgT]:
     def callback(
         ctx: click.Context, param: click.Parameter, value: Optional[ArgT]
     ) -> Optional[ArgT]:
-        if value is not None:
+        if value is not None and ctx.obj is not None:
+            # If ctx.obj has not been defined yet, then it means we are in the top-level
+            # cli() function and the config has not been loaded yet, so we can't change
+            # it.
+            #
+            # cli() takes care of applying the few config-related options it receives
+            # itself.
             obj = get_config_from_context(ctx)
             for name in option_names[:-1]:
                 obj = getattr(obj, name)
@@ -76,13 +82,21 @@ def create_config_callback(*option_names: str) -> ClickCallback[ArgT]:
     return callback
 
 
+def verbose_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    if value is not None:
+        ui.ensure_level(ui.Level.VERBOSE)
+    return value
+
+
 _verbose_option = click.option(
     "-v",
     "--verbose",
     is_flag=True,
     default=None,
     help="Verbose display mode.",
-    callback=create_config_callback("verbose"),
+    callback=verbose_callback,
 )
 
 
@@ -90,19 +104,14 @@ def debug_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[bool]
 ) -> Optional[bool]:
     if value is not None:
-        ui.set_level(ui.Level.DEBUG)
         setup_debug_mode()
     return value
 
 
-# The --debug option is marked as "is_eager" so that we can setup logs as soon as
-# possible. If we don't then log commands for the creation of the Config instance
-# are ignored.
 _debug_option = click.option(
     "--debug",
     is_flag=True,
     default=None,
-    is_eager=True,
     help="Send log output to stderr. Equivalent to `--log-file -`.",
     callback=debug_callback,
 )
@@ -112,17 +121,13 @@ def log_file_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[str]
 ) -> Optional[str]:
     if value is not None:
-        setup_debug_mode(filename=None if value == "-" else value)
+        setup_debug_mode(filename=value)
     return value
 
 
-# The --log-file option is marked as "is_eager" so that we can setup logs as soon as
-# possible. If we don't then log commands for the creation of the Config instance
-# are ignored.
 _log_file_option = click.option(
     "--log-file",
     metavar="FILE",
-    is_eager=True,
     help="Send log output to FILE. Use '-' to redirect to stderr.",
     envvar="GITGUARDIAN_LOG_FILE",
     callback=log_file_callback,

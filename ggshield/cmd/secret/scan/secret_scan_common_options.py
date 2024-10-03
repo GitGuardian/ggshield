@@ -14,6 +14,7 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.output_format import OutputFormat
+from ggshield.core import ui
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.utils.click import RealPath
@@ -159,7 +160,7 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     output_handler_cls = OUTPUT_HANDLER_CLASSES[ctx_obj.output_format]
     config = ctx_obj.config
     return output_handler_cls(
-        verbose=config.user_config.verbose,
+        verbose=ui.is_verbose(),
         client=ctx_obj.client,
         output=ctx_obj.output,
         secret_config=config.user_config.secret,

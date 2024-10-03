@@ -98,7 +98,7 @@ def pypi_cmd(
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
     output_handler = create_output_handler(ctx)
-    verbose = config.user_config.verbose
+    verbose = ui.is_verbose()
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         temp_path = Path(temp_dir)
@@ -109,8 +109,7 @@ def pypi_cmd(
             package_name=package_name,
             exclusion_regexes=ctx_obj.exclusion_regexes,
         )
-        if verbose:
-            print_file_list(files, binary_paths)
+        print_file_list(files, binary_paths)
         ui.display_heading("Starting scan")
 
         with ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:

@@ -12,7 +12,7 @@ from .plain_text import PlainTextGGShieldUI
 from .scanner_ui import ScannerUI
 
 
-# GGShielUI instance to which top-level function forward their output.
+# GGShieldUI instance to which top-level functions forward their output.
 # Can be changed using set_ui().
 _ui: GGShieldUI = PlainTextGGShieldUI()
 
@@ -23,6 +23,14 @@ def set_level(level: Level) -> None:
 
 def get_level() -> Level:
     return _ui.level
+
+
+def ensure_level(level: Level):
+    """
+    Make sure the verbosity level is at least set to `level`
+    """
+    if _ui.level < level:
+        set_level(level)
 
 
 def is_verbose() -> bool:

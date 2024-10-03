@@ -83,7 +83,7 @@ def docset_cmd(
             scanner=scanner,
             input_files=files,
             progress=progress,
-            verbose=config.user_config.verbose,
+            verbose=ui.is_verbose(),
         )
 
     return output_handler.process_scan(

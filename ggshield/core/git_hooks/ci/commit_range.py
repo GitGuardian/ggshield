@@ -1,11 +1,10 @@
 import os
 from typing import List, Tuple
 
-import click
-
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import EMPTY_SHA, get_list_commit_SHA
 
+from ... import ui
 from .previous_commit import (
     github_pull_request_previous_commit_sha,
     github_push_previous_commit_sha,
@@ -14,27 +13,23 @@ from .previous_commit import (
 from .supported_ci import SupportedCI
 
 
-def collect_commit_range_from_ci_env(
-    verbose: bool,
-) -> Tuple[List[str], SupportedCI]:
+def collect_commit_range_from_ci_env() -> Tuple[List[str], SupportedCI]:
     supported_ci = SupportedCI.from_ci_env()
     try:
         fcn = COLLECT_COMMIT_RANGE_FUNCTIONS[supported_ci]
     except KeyError:
         raise UnexpectedError(f"Not implemented for {supported_ci.value}")
 
-    return fcn(verbose), supported_ci
+    return fcn(), supported_ci
 
 
-def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
+def jenkins_range() -> List[str]:  # pragma: no cover
     head_commit = os.getenv("GIT_COMMIT")
     previous_commit = os.getenv("GIT_PREVIOUS_COMMIT")
 
-    if verbose:
-        click.echo(
-            f"\tGIT_COMMIT: {head_commit}" f"\nGIT_PREVIOUS_COMMIT: {previous_commit}",
-            err=True,
-        )
+    ui.display_verbose(
+        f"\tGIT_COMMIT: {head_commit}" f"\nGIT_PREVIOUS_COMMIT: {previous_commit}"
+    )
 
     if previous_commit:
         commit_list = get_list_commit_SHA(f"{previous_commit}...{head_commit}")
@@ -53,15 +48,13 @@ def jenkins_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def travis_range(verbose: bool) -> List[str]:  # pragma: no cover
+def travis_range() -> List[str]:  # pragma: no cover
     commit_range = os.getenv("TRAVIS_COMMIT_RANGE")
     commit_sha = os.getenv("TRAVIS_COMMIT", "HEAD")
 
-    if verbose:
-        click.echo(
-            f"TRAVIS_COMMIT_RANGE: {commit_range}" f"\nTRAVIS_COMMIT: {commit_sha}",
-            err=True,
-        )
+    ui.display_verbose(
+        f"TRAVIS_COMMIT_RANGE: {commit_range}" f"\nTRAVIS_COMMIT: {commit_sha}"
+    )
 
     if commit_range:
         commit_list = get_list_commit_SHA(commit_range)
@@ -80,10 +73,9 @@ def travis_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def bitbucket_pipelines_range(verbose: bool) -> List[str]:  # pragma: no cover
+def bitbucket_pipelines_range() -> List[str]:  # pragma: no cover
     commit_sha = os.getenv("BITBUCKET_COMMIT", "HEAD")
-    if verbose:
-        click.echo(f"BITBUCKET_COMMIT: {commit_sha}", err=True)
+    ui.display_verbose(f"BITBUCKET_COMMIT: {commit_sha}")
 
     commit_list = get_list_commit_SHA(f"{commit_sha}~1...")
     if commit_list:
@@ -96,7 +88,7 @@ def bitbucket_pipelines_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
+def circle_ci_range() -> List[str]:  # pragma: no cover
     """
     # Extract commit range (or single commit)
     COMMIT_RANGE=$(echo "${CIRCLE_COMPARE_URL}" | cut -d/ -f7)
@@ -109,10 +101,7 @@ def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     compare_range = os.getenv("CIRCLE_RANGE")
     commit_sha = os.getenv("CIRCLE_SHA1", "HEAD")
 
-    if verbose:
-        click.echo(
-            f"CIRCLE_RANGE: {compare_range}\nCIRCLE_SHA1: {commit_sha}", err=True
-        )
+    ui.display_verbose(f"CIRCLE_RANGE: {compare_range}\nCIRCLE_SHA1: {commit_sha}")
 
     if compare_range and not compare_range.startswith("..."):
         commit_list = get_list_commit_SHA(compare_range)
@@ -131,18 +120,16 @@ def circle_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
+def gitlab_ci_range() -> List[str]:  # pragma: no cover
     before_sha = gitlab_push_previous_commit_sha()
     commit_sha = os.getenv("CI_COMMIT_SHA", "HEAD")
     merge_request_target_branch = os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
 
-    if verbose:
-        click.echo(
-            f"CI_MERGE_REQUEST_TARGET_BRANCH_NAME: {merge_request_target_branch}\n"
-            f"CI_COMMIT_BEFORE_SHA: {before_sha}\n"
-            f"CI_COMMIT_SHA: {commit_sha}",
-            err=True,
-        )
+    ui.display_verbose(
+        f"CI_MERGE_REQUEST_TARGET_BRANCH_NAME: {merge_request_target_branch}\n"
+        f"CI_COMMIT_BEFORE_SHA: {before_sha}\n"
+        f"CI_COMMIT_SHA: {commit_sha}"
+    )
 
     if before_sha and before_sha != EMPTY_SHA:
         commit_list = get_list_commit_SHA(f"{before_sha}~1...")
@@ -167,22 +154,20 @@ def gitlab_ci_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
+def github_actions_range() -> List[str]:  # pragma: no cover
     push_before_sha = github_push_previous_commit_sha()
     push_base_sha = os.getenv("GITHUB_PUSH_BASE_SHA")
     pull_req_base_sha = github_pull_request_previous_commit_sha()
     default_branch = os.getenv("GITHUB_DEFAULT_BRANCH")
     head_sha = os.getenv("GITHUB_SHA", "HEAD")
 
-    if verbose:
-        click.echo(
-            f"github_push_before_sha: {push_before_sha}\n"
-            f"github_push_base_sha: {push_base_sha}\n"
-            f"github_pull_base_sha: {pull_req_base_sha}\n"
-            f"github_default_branch: {default_branch}\n"
-            f"github_head_sha: {head_sha}",
-            err=True,
-        )
+    ui.display_verbose(
+        f"github_push_before_sha: {push_before_sha}\n"
+        f"github_push_base_sha: {push_base_sha}\n"
+        f"github_pull_base_sha: {pull_req_base_sha}\n"
+        f"github_default_branch: {default_branch}\n"
+        f"github_head_sha: {head_sha}"
+    )
 
     # The PR base sha has to be checked before the push_before_sha
     # because the first one is only populated in case of PR
@@ -224,11 +209,10 @@ def github_actions_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def drone_range(verbose: bool) -> List[str]:  # pragma: no cover
+def drone_range() -> List[str]:  # pragma: no cover
     before_sha = os.getenv("DRONE_COMMIT_BEFORE")
 
-    if verbose:
-        click.echo(f"DRONE_COMMIT_BEFORE: {before_sha}\n", err=True)
+    ui.display_verbose(f"DRONE_COMMIT_BEFORE: {before_sha}\n")
 
     if before_sha and before_sha != EMPTY_SHA:
         commit_list = get_list_commit_SHA(f"{before_sha}..")
@@ -242,11 +226,10 @@ def drone_range(verbose: bool) -> List[str]:  # pragma: no cover
     )
 
 
-def azure_range(verbose: bool) -> List[str]:  # pragma: no cover
+def azure_range() -> List[str]:  # pragma: no cover
     head_commit = os.getenv("BUILD_SOURCEVERSION")
 
-    if verbose:
-        click.echo(f"BUILD_SOURCEVERSION: {head_commit}\n", err=True)
+    ui.display_verbose(f"BUILD_SOURCEVERSION: {head_commit}\n")
 
     if head_commit:
         commit_list = get_list_commit_SHA(f"{head_commit}~1...")

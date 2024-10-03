@@ -63,7 +63,6 @@ def sca_files_from_git_repo(
     ref: str,
     client: GGClient,
     exclusion_regexes: Optional[Set[Pattern[str]]] = None,
-    verbose: bool = False,
 ) -> Set[Path]:
     """Returns SCA files from the git repository at
     the given directory, for the given ref. Empty string denotes selection
@@ -90,9 +89,9 @@ def sca_files_from_git_repo(
         raise UnexpectedError("Failed to select SCA files")
 
     sca_files = sca_files_result.sca_files
-    if verbose:
-        ui.display_info(f"> Scanned files from {ref}:")
+    if ui.is_verbose():
+        ui.display_verbose(f"> Scanned files from {ref}:")
         for filename in sca_files:
-            ui.display_info(f"- {click.format_filename(filename)}")
+            ui.display_verbose(f"- {click.format_filename(filename)}")
 
     return set(map(Path, sca_files_result.sca_files))

@@ -60,7 +60,7 @@ def precommit_cmd(
     """
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
-    verbose = config.user_config.verbose
+    verbose = ui.is_verbose()
 
     if check_user_requested_skip():
         return 0

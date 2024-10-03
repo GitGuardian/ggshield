@@ -3,8 +3,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-import click
-
+from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import (
     EMPTY_SHA,
@@ -18,9 +17,7 @@ from ggshield.utils.git_shell import (
 from .supported_ci import SupportedCI
 
 
-def get_previous_commit_from_ci_env(
-    verbose: bool,
-) -> Optional[str]:
+def get_previous_commit_from_ci_env() -> Optional[str]:
     """
     Returns the previous HEAD sha of the targeted branch.
     Returns None if there was no commit before.
@@ -31,21 +28,19 @@ def get_previous_commit_from_ci_env(
     except KeyError:
         raise UnexpectedError(f"Not implemented for {supported_ci.value}")
 
-    return fcn(verbose)
+    return fcn()
 
 
-def github_previous_commit_sha(verbose: bool) -> Optional[str]:
+def github_previous_commit_sha() -> Optional[str]:
     push_before_sha = github_push_previous_commit_sha()
     pull_req_base_sha = github_pull_request_previous_commit_sha()
     head_sha = os.getenv("GITHUB_SHA", "HEAD")
     event_name = os.getenv("GITHUB_EVENT_NAME")
 
-    if verbose:
-        click.echo(
-            f"github_push_before_sha: {push_before_sha}\n"
-            f"github_pull_base_sha: {pull_req_base_sha}\n",
-            err=True,
-        )
+    ui.display_verbose(
+        f"github_push_before_sha: {push_before_sha}\n"
+        f"github_pull_base_sha: {pull_req_base_sha}\n"
+    )
 
     # The PR base sha has to be checked before the push_before_sha
     # because the first one is only populated in case of PR
@@ -55,19 +50,18 @@ def github_previous_commit_sha(verbose: bool) -> Optional[str]:
         return pull_req_base_sha
 
     if push_before_sha and push_before_sha != EMPTY_SHA:
-        return get_commit_except_forced_push(push_before_sha, verbose)
+        return get_commit_except_forced_push(push_before_sha)
 
     if head_sha and event_name == "push":
         # New branch pushed, try to get sha from git state
         ref_type = os.getenv("GITHUB_REF_TYPE")
         ref_name = os.getenv("GITHUB_REF_NAME")
         if ref_type == "branch" and ref_name:
-            return get_new_branch_parent_commit(ref_name, verbose)
+            return get_new_branch_parent_commit(ref_name)
 
-        if verbose:
-            click.echo("Could not find previous commit for current branch.")
-            click.echo("Current branch may have been just pushed.")
-            click.echo("Only scan last commit.")
+        ui.display_verbose("Could not find previous commit for current branch.")
+        ui.display_verbose("Current branch may have been just pushed.")
+        ui.display_verbose("Only scan last commit.")
         last_commits = get_list_commit_SHA(f"{head_sha}~1", max_count=1)
         if len(last_commits) == 1:
             return last_commits[0]
@@ -99,17 +93,15 @@ def github_pull_request_previous_commit_sha() -> Optional[str]:
     return get_last_commit_sha_of_branch(f"remotes/origin/{targeted_branch}")
 
 
-def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
+def gitlab_previous_commit_sha() -> Optional[str]:
     push_before_sha = gitlab_push_previous_commit_sha()
-    merge_req_base_sha = gitlab_merge_request_previous_commit_sha(verbose)
+    merge_req_base_sha = gitlab_merge_request_previous_commit_sha()
     is_merge_req = bool(os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME"))
 
-    if verbose:
-        click.echo(
-            f"gitlab_push_before_sha: {push_before_sha}\n"
-            f"gitlab_merge_base_sha: {merge_req_base_sha}\n",
-            err=True,
-        )
+    ui.display_verbose(
+        f"gitlab_push_before_sha: {push_before_sha}\n"
+        f"gitlab_merge_base_sha: {merge_req_base_sha}\n"
+    )
 
     # push_before_sha is always EMPTY_SHA in MR pipeline according with
     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
@@ -120,12 +112,12 @@ def gitlab_previous_commit_sha(verbose: bool) -> Optional[str]:
         return merge_req_base_sha
 
     if push_before_sha and push_before_sha != EMPTY_SHA:
-        return get_commit_except_forced_push(push_before_sha, verbose)
+        return get_commit_except_forced_push(push_before_sha)
 
     # push_before_sha is also always EMPTY_SHA for the first commit of a new branch
     current_branch = os.getenv("CI_COMMIT_BRANCH")
     if current_branch:
-        return get_new_branch_parent_commit(current_branch, verbose)
+        return get_new_branch_parent_commit(current_branch)
 
     raise UnexpectedError(
         "Unable to get previous commit. Please submit an issue with the following info:\n"
@@ -139,7 +131,7 @@ def gitlab_push_previous_commit_sha() -> Optional[str]:
     return os.getenv("CI_COMMIT_BEFORE_SHA")
 
 
-def gitlab_merge_request_previous_commit_sha(verbose: bool) -> Optional[str]:
+def gitlab_merge_request_previous_commit_sha() -> Optional[str]:
     targeted_branch = os.getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME")
 
     # Not in a pull request workflow
@@ -156,46 +148,41 @@ def gitlab_merge_request_previous_commit_sha(verbose: bool) -> Optional[str]:
         # "CI_MERGE_REQUEST_DIFF_BASE_SHA"
         # This is not the current state of the target branch but the initial state
         # of current branch
-        if verbose:
-            click.echo(f"Failed to get {targeted_branch} HEAD.")
-            click.echo(
-                f"Fallback on commit {os.getenv('CI_MERGE_REQUEST_DIFF_BASE_SHA')}"
-            )
+        ui.display_verbose(f"Failed to get {targeted_branch} HEAD.")
+        ui.display_verbose(
+            f"Fallback on commit {os.getenv('CI_MERGE_REQUEST_DIFF_BASE_SHA')}"
+        )
         return os.getenv("CI_MERGE_REQUEST_DIFF_BASE_SHA")
 
     return last_commit
 
 
-def jenkins_previous_commit_sha(verbose: bool) -> Optional[str]:
+def jenkins_previous_commit_sha() -> Optional[str]:
     previous_commit = os.getenv("GIT_PREVIOUS_COMMIT")
     target_branch = os.getenv("CHANGE_TARGET")
     current_commit = os.getenv("GIT_COMMIT")
     current_branch = os.getenv("GIT_BRANCH")
 
-    if verbose:
-        click.echo(
-            f"GIT_PREVIOUS_COMMIT: {previous_commit}\n"
-            f"CHANGE_TARGET: {target_branch}\n",
-            err=True,
-        )
+    ui.display_verbose(
+        f"GIT_PREVIOUS_COMMIT: {previous_commit}\n" f"CHANGE_TARGET: {target_branch}\n"
+    )
 
     if target_branch:
         return get_last_commit_sha_of_branch(f"origin/{target_branch}")
 
     if previous_commit and previous_commit != EMPTY_SHA:
-        return get_commit_except_forced_push(previous_commit, verbose)
+        return get_commit_except_forced_push(previous_commit)
 
     if current_branch:
         try:
-            return get_new_branch_parent_commit(current_branch, verbose)
+            return get_new_branch_parent_commit(current_branch)
         except subprocess.CalledProcessError:
-            click.echo("Failed to retrieve initial commit from git history.")
+            ui.display_error("Failed to retrieve initial commit from git history.")
 
     if current_commit:
-        if verbose:
-            click.echo("Could not find previous commit for current branch.")
-            click.echo("Current branch may have been just pushed.")
-            click.echo("Only scan last commit.")
+        ui.display_verbose("Could not find previous commit for current branch.")
+        ui.display_verbose("Current branch may have been just pushed.")
+        ui.display_verbose("Only scan last commit.")
         last_commits = get_list_commit_SHA(f"{current_commit}~1", max_count=1)
         if len(last_commits) == 1:
             return last_commits[0]
@@ -208,47 +195,42 @@ def jenkins_previous_commit_sha(verbose: bool) -> Optional[str]:
     )
 
 
-def azure_previous_commit_sha(verbose: bool) -> Optional[str]:
+def azure_previous_commit_sha() -> Optional[str]:
     push_before_sha = azure_push_previous_commit_sha()
-    pull_req_base_sha = azure_pull_request_previous_commit_sha(verbose)
+    pull_req_base_sha = azure_pull_request_previous_commit_sha()
 
-    if verbose:
-        click.echo(
-            f"PUSH_PREVIOUS_COMMIT: {push_before_sha}\n"
-            f"PR_TARGET_COMMIT: {pull_req_base_sha}\n",
-            err=True,
-        )
+    ui.display_verbose(
+        f"PUSH_PREVIOUS_COMMIT: {push_before_sha}\n"
+        f"PR_TARGET_COMMIT: {pull_req_base_sha}\n"
+    )
 
     if pull_req_base_sha is not None:
         return pull_req_base_sha
 
     if push_before_sha is not None and push_before_sha != EMPTY_SHA:
-        if verbose:
-            click.echo(
-                "The number of commits of a push event is not available in Azure pipelines."
-            )
-            click.echo("Scanning only last commit.")
-        return get_commit_except_forced_push(push_before_sha, verbose)
+        ui.display_verbose(
+            "The number of commits of a push event is not available in Azure pipelines."
+        )
+        ui.display_verbose("Scanning only last commit.")
+        return get_commit_except_forced_push(push_before_sha)
 
     # New branch push
     current_branch = os.getenv("BUILD_SOURCEBRANCHNAME")
     if current_branch:
-        return get_new_branch_parent_commit(current_branch, verbose)
+        return get_new_branch_parent_commit(current_branch)
 
     # Can't find previous SHA, return last commit
     head_commit = os.getenv("BUILD_SOURCEVERSION")
     last_commits = get_list_commit_SHA(f"{head_commit}~1", max_count=1)
 
     if len(last_commits) == 0:
-        if verbose:
-            click.echo("Unable to find commit HEAD~1.")
+        ui.display_verbose("Unable to find commit HEAD~1.")
         return None
 
-    if verbose:
-        click.echo(
-            "The number of commits of a push event is not available in Azure pipelines."
-        )
-        click.echo("Scanning only last commit.")
+    ui.display_verbose(
+        "The number of commits of a push event is not available in Azure pipelines."
+    )
+    ui.display_verbose("Scanning only last commit.")
 
     if last_commits[0] is not None:
         return last_commits[0]
@@ -270,7 +252,7 @@ def azure_push_previous_commit_sha() -> Optional[str]:
     return push_before_sha
 
 
-def azure_pull_request_previous_commit_sha(verbose: bool) -> Optional[str]:
+def azure_pull_request_previous_commit_sha() -> Optional[str]:
     """
     Returns commit to compare with in a PR environment in Azure.
     If env variable SYSTEM_PULLREQUEST_TARGETBRANCHNAME is not defined, not in a PR.
@@ -290,20 +272,18 @@ def azure_pull_request_previous_commit_sha(verbose: bool) -> Optional[str]:
     if last_commit is not None:
         return last_commit
 
-    if verbose:
-        click.echo("Unable to find HEAD commit sha of target branch.")
-        click.echo("Scans only last commit of current branch.")
+    ui.display_verbose("Unable to find HEAD commit sha of target branch.")
+    ui.display_verbose("Scans only last commit of current branch.")
 
     last_commit = get_last_commit_sha_of_branch("HEAD~1")
     if last_commit is not None:
         return last_commit
 
-    if verbose:
-        click.echo("Unable to find commit HEAD~1.")
+    ui.display_verbose("Unable to find commit HEAD~1.")
     return None
 
 
-def get_new_branch_parent_commit(branch_name: str, verbose: bool) -> Optional[str]:
+def get_new_branch_parent_commit(branch_name: str) -> Optional[str]:
     """
     Assuming `branch_name` is a branch newly pushed, this returns a reference
     to the parent commit of all commits pushed on that branch.
@@ -314,23 +294,17 @@ def get_new_branch_parent_commit(branch_name: str, verbose: bool) -> Optional[st
         ref = f"refs/remotes/origin/{branch_name}"
         return ref if is_valid_git_commit_ref(ref) else "HEAD"
     new_branch_before_sha = f"{new_commits[-1]}^1"
-    if verbose:
-        click.echo(
-            f"new_branch_before_sha: {new_branch_before_sha}\n",
-            err=True,
-        )
+    ui.display_verbose(f"new_branch_before_sha: {new_branch_before_sha}\n")
     if is_valid_git_commit_ref(new_branch_before_sha):
         return new_branch_before_sha
     else:
-        if verbose:
-            click.echo("> This might be a new repository.", err=True)
+        ui.display_verbose("> This might be a new repository.")
         return None
 
 
-def get_commit_except_forced_push(commit: str, verbose: bool) -> Optional[str]:
+def get_commit_except_forced_push(commit: str) -> Optional[str]:
     if not is_valid_git_commit_ref(commit):
-        if verbose:
-            click.echo("> This might be a forced push.", err=True)
+        ui.display_verbose("> This might be a forced push.")
         return None
     return commit
 

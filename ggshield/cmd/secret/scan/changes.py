@@ -35,10 +35,9 @@ def changes_cmd(ctx: click.Context, **kwargs: Any) -> int:
     default_branch = get_default_branch()
     commit_list = get_list_commit_SHA(f"{default_branch}..HEAD")
 
-    if config.user_config.verbose:
-        ui.display_info(
-            f"Scan staged changes and {len(commit_list)} new {pluralize('commit', len(commit_list))}"
-        )
+    ui.display_verbose(
+        f"Scan staged changes and {len(commit_list)} new {pluralize('commit', len(commit_list))}"
+    )
 
     scan_context = ScanContext(
         scan_mode=ScanMode.CHANGE,
@@ -54,5 +53,4 @@ def changes_cmd(ctx: click.Context, **kwargs: Any) -> int:
         exclusion_regexes=ctx_obj.exclusion_regexes,
         secret_config=config.user_config.secret,
         scan_context=scan_context,
-        verbose=config.user_config.verbose,
     )
