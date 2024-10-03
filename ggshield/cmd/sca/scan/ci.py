@@ -15,6 +15,7 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.git_hooks.ci.get_scan_ci_parameters import (
     NotAMergeRequestError,
     get_scan_ci_parameters,
@@ -75,10 +76,7 @@ def scan_ci_cmd(
             ci_mode, wd=directory, verbose=config.user_config.verbose
         )
         if params is None:
-            click.echo(
-                "No commit found in merge request, skipping scan.",
-                err=True,
-            )
+            ui.display_info("No commit found in merge request, skipping scan.")
             return 0
 
         current_commit, reference_commit = params
@@ -94,13 +92,10 @@ def scan_ci_cmd(
         scan = SCAScanDiffVulnerabilityCollection(id=str(directory), result=result)
         return output_handler.process_scan_diff_result(scan)
     except NotAMergeRequestError:
-        click.echo(
-            (
-                "WARNING: scan ci expects to be run in a merge-request pipeline.\n"
-                "No target branch could be identified, will perform a scan all instead.\n"
-                "This is a fallback behaviour, that will be removed in a future version."
-            ),
-            err=True,
+        ui.display_warning(
+            "scan ci expects to be run in a merge-request pipeline.\n"
+            "No target branch could be identified, will perform a scan all instead.\n"
+            "This is a fallback behaviour, that will be removed in a future version."
         )
         result = sca_scan_all(ctx, directory=directory, scan_mode=ScanMode.CI_ALL)
         scan = SCAScanAllVulnerabilityCollection(id=str(directory), result=result)
