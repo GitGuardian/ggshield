@@ -21,6 +21,18 @@ def set_level(level: Level) -> None:
     _ui.level = level
 
 
+def get_level() -> Level:
+    return _ui.level
+
+
+def is_verbose() -> bool:
+    """
+    Convenient function to check if verbose messages are visible. Use this if displaying
+    verbose messages is costly (for example displaying a list of files)
+    """
+    return _ui.level >= Level.VERBOSE
+
+
 def set_ui(ui: GGShieldUI) -> None:
     """Change the GGShieldUI instance used to output messages. Takes care of
     carrying existing settings from the old instance to the new one."""
@@ -67,3 +79,9 @@ def create_scanner_ui(total: int, verbose: bool = False) -> ScannerUI:
 
 def create_message_only_scanner_ui(verbose: bool = False) -> ScannerUI:
     return _ui.create_message_only_scanner_ui(verbose=verbose)
+
+
+def _reset_ui():
+    """Reset the module to its startup state. Used by reset.reset()."""
+    global _ui
+    _ui = PlainTextGGShieldUI()
