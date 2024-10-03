@@ -55,9 +55,7 @@ def scan_ci_cmd(
         # we will work with branch names and deep commits, so we run a git fetch to ensure the
         # branch names and commit sha are locally available
         git(["fetch"], cwd=directory)
-        params = get_scan_ci_parameters(
-            ci_mode, wd=directory, verbose=config.user_config.verbose
-        )
+        params = get_scan_ci_parameters(ci_mode, wd=directory)
         if params is None:
             ui.display_info("No commit found in merge request, skipping scan.")
             return 0

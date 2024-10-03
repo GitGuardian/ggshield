@@ -14,7 +14,6 @@ from ggshield.cmd.sca.scan.scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.common_options import directory_argument
-from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.git_hooks.ci.get_scan_ci_parameters import (
     NotAMergeRequestError,
@@ -64,7 +63,6 @@ def scan_ci_cmd(
         ignore_not_fixable,
     )
 
-    config = ContextObj.get(ctx).config
     ci_mode = SupportedCI.from_ci_env()
     output_handler = create_output_handler(ctx)
 
@@ -72,9 +70,7 @@ def scan_ci_cmd(
         # we will work with branch names and deep commits, so we run a git fetch to ensure the
         # branch names and commit sha are locally available
         git(["fetch"], cwd=directory)
-        params = get_scan_ci_parameters(
-            ci_mode, wd=directory, verbose=config.user_config.verbose
-        )
+        params = get_scan_ci_parameters(ci_mode, wd=directory)
         if params is None:
             ui.display_info("No commit found in merge request, skipping scan.")
             return 0

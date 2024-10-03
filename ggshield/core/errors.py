@@ -154,7 +154,7 @@ def format_validation_error(exc: ValidationError) -> str:
     return "\n".join(lines)
 
 
-def handle_exception(exc: Exception, verbose: bool) -> int:
+def handle_exception(exc: Exception) -> int:
     """
     Take an exception, print information about it and return the exit code to use
     """
@@ -183,7 +183,7 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
 
     if not isinstance(exc, (click.ClickException, GitError)):
         click.echo()
-        if verbose:
+        if ui.is_verbose():
             traceback.print_exc()
         else:
             ui.display_info("Re-run the command with --verbose to get a stack trace.")

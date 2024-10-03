@@ -47,7 +47,7 @@ class TestGetScanCIParameters:
         monkeypatch.setenv(CI_TARGET_BRANCH_ASSOC[ci], "main")
         first_commit = repo.create_commit()
         last_commit = repo.create_commit()
-        params = get_scan_ci_parameters(ci, wd=repo.path, verbose=False)
+        params = get_scan_ci_parameters(ci, wd=repo.path)
         assert params == (last_commit, f"{first_commit}~1")
 
     def test_gitlab_ci(self, monkeypatch):
@@ -61,7 +61,7 @@ class TestGetScanCIParameters:
         monkeypatch.setenv("CI_MERGE_REQUEST_SOURCE_BRANCH_NAME", "mr_branch")
         first_commit = repo.create_commit()
         last_commit = repo.create_commit()
-        params = get_scan_ci_parameters(SupportedCI.GITLAB, wd=repo.path, verbose=False)
+        params = get_scan_ci_parameters(SupportedCI.GITLAB, wd=repo.path)
         assert params == (last_commit, f"{first_commit}~1")
 
     def test_github_ci(self, monkeypatch):
@@ -78,7 +78,7 @@ class TestGetScanCIParameters:
 
         repo.create_branch("simulate_merge_commit")
         repo.create_commit()
-        params = get_scan_ci_parameters(SupportedCI.GITHUB, wd=repo.path, verbose=False)
+        params = get_scan_ci_parameters(SupportedCI.GITHUB, wd=repo.path)
         assert params == (last_commit, f"{first_commit}~1")
 
     def test_travis_ci(self, monkeypatch):
@@ -92,7 +92,7 @@ class TestGetScanCIParameters:
         last_commit = repo.create_commit()
         monkeypatch.setenv("TRAVIS_PULL_REQUEST", "1")
         monkeypatch.setenv("TRAVIS_COMMIT_RANGE", f"{first_commit}..{last_commit}")
-        params = get_scan_ci_parameters(SupportedCI.TRAVIS, wd=repo.path, verbose=False)
+        params = get_scan_ci_parameters(SupportedCI.TRAVIS, wd=repo.path)
         assert params == (last_commit, f"{first_commit}~1")
 
     @pytest.mark.parametrize(
@@ -109,7 +109,7 @@ class TestGetScanCIParameters:
         monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
         monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
         with pytest.raises(NotAMergeRequestError):
-            get_scan_ci_parameters(ci, wd=self.repo.path, verbose=False)
+            get_scan_ci_parameters(ci, wd=self.repo.path)
 
     def test_circleci_not_supported(self):
         """
@@ -120,6 +120,4 @@ class TestGetScanCIParameters:
         with pytest.raises(
             UnexpectedError, match="Using scan ci is not supported for CIRCLECI"
         ):
-            get_scan_ci_parameters(
-                SupportedCI.CIRCLECI, wd=self.repo.path, verbose=False
-            )
+            get_scan_ci_parameters(SupportedCI.CIRCLECI, wd=self.repo.path)
