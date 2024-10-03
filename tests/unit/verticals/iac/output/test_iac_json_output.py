@@ -44,6 +44,7 @@ INCIDENT_SCHEMA = validators.Schema(
 def test_display_single_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_single_vulnerability.tf").write_text(IAC_SINGLE_VULNERABILITY)
 
+    cli_fs_runner.mix_stderr = False
     result = cli_fs_runner.invoke(
         cli,
         [
@@ -66,6 +67,7 @@ def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunn
         IAC_MULTIPLE_VULNERABILITIES
     )
 
+    cli_fs_runner.mix_stderr = False
     result = cli_fs_runner.invoke(
         cli,
         [
@@ -86,6 +88,7 @@ def test_display_multiple_vulnerabilities(tmp_path: Path, cli_fs_runner: CliRunn
 def test_display_no_vulnerability(tmp_path: Path, cli_fs_runner: CliRunner):
     (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
 
+    cli_fs_runner.mix_stderr = False
     result = cli_fs_runner.invoke(
         cli,
         [
@@ -110,6 +113,7 @@ def test_display_multiple_files(tmp_path: Path, cli_fs_runner: CliRunner):
     )
     (tmp_path / "iac_file_no_vulnerabilities.tf").write_text(IAC_NO_VULNERABILITIES)
 
+    cli_fs_runner.mix_stderr = False
     result = cli_fs_runner.invoke(
         cli,
         [
@@ -212,14 +216,9 @@ def test_json_all_output_no_ignored(verbose: bool, scan_type: ScanMode, tmp_path
 def assert_has_beta_warning_and_load_json(result: Result) -> Dict[str, Any]:
     assert re.search(
         r"This feature is still in beta, its behavior may change in future versions.\n",
-        result.stdout,
+        result.stderr,
     )
-    return json.loads(
-        result.stdout.replace(
-            "This feature is still in beta, its behavior may change in future versions.\n",
-            "",
-        )
-    )
+    return json.loads(result.stdout)
 
 
 def assert_iac_version_displayed(json_result: Dict[str, Any], total_incidents: int):

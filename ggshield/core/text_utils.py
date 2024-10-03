@@ -69,22 +69,6 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
     return " " * max(0, padding - len(str(line_count))) + str(line_count)
 
 
-def display_error(msg: str) -> None:
-    click.echo(format_text(msg, STYLE["error"]), err=True)
-
-
-def display_warning(msg: str) -> None:
-    click.echo(format_text(msg, STYLE["warning"]), err=True)
-
-
-def display_info(msg: str, nl: bool = True) -> None:
-    click.echo(msg, nl=nl, err=True)
-
-
-def display_heading(msg: str, nl: bool = True) -> None:
-    click.echo(format_text(msg, STYLE["heading"]), nl=nl, err=True)
-
-
 _VALIDITY_TEXT_FOR_ID = {
     "unknown": "Unknown",
     # cannot_check is the old ID for secrets for which there are no checkers

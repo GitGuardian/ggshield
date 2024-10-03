@@ -4,12 +4,8 @@ from typing import Dict, Iterable, Optional
 import click
 from requests import HTTPError
 
-from ggshield.core.text_utils import (
-    display_heading,
-    display_info,
-    display_warning,
-    pluralize,
-)
+from ggshield.core import ui
+from ggshield.core.text_utils import pluralize
 from ggshield.verticals.hmsl import Secret
 from ggshield.verticals.hmsl.collection import PreparedSecrets
 
@@ -40,7 +36,7 @@ def write_outputs(result: PreparedSecrets, prefix: str) -> None:
         for hash, hint in result.mapping.items():
             line = hash + ":" + hint if hint else hash
             mapping_file.write(line + "\n")
-    display_info(
+    ui.display_info(
         f"{prefix}payload.txt and {prefix}mapping.txt files have been written."
     )
 
@@ -56,11 +52,11 @@ def show_results(
     """
     secrets = list(secrets)
     if secrets:
-        display_warning(
+        ui.display_warning(
             f"Found {len(secrets)} leaked {pluralize('secret', len(secrets))}."
         )
     elif not error:
-        display_heading("All right! No leaked secret has been found.")
+        ui.display_heading("All right! No leaked secret has been found.")
 
     data = {
         "leaks_count": len(secrets),
@@ -85,7 +81,7 @@ def show_results(
 
             click.echo(template.format(number=i + 1, **secret))
             if secret["count"] >= TOO_MANY_SECRETS_THRESHOLD:
-                display_warning(
+                ui.display_warning(
                     "Given the number of occurrences, your secret might be a template value."
                 )
 
@@ -102,6 +98,6 @@ def show_error_during_scan(error: Exception):
             )
         else:
             error_message += "."
-        display_warning(error_message)
+        ui.display_warning(error_message)
     else:
-        display_warning("These are partial results, errors occurred during scan")
+        ui.display_warning("These are partial results, errors occurred during scan")

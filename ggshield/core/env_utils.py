@@ -5,7 +5,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from ggshield.core.text_utils import display_error
+from ggshield.core import ui
 from ggshield.utils.git_shell import get_git_root, is_git_dir
 from ggshield.utils.os import getenv_bool
 
@@ -18,7 +18,9 @@ def _find_dot_env() -> Optional[Path]:
     if env_var := os.getenv("GITGUARDIAN_DOTENV_PATH"):
         path = Path(env_var)
         if not path.is_file():
-            display_error("GITGUARDIAN_DOTENV_PATH does not point to a valid .env file")
+            ui.display_error(
+                "GITGUARDIAN_DOTENV_PATH does not point to a valid .env file"
+            )
             return None
 
         return path

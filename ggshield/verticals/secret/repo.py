@@ -6,14 +6,15 @@ from typing import Callable, Iterable, Iterator, List, Optional, Pattern, Set
 from click import UsageError
 from pygitguardian import GGClient
 
+from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
+from ggshield.core.text_utils import STYLE, format_text
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
 
@@ -29,7 +30,6 @@ SCAN_THREADS = 4
 def scan_repo_path(
     client: GGClient,
     cache: Cache,
-    ui: GGShieldUI,
     output_handler: SecretOutputHandler,
     exclusion_regexes: Set[Pattern[str]],
     config: Config,
@@ -44,7 +44,6 @@ def scan_repo_path(
             return scan_commit_range(
                 client=client,
                 cache=cache,
-                ui=ui,
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
                 exclusion_regexes=exclusion_regexes,
@@ -61,7 +60,6 @@ def scan_commits_content(
     commits: List[Commit],
     client: GGClient,
     cache: Cache,
-    ui: GGShieldUI,
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     progress_callback: Callable[[int], None],
@@ -98,6 +96,13 @@ def scan_commits_content(
         results_for_commit_files = [
             result_for_urls[u] for u in commit.urls if u in result_for_urls
         ]
+
+        optional_header = (
+            format_text(f"\ncommit {commit.sha}\n", STYLE["commit_info"])
+            + f"Author: {commit.info.author} <{commit.info.email}>\n"
+            + f"Date: {commit.info.date}\n"
+        )
+
         scans.append(
             SecretScanCollection(
                 commit.sha or "unknown",
@@ -106,7 +111,7 @@ def scan_commits_content(
                     results=results_for_commit_files,
                     errors=results.errors,
                 ),
-                optional_header=commit.optional_header,
+                optional_header=optional_header,
                 extra_info={
                     "author": commit.info.author,
                     "email": commit.info.email,
@@ -148,7 +153,6 @@ def get_commits_by_batch(
 def scan_commit_range(
     client: GGClient,
     cache: Cache,
-    ui: GGShieldUI,
     commit_list: List[str],
     output_handler: SecretOutputHandler,
     exclusion_regexes: Set[Pattern[str]],
@@ -189,9 +193,9 @@ def scan_commit_range(
         def commit_scanned_callback(commit: Commit):
             if verbose:
                 if include_staged and commit.sha is None:
-                    progress.ui.display_info("Scanned staged changes")
+                    ui.display_info("Scanned staged changes")
                 else:
-                    progress.ui.display_info(f"Scanned {commit.sha}")
+                    ui.display_info(f"Scanned {commit.sha}")
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []
@@ -202,7 +206,6 @@ def scan_commit_range(
                         commits,
                         client,
                         cache,
-                        ui,
                         matches_ignore,
                         scan_context,
                         progress.advance,
@@ -221,7 +224,7 @@ def scan_commit_range(
                 for scan in scan_collection.scans_with_results:
                     if scan.results and scan.results.errors:
                         for error in scan.results.errors:
-                            progress.ui.display_error(error.description)
+                            ui.display_error(error.description)
                     scans.append(scan)
 
     return_code = output_handler.process_scan(

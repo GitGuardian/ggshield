@@ -2,7 +2,7 @@ import time
 
 from pygitguardian import GGClientCallbacks
 
-from .ggshield_ui import GGShieldUI
+from ggshield.core import ui
 
 
 RATE_LIMIT_MESSAGE_MINIMUM_INTERVAL = 2
@@ -11,8 +11,7 @@ RATE_LIMIT_MESSAGE_MINIMUM_INTERVAL = 2
 class ClientCallbacks(GGClientCallbacks):
     """Implementation of GGClientCallbacks using GGShieldUI to show messages"""
 
-    def __init__(self, ui: GGShieldUI):
-        self.ui = ui
+    def __init__(self):
         self._last_rate_limit_message_at = 0.0
 
     def on_rate_limited(self, delay: int) -> None:
@@ -22,5 +21,5 @@ class ClientCallbacks(GGClientCallbacks):
         now = time.time()
         if now - self._last_rate_limit_message_at < RATE_LIMIT_MESSAGE_MINIMUM_INTERVAL:
             return
-        self.ui.display_warning(f"Rate-limit hit, retrying in {delay} seconds")
+        ui.display_warning(f"Rate-limit hit, retrying in {delay} seconds")
         self._last_rate_limit_message_at = now

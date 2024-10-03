@@ -22,15 +22,14 @@ from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.cmd.utils.debug_logs import disable_logs, setup_debug_logs
-from ggshield.core import check_updates
+from ggshield.cmd.utils.debug import setup_debug_mode
+from ggshield.core import check_updates, ui
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
-from ggshield.core.text_utils import display_warning
-from ggshield.core.ui.plain_text.plain_text_ggshield_ui import PlainTextGGShieldUI
-from ggshield.core.ui.rich.rich_ggshield_ui import RichGGShieldUI
+from ggshield.core.ui import log_utils
+from ggshield.core.ui.rich import RichGGShieldUI
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
 
@@ -66,10 +65,6 @@ def config_path_callback(
     if not ctx.obj:
         ctx.obj = ContextObj()
         ctx.obj.cache = Cache()
-        if sys.stderr.isatty():
-            ctx.obj.ui = RichGGShieldUI()
-        else:
-            ctx.obj.ui = PlainTextGGShieldUI()
 
     ctx.obj.config = Config(value)
     return value
@@ -112,8 +107,8 @@ def cli(
     _set_color(ctx)
 
     if config.user_config.debug:
-        # if `debug` is set in the configuration file, then setup logs now.
-        setup_debug_logs(filename=None)
+        # if `debug` is set in the configuration file, then setup debug mode now.
+        setup_debug_mode()
 
 
 def _set_color(ctx: click.Context):
@@ -144,7 +139,7 @@ def _set_color(ctx: click.Context):
 
 def _display_deprecation_message(cfg: Config) -> None:
     for message in cfg.user_config.deprecation_messages:
-        display_warning(message)
+        ui.display_warning(message)
 
 
 def _check_for_updates(check_for_updates: bool) -> None:
@@ -154,7 +149,7 @@ def _check_for_updates(check_for_updates: bool) -> None:
     if check_for_updates and "PYTEST_CURRENT_TEST" not in os.environ:
         latest_version = check_updates.check_for_updates()
         if latest_version:
-            display_warning(
+            ui.display_warning(
                 f"A new version of ggshield (v{latest_version}) has been released "
                 f"(https://github.com/GitGuardian/ggshield)."
             )
@@ -185,7 +180,10 @@ def main(args: Optional[List[str]] = None) -> Any:
     # See https://pyinstaller.org/en/latest/common-issues-and-pitfalls.html#multi-processing
     multiprocessing.freeze_support()
 
-    disable_logs()
+    log_utils.disable_logs()
+    if sys.stderr.isatty():
+        ui.set_ui(RichGGShieldUI())
+
     show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
 

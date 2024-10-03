@@ -10,14 +10,13 @@ from typing import Any, Dict, Generator, Iterable, List, Optional, Set
 from click import UsageError
 from pygitguardian import GGClient
 
+from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
-from ggshield.core.text_utils import display_heading, display_info
 from ggshield.core.types import IgnoredMatch
-from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.utils.files import is_path_binary
 
 from .secret_scan_collection import SecretScanCollection
@@ -299,18 +298,18 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
     command = ["docker", "save", image_name, "-o", str(destination_path)]
 
     try:
-        display_info("Saving docker image... ", nl=False)
+        ui.display_info("Saving docker image...")
         subprocess.run(
             command,
             check=True,
             stderr=subprocess.PIPE,
             timeout=timeout,
         )
-        display_info("OK")
+        ui.display_info("OK")
     except subprocess.CalledProcessError as exc:
         err_string = str(exc.stderr)
         if "No such image" in err_string or "reference does not exist" in err_string:
-            display_info("need to download image first")
+            ui.display_info("need to download image first")
             docker_pull_image(image_name, timeout)
 
             docker_save_to_tmp(image_name, destination_path, timeout)
@@ -326,7 +325,6 @@ def docker_scan_archive(
     archive_path: Path,
     client: GGClient,
     cache: Cache,
-    ui: GGShieldUI,
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
@@ -344,7 +342,7 @@ def docker_scan_archive(
     layer_id_cache = _get_layer_id_cache(secrets_engine_version)
 
     with DockerImage.open(archive_path) as docker_image:
-        display_heading("Scanning Docker config")
+        ui.display_heading("Scanning Docker config")
         with ui.create_scanner_ui(1) as scanner_ui:
             results = scanner.scan(
                 [docker_image.config_scannable], scanner_ui=scanner_ui
@@ -358,9 +356,9 @@ def docker_scan_archive(
             print()
             layer_id = info.diff_id
             if layer_id in layer_id_cache:
-                display_heading(f"Skipping layer {layer_id}: already scanned")
+                ui.display_heading(f"Skipping layer {layer_id}: already scanned")
             else:
-                display_heading(f"Scanning layer {info.diff_id}")
+                ui.display_heading(f"Scanning layer {info.diff_id}")
                 with ui.create_scanner_ui(file_count) as scanner_ui:
                     layer_results = scanner.scan(files, scanner_ui=scanner_ui)
                 if not layer_results.has_policy_breaks:

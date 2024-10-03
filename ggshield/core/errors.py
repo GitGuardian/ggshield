@@ -13,7 +13,6 @@ import click
 from marshmallow import ValidationError
 from pygitguardian.models import Detail
 
-from ggshield.core.text_utils import display_error
 from ggshield.utils.git_shell import GitError, InvalidGitRefError
 
 
@@ -159,6 +158,9 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
     """
     Take an exception, print information about it and return the exit code to use
     """
+    # TODO: fix this. It's required to avoid a circular import error
+    from ggshield.core import ui
+
     if isinstance(exc, click.exceptions.Abort):
         return ExitCode.SUCCESS
 
@@ -171,9 +173,9 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
         exit_code = ExitCode.UNEXPECTED_ERROR
 
     click.echo()
-    display_error(f"Error: {exc}")
+    ui.display_error(str(exc))
     if isinstance(exc, UnicodeEncodeError) and platform.system() == "Windows":
-        display_error(
+        ui.display_info(
             "\n"
             "ggshield failed to print a message because of an Unicode encoding issue."
             " To workaround that, try setting the PYTHONUTF8 environment variable to 1."
@@ -184,7 +186,7 @@ def handle_exception(exc: Exception, verbose: bool) -> int:
         if verbose:
             traceback.print_exc()
         else:
-            display_error("Re-run the command with --verbose to get a stack trace.")
+            ui.display_info("Re-run the command with --verbose to get a stack trace.")
 
     return exit_code
 

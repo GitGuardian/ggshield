@@ -9,8 +9,9 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.scan import ScanContext, ScanMode
-from ggshield.core.text_utils import display_info, pluralize
+from ggshield.core.text_utils import pluralize
 from ggshield.utils.git_shell import (
     check_git_dir,
     get_default_branch,
@@ -35,7 +36,7 @@ def changes_cmd(ctx: click.Context, **kwargs: Any) -> int:
     commit_list = get_list_commit_SHA(f"{default_branch}..HEAD")
 
     if config.user_config.verbose:
-        display_info(
+        ui.display_info(
             f"Scan staged changes and {len(commit_list)} new {pluralize('commit', len(commit_list))}"
         )
 
@@ -48,7 +49,6 @@ def changes_cmd(ctx: click.Context, **kwargs: Any) -> int:
     return scan_commit_range(
         client=ctx_obj.client,
         cache=ctx_obj.cache,
-        ui=ctx_obj.ui,
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
         exclusion_regexes=ctx_obj.exclusion_regexes,

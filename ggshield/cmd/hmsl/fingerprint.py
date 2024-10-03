@@ -9,7 +9,7 @@ from ggshield.cmd.hmsl.hmsl_common_options import (
     naming_strategy_option,
 )
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.text_utils import display_info
+from ggshield.core import ui
 from ggshield.verticals.hmsl.collection import (
     InputType,
     NamingStrategy,
@@ -62,5 +62,5 @@ def fingerprint_cmd(
     result = prepare(secrets, naming_strategy, full_hashes=full_hashes)
     write_outputs(result, prefix)
 
-    display_info(f"Prepared {len(secrets)} secrets.")
+    ui.display_info(f"Prepared {len(secrets)} secrets.")
     return 0

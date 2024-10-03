@@ -25,10 +25,10 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
+from ggshield.core import ui
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.tar_utils import INDEX_REF, get_empty_tar
-from ggshield.core.text_utils import display_info
 from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import (
     Filemode,
@@ -118,28 +118,28 @@ def iac_scan_diff(
     verbose = config.user_config.verbose if config and config.user_config else False
     if verbose:
         if previous_ref is None:
-            display_info("> No file to scan in reference.")
+            ui.display_info("> No file to scan in reference.")
         else:
-            display_info(f"> Scanned files in reference {previous_ref}")
+            ui.display_info(f"> Scanned files in reference {previous_ref}")
             filepaths = filter_iac_filepaths(
                 directory, get_git_filepaths(directory, previous_ref)
             )
             for filepath in filepaths:
-                display_info(f"- {click.format_filename(filepath)}")
-            display_info("")
+                ui.display_info(f"- {click.format_filename(filepath)}")
+            ui.display_info("")
 
     if current_ref is None:
         current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
-            display_info("> Scanned files in current state (staged)")
+            ui.display_info("> Scanned files in current state (staged)")
         else:
-            display_info("> Scanned files in current state")
+            ui.display_info("> Scanned files in current state")
         filepaths = filter_iac_filepaths(
             directory, get_git_filepaths(directory=directory, ref=current_ref)
         )
         for filepath in filepaths:
-            display_info(f"- {click.format_filename(filepath)}")
+            ui.display_info(f"- {click.format_filename(filepath)}")
 
     modified_iac_files = []
 

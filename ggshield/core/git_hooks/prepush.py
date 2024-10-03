@@ -3,7 +3,7 @@ import os
 import sys
 from typing import List, Optional, Tuple
 
-from ggshield.core.text_utils import display_warning
+from ggshield.core import ui
 from ggshield.utils.git_shell import EMPTY_SHA, git, is_valid_git_commit_ref
 
 
@@ -101,7 +101,7 @@ def collect_commits_refs(prepush_args: List[str] = []) -> Tuple[str, str]:
     local_commit, remote_commit = collect_commits_from_precommit_env()
     if local_commit is None or remote_commit is None:
         if len(prepush_args) == 0:
-            display_warning(OUTDATED_HOOK_MESSAGE)
+            ui.display_warning(OUTDATED_HOOK_MESSAGE)
             remote_name = "origin"
         else:
             remote_name = prepush_args[0]

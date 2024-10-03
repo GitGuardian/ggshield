@@ -11,6 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
+from ggshield.core import ui
 from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.utils.git_shell import check_git_dir, git
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -96,7 +97,7 @@ def precommit_cmd(
         ignored_matches=config.user_config.secret.ignored_matches,
         ignored_detectors=config.user_config.secret.ignored_detectors,
     )
-    with ctx_obj.ui.create_scanner_ui(len(commit.urls), verbose=verbose) as scanner_ui:
+    with ui.create_scanner_ui(len(commit.urls), verbose=verbose) as scanner_ui:
         results = scanner.scan(commit.get_files(), scanner_ui)
 
     return_code = output_handler.process_scan(

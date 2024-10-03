@@ -51,7 +51,6 @@ def repo_cmd(
         return scan_repo_path(
             client=client,
             cache=cache,
-            ui=ctx_obj.ui,
             output_handler=create_output_handler(ctx),
             exclusion_regexes=ctx_obj.exclusion_regexes,
             config=config,
@@ -66,7 +65,6 @@ def repo_cmd(
             return scan_repo_path(
                 client=client,
                 cache=cache,
-                ui=ctx_obj.ui,
                 output_handler=create_output_handler(ctx),
                 exclusion_regexes=ctx_obj.exclusion_regexes,
                 config=config,

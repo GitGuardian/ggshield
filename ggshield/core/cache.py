@@ -4,10 +4,10 @@ from typing import Any, Dict, List
 
 from pygitguardian.models import PolicyBreak
 
+from ggshield.core import ui
 from ggshield.core.constants import CACHE_PATH
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.filter import get_ignore_sha
-from ggshield.core.text_utils import display_warning
 from ggshield.core.types import IgnoredMatch
 
 
@@ -47,7 +47,7 @@ class Cache:
             ]
         if kwargs:
             for key in kwargs.keys():
-                display_warning(f'Unrecognized key in cache "{key}"')
+                ui.display_warning(f'Unrecognized key in cache "{key}"')
 
     def to_dict(self) -> Dict[str, Any]:
         return {

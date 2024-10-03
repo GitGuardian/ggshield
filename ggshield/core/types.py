@@ -5,7 +5,7 @@ import marshmallow_dataclass
 from marshmallow.decorators import pre_load
 from pygitguardian.models import FromDictMixin, ToDictMixin
 
-from ggshield.core.text_utils import display_warning
+from ggshield.core import ui
 
 
 @marshmallow_dataclass.dataclass
@@ -22,7 +22,7 @@ class FilteredConfig(FromDictMixin, ToDictMixin):
             if key in field_names:
                 filtered_fields[key] = item
             else:
-                display_warning(f"Unrecognized key in config: {key}")
+                ui.display_warning(f"Unrecognized key in config: {key}")
 
         return filtered_fields
 

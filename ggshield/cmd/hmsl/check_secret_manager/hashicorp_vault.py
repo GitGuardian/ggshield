@@ -14,8 +14,9 @@ from ggshield.cmd.utils.common_options import (
     text_json_format_option,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.text_utils import display_error, display_info, pluralize
+from ggshield.core.text_utils import pluralize
 from ggshield.verticals.hmsl.collection import NamingStrategy, collect_list, prepare
 from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.api_client import (
     VaultAPIClient,
@@ -140,7 +141,7 @@ def check_hashicorp_vault_cmd(
             "that your token has access to it."
         )
 
-    display_info("Fetching secrets from Vault...")
+    ui.display_info("Fetching secrets from Vault...")
     try:
         result = vault_client.get_secrets(mount, secret_path, recursive)
     # catch this error here if the path provided is a file that we don't have access to
@@ -151,16 +152,16 @@ def check_hashicorp_vault_cmd(
         )
 
     if len(result.not_fetched_paths) > 0:
-        display_error(
+        ui.display_error(
             f"Could not fetch {len(result.not_fetched_paths)} paths. "
             "Make sure your token has access to all the secrets in your vault."
         )
         config = ContextObj.get(ctx).config
         if config.user_config.verbose:
-            display_error("> The following paths could not be fetched:")
+            ui.display_error("> The following paths could not be fetched:")
             for path in result.not_fetched_paths:
-                display_error(f"- {path}")
-    display_info(
+                ui.display_error(f"- {path}")
+    ui.display_info(
         f"Got {len(result.secrets)} {pluralize('secret', len(result.secrets))}."
     )
 

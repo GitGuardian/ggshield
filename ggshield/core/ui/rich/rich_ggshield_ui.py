@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import Any
 
@@ -8,20 +9,36 @@ from typing_extensions import Self
 
 from ggshield.core.ui.scanner_ui import ScannerUI
 
-from ..ggshield_ui import GGShieldProgress, GGShieldUI
+from ..ggshield_ui import NAME_BY_LEVEL, DebugInfo, GGShieldProgress, GGShieldUI, Level
 from .rich_scanner_ui import RichMessageOnlyScannerUI, RichProgressScannerUI
 
 
+COLOR_BY_LEVEL = {
+    Level.DEBUG: "green",
+    Level.VERBOSE: "white",
+    Level.INFO: "blue",
+    Level.WARNING: "yellow",
+    Level.ERROR: "red",
+}
+
+LEVEL_BY_LOGGING_LEVEL = {
+    logging.DEBUG: Level.DEBUG,
+    logging.INFO: Level.INFO,
+    logging.WARNING: Level.WARNING,
+    logging.ERROR: Level.ERROR,
+}
+
+
 class RichGGShieldProgress(GGShieldProgress):
-    def __init__(self, ui: "RichGGShieldUI", total: int) -> None:
-        super().__init__(ui)
+    def __init__(self, console: Console, total: int) -> None:
+        super().__init__()
 
         self.progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TaskProgressColumn(),
             TextColumn("{task.completed} / {task.total}"),
-            console=ui.console,
+            console=console,
         )
         self.task = self.progress.add_task("Scanning...", total=total)
 
@@ -42,7 +59,9 @@ class RichGGShieldUI(GGShieldUI):
     """
 
     def __init__(self):
+        super().__init__()
         self.console = Console(file=sys.stderr)
+        self._previous_timestamp = ""
 
     def create_scanner_ui(
         self,
@@ -58,16 +77,58 @@ class RichGGShieldUI(GGShieldUI):
         return RichMessageOnlyScannerUI(self, verbose)
 
     def create_progress(self, total: int) -> GGShieldProgress:
-        return RichGGShieldProgress(self, total)
+        return RichGGShieldProgress(self.console, total)
 
-    def display_info(self, message: str) -> None:
+    def _echo(self, level: Level, message: str) -> None:
         message = rich.markup.escape(message)
-        self.console.print(message)
 
-    def display_warning(self, message: str) -> None:
-        message = rich.markup.escape(message)
-        self.console.print(f"[yellow]Warning:[/] {message}")
+        if self.level == Level.DEBUG:
+            self._debug_echo(level, message)
+        else:
+            self._normal_echo(level, message)
 
-    def display_error(self, message: str) -> None:
+    def _debug_echo(self, level: Level, rich_message: str) -> None:
+        color = COLOR_BY_LEVEL[level]
+        name = rich.markup.escape(f"[{NAME_BY_LEVEL[level][0]}]")
+        message = f"[{color}]{name}[/] {rich_message}"
+
+        self.console.print(self._prefix() + message)
+
+    def _normal_echo(self, level: Level, message: str) -> None:
+        if level <= Level.WARNING:
+            color = COLOR_BY_LEVEL[level]
+            name = NAME_BY_LEVEL[level]
+            message = f"[{color}]{name}:[/] {message}"
+
+        self.console.print(
+            self._prefix() + message,
+            # Disable highlight if we are not debugging, this way we get more control
+            # on the output.
+            highlight=False,
+        )
+
+    def _echo_heading(self, message: str) -> None:
         message = rich.markup.escape(message)
-        self.console.print(f"[red]Error:[/] {message}")
+        prefix = self._prefix()
+        self.console.print(f"\n[green]{prefix}# {message}[/]", highlight=False)
+
+    def _prefix(self) -> str:
+        if self.level < Level.DEBUG:
+            return ""
+        info = DebugInfo.create()
+
+        # Do not repeat timestamp if it's the same as before
+        if info.timestamp == self._previous_timestamp:
+            timestamp = " " * len(info.timestamp)
+        else:
+            timestamp = info.timestamp
+            self._previous_timestamp = timestamp
+
+        return (
+            f"[cyan]{timestamp}[/] [bright_black]{info.process_id}:{info.thread_id}[/] "
+        )
+
+    def log(self, record: logging.LogRecord) -> None:
+        level = LEVEL_BY_LOGGING_LEVEL.get(record.levelno, Level.ERROR)
+        msg = f"[magenta]{record.name}:{record.lineno}[/] {record.getMessage()}"
+        self._debug_echo(level, msg)

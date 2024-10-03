@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import marshmallow_dataclass
 from marshmallow import ValidationError, post_load, pre_load
 
+from ggshield.core import ui
 from ggshield.core.config.utils import (
     find_global_config_path,
     find_local_config_path,
@@ -20,7 +21,6 @@ from ggshield.core.config.utils import (
 from ggshield.core.config.v1_config import convert_v1_config_dict
 from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
-from ggshield.core.text_utils import display_warning
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 
 
@@ -110,7 +110,7 @@ def remove_expired_elements(
 
 def report_expired_elements(expired_lst: List[ConfigIgnoredElement]) -> None:
     for element in expired_lst:
-        display_warning(
+        ui.display_warning(
             f"{element} has an expired 'until' "
             f"date ({element.until}), please update your configuration file."
         )
@@ -426,6 +426,6 @@ def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
 def _warn_about_dash_keys(config_path: Path, dash_keys: Set[str]) -> None:
     for old_key in sorted(dash_keys):
         new_key = old_key.replace("-", "_")
-        display_warning(
+        ui.display_warning(
             f"{config_path}: Config key {old_key} is deprecated, use {new_key} instead."
         )

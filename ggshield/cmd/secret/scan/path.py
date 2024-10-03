@@ -11,9 +11,9 @@ from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
+from ggshield.core import ui
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
-from ggshield.core.text_utils import display_heading
 from ggshield.utils.click import RealPath
 from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -68,10 +68,10 @@ def path_cmd(
         confirm_scan(files)
 
     if verbose:
-        display_heading("Starting scan")
+        ui.display_heading("Starting scan")
     target = paths[0] if len(paths) == 1 else Path.cwd()
     target_path = target if target.is_dir() else target.parent
-    with ctx_obj.ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
+    with ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
         scan_context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path=ctx.command_path,

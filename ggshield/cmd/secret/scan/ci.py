@@ -48,7 +48,6 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     return scan_commit_range(
         client=ctx_obj.client,
         cache=ReadOnlyCache(),
-        ui=ctx_obj.ui,
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
         exclusion_regexes=ctx_obj.exclusion_regexes,

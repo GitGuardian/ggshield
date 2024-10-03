@@ -9,8 +9,9 @@ from requests import HTTPError
 from ggshield.cmd.hmsl.hmsl_common_options import input_arg
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.errors import ParseError, UnexpectedError
-from ggshield.core.text_utils import display_info, pluralize
+from ggshield.core.text_utils import pluralize
 from ggshield.verticals.hmsl import HASH_REGEX, PREFIX_REGEX, get_client
 
 
@@ -50,10 +51,10 @@ def query_cmd(
     except (ValueError, HTTPError) as error:
         raise UnexpectedError(str(error))
 
-    display_info(
+    ui.display_info(
         f"{client.quota.remaining} {pluralize('credit', client.quota.remaining)} left for today."
     )
-    display_info(f"Queried {len(payload)} {pluralize('secret', len(payload))}.")
+    ui.display_info(f"Queried {len(payload)} {pluralize('secret', len(payload))}.")
     return 0
 
 

@@ -5,8 +5,8 @@ import click
 from typing_extensions import ParamSpec
 
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.errors import handle_exception
-from ggshield.core.text_utils import display_warning
 
 
 T = TypeVar("T")
@@ -33,7 +33,7 @@ def display_beta_warning(func: Callable[P, T]) -> Callable[P, T]:
 
     @wraps(func)
     def func_with_beta_warning(*args: P.args, **kwargs: P.kwargs) -> T:
-        display_warning(
+        ui.display_warning(
             "This feature is still in beta, its behavior may change in future versions."
         )
         return func(*args, **kwargs)

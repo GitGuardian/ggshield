@@ -95,7 +95,6 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     return_code = scan_commit_range(
         client=ctx_obj.client,
         cache=ctx_obj.cache,
-        ui=ctx_obj.ui,
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
         exclusion_regexes=ctx_obj.exclusion_regexes,

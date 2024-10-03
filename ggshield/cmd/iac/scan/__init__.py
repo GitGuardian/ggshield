@@ -11,8 +11,8 @@ from ggshield.cmd.iac.scan.prepush import scan_pre_push_cmd
 from ggshield.cmd.iac.scan.prereceive import scan_pre_receive_cmd
 from ggshield.cmd.utils.common_options import directory_argument
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
-from ggshield.core.text_utils import display_warning
 from ggshield.utils.click import DefaultCommandGroup
 
 
@@ -47,7 +47,7 @@ def iac_scan_group(
 @click.pass_context
 def default_command(ctx: click.Context, **kwargs: Any) -> int:
     """Deprecated. Use `ggshield iac scan all` instead"""
-    display_warning("Deprecated. Please use 'ggshield iac scan all' instead")
+    ui.display_warning("Deprecated. Please use 'ggshield iac scan all' instead")
     result: int = scan_all_cmd.invoke(ctx)
     return result
 
@@ -59,6 +59,6 @@ def scan_group_impl(ctx: click.Context) -> int:
         scan_all_cmd.invoke(ctx)
 
     ctx_obj = ContextObj.get(ctx)
-    ctx_obj.client = create_client_from_config(ctx_obj.config, ctx_obj.ui)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
 
     return 0

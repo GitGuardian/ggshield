@@ -6,9 +6,9 @@ import click
 from pygitguardian.client import GGClient
 from pygitguardian.models import Detail
 
+from ggshield.core import ui
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.tar_utils import INDEX_REF
-from ggshield.core.text_utils import display_info
 from ggshield.utils.files import (
     ListFilesMode,
     is_path_binary,
@@ -91,8 +91,8 @@ def sca_files_from_git_repo(
 
     sca_files = sca_files_result.sca_files
     if verbose:
-        display_info(f"> Scanned files from {ref}:")
+        ui.display_info(f"> Scanned files from {ref}:")
         for filename in sca_files:
-            display_info(f"- {click.format_filename(filename)}")
+            ui.display_info(f"- {click.format_filename(filename)}")
 
     return set(map(Path, sca_files_result.sca_files))

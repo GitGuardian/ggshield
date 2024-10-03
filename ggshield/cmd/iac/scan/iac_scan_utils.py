@@ -8,11 +8,11 @@ from pygitguardian.iac_models import IaCDiffScanResult, IaCScanResult
 from pygitguardian.models import Detail
 
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.errors import APIKeyCheckError
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.tar_utils import INDEX_REF, tar_from_ref_and_filepaths
-from ggshield.core.text_utils import display_error
 from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import get_filepaths_from_ref, get_staged_filepaths
 from ggshield.verticals.iac.collection.iac_scan_collection import IaCResult
@@ -44,8 +44,9 @@ def create_output_handler(ctx: click.Context) -> IaCOutputHandler:
 def handle_scan_error(client: GGClient, detail: Detail) -> None:
     if detail.status_code == 401:
         raise APIKeyCheckError(client.base_uri, "Invalid API key.")
-    display_error("\nError scanning.")
-    display_error(str(detail))
+    ui.display_error("\nError scanning.")
+    msg = str(detail)
+    ui.display_error(msg)
 
 
 def get_git_filepaths(directory: Path, ref: str) -> Iterable[Path]:
