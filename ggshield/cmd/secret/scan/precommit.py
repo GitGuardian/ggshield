@@ -101,8 +101,5 @@ def precommit_cmd(
         SecretScanCollection(id="cached", type="pre-commit", results=results)
     )
     if return_code:
-        click.echo(
-            ctx_obj.client.remediation_messages.pre_commit,
-            err=True,
-        )
+        ui.display_info(ctx_obj.client.remediation_messages.pre_commit)
     return return_code

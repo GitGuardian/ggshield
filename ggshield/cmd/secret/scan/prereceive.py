@@ -59,12 +59,9 @@ def _execute_prereceive(
             scan_context=scan_context,
         )
         if return_code:
-            click.echo(
-                (
-                    config.user_config.secret.prereceive_remediation_message
-                    or client.remediation_messages.pre_receive
-                ),
-                err=True,
+            ui.display_info(
+                config.user_config.secret.prereceive_remediation_message
+                or client.remediation_messages.pre_receive
             )
         sys.exit(return_code)
     except Exception as error:
@@ -113,9 +110,8 @@ def prereceive_cmd(
     assert commit_list, "Commit list should not be empty at this point"
 
     if len(commit_list) > config.user_config.max_commits_for_hook:
-        click.echo(
+        ui.display_info(
             f"Too many commits. Scanning last {config.user_config.max_commits_for_hook} commits\n",
-            err=True,
         )
         commit_list = commit_list[-config.user_config.max_commits_for_hook :]
 

@@ -44,13 +44,12 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     logger.debug("refs=(%s, %s)", local_commit, remote_commit)
 
     if local_commit == EMPTY_SHA:
-        click.echo("Deletion event or nothing to scan.", err=True)
+        ui.display_info("Deletion event or nothing to scan.")
         return 0
 
     if remote_commit == EMPTY_SHA:
-        click.echo(
-            f"New tree event. Scanning last {config.user_config.max_commits_for_hook} commits.",
-            err=True,
+        ui.display_info(
+            f"New tree event. Scanning last {config.user_config.max_commits_for_hook} commits."
         )
         before = EMPTY_TREE
         after = local_commit
@@ -65,19 +64,17 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
     )
 
     if not commit_list:
-        click.echo(
+        ui.display_warning(
             "Unable to get commit range.\n"
             f"  before: {before}\n"
             f"  after: {after}\n"
             "Skipping pre-push hook\n",
-            err=True,
         )
         return 0
 
     if len(commit_list) > config.user_config.max_commits_for_hook:
-        click.echo(
-            f"Too many commits. Scanning last {config.user_config.max_commits_for_hook} commits\n",
-            err=True,
+        ui.display_info(
+            f"Too many commits. Scanning last {config.user_config.max_commits_for_hook} commits\n"
         )
         commit_list = commit_list[-config.user_config.max_commits_for_hook :]
 
@@ -102,8 +99,5 @@ def prepush_cmd(ctx: click.Context, prepush_args: List[str], **kwargs: Any) -> i
         scan_context=scan_context,
     )
     if return_code:
-        click.echo(
-            ctx_obj.client.remediation_messages.pre_push,
-            err=True,
-        )
+        ui.display_info(ctx_obj.client.remediation_messages.pre_push)
     return return_code
