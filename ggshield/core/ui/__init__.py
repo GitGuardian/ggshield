@@ -81,12 +81,12 @@ def create_progress(total: int) -> GGShieldProgress:
     return _ui.create_progress(total)
 
 
-def create_scanner_ui(total: int, verbose: bool = False) -> ScannerUI:
-    return _ui.create_scanner_ui(total, verbose=verbose)
+def create_scanner_ui(total: int) -> ScannerUI:
+    return _ui.create_scanner_ui(total)
 
 
-def create_message_only_scanner_ui(verbose: bool = False) -> ScannerUI:
-    return _ui.create_message_only_scanner_ui(verbose=verbose)
+def create_message_only_scanner_ui() -> ScannerUI:
+    return _ui.create_message_only_scanner_ui()
 
 
 def _reset_ui():

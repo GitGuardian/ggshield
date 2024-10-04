@@ -60,13 +60,12 @@ def precommit_cmd(
     """
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
-    verbose = ui.is_verbose()
 
     if check_user_requested_skip():
         return 0
 
     output_handler = SecretTextOutputHandler(
-        verbose=verbose,
+        verbose=ui.is_verbose(),
         client=ctx_obj.client,
         output=None,
         secret_config=config.user_config.secret,
@@ -94,7 +93,7 @@ def precommit_cmd(
         scan_context=scan_context,
         secret_config=config.user_config.secret,
     )
-    with ui.create_scanner_ui(len(commit.urls), verbose=verbose) as scanner_ui:
+    with ui.create_scanner_ui(len(commit.urls)) as scanner_ui:
         results = scanner.scan(commit.get_files(), scanner_ui)
 
     return_code = output_handler.process_scan(

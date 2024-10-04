@@ -12,13 +12,8 @@ class RichMessageOnlyScannerUI(ScannerUI):
     Basic UI, only supports showing messages when `on_*()` methods are called
     """
 
-    def __init__(
-        self,
-        ui: GGShieldUI,
-        verbose: bool = False,
-    ):
+    def __init__(self, ui: GGShieldUI):
         self.ui = ui
-        self.verbose = verbose
 
     def __enter__(self) -> Self:
         return self
@@ -27,9 +22,8 @@ class RichMessageOnlyScannerUI(ScannerUI):
         pass
 
     def on_scanned(self, scannables: Sequence[Scannable]) -> None:
-        if self.verbose:
-            for scannable in scannables:
-                self.ui.display_info(f"Scanned {scannable.path}")
+        for scannable in scannables:
+            self.ui.display_verbose(f"Scanned {scannable.path}")
 
     def on_skipped(self, scannable: Scannable, reason: str) -> None:
         if reason:
@@ -42,8 +36,8 @@ class RichProgressScannerUI(RichMessageOnlyScannerUI):
     Show a progress bar in addition to messages when `on_*()` methods are called
     """
 
-    def __init__(self, ui: GGShieldUI, total: int, verbose: bool = False):
-        super().__init__(ui, verbose)
+    def __init__(self, ui: GGShieldUI, total: int):
+        super().__init__(ui)
         self.progress = ui.create_progress(total)
 
     def __enter__(self) -> Self:
