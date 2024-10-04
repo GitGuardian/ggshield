@@ -44,7 +44,6 @@ def archive_cmd(
 
         ctx_obj = ContextObj.get(ctx)
         config = ctx_obj.config
-        verbose = ui.is_verbose()
         files, binary_paths = create_files_from_paths(
             paths=[temp_path],
             exclusion_regexes=ctx_obj.exclusion_regexes,
@@ -53,7 +52,7 @@ def archive_cmd(
         print_file_list(files, binary_paths)
         ui.display_heading("Starting scan")
 
-        with ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
+        with ui.create_scanner_ui(len(files)) as scanner_ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,
