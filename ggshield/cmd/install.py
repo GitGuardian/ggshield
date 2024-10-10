@@ -7,6 +7,7 @@ import click
 from click import UsageError
 
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.core.dirs import get_data_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import check_git_dir, git
 
@@ -66,8 +67,11 @@ def install_global(hook_type: str, force: bool, append: bool) -> int:
     hook_dir_path = get_global_hook_dir_path()
 
     if not hook_dir_path:
-        hook_dir_path = Path("~/.git/hooks").expanduser()
-        git(["config", "--global", "core.hooksPath", str(hook_dir_path)])
+        hook_dir_path = get_default_global_hook_dir_path()
+        git(
+            ["config", "--global", "core.hooksPath", str(hook_dir_path)],
+            ignore_git_config=False,
+        )
 
     return create_hook(
         hook_dir_path=hook_dir_path,
@@ -78,10 +82,19 @@ def install_global(hook_type: str, force: bool, append: bool) -> int:
     )
 
 
+def get_default_global_hook_dir_path() -> Path:
+    """
+    Returns the directory in which ggshield creates its global hooks
+    """
+    return get_data_dir() / "git-hooks"
+
+
 def get_global_hook_dir_path() -> Optional[Path]:
-    """Return the default hooks path (if it exists)."""
+    """Return the default hooks path defined in git global config (if it exists)."""
     try:
-        out = git(["config", "--global", "--get", "core.hooksPath"])
+        out = git(
+            ["config", "--global", "--get", "core.hooksPath"], ignore_git_config=False
+        )
     except subprocess.CalledProcessError:
         return None
     return Path(click.format_filename(out)).expanduser()
