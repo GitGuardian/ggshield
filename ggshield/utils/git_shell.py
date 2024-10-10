@@ -186,6 +186,7 @@ def git(
     check: bool = True,
     cwd: Optional[Union[str, Path]] = None,
     log_stderr: bool = True,
+    ignore_git_config: bool = True,
 ) -> str:
     """Calls git with the given arguments, returns stdout as a string"""
     env = os.environ.copy()
@@ -193,8 +194,9 @@ def git(
     env["LANG"] = "C"
     # Ensure git behavior is not affected by the user git configuration, but give us a
     # way to set some configuration (useful for safe.directory)
-    env["GIT_CONFIG_GLOBAL"] = os.getenv("GG_GIT_CONFIG", "")
-    env["GIT_CONFIG_SYSTEM"] = ""
+    if ignore_git_config:
+        env["GIT_CONFIG_GLOBAL"] = os.getenv("GG_GIT_CONFIG", "")
+        env["GIT_CONFIG_SYSTEM"] = ""
 
     if cwd is None:
         cwd = Path.cwd()
