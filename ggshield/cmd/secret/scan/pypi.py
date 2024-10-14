@@ -122,9 +122,8 @@ def pypi_cmd(
             scanner = SecretScanner(
                 client=ctx_obj.client,
                 cache=ctx_obj.cache,
-                ignored_matches=config.user_config.secret.ignored_matches,
+                secret_config=config.user_config.secret,
                 scan_context=scan_context,
-                ignored_detectors=config.user_config.secret.ignored_detectors,
             )
             results = scanner.scan(files, scanner_ui=scanner_ui)
         scan = SecretScanCollection(id=package_name, type="path_scan", results=results)

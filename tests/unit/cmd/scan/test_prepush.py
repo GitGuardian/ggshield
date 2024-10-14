@@ -163,13 +163,12 @@ class TestPrepush:
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
-            matches_ignore=ANY,
             scan_context=ScanContext(
                 scan_mode=ScanMode.PRE_PUSH,
                 command_path="cli secret scan pre-push",
                 target_path=local_repo.path,
             ),
-            ignored_detectors=set(),
+            secret_config=ANY,
         )
         assert_invoke_ok(result)
         assert "Commits to scan: 20" in result.output
@@ -351,9 +350,8 @@ class TestPrepush:
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
-            matches_ignore=ANY,
             scan_context=ANY,
-            ignored_detectors=set(),
+            secret_config=ANY,
         )
 
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")
@@ -391,9 +389,8 @@ class TestPrepush:
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
-            matches_ignore=ANY,
             scan_context=ANY,
-            ignored_detectors=set(),
+            secret_config=ANY,
         )
 
     @patch("ggshield.cmd.secret.scan.prepush.scan_commit_range")

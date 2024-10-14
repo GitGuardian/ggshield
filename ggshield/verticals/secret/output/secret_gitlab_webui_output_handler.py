@@ -1,3 +1,5 @@
+from typing import Any
+
 from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import censor_match
@@ -32,13 +34,11 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
 
     use_stderr = True
 
-    def __init__(
-        self, show_secrets: bool = False, ignore_known_secrets: bool = False
-    ) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(
-            show_secrets=show_secrets,
+            *args,
+            **kwargs,
             verbose=False,
-            ignore_known_secrets=ignore_known_secrets,
         )
 
     def _process_scan_impl(self, scan: SecretScanCollection) -> str:

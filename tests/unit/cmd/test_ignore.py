@@ -103,11 +103,11 @@ def test_cache_catches_last_found_secrets(client, isolated_fs):
         scanner = SecretScanner(
             client=client,
             cache=cache,
-            ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=ScanContext(
                 scan_mode=ScanMode.COMMIT_RANGE,
                 command_path="external",
             ),
+            secret_config=config.user_config.secret,
         )
         scanner.scan(commit.get_files(), scanner_ui=Mock())
     assert config.user_config.secret.ignored_matches == list()
@@ -140,11 +140,11 @@ def test_cache_catches_nothing(client, isolated_fs):
         scanner = SecretScanner(
             client=client,
             cache=cache,
-            ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=ScanContext(
                 scan_mode=ScanMode.COMMIT_RANGE,
                 command_path="external",
             ),
+            secret_config=config.user_config.secret,
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
 

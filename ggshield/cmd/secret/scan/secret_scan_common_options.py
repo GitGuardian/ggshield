@@ -159,10 +159,8 @@ def create_output_handler(ctx: click.Context) -> SecretOutputHandler:
     output_handler_cls = OUTPUT_HANDLER_CLASSES[ctx_obj.output_format]
     config = ctx_obj.config
     return output_handler_cls(
-        show_secrets=config.user_config.secret.show_secrets,
         verbose=config.user_config.verbose,
         client=ctx_obj.client,
         output=ctx_obj.output,
-        ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
-        with_incident_details=config.user_config.secret.with_incident_details,
+        secret_config=config.user_config.secret,
     )

@@ -55,9 +55,8 @@ def _execute_prereceive(
             commit_list=commit_list,
             output_handler=output_handler,
             exclusion_regexes=exclusion_regexes,
-            matches_ignore=config.user_config.secret.ignored_matches,
+            secret_config=config.user_config.secret,
             scan_context=scan_context,
-            ignored_detectors=config.user_config.secret.ignored_detectors,
         )
         if return_code:
             click.echo(
@@ -95,8 +94,7 @@ def prereceive_cmd(
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
         output_handler = SecretGitLabWebUIOutputHandler(
-            show_secrets=config.user_config.secret.show_secrets,
-            ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
+            secret_config=config.user_config.secret
         )
 
     if get_breakglass_option():

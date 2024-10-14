@@ -12,6 +12,7 @@ from pytest_voluptuous import Partial, S
 from voluptuous import Optional as VOptional
 from voluptuous import Required, validators
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.core.scan.file import File
@@ -373,7 +374,10 @@ def test_json_output_for_patch(
             f.write(input)
         scannables = [File(path=test_file)]
 
-    handler = SecretJSONOutputHandler(verbose=True, show_secrets=False)
+    secret_config = SecretConfig(
+        show_secrets=False,
+    )
+    handler = SecretJSONOutputHandler(verbose=True, secret_config=secret_config)
 
     with my_vcr.use_cassette(name):
         scanner = SecretScanner(
@@ -383,6 +387,7 @@ def test_json_output_for_patch(
                 scan_mode=ScanMode.PATH,
                 command_path="external",
             ),
+            secret_config=secret_config,
         )
         results = scanner.scan(scannables, scanner_ui=Mock())
 
@@ -427,7 +432,13 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     WHEN generating json output
     THEN if ignore_known_secrets is used, include "known_secret" field for the known policy breaks in the json output
     """
-    output_handler = SecretJSONOutputHandler(show_secrets=True, verbose=verbose)
+
+    secret_config = SecretConfig(
+        show_secrets=True,
+    )
+    output_handler = SecretJSONOutputHandler(
+        verbose=verbose, secret_config=secret_config
+    )
 
     result: Result = Result(
         StringScannable(
@@ -515,11 +526,11 @@ def test_with_incident_details(
     """
     client_mock = Mock(spec=GGClient)
     client_mock.retrieve_secret_incident.return_value = SECRET_INCIDENT_MOCK
+    secret_config = SecretConfig(
+        show_secrets=False, with_incident_details=with_incident_details
+    )
     output_handler = SecretJSONOutputHandler(
-        verbose=True,
-        show_secrets=False,
-        client=client_mock,
-        with_incident_details=with_incident_details,
+        verbose=True, secret_config=secret_config, client=client_mock
     )
 
     result: Result = Result(

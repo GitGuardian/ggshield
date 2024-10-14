@@ -1,7 +1,7 @@
 import itertools
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, List, Optional, Pattern, Set
+from typing import Callable, Iterable, Iterator, List, Pattern, Set
 
 from click import UsageError
 from pygitguardian import GGClient
@@ -10,11 +10,11 @@ from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
 from ggshield.core.text_utils import STYLE, format_text
-from ggshield.core.types import IgnoredMatch
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
 
@@ -47,10 +47,9 @@ def scan_repo_path(
                 commit_list=get_list_commit_SHA("--all"),
                 output_handler=output_handler,
                 exclusion_regexes=exclusion_regexes,
-                matches_ignore=config.user_config.secret.ignored_matches,
                 scan_context=scan_context,
-                ignored_detectors=config.user_config.secret.ignored_detectors,
                 verbose=config.user_config.verbose,
+                secret_config=config.user_config.secret,
             )
     except Exception as error:
         return handle_exception(error, config.user_config.verbose)
@@ -60,11 +59,10 @@ def scan_commits_content(
     commits: List[Commit],
     client: GGClient,
     cache: Cache,
-    matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
+    secret_config: SecretConfig,
     progress_callback: Callable[[int], None],
     commit_scanned_callback: Callable[[Commit], None],
-    ignored_detectors: Optional[Set[str]] = None,
 ) -> SecretScanCollection:  # pragma: no cover
     try:
         commit_files = itertools.chain.from_iterable(c.get_files() for c in commits)
@@ -73,9 +71,8 @@ def scan_commits_content(
             client=client,
             cache=cache,
             scan_context=scan_context,
-            ignored_matches=matches_ignore,
-            ignored_detectors=ignored_detectors,
             check_api_key=False,  # Key has been checked in `scan_commit_range()`
+            secret_config=secret_config,
         )
         with ui.create_message_only_scanner_ui() as scanner_ui:
             results = scanner.scan(
@@ -156,9 +153,8 @@ def scan_commit_range(
     commit_list: List[str],
     output_handler: SecretOutputHandler,
     exclusion_regexes: Set[Pattern[str]],
-    matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
-    ignored_detectors: Optional[Set[str]] = None,
+    secret_config: SecretConfig,
     include_staged: bool = False,
     verbose: bool = False,
 ) -> ExitCode:
@@ -206,11 +202,10 @@ def scan_commit_range(
                         commits,
                         client,
                         cache,
-                        matches_ignore,
                         scan_context,
+                        secret_config,
                         progress.advance,
                         commit_scanned_callback,
-                        ignored_detectors,
                     )
                 )
                 # Stop now if an exception has been raised by a future

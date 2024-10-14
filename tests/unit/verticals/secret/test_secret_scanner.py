@@ -5,6 +5,7 @@ import click
 import pytest
 from pygitguardian.models import Detail
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError
 from ggshield.core.scan import (
     Commit,
@@ -90,6 +91,7 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
                 scan_mode=ScanMode.PATH,
                 command_path="external",
             ),
+            secret_config=SecretConfig(),
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
         for result in results.results:
@@ -143,6 +145,7 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
             command_path="external",
         ),
         check_api_key=False,
+        secret_config=SecretConfig(),
     )
     scanner.scan([mock], scanner_ui=scanner_ui)
 
@@ -229,6 +232,7 @@ index 7601807,5716ca5..8c27e55
                 scan_mode=ScanMode.PATH,
                 command_path="external",
             ),
+            secret_config=SecretConfig(),
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
         scan = results.results[0].scan

@@ -44,9 +44,8 @@ def docker_archive_cmd(
         archive_path=archive,
         client=ctx_obj.client,
         cache=ctx_obj.cache,
-        matches_ignore=config.user_config.secret.ignored_matches,
+        secret_config=config.user_config.secret,
         scan_context=scan_context,
-        ignored_detectors=config.user_config.secret.ignored_detectors,
     )
 
     return output_handler.process_scan(scan)
