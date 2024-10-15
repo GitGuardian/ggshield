@@ -86,6 +86,7 @@ def do_not_use_real_user_dirs(monkeypatch, tmp_path):
     """
     monkeypatch.setenv("GG_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("GG_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("GG_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("GG_USER_HOME_DIR", str(tmp_path / "home"))
 
 
