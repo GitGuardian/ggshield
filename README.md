@@ -1,6 +1,6 @@
 <a href="https://gitguardian.com/"><img src="https://cdn.jsdelivr.net/gh/gitguardian/ggshield/doc/logo.svg"></a>
 
----
+[
 
 # [ggshield](https://github.com/GitGuardian/ggshield): protect your code with GitGuardian
 
