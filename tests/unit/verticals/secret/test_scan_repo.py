@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import Commit
 from ggshield.core.scan.commit_information import CommitInformation
 from ggshield.core.scan.commit_utils import CommitScannable
@@ -136,10 +137,10 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
         commits=[commit_1, commit_2],
         client=MagicMock(),
         cache=MagicMock(),
-        matches_ignore=[],
         scan_context=MagicMock(),
         progress_callback=(lambda advance: None),
         commit_scanned_callback=(lambda commit: None),
+        secret_config=SecretConfig(),
     )
 
     assert len(scan_collection.scans) == 2
@@ -225,10 +226,10 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
         commits=[commit_1, commit_2],
         client=MagicMock(),
         cache=MagicMock(),
-        matches_ignore=[],
         scan_context=MagicMock(),
         progress_callback=(lambda advance: None),
         commit_scanned_callback=(lambda commit: None),
+        secret_config=SecretConfig(),
     )
 
     assert len(scan_collection.scans) == 2

@@ -51,7 +51,6 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
         commit_list=commit_list,
         output_handler=create_output_handler(ctx),
         exclusion_regexes=ctx_obj.exclusion_regexes,
-        matches_ignore=config.user_config.secret.ignored_matches,
+        secret_config=config.user_config.secret,
         scan_context=scan_context,
-        ignored_detectors=config.user_config.secret.ignored_detectors,
     )

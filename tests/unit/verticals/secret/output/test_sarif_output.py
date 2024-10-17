@@ -9,6 +9,7 @@ from pytest_voluptuous import S
 from voluptuous import Optional as VOptional
 from voluptuous import validators
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import Commit
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretSARIFOutputHandler
@@ -122,7 +123,9 @@ def test_sarif_output_no_secrets(init_secrets_engine_version):
     THEN it outputs an empty SARIF document
     """
     scan = SecretScanCollection(id="path", type="test", results=Results())
-    handler = SecretSARIFOutputHandler(verbose=True, show_secrets=False)
+    handler = SecretSARIFOutputHandler(
+        verbose=True, secret_config=SecretConfig(show_secrets=False)
+    )
     output = handler._process_scan_impl(scan)
     dct = json.loads(output)
 
@@ -166,11 +169,12 @@ def test_sarif_output_for_flat_scan_with_secrets(
     client_mock = mock.Mock(spec=GGClient)
     client_mock.retrieve_secret_incident.return_value = SECRET_INCIDENT_MOCK
 
-    handler = SecretSARIFOutputHandler(
-        verbose=True,
+    secret_config = SecretConfig(
         show_secrets=False,
-        client=client_mock,
         with_incident_details=with_incident_details,
+    )
+    handler = SecretSARIFOutputHandler(
+        verbose=True, secret_config=secret_config, client=client_mock
     )
 
     commit = Commit.from_patch(patch)
@@ -231,7 +235,9 @@ def test_sarif_output_for_nested_scan(init_secrets_engine_version):
     WHEN SecretSARIFOutputHandler runs on it
     THEN it outputs a SARIF document pointing to the secrets
     """
-    handler = SecretSARIFOutputHandler(verbose=True, show_secrets=False)
+    handler = SecretSARIFOutputHandler(
+        verbose=True, secret_config=SecretConfig(show_secrets=False)
+    )
 
     nested_scans = []
     contents = []

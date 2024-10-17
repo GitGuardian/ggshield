@@ -4,7 +4,7 @@ import os
 import sys
 from ast import literal_eval
 from concurrent.futures import Future
-from typing import Dict, Iterable, List, Optional, Set, Union
+from typing import Dict, Iterable, List, Optional, Union
 
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, MultiScanResult
@@ -12,6 +12,7 @@ from pygitguardian.models import Detail, MultiScanResult
 from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_api_error
 from ggshield.core.filter import (
@@ -20,7 +21,6 @@ from ggshield.core.filter import (
 )
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
 from ggshield.core.text_utils import pluralize
-from ggshield.core.types import IgnoredMatch
 from ggshield.core.ui.scanner_ui import ScannerUI
 
 from .secret_scan_collection import Error, Result, Results
@@ -50,8 +50,7 @@ class SecretScanner:
         client: GGClient,
         cache: Cache,
         scan_context: ScanContext,
-        ignored_matches: Optional[Iterable[IgnoredMatch]] = None,
-        ignored_detectors: Optional[Set[str]] = None,
+        secret_config: SecretConfig,
         check_api_key: Optional[bool] = True,
     ):
         if check_api_key:
@@ -59,8 +58,8 @@ class SecretScanner:
 
         self.client = client
         self.cache = cache
-        self.ignored_matches = ignored_matches or []
-        self.ignored_detectors = ignored_detectors
+        self.ignored_matches = secret_config.ignored_matches or []
+        self.ignored_detectors = secret_config.ignored_detectors
         self.headers = scan_context.get_http_headers()
         self.command_id = scan_context.command_id
 

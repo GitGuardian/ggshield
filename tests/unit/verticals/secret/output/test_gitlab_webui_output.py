@@ -3,6 +3,7 @@ from copy import deepcopy
 import pytest
 from pygitguardian.models import Match, PolicyBreak
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import StringScannable
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output.secret_gitlab_webui_output_handler import (
@@ -39,9 +40,10 @@ def test_gitlab_web_ui_output_no_secrets(ignore_known_secrets):
     WHEN GitLabWebUIOutputHandler manipulates the corresponding scan
     THEN the error message is empty as expected and the status code is zero
     """
-    output_handler = SecretGitLabWebUIOutputHandler(
+    secret_config = SecretConfig(
         show_secrets=True, ignore_known_secrets=ignore_known_secrets
     )
+    output_handler = SecretGitLabWebUIOutputHandler(secret_config=secret_config)
     scan = SecretScanCollection(
         id="scan",
         type="test",
@@ -98,9 +100,10 @@ def test_gitlab_web_ui_output_ignore_known_secrets(secrets_types, ignore_known_s
             f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
         )
 
-    output_handler = SecretGitLabWebUIOutputHandler(
+    secret_config = SecretConfig(
         show_secrets=True, ignore_known_secrets=ignore_known_secrets
     )
+    output_handler = SecretGitLabWebUIOutputHandler(secret_config=secret_config)
     output = output_handler._process_scan_impl(
         SecretScanCollection(
             id="outer_scan",
