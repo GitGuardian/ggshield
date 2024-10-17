@@ -24,11 +24,13 @@ REGEX_GIT_URL = re.compile(
 
 
 @click.command()
+@click.option("--no-mirror", is_flag=True, default=False,
+              help="Don't clone with git --mirror")
 @click.argument("repository", nargs=1, type=click.STRING, required=True)
 @add_secret_scan_common_options()
 @click.pass_context
 def repo_cmd(
-    ctx: click.Context, repository: str, **kwargs: Any
+    ctx: click.Context, repository: str, no_mirror : bool, **kwargs: Any
 ) -> int:  # pragma: no cover
     """
     Scan a REPOSITORY's commits at the given URL or path.
@@ -60,7 +62,10 @@ def repo_cmd(
 
     if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            git(["clone", repository, tmpdirname])
+            git_arguments = ["clone", "--mirror", repository, tmpdirname]
+            if no_mirror:
+                git_arguments.remove("--mirror")
+            git(git_arguments)
             scan_context.target_path = Path(tmpdirname)
             return scan_repo_path(
                 client=client,
