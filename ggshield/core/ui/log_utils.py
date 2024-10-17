@@ -44,8 +44,8 @@ def set_log_handler(filename: Optional[str] = None) -> None:
     logging.basicConfig(level=logging.DEBUG, force=True, handlers=[_log_handler])
 
 
-def reset_log_handler():
-    """Remove our log handler. Used by unit tests."""
+def _reset_log_handler():
+    """Remove our log handler. Used by reset.reset()."""
     global _log_handler
     if _log_handler:
         logging.getLogger().removeHandler(_log_handler)

@@ -80,4 +80,4 @@ def test_sca_scan_ci_non_mr_env(
             sca_scan_all_mock.call_args.kwargs.items()
         )
         assert result.exit_code == ExitCode.SUCCESS
-        assert "WARNING: " in result.stderr
+        assert "Warning: " in result.stderr

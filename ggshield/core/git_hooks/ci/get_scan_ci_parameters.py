@@ -2,8 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
-import click
-
+from ggshield.core import ui
 from ggshield.core.errors import NotAMergeRequestError, UnexpectedError
 from ggshield.utils.git_shell import get_commits_not_in_branch, get_remotes
 
@@ -34,9 +33,7 @@ CI_TARGET_BRANCH_ASSOC: Dict[SupportedCI, str] = {
 
 
 def get_scan_ci_parameters(
-    current_ci: SupportedCI,
-    wd: Optional[Union[str, Path]] = None,
-    verbose: bool = False,
+    current_ci: SupportedCI, wd: Optional[Union[str, Path]] = None
 ) -> Union[Tuple[str, str], None]:
     """
     Function used to gather current commit and reference commit, for the SCA/IaC scan
@@ -48,11 +45,7 @@ def get_scan_ci_parameters(
 
     Note: this function will not work (i.e. probably raise) if the git directory is a shallow clone
     """
-    if verbose:
-        click.echo(
-            f"\tIdentified current ci as {current_ci.value}",
-            err=True,
-        )
+    ui.display_verbose(f"\tIdentified current ci as {current_ci.value}")
 
     if current_ci == SupportedCI.TRAVIS:
         return travis_scan_ci_args()
@@ -60,18 +53,10 @@ def get_scan_ci_parameters(
     remotes = get_remotes(wd=wd)
     if len(remotes) == 0:
         # note: this should not happen in practice, esp. in a CI job
-        if verbose:
-            click.echo(
-                "\tNo remote found.",
-                err=True,
-            )
+        ui.display_verbose("\tNo remote found.")
         remote_prefix = ""
     else:
-        if verbose:
-            click.echo(
-                f"\tUsing first remote {remotes[0]}.",
-                err=True,
-            )
+        ui.display_verbose(f"\tUsing first remote {remotes[0]}.")
         remote_prefix = f"{remotes[0]}/"
 
     target_branch_var = CI_TARGET_BRANCH_ASSOC.get(current_ci)
@@ -100,13 +85,11 @@ def get_scan_ci_parameters(
 
     current_commit = mr_commits[0]
     reference_commit = mr_commits[-1] + "~1"
-    if verbose:
-        click.echo(
-            (
-                f"\tIdentified current commit as {current_commit}\n"
-                f"\tIdentified reference commit as {reference_commit}"
-            ),
-            err=True,
+    ui.display_verbose(
+        (
+            f"\tIdentified current commit as {current_commit}\n"
+            f"\tIdentified reference commit as {reference_commit}"
         )
+    )
 
     return current_commit, reference_commit

@@ -59,17 +59,10 @@ class PlainTextGGShieldUI(GGShieldUI):
             self.display_warning(f"Unsupported log level {level}")
             self.display_error(msg)
 
-    def create_scanner_ui(
-        self,
-        total: int,
-        verbose: bool = False,
-    ) -> ScannerUI:
+    def create_scanner_ui(self, total: int) -> ScannerUI:
         return PlainTextScannerUI()
 
-    def create_message_only_scanner_ui(
-        self,
-        verbose: bool = False,
-    ) -> ScannerUI:
+    def create_message_only_scanner_ui(self) -> ScannerUI:
         return PlainTextScannerUI()
 
     def create_progress(self, total: int) -> GGShieldProgress:

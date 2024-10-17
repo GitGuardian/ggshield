@@ -5,6 +5,7 @@ import click
 import pytest
 
 from ggshield.__main__ import cli
+from ggshield.core import ui
 from ggshield.core.errors import ExitCode
 from ggshield.core.git_hooks.ci.commit_range import gitlab_ci_range
 from ggshield.utils.git_shell import EMPTY_SHA
@@ -69,11 +70,14 @@ def test_gitlab_ci_range(
 ):
     """
     GIVEN a GitLab CI environment
-    WHEN gitlab_ci_range(verbose=True) is called
+    AND verbose mode has been activated
+    WHEN gitlab_ci_range() is called
     THEN the correct commit range is requested
     AND stdout is empty (to avoid polluting redirections)
     AND stderr is not empty
     """
+    ui.set_level(ui.Level.VERBOSE)
+
     monkeypatch.setenv("CI", "1")
     monkeypatch.setenv("GITLAB_CI", "1")
     for k, v in env.items():
@@ -81,7 +85,7 @@ def test_gitlab_ci_range(
 
     get_list_mock.return_value = ["a"] * 51
 
-    gitlab_ci_range(verbose=True)
+    gitlab_ci_range()
     get_list_mock.assert_called_once_with(expected_parameter)
 
     captured = capsys.readouterr()

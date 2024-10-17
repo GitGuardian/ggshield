@@ -33,11 +33,3 @@ def setup_debug_mode(*, filename: Optional[str] = None) -> None:
 
     logger.debug("args=%s", sys.argv)
     logger.debug("py-gitguardian=%s", pygitguardian.__version__)
-
-
-def reset_debug_mode() -> None:
-    """
-    This function is used by unit-tests.
-    """
-    log_utils.reset_log_handler()
-    ui.set_level(ui.Level.INFO)

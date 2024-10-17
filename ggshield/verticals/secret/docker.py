@@ -328,7 +328,6 @@ def docker_scan_archive(
     matches_ignore: Iterable[IgnoredMatch],
     scan_context: ScanContext,
     ignored_detectors: Optional[Set[str]] = None,
-    verbose: bool = False,
 ) -> SecretScanCollection:
     scanner = SecretScanner(
         client=client,

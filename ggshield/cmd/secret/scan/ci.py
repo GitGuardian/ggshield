@@ -11,6 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.scan import ScanContext, ScanMode
@@ -32,11 +33,10 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     if not (os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")):
         raise UsageError("`secret scan ci` should only be used in a CI environment.")
 
-    commit_list, ci_mode = collect_commit_range_from_ci_env(config.user_config.verbose)
+    commit_list, ci_mode = collect_commit_range_from_ci_env()
     mode_header = f"{ScanMode.CI.value}/{ci_mode.value}"
 
-    if config.user_config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}", err=True)
+    ui.display_verbose(f"Commits to scan: {len(commit_list)}")
 
     scan_context = ScanContext(
         scan_mode=mode_header,

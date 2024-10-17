@@ -28,7 +28,7 @@ from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
-from ggshield.core.ui import log_utils
+from ggshield.core.ui import ensure_level, log_utils
 from ggshield.core.ui.rich import RichGGShieldUI
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
@@ -57,19 +57,6 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     return exit_code
 
 
-def config_path_callback(
-    ctx: click.Context, param: click.Parameter, value: Optional[Path]
-) -> Optional[Path]:
-    # The --config option is marked as "is_eager" to ensure it's called before all the
-    # others. This makes it the right place to create the configuration object.
-    if not ctx.obj:
-        ctx.obj = ContextObj()
-        ctx.obj.cache = Cache()
-
-    ctx.obj.config = Config(value)
-    return value
-
-
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
@@ -91,24 +78,38 @@ def config_path_callback(
     type=RealPath(exists=True, resolve_path=True, file_okay=True, dir_okay=False),
     is_eager=True,
     help="Set a custom config file. Ignores local and global config files.",
-    callback=config_path_callback,
 )
 @add_common_options()
 @click.version_option(version=__version__)
 @click.pass_context
 def cli(
     ctx: click.Context,
+    *,
+    allow_self_signed: Optional[bool],
+    config_path: Optional[Path],
     **kwargs: Any,
 ) -> None:
+    # Create ContextObj, load config
+    ctx.obj = ctx_obj = ContextObj()
+    ctx_obj.cache = Cache()
+    ctx_obj.config = Config(config_path)
+    user_config = ctx_obj.config.user_config
+
+    # If the config wants a higher UI level, set it now
+    if user_config.debug and ui.get_level() < ui.Level.DEBUG:
+        setup_debug_mode()
+    elif user_config.verbose and ui.get_level() < ui.Level.VERBOSE:
+        ensure_level(ui.Level.VERBOSE)
+
+    # Update allow_self_signed in the config
+    # TODO: this should be reworked: if a command which writes the config is called with
+    # --allow-self-signed, the config will contain `allow_self_signed: true`.
+    if allow_self_signed:
+        user_config.allow_self_signed = allow_self_signed
+
     load_dot_env()
 
-    config = ContextObj.get(ctx).config
-
     _set_color(ctx)
-
-    if config.user_config.debug:
-        # if `debug` is set in the configuration file, then setup debug mode now.
-        setup_debug_mode()
 
 
 def _set_color(ctx: click.Context):
