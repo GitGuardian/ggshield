@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.32.2'></a>
+
+## 1.32.2 — 2024-10-16
+
+### Fixed
+
+- Fixed a regression introduced in ggshield 1.32.1, which made `ggshield install -m global` crash (#972).
+
 <a id='changelog-1.32.1'></a>
 
 ## 1.32.1 — 2024-10-01
