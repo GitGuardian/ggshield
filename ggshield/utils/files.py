@@ -54,6 +54,12 @@ def list_files(
     targets: Set[Path] = set()
     for path in paths:
         if path.is_file():
+            if (
+                list_files_mode == ListFilesMode.ALL_BUT_GITIGNORED
+                and is_git_dir(path.parent)
+                and path.name not in git_ls_unstaged(path.parent) + git_ls(path.parent)
+            ):
+                continue
             targets.add(path)
         elif path.is_dir():
             _targets = set()
