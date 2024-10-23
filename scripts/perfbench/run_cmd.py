@@ -57,7 +57,7 @@ def setup_ggshield(work_dir: Path, version: str) -> Path:
         ggshield_base_dir.mkdir(parents=True)
         logging.info("Installing ggshield %s in %s", version, ggshield_base_dir)
         out = subprocess.run(
-            ["pipenv", "run", "pip", "install", f"ggshield=={version}"],
+            ["pdm", "run", "pip", "install", f"ggshield=={version}"],
             cwd=str(ggshield_base_dir),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -70,7 +70,7 @@ def setup_ggshield(work_dir: Path, version: str) -> Path:
             sys.exit(128)
 
     proc = check_run(
-        ["pipenv", "run", "which", "ggshield"],
+        ["pdm", "run", "which", "ggshield"],
         cwd=str(ggshield_base_dir),
         capture_output=True,
         text=True,

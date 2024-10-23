@@ -111,12 +111,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade \
-            pipenv==2023.12.1 \
+            pdm \
             pyinstaller==6.7.0
-          pipenv install --system --dev
-        env:
-          # Disable lock otherwise Windows-only dependencies like colorama are not installed
-          PIPENV_SKIP_LOCK: 1
+          pdm sync --global --project . --dev
 
       - name: Install Linux specific dependencies
         if: matrix.os == 'ubuntu-22.04'
