@@ -143,3 +143,23 @@ def test_get_ignored_files(tmp_path, file_path, expected):
 def test_url_for_path(path: PurePath, expected_url: str):
     url = url_for_path(path)
     assert url == expected_url
+
+
+def test_get_gitignored_files(tmp_path):
+    """
+    GIVEN a file, that is in the .gitignore
+    WHEN listing its content
+    THEN an empty set is returned
+    """
+    Repository.create(tmp_path)
+    file_full_path = tmp_path / "file.txt"
+    write_text(filename=str(tmp_path / ".gitignore"), content="file.txt")
+    write_text(filename=str(file_full_path), content="")
+
+    file_paths = list_files(
+        paths=[file_full_path],
+        exclusion_regexes=set(),
+        list_files_mode=ListFilesMode.ALL_BUT_GITIGNORED,
+    )
+
+    assert file_paths == set()
