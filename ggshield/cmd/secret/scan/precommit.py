@@ -60,14 +60,13 @@ def precommit_cmd(
     """
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
-    verbose = config.user_config.verbose
 
     if check_user_requested_skip():
         return 0
 
     output_handler = SecretTextOutputHandler(
         show_secrets=config.user_config.secret.show_secrets,
-        verbose=verbose,
+        verbose=ui.is_verbose(),
         client=ctx_obj.client,
         output=None,
         ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
@@ -97,15 +96,12 @@ def precommit_cmd(
         ignored_matches=config.user_config.secret.ignored_matches,
         ignored_detectors=config.user_config.secret.ignored_detectors,
     )
-    with ui.create_scanner_ui(len(commit.urls), verbose=verbose) as scanner_ui:
+    with ui.create_scanner_ui(len(commit.urls)) as scanner_ui:
         results = scanner.scan(commit.get_files(), scanner_ui)
 
     return_code = output_handler.process_scan(
         SecretScanCollection(id="cached", type="pre-commit", results=results)
     )
     if return_code:
-        click.echo(
-            ctx_obj.client.remediation_messages.pre_commit,
-            err=True,
-        )
+        ui.display_info(ctx_obj.client.remediation_messages.pre_commit)
     return return_code

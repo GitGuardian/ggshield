@@ -1,10 +1,8 @@
 from functools import wraps
 from typing import Callable, TypeVar
 
-import click
 from typing_extensions import ParamSpec
 
-from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.errors import handle_exception
 
@@ -19,9 +17,7 @@ def exception_wrapper(func: Callable[P, int]) -> Callable[P, int]:
         try:
             return func(*args, **kwargs)
         except Exception as error:
-            ctx = next(arg for arg in args if isinstance(arg, click.Context))
-            config = ContextObj.get(ctx).config
-            return handle_exception(error, config.user_config.verbose)
+            return handle_exception(error)
 
     return wrapper
 

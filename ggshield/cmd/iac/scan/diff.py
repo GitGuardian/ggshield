@@ -115,31 +115,32 @@ def iac_scan_diff(
 
     check_directory_not_ignored(directory, exclusion_regexes)
 
-    verbose = config.user_config.verbose if config and config.user_config else False
+    verbose = ui.is_verbose()
+
     if verbose:
         if previous_ref is None:
-            ui.display_info("> No file to scan in reference.")
+            ui.display_verbose("> No file to scan in reference.")
         else:
-            ui.display_info(f"> Scanned files in reference {previous_ref}")
+            ui.display_verbose(f"> Scanned files in reference {previous_ref}")
             filepaths = filter_iac_filepaths(
                 directory, get_git_filepaths(directory, previous_ref)
             )
             for filepath in filepaths:
-                ui.display_info(f"- {click.format_filename(filepath)}")
-            ui.display_info("")
+                ui.display_verbose(f"- {click.format_filename(filepath)}")
+            ui.display_verbose("")
 
     if current_ref is None:
         current_ref = INDEX_REF if include_staged else "HEAD"
     if verbose:
         if include_staged:
-            ui.display_info("> Scanned files in current state (staged)")
+            ui.display_verbose("> Scanned files in current state (staged)")
         else:
-            ui.display_info("> Scanned files in current state")
+            ui.display_verbose("> Scanned files in current state")
         filepaths = filter_iac_filepaths(
             directory, get_git_filepaths(directory=directory, ref=current_ref)
         )
         for filepath in filepaths:
-            ui.display_info(f"- {click.format_filename(filepath)}")
+            ui.display_verbose(f"- {click.format_filename(filepath)}")
 
     modified_iac_files = []
 

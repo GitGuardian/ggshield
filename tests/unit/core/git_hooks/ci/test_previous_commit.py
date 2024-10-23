@@ -99,7 +99,7 @@ def test_get_previous_commit_from_ci_env_new_branch(
     with cd(repository.path), mock.patch.dict(os.environ, clear=True):
         # Simulate CI env
         setup_ci_env(monkeypatch, "new-branch", head_sha)
-        found_sha = get_previous_commit_from_ci_env(False)
+        found_sha = get_previous_commit_from_ci_env()
 
     assert found_sha is not None, "No previous commit SHA found"
     found_sha_evaluated = git(["rev-parse", found_sha], cwd=repository.path)
@@ -126,7 +126,7 @@ def test_get_previous_commit_from_ci_env_new_repo(
     with cd(repository.path), mock.patch.dict(os.environ, clear=True):
         # Simulate CI env
         setup_ci_env(monkeypatch, "new-branch", "HEAD")
-        assert get_previous_commit_from_ci_env(False) is None
+        assert get_previous_commit_from_ci_env() is None
 
 
 @parametrized_ci_provider
@@ -165,7 +165,7 @@ def test_get_previous_commit_from_ci_env_sub_branch_forced_push(
     with cd(repository.path), mock.patch.dict(os.environ, clear=True):
         # Simulate CI env
         setup_ci_env(monkeypatch, branch_name, "HEAD", before_sha)
-        found_sha = get_previous_commit_from_ci_env(False)
+        found_sha = get_previous_commit_from_ci_env()
 
     assert found_sha is None
 
@@ -197,7 +197,7 @@ def test_get_previous_commit_from_ci_env_default_branch_forced_push(
     with cd(repository.path), mock.patch.dict(os.environ, clear=True):
         # Simulate CI env
         setup_ci_env(monkeypatch, "new-branch", "HEAD", before_sha)
-        assert get_previous_commit_from_ci_env(False) is None
+        assert get_previous_commit_from_ci_env() is None
 
 
 @parametrized_ci_provider
@@ -225,4 +225,4 @@ def test_get_previous_commit_from_ci_env_all_commits_forced_push(
     with cd(repository.path), mock.patch.dict(os.environ, clear=True):
         # Simulate CI env
         setup_ci_env(monkeypatch, "new-branch", "HEAD", before_sha)
-        assert get_previous_commit_from_ci_env(False) is None
+        assert get_previous_commit_from_ci_env() is None

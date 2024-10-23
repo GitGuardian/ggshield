@@ -64,10 +64,7 @@ def sca_scan_all(
     check_directory_not_ignored(directory, exclusion_regexes)
 
     sca_filepaths, sca_filter_status_code = get_sca_scan_all_filepaths(
-        directory=directory,
-        exclusion_regexes=exclusion_regexes,
-        verbose=config.user_config.verbose,
-        client=client,
+        directory=directory, exclusion_regexes=exclusion_regexes, client=client
     )
 
     if len(sca_filepaths) == 0:
@@ -109,10 +106,7 @@ def sca_scan_all(
 
 
 def get_sca_scan_all_filepaths(
-    directory: Path,
-    exclusion_regexes: Set[Pattern[str]],
-    verbose: bool,
-    client: GGClient,
+    directory: Path, exclusion_regexes: Set[Pattern[str]], client: GGClient
 ) -> Tuple[List[str], int]:
     """
     Retrieve SCA related files of a directory.
@@ -140,10 +134,10 @@ def get_sca_scan_all_filepaths(
     # Only sca_files field is useful in the case of a full_scan,
     # all the potential files already exist in `all_filepaths`
     sca_files = response.sca_files
-    if verbose:
-        ui.display_info("> Scanned files:")
+    if ui.is_verbose():
+        ui.display_verbose("> Scanned files:")
         for filename in sca_files:
-            ui.display_info(f"- {click.format_filename(filename)}")
+            ui.display_verbose(f"- {click.format_filename(filename)}")
 
     return sca_files, response.status_code
 
@@ -159,7 +153,7 @@ def create_output_handler(ctx: click.Context) -> SCAOutputHandler:
         output_handler_cls = SCATextOutputHandler
     config = ctx_obj.config
     return output_handler_cls(
-        verbose=config.user_config.verbose, exit_zero=config.user_config.exit_zero
+        verbose=ui.is_verbose(), exit_zero=config.user_config.exit_zero
     )
 
 
@@ -204,19 +198,11 @@ def sca_scan_diff(
         previous_files = []
     else:
         previous_files = sca_files_from_git_repo(
-            directory,
-            previous_ref,
-            client,
-            exclusion_regexes=exclusion_regexes,
-            verbose=config.user_config.verbose,
+            directory, previous_ref, client, exclusion_regexes=exclusion_regexes
         )
 
     current_files = sca_files_from_git_repo(
-        directory,
-        current_ref,
-        client,
-        exclusion_regexes=exclusion_regexes,
-        verbose=config.user_config.verbose,
+        directory, current_ref, client, exclusion_regexes=exclusion_regexes
     )
 
     if len(previous_files) == 0 and len(current_files) == 0:

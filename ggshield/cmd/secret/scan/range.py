@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import get_list_commit_SHA
 from ggshield.verticals.secret.repo import scan_commit_range
@@ -37,8 +38,7 @@ def range_cmd(
     commit_list = get_list_commit_SHA(commit_range)
     if not commit_list:
         raise UsageError("invalid commit range")
-    if config.user_config.verbose:
-        click.echo(f"Commits to scan: {len(commit_list)}", err=True)
+    ui.display_verbose(f"Commits to scan: {len(commit_list)}")
 
     scan_context = ScanContext(
         scan_mode=ScanMode.COMMIT_RANGE,
@@ -55,5 +55,4 @@ def range_cmd(
         matches_ignore=config.user_config.secret.ignored_matches,
         scan_context=scan_context,
         ignored_detectors=config.user_config.secret.ignored_detectors,
-        verbose=config.user_config.verbose,
     )

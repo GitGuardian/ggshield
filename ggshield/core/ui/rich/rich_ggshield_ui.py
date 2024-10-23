@@ -63,18 +63,11 @@ class RichGGShieldUI(GGShieldUI):
         self.console = Console(file=sys.stderr)
         self._previous_timestamp = ""
 
-    def create_scanner_ui(
-        self,
-        total: int,
-        verbose: bool = False,
-    ) -> ScannerUI:
-        return RichProgressScannerUI(self, total, verbose)
+    def create_scanner_ui(self, total: int) -> ScannerUI:
+        return RichProgressScannerUI(self, total)
 
-    def create_message_only_scanner_ui(
-        self,
-        verbose: bool = False,
-    ) -> ScannerUI:
-        return RichMessageOnlyScannerUI(self, verbose)
+    def create_message_only_scanner_ui(self) -> ScannerUI:
+        return RichMessageOnlyScannerUI(self)
 
     def create_progress(self, total: int) -> GGShieldProgress:
         return RichGGShieldProgress(self.console, total)

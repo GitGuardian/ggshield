@@ -13,7 +13,6 @@ from ggshield.cmd.utils.common_options import (
     json_option,
     text_json_format_option,
 )
-from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import pluralize
@@ -156,8 +155,7 @@ def check_hashicorp_vault_cmd(
             f"Could not fetch {len(result.not_fetched_paths)} paths. "
             "Make sure your token has access to all the secrets in your vault."
         )
-        config = ContextObj.get(ctx).config
-        if config.user_config.verbose:
+        if ui.is_verbose():
             ui.display_error("> The following paths could not be fetched:")
             for path in result.not_fetched_paths:
                 ui.display_error(f"- {path}")

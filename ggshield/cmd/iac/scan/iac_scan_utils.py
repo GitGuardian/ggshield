@@ -38,7 +38,7 @@ def create_output_handler(ctx: click.Context) -> IaCOutputHandler:
         output_handler_cls = IaCJSONOutputHandler
     else:
         output_handler_cls = IaCTextOutputHandler
-    return output_handler_cls(verbose=ctx_obj.config.user_config.verbose)
+    return output_handler_cls(verbose=ui.is_verbose())
 
 
 def handle_scan_error(client: GGClient, detail: Detail) -> None:

@@ -3,8 +3,6 @@ import os
 import sys
 from typing import Optional, Tuple
 
-import click
-
 from ggshield.core import ui
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import EMPTY_SHA, git
@@ -36,9 +34,8 @@ def get_breakglass_option() -> bool:
     if option_count is not None:
         for option in range(option_count):
             if os.getenv(f"GIT_PUSH_OPTION_{option}", "") == "breakglass":
-                click.echo(
-                    "SKIP: breakglass detected. Skipping GitGuardian pre-receive hook.",
-                    err=True,
+                ui.display_info(
+                    "SKIP: breakglass detected. Skipping GitGuardian pre-receive hook."
                 )
                 return True
 
@@ -78,7 +75,7 @@ def parse_stdin() -> Optional[Tuple[str, str]]:
 
     if new_commit == EMPTY_SHA:
         # Deletion event, nothing to do
-        click.echo("Deletion event or nothing to scan.", err=True)
+        ui.display_info("Deletion event or nothing to scan.")
         return None
 
     # ignore _old_commit because in case of a force-push, it is going to be overwritten
@@ -93,10 +90,7 @@ def parse_stdin() -> Optional[Tuple[str, str]]:
     assert old_commit != EMPTY_SHA
     assert new_commit != EMPTY_SHA
     if old_commit == new_commit:
-        click.echo(
-            "Pushed branch does not contain any new commit.",
-            err=True,
-        )
+        ui.display_info("Pushed branch does not contain any new commit.")
         return None
 
     return (old_commit, new_commit)

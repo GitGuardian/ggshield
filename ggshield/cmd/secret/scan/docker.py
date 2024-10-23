@@ -60,7 +60,6 @@ def docker_name_cmd(
             matches_ignore=config.user_config.secret.ignored_matches,
             scan_context=scan_context,
             ignored_detectors=config.user_config.secret.ignored_detectors,
-            verbose=config.user_config.verbose,
         )
 
         return output_handler.process_scan(scan)
