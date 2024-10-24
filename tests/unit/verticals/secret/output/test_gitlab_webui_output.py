@@ -43,7 +43,9 @@ def test_gitlab_web_ui_output_no_secrets(ignore_known_secrets):
     secret_config = SecretConfig(
         show_secrets=True, ignore_known_secrets=ignore_known_secrets
     )
-    output_handler = SecretGitLabWebUIOutputHandler(secret_config=secret_config)
+    output_handler = SecretGitLabWebUIOutputHandler(
+        secret_config=secret_config, verbose=False
+    )
     scan = SecretScanCollection(
         id="scan",
         type="test",
@@ -103,7 +105,9 @@ def test_gitlab_web_ui_output_ignore_known_secrets(secrets_types, ignore_known_s
     secret_config = SecretConfig(
         show_secrets=True, ignore_known_secrets=ignore_known_secrets
     )
-    output_handler = SecretGitLabWebUIOutputHandler(secret_config=secret_config)
+    output_handler = SecretGitLabWebUIOutputHandler(
+        secret_config=secret_config, verbose=False
+    )
     output = output_handler._process_scan_impl(
         SecretScanCollection(
             id="outer_scan",

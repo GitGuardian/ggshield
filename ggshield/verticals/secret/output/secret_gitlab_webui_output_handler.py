@@ -1,5 +1,3 @@
-from typing import Any
-
 from pygitguardian.models import PolicyBreak
 
 from ggshield.core.filter import censor_match
@@ -33,13 +31,6 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
     """
 
     use_stderr = True
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(
-            *args,
-            **kwargs,
-            verbose=False,
-        )
 
     def _process_scan_impl(self, scan: SecretScanCollection) -> str:
         results = list(scan.get_all_results())
