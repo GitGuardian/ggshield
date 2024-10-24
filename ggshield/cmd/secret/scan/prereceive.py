@@ -94,7 +94,7 @@ def prereceive_cmd(
     if os.getenv("GL_PROTOCOL") == "web":
         # We are inside GitLab web UI
         output_handler = SecretGitLabWebUIOutputHandler(
-            secret_config=config.user_config.secret
+            secret_config=config.user_config.secret, verbose=False
         )
 
     if get_breakglass_option():
