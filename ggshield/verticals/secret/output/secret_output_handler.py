@@ -5,12 +5,12 @@ from typing import Optional
 import click
 from pygitguardian import GGClient
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import ExitCode
 from ggshield.verticals.secret import SecretScanCollection
 
 
 class SecretOutputHandler(ABC):
-    show_secrets: bool = False
     verbose: bool = False
     client: Optional[GGClient] = None
     output: Optional[Path] = None
@@ -18,19 +18,17 @@ class SecretOutputHandler(ABC):
 
     def __init__(
         self,
-        show_secrets: bool,
         verbose: bool,
+        secret_config: SecretConfig,
         client: Optional[GGClient] = None,
         output: Optional[Path] = None,
-        ignore_known_secrets: bool = False,
-        with_incident_details: bool = False,
     ):
-        self.show_secrets = show_secrets
+        self.show_secrets = secret_config.show_secrets
         self.verbose = verbose
         self.client = client
         self.output = output
-        self.ignore_known_secrets = ignore_known_secrets
-        self.with_incident_details = with_incident_details
+        self.ignore_known_secrets = secret_config.ignore_known_secrets
+        self.with_incident_details = secret_config.with_incident_details
 
     def process_scan(self, scan: SecretScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`

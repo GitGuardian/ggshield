@@ -32,15 +32,6 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
 
     use_stderr = True
 
-    def __init__(
-        self, show_secrets: bool = False, ignore_known_secrets: bool = False
-    ) -> None:
-        super().__init__(
-            show_secrets=show_secrets,
-            verbose=False,
-            ignore_known_secrets=ignore_known_secrets,
-        )
-
     def _process_scan_impl(self, scan: SecretScanCollection) -> str:
         results = list(scan.get_all_results())
         # If no secrets or no new secrets were found

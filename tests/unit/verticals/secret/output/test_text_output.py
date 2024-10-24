@@ -4,6 +4,7 @@ from unittest import mock
 import click
 import pytest
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import StringScannable
 from ggshield.utils.git_shell import Filemode
@@ -117,8 +118,9 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     ) as VERSIONS:
         VERSIONS.secrets_engine_version = "3.14.159"
 
+        secret_config = SecretConfig(show_secrets=show_secrets)
         output_handler = SecretTextOutputHandler(
-            show_secrets=show_secrets, verbose=verbose
+            secret_config=secret_config, verbose=verbose
         )
 
         # _process_scan_impl() modifies its SecretScanCollection arg(!), so make a copy of it
@@ -224,8 +226,11 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     WHEN generating text output
     THEN if ignore_known_secrets is used, do not show known secret (unless the verbose mode)
     """
+    secret_config = SecretConfig(
+        show_secrets=True, ignore_known_secrets=ignore_known_secrets
+    )
     output_handler = SecretTextOutputHandler(
-        show_secrets=True, verbose=verbose, ignore_known_secrets=ignore_known_secrets
+        secret_config=secret_config, verbose=verbose
     )
 
     result: Result = Result(
@@ -296,9 +301,10 @@ def test_ignore_known_secrets_exit_code(ignore_known_secrets, secrets_types):
     WHEN checking for the exit code
     THEN the exit code is 1 when the new secrets are present, and 0 otherwise
     """
-    output_handler = SecretTextOutputHandler(
-        show_secrets=True, verbose=False, ignore_known_secrets=ignore_known_secrets
+    secret_config = SecretConfig(
+        show_secrets=True, ignore_known_secrets=ignore_known_secrets
     )
+    output_handler = SecretTextOutputHandler(secret_config=secret_config, verbose=False)
 
     result: Result = Result(
         StringScannable(

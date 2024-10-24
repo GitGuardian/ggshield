@@ -7,6 +7,7 @@ from pygitguardian.models import MultiScanResult, ScanResult
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.utils.os import cd, get_os_info
 from ggshield.verticals.secret import SecretScanner
@@ -47,6 +48,7 @@ def test_request_headers(scan_mock: Mock, client):
                 command_path=ctx.command_path,
             ),
             check_api_key=False,
+            secret_config=SecretConfig(),
         )
         scanner.scan(c.get_files(), scanner_ui=Mock())
     scan_mock.assert_called_with(
