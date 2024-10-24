@@ -62,6 +62,7 @@ class SecretScanner:
         self.ignored_detectors = secret_config.ignored_detectors
         self.headers = scan_context.get_http_headers()
         self.command_id = scan_context.command_id
+        self.all_secrets = secret_config.all_secrets
 
     def scan(
         self,
@@ -107,6 +108,7 @@ class SecretScanner:
             documents,
             self.headers,
             ignore_known_secrets=True,
+            all_secrets=self.all_secrets,
         )
 
     def _start_scans(

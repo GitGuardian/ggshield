@@ -132,7 +132,8 @@ class SecretScanCollection:
         (
             self.known_secrets_count,
             self.new_secrets_count,
-        ) = self._get_known_new_secrets_count()
+            self.excluded_secrets_count,
+        ) = self._get_secrets_count()
 
     @property
     def has_new_secrets(self) -> bool:
@@ -152,7 +153,7 @@ class SecretScanCollection:
     def has_results(self) -> bool:
         return bool(self.results and self.results.results)
 
-    def _get_known_new_secrets_count(self) -> Tuple[int, int]:
+    def _get_secrets_count(self) -> Tuple[int, int, int]:
         policy_breaks = []
         for result in self.get_all_results():
             for policy_break in result.scan.policy_breaks:
@@ -160,15 +161,18 @@ class SecretScanCollection:
 
         known_secrets_count = 0
         new_secrets_count = 0
+        excluded_secrets_count = 0
         sha_dict = group_policy_breaks_by_ignore_sha(policy_breaks)
 
         for ignore_sha, policy_breaks in sha_dict.items():
-            if policy_breaks[0].known_secret:
+            if policy_breaks[0].is_excluded:
+                excluded_secrets_count += 1
+            elif policy_breaks[0].known_secret:
                 known_secrets_count += 1
             else:
                 new_secrets_count += 1
 
-        return known_secrets_count, new_secrets_count
+        return known_secrets_count, new_secrets_count, excluded_secrets_count
 
     def get_all_results(self) -> Iterable[Result]:
         """Returns an iterable on all results and sub-scan results"""

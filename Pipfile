@@ -23,13 +23,11 @@ snapshottest = "*"
 typing-extensions = "*"
 import-linter = "*"
 jsonschema = "*"
-
 vcrpy = "==5.1.0"
-
 # Dependency of pytest-voluptuous. Pin it because 0.15.0 does not
 # support Python 3.8 anymore.
 voluptuous = "<0.15.0"
-
 pyfakefs = ">=5.2.0, < 5.6.0" # Pin because 5.6.0 currently (2024-07-15) does not work on Windows
 scriv = { version = "*", extras = ["toml"] }
 pyright = "==1.1.367"
+pygitguardian = {file = "../other/py-gitguardian", editable = true}

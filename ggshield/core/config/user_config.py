@@ -46,6 +46,7 @@ class SecretConfig(FilteredConfig):
     ignored_paths: Set[str] = field(default_factory=set)
     ignore_known_secrets: bool = False
     with_incident_details: bool = False
+    all_secrets: bool = False
     # if configuration key is left unset the dashboard's remediation message is used.
     prereceive_remediation_message: str = ""
 
