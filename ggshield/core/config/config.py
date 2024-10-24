@@ -142,14 +142,15 @@ class Config:
     @property
     def saas_api_url(self) -> str:
         """
-        The GIM SaaS instance (used to get JWT tokens).
-        It is not configurable, but can be overridden with the
-        GITGUARDIAN_SAAS_URL environment variable for tests.
+        The GIM SaaS instance used to get JWT tokens.
+        This can be overridden with the GITGUARDIAN_SAAS_URL environment variable.
+        If the HMSL URL is different from the default, we derive the SaaS API from it.
+        Otherwise the SaaS API URL is actually the one derived from the dashboard
         """
-        if "api" in self.hmsl_url:  # case https://api.hasmysecretleaked.[...]
+        if self.hmsl_url != DEFAULT_HMSL_URL and "api" in self.hmsl_url:
             default_value = self.hmsl_url.replace("hasmysecretleaked", "gitguardian")
-        else:  # case https://hasmysecretleaked.[...]
-            default_value = self.hmsl_url.replace("hasmysecretleaked", "api")
+        else:
+            default_value = self.api_url
 
         return os.environ.get(
             "GITGUARDIAN_SAAS_URL",

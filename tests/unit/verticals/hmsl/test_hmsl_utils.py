@@ -49,13 +49,31 @@ def test_hmsl_other_env_config_values(isolated_fs, hmsl_no_env_vars, monkeypatch
     WHEN getting HasMySecretLeaked config values
     THEN the values are correctly set
     """
+    # If the user defines a custom HMSL URL
     monkeypatch.setenv(
-        "GITGUARDIAN_HMSL_URL", "https://hasmysecretleaked.secretdomain.net"
+        "GITGUARDIAN_HMSL_URL", "https://hasmysecretleaked.env.gitguardian.com"
+    )
+    # They are also expected to set a corresponding GitGuardian instance
+    monkeypatch.setenv("GITGUARDIAN_INSTANCE", "https://dashboard.env.gitguardian.com")
+    config = Config()
+    assert config.hmsl_url == "https://hasmysecretleaked.env.gitguardian.com"
+    assert config.hmsl_audience == "https://hasmysecretleaked.env.gitguardian.com"
+    assert config.saas_api_url == "https://api.env.gitguardian.com"
+
+
+def test_hmsl_region_specific_config_values(isolated_fs, hmsl_no_env_vars, monkeypatch):
+    """
+    GIVEN another SaaS environment
+    WHEN getting HasMySecretLeaked config values
+    THEN the values are correctly set
+    """
+    monkeypatch.setenv(
+        "GITGUARDIAN_INSTANCE", "https://dashboard.region3.gitguardian.com"
     )
     config = Config()
-    assert config.hmsl_url == "https://hasmysecretleaked.secretdomain.net"
-    assert config.hmsl_audience == "https://hasmysecretleaked.secretdomain.net"
-    assert config.saas_api_url == "https://api.secretdomain.net"
+    assert config.hmsl_url == "https://api.hasmysecretleaked.com"
+    assert config.hmsl_audience == "https://api.hasmysecretleaked.com"
+    assert config.saas_api_url == "https://api.region3.gitguardian.com"
 
 
 def test_no_token(isolated_fs, hmsl_no_env_vars):
