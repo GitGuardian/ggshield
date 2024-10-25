@@ -64,8 +64,7 @@ def archive_cmd(
                 client=ctx_obj.client,
                 cache=ctx_obj.cache,
                 scan_context=scan_context,
-                ignored_matches=config.user_config.secret.ignored_matches,
-                ignored_detectors=config.user_config.secret.ignored_detectors,
+                secret_config=config.user_config.secret,
             )
             results = scanner.scan(files, scanner_ui=scanner_ui)
 

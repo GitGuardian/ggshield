@@ -311,9 +311,8 @@ class TestPreReceive:
             commit_list=shas,
             output_handler=ANY,
             exclusion_regexes=ANY,
-            matches_ignore=ANY,
             scan_context=ANY,
-            ignored_detectors=set(),
+            secret_config=ANY,
         )
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")

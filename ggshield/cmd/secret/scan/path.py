@@ -81,9 +81,8 @@ def path_cmd(
         scanner = SecretScanner(
             client=ctx_obj.client,
             cache=ctx_obj.cache,
-            ignored_matches=config.user_config.secret.ignored_matches,
             scan_context=scan_context,
-            ignored_detectors=config.user_config.secret.ignored_detectors,
+            secret_config=config.user_config.secret,
         )
         results = scanner.scan(files, scanner_ui=scanner_ui)
     scan = SecretScanCollection(

@@ -5,18 +5,18 @@ import tarfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Optional, Set
+from typing import Any, Dict, Generator, Iterable, List
 
 from click import UsageError
 from pygitguardian import GGClient
 
 from ggshield.core import ui
 from ggshield.core.cache import Cache
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
-from ggshield.core.types import IgnoredMatch
 from ggshield.utils.files import is_path_binary
 
 from .secret_scan_collection import SecretScanCollection
@@ -325,17 +325,15 @@ def docker_scan_archive(
     archive_path: Path,
     client: GGClient,
     cache: Cache,
-    matches_ignore: Iterable[IgnoredMatch],
+    secret_config: SecretConfig,
     scan_context: ScanContext,
-    ignored_detectors: Optional[Set[str]] = None,
     verbose: bool = False,
 ) -> SecretScanCollection:
     scanner = SecretScanner(
         client=client,
         cache=cache,
         scan_context=scan_context,
-        ignored_matches=matches_ignore,
-        ignored_detectors=ignored_detectors,
+        secret_config=secret_config,
     )
     secrets_engine_version = client.secrets_engine_version
     assert secrets_engine_version is not None

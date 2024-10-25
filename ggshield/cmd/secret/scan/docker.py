@@ -57,9 +57,8 @@ def docker_name_cmd(
             archive_path=archive,
             client=ctx_obj.client,
             cache=ctx_obj.cache,
-            matches_ignore=config.user_config.secret.ignored_matches,
+            secret_config=config.user_config.secret,
             scan_context=scan_context,
-            ignored_detectors=config.user_config.secret.ignored_detectors,
             verbose=config.user_config.verbose,
         )
 

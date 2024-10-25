@@ -66,12 +66,10 @@ def precommit_cmd(
         return 0
 
     output_handler = SecretTextOutputHandler(
-        show_secrets=config.user_config.secret.show_secrets,
         verbose=verbose,
         client=ctx_obj.client,
         output=None,
-        ignore_known_secrets=config.user_config.secret.ignore_known_secrets,
-        with_incident_details=config.user_config.secret.with_incident_details,
+        secret_config=config.user_config.secret,
     )
     check_git_dir()
 
@@ -94,8 +92,7 @@ def precommit_cmd(
         client=ctx_obj.client,
         cache=ctx_obj.cache,
         scan_context=scan_context,
-        ignored_matches=config.user_config.secret.ignored_matches,
-        ignored_detectors=config.user_config.secret.ignored_detectors,
+        secret_config=config.user_config.secret,
     )
     with ui.create_scanner_ui(len(commit.urls), verbose=verbose) as scanner_ui:
         results = scanner.scan(commit.get_files(), scanner_ui)
