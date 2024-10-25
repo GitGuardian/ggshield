@@ -43,7 +43,6 @@ def path_cmd(
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
     output_handler = create_output_handler(ctx)
-    verbose = config.user_config.verbose
 
     for path in paths:
         check_directory_not_ignored(path, ctx_obj.exclusion_regexes)
@@ -62,16 +61,15 @@ def path_cmd(
             ListFilesMode.ALL_BUT_GITIGNORED if use_gitignore else ListFilesMode.ALL
         ),
     )
-    if verbose:
-        print_file_list(files, binary_paths)
+    print_file_list(files, binary_paths)
     if not yes:
         confirm_scan(files)
 
-    if verbose:
+    if ui.is_verbose():
         ui.display_heading("Starting scan")
     target = paths[0] if len(paths) == 1 else Path.cwd()
     target_path = target if target.is_dir() else target.parent
-    with ui.create_scanner_ui(len(files), verbose=verbose) as scanner_ui:
+    with ui.create_scanner_ui(len(files)) as scanner_ui:
         scan_context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path=ctx.command_path,

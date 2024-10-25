@@ -12,13 +12,33 @@ from .plain_text import PlainTextGGShieldUI
 from .scanner_ui import ScannerUI
 
 
-# GGShielUI instance to which top-level function forward their output.
+# GGShieldUI instance to which top-level functions forward their output.
 # Can be changed using set_ui().
 _ui: GGShieldUI = PlainTextGGShieldUI()
 
 
 def set_level(level: Level) -> None:
     _ui.level = level
+
+
+def get_level() -> Level:
+    return _ui.level
+
+
+def ensure_level(level: Level):
+    """
+    Make sure the verbosity level is at least set to `level`
+    """
+    if _ui.level < level:
+        set_level(level)
+
+
+def is_verbose() -> bool:
+    """
+    Convenient function to check if verbose messages are visible. Use this if displaying
+    verbose messages is costly (for example displaying a list of files)
+    """
+    return _ui.level >= Level.VERBOSE
 
 
 def set_ui(ui: GGShieldUI) -> None:
@@ -61,9 +81,15 @@ def create_progress(total: int) -> GGShieldProgress:
     return _ui.create_progress(total)
 
 
-def create_scanner_ui(total: int, verbose: bool = False) -> ScannerUI:
-    return _ui.create_scanner_ui(total, verbose=verbose)
+def create_scanner_ui(total: int) -> ScannerUI:
+    return _ui.create_scanner_ui(total)
 
 
-def create_message_only_scanner_ui(verbose: bool = False) -> ScannerUI:
-    return _ui.create_message_only_scanner_ui(verbose=verbose)
+def create_message_only_scanner_ui() -> ScannerUI:
+    return _ui.create_message_only_scanner_ui()
+
+
+def _reset_ui():
+    """Reset the module to its startup state. Used by reset.reset()."""
+    global _ui
+    _ui = PlainTextGGShieldUI()

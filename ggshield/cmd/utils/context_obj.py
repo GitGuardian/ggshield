@@ -81,4 +81,5 @@ class ContextObj:
     def get(ctx: click.Context) -> "ContextObj":
         """The recommended way to get a ContextObj instance, see the class docstring for
         details"""
+        assert ctx.obj
         return cast(ContextObj, ctx.obj)

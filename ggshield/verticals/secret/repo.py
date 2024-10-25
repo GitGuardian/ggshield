@@ -48,11 +48,10 @@ def scan_repo_path(
                 output_handler=output_handler,
                 exclusion_regexes=exclusion_regexes,
                 scan_context=scan_context,
-                verbose=config.user_config.verbose,
                 secret_config=config.user_config.secret,
             )
     except Exception as error:
-        return handle_exception(error, config.user_config.verbose)
+        return handle_exception(error)
 
 
 def scan_commits_content(
@@ -156,7 +155,6 @@ def scan_commit_range(
     scan_context: ScanContext,
     secret_config: SecretConfig,
     include_staged: bool = False,
-    verbose: bool = False,
 ) -> ExitCode:
     """
     Scan every commit in a range.
@@ -187,11 +185,10 @@ def scan_commit_range(
         scans: List[SecretScanCollection] = []
 
         def commit_scanned_callback(commit: Commit):
-            if verbose:
-                if include_staged and commit.sha is None:
-                    ui.display_info("Scanned staged changes")
-                else:
-                    ui.display_info(f"Scanned {commit.sha}")
+            if include_staged and commit.sha is None:
+                ui.display_verbose("Scanned staged changes")
+            else:
+                ui.display_verbose(f"Scanned {commit.sha}")
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []

@@ -25,10 +25,7 @@ def generate_files_from_docsets(file: TextIO) -> Iterator[Scannable]:
 
 
 def create_scans_from_docset_files(
-    scanner: SecretScanner,
-    input_files: Iterable[TextIO],
-    progress: GGShieldProgress,
-    verbose: bool = False,
+    scanner: SecretScanner, input_files: Iterable[TextIO], progress: GGShieldProgress
 ) -> List[SecretScanCollection]:
     scans: List[SecretScanCollection] = []
 
@@ -36,7 +33,7 @@ def create_scans_from_docset_files(
         ui.display_verbose(f"- {click.format_filename(input_file.name)}")
 
         files = generate_files_from_docsets(input_file)
-        with ui.create_message_only_scanner_ui(verbose=verbose) as scanner_ui:
+        with ui.create_message_only_scanner_ui() as scanner_ui:
             results = scanner.scan(files, scanner_ui=scanner_ui)
         scans.append(
             SecretScanCollection(id=input_file.name, type="docset", results=results)
@@ -80,10 +77,7 @@ def docset_cmd(
             scan_context=scan_context,
         )
         scans = create_scans_from_docset_files(
-            scanner=scanner,
-            input_files=files,
-            progress=progress,
-            verbose=config.user_config.verbose,
+            scanner=scanner, input_files=files, progress=progress
         )
 
     return output_handler.process_scan(

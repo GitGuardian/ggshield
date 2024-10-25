@@ -84,10 +84,10 @@ def iac_scan_all(
     root = get_project_root_dir(directory)
     relative_paths = [str(x.resolve().relative_to(root)) for x in paths]
 
-    if config.user_config.verbose:
-        ui.display_info("> Scanned files")
+    if ui.is_verbose():
+        ui.display_verbose("> Scanned files")
         for filepath in relative_paths:
-            ui.display_info(f"- {click.format_filename(filepath)}")
+            ui.display_verbose(f"- {click.format_filename(filepath)}")
 
     client = ctx_obj.client
 

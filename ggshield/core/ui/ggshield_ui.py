@@ -57,11 +57,7 @@ class GGShieldUI(ABC):
         self.level = Level.INFO
 
     @abstractmethod
-    def create_scanner_ui(
-        self,
-        total: int,
-        verbose: bool = False,
-    ) -> ScannerUI:
+    def create_scanner_ui(self, total: int) -> ScannerUI:
         """
         Creates a ScannerUI instance. This is used to show progress on scanning
         Scannables.
@@ -69,10 +65,7 @@ class GGShieldUI(ABC):
         ...
 
     @abstractmethod
-    def create_message_only_scanner_ui(
-        self,
-        verbose: bool = False,
-    ) -> ScannerUI:
+    def create_message_only_scanner_ui(self) -> ScannerUI:
         """
         Creates a ScannerUI instance without a progress bar. This is used when the scan
         itself is part of a larger scan. For example when scanning a commit range, each

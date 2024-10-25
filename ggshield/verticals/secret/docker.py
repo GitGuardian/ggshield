@@ -327,7 +327,6 @@ def docker_scan_archive(
     cache: Cache,
     secret_config: SecretConfig,
     scan_context: ScanContext,
-    verbose: bool = False,
 ) -> SecretScanCollection:
     scanner = SecretScanner(
         client=client,
