@@ -42,6 +42,7 @@ jobs:
   build_os_packages:
     name: Build packages
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.os == 'ubuntu-22.04' && 'rockylinux/rockylinux:8.8' || null }}
     strategy:
       fail-fast: false
       matrix:
@@ -64,11 +65,43 @@ jobs:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.10 (Windows 1/2)
+        if: matrix.os == 'windows-2022'
         uses: actions/setup-python@v5
-        if: "!startsWith(matrix.os, 'macos-')"
         with:
           python-version: '3.10'
+
+      - name: Set up Python 3.10 (Windows 2/2)
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: |
+          echo PYTHON_CMD=python >> $GITHUB_ENV
+
+      - name: Install Linux specific dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          # Install necessary packages
+          yum install -y \
+            python3.9 \
+            git-core \
+            findutils
+
+          echo PYTHON_CMD=/usr/bin/python3.9 >> $GITHUB_ENV
+
+          # Install NFPM
+          NFPM_VERSION=2.36.1
+          NFPM_CHECKSUM=9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
+
+          scripts/download \
+            https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz \
+            nfpm.tar.gz \
+            $NFPM_CHECKSUM
+
+          tar xf nfpm.tar.gz nfpm
+          cp nfpm /usr/local/bin
+
+          # Avoid "dubious permission" git error
+          git config --global --add safe.directory '*'
 
       - name: Install macOS specific dependencies
         if: startsWith(matrix.os, 'macos-')
@@ -92,6 +125,7 @@ jobs:
 
           # Make Python available
           echo PATH=$PWD/python/bin:$PATH >> $GITHUB_ENV
+          echo PYTHON_CMD=$PWD/python/bin/python >> $GITHUB_ENV
 
           # Install rcodesign
           RCODESIGN_VERSION=0.27.0
@@ -109,8 +143,8 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade \
+          $PYTHON_CMD -m pip install --upgrade pip
+          $PYTHON_CMD -m pip install --upgrade \
             pipenv==2023.12.1
 
           pipenv install --dev
@@ -118,19 +152,6 @@ jobs:
         env:
           # Disable lock otherwise Windows-only dependencies like colorama are not installed
           PIPENV_SKIP_LOCK: 1
-
-      - name: Install Linux specific dependencies
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          NFPM_VERSION=2.36.1
-          NFPM_CHECKSUM=05c17a1e09c470807b149fdd7bcd8f600eea044f459fc3ce81aa230103c0baf5
-
-          scripts/download \
-            https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb \
-            nfpm.deb \
-            $NFPM_CHECKSUM
-
-          sudo dpkg -i nfpm.deb
 
       - name: Prepare macOS secrets
         if: startsWith(matrix.os, 'macos-') && inputs.release_mode
