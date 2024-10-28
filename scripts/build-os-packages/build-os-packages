@@ -15,10 +15,7 @@ REQUIREMENTS="pyinstaller"
 # Whether we want a signed binary or not
 DO_SIGN=0
 
-# Where to find the version:
-# - 0: read it from ggshield/__init__.py
-# - 1: generate it using `git describe`
-USE_GIT_VERSION=0
+VERSION_SUFFIX=""
 
 # Colors
 C_RED="\e[31;1m"
@@ -62,7 +59,7 @@ Default steps are: $DEFAULT_STEPS
 Options:
   -h, --help      Display this usage message and exit.
   --sign          Sign the binary, on supported OSes.
-  --git-version   Append "+COMMIT_SHA" to the version number.
+  --suffix SUFFIX Append "SUFFIX" to the version number.
 
 For more details, see doc/dev/os-packages.md.
 EOF
@@ -72,10 +69,8 @@ EOF
 
 read_version() {
     VERSION=$(grep -o "[0-9]*\.[0-9]*\.[0-9]*" "$ROOT_DIR/ggshield/__init__.py")
-    if [ "$USE_GIT_VERSION" -eq 1 ] ; then
-        local commit_sha
-        commit_sha=$(git rev-parse --short HEAD)
-        VERSION="$VERSION+$commit_sha"
+    if [ -n "$VERSION_SUFFIX" ] ; then
+        VERSION="${VERSION}${VERSION_SUFFIX}"
     fi
     info "VERSION=$VERSION"
 }
@@ -343,8 +338,9 @@ while [ $# -gt 0 ] ; do
     --sign)
         DO_SIGN=1
         ;;
-    --git-version)
-        USE_GIT_VERSION=1
+    --suffix)
+        VERSION_SUFFIX="$2"
+        shift
         ;;
     -*)
         usage "Unknown option '$1'"

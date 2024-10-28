@@ -100,9 +100,6 @@ jobs:
           tar xf nfpm.tar.gz nfpm
           cp nfpm /usr/local/bin
 
-          # Avoid "dubious permission" git error
-          git config --global --add safe.directory '*'
-
       - name: Install macOS specific dependencies
         if: startsWith(matrix.os, 'macos-')
         run: |
@@ -219,7 +216,7 @@ jobs:
           if [ "${{ inputs.release_mode }}" = "true" ] ; then
             args="--sign"
           else
-            args="--git-version"
+            args="--suffix +${GITHUB_SHA:0:7}"
           fi
           # Run the script with `bash -c` because `pipenv run` does not
           # automatically do it on Windows
