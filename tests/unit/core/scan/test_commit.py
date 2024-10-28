@@ -504,3 +504,41 @@ def test_from_merge(tmp_path):
         (Path("conflict.md"), Filemode.MODIFY),
         (Path("new.md"), Filemode.NEW),
     ]
+
+
+def test_from_merge_filename_with_spaces(tmp_path):
+    """
+    GIVEN two commits on different branches with a conflict
+    involving a filename with spaces
+    WHEN Commit.from_merge() is called
+    THEN it returns successfully
+    AND get_files returns the correct filename
+    """
+    repo = Repository.create(tmp_path, initial_branch="master")
+
+    Path(tmp_path / "inital.md").write_text("Initial")
+    repo.add(".")
+    repo.create_commit("Initial commit on master")
+
+    repo.create_branch("feature_branch")
+    repo.checkout("master")
+    conflict_file = tmp_path / "file with spaces.md"
+    conflict_file.write_text("Hello")
+    repo.add(".")
+    repo.create_commit("Commit on master")
+
+    repo.checkout("feature_branch")
+    conflict_file.write_text("World")
+    repo.add(".")
+    repo.create_commit("Commit on feature_branch")
+
+    # Create merge commit with conflict
+    with pytest.raises(subprocess.CalledProcessError):
+        repo.git("merge", "master")
+
+    conflict_file.write_text("Hello World !")
+    repo.add(".")
+    commit = Commit.from_merge(cwd=tmp_path)
+    files = list(commit.get_files())
+    assert len(files) == 1
+    assert files[0].path == Path("file with spaces.md")

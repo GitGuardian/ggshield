@@ -369,7 +369,7 @@ def get_file_sha_in_ref(
     """
     output = git(["ls-tree", "-z", ref] + files, cwd=cwd)
     for line in output.split("\0")[:-1]:
-        _, _, sha, path = line.split()
+        _, _, sha, path = line.split(maxsplit=3)
         yield (path, sha)
 
 
@@ -381,7 +381,7 @@ def get_file_sha_stage(
     """
     output = git(["ls-files", "--stage", "-z"] + files, cwd=cwd)
     for line in output.split("\0")[:-1]:
-        _, sha, _, path = line.split()
+        _, sha, _, path = line.split(maxsplit=3)
         yield (path, sha)
 
 
