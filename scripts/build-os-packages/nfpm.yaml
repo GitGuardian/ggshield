@@ -16,9 +16,6 @@ version: ${VERSION}
 version_schema: semver
 release: 1
 
-depends:
-  - git
-
 # Make sure files are not group-writable. lintian does not like that.
 umask: 0o022
 
@@ -38,6 +35,9 @@ contents:
     dst: /usr/share/doc/ggshield/LICENSE
 
 overrides:
+  rpm:
+    depends:
+      - git-core
   deb:
     depends:
       - libc6

@@ -254,3 +254,65 @@ jobs:
             packages/ggshield-*.zip
             packages/ggshield-*.rpm
             packages/ggshield_*.deb
+
+  # Run some basic tests, the goal is to verify the ggshield binary has all the
+  # libraries it needs to run
+  linux_package_smoke_tests:
+    needs: build_os_packages
+    runs-on: ubuntu-22.04
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:stable
+          - ubuntu:latest
+          - rockylinux/rockylinux:8.8
+          - opensuse/leap
+          # Test a distribution with no deb or rpm support
+          - clearlinux:latest
+
+    steps:
+      - name: Download OS packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: os-packages-ubuntu-22.04
+          path: packages
+          merge-multiple: true
+
+      - name: Setup
+        # Install ggshield dependencies and the package itself
+        run: |
+          case "${{ matrix.image }}" in
+            debian:*|ubuntu:*)
+              apt update
+              apt install --no-install-recommends -y git
+              dpkg -i packages/*.deb
+              ;;
+            rockylinux*)
+              yum install -y git
+              rpm -i packages/*.rpm
+              ;;
+            opensuse*)
+              zypper install -y git
+              rpm -i packages/*.rpm
+              ;;
+            clearlinux*)
+              swupd bundle-add git
+
+              # Unpack ggshield in /usr/local/ggshield
+              pkg_dir=$PWD/packages
+              mkdir /usr/local/ggshield
+              cd /usr/local/ggshield
+              tar --strip-components 1 -xf $pkg_dir/*.tar.gz
+
+              # Add ggshield to $PATH
+              mkdir /usr/local/bin
+              ln -s $PWD/ggshield /usr/local/bin/ggshield
+              ;;
+          esac
+
+      - name: Smoke test
+        run: |
+          ggshield --version
+          ggshield --help
