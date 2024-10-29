@@ -1,5 +1,25 @@
 # Changelog
 
+<a id='changelog-1.33.0'></a>
+
+## 1.33.0 — 2024-10-29
+
+### Changed
+
+- The `--debug` option now automatically turns on verbose mode.
+
+- The `--use-gitignore` option now also applies to single files passed as argument.
+
+- RPM packages now depend on `git-core` instead of `git`, reducing the number of dependencies to install (#983).
+
+### Fixed
+
+- When using the `--debug` option, the log output no longer overlaps with the progress bars.
+
+- The ggshield pre-commit hook no longer crashes when merging files with spaces in their names (#991).
+
+- RPM packages now work correctly on RHEL 8.8 (#984).
+
 <a id='changelog-1.32.2'></a>
 
 ## 1.32.2 — 2024-10-16
