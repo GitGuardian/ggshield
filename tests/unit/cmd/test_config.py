@@ -50,14 +50,13 @@ expiry: not set
 
 
 class TestConfigList:
-    def test_valid_list(self, cli_fs_runner, config_list_json_schema):
-        """
-        GIVEN several config saved
-        WHEN calling `ggshield config list` command
-        THEN all configs should be listed with the correct format
-        """
 
-        # May 4th
+    @pytest.fixture
+    def setup_configs(self, cli_fs_runner):
+        """
+        Set up multiple instance configs for tests.
+        This fixture runs before each test method in this class.
+        """
         some_date = datetime(2022, 5, 4, 17, 0, 0, 0, tzinfo=timezone.utc)
 
         add_instance_config(expiry_date=some_date)
@@ -72,12 +71,25 @@ class TestConfigList:
             expiry_date=some_date,
         )
 
+    def test_valid_list(self, cli_fs_runner, setup_configs):
+        """
+        GIVEN several config saved
+        WHEN calling `ggshield config list` command
+        THEN all configs should be listed with the correct format
+        """
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         assert exit_code == ExitCode.SUCCESS, output
         assert output == EXPECTED_OUTPUT
 
-        # Test JSON output
+    def test_list_json_output(
+        self, cli_fs_runner, config_list_json_schema, setup_configs
+    ):
+        """
+        GIVEN several config saved
+        WHEN calling `ggshield config list` command
+        THEN all configs should be listed with the correct format
+        """
         exit_code_json, output_json = self.run_cmd(cli_fs_runner, json=True)
 
         assert exit_code_json == ExitCode.SUCCESS, output_json
