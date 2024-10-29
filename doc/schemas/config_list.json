@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ggshield config list",
+  "type": "object",
+  "properties": {
+    "instances": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "instance_name": {
+            "type": "string",
+            "description": "Name of the GitGuardian instance"
+          },
+          "default_token_lifetime": {
+            "type": ["string", "null"],
+            "description": "Default token lifetime"
+          },
+          "workspace_id": {
+            "type": ["number", "string"],
+            "description": "Workspace ID"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of the GitGuardian instance"
+          },
+          "token": {
+            "type": "string",
+            "description": "API Token for the instance"
+          },
+          "token_name": {
+            "type": "string",
+            "description": "Name of the token"
+          },
+          "expiry": {
+            "type": "string",
+            "description": "Expiration date of the token"
+          }
+        },
+        "required": [
+          "instance_name",
+          "workspace_id",
+          "url",
+          "token",
+          "token_name",
+          "expiry"
+        ]
+      }
+    },
+    "global_values": {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "type": ["string", "null"],
+          "description": "Name of the default GitGuardian instance"
+        },
+        "default_token_lifetime": {
+          "type": ["string", "null"],
+          "description": "Default token lifetime"
+        }
+      },
+      "required": ["instance", "default_token_lifetime"]
+    }
+  },
+  "required": ["instances", "global_values"]
+}
