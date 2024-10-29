@@ -74,7 +74,12 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "total_occurrences": 0,
             "total_incidents": 0,
         }
-        sha_dict = group_policy_breaks_by_ignore_sha(result.scan.policy_breaks)
+        policy_breaks = [
+            policy_break
+            for policy_break in result.scan.policy_breaks
+            if self.all_secrets or not policy_break.is_excluded
+        ]
+        sha_dict = group_policy_breaks_by_ignore_sha(policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
@@ -126,6 +131,10 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             details = incident_details.get(policy_breaks[0].incident_url)
             if details is not None:
                 flattened_dict["incident_details"] = details
+
+        if policy_breaks[0].is_excluded:
+            flattened_dict["is_excluded"] = policy_breaks[0].is_excluded
+            flattened_dict["exclude_reason"] = policy_breaks[0].exclude_reason
 
         for policy_break in policy_breaks:
             flattened_dict["occurrences"].extend(

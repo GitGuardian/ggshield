@@ -45,6 +45,8 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
                 policy_breaks_to_report += result.scan.policy_breaks
             else:
                 for policy_break in result.scan.policy_breaks:
+                    if not self.all_secrets and policy_break.is_excluded:
+                        continue
                     known = policy_break.known_secret
                     # Populate GL-HOOK-ERR with only new policy breaks
                     if not known:

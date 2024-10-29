@@ -29,6 +29,7 @@ class SecretOutputHandler(ABC):
         self.output = output
         self.ignore_known_secrets = secret_config.ignore_known_secrets
         self.with_incident_details = secret_config.with_incident_details
+        self.all_secrets = secret_config.all_secrets
 
     def process_scan(self, scan: SecretScanCollection) -> ExitCode:
         """Process a scan collection, write the report to :attr:`self.output`
@@ -60,5 +61,7 @@ class SecretOutputHandler(ABC):
             if scan.has_new_secrets:
                 return ExitCode.SCAN_FOUND_PROBLEMS
         elif scan.has_secrets:
+            return ExitCode.SCAN_FOUND_PROBLEMS
+        elif self.all_secrets and scan.excluded_secrets_count > 0:
             return ExitCode.SCAN_FOUND_PROBLEMS
         return ExitCode.SUCCESS

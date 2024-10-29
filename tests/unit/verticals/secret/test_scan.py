@@ -63,4 +63,5 @@ def test_request_headers(scan_mock: Mock, client):
             "mode": "path",
         },
         ignore_known_secrets=True,
+        all_secrets=True,
     )

@@ -62,6 +62,9 @@ class SecretScanner:
         self.ignored_detectors = secret_config.ignored_detectors
         self.headers = scan_context.get_http_headers()
         self.command_id = scan_context.command_id
+        # this is for feature usage tracking
+        if secret_config.all_secrets:
+            self.headers["ggshield_all_secrets"] = "true"
 
     def scan(
         self,
@@ -107,6 +110,7 @@ class SecretScanner:
             documents,
             self.headers,
             ignore_known_secrets=True,
+            all_secrets=True,
         )
 
     def _start_scans(

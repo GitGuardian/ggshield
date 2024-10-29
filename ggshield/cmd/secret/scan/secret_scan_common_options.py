@@ -139,6 +139,17 @@ _with_incident_details_option = click.option(
 )
 
 
+_all_secrets = click.option(
+    "--all-secrets",
+    is_flag=True,
+    help=(
+        "Display all secrets, including those that have been ignored for example. "
+        "Note that all returned secrets are considered as alerts."
+    ),
+    callback=create_config_callback("secret", "all_secrets"),
+)
+
+
 def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
@@ -152,6 +163,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _banlist_detectors_option(cmd)
         _with_incident_details_option(cmd)
         instance_option(cmd)
+        _all_secrets(cmd)
         return cmd
 
     return decorator

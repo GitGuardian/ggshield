@@ -136,15 +136,28 @@ def file_info(
     filename: str,
     incident_count: int,
     incident_status: IncidentStatus = IncidentStatus.DETECTED,
+    number_of_hidden_secrets: int = 0,
 ) -> str:
     """Return the formatted file info (number of incidents + filename)."""
-    return "\n{} {}: {} {} {}\n".format(
+    result = "\n{} {}: {} {} {}\n".format(
         format_text(">", STYLE["detector_line_start"]),
         format_text(filename, STYLE["filename"]),
         incident_count,
+        # Makes it more coherent with line below, and also if ggshield detects the
+        # secret, then it will not always be an incident
+        # pluralize("secret", incident_count, "secrets"),
         pluralize("incident", incident_count, "incidents"),
         incident_status.value,
     )
+    if number_of_hidden_secrets > 0:
+        result += "{} {}  {} {} excluded - use the `--all-secrets` option to display them\n".format(
+            format_text(">", STYLE["detector_line_start"]),
+            " " * len(filename),
+            number_of_hidden_secrets,
+            pluralize("secret", number_of_hidden_secrets, "secrets"),
+        )
+
+    return result
 
 
 def file_diff_info(

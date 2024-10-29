@@ -44,7 +44,11 @@ class SecretSARIFOutputHandler(SecretOutputHandler):
                         ],
                     },
                     "results": list(
-                        _create_sarif_results(scan.get_all_results(), incident_details)
+                        _create_sarif_results(
+                            scan.get_all_results(),
+                            incident_details,
+                            all_secrets=self.all_secrets,
+                        )
                     ),
                 }
             ],
@@ -53,7 +57,9 @@ class SecretSARIFOutputHandler(SecretOutputHandler):
 
 
 def _create_sarif_results(
-    results: Iterable[Result], incident_details: Dict[str, SecretIncident]
+    results: Iterable[Result],
+    incident_details: Dict[str, SecretIncident],
+    all_secrets: bool,
 ) -> Iterable[Dict[str, Any]]:
     """
     Creates SARIF result dicts for our Result instances. Creates one SARIF result dict
@@ -61,6 +67,8 @@ def _create_sarif_results(
     """
     for result in results:
         for policy_break in result.scan.policy_breaks:
+            if not all_secrets and policy_break.is_excluded:
+                continue
             yield _create_sarif_result_dict(result.url, policy_break, incident_details)
 
 

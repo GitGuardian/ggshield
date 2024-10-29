@@ -105,7 +105,11 @@ class SecretTextOutputHandler(SecretOutputHandler):
             result.censor()
 
         number_of_displayed_secrets = 0
+        number_of_hidden_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():
+            if not self.all_secrets and policy_breaks[0].is_excluded:
+                number_of_hidden_secrets += 1
+                continue
             known_secret = policy_breaks[0].known_secret
             if (
                 (not known_secret and not show_only_known_secrets)
@@ -127,8 +131,12 @@ class SecretTextOutputHandler(SecretOutputHandler):
                 )
 
         file_info_line = ""
-        if number_of_displayed_secrets > 0:
-            file_info_line = file_info(result.filename, number_of_displayed_secrets)
+        if number_of_displayed_secrets > 0 or number_of_hidden_secrets > 0:
+            file_info_line = file_info(
+                result.filename,
+                number_of_displayed_secrets,
+                number_of_hidden_secrets=number_of_hidden_secrets,
+            )
 
         return file_info_line + result_buf.getvalue()
 
@@ -282,14 +290,18 @@ def policy_break_header(
     number_occurrences = format_text(str(len(policy_breaks)), STYLE["occurrence_count"])
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
-    return f"""
+    known_status = "YES" if known_secret else "NO"
+    excluded_status = " (Excluded)" if policy_breaks[0].is_excluded else ""
+    header = f"""
 {start_line} Secret detected: {policy_break_type}{validity_msg}
 {indent}Occurrences: {number_occurrences}
-{indent}Known by GitGuardian dashboard: {"YES" if known_secret else "NO"}
+{indent}Known by GitGuardian dashboard: {known_status}{excluded_status}
 {indent}Incident URL: {policy_breaks[0].incident_url if known_secret and policy_breaks[0].incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
-
 """
+    if policy_breaks[0].is_excluded:
+        header += f"{indent}Exclude reason: {policy_breaks[0].exclude_reason}\n"
+    return header + "\n"
 
 
 def no_leak_message() -> str:
