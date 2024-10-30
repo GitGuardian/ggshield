@@ -1,4 +1,8 @@
-from typing import Dict
+import io
+import tarfile
+import tempfile
+from pathlib import Path
+from typing import Dict, List, Optional
 from unittest.mock import Mock, patch
 
 import click
@@ -7,8 +11,10 @@ import pytest
 from ggshield.__main__ import cli
 from ggshield.core import ui
 from ggshield.core.errors import ExitCode
-from ggshield.core.git_hooks.ci.commit_range import gitlab_ci_range
+from ggshield.core.git_hooks.ci.commit_range import collect_commit_range_from_ci_env
 from ggshield.utils.git_shell import EMPTY_SHA
+from ggshield.utils.os import cd
+from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
@@ -21,11 +27,14 @@ def clear_current_ci_envs(monkeypatch):
 
 
 @patch("ggshield.core.git_hooks.ci.commit_range.get_list_commit_SHA")
+@patch(
+    "ggshield.core.git_hooks.ci.commit_range.get_remote_prefix", return_value="origin/"
+)
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")
 @pytest.mark.parametrize(
     "env,expected_parameter",
     [
-        ({"CI_COMMIT_BEFORE_SHA": "before_sha"}, "before_sha~1..."),
+        ({"CI_COMMIT_BEFORE_SHA": "before_sha"}, "before_sha~1..HEAD"),
         (
             {
                 "CI_COMMIT_BEFORE_SHA": EMPTY_SHA,
@@ -45,7 +54,7 @@ def clear_current_ci_envs(monkeypatch):
                 "CI_COMMIT_BEFORE_SHA": EMPTY_SHA,
                 "CI_MERGE_REQUEST_TARGET_BRANCH_NAME": "mr_target_branch_name",
             },
-            "origin/mr_target_branch_name...",
+            "origin/mr_target_branch_name..HEAD",
         ),
         (
             {
@@ -61,6 +70,7 @@ def clear_current_ci_envs(monkeypatch):
 )
 def test_gitlab_ci_range(
     _: Mock,
+    get_remote_prefix_mock: Mock,
     get_list_mock: Mock,
     cli_fs_runner: click.testing.CliRunner,
     monkeypatch,
@@ -85,7 +95,7 @@ def test_gitlab_ci_range(
 
     get_list_mock.return_value = ["a"] * 51
 
-    gitlab_ci_range()
+    collect_commit_range_from_ci_env()
     get_list_mock.assert_called_once_with(expected_parameter)
 
     captured = capsys.readouterr()
@@ -121,19 +131,15 @@ def test_ci_cmd_uses_right_mode_header(
     get_list_mock: Mock,
     scan_commit_range_mock: Mock,
     cli_fs_runner: click.testing.CliRunner,
-    monkeypatch,
     env: Dict[str, str],
     expected_mode: str,
 ):
-    # GIVEN a CI env
-    for key, value in env.items():
-        monkeypatch.setenv(key, value)
-
     get_list_mock.return_value = ["a"] * 51
     scan_commit_range_mock.return_value = 0
 
     # WHEN `secret scan ci` is called
-    result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
+    with patch("os.getenv", env.get):
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
 
     # THEN scan succeeds
     assert_invoke_ok(result)
@@ -173,3 +179,138 @@ def test_ci_cmd_does_not_work_if_ci_env_is_odd(
 
     # And the error message explains why
     assert "Current CI is not detected" in result.stdout
+
+
+DUMMY_REPO: Optional[tarfile.TarFile] = None
+
+
+@pytest.fixture
+def dummy_repo(tmp_path):
+    global DUMMY_REPO
+    if not DUMMY_REPO:
+        DUMMY_REPO = make_dummy_repo()
+    """Return a fresh copy of a dummy repo"""
+    DUMMY_REPO.extractall(path=tmp_path)
+    return Repository(tmp_path)
+
+
+def make_dummy_repo():
+    """Function to create a dummy repo as a tarfile."""
+    result_buffer = io.BytesIO()
+    with tempfile.TemporaryDirectory() as tmp_path_str:
+        tmp_path = Path(tmp_path_str)
+        repo = Repository.create(tmp_path)
+
+        repo.create_commit("initial_commit")
+
+        repo.create_branch("branch")
+        repo.create_commit("branch_commit_1")
+        repo.create_commit("branch_commit_2")
+
+        repo.checkout("main")
+        repo.create_commit("commit_main_1")
+        repo.create_commit("commit_main_2")
+
+        repo.create_branch("unrelated_branch")
+        repo.create_commit("unrelated_branch_commit")
+
+        result_tar = tarfile.TarFile(fileobj=result_buffer, mode="w")
+        result_tar.add(tmp_path_str, arcname="./")
+    result_buffer.seek(0)
+    return tarfile.TarFile(fileobj=result_buffer, mode="r")
+
+
+def subjets_for_commits(commit_shas: List[str], dummy_repo: Repository) -> List[str]:
+    return [
+        dummy_repo.git("show", sha, "--pretty=format:%s", "-s") for sha in commit_shas
+    ]
+
+
+@pytest.mark.parametrize(
+    ("env_vars", "expected_subjects"),
+    [
+        ({"GITHUB_ACTIONS": 1}, ["branch_commit_2"]),
+        ({"GITHUB_ACTIONS": 1, "GITHUB_SHA": "branch"}, ["branch_commit_2"]),
+        (
+            {"GITHUB_ACTIONS": 1, "GITHUB_SHA": "branch~1"},
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {
+                "GITHUB_ACTIONS": 1,
+                "GITHUB_SHA": "branch",
+                "GITHUB_DEFAULT_BRANCH": "main",
+            },
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {
+                "GITHUB_ACTIONS": 1,
+                "GITHUB_SHA": "branch",
+                "GITHUB_DEFAULT_BRANCH": "main",
+                "GITHUB_PUSH_BASE_SHA": "branch~1",
+            },
+            ["branch_commit_2"],
+        ),
+        (
+            {
+                "GITHUB_ACTIONS": 1,
+                "GITHUB_SHA": "branch",
+                "GITHUB_DEFAULT_BRANCH": "main",
+                "GITHUB_PUSH_BASE_SHA": "branch~1",
+                "GITHUB_BASE_REF": "main",
+            },
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {
+                "GITHUB_ACTIONS": 1,
+                "GITHUB_SHA": "branch",
+                "GITHUB_DEFAULT_BRANCH": "main",
+                "GITHUB_PUSH_BASE_SHA": "branch~1",
+                "GITHUB_BASE_REF": EMPTY_SHA,
+            },
+            ["branch_commit_2"],
+        ),
+        (
+            {
+                "GITHUB_ACTIONS": 1,
+                "GITHUB_SHA": "branch",
+                "GITHUB_DEFAULT_BRANCH": "main",
+                "GITHUB_PUSH_BASE_SHA": EMPTY_SHA,
+                "GITHUB_BASE_REF": EMPTY_SHA,
+            },
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {"TRAVIS": 1, "TRAVIS_COMMIT_RANGE": "branch~2..branch"},
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {"TRAVIS": 1, "TRAVIS_COMMIT_RANGE": "...branch"},
+            ["branch_commit_2"],
+        ),
+        (
+            {
+                "GITLAB_CI": 1,
+                "CI_COMMIT_SHA": "branch",
+                "CI_COMMIT_BEFORE_SHA": "branch~1",
+            },
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+    ],
+)
+def test_collect_commit_range_from_ci_env(
+    env_vars,
+    expected_subjects,
+    monkeypatch,
+    cli_fs_runner: click.testing.CliRunner,
+    dummy_repo: Repository,
+):
+    env_vars["CI"] = "1"
+    dummy_repo.checkout("branch")
+
+    with patch("os.getenv", env_vars.get), cd(str(dummy_repo.path)):
+        commits, _ = collect_commit_range_from_ci_env()
+
+    assert subjets_for_commits(commits, dummy_repo) == expected_subjects
