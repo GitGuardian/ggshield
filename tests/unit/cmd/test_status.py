@@ -36,6 +36,7 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
             All(
                 {
                     "detail": "Valid API key.",
+                    "instance": Match(r"https://[^\s]+"),
                     "status_code": 200,
                     "app_version": Match(r"v\d\.\d{1,3}\.\d{1,2}(-rc\.\d)?"),
                     "secrets_engine_version": Match(r"\d\.\d{1,3}\.\d"),

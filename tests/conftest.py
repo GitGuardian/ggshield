@@ -319,6 +319,12 @@ def api_status_json_schema() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
+def config_list_json_schema() -> Dict[str, Any]:
+    """Load the JSON schema for `config list` command."""
+    return _load_json_schema("config_list.json")
+
+
+@pytest.fixture(scope="session")
 def sca_scan_all_json_schema() -> Dict[str, Any]:
     """Load the JSON schema for `sca scan all` command."""
     return _load_json_schema("sca/scan_all.json")

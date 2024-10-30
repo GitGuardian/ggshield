@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import json
 from typing import Any
 
 import click
@@ -29,17 +30,18 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
     if not isinstance(response, HealthCheckResponse):
         raise UnexpectedError("Unexpected health check response")
 
-    click.echo(
-        response.to_json()
-        if ctx_obj.use_json
-        else (
+    if ctx_obj.use_json:
+        json_output = response.to_dict()
+        json_output["instance"] = client.base_uri
+        click.echo(json.dumps(json_output))
+    else:
+        click.echo(
             f"{format_text('API URL:', STYLE['key'])} {client.base_uri}\n"
             f"{format_text('Status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
             f"{format_text('App version:', STYLE['key'])} {response.app_version or 'Unknown'}\n"
             f"{format_text('Secrets engine version:', STYLE['key'])} "
             f"{response.secrets_engine_version or 'Unknown'}\n"
         )
-    )
 
     return 0
 

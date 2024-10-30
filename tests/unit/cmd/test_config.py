@@ -1,7 +1,12 @@
+import json
 from datetime import datetime, timezone
 from typing import Tuple
 
+import jsonschema
 import pytest
+from pytest_voluptuous import S
+from voluptuous import Any, In
+from voluptuous.validators import All, Match
 
 from ggshield.__main__ import cli
 from ggshield.core.config import Config
@@ -45,14 +50,13 @@ expiry: not set
 
 
 class TestConfigList:
-    def test_valid_list(self, cli_fs_runner):
-        """
-        GIVEN several config saved
-        WHEN calling `ggshield config list` command
-        THEN all configs should be listed with the correct format
-        """
 
-        # May 4th
+    @pytest.fixture
+    def setup_configs(self, cli_fs_runner):
+        """
+        Set up multiple instance configs for tests.
+        This fixture runs before each test method in this class.
+        """
         some_date = datetime(2022, 5, 4, 17, 0, 0, 0, tzinfo=timezone.utc)
 
         add_instance_config(expiry_date=some_date)
@@ -67,14 +71,58 @@ class TestConfigList:
             expiry_date=some_date,
         )
 
+    def test_valid_list(self, cli_fs_runner, setup_configs):
+        """
+        GIVEN several config saved
+        WHEN calling `ggshield config list` command
+        THEN all configs should be listed with the correct format
+        """
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         assert exit_code == ExitCode.SUCCESS, output
         assert output == EXPECTED_OUTPUT
 
+    def test_list_json_output(
+        self, cli_fs_runner, config_list_json_schema, setup_configs
+    ):
+        """
+        GIVEN several config saved
+        WHEN calling `ggshield config list` command
+        THEN all configs should be listed with the correct format
+        """
+        exit_code_json, output_json = self.run_cmd(cli_fs_runner, json=True)
+
+        assert exit_code_json == ExitCode.SUCCESS, output_json
+        dct = json.loads(output_json)
+        jsonschema.validate(dct, config_list_json_schema)
+        assert (
+            S(
+                All(
+                    {
+                        "instances": [
+                            {
+                                "instance_name": str,
+                                "default_token_lifetime": Any(None, str),
+                                "workspace_id": In([1, "not set"]),
+                                "url": Match(r"https://[^\s]+\.com"),
+                                "token": str,
+                                "token_name": str,
+                                "expiry": Match(r"2022-05-04T17:00:00Z|not set"),
+                            }
+                        ],
+                        "global_values": {
+                            "instance": Any(None, str),
+                            "default_token_lifetime": Any(None, str),
+                        },
+                    }
+                )
+            )
+            == dct
+        )
+
     @staticmethod
-    def run_cmd(cli_fs_runner) -> Tuple[bool, str]:
-        cmd = ["config", "list"]
+    def run_cmd(cli_fs_runner, json: bool = False) -> Tuple[bool, str]:
+        cmd = ["config", "list", "--json"] if json else ["config", "list"]
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
         return result.exit_code, result.output
 

@@ -1,4 +1,4 @@
-default_stages: [commit]
+default_stages: [pre-commit]
 repos:
   - repo: https://github.com/ambv/black
     rev: 24.3.0
@@ -68,7 +68,7 @@ repos:
         name: GitGuardian Shield
         entry: pipenv run ggshield secret scan pre-commit
         language: system
-        stages: [commit]
+        stages: [pre-commit]
 
   - repo: local
     hooks:
@@ -77,14 +77,14 @@ repos:
         entry: pipenv run ggshield secret scan pre-push
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
 
   - repo: https://github.com/gitguardian/ggshield
     rev: v1.33.0
     hooks:
       - id: ggshield
         language_version: python3
-        stages: [commit]
+        stages: [pre-commit]
 
   - repo: local
     hooks:
@@ -94,7 +94,7 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
-        stages: [commit]
+        stages: [pre-commit]
 
       - id: import-linter
         name: Import Linter
@@ -102,4 +102,4 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
-        stages: [commit]
+        stages: [pre-commit]

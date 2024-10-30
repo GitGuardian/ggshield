@@ -8,6 +8,11 @@
       "minimum": 200,
       "description": "HTTP status code for the request"
     },
+    "instance": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL of the GitGuardian instance"
+    },
     "detail": {
       "type": "string",
       "description": "Human-readable version of the status"
@@ -21,5 +26,11 @@
       "description": "Version of the secrets engine"
     }
   },
-  "required": ["status_code", "detail", "app_version", "secrets_engine_version"]
+  "required": [
+    "status_code",
+    "instance",
+    "detail",
+    "app_version",
+    "secrets_engine_version"
+  ]
 }
