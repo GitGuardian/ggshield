@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from typing import Any, Dict, TypedDict
 from unittest import mock
 
@@ -166,6 +167,7 @@ def test_sarif_output_for_flat_scan_with_secrets(
     WHEN SecretSARIFOutputHandler runs on it
     THEN it outputs a SARIF document pointing to the secrets
     """
+    scan_result = deepcopy(scan_result)
     client_mock = mock.Mock(spec=GGClient)
     client_mock.retrieve_secret_incident.return_value = SECRET_INCIDENT_MOCK
 
