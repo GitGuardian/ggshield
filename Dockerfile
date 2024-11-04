@@ -1,12 +1,12 @@
-FROM python:3.10-slim as build
+FROM python:3.10-slim AS build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
-ENV LC_ALL C.UTF-8
-ENV LANG C.UTF-8
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONFAULTHANDLER 1
-ENV PATH /app/.venv/bin:$PATH
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONFAULTHANDLER=1
+ENV PATH=/app/.venv/bin:$PATH
 
 WORKDIR /app
 
