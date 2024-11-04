@@ -86,7 +86,7 @@ def test_load_dot_env_loads_git_root_env(
         load_dotenv_mock.assert_called_once_with(git_root_dotenv, override=True)
 
 
-@pytest.mark.parametrize("env_var", TRACKED_ENV_VARS)
+@pytest.mark.parametrize("env_var", sorted(TRACKED_ENV_VARS))
 def test_load_dot_env_returns_set_vars(env_var, tmp_path, monkeypatch):
     """
     GIVEN an env var that is set, and also set with the same value in the .env
