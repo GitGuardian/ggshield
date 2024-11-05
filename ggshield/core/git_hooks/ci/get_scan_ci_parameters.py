@@ -32,6 +32,17 @@ CI_TARGET_BRANCH_ASSOC: Dict[SupportedCI, str] = {
 }
 
 
+def get_remote_prefix(wd: Optional[Union[str, Path]] = None) -> str:
+    remotes = get_remotes(wd=wd)
+    if len(remotes) == 0:
+        # note: this should not happen in practice, esp. in a CI job
+        ui.display_verbose("\tNo remote found.")
+        return ""
+    else:
+        ui.display_verbose(f"\tUsing first remote {remotes[0]}.")
+        return f"{remotes[0]}/"
+
+
 def get_scan_ci_parameters(
     current_ci: SupportedCI, wd: Optional[Union[str, Path]] = None
 ) -> Union[Tuple[str, str], None]:
@@ -50,15 +61,7 @@ def get_scan_ci_parameters(
     if current_ci == SupportedCI.TRAVIS:
         return travis_scan_ci_args()
 
-    remotes = get_remotes(wd=wd)
-    if len(remotes) == 0:
-        # note: this should not happen in practice, esp. in a CI job
-        ui.display_verbose("\tNo remote found.")
-        remote_prefix = ""
-    else:
-        ui.display_verbose(f"\tUsing first remote {remotes[0]}.")
-        remote_prefix = f"{remotes[0]}/"
-
+    remote_prefix = get_remote_prefix(wd=wd)
     target_branch_var = CI_TARGET_BRANCH_ASSOC.get(current_ci)
     if not target_branch_var:
         raise UnexpectedError(f"Using scan ci is not supported for {current_ci.value}.")
