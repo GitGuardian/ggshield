@@ -95,6 +95,10 @@ _exclude_option = click.option(
 _ignore_known_secrets_option = click.option(
     "--ignore-known-secrets",
     is_flag=True,
+    # The default value **must** be set to None.
+    # Each command or subcommand calls create_config_callback to gather option values.
+    # If the option is placed early in the command line, the value may be overridden
+    # later on with False if no default is defined.
     default=None,
     help="Ignore secrets already known by GitGuardian dashboard.",
     callback=create_config_callback("secret", "ignore_known_secrets"),
@@ -124,6 +128,11 @@ _banlist_detectors_option = click.option(
 _with_incident_details_option = click.option(
     "--with-incident-details",
     is_flag=True,
+    # The default value **must** be set to None.
+    # Each command or subcommand calls create_config_callback to gather option values.
+    # If the option is placed early in the command line, the value may be overridden
+    # later on with False if no default is defined.
+    default=None,
     help="Display full details about the dashboard incident if one is found (JSON and SARIF formats only).",
     callback=create_config_callback("secret", "with_incident_details"),
 )
