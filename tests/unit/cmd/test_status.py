@@ -55,3 +55,19 @@ def test_ssl_verify(cli_fs_runner, verify):
         cli_fs_runner.invoke(cli, cmd)
         _, kwargs = client_mock.call_args
         assert kwargs["session"].verify == verify
+
+
+@pytest.mark.parametrize("command", ["api-status", "quota"])
+def test_instance_option(cli_fs_runner, command):
+    """
+    GIVEN an instance url
+    WHEN running a command and passing the instance url as option
+    THEN the call resulting from the command is made to the instance url
+    """
+
+    uri = "https://dashboard.my-instance.com"
+
+    with mock.patch("ggshield.core.client.GGClient") as client_mock:
+        cli_fs_runner.invoke(cli, [command, "--instance", uri])
+        _, kwargs = client_mock.call_args
+        assert kwargs["base_uri"] == "https://dashboard.my-instance.com/exposed"

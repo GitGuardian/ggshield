@@ -40,7 +40,7 @@ def get_config_from_context(ctx: click.Context) -> UserConfig:
     return ContextObj.get(ctx).config.user_config
 
 
-def create_ctx_callback(name: str) -> ClickCallback[ArgT]:
+def create_ctx_callback(*option_names: str) -> ClickCallback[ArgT]:
     """Helper function to define a Click option callback for simple cases where we only
     have to set a value on Click context object if the option is defined.
     """
@@ -48,8 +48,11 @@ def create_ctx_callback(name: str) -> ClickCallback[ArgT]:
     def callback(
         ctx: click.Context, param: click.Parameter, value: Optional[ArgT]
     ) -> Optional[ArgT]:
-        if value is not None:
-            setattr(ctx.obj, name, value)
+        if value is not None and ctx.obj is not None:
+            obj = ContextObj.get(ctx)
+            for name in option_names[:-1]:
+                obj = getattr(obj, name)
+            setattr(obj, option_names[-1], value)
         return value
 
     return callback
@@ -279,4 +282,12 @@ staged_option = click.option(
     "--staged",
     is_flag=True,
     help="Include staged changes in the scan.",
+)
+instance_option = click.option(
+    "--instance",
+    required=False,
+    type=str,
+    help="URL of the instance to use.",
+    metavar="URL",
+    callback=create_ctx_callback("config", "cmdline_instance_name"),
 )

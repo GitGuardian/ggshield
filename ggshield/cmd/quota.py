@@ -7,6 +7,7 @@ from pygitguardian.models import Detail, Quota, QuotaResponse
 
 from ggshield.cmd.utils.common_options import (
     add_common_options,
+    instance_option,
     json_option,
     text_json_format_option,
 )
@@ -19,6 +20,7 @@ from ggshield.core.errors import UnexpectedError
 @click.command()
 @text_json_format_option
 @json_option
+@instance_option
 @add_common_options()
 @click.pass_context
 def quota_cmd(ctx: click.Context, **kwargs: Any) -> int:

@@ -9,6 +9,7 @@ from ggshield.cmd.utils.common_options import (
     create_ctx_callback,
     exit_zero_option,
     get_config_from_context,
+    instance_option,
     json_option,
     text_json_sarif_format_option,
 )
@@ -150,6 +151,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _ignore_known_secrets_option(cmd)
         _banlist_detectors_option(cmd)
         _with_incident_details_option(cmd)
+        instance_option(cmd)
         return cmd
 
     return decorator

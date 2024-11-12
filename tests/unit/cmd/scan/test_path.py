@@ -216,6 +216,23 @@ secret:
         assert "An ignored file or directory cannot be scanned." in result.stdout
         scan_mock.assert_not_called()
 
+    def test_instance_option(self, cli_fs_runner):
+        """
+        GIVEN an instance url
+        WHEN running the path command and passing the instance url as option
+        THEN the call resulting from the command is made to the instance url
+        """
+        self.create_files()
+
+        uri = "https://dashboard.my-instance.com"
+
+        with patch("ggshield.core.client.GGClient") as client_mock:
+            cli_fs_runner.invoke(
+                cli, ["secret", "scan", "--instance", uri, "path", "file1"]
+            )
+            _, kwargs = client_mock.call_args
+            assert kwargs["base_uri"] == "https://dashboard.my-instance.com/exposed"
+
 
 class TestScanDirectory:
     """
