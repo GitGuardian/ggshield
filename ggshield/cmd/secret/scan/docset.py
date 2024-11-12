@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable, StringScannable
 from ggshield.core.ui.ggshield_ui import GGShieldProgress
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -62,6 +63,7 @@ def docset_cmd(
     [1]: https://docs.gitguardian.com/ggshield-docs/integrations/other-data-sources/other-data-sources
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     with ui.create_progress(len(files)) as progress:

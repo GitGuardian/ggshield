@@ -12,6 +12,7 @@ from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
 from ggshield.utils.click import RealPath
@@ -42,6 +43,7 @@ def path_cmd(
     """
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
+    ctx_obj.client = create_client_from_config(config)
     output_handler = create_output_handler(ctx)
 
     for path in paths:

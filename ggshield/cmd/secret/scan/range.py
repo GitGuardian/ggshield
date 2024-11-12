@@ -11,6 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import get_list_commit_SHA
 from ggshield.verticals.secret.repo import scan_commit_range
@@ -34,6 +35,7 @@ def range_cmd(
     Example: `ggshield secret scan commit-range HEAD~1...`
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     commit_list = get_list_commit_SHA(commit_range)
     if not commit_list:

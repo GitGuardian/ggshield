@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.text_utils import pluralize
 from ggshield.utils.git_shell import (
@@ -29,6 +30,7 @@ def changes_cmd(ctx: click.Context, **kwargs: Any) -> int:
     Scan the set of changes between the default branch and the current HEAD, including staged changes.
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     check_git_dir()
 

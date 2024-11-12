@@ -11,6 +11,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import git
 from ggshield.verticals.secret.repo import scan_repo_path
@@ -38,7 +39,7 @@ def repo_cmd(
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
     cache = ctx_obj.cache
-    client = ctx_obj.client
+    ctx_obj.client = create_client_from_config(config)
 
     scan_context = ScanContext(
         scan_mode=ScanMode.REPO,
@@ -49,7 +50,7 @@ def repo_cmd(
     if path.is_dir():
         scan_context.target_path = path
         return scan_repo_path(
-            client=client,
+            client=ctx_obj.client,
             cache=cache,
             output_handler=create_output_handler(ctx),
             exclusion_regexes=ctx_obj.exclusion_regexes,
@@ -63,7 +64,7 @@ def repo_cmd(
             git(["clone", "--mirror", repository, tmpdirname])
             scan_context.target_path = Path(tmpdirname)
             return scan_repo_path(
-                client=client,
+                client=ctx_obj.client,
                 cache=cache,
                 output_handler=create_output_handler(ctx),
                 exclusion_regexes=ctx_obj.exclusion_regexes,
