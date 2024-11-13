@@ -7,6 +7,7 @@ from pygitguardian.models import HealthCheckResponse
 
 from ggshield.cmd.utils.common_options import (
     add_common_options,
+    instance_option,
     json_option,
     text_json_format_option,
 )
@@ -19,6 +20,7 @@ from ggshield.core.text_utils import STYLE, format_text
 @click.command()
 @text_json_format_option
 @json_option
+@instance_option
 @add_common_options()
 @click.pass_context
 def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
