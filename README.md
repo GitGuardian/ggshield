@@ -203,7 +203,7 @@ If a secret is found in your staged code or in your CI, you will have an alert g
 ```shell
 $ ggshield secret scan pre-commit
 
-🛡️  ⚔️  🛡️  2 incidents have been found in file production.rb
+2 incidents have been found in file production.rb
 
 11 | config.paperclip_defaults = {
 12 |     :s3_credentials => {
