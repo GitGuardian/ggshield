@@ -192,18 +192,18 @@ For more information, have a look at [the documentation](https://docs.gitguardia
 
 # Output
 
-If no secrets or policy breaks have been found, the exit code will be 0:
+If no secrets have been found, the exit code will be 0:
 
 ```bash
 $ ggshield secret scan pre-commit
 ```
 
-If a secret or other issue is found in your staged code or in your CI, you will have an alert giving you the type of policy break, the filename where the policy break has been found and a patch giving you the position of the policy break in the file:
+If a secret is found in your staged code or in your CI, you will have an alert giving you the filename where the secret has been found and a patch giving you the position of the secret in the file:
 
 ```shell
 $ ggshield secret scan pre-commit
 
-🛡️  ⚔️  🛡️  2 policy breaks have been found in file production.rb
+🛡️  ⚔️  🛡️  2 incidents have been found in file production.rb
 
 11 | config.paperclip_defaults = {
 12 |     :s3_credentials => {

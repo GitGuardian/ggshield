@@ -7,8 +7,7 @@ homepage: https://github.com/GitGuardian/ggshield
 description: |-
   Detect leaked secrets and other potential security vulnerabilities
   ggshield runs in your local environment or in a CI environment to help you
-  detect leaked secrets, as well as other potential security vulnerabilities or
-  policy breaks.
+  detect leaked secrets, as well as other potential security vulnerabilities.
 
 arch: amd64
 platform: linux
