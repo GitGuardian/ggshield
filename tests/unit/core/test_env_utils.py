@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from ggshield.core.env_utils import load_dot_env
+from ggshield.core.env_utils import TRACKED_ENV_VARS, load_dot_env
 from ggshield.utils.os import cd
 
 
@@ -84,3 +84,18 @@ def test_load_dot_env_loads_git_root_env(
     with cd(sub1_sub2_dir):
         load_dot_env()
         load_dotenv_mock.assert_called_once_with(git_root_dotenv, override=True)
+
+
+@pytest.mark.parametrize("env_var", TRACKED_ENV_VARS)
+def test_load_dot_env_returns_set_vars(env_var, tmp_path, monkeypatch):
+    """
+    GIVEN an env var that is set, and also set with the same value in the .env
+    WHEN load_dot_env() is called
+    THEN it returns the env var
+    """
+    monkeypatch.setenv(env_var, "value")
+    (tmp_path / ".env").write_text(f"{env_var}=value")
+    with cd(tmp_path):
+        set_variables = load_dot_env()
+
+    assert set_variables == {env_var}
