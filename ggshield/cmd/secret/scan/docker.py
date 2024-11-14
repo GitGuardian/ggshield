@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.docker import docker_save_to_tmp, docker_scan_archive
 
@@ -42,6 +43,7 @@ def docker_name_cmd(
 
     with tempfile.TemporaryDirectory(suffix="ggshield") as temporary_dir:
         ctx_obj = ContextObj.get(ctx)
+        ctx_obj.client = create_client_from_config(ctx_obj.config)
         config = ctx_obj.config
         output_handler = create_output_handler(ctx)
 

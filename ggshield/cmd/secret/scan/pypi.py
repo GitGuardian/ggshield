@@ -14,6 +14,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.secret.scan.ui_utils import print_file_list
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
@@ -96,6 +97,7 @@ def pypi_cmd(
     [1]: https://pip.pypa.io/en/stable/topics/configuration/
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     output_handler = create_output_handler(ctx)
 

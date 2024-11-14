@@ -13,6 +13,7 @@ from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
+from ggshield.core.client import create_client_from_config
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import check_git_dir
@@ -28,6 +29,7 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     Scan the set of pushed commits that triggered the CI pipeline.
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     check_git_dir()
     if not (os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")):

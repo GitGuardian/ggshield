@@ -15,6 +15,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
+from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.errors import handle_exception
 from ggshield.core.git_hooks.prereceive import (
@@ -86,6 +87,7 @@ def prereceive_cmd(
     Scan as a pre-receive git hook all commits about to enter the remote git repository.
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     output_handler = create_output_handler(ctx)
     if os.getenv("GL_PROTOCOL") == "web":

@@ -12,6 +12,7 @@ from ggshield.cmd.utils.common_decorators import exception_wrapper
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.utils.git_shell import check_git_dir, git
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -59,6 +60,7 @@ def precommit_cmd(
     Scan as a pre-commit hook all changes that have been staged in a git repository.
     """
     ctx_obj = ContextObj.get(ctx)
+    ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
 
     if check_user_requested_skip():

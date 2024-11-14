@@ -21,7 +21,6 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
-from ggshield.core.client import create_client_from_config
 
 
 @click.group(
@@ -70,7 +69,6 @@ def scan_group_impl(ctx: click.Context) -> int:
     """Implementation for scan_group(). Must be a separate function so that its code can
     be reused from the deprecated `cmd.scan` package."""
     ctx_obj = ContextObj.get(ctx)
-    ctx_obj.client = create_client_from_config(ctx_obj.config)
     return_code = 0
 
     config = ctx_obj.config

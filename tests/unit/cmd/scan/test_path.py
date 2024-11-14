@@ -233,6 +233,18 @@ secret:
             _, kwargs = client_mock.call_args
             assert kwargs["base_uri"] == "https://dashboard.my-instance.com/exposed"
 
+    @pytest.mark.parametrize("position", [0, 1, 2, 3, 4])
+    def test_ssl_verify(self, cli_fs_runner, position):
+        self.create_files()
+
+        cmd = ["secret", "scan", "path", "file1"]
+        cmd.insert(position, "--allow-self-signed")
+
+        with patch("ggshield.core.client.GGClient") as client_mock:
+            cli_fs_runner.invoke(cli, cmd)
+            _, kwargs = client_mock.call_args
+            assert kwargs["session"].verify is False
+
 
 class TestScanDirectory:
     """
