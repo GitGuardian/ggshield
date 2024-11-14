@@ -1,8 +1,8 @@
-import sys
 from typing import Any, Sequence
 
 from typing_extensions import Self
 
+from ggshield.core import ui
 from ggshield.core.scan import Scannable
 from ggshield.core.ui.scanner_ui import ScannerUI
 
@@ -17,7 +17,7 @@ class PlainTextScannerUI(ScannerUI):
 
     def on_skipped(self, scannable: Scannable, reason: str) -> None:
         if reason:
-            print(f"Skipped {scannable.url}: {reason}", file=sys.stderr)
+            ui.display_info(f"Skipped {scannable.url}: {reason}")
 
     def __enter__(self) -> Self:
         return self
