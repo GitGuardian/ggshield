@@ -68,6 +68,9 @@ def test_api_status_sources(_, hs_mock, cli_fs_runner, tmp_path, monkeypatch):
     """
     (tmp_path / ".env").touch()
 
+    monkeypatch.delenv("GITGUARDIAN_INSTANCE", raising=False)
+    monkeypatch.delenv("GITGUARDIAN_API_URL", raising=False)
+
     def get_api_status(env, instance=None):
         with cd(tmp_path):
             cmd = ["api-status", "--json"]
