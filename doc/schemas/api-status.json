@@ -13,6 +13,14 @@
       "format": "uri",
       "description": "URL of the GitGuardian instance"
     },
+    "instance_source": {
+      "enum": ["CMD_OPTION", "DOTENV", "ENV_VAR", "USER_CONFIG", "DEFAULT"],
+      "description": "Source the instance was read from"
+    },
+    "api_key_source": {
+      "enum": ["DOTENV", "ENV_VAR", "USER_CONFIG"],
+      "description": "Source the API key was read from"
+    },
     "detail": {
       "type": "string",
       "description": "Human-readable version of the status"

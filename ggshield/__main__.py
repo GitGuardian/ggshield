@@ -107,7 +107,7 @@ def cli(
     if allow_self_signed:
         user_config.allow_self_signed = allow_self_signed
 
-    load_dot_env()
+    ctx_obj.config._dotenv_vars = load_dot_env()
 
     _set_color(ctx)
 

@@ -1,7 +1,8 @@
 import logging
 import os
+from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Set, Tuple
 
 import click
 
@@ -17,6 +18,19 @@ from ggshield.core.url_utils import (
 )
 
 
+class ConfigSource(Enum):
+    """
+    Enum of the different sources of configuration
+    where an API key or instance URL can come from
+    """
+
+    CMD_OPTION = "command line option"
+    DOTENV = ".env file"
+    ENV_VAR = "environment variable"
+    USER_CONFIG = "user config"
+    DEFAULT = "default"
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +40,13 @@ class Config:
     AuthConfig.
     """
 
-    __slots__ = ["user_config", "auth_config", "_cmdline_instance_name", "_config_path"]
+    __slots__ = [
+        "user_config",
+        "auth_config",
+        "_cmdline_instance_name",
+        "_config_path",
+        "_dotenv_vars",
+    ]
 
     user_config: UserConfig
     auth_config: AuthConfig
@@ -36,10 +56,16 @@ class Config:
 
     _config_path: Path
 
+    # This environment variable helps us knowing whether environment variables
+    # were set by the dotenv file or not
+    # It is used in the `api-status` command to return the API key and instance sources
+    _dotenv_vars: Set[str]
+
     def __init__(self, config_path: Optional[Path] = None):
         self.user_config, self._config_path = UserConfig.load(config_path=config_path)
         self.auth_config = AuthConfig.load()
         self._cmdline_instance_name = None
+        self._dotenv_vars = set()
 
     def save(self) -> None:
         self.user_config.save(self._config_path)
@@ -51,17 +77,23 @@ class Config:
 
     @property
     def instance_name(self) -> str:
+        return self.get_instance_name_and_source()[0]
+
+    def get_instance_name_and_source(self) -> Tuple[str, ConfigSource]:
         """
+        Return the instance name and source of the selected instance.
+
         The instance name (defaulting to URL) of the selected instance
         priority order is:
         - set from the command line (by setting cmdline_instance_name)
-        - env var (in auth_config.current_instance)
+        - GITGUARDIAN_INSTANCE env var
+        - GITGUARDIAN_API_URL env var
         - in local user config (in user_config.dashboard_url)
         - in global user config (in user_config.dashboard_url)
         - the default instance
         """
         if self._cmdline_instance_name:
-            return self._cmdline_instance_name
+            return self._cmdline_instance_name, ConfigSource.CMD_OPTION
 
         try:
             url = os.environ["GITGUARDIAN_INSTANCE"]
@@ -70,7 +102,12 @@ class Config:
             pass
         else:
             validate_instance_url(url)
-            return remove_url_trailing_slash(url)
+            source = (
+                ConfigSource.DOTENV
+                if "GITGUARDIAN_INSTANCE" in self._dotenv_vars
+                else ConfigSource.ENV_VAR
+            )
+            return remove_url_trailing_slash(url), source
 
         try:
             name = os.environ["GITGUARDIAN_API_URL"]
@@ -78,12 +115,17 @@ class Config:
         except KeyError:
             pass
         else:
-            return api_to_dashboard_url(name, warn=True)
+            source = (
+                ConfigSource.DOTENV
+                if "GITGUARDIAN_API_URL" in self._dotenv_vars
+                else ConfigSource.ENV_VAR
+            )
+            return api_to_dashboard_url(name, warn=True), source
 
         if self.user_config.instance:
-            return self.user_config.instance
+            return self.user_config.instance, ConfigSource.USER_CONFIG
 
-        return DEFAULT_INSTANCE_URL
+        return DEFAULT_INSTANCE_URL, ConfigSource.DEFAULT
 
     @property
     def cmdline_instance_name(self) -> Optional[str]:
@@ -123,7 +165,12 @@ class Config:
 
     @property
     def api_key(self) -> str:
+        return self.get_api_key_and_source()[0]
+
+    def get_api_key_and_source(self) -> Tuple[str, ConfigSource]:
         """
+        Return the selected API key and its source
+
         The API key to use
         priority order is
         - env var
@@ -132,9 +179,15 @@ class Config:
         try:
             key = os.environ["GITGUARDIAN_API_KEY"]
             logger.debug("Using API key from $GITGUARDIAN_API_KEY")
+            source = (
+                ConfigSource.DOTENV
+                if "GITGUARDIAN_API_KEY" in self._dotenv_vars
+                else ConfigSource.ENV_VAR
+            )
         except KeyError:
             key = self.auth_config.get_instance_token(self.instance_name)
-        return key
+            source = ConfigSource.USER_CONFIG
+        return key, source
 
     def add_ignored_match(self, *args: Any, **kwargs: Any) -> None:
         return self.user_config.secret.add_ignored_match(*args, **kwargs)

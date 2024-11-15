@@ -1,14 +1,20 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 from ggshield.core import ui
 from ggshield.utils.git_shell import get_git_root, is_git_dir
 from ggshield.utils.os import getenv_bool
 
+
+TRACKED_ENV_VARS = {
+    "GITGUARDIAN_INSTANCE",
+    "GITGUARDIAN_API_URL",
+    "GITGUARDIAN_API_KEY",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +45,21 @@ def _find_dot_env() -> Optional[Path]:
     return None
 
 
-def load_dot_env() -> None:
-    """Loads .env file into os.environ."""
+def load_dot_env() -> Set[str]:
+    """
+    Loads .env file into os.environ.
+    Return the list of env vars that were set by the dotenv file
+    among env vars in TRACKED_ENV_VARS
+    """
     dont_load_env = getenv_bool("GITGUARDIAN_DONT_LOAD_ENV")
     if dont_load_env:
         logger.debug("Not loading .env, GITGUARDIAN_DONT_LOAD_ENV is set")
-        return
+        return set()
 
     dot_env_path = _find_dot_env()
     if dot_env_path:
         dot_env_path = dot_env_path.absolute()
         logger.debug("Loading environment file %s", dot_env_path)
         load_dotenv(dot_env_path, override=True)
+
+    return dotenv_values(dot_env_path).keys() & TRACKED_ENV_VARS
