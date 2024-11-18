@@ -1,3 +1,4 @@
+# pre-commit config
 default_stages: [pre-commit]
 repos:
   - repo: https://github.com/ambv/black
