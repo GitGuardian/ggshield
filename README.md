@@ -11,11 +11,11 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/GitGuardian/ggshield/main.yml?branch=main&style=for-the-badge)](https://github.com/GitGuardian/ggshield/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
-`ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 400+ types of secrets, as well as other potential security vulnerabilities or policy breaks affecting your codebase.
+`ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 400+ types of secrets.
 
 `ggshield` uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan and detect potential vulnerabilities in files and other text content.
 
-Only metadata such as call time, request size and scan mode is stored from scans using `ggshield`, therefore secrets and policy breaks incidents will not be displayed on your dashboard and **your files and secrets won't be stored**.
+Only metadata such as call time, request size and scan mode is stored from scans using `ggshield`, therefore secrets will not be displayed on your dashboard and **your files and secrets won't be stored**.
 
 # Table of Contents
 
@@ -192,18 +192,18 @@ For more information, have a look at [the documentation](https://docs.gitguardia
 
 # Output
 
-If no secrets or policy breaks have been found, the exit code will be 0:
+If no secrets have been found, the exit code will be 0:
 
 ```bash
 $ ggshield secret scan pre-commit
 ```
 
-If a secret or other issue is found in your staged code or in your CI, you will have an alert giving you the type of policy break, the filename where the policy break has been found and a patch giving you the position of the policy break in the file:
+If a secret is found in your staged code or in your CI, you will have an alert giving you the filename where the secret has been found and a patch giving you the position of the secret in the file:
 
 ```shell
 $ ggshield secret scan pre-commit
 
-🛡️  ⚔️  🛡️  2 policy breaks have been found in file production.rb
+2 incidents have been found in file production.rb
 
 11 | config.paperclip_defaults = {
 12 |     :s3_credentials => {
