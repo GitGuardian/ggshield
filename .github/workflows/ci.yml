@@ -17,6 +17,10 @@ on:
       - 'doc/**'
       - 'README.md'
 
+env:
+  PDM_VERSION: 2.20.1
+  DEFAULT_PYTHON_VERSION: '3.10'
+
 jobs:
   lint:
     name: Lint package
@@ -26,15 +30,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
         with:
-          python-version: '3.10'
+          version: ${{ env.PDM_VERSION }}
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade pdm pre-commit
           pdm sync
 
       - uses: actions/cache@v3
@@ -43,7 +46,7 @@ jobs:
           key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install pre-commit hooks
-        run: pre-commit install --install-hooks
+        run: pdm run pre-commit install --install-hooks
 
       - name: Skip ggshield hooks when running from a fork
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
@@ -53,7 +56,7 @@ jobs:
 
       - name: Run pre-commit checks
         run: |
-          pre-commit run --show-diff-on-failure --all-files
+          pdm run pre-commit run --show-diff-on-failure --all-files
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
@@ -83,16 +86,15 @@ jobs:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Setup PDM & Python ${{ matrix.python-version }}
+        uses: pdm-project/setup-pdm@v4
         with:
+          version: ${{ env.PDM_VERSION }}
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade pdm
-          pdm sync --global --project . --group dev --group tests
+          pdm sync --group dev --group tests
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -104,10 +106,9 @@ jobs:
 
       - name: Ensure a clean package installation
         run: |
-          python -m pip install --upgrade check-wheel-contents
           pdm build --no-sdist
           # The created wheel (.whl) file will be found and analyzed within the `dist/` folder
-          check-wheel-contents dist/
+          pdm run check-wheel-contents dist/
 
       - name: Run unit tests
         run: |

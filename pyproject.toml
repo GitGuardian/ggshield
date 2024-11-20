@@ -73,6 +73,7 @@ dev = [
     "pre-commit",
     "pyright==1.1.367",
     "build>=1.2.2.post1",
+    "check-wheel-contents",
 ]
 
 tests = [
