@@ -77,10 +77,9 @@ dev = [
 ]
 
 tests = [
-    # pinning because of conflicting dependencies with exceptiongroup
-    "pytest==7.2.1",
     "pytest-mock",
     "pytest-socket",
+    "pytest-xdist",
     "pytest-voluptuous",
     "seed-isort-config",
     "snapshottest",

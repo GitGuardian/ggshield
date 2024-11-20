@@ -44,12 +44,12 @@ install_packages() {
     whl_path="$(ls dist/*.whl)"
 
     # Install ggshield and test dependencies
-    pip install "$whl_path" pytest pytest-voluptuous jsonschema
+    pip install "$whl_path" pytest pytest-xdist pytest-voluptuous jsonschema
 }
 
 run_tests() {
     log_progress "Running tests"
-    pytest --disable-pytest-warnings -vvv tests/functional "$@"
+    pytest --disable-pytest-warnings -n auto tests/functional "$@"
 }
 
 build_wheel
