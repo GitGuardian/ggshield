@@ -50,25 +50,16 @@ class SecretTextOutputHandler(SecretOutputHandler):
                 f"because {pluralize('it is', scan.known_secrets_count, 'they are')} already known by your "
                 f"GitGuardian dashboard and you used the `--ignore-known-secrets` option.\n"
             )
-
-            if self.verbose:
-                scan_buf.write(self.process_scan_results(scan, True))
-            else:
-                scan_buf.write("Use `--verbose` for more details.\n")
-
+            # TODO: display that using --all-secrets will display those
         return scan_buf.getvalue()
 
-    def process_scan_results(
-        self, scan: SecretScanCollection, show_only_known_secrets: bool = False
-    ) -> str:
+    def process_scan_results(self, scan: SecretScanCollection) -> str:
         """Iterate through the scans and sub-scan results to prepare the display."""
         results_buf = StringIO()
         if scan.results:
             current_result_buf = StringIO()
             for result in scan.results.results:
-                current_result_buf.write(
-                    self.process_result(result, show_only_known_secrets)
-                )
+                current_result_buf.write(self.process_result(result))
             current_result_string = current_result_buf.getvalue()
 
             # We want to show header when at least one result is not empty
@@ -79,16 +70,12 @@ class SecretTextOutputHandler(SecretOutputHandler):
 
         if scan.scans:
             for sub_scan in scan.scans:
-                inner_scan_str = self.process_scan_results(
-                    sub_scan, show_only_known_secrets
-                )
+                inner_scan_str = self.process_scan_results(sub_scan)
                 results_buf.write(inner_scan_str)
 
         return results_buf.getvalue()
 
-    def process_result(
-        self, result: Result, show_only_known_secrets: bool = False
-    ) -> str:
+    def process_result(self, result: Result) -> str:
         """
         Build readable message on the found incidents.
 
@@ -106,25 +93,21 @@ class SecretTextOutputHandler(SecretOutputHandler):
 
         number_of_displayed_secrets = 0
         for ignore_sha, policy_breaks in sha_dict.items():
-            known_secret = policy_breaks[0].known_secret
-            if (
-                (not known_secret and not show_only_known_secrets)
-                or (known_secret and show_only_known_secrets)
-                or not self.ignore_known_secrets
-            ):
-                number_of_displayed_secrets += 1
+            number_of_displayed_secrets += 1
 
-                result_buf.write(
-                    policy_break_header(policy_breaks, ignore_sha, known_secret)
+            result_buf.write(
+                policy_break_header(
+                    policy_breaks, ignore_sha, policy_breaks[0].known_secret
                 )
+            )
 
-                result_buf.write(
-                    leak_message_located(
-                        flatten_policy_breaks_by_line(policy_breaks),
-                        result.is_on_patch,
-                        clip_long_lines=not self.verbose,
-                    )
+            result_buf.write(
+                leak_message_located(
+                    flatten_policy_breaks_by_line(policy_breaks),
+                    result.is_on_patch,
+                    clip_long_lines=not self.verbose,
                 )
+            )
 
         file_info_line = ""
         if number_of_displayed_secrets > 0:

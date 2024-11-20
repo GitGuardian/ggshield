@@ -5,7 +5,14 @@ from unittest.mock import ANY, Mock, patch
 import click
 import pytest
 from click import Command, Context, Group
-from pygitguardian.models import APITokensResponse, Detail, MultiScanResult, ScanResult
+from pygitguardian.models import (
+    APITokensResponse,
+    Detail,
+    Match,
+    MultiScanResult,
+    PolicyBreak,
+    ScanResult,
+)
 
 from ggshield import __version__
 from ggshield.core.cache import Cache
@@ -329,3 +336,70 @@ def test_request_headers(scan_mock: Mock, client):
         },
         ignore_known_secrets=True,
     )
+
+
+@pytest.mark.parametrize("ignore_known_secrets", (True, False))
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets):
+    """
+    GIVEN a call multi_content_scan returning two policy break, one known and the other unknown
+    WHEN -
+    THEN the known policy break is ignored iff ignore_known_secrets is True
+    """
+    scannable = StringScannable(url="localhost", content="known\nunknown")
+    known_secret = PolicyBreak(
+        break_type="a",
+        policy="Secrets detection",
+        validity="valid",
+        known_secret=True,
+        matches=[
+            Match(
+                match="known",
+                match_type="apikey",
+                line_start=0,
+                line_end=0,
+                index_start=0,
+                index_end=1,
+            )
+        ],
+    )
+    unknown_secret = PolicyBreak(
+        break_type="a",
+        policy="Secrets detection",
+        validity="valid",
+        known_secret=False,
+        matches=[
+            Match(
+                match="unknown",
+                match_type="apikey",
+                line_start=0,
+                line_end=0,
+                index_start=0,
+                index_end=1,
+            )
+        ],
+    )
+
+    scan_result = ScanResult(
+        policy_break_count=1, policy_breaks=[known_secret, unknown_secret], policies=[]
+    )
+    multi_scan_result = MultiScanResult([scan_result])
+    multi_scan_result.status_code = 200
+    scan_mock.return_value = multi_scan_result
+
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield",
+        ),
+        check_api_key=False,
+        secret_config=SecretConfig(ignore_known_secrets=ignore_known_secrets),
+    )
+    results = scanner.scan([scannable], scanner_ui=Mock())
+
+    if ignore_known_secrets:
+        assert results.results[0].scan.policy_breaks == [unknown_secret]
+    else:
+        assert results.results[0].scan.policy_breaks == [known_secret, unknown_secret]

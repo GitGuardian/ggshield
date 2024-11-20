@@ -40,15 +40,7 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
 
         policy_breaks_to_report = []
         for result in results:
-            if not self.ignore_known_secrets:
-                # Populate GL-HOOK-ERR with all policy breaks found
-                policy_breaks_to_report += result.scan.policy_breaks
-            else:
-                for policy_break in result.scan.policy_breaks:
-                    known = policy_break.known_secret
-                    # Populate GL-HOOK-ERR with only new policy breaks
-                    if not known:
-                        policy_breaks_to_report.append(policy_break)
+            policy_breaks_to_report += result.scan.policy_breaks
 
         # Use a set to ensure we do not report duplicate incidents.
         # (can happen when the secret is present in both the old and the new version of

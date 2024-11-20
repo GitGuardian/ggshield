@@ -178,3 +178,17 @@ def censor_string(text: str) -> str:
 
 def censor_match(match: Match) -> str:
     return censor_string(match.match)
+
+
+def remove_known_secrets_from_result(scan_result: ScanResult):
+    """
+    Remove secrets that are known by the dashboard
+    Only used if ignore_known_secret is set to True
+    """
+    scan_result.policy_breaks = [
+        policy_break
+        for policy_break in scan_result.policy_breaks
+        if not policy_break.known_secret
+    ]
+
+    scan_result.policy_break_count = len(scan_result.policy_breaks)

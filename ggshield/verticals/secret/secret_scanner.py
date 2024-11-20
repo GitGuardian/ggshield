@@ -17,6 +17,7 @@ from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import MissingScopesError, UnexpectedError, handle_api_error
 from ggshield.core.filter import (
     remove_ignored_from_result,
+    remove_known_secrets_from_result,
     remove_results_from_ignore_detectors,
 )
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
@@ -58,6 +59,7 @@ class SecretScanner:
 
         self.client = client
         self.cache = cache
+        self.secret_config = secret_config
         self.ignored_matches = secret_config.ignored_matches or []
         self.ignored_detectors = secret_config.ignored_detectors
         self.headers = scan_context.get_http_headers()
@@ -218,6 +220,8 @@ class SecretScanner:
             for file, scanned in zip(chunk, scan.scan_results):
                 remove_ignored_from_result(scanned, self.ignored_matches)
                 remove_results_from_ignore_detectors(scanned, self.ignored_detectors)
+                if self.secret_config.ignore_known_secrets:
+                    remove_known_secrets_from_result(scanned)
                 if scanned.has_policy_breaks:
                     for policy_break in scanned.policy_breaks:
                         self.cache.add_found_policy_break(policy_break, file.filename)
