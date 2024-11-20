@@ -93,7 +93,8 @@ class Results:
     @staticmethod
     def from_exception(exc: Exception) -> "Results":
         """Create a Results representing a failure"""
-        error = Error(files=[], description=str(exc))
+        description = f"{type(exc)}: {str(exc) or '-'}"
+        error = Error(files=[], description=description)
         return Results(results=[], errors=[error])
 
     def extend(self, others: "Results") -> None:

@@ -1,4 +1,6 @@
 import itertools
+import logging
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Pattern, Set
@@ -63,6 +65,7 @@ def scan_commits_content(
     progress_callback: Callable[[int], None],
     commit_scanned_callback: Callable[[Commit], None],
 ) -> SecretScanCollection:  # pragma: no cover
+    logging.debug("commits=%s", commits)
     try:
         commit_files = itertools.chain.from_iterable(c.get_files() for c in commits)
 
@@ -80,6 +83,13 @@ def scan_commits_content(
     except QuotaLimitReachedError:
         raise
     except Exception as exc:
+        logging.error(
+            "Exception raised during scan. commits=%s type(exception)=%s exception=%s trace=%s",
+            commits,
+            type(exc),
+            exc,
+            traceback.format_exc(),
+        )
         results = Results.from_exception(exc)
     finally:
         progress_callback(len(commits))
