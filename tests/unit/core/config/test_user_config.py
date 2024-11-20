@@ -613,3 +613,16 @@ class TestUserConfig:
         )
         config, _ = UserConfig.load(local_config_path)
         assert config.secret.ignore_known_secrets
+
+    def test_bad_local_config(self, local_config_path, global_config_path):
+        """
+        GIVEN a malformed .gitguardian.yaml, with a list of instance
+        WHEN loading the user condiguration
+        THEN an error is returned
+        """
+        write_yaml(global_config_path, {"instance": "https://test.gitguardian.com/"})
+        write_yaml(
+            local_config_path, {"instance": ["https://dashboard.gitguardian.com/"]}
+        )
+        with pytest.raises(UnexpectedError):
+            UserConfig.load()

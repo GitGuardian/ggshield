@@ -123,16 +123,19 @@ def update_dict_from_other(dct: Dict[str, Any], other: Dict[str, Any]) -> None:
     The merge happens in-place: `dct` is modified.
     """
     for key, value in other.items():
-        if value is None:
-            continue
-        if isinstance(value, list):
-            dct.setdefault(key, []).extend(value)
-        elif isinstance(value, set):
-            dct.setdefault(key, set()).update(value)
-        elif isinstance(value, dict):
-            update_dict_from_other(dct.setdefault(key, {}), value)
-        else:
-            dct[key] = value
+        try:
+            if value is None:
+                continue
+            if isinstance(value, list):
+                dct.setdefault(key, []).extend(value)
+            elif isinstance(value, set):
+                dct.setdefault(key, set()).update(value)
+            elif isinstance(value, dict):
+                update_dict_from_other(dct.setdefault(key, {}), value)
+            else:
+                dct[key] = value
+        except AttributeError:
+            raise UnexpectedError(f"Failed to load configuration on key '{key}'")
 
 
 def remove_common_dict_items(
