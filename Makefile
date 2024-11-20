@@ -1,5 +1,5 @@
 SHELL :=/bin/bash
-.PHONY: all test unittest functest coverage black flake8 isort lint update-pipfile-lock
+.PHONY: all test unittest functest coverage black flake8 isort lint lock
 .SILENT:
 
 all:
@@ -16,32 +16,32 @@ all:
 	echo "  isort                Run isort linter"
 	echo ""
 	echo "Other targets:"
-	echo "  update-pipfile-lock  Update the Pipfile.lock"
+	echo "  lock                 Update pdm.lock"
 
 test: unittest functest
 
 unittest:
-	pipenv run pytest --disable-pytest-warnings -vvv tests/unit
+	pdm run pytest --disable-pytest-warnings -vvv tests/unit
 
 functest:
 	scripts/run-functional-tests
 
 coverage:
-	pipenv run coverage run --source ggshield -m pytest --disable-pytest-warnings tests/unit
-	pipenv run coverage report --fail-under=80
-	pipenv run coverage xml
-	pipenv run coverage html
+	pdm run coverage run --source ggshield -m pytest --disable-pytest-warnings tests/unit
+	pdm run coverage report --fail-under=80
+	pdm run coverage xml
+	pdm run coverage html
 
 black:
-	pipenv run black .
+	pdm run black .
 
 flake8:
-	pipenv run flake8
+	pdm run flake8
 
 isort:
-	pipenv run isort **/*.py
+	pdm run isort **/*.py
 
 lint: isort black flake8
 
-update-pipfile-lock:
-	scripts/update-pipfile-lock/update-pipfile-lock
+lock:
+	pdm lock --group :all

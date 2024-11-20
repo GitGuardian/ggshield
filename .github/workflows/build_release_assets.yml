@@ -17,6 +17,9 @@ on:
         type: boolean
         default: false
 
+env:
+  PDM_VERSION: 2.20.1
+
 jobs:
   build_wheel_sdist:
     runs-on: ubuntu-22.04
@@ -24,13 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install packaging tools
-        run: |
-          pip install build
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
+        with:
+          version: ${{ env.PDM_VERSION }}
 
       - name: Create packages
         run: |
-          python -m build
+          pdm build
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -141,14 +145,10 @@ jobs:
         shell: bash
         run: |
           $PYTHON_CMD -m pip install --upgrade pip
-          $PYTHON_CMD -m pip install --upgrade \
-            pipenv==2023.12.1
-
-          pipenv install --dev
-          pipenv run pip install pyinstaller==6.7.0
-        env:
-          # Disable lock otherwise Windows-only dependencies like colorama are not installed
-          PIPENV_SKIP_LOCK: 1
+          # We do not install pdm using setup-pdm because we want to use $PYTHON_CMD for
+          # our interpreter
+          $PYTHON_CMD -m pip install --upgrade pdm==$PDM_VERSION
+          pdm sync --group tests --group standalone
 
       - name: Prepare macOS secrets
         if: startsWith(matrix.os, 'macos-') && inputs.release_mode
@@ -218,9 +218,9 @@ jobs:
           else
             args="--suffix +${GITHUB_SHA:0:7}"
           fi
-          # Run the script with `bash -c` because `pipenv run` does not
+          # Run the script with `bash -c` because `pdm run` does not
           # automatically do it on Windows
-          pipenv run bash -c "scripts/build-os-packages/build-os-packages $args"
+          pdm run bash -c "scripts/build-os-packages/build-os-packages $args"
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -235,7 +235,7 @@ jobs:
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
         if: ${{ !github.event.pull_request.head.repo.fork }}
         run: |
-          pipenv run bash -c "scripts/build-os-packages/build-os-packages functests"
+          pdm run bash -c "scripts/build-os-packages/build-os-packages functests"
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}

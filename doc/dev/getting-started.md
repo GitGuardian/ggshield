@@ -2,7 +2,7 @@
 
 ## Setup your development environment
 
-1. Install [pipenv](https://github.com/pypa/pipenv#installation). ggshield uses version `2023.10.3`.
+1. Install [pdm](https://pdm-project.org/en/latest/).
 
 1. Install the [pre-commit framework](https://pre-commit.com/#install)
 
@@ -11,7 +11,7 @@
 1. Install dev packages and environment
 
    ```sh
-   pipenv install --dev --skip-lock
+   pdm install --dev
    ```
 
 1. Install pre-commit hooks
@@ -59,7 +59,7 @@ Run `make functest`.
 
 ## Running linters
 
-Run `make lint`to run all configured linters at once.
+Run `make lint` to run all configured linters at once.
 
 ## Writing git commit messages
 
@@ -71,15 +71,15 @@ Run `make lint`to run all configured linters at once.
 
 ## Python version
 
-We're committed to support python 3.8+ for now.
+We're committed to support Python 3.8+ for now.
 
 ## Opening a pull request
 
 ### Changelog
 
-We use [scriv](https://github.com/nedbat/scriv) to manage our changelog. It is automatically installed by `pipenv install --dev`.
+We use [scriv](https://github.com/nedbat/scriv) to manage our changelog. It is automatically installed by `pdm install --dev`.
 
-All user-visible changes must be documented in a changelog fragment. You can create one with `scriv create`.
+All user-visible changes must be documented in a changelog fragment. You can create one with `pdm run scriv create`.
 
 The CI rejects any pull request without changelog fragments unless it has been assigned the `skip-changelog` label. The `skip-changelog` label should only be used if your pull request only contains non-visible changes such as refactors, or fixes for regressions introduced _after_ the latest release.
 

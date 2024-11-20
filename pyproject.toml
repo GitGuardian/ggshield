@@ -1,3 +1,115 @@
+[project]
+name = "ggshield"
+dynamic = ["version"]
+description = "Detect secrets from all sources using GitGuardian's brains"
+keywords = [
+    "cli",
+    "devsecops",
+    "secrets-detection",
+    "security-tools",
+    "gitguardian",
+]
+readme = "README.md"
+authors = [
+    {name = "GitGuardian", email = "support@gitguardian.com"},
+]
+maintainers = [
+    {name = "GitGuardian", email = "support@gitguardian.com"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Natural Language :: English",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+]
+license = {text = "MIT"}
+requires-python = ">=3.8.1"
+dependencies = [
+    "platformdirs~=3.0.0",
+    "charset-normalizer~=3.1.0",
+    "click~=8.1.0",
+    "cryptography~=43.0.1",
+    "marshmallow~=3.18.0",
+    "marshmallow-dataclass~=8.5.8",
+    "oauthlib~=3.2.1",
+    "pygitguardian~=1.17.0",
+    "pyjwt~=2.6.0",
+    "python-dotenv~=0.21.0",
+    "pyyaml~=6.0.1",
+    "requests~=2.32.0",
+    "rich~=12.5.1",
+    "typing-extensions~=4.12.2",
+    "urllib3~=2.2.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/GitGuardian/ggshield"
+
+[project.scripts]
+ggshield = "ggshield.__main__:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "scriv[toml]",
+    "black==24.3.0",
+    "coverage",
+    "flake8",
+    "flake8-isort",
+    "flake8-quotes",
+    "pre-commit",
+    "pyright==1.1.367",
+    "build>=1.2.2.post1",
+    "check-wheel-contents",
+]
+
+tests = [
+    # pinning because of conflicting dependencies with exceptiongroup
+    "pytest==7.2.1",
+    "pytest-mock",
+    "pytest-socket",
+    "pytest-voluptuous",
+    "seed-isort-config",
+    "snapshottest",
+    "import-linter",
+    "jsonschema",
+    "vcrpy>=5.1.0",
+    # pytest-voluptuous dependency. Pinned because 0.15.0 does not support
+    # Python 3.8 anymore
+    "voluptuous<0.15.0",
+    # Pin because 5.6.0 currently (2024-07-15) does not work on Windows
+    "pyfakefs>=5.2.0,<5.6.0",
+]
+
+standalone = [
+    "pyinstaller==6.7.0",
+]
+
+[tool.pdm.resolution.overrides]
+# vcrpy requires urllib3 < 2 if Python is < 3.10, but it works for us with
+# Python 3.9, so force urllib3 version.
+urllib3 = "2.2.3"
+
+# pyinstaller limits Python version to < 3.13, making it incompatible with us
+pyinstaller = "6.7.0"
+
+[tool.pdm.version]
+source = "file"
+path = "ggshield/__init__.py"
+
 [tool.black]
 target-version = ['py36']
 line-length = 88

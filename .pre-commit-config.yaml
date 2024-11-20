@@ -56,7 +56,7 @@ repos:
     hooks:
       - id: pyright
         name: pyright
-        entry: 'pipenv run pyright'
+        entry: 'pdm run pyright'
         language: system
         types: [python]
         # do not pass filenames, otherwise Pyright might scan files we don't want it to scan
@@ -66,7 +66,7 @@ repos:
     hooks:
       - id: ggshield-local
         name: GitGuardian Shield
-        entry: pipenv run ggshield secret scan pre-commit
+        entry: pdm run ggshield secret scan pre-commit
         language: system
         stages: [pre-commit]
 
@@ -74,7 +74,7 @@ repos:
     hooks:
       - id: ggshield-local
         name: GitGuardian Shield
-        entry: pipenv run ggshield secret scan pre-push
+        entry: pdm run ggshield secret scan pre-push
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -90,7 +90,7 @@ repos:
     hooks:
       - id: import-linter-config
         name: Import Linter Config Check
-        entry: pipenv run ./scripts/check-import-linter-config.sh
+        entry: pdm run ./scripts/check-import-linter-config.sh
         language: system
         pass_filenames: false
         types: [python]
@@ -98,7 +98,7 @@ repos:
 
       - id: import-linter
         name: Import Linter
-        entry: pipenv run lint-imports
+        entry: pdm run lint-imports
         language: system
         pass_filenames: false
         types: [python]
