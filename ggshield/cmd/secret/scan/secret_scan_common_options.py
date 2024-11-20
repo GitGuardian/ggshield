@@ -126,6 +126,7 @@ _banlist_detectors_option = click.option(
     metavar="DETECTOR",
 )
 
+
 _with_incident_details_option = click.option(
     "--with-incident-details",
     is_flag=True,
@@ -134,7 +135,7 @@ _with_incident_details_option = click.option(
     # If the option is placed early in the command line, the value may be overridden
     # later on with False if no default is defined.
     default=None,
-    help="Display full details about the dashboard incident if one is found (JSON and SARIF formats only).",
+    help="""Display full details about the dashboard incident if one is found (JSON and SARIF formats only). Requires the 'incidents:read' scope.""",  # noqa
     callback=create_config_callback("secret", "with_incident_details"),
 )
 

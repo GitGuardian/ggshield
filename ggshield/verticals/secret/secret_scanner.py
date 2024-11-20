@@ -7,14 +7,14 @@ from concurrent.futures import Future
 from typing import Dict, Iterable, List, Optional, Union
 
 from pygitguardian import GGClient
-from pygitguardian.models import Detail, MultiScanResult
+from pygitguardian.models import APITokensResponse, Detail, MultiScanResult, TokenScope
 
 from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
-from ggshield.core.errors import handle_api_error
+from ggshield.core.errors import MissingScopesError, UnexpectedError, handle_api_error
 from ggshield.core.filter import (
     remove_ignored_from_result,
     remove_results_from_ignore_detectors,
@@ -62,6 +62,16 @@ class SecretScanner:
         self.ignored_detectors = secret_config.ignored_detectors
         self.headers = scan_context.get_http_headers()
         self.command_id = scan_context.command_id
+
+        if secret_config.with_incident_details:
+            response = self.client.api_tokens()
+
+            if not isinstance(response, (Detail, APITokensResponse)):
+                raise UnexpectedError("Unexpected api_tokens response")
+            elif isinstance(response, Detail):
+                raise UnexpectedError(response.detail)
+            if TokenScope.INCIDENTS_READ not in response.scopes:
+                raise MissingScopesError([TokenScope.INCIDENTS_READ])
 
     def scan(
         self,
