@@ -1,9 +1,16 @@
+import os
 import sys
 from typing import AnyStr, Tuple
 
 import pytest
 
-from ggshield.utils.os import getenv_bool, getenv_float, getenv_int, parse_os_release
+from ggshield.utils.os import (
+    cd,
+    getenv_bool,
+    getenv_float,
+    getenv_int,
+    parse_os_release,
+)
 
 
 @pytest.mark.skipif(
@@ -88,3 +95,11 @@ def test_getenv_bool(monkeypatch, env_value, default, expected):
     else:
         monkeypatch.delenv(key, raising=False)
     assert getenv_bool(key, default) == expected
+
+
+def test_cd_context_manager(tmpdir):
+    prev = os.getcwd()
+    assert prev != tmpdir
+    with cd(tmpdir):
+        assert os.getcwd() == tmpdir
+    assert os.getcwd() == prev
