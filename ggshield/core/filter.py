@@ -22,12 +22,12 @@ INVALID_PATTERNS_REGEX = re.compile(
 MAXIMUM_CENSOR_LENGTH = 60
 
 
-def is_ignored(
+def is_in_ignored_matches(
     policy_break: PolicyBreak,
     matches_ignore: Iterable[IgnoredMatch],
 ) -> bool:
     """
-    is_ignored checks if a occurrence is ignored.
+    is_in_ignored_matches checks if a occurrence is ignored.
     There are 2 ways of ignoring a occurrence:
     - matching the occurrence sha
     - matching one of the match.match values
@@ -61,7 +61,7 @@ def remove_ignored_from_result(
     scan_result.policy_breaks = [
         policy_break
         for policy_break in scan_result.policy_breaks
-        if not is_ignored(policy_break, matches_ignore)
+        if not is_in_ignored_matches(policy_break, matches_ignore)
     ]
 
     scan_result.policy_break_count = len(scan_result.policy_breaks)
