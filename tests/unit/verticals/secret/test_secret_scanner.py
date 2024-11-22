@@ -113,15 +113,14 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
         for result in results.results:
-            if result.scan.policy_breaks:
-                assert len(result.scan.policy_breaks[0].matches) == expected.matches
+            if result.policy_breaks:
+                assert len(result.policy_breaks[0].matches) == expected.matches
                 if expected.first_match:
                     assert (
-                        result.scan.policy_breaks[0].matches[0].match
-                        == expected.first_match
+                        result.policy_breaks[0].matches[0].match == expected.first_match
                     )
             else:
-                assert result.scan.policy_breaks == []
+                assert result.policy_breaks == []
 
             if expected.want:
                 assert result.content == expected.want["content"]
@@ -253,10 +252,10 @@ index 7601807,5716ca5..8c27e55
             secret_config=SecretConfig(),
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
-        scan = results.results[0].scan
-        assert len(scan.policy_breaks) == 1
+        policy_breaks = results.results[0].policy_breaks
+        assert len(policy_breaks) == 1
 
-        matches = {m.match_type: m.match for m in scan.policy_breaks[0].matches}
+        matches = {m.match_type: m.match for m in policy_breaks[0].matches}
         assert matches["username"] == "owly"
         assert matches["password"] == _SIMPLE_SECRET_TOKEN
 
@@ -400,6 +399,6 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     results = scanner.scan([scannable], scanner_ui=Mock())
 
     if ignore_known_secrets:
-        assert results.results[0].scan.policy_breaks == [unknown_secret]
+        assert results.results[0].policy_breaks == [unknown_secret]
     else:
-        assert results.results[0].scan.policy_breaks == [known_secret, unknown_secret]
+        assert results.results[0].policy_breaks == [known_secret, unknown_secret]

@@ -15,6 +15,7 @@ from ggshield.core.text_utils import (
     pluralize,
     translate_validity,
 )
+from ggshield.verticals.secret.secret_scanner import IgnoreReason
 
 from ..extended_match import ExtendedMatch
 from ..secret_scan_collection import Result, SecretScanCollection
@@ -38,16 +39,23 @@ class SecretTextOutputHandler(SecretOutputHandler):
             scan_buf.write(secrets_engine_version())
         scan_buf.write(processed_scan_results)
         if not processed_scan_results:
+
             scan_buf.write(
                 no_new_leak_message()
-                if (self.ignore_known_secrets and scan.known_secrets_count)
+                if self.ignore_known_secrets
                 else no_leak_message()
             )
 
-        if self.ignore_known_secrets and scan.known_secrets_count > 0:
+        known_secrets_count = sum(
+            result.ignored_policy_breaks_count_by_reason.get(
+                IgnoreReason.KNOWN_SECRET, 0
+            )
+            for result in scan.get_all_results()
+        )
+        if self.ignore_known_secrets and known_secrets_count > 0:
             scan_buf.write(
-                f"\nWarning: {scan.known_secrets_count} {pluralize('secret', scan.known_secrets_count)} ignored "
-                f"because {pluralize('it is', scan.known_secrets_count, 'they are')} already known by your "
+                f"\nWarning: {known_secrets_count} {pluralize('secret', known_secrets_count)} ignored "
+                f"because {pluralize('it is', known_secrets_count, 'they are')} already known by your "
                 f"GitGuardian dashboard and you used the `--ignore-known-secrets` option.\n"
             )
             # TODO: display that using --all-secrets will display those
@@ -86,7 +94,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
         """
         result_buf = StringIO()
 
-        sha_dict = group_policy_breaks_by_ignore_sha(result.scan.policy_breaks)
+        sha_dict = group_policy_breaks_by_ignore_sha(result.policy_breaks)
 
         if not self.show_secrets:
             result.censor()

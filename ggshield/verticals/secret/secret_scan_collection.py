@@ -1,16 +1,33 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from pygitguardian import GGClient
-from pygitguardian.models import Detail, Match, ScanResult, SecretIncident
+from pygitguardian.models import Detail, Match, PolicyBreak, ScanResult, SecretIncident
 
 from ggshield.core.errors import UnexpectedError, handle_api_error
-from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.scan.scannable import Scannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
+
+
+class IgnoreReason(Enum):
+    IGNORED_MATCH = "ignored_match"
+    IGNORED_DETECTOR = "ignored_detector"
+    KNOWN_SECRET = "known_secret"
 
 
 class Result:
@@ -23,16 +40,18 @@ class Result:
     filemode: Filemode
     path: Path
     url: str
-    scan: ScanResult  # Result of content scan
+    policy_breaks: List[PolicyBreak]
+    ignored_policy_breaks_count_by_reason: Dict[IgnoreReason, int]
 
     def __init__(self, file: Scannable, scan: ScanResult):
         self.filename = file.filename
         self.filemode = file.filemode
         self.path = file.path
         self.url = file.url
-        self.scan = scan
+        self.policy_breaks = scan.policy_breaks
         lines = get_lines_from_content(file.content, self.filemode)
         self.enrich_matches(lines)
+        self.ignored_policy_breaks_count_by_reason = {}
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Result):
@@ -42,7 +61,7 @@ class Result:
             and self.filemode == other.filemode
             and self.path == other.path
             and self.url == other.url
-            and self.scan == other.scan
+            and self.policy_breaks == other.policy_breaks
         )
 
     @property
@@ -52,7 +71,7 @@ class Result:
     def enrich_matches(self, lines: List[Line]) -> None:
         if len(lines) == 0:
             raise UnexpectedError("Parsing of scan result failed.")
-        for policy_break in self.scan.policy_breaks:
+        for policy_break in self.policy_breaks:
             policy_break.matches = cast(
                 List[Match],
                 [
@@ -62,13 +81,28 @@ class Result:
             )
 
     def censor(self) -> None:
-        for policy_break in self.scan.policy_breaks:
+        for policy_break in self.policy_breaks:
             for extended_match in policy_break.matches:
                 cast(ExtendedMatch, extended_match).censor()
 
     @property
     def has_policy_breaks(self) -> bool:
-        return self.scan.has_policy_breaks
+        return len(self.policy_breaks) > 0
+
+    def apply_ignore_function(
+        self, reason: IgnoreReason, ignore_function: Callable[[PolicyBreak], bool]
+    ):
+        if reason in self.ignored_policy_breaks_count_by_reason:
+            raise Exception(f"Ignore was already computed for {IgnoreReason}")
+        to_keep = []
+        ignored_count = 0
+        for policy_break in self.policy_breaks:
+            if ignore_function(policy_break):
+                ignored_count += 1
+            else:
+                to_keep.append(policy_break)
+        self.policy_breaks = to_keep
+        self.ignored_policy_breaks_count_by_reason[reason] = ignored_count
 
 
 class Error(NamedTuple):
@@ -131,46 +165,15 @@ class SecretScanCollection:
         self.optional_header = optional_header
         self.extra_info = extra_info
 
-        (
-            self.known_secrets_count,
-            self.new_secrets_count,
-        ) = self._get_known_new_secrets_count()
-
-    @property
-    def has_new_secrets(self) -> bool:
-        return self.new_secrets_count > 0
-
-    @property
-    def has_secrets(self) -> bool:
-        return (self.new_secrets_count + self.known_secrets_count) > 0
+        self.total_policy_breaks_count = sum(
+            len(result.policy_breaks) for result in self.get_all_results()
+        )
 
     @property
     def scans_with_results(self) -> List["SecretScanCollection"]:
         if self.scans:
             return [scan for scan in self.scans if scan.results]
         return []
-
-    @property
-    def has_results(self) -> bool:
-        return bool(self.results and self.results.results)
-
-    def _get_known_new_secrets_count(self) -> Tuple[int, int]:
-        policy_breaks = []
-        for result in self.get_all_results():
-            for policy_break in result.scan.policy_breaks:
-                policy_breaks.append(policy_break)
-
-        known_secrets_count = 0
-        new_secrets_count = 0
-        sha_dict = group_policy_breaks_by_ignore_sha(policy_breaks)
-
-        for ignore_sha, policy_breaks in sha_dict.items():
-            if policy_breaks[0].known_secret:
-                known_secrets_count += 1
-            else:
-                new_secrets_count += 1
-
-        return known_secrets_count, new_secrets_count
 
     def get_all_results(self) -> Iterable[Result]:
         """Returns an iterable on all results and sub-scan results"""
@@ -184,7 +187,7 @@ class SecretScanCollection:
     def get_incident_details(self, client: GGClient) -> Dict[str, SecretIncident]:
         incident_details: dict[str, SecretIncident] = {}
         for result in self.get_all_results():
-            for policy_break in result.scan.policy_breaks:
+            for policy_break in result.policy_breaks:
                 url = policy_break.incident_url
                 if url and url not in incident_details:
                     incident_id = int(url.split("/")[-1])

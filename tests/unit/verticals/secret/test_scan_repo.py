@@ -146,7 +146,7 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
     assert len(scan_collection.scans) == 2
 
     all_policy_breaks_count = sum(
-        result.scan.policy_break_count for result in scan_collection.get_all_results()
+        len(result.policy_breaks) for result in scan_collection.get_all_results()
     )
     assert all_policy_breaks_count == 4
 

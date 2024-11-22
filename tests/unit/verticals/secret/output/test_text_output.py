@@ -142,9 +142,7 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # all ignore sha should be in the output
     assert all(
         ignore_sha in output
-        for ignore_sha in group_policy_breaks_by_ignore_sha(
-            result_input.scan.policy_breaks
-        )
+        for ignore_sha in group_policy_breaks_by_ignore_sha(result_input.policy_breaks)
     )
 
 
