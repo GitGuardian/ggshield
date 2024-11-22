@@ -2,10 +2,10 @@ import hashlib
 import math
 import operator
 import re
-from typing import Dict, Iterable, List, Optional, Pattern, Set
+from typing import Dict, Iterable, List, Pattern, Set
 
 from click import UsageError
-from pygitguardian.models import Match, PolicyBreak, ScanResult
+from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.core.types import IgnoredMatch
 
@@ -45,42 +45,6 @@ def is_in_ignored_matches(
     ):
         return True
     return False
-
-
-def remove_ignored_from_result(
-    scan_result: ScanResult, matches_ignore: Iterable[IgnoredMatch]
-) -> None:
-    """
-    remove_ignored removes occurrences from a Scan Result based on a sha
-    made from its matches.
-
-    :param scan_result: ScanResult to filter
-    :param matches_ignore: match SHAs or plaintext matches to filter out
-    """
-
-    scan_result.policy_breaks = [
-        policy_break
-        for policy_break in scan_result.policy_breaks
-        if not is_in_ignored_matches(policy_break, matches_ignore)
-    ]
-
-    scan_result.policy_break_count = len(scan_result.policy_breaks)
-
-
-def remove_results_from_ignore_detectors(
-    scan_result: ScanResult,
-    ignored_detectors: Optional[Set[str]] = None,
-) -> None:
-    if not ignored_detectors:
-        return
-
-    scan_result.policy_breaks = [
-        policy_break
-        for policy_break in scan_result.policy_breaks
-        if policy_break.break_type not in ignored_detectors
-    ]
-
-    scan_result.policy_break_count = len(scan_result.policy_breaks)
 
 
 def get_ignore_sha(policy_break: PolicyBreak) -> str:
@@ -178,17 +142,3 @@ def censor_string(text: str) -> str:
 
 def censor_match(match: Match) -> str:
     return censor_string(match.match)
-
-
-def remove_known_secrets_from_result(scan_result: ScanResult):
-    """
-    Remove secrets that are known by the dashboard
-    Only used if ignore_known_secret is set to True
-    """
-    scan_result.policy_breaks = [
-        policy_break
-        for policy_break in scan_result.policy_breaks
-        if not policy_break.known_secret
-    ]
-
-    scan_result.policy_break_count = len(scan_result.policy_breaks)
