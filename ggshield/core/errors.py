@@ -7,12 +7,13 @@ import logging
 import platform
 import traceback
 from enum import IntEnum
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import click
 from marshmallow import ValidationError
-from pygitguardian.models import Detail
+from pygitguardian.models import Detail, TokenScope
 
+from ggshield.core.text_utils import pluralize
 from ggshield.utils.git_shell import GitError, InvalidGitRefError
 
 
@@ -64,6 +65,19 @@ class ParseError(_ExitError):
 
     def __init__(self, message: str):
         super().__init__(ExitCode.UNEXPECTED_ERROR, message)
+
+
+class MissingScopesError(_ExitError):
+    """
+    Token does not have the required scope
+    """
+
+    def __init__(self, token_scopes: List[TokenScope]):
+        scopes_list = ", ".join([scope.value for scope in token_scopes])
+        super().__init__(
+            ExitCode.UNEXPECTED_ERROR,
+            f"Token is missing the required {pluralize('scope', len(token_scopes))} {scopes_list} to perform this operation.",  # noqa
+        )
 
 
 class AuthError(_ExitError):

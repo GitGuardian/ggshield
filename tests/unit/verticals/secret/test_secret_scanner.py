@@ -3,10 +3,15 @@ from unittest.mock import Mock
 
 import click
 import pytest
-from pygitguardian.models import Detail
+from pygitguardian.models import APITokensResponse, Detail
 
 from ggshield.core.config.user_config import SecretConfig
-from ggshield.core.errors import ExitCode, QuotaLimitReachedError
+from ggshield.core.errors import (
+    ExitCode,
+    MissingScopesError,
+    QuotaLimitReachedError,
+    UnexpectedError,
+)
 from ggshield.core.scan import (
     Commit,
     DecodeError,
@@ -24,6 +29,7 @@ from tests.unit.conftest import (
     _NO_SECRET_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _SIMPLE_SECRET_TOKEN,
+    API_TOKENS_RESPONSE_SCAN_SCOPES,
     GG_TEST_TOKEN,
     UNCHECKED_SECRET_PATCH,
     my_vcr,
@@ -241,3 +247,36 @@ index 7601807,5716ca5..8c27e55
         matches = {m.match_type: m.match for m in scan.policy_breaks[0].matches}
         assert matches["username"] == "owly"
         assert matches["password"] == _SIMPLE_SECRET_TOKEN
+
+
+@pytest.mark.parametrize(
+    "api_response, expected_exception, message",
+    [
+        (
+            Detail(detail="Unexpected response"),
+            UnexpectedError,
+            "Unexpected response",
+        ),
+        (
+            APITokensResponse.from_dict(API_TOKENS_RESPONSE_SCAN_SCOPES),
+            MissingScopesError,
+            "Token is missing the required scope incidents:read to perform this operation.",
+        ),
+    ],
+)
+def test_with_incident_details_error(
+    monkeypatch, client, cache, api_response, expected_exception, message
+):
+    monkeypatch.setattr(client, "api_tokens", Mock(return_value=api_response))
+    with pytest.raises(expected_exception) as exc_info:
+        SecretScanner(
+            client=client,
+            cache=cache,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.PATH,
+                command_path="external",
+            ),
+            check_api_key=False,
+            secret_config=SecretConfig(with_incident_details=True),
+        )
+        assert message in str(exc_info.value)
