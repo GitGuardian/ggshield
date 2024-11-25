@@ -402,3 +402,31 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
         assert results.results[0].policy_breaks == [unknown_secret]
     else:
         assert results.results[0].policy_breaks == [known_secret, unknown_secret]
+
+
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_unexpected_error(scan_mock: Mock, client):
+    """
+    GIVEN a call multi_content_scan raising an exception
+    WHEN calling scanner.scan
+    THEN an UnexpectedError is raised
+    """
+    scannable = StringScannable(url="localhost", content="known\nunknown")
+
+    def raise_exc(*args, **kwargs):
+        raise Exception("dummy")
+
+    scan_mock.side_effect = raise_exc
+
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield",
+        ),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+    with pytest.raises(UnexpectedError, match="Scanning failed.*"):
+        scanner.scan([scannable], scanner_ui=Mock())
