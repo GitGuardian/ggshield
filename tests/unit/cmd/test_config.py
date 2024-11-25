@@ -132,6 +132,7 @@ class TestConfigList:
     @staticmethod
     def run_cmd(cli_fs_runner, json: bool = False) -> Tuple[bool, str]:
         cmd = ["config", "list", "--json"] if json else ["config", "list"]
+        cli_fs_runner.mix_stderr = False if json else True
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
         return result.exit_code, result.output
 
