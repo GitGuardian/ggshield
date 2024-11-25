@@ -1,4 +1,5 @@
 import json
+import sys
 from datetime import datetime, timezone
 from typing import Tuple
 
@@ -49,6 +50,15 @@ expiry: not set
 """
 
 
+def _check_expected_output(output: str, expected_output: str):
+    if sys.version_info < (3, 9) and "Error:" not in expected_output:
+        expected_output += (
+            "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
+            "GGShield will soon require Python 3.9 or above to run.\n"
+        )
+    assert output == expected_output
+
+
 class TestConfigList:
 
     @pytest.fixture
@@ -80,7 +90,7 @@ class TestConfigList:
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == EXPECTED_OUTPUT
+        _check_expected_output(output, EXPECTED_OUTPUT)
 
     def test_list_json_output(
         self, cli_fs_runner, config_list_json_schema, setup_configs
@@ -91,7 +101,6 @@ class TestConfigList:
         THEN all configs should be listed with the correct format
         """
         exit_code_json, output_json = self.run_cmd(cli_fs_runner, json=True)
-
         assert exit_code_json == ExitCode.SUCCESS, output_json
         dct = json.loads(output_json)
         jsonschema.validate(dct, config_list_json_schema)
@@ -149,7 +158,7 @@ class TestConfigSet:
         ), "The instance config should remain unchanged"
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == ""
+        _check_expected_output(output, "")
 
     @pytest.mark.parametrize("value", [0, 365])
     def test_set_lifetime_instance_config_value(self, value, cli_fs_runner):
@@ -185,7 +194,7 @@ class TestConfigSet:
         ), "The default auth config should remain unchanged"
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == ""
+        _check_expected_output(output, "")
 
     def test_set_invalid_field_name(self, cli_fs_runner):
         """
@@ -236,8 +245,8 @@ class TestConfigSet:
 
         exit_code, output = self.run_cmd(cli_fs_runner, 0, instance_url=instance_url)
 
-        assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
-        assert output == f"Error: Unknown instance: '{instance_url}'\n"
+        assert exit_code == ExitCode.AUTHENTICATION_ERROR
+        _check_expected_output(output, f"Error: Unknown instance: '{instance_url}'\n")
 
         config = Config()
         assert (
@@ -322,7 +331,7 @@ class TestConfigUnset:
         ), "The default auth config should remain unchanged"
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == ""
+        _check_expected_output(output, "")
 
     def test_unset_lifetime_default_config_value(self, cli_fs_runner):
         """
@@ -343,7 +352,7 @@ class TestConfigUnset:
         ), "Unrelated instance config should remain unchanged"
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == ""
+        _check_expected_output(output, "")
 
     def test_unset_lifetime_all(self, cli_fs_runner):
         """
@@ -370,7 +379,7 @@ class TestConfigUnset:
         assert config.auth_config.default_token_lifetime is None, output
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == ""
+        _check_expected_output(output, "")
 
     def test_unset_lifetime_invalid_instance(self, cli_fs_runner):
         """
@@ -386,7 +395,7 @@ class TestConfigUnset:
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
 
         assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
-        assert output == f"Error: Unknown instance: '{instance_url}'\n"
+        _check_expected_output(output, f"Error: Unknown instance: '{instance_url}'\n")
 
         config = Config()
         assert (
@@ -409,7 +418,7 @@ class TestConfigUnset:
         exit_code, output = self.run_cmd(cli_fs_runner, param="instance")
 
         assert exit_code == ExitCode.SUCCESS, output
-        assert output == ""
+        _check_expected_output(output, "")
 
         config, _ = UserConfig.load(config_path)
         assert config.instance is None
@@ -461,7 +470,7 @@ class TestConfigGet:
 
         exit_code, output = self.run_cmd(cli_fs_runner)
 
-        assert output == f"default_token_lifetime: {expected_value}\n"
+        _check_expected_output(output, f"default_token_lifetime: {expected_value}\n")
         assert exit_code == ExitCode.SUCCESS
 
     @pytest.mark.parametrize(
@@ -497,7 +506,8 @@ class TestConfigGet:
 
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
 
-        assert output == f"default_token_lifetime: {expected_value}\n"
+        expected_output = f"default_token_lifetime: {expected_value}\n"
+        _check_expected_output(output, expected_output)
         assert exit_code == ExitCode.SUCCESS
 
     def test_unset_lifetime_invalid_instance(self, cli_fs_runner):
@@ -510,7 +520,7 @@ class TestConfigGet:
         exit_code, output = self.run_cmd(cli_fs_runner, instance_url=instance_url)
 
         assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
-        assert output == f"Error: Unknown instance: '{instance_url}'\n"
+        _check_expected_output(output, f"Error: Unknown instance: '{instance_url}'\n")
 
     def test_get_invalid_field_name(self, cli_fs_runner):
         """
@@ -546,7 +556,7 @@ class TestConfigGet:
 
         exit_code, output = self.run_cmd(cli_fs_runner, param="instance")
 
-        assert output == f"instance: {expected_value}\n"
+        _check_expected_output(output, f"instance: {expected_value}\n")
         assert exit_code == ExitCode.SUCCESS
 
     @staticmethod

@@ -23,6 +23,7 @@ from ggshield.cmd.status import status_cmd
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.debug import setup_debug_mode
+from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core import check_updates, ui
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
@@ -138,9 +139,14 @@ def _set_color(ctx: click.Context):
         ctx.color = True
 
 
-def _display_deprecation_message(cfg: Config) -> None:
-    for message in cfg.user_config.deprecation_messages:
+def _display_deprecation_message(ctx_obj: ContextObj) -> None:
+    for message in ctx_obj.config.user_config.deprecation_messages:
         ui.display_warning(message)
+    if sys.version_info < (3, 9) and ctx_obj.output_format is OutputFormat.TEXT:
+        ui.display_warning(
+            "Python 3.8 is no longer supported by the Python Software Foundation. "
+            "GGShield will soon require Python 3.9 or above to run."
+        )
 
 
 def _check_for_updates(check_for_updates: bool) -> None:
@@ -165,7 +171,7 @@ def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -
     The argument exit_code is the result of the previously executed click command.
     """
     ctx_obj = ContextObj.get(ctx)
-    _display_deprecation_message(ctx_obj.config)
+    _display_deprecation_message(ctx_obj)
     _check_for_updates(ctx_obj.check_for_updates)
     sys.exit(exit_code)
 
