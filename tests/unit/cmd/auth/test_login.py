@@ -1,4 +1,5 @@
 import json
+import sys
 import urllib.parse as urlparse
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum, auto
@@ -321,7 +322,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_not_called()
 
         self._assert_last_print(
-            output, "ggshield is already authenticated without an expiry date"
+            output, "ggshield is already authenticated without an expiry date\n"
         )
 
     @pytest.mark.parametrize(
@@ -353,7 +354,7 @@ class TestAuthLoginWeb:
         self._request_mock.assert_all_requests_happened()
 
         self._assert_last_print(
-            output, f"ggshield is already authenticated until {str_date}, 2100"
+            output, f"ggshield is already authenticated until {str_date}, 2100\n"
         )
 
     def test_auth_login_recreates_token_if_deleted_server_side(
@@ -394,7 +395,7 @@ class TestAuthLoginWeb:
         assert exit_code == ExitCode.UNEXPECTED_ERROR
 
         self._webbrowser_open_mock.assert_not_called()
-        self._assert_last_print(output, "Error: Could not find unoccupied port.")
+        self._assert_last_print(output, "Error: Could not find unoccupied port.\n")
         self._assert_config_is_empty()
 
     @pytest.mark.parametrize(
@@ -426,7 +427,7 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called_once()
         self._assert_last_print(
             output,
-            "Error: Invalid code or state received from the callback.",
+            "Error: Invalid code or state received from the callback.\n",
         )
         self._assert_config_is_empty()
 
@@ -447,18 +448,18 @@ class TestAuthLoginWeb:
 
         self._request_mock.assert_all_requests_happened()
         self._webbrowser_open_mock.assert_called_once()
-        self._assert_last_print(output, "Error: Cannot create a token: kaboom.")
+        self._assert_last_print(output, "Error: Cannot create a token: kaboom.\n")
 
     @pytest.mark.parametrize(
         ("login_result", "message"),
         (
             (
                 LoginResult.GARBAGE_HTML_RESPONSE,
-                "Error: Server response is not JSON (HTTP code: 418).",
+                "Error: Server response is not JSON (HTTP code: 418).\n",
             ),
             (
                 LoginResult.GARBAGE_NO_TOKEN_RESPONSE,
-                "Error: Server did not provide the created token.",
+                "Error: Server did not provide the created token.\n",
             ),
         ),
     )
@@ -495,7 +496,7 @@ class TestAuthLoginWeb:
         self._assert_open_url()
 
         self._request_mock.assert_all_requests_happened()
-        self._assert_last_print(output, "Error: The created token is invalid.")
+        self._assert_last_print(output, "Error: The created token is invalid.\n")
 
     @pytest.mark.parametrize("token_name", [None, "some token name"])
     @pytest.mark.parametrize("lifetime", [None, 0, 1, 365])
@@ -561,6 +562,12 @@ class TestAuthLoginWeb:
             "\n"
             'You do not need to run "ggshield auth login" again. Future requests will automatically use the token.\n'
         )
+
+        if sys.version_info < (3, 9):
+            message += (
+                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
+                "GGShield will soon require Python 3.9 or above to run.\n"
+            )
 
         assert output.endswith(message)
 
@@ -758,7 +765,12 @@ class TestAuthLoginWeb:
         """
         assert that the last log output is the same as the one passed in param
         """
-        assert output.rsplit("\n", 2)[-2] == expected_str
+        if sys.version_info < (3, 9) and "Error:" not in expected_str:
+            expected_str += (
+                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
+                "GGShield will soon require Python 3.9 or above to run.\n"
+            )
+        assert output.endswith(expected_str)
 
     def _assert_open_url(
         self,
@@ -857,19 +869,19 @@ class TestAuthLoginWeb:
                 "web",
                 "https://dashboard.gitguardian.com",
                 "https://onprem.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
-                "Error: instance and SSO URL params do not match",
+                "Error: instance and SSO URL params do not match\n",
             ],
             [
                 "web",
                 "https://dashboard.gitguardian.com",
                 "https://dashboard.gitguardian.com",
-                "Error: Invalid value for sso-url: Please provide a valid SSO URL.",
+                "Error: Invalid value for sso-url: Please provide a valid SSO URL.\n",
             ],
             [
                 "token",
                 "https://dashboard.gitguardian.com",
                 "https://dashboard.gitguardian.com/auth/sso/1e0f7890-2293-4b2d-8aa8-f6f0e8e92274",
-                "Error: Invalid value for sso-url: --sso-url is reserved for the web login method.",
+                "Error: Invalid value for sso-url: --sso-url is reserved for the web login method.\n",
             ],
         ],
     )
@@ -887,6 +899,11 @@ class TestAuthLoginWeb:
         exit_code, output = self.run_cmd(cli_fs_runner, method=method)
         assert exit_code > 0, output
         self._webbrowser_open_mock.assert_not_called()
+        if sys.version_info < (3, 9) and "Error:" not in expected_error:
+            expected_error += (
+                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
+                "GGShield will soon require Python 3.9 or above to run.\n"
+            )
         self._assert_last_print(output, expected_error)
 
     @pytest.mark.parametrize(

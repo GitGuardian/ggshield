@@ -16,6 +16,7 @@ from tests.unit.conftest import assert_invoke_ok, my_vcr
 def test_quota(cli_fs_runner, quota_json_schema):
     with my_vcr.use_cassette("quota"):
         cmd = ["quota", "--json"]
+        cli_fs_runner.mix_stderr = False
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
 
@@ -28,6 +29,7 @@ def test_quota(cli_fs_runner, quota_json_schema):
 def test_api_status(cli_fs_runner, api_status_json_schema):
     with my_vcr.use_cassette("test_health_check"):
         cmd = ["api-status", "--json"]
+        cli_fs_runner.mix_stderr = False
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
 
@@ -74,6 +76,7 @@ def test_api_status_sources(_, hs_mock, cli_fs_runner, tmp_path, monkeypatch):
     def get_api_status(env, instance=None):
         with cd(tmp_path):
             cmd = ["api-status", "--json"]
+            cli_fs_runner.mix_stderr = False
             if instance:
                 cmd.extend(["--instance", instance])
             result = cli_fs_runner.invoke(cli, cmd, color=False, env=env)
