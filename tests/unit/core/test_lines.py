@@ -103,3 +103,24 @@ def test_get_lines_from_patch_does_not_fail_on_patches_without_eof_newlines():
         '+token = "foo"',
         "\\ No newline at end of file",
     ]
+
+
+LINE_ON_HUNK_HEADER = """
+@@ -3,4 +3,4 @@ I'm on the hunk header
+ a line
+ some other line
+
+-old line
++new line
+"""
+
+
+def test_get_lines_set_indices_for_line_on_hunk_header():
+    """
+    GIVEN a patch with content on the same line as the patch header
+    WHEN parsed with get_lines_from_patch()
+    THEN the line at the patch header has valid values for pre_index and post_index
+    """
+    lines = list(get_lines_from_patch(LINE_ON_HUNK_HEADER, Filemode.MODIFY))
+    assert lines[0].pre_index == 2
+    assert lines[0].post_index == 2
