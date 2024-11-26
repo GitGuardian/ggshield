@@ -159,6 +159,7 @@ class Scannable(ABC):
         if charset_match is None:
             raise DecodeError
 
+        logger.debug('filename="%s" charset=%s', fp.name, charset_match.encoding)
         if charset_match.encoding in {"utf_8", "ascii"}:
             # Shortcut: the content is already in UTF-8 (or ASCII, which is a subset of
             # utf-8), no need to decode anything
@@ -167,6 +168,7 @@ class Scannable(ABC):
         # We can't know if the file is longer without reading its content, do it now
         fp.seek(0, SEEK_SET)
         content, utf8_encoded_size = Scannable._decode_bytes(fp.read(), charset_match)
+        logger.debug('filename="%s" utf8_encoded_size=%d', fp.name, utf8_encoded_size)
         if utf8_encoded_size > max_utf8_encoded_size:
             return True, None, utf8_encoded_size
         else:
