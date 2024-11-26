@@ -252,7 +252,7 @@ step_test() {
 }
 
 step_functests() {
-    PATH=$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest tests/functional
+    PATH=$PACKAGES_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX:$PATH pytest -n auto tests/functional
 }
 
 create_linux_packages() {

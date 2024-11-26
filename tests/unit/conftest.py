@@ -616,13 +616,21 @@ my_vcr = vcr.VCR(
 )
 
 
-@pytest.fixture(scope="session")
-def client() -> GGClient:
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_gitguardian_api_key():
+    """
+    Many VCR-based tests expect GITGUARDIAN_API_KEY to be set, set to a dummy one if
+    it's not
+    """
     if "GITGUARDIAN_API_KEY" not in os.environ:
         warnings.warn(
             "GITGUARDIAN_API_KEY is not set, recording VCR cassettes won't work."
         )
         os.environ["GITGUARDIAN_API_KEY"] = "not-a-real-key"
+
+
+@pytest.fixture(scope="session")
+def client(_ensure_gitguardian_api_key) -> GGClient:
     api_key = os.environ["GITGUARDIAN_API_KEY"]
 
     if "GITGUARDIAN_API_URL" in os.environ:  # deprecated
