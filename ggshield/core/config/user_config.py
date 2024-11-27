@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from dataclasses import field
@@ -61,6 +62,22 @@ class SecretConfig(FilteredConfig):
                     match.name = secret.name
                 return
         self.ignored_matches.append(secret)
+
+    def dump_for_monitoring(self) -> str:
+        return json.dumps(
+            {
+                "show_secrets": self.show_secrets,
+                "ignored_detectors_count": len(self.ignored_detectors),
+                "ignored_matches_count": len(self.ignored_matches),
+                "ignored_paths_count": len(self.ignored_paths),
+                "ignore_known_secrets_secrets": self.show_secrets,
+                "with_incident_details": self.with_incident_details,
+                "has_prereceive_remediation_message": bool(
+                    self.prereceive_remediation_message
+                ),
+                "all_secrets": self.all_secrets,
+            }
+        )
 
 
 def validate_policy_id(policy_id: str) -> bool:

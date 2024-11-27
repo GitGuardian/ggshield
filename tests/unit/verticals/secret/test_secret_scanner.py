@@ -333,6 +333,7 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-OS-Version": os_version,
             "GGShield-Python-Version": platform.python_version(),
             "mode": "path",
+            "scan_options": ANY,
         },
         all_secrets=True,
     )
