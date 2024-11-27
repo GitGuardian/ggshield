@@ -1,4 +1,6 @@
 import itertools
+import logging
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable, Iterable, Iterator, List, Pattern, Set
@@ -21,6 +23,9 @@ from ggshield.utils.os import cd
 from .output import SecretOutputHandler
 from .secret_scan_collection import Results, SecretScanCollection
 from .secret_scanner import SecretScanner
+
+
+logger = logging.getLogger(__name__)
 
 
 # We add a maximal value to avoid silently consuming all threads on powerful machines
@@ -80,6 +85,13 @@ def scan_commits_content(
     except QuotaLimitReachedError:
         raise
     except Exception as exc:
+        logger.error(
+            "Exception raised during scan. commits=%s type(exception)=%s exception=%s trace=%s",
+            commits,
+            type(exc),
+            exc,
+            traceback.format_exc(),
+        )
         results = Results.from_exception(exc)
     finally:
         progress_callback(len(commits))
