@@ -1,5 +1,39 @@
 # Changelog
 
+<a id='changelog-1.34.0'></a>
+
+## 1.34.0 — 2024-11-27
+
+### Added
+
+- `ggshield config list` command now supports the `--json` option, allowing output in JSON format.
+
+- All `secret scan` commands as well as the `api-status` and `quota` commands now supports the `--instance` option to allow using a different instance.
+
+- The `api-status` command now prints where the API key and instance used come from.
+
+### Changed
+
+- `ggshield api-status --json` output now includes the instance URL.
+
+- `ggshield secret scan repo` now uses `git clone --mirror` to retrieve more git objects.
+
+- `ggshield secret scan ci` now scans all commits of a Pull Request in the following CI environments: Jenkins, Azure, Bitbucket and Drone.
+
+### Deprecated
+
+- ggshield now prints a warning message when it is being run executed by Python 3.8.
+
+### Fixed
+
+- When running `ggshield secret scan ci` in a GitLab CI, new commits from the target branch that are not on the feature branch will no longer be scanned.
+
+- Take into account the `--allow-self-signed` option at all levels in `ggshield secret scan` commands.
+
+- When `ggshield secret scan` is called with `--with-incident-details` and the token does not have the required scopes, the command now fails and an error message is printed.
+
+- ggshield no longer fails to report secrets for patches with content in hunk header lines.
+
 <a id='changelog-1.33.0'></a>
 
 ## 1.33.0 — 2024-10-29
