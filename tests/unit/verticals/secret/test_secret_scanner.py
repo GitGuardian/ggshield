@@ -333,7 +333,7 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-Python-Version": platform.python_version(),
             "mode": "path",
         },
-        ignore_known_secrets=True,
+        all_secrets=True,
     )
 
 
@@ -427,3 +427,58 @@ def test_scan_unexpected_error(scan_mock: Mock, client):
     )
     with pytest.raises(UnexpectedError, match="Scanning failed.*"):
         scanner.scan([scannable], scanner_ui=Mock())
+
+
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_all_secrets_is_used(scan_mock: Mock, client):
+    """
+    GIVEN -
+    WHEN calling scanner.scan
+    THEN the all_secrets_option is used
+    THEN secrets excluded by the backend are ignored
+    """
+    scannable = StringScannable(url="localhost", content="known\nunknown")
+    matches = [
+        Match(
+            match="known",
+            match_type="apikey",
+            line_start=0,
+            line_end=0,
+            index_start=0,
+            index_end=1,
+        )
+    ]
+    secret = PolicyBreak(
+        break_type="not-excluded",
+        policy="Secrets detection",
+        validity="valid",
+        matches=matches,
+    )
+    excluded_secret = PolicyBreak(
+        break_type="excluded",
+        policy="Secrets detection",
+        validity="valid",
+        matches=matches,
+        is_excluded=True,
+        exclude_reason="dummy",
+    )
+
+    scan_result = ScanResult(
+        policy_break_count=1, policy_breaks=[secret, excluded_secret], policies=[]
+    )
+    multi_scan_result = MultiScanResult([scan_result])
+    multi_scan_result.status_code = 200
+    scan_mock.return_value = multi_scan_result
+
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield",
+        ),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+    results = scanner.scan([scannable], scanner_ui=Mock())
+    assert results.results[0].policy_breaks == [secret]

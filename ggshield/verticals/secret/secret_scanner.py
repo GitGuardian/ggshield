@@ -120,7 +120,7 @@ class SecretScanner:
             self.client.multi_content_scan,
             documents,
             self.headers,
-            ignore_known_secrets=True,
+            all_secrets=True,
         )
 
     def _start_scans(
@@ -241,6 +241,10 @@ class SecretScanner:
                     IgnoreReason.IGNORED_DETECTOR,
                     lambda policy_break: policy_break.break_type
                     in self.ignored_detectors,
+                )
+                result.apply_ignore_function(
+                    IgnoreReason.BACKEND_EXCLUDED,
+                    lambda policy_break: policy_break.is_excluded,
                 )
                 if self.secret_config.ignore_known_secrets:
                     result.apply_ignore_function(

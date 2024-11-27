@@ -29,6 +29,7 @@ class IgnoreReason(Enum):
     IGNORED_DETECTOR = "ignored_detector"
     KNOWN_SECRET = "known_secret"
     NOT_INTRODUCED = "not_introduced"
+    BACKEND_EXCLUDED = "backend_excluded"
 
 
 class Result:
