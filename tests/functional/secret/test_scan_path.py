@@ -43,6 +43,7 @@ def test_scan_path(tmp_path: Path, show_secrets: bool) -> None:
 def test_scan_path_dot_git(tmp_path: Path, show_secrets: bool) -> None:
     # GIVEN a secret
     test_file = tmp_path / ".git" / "config"
+    test_file.parent.mkdir()
     test_file.write_text(f"SECRET='{GG_VALID_TOKEN}'")
 
     # WHEN ggshield scans it
