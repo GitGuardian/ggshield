@@ -2,12 +2,17 @@
 """
 A multi-command tool to automate steps of the release process
 """
-import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+
+
+try:
+    import tomllib
+except ImportError:
+    sys.exit("This script requires Python 3.11 (it needs tomllib)")
 from pathlib import Path
 from typing import Any, List, Union
 
@@ -118,32 +123,36 @@ def check_working_tree_is_up_to_date() -> bool:
 
 
 def check_dependencies() -> bool:
-    with (ROOT_DIR / "Pipfile.lock").open() as fp:
-        dct = json.load(fp)
+    with (ROOT_DIR / "pdm.lock").open("rb") as fp:
+        dct = tomllib.load(fp)
 
-    # The structure of a Pipfile.lock looks like this:
-    # {
-    #   "default": {
-    #     "$pkg1": {
-    #       $pkg_version_info
-    #     },
-    #     ...
-    #   },
-    #   "develop": {
-    #     ...
-    #   }
-    # }
-    #
-    # We want to check we only depend on released versions of our dependencies, so we
-    # check the content of each $pkg_version_info
-    default_packages = dct["default"]
-    for package, version_info in default_packages.items():
-        if package == "ggshield":
-            # 'ggshield' itself is listed here, without version, ignore this
+    """
+    The structure of a pdm.lock looks like this:
+    {
+        "metadata": {...}
+        "package": [
+            {
+                "name": ...
+                "groups": [
+                    "default",
+                    ...
+                ]
+                "version":
+                "revision": # only present if on a git commit
+            }
+        ]
+    }
+
+    We want to check we only depend on released versions of our dependencies, so we
+    check the content of each entry in `package` that is in the "default" group
+    """
+    for package in dct["package"]:
+        if "default" not in package["groups"]:
             continue
-        if "version" not in version_info:
+        if "revision" in package:
+            name = package["name"]
             log_error(
-                f"Pipfile.lock contains a dependency on an unreleased version of {package}"
+                f"pdm.lock contains a dependency on an unreleased version of {name}"
             )
             return False
 
