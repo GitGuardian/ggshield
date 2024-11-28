@@ -341,7 +341,7 @@ def test_request_headers(scan_mock: Mock, client):
 @patch("pygitguardian.GGClient.multi_content_scan")
 def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets):
     """
-    GIVEN a call multi_content_scan returning two policy break, one known and the other unknown
+    GIVEN a call multi_content_scan returning two policy breaks, one known and the other unknown
     WHEN -
     THEN the known policy break is ignored iff ignore_known_secrets is True
     """
@@ -413,10 +413,7 @@ def test_scan_unexpected_error(scan_mock: Mock, client):
     """
     scannable = StringScannable(url="localhost", content="known\nunknown")
 
-    def raise_exc(*args, **kwargs):
-        raise Exception("dummy")
-
-    scan_mock.side_effect = raise_exc
+    scan_mock.side_effect = Exception("dummy")
 
     scanner = SecretScanner(
         client=client,

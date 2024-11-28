@@ -92,8 +92,9 @@ class Result:
     def apply_ignore_function(
         self, reason: IgnoreReason, ignore_function: Callable[[PolicyBreak], bool]
     ):
-        if reason in self.ignored_policy_breaks_count_by_reason:
-            raise Exception(f"Ignore was already computed for {IgnoreReason}")
+        assert (
+            reason not in self.ignored_policy_breaks_count_by_reason
+        ), f"Ignore was already computed for {IgnoreReason}"
         to_keep = []
         ignored_count = 0
         for policy_break in self.policy_breaks:
