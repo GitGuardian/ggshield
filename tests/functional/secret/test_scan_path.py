@@ -39,6 +39,28 @@ def test_scan_path(tmp_path: Path, show_secrets: bool) -> None:
         assert recreate_censored_string(GG_VALID_TOKEN) in result.stdout
 
 
+@pytest.mark.parametrize("show_secrets", (True, False))
+def test_scan_path_dot_git(tmp_path: Path, show_secrets: bool) -> None:
+    # GIVEN a secret
+    test_file = tmp_path / ".git" / "config"
+    test_file.write_text(f"SECRET='{GG_VALID_TOKEN}'")
+
+    # WHEN ggshield scans it
+    args = ["path", str(test_file)]
+    if show_secrets:
+        args.append("--show-secrets")
+    result = run_ggshield_scan(*args, cwd=tmp_path, expected_code=1)
+
+    # THEN the output contains the context and the expected ignore sha
+    assert "SECRET=" in result.stdout
+    assert GG_VALID_TOKEN_IGNORE_SHA in result.stdout
+    # and the secrets shown only with --show-secrets
+    if show_secrets:
+        assert GG_VALID_TOKEN in result.stdout
+    else:
+        assert recreate_censored_string(GG_VALID_TOKEN) in result.stdout
+
+
 def test_scan_path_does_not_fail_on_long_paths(tmp_path: Path) -> None:
     # GIVEN a secret stored in a file whose path is longer than 256 characters
     secret_content = f"SECRET='{GG_VALID_TOKEN}'"

@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from pygitguardian.models import MultiScanResult
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
@@ -521,20 +522,24 @@ class TestScanDirectory:
         local_repo.git("remote", "add", "origin", remote_url)
 
         file = local_repo.path / "file_secret"
-        file.write_text(_ONE_LINE_AND_MULTILINE_PATCH)
+        file.write_text("Hello")
         local_repo.add(file)
         local_repo.create_commit()
 
-        cli_fs_runner.invoke(
+        scan_result = MultiScanResult([])
+        scan_result.status_code = 200
+        scan_mock.return_value = scan_result
+
+        result = cli_fs_runner.invoke(
             cli,
             [
                 "secret",
                 "scan",
                 "path",
-                "-r",
-                str(local_repo.path),
+                str(file),
             ],
         )
+        assert result.exit_code == ExitCode.SUCCESS, result.output
 
         scan_mock.assert_called_once()
         assert any(
