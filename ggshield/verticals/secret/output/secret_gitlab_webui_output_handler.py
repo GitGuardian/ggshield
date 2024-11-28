@@ -33,22 +33,15 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
     use_stderr = True
 
     def _process_scan_impl(self, scan: SecretScanCollection) -> str:
-        results = list(scan.get_all_results())
-        # If no secrets or no new secrets were found
-        if not results or (self.ignore_known_secrets and not scan.has_new_secrets):
-            return ""
+        results = scan.get_all_results()
 
-        policy_breaks_to_report = []
-        for result in results:
-            if not self.ignore_known_secrets:
-                # Populate GL-HOOK-ERR with all policy breaks found
-                policy_breaks_to_report += result.scan.policy_breaks
-            else:
-                for policy_break in result.scan.policy_breaks:
-                    known = policy_break.known_secret
-                    # Populate GL-HOOK-ERR with only new policy breaks
-                    if not known:
-                        policy_breaks_to_report.append(policy_break)
+        policy_breaks_to_report = [
+            policy_break for result in results for policy_break in result.policy_breaks
+        ]
+
+        # If no secrets or no new secrets were found
+        if len(policy_breaks_to_report) == 0:
+            return ""
 
         # Use a set to ensure we do not report duplicate incidents.
         # (can happen when the secret is present in both the old and the new version of

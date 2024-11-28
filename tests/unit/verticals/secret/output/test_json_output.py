@@ -415,9 +415,7 @@ def test_json_output_for_patch(
         assert all(
             ignore_sha in json_flat_results
             for result in results.results
-            for ignore_sha in group_policy_breaks_by_ignore_sha(
-                result.scan.policy_breaks
-            )
+            for ignore_sha in group_policy_breaks_by_ignore_sha(result.policy_breaks)
         )
 
 
@@ -449,7 +447,7 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
     )
 
-    all_policy_breaks = result.scan.policy_breaks
+    all_policy_breaks = result.policy_breaks
 
     known_policy_breaks = []
     new_policy_breaks = all_policy_breaks
@@ -542,7 +540,7 @@ def test_with_incident_details(
         scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
     )
 
-    all_policy_breaks = result.scan.policy_breaks
+    all_policy_breaks = result.policy_breaks
 
     known_policy_breaks = []
 

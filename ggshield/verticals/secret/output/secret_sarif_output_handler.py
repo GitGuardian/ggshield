@@ -60,7 +60,7 @@ def _create_sarif_results(
     per policy break.
     """
     for result in results:
-        for policy_break in result.scan.policy_breaks:
+        for policy_break in result.policy_breaks:
             yield _create_sarif_result_dict(result.url, policy_break, incident_details)
 
 

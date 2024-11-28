@@ -27,7 +27,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         if scan.extra_info:
             scan_dict["extra_info"] = scan.extra_info
 
-        if top and scan.has_results:
+        if top:
             scan_dict["secrets_engine_version"] = VERSIONS.secrets_engine_version
 
         if scan.results:
@@ -74,7 +74,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "total_occurrences": 0,
             "total_incidents": 0,
         }
-        sha_dict = group_policy_breaks_by_ignore_sha(result.scan.policy_breaks)
+        sha_dict = group_policy_breaks_by_ignore_sha(result.policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:

@@ -2,10 +2,10 @@ import hashlib
 import math
 import operator
 import re
-from typing import Dict, Iterable, List, Optional, Pattern, Set
+from typing import Dict, Iterable, List, Pattern, Set
 
 from click import UsageError
-from pygitguardian.models import Match, PolicyBreak, ScanResult
+from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.core.types import IgnoredMatch
 
@@ -22,12 +22,12 @@ INVALID_PATTERNS_REGEX = re.compile(
 MAXIMUM_CENSOR_LENGTH = 60
 
 
-def is_ignored(
+def is_in_ignored_matches(
     policy_break: PolicyBreak,
     matches_ignore: Iterable[IgnoredMatch],
 ) -> bool:
     """
-    is_ignored checks if a occurrence is ignored.
+    is_in_ignored_matches checks if a occurrence is ignored.
     There are 2 ways of ignoring a occurrence:
     - matching the occurrence sha
     - matching one of the match.match values
@@ -45,42 +45,6 @@ def is_ignored(
     ):
         return True
     return False
-
-
-def remove_ignored_from_result(
-    scan_result: ScanResult, matches_ignore: Iterable[IgnoredMatch]
-) -> None:
-    """
-    remove_ignored removes occurrences from a Scan Result based on a sha
-    made from its matches.
-
-    :param scan_result: ScanResult to filter
-    :param matches_ignore: match SHAs or plaintext matches to filter out
-    """
-
-    scan_result.policy_breaks = [
-        policy_break
-        for policy_break in scan_result.policy_breaks
-        if not is_ignored(policy_break, matches_ignore)
-    ]
-
-    scan_result.policy_break_count = len(scan_result.policy_breaks)
-
-
-def remove_results_from_ignore_detectors(
-    scan_result: ScanResult,
-    ignored_detectors: Optional[Set[str]] = None,
-) -> None:
-    if not ignored_detectors:
-        return
-
-    scan_result.policy_breaks = [
-        policy_break
-        for policy_break in scan_result.policy_breaks
-        if policy_break.break_type not in ignored_detectors
-    ]
-
-    scan_result.policy_break_count = len(scan_result.policy_breaks)
 
 
 def get_ignore_sha(policy_break: PolicyBreak) -> str:
