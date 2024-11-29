@@ -438,13 +438,14 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         verbose=verbose, secret_config=secret_config
     )
 
-    result: Result = Result(
+    result: Result = Result.from_scan_result(
         StringScannable(
             content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
             url="leak.txt",
             filemode=Filemode.NEW,
         ),
-        scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
+        scan_result=deepcopy(TWO_POLICY_BREAKS),
+        secret_config=SecretConfig(),  # 2 policy breaks
     )
 
     all_policy_breaks = result.policy_breaks
@@ -531,13 +532,14 @@ def test_with_incident_details(
         verbose=True, secret_config=secret_config, client=client_mock
     )
 
-    result: Result = Result(
+    result: Result = Result.from_scan_result(
         StringScannable(
             content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
             url="leak.txt",
             filemode=Filemode.NEW,
         ),
-        scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
+        scan_result=deepcopy(TWO_POLICY_BREAKS),
+        secret_config=SecretConfig(),  # 2 policy breaks
     )
 
     all_policy_breaks = result.policy_breaks

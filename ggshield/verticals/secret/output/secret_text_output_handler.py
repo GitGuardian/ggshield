@@ -15,10 +15,9 @@ from ggshield.core.text_utils import (
     pluralize,
     translate_validity,
 )
-from ggshield.verticals.secret.secret_scanner import IgnoreReason
 
 from ..extended_match import ExtendedMatch
-from ..secret_scan_collection import Result, SecretScanCollection
+from ..secret_scan_collection import IgnoreReason, Result, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 

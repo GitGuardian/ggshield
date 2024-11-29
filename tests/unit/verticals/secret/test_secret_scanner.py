@@ -48,10 +48,12 @@ from tests.unit.conftest import (
 )
 
 
-ExpectedScan = namedtuple("expectedScan", "exit_code matches first_match want")
+ExpectedScan = namedtuple(
+    "expectedScan", ("exit_code", "matches", "first_match", "want")
+)
 _EXPECT_NO_SECRET = {
     "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
-    "filename": "test.txt",
+    "filename": "commit://patch/test",
     "filemode": Filemode.NEW,
 }
 
@@ -123,7 +125,6 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
                 assert result.policy_breaks == []
 
             if expected.want:
-                assert result.content == expected.want["content"]
                 assert result.filename == expected.want["filename"]
                 assert result.filemode == expected.want["filemode"]
 

@@ -47,6 +47,7 @@ class SecretConfig(FilteredConfig):
     ignore_known_secrets: bool = False
     with_incident_details: bool = False
     # if configuration key is left unset the dashboard's remediation message is used.
+    all_secrets: bool = False
     prereceive_remediation_message: str = ""
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
