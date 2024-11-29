@@ -62,7 +62,7 @@ documentation.
 
 It requires **Python 3.8 or above** (except for standalone packages) and git.
 
-:warning: Python 3.8 is no longer supported by the Python Software Foundation since October, 14th 2024. GGShield will soon require Python 3.9 or above to run.
+⚠️ Python 3.8 is no longer supported by the Python Software Foundation since October, 14th 2024. GGShield will soon require Python 3.9 or above to run.
 
 Some commands require additional programs:
 
