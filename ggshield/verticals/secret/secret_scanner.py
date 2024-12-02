@@ -55,9 +55,8 @@ class SecretScanner:
         self.client = client
         self.cache = cache
         self.secret_config = secret_config
-        self.headers = scan_context.get_http_headers() | {
-            "scan_options": secret_config.dump_for_monitoring()
-        }
+        self.headers = scan_context.get_http_headers()
+        self.headers.update({"scan_options": secret_config.dump_for_monitoring()})
 
         self.command_id = scan_context.command_id
 

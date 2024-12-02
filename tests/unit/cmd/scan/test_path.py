@@ -463,25 +463,23 @@ class TestScanDirectory:
             ]
         )
 
+    @pytest.mark.parametrize("all_secrets", (True, False))
     @pytest.mark.parametrize(
-        "ignored_detectors, nb_secret",
+        ("ignored_detectors", "nb_secret", "nb_ignored"),
         [
-            ([], 2),
-            (["-b", "RSA Private Key"], 1),
-            (["-b", "SendGrid Key"], 1),
-            (["-b", "host"], 2),
-            (["-b", "SendGrid Key", "-b", "host"], 1),
-            (["-b", "SendGrid Key", "-b", "RSA Private Key"], 0),
+            ([], 2, 0),
+            (["-b", "RSA Private Key"], 1, 1),
+            (["-b", "SendGrid Key"], 1, 1),
+            (["-b", "host"], 2, 0),
+            (["-b", "SendGrid Key", "-b", "host"], 1, 1),
+            (["-b", "SendGrid Key", "-b", "RSA Private Key"], 0, 2),
         ],
     )
     def test_ignore_detectors(
-        self,
-        cli_fs_runner,
-        ignored_detectors,
-        nb_secret,
+        self, cli_fs_runner, ignored_detectors, nb_secret, nb_ignored, all_secrets
     ):
         Path("file_secret").write_text(_ONE_LINE_AND_MULTILINE_PATCH)
-
+        all_secrets_option = ["--all-secrets"] if all_secrets else []
         with my_vcr.use_cassette("test_scan_path_file_one_line_and_multiline_patch"):
             result = cli_fs_runner.invoke(
                 cli,
@@ -493,16 +491,23 @@ class TestScanDirectory:
                     "path",
                     "file_secret",
                     "--exit-zero",
+                    *all_secrets_option,
                 ],
             )
             assert result.exit_code == ExitCode.SUCCESS, result.output
-            if nb_secret:
-                plural = nb_secret > 1
+            if all_secrets:
+                total_secrets = nb_secret + nb_ignored
                 assert (
-                    f": {nb_secret} incident{'s' if plural else ''} "
+                    f": {total_secrets} secret{'s' if total_secrets != 1 else ''} detected"
                 ) in result.output
             else:
-                assert "No secrets have been found" in result.output
+                assert (
+                    f": {nb_secret} secret{'s' if nb_secret != 1 else ''} detected"
+                ) in result.output
+                if nb_ignored > 0:
+                    assert (
+                        f"{nb_ignored} secret{'s' if nb_ignored != 1 else ''} ignored"
+                    ) in result.output
 
     @patch("pygitguardian.GGClient.multi_content_scan")
     @my_vcr.use_cassette("test_scan_context_repository.yaml")

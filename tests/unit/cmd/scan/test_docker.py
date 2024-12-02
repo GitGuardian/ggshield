@@ -161,4 +161,4 @@ class TestDockerCMD:
                 output = json.loads(result.output)
                 assert len(output["entities_with_incidents"]) == 1
             else:
-                assert "file_secret: 1 incident detected" in result.output
+                assert "file_secret: 1 secret detected" in result.output

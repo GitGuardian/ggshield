@@ -5,12 +5,12 @@ from typing import Dict, List, Optional, Tuple
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import PolicyBreak
 
+from ggshield.core.constants import IncidentStatus
 from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.lines import Line, get_offset, get_padding
 from ggshield.core.text_utils import (
     STYLE,
     clip_long_line,
-    file_info,
     format_text,
     pluralize,
     translate_validity,
@@ -26,6 +26,31 @@ from .secret_output_handler import SecretOutputHandler
 MAX_SECRET_SIZE = 80
 # The number of lines to display before and after a secret in the patch
 NB_CONTEXT_LINES = 3
+
+
+def secret_file_info(
+    filename: str,
+    incident_count: int,
+    incident_status: IncidentStatus = IncidentStatus.DETECTED,
+    hidden_secrets_count: int = 0,
+) -> str:
+    """Return the formatted file info (number of secrets, filename, optional number of hidden secrets)."""
+    result = "\n{} {}: {} {} {}\n".format(
+        format_text(">", STYLE["detector_line_start"]),
+        format_text(filename, STYLE["filename"]),
+        incident_count,
+        pluralize("secret", incident_count, "secrets"),
+        incident_status.value,
+    )
+    if hidden_secrets_count > 0:
+        result += "{} {}  {} {} ignored - use the `--all-secrets` option to display {}\n".format(
+            format_text(">", STYLE["detector_line_start"]),
+            " " * len(filename),
+            hidden_secrets_count,
+            pluralize("secret", hidden_secrets_count, "secrets"),
+            pluralize("it", hidden_secrets_count, "them"),
+        )
+    return result
 
 
 class SecretTextOutputHandler(SecretOutputHandler):
@@ -99,6 +124,9 @@ class SecretTextOutputHandler(SecretOutputHandler):
             result.censor()
 
         number_of_displayed_secrets = 0
+        number_of_hidden_secrets = sum(
+            result.ignored_policy_breaks_count_by_reason.values()
+        )
         for ignore_sha, policy_breaks in sha_dict.items():
             number_of_displayed_secrets += 1
 
@@ -117,8 +145,12 @@ class SecretTextOutputHandler(SecretOutputHandler):
             )
 
         file_info_line = ""
-        if number_of_displayed_secrets > 0:
-            file_info_line = file_info(result.filename, number_of_displayed_secrets)
+        if number_of_displayed_secrets > 0 or number_of_hidden_secrets > 0:
+            file_info_line = secret_file_info(
+                result.filename,
+                incident_count=number_of_displayed_secrets,
+                hidden_secrets_count=number_of_hidden_secrets,
+            )
 
         return file_info_line + result_buf.getvalue()
 
@@ -258,28 +290,30 @@ def policy_break_header(
     """
     Build a header for the policy break.
     """
+    policy_break = policy_breaks[0]
     indent = "   "
     validity_msg = (
-        f"\n{indent}Validity: {format_text(translate_validity(policy_breaks[0].validity), STYLE['incident_validity'])}"
-        if policy_breaks[0].validity
+        f"\n{indent}Validity: {format_text(translate_validity(policy_break.validity), STYLE['incident_validity'])}"
+        if policy_break.validity
         else ""
     )
 
     start_line = format_text(">>", STYLE["detector_line_start"])
-    policy_break_type = format_text(
-        policy_breaks[0].break_type, STYLE["policy_break_type"]
-    )
+    policy_break_type = format_text(policy_break.break_type, STYLE["policy_break_type"])
     number_occurrences = format_text(str(len(policy_breaks)), STYLE["occurrence_count"])
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
-    return f"""
+    message = f"""
 {start_line} Secret detected: {policy_break_type}{validity_msg}
 {indent}Occurrences: {number_occurrences}
 {indent}Known by GitGuardian dashboard: {"YES" if known_secret else "NO"}
-{indent}Incident URL: {policy_breaks[0].incident_url if known_secret and policy_breaks[0].incident_url else "N/A"}
+{indent}Incident URL: {policy_breaks[0].incident_url if known_secret and policy_break.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
-
 """
+    if policy_break.is_excluded:
+        message += f"{indent}Ignored: {policy_break.exclude_reason}\n"
+
+    return message + "\n"
 
 
 def no_leak_message() -> str:

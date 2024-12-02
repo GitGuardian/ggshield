@@ -342,8 +342,18 @@ def check_occurrences_indices(
         ("one_line_and_multiline_patch", _ONE_LINE_AND_MULTILINE_PATCH, 1, True),
         ("no_secret", _NO_SECRET_PATCH, 0, True),
         ("single_add", _SINGLE_ADD_PATCH, 1, True),
-        ("single_delete", _SINGLE_DELETE_PATCH, 1, True),
-        ("single_move", _SINGLE_MOVE_PATCH, 1, True),
+        (
+            "single_delete",
+            _SINGLE_DELETE_PATCH,
+            0,
+            True,
+        ),  # no issue because secret is removed
+        (
+            "single_move",
+            _SINGLE_MOVE_PATCH,
+            0,
+            True,
+        ),  # no issue because secret is not added
         ("multiline_secret", _MULTILINE_SECRET_FILE, 1, False),
         ("single_line_secret", _SINGLE_LINE_SECRET_FILE, 1, False),
         ("one_line_and_multiline_secrets", _ONE_LINE_AND_MULTILINE_FILE, 1, False),

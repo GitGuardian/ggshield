@@ -8,7 +8,7 @@ snapshots = Snapshot()
 snapshots[
     "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -26,7 +26,7 @@ snapshots[
 snapshots[
     "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT-clip_long_lines-show_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -46,7 +46,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -66,7 +66,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -84,7 +84,7 @@ secrets-engine-version: 3.14.159
 snapshots[
     "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -102,7 +102,7 @@ snapshots[
 snapshots[
     "test_leak_message[_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -122,7 +122,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -142,7 +142,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -160,7 +160,7 @@ secrets-engine-version: 3.14.159
 snapshots[
     "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -178,7 +178,7 @@ snapshots[
 snapshots[
     "test_leak_message[_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -198,7 +198,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -218,7 +218,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -236,7 +236,7 @@ secrets-engine-version: 3.14.159
 snapshots[
     "test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-hide_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 3 incidents detected
+> leak.txt: 3 secrets detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -285,7 +285,7 @@ snapshots[
 snapshots[
     "test_leak_message[_ONE_LINE_AND_MULTILINE_PATCH_CONTENT-clip_long_lines-show_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 3 incidents detected
+> leak.txt: 3 secrets detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -336,7 +336,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 3 incidents detected
+> leak.txt: 3 secrets detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -387,7 +387,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 3 incidents detected
+> leak.txt: 3 secrets detected
 
 >> Secret detected: Facebook Access Tokens
    Occurrences: 1
@@ -436,7 +436,7 @@ secrets-engine-version: 3.14.159
 snapshots[
     "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
@@ -461,7 +461,7 @@ snapshots[
 snapshots[
     "test_leak_message[_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
@@ -488,7 +488,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
@@ -515,7 +515,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: RSA Private Key
    Occurrences: 1
@@ -540,7 +540,7 @@ secrets-engine-version: 3.14.159
 snapshots[
     "test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-hide_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: GitHub Token
    Occurrences: 1
@@ -556,7 +556,7 @@ snapshots[
 snapshots[
     "test_leak_message[_SIMPLE_SECRET_PATCH_SCAN_RESULT-clip_long_lines-show_secrets] 1"
 ] = """> This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: GitHub Token
    Occurrences: 1
@@ -574,7 +574,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: GitHub Token
    Occurrences: 1
@@ -592,7 +592,7 @@ snapshots[
 ] = """
 secrets-engine-version: 3.14.159
 > This is an example header
-> leak.txt: 1 incident detected
+> leak.txt: 1 secret detected
 
 >> Secret detected: GitHub Token
    Occurrences: 1
