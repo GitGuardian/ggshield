@@ -7,7 +7,13 @@ from concurrent.futures import Future
 from typing import Dict, Iterable, List, Optional, Union
 
 from pygitguardian import GGClient
-from pygitguardian.models import APITokensResponse, Detail, MultiScanResult, TokenScope
+from pygitguardian.models import (
+    APITokensResponse,
+    Detail,
+    DiffKind,
+    MultiScanResult,
+    TokenScope,
+)
 
 from ggshield.core import ui
 from ggshield.core.cache import Cache
@@ -220,6 +226,11 @@ class SecretScanner:
                 )
                 if not scan_result.has_policy_breaks:
                     continue
+                result.apply_ignore_function(
+                    IgnoreReason.NOT_INTRODUCED,
+                    lambda policy_break: policy_break.diff_kind
+                    in {DiffKind.DELETION, DiffKind.CONTEXT},
+                )
                 result.apply_ignore_function(
                     IgnoreReason.IGNORED_MATCH,
                     lambda policy_break: is_in_ignored_matches(

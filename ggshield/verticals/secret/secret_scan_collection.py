@@ -28,6 +28,7 @@ class IgnoreReason(Enum):
     IGNORED_MATCH = "ignored_match"
     IGNORED_DETECTOR = "ignored_detector"
     KNOWN_SECRET = "known_secret"
+    NOT_INTRODUCED = "not_introduced"
 
 
 class Result:
