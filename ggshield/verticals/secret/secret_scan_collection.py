@@ -94,7 +94,8 @@ class Result:
         cls, file: Scannable, scan_result: ScanResult, secret_config: SecretConfig
     ) -> "Result":
         """Creates a Result from a Scannable and a ScanResult.
-        Removes ignored policy breaks
+        - Removes ignored policy breaks
+        - replace matches by ExtendedMatches
         """
 
         to_keep = []
