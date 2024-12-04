@@ -70,7 +70,7 @@ class SecretConfig(FilteredConfig):
                 "ignored_detectors_count": len(self.ignored_detectors),
                 "ignored_matches_count": len(self.ignored_matches),
                 "ignored_paths_count": len(self.ignored_paths),
-                "ignore_known_secrets_secrets": self.show_secrets,
+                "ignore_known_secrets": self.ignore_known_secrets,
                 "with_incident_details": self.with_incident_details,
                 "has_prereceive_remediation_message": bool(
                     self.prereceive_remediation_message
