@@ -434,9 +434,8 @@ def test_scan_unexpected_error(scan_mock: Mock, client):
 @patch("pygitguardian.GGClient.multi_content_scan")
 def test_all_secrets_is_used(scan_mock: Mock, client):
     """
-    GIVEN -
-    WHEN calling scanner.scan
-    THEN the all_secrets_option is used
+    GIVEN one secret ignored in backend, and one not ignored
+    WHEN calling scanner.scan with the all_secrets option set to False
     THEN secrets excluded by the backend are ignored
     """
     scannable = StringScannable(url="localhost", content="known\nunknown")

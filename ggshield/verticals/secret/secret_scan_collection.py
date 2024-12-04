@@ -1,8 +1,17 @@
-from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import (
+    Counter,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from pygitguardian import GGClient
 from pygitguardian.models import (
@@ -33,7 +42,7 @@ class IgnoreReason(str, Enum):
 
 def compute_ignore_reason(
     policy_break: PolicyBreak, secret_config: SecretConfig
-) -> Union[str, None]:
+) -> Optional[str]:
     """Computes the possible ignore reason associated with a PolicyBreak"""
     ignore_reason = None
     if policy_break.diff_kind in {DiffKind.DELETION, DiffKind.CONTEXT}:
