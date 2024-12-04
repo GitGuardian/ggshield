@@ -32,7 +32,7 @@ def range_cmd(
 
     Any git compatible commit range can be provided as an input.
 
-    Example: `ggshield secret scan commit-range HEAD~1...`
+    Example: `ggshield secret scan commit-range HEAD~1..HEAD`
     """
     ctx_obj = ContextObj.get(ctx)
     ctx_obj.client = create_client_from_config(ctx_obj.config)
