@@ -3,7 +3,7 @@
   name: ggshield (pre-commit)
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets.
-  stages: [commit]
+  stages: [pre-commit]
   args: ['secret', 'scan', 'pre-commit']
   language: python
   pass_filenames: false
@@ -12,7 +12,7 @@
   name: ggshield-iac (pre-commit)
   entry: ggshield
   description: Runs ggshield Infra as Code Security to detect IaC vulnerabilities.
-  stages: [commit]
+  stages: [pre-commit]
   args: ['iac', 'scan', 'pre-commit']
   language: python
   pass_filenames: false
@@ -21,7 +21,7 @@
   name: ggshield-sca (pre-commit)
   entry: ggshield
   description: Runs ggshield Software Composition Analysis to detect vulnerabilities introduced by dependencies.
-  stages: [commit]
+  stages: [pre-commit]
   args: ['sca', 'scan', 'pre-commit']
   language: python
   pass_filenames: false
@@ -38,7 +38,7 @@
   entry: ggshield
   description: Runs ggshield to detect hardcoded secrets.
   args: ['secret', 'scan', 'pre-push']
-  stages: [push]
+  stages: [pre-push]
   language: python
   pass_filenames: false
 
@@ -47,7 +47,7 @@
   entry: ggshield
   description: Runs ggshield Infra as Code Security to detect IaC vulnerabilities.
   args: ['iac', 'scan', 'pre-push']
-  stages: [push]
+  stages: [pre-push]
   language: python
   pass_filenames: false
 
@@ -56,7 +56,7 @@
   entry: ggshield
   description: Runs ggshield Software Composition Analysis to detect vulnerabilities introduced by dependencies.
   args: ['sca', 'scan', 'pre-push']
-  stages: [push]
+  stages: [pre-push]
   language: python
   pass_filenames: false
 
