@@ -127,4 +127,84 @@ interactions:
       status:
         code: 200
         message: OK
+  - request:
+      body:
+        '[{"filename": "commit://patch/test", "document": "@@ -0,0 +1 @@\n+sg_key
+        = \"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\";\n"}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '154'
+        Content-Type:
+          - application/json
+        GGShield-Command-Id:
+          - 37564c2f-67d4-4339-b23f-36ee3194d9f7
+        GGShield-Command-Path:
+          - external
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.11.8
+        GGShield-Version:
+          - 1.33.0
+        User-Agent:
+          - pygitguardian/1.18.0 (Linux;py3.11.8)
+        mode:
+          - path
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan?all_secrets=True
+    response:
+      body:
+        string:
+          '[{"policy_break_count":1,"policies":["Secrets detection"],"policy_breaks":[{"type":"SendGrid
+          Key","policy":"Secrets detection","matches":[{"type":"apikey","match":"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","index_start":25,"index_end":93,"line_start":2,"line_end":2}],"is_excluded":false,"exclude_reason":null,"incident_url":"","known_secret":false,"validity":"no_checker","diff_kind":"addition"}],"is_diff":true}]'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '443'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 27 Nov 2024 12:13:32 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.121.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '57'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 2.2.0
+        x-sca-last-vuln-fetch:
+          - '2024-11-27T11:13:18.771122+00:00'
+        x-secrets-engine-version:
+          - 2.127.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
 version: 1

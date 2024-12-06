@@ -135,4 +135,88 @@ interactions:
       status:
         code: 200
         message: OK
+  - request:
+      body:
+        '[{"filename": "file1", "document": "This is a file with no secrets."},
+        {"filename": "dir/file2", "document": "This is a file with no secrets."}, {"filename":
+        "dir/subdir/file3", "document": "This is a file with no secrets."}, {"filename":
+        "dir/subdir/file4", "document": "This is a file with no secrets."}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '306'
+        Content-Type:
+          - application/json
+        GGShield-Command-Id:
+          - 9ffa05bb-a514-405b-8780-345c625d5bd2
+        GGShield-Command-Path:
+          - cli secret scan path
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.11.8
+        GGShield-Version:
+          - 1.33.0
+        User-Agent:
+          - pygitguardian/1.18.0 (Linux;py3.11.8) ggshield
+        mode:
+          - path
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan?all_secrets=True
+    response:
+      body:
+        string:
+          '[{"policy_break_count":0,"policies":["Secrets detection"],"policy_breaks":[],"is_diff":false},{"policy_break_count":0,"policies":["Secrets
+          detection"],"policy_breaks":[],"is_diff":false},{"policy_break_count":0,"policies":["Secrets
+          detection"],"policy_breaks":[],"is_diff":false},{"policy_break_count":0,"policies":["Secrets
+          detection"],"policy_breaks":[],"is_diff":false}]'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '373'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 27 Nov 2024 12:12:53 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.121.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '58'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 2.2.0
+        x-sca-last-vuln-fetch:
+          - '2024-11-27T11:13:18.771122+00:00'
+        x-secrets-engine-version:
+          - 2.127.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
 version: 1

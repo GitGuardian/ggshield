@@ -342,8 +342,18 @@ def check_occurrences_indices(
         ("one_line_and_multiline_patch", _ONE_LINE_AND_MULTILINE_PATCH, 1, True),
         ("no_secret", _NO_SECRET_PATCH, 0, True),
         ("single_add", _SINGLE_ADD_PATCH, 1, True),
-        ("single_delete", _SINGLE_DELETE_PATCH, 1, True),
-        ("single_move", _SINGLE_MOVE_PATCH, 1, True),
+        (
+            "single_delete",
+            _SINGLE_DELETE_PATCH,
+            0,
+            True,
+        ),  # no issue because secret is removed
+        (
+            "single_move",
+            _SINGLE_MOVE_PATCH,
+            0,
+            True,
+        ),  # no issue because secret is not added
         ("multiline_secret", _MULTILINE_SECRET_FILE, 1, False),
         ("single_line_secret", _SINGLE_LINE_SECRET_FILE, 1, False),
         ("one_line_and_multiline_secrets", _ONE_LINE_AND_MULTILINE_FILE, 1, False),
@@ -438,13 +448,14 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         verbose=verbose, secret_config=secret_config
     )
 
-    result: Result = Result(
+    result: Result = Result.from_scan_result(
         StringScannable(
             content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
             url="leak.txt",
             filemode=Filemode.NEW,
         ),
-        scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
+        scan_result=deepcopy(TWO_POLICY_BREAKS),
+        secret_config=SecretConfig(),  # 2 policy breaks
     )
 
     all_policy_breaks = result.policy_breaks
@@ -531,13 +542,14 @@ def test_with_incident_details(
         verbose=True, secret_config=secret_config, client=client_mock
     )
 
-    result: Result = Result(
+    result: Result = Result.from_scan_result(
         StringScannable(
             content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
             url="leak.txt",
             filemode=Filemode.NEW,
         ),
-        scan=deepcopy(TWO_POLICY_BREAKS),  # 2 policy breaks
+        scan_result=deepcopy(TWO_POLICY_BREAKS),
+        secret_config=SecretConfig(),  # 2 policy breaks
     )
 
     all_policy_breaks = result.policy_breaks

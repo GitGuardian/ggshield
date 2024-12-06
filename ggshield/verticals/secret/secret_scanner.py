@@ -7,13 +7,7 @@ from concurrent.futures import Future
 from typing import Dict, Iterable, List, Optional, Union
 
 from pygitguardian import GGClient
-from pygitguardian.models import (
-    APITokensResponse,
-    Detail,
-    DiffKind,
-    MultiScanResult,
-    TokenScope,
-)
+from pygitguardian.models import APITokensResponse, Detail, MultiScanResult, TokenScope
 
 from ggshield.core import ui
 from ggshield.core.cache import Cache
@@ -21,12 +15,11 @@ from ggshield.core.client import check_client_api_key
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import MissingScopesError, UnexpectedError, handle_api_error
-from ggshield.core.filter import is_in_ignored_matches
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
 from ggshield.core.text_utils import pluralize
 from ggshield.core.ui.scanner_ui import ScannerUI
 
-from .secret_scan_collection import Error, IgnoreReason, Result, Results
+from .secret_scan_collection import Error, Result, Results
 
 
 # GitGuardian API does not accept paths longer than this
@@ -62,9 +55,9 @@ class SecretScanner:
         self.client = client
         self.cache = cache
         self.secret_config = secret_config
-        self.ignored_matches = secret_config.ignored_matches or []
-        self.ignored_detectors = secret_config.ignored_detectors
         self.headers = scan_context.get_http_headers()
+        self.headers.update({"scan_options": secret_config.dump_for_monitoring()})
+
         self.command_id = scan_context.command_id
 
         if secret_config.with_incident_details:
@@ -120,7 +113,7 @@ class SecretScanner:
             self.client.multi_content_scan,
             documents,
             self.headers,
-            ignore_known_secrets=True,
+            all_secrets=True,
         )
 
     def _start_scans(
@@ -220,33 +213,7 @@ class SecretScanner:
 
             assert isinstance(scan, MultiScanResult)
             for file, scan_result in zip(chunk, scan.scan_results):
-                result = Result(
-                    file=file,
-                    scan=scan_result,
-                )
-                if not scan_result.has_policy_breaks:
-                    continue
-                result.apply_ignore_function(
-                    IgnoreReason.NOT_INTRODUCED,
-                    lambda policy_break: policy_break.diff_kind
-                    in {DiffKind.DELETION, DiffKind.CONTEXT},
-                )
-                result.apply_ignore_function(
-                    IgnoreReason.IGNORED_MATCH,
-                    lambda policy_break: is_in_ignored_matches(
-                        policy_break, self.ignored_matches
-                    ),
-                )
-                result.apply_ignore_function(
-                    IgnoreReason.IGNORED_DETECTOR,
-                    lambda policy_break: policy_break.break_type
-                    in self.ignored_detectors,
-                )
-                if self.secret_config.ignore_known_secrets:
-                    result.apply_ignore_function(
-                        IgnoreReason.KNOWN_SECRET,
-                        lambda policy_break: policy_break.known_secret,
-                    )
+                result = Result.from_scan_result(file, scan_result, self.secret_config)
                 for policy_break in result.policy_breaks:
                     self.cache.add_found_policy_break(policy_break, file.filename)
                 results.append(result)

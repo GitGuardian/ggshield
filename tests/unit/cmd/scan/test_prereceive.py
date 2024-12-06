@@ -4,6 +4,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan import StringScannable
 from ggshield.utils.git_shell import EMPTY_SHA, Filemode
@@ -195,13 +196,14 @@ class TestPreReceive:
                     type="commit",
                     results=Results(
                         results=[
-                            Result(
+                            Result.from_scan_result(
                                 file=StringScannable(
                                     content=_SIMPLE_SECRET_PATCH,
                                     url="server.conf",
                                     filemode=Filemode.MODIFY,
                                 ),
-                                scan=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                                scan_result=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                                secret_config=SecretConfig(),
                             )
                         ],
                         errors=[],

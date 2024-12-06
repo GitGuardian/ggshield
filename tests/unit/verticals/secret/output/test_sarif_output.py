@@ -192,7 +192,9 @@ def test_sarif_output_for_flat_scan_with_secrets(
             policy_break.known_secret = False
             policy_break.incident_url = None
 
-    result = Result(file=scannable, scan=scan_result)
+    result = Result.from_scan_result(
+        file=scannable, scan_result=scan_result, secret_config=SecretConfig()
+    )
     results = Results(results=[result])
     scan = SecretScanCollection(id="path", type="test", results=results)
 
@@ -248,7 +250,9 @@ def test_sarif_output_for_nested_scan(init_secrets_engine_version):
         scannable = next(commit.get_files())
         contents.append(scannable.content)
 
-        result = Result(file=scannable, scan=scan_result)
+        result = Result.from_scan_result(
+            file=scannable, scan_result=scan_result, secret_config=SecretConfig()
+        )
         results = Results(results=[result])
         scan = SecretScanCollection(id=f"nested{idx}", type="test", results=results)
         nested_scans.append(scan)

@@ -121,13 +121,15 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
 
     secret_scanner_mock.return_value.scan.return_value = Results(
         results=[
-            Result(
+            Result.from_scan_result(
                 commit_1_files[0],
-                scan=deepcopy(TWO_POLICY_BREAKS),
+                scan_result=deepcopy(TWO_POLICY_BREAKS),
+                secret_config=SecretConfig(),
             ),
-            Result(
+            Result.from_scan_result(
                 commit_2_files[0],
-                scan=deepcopy(TWO_POLICY_BREAKS),
+                scan_result=deepcopy(TWO_POLICY_BREAKS),
+                secret_config=SecretConfig(),
             ),
         ],
         errors=[],
@@ -206,17 +208,20 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
     policy_breaks_file_2_1 = deepcopy(TWO_POLICY_BREAKS)
     secret_scanner_mock.return_value.scan.return_value = Results(
         results=[
-            Result(
+            Result.from_scan_result(
                 file1_3,
-                scan=policy_breaks_file_1_3,
+                scan_result=policy_breaks_file_1_3,
+                secret_config=SecretConfig(),
             ),
-            Result(
+            Result.from_scan_result(
                 file2_1,
-                scan=policy_breaks_file_2_1,
+                scan_result=policy_breaks_file_2_1,
+                secret_config=SecretConfig(),
             ),
-            Result(
+            Result.from_scan_result(
                 file1_1,
-                scan=policy_breaks_file_1_1,
+                scan_result=policy_breaks_file_1_1,
+                secret_config=SecretConfig(),
             ),
         ],
         errors=[],
@@ -239,13 +244,19 @@ def test_scan_2_commits_file_association(secret_scanner_mock):
         scan_collection.scans[0].results.results, key=lambda f: f.filename
     ) == sorted(
         [
-            Result(file1_3, policy_breaks_file_1_3),
-            Result(file1_1, policy_breaks_file_1_1),
+            Result.from_scan_result(
+                file1_3, policy_breaks_file_1_3, secret_config=SecretConfig()
+            ),
+            Result.from_scan_result(
+                file1_1, policy_breaks_file_1_1, secret_config=SecretConfig()
+            ),
         ],
         key=lambda f: f.filename,
     )
 
     # out of 2 files, only 1 result was returned
     assert scan_collection.scans[1].results.results == [
-        Result(file2_1, policy_breaks_file_2_1),
+        Result.from_scan_result(
+            file2_1, policy_breaks_file_2_1, secret_config=SecretConfig()
+        ),
     ]

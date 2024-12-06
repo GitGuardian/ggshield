@@ -54,8 +54,6 @@ interactions:
           - istio-envoy
         strict-transport-security:
           - max-age=31536000; includeSubDomains
-        transfer-encoding:
-          - chunked
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
@@ -153,6 +151,84 @@ interactions:
           - '2024-09-23T09:06:36.704467+00:00'
         x-secrets-engine-version:
           - 2.120.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: '[{"filename": "commit://patch/f", "document": "@@ -1,1 +1,2 @@\n-baz\n+username=owly\n+password=368ac3edf9e850d1c0ff9d6c526496f8237ddf91"}]'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '139'
+        Content-Type:
+          - application/json
+        GGShield-Command-Id:
+          - d73852cb-9e0e-4003-9cd3-0c133550cb2a
+        GGShield-Command-Path:
+          - external
+        GGShield-OS-Name:
+          - ubuntu
+        GGShield-OS-Version:
+          - '22.04'
+        GGShield-Python-Version:
+          - 3.11.8
+        GGShield-Version:
+          - 1.33.0
+        User-Agent:
+          - pygitguardian/1.18.0 (Linux;py3.11.8)
+        mode:
+          - path
+      method: POST
+      uri: https://api.gitguardian.com/v1/multiscan?all_secrets=True
+    response:
+      body:
+        string:
+          '[{"policy_break_count":1,"policies":["Secrets detection"],"policy_breaks":[{"type":"Username
+          Password","policy":"Secrets detection","matches":[{"type":"username","match":"owly","index_start":31,"index_end":34,"line_start":3,"line_end":3},{"type":"password","match":"368ac3edf9e850d1c0ff9d6c526496f8237ddf91","index_start":46,"index_end":85,"line_start":4,"line_end":4}],"is_excluded":false,"exclude_reason":null,"incident_url":"","known_secret":false,"validity":"no_checker","diff_kind":"addition"}],"is_diff":true}]'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '516'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Wed, 27 Nov 2024 12:13:41 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.121.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '85'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-sca-engine-version:
+          - 2.2.0
+        x-sca-last-vuln-fetch:
+          - '2024-11-27T11:13:18.771122+00:00'
+        x-secrets-engine-version:
+          - 2.127.0
         x-xss-protection:
           - 1; mode=block
       status:

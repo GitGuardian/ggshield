@@ -76,22 +76,6 @@ dev = [
     "check-wheel-contents",
 ]
 
-tests = [
-    "pytest-mock",
-    "pytest-socket",
-    "pytest-xdist",
-    "pytest-voluptuous",
-    "seed-isort-config",
-    "snapshottest",
-    "import-linter",
-    "jsonschema",
-    "vcrpy>=5.1.0",
-    # pytest-voluptuous dependency. Pinned because 0.15.0 does not support
-    # Python 3.8 anymore
-    "voluptuous<0.15.0",
-    # Pin because 5.6.0 currently (2024-07-15) does not work on Windows
-    "pyfakefs>=5.2.0,<5.6.0",
-]
 
 standalone = [
     "pyinstaller==6.7.0",
@@ -150,3 +134,34 @@ version = "literal: ggshield/__init__.py: __version__"
 format = "md"
 md_header_level = "2"
 insert_marker = "# Changelog"
+
+[dependency-groups]
+tests = [
+    "pytest-mock",
+    "pytest-socket",
+    "pytest-xdist",
+    "pytest-voluptuous",
+    "seed-isort-config",
+    "snapshottest",
+    "import-linter",
+    "jsonschema",
+    "vcrpy>=5.1.0",
+    "voluptuous<0.15.0",
+    "pyfakefs>=5.2.0,<5.6.0",
+    "factory-boy>=3.3.1",
+]
+dev = [
+    "scriv[toml]",
+    "black==24.3.0",
+    "coverage",
+    "flake8",
+    "flake8-isort",
+    "flake8-quotes",
+    "pre-commit",
+    "pyright==1.1.367",
+    "build>=1.2.2.post1",
+    "check-wheel-contents",
+]
+standalone = [
+    "pyinstaller==6.7.0",
+]
