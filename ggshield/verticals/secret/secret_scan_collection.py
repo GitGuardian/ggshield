@@ -2,8 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import (
-    Any,
-    Callable,
+    Counter,
     Dict,
     Iterable,
     List,
@@ -15,22 +14,52 @@ from typing import (
 )
 
 from pygitguardian import GGClient
-from pygitguardian.models import Detail, Match, PolicyBreak, ScanResult, SecretIncident
+from pygitguardian.models import (
+    Detail,
+    DiffKind,
+    Match,
+    PolicyBreak,
+    ScanResult,
+    SecretIncident,
+)
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import UnexpectedError, handle_api_error
+from ggshield.core.filter import is_in_ignored_matches
 from ggshield.core.lines import Line, get_lines_from_content
-from ggshield.core.scan.scannable import Scannable
+from ggshield.core.scan import Scannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 
-class IgnoreReason(Enum):
+class IgnoreReason(str, Enum):
     IGNORED_MATCH = "ignored_match"
     IGNORED_DETECTOR = "ignored_detector"
     KNOWN_SECRET = "known_secret"
     NOT_INTRODUCED = "not_introduced"
+    BACKEND_EXCLUDED = "backend_excluded"
 
 
+def compute_ignore_reason(
+    policy_break: PolicyBreak, secret_config: SecretConfig
+) -> Optional[str]:
+    """Computes the possible ignore reason associated with a PolicyBreak"""
+    ignore_reason = None
+    if policy_break.diff_kind in {DiffKind.DELETION, DiffKind.CONTEXT}:
+        ignore_reason = IgnoreReason.NOT_INTRODUCED
+    elif policy_break.is_excluded:
+        ignore_reason = f"Excluded from backend ({policy_break.exclude_reason})"
+    elif is_in_ignored_matches(policy_break, secret_config.ignored_matches or []):
+        ignore_reason = IgnoreReason.IGNORED_MATCH
+    elif policy_break.break_type in secret_config.ignored_detectors:
+        ignore_reason = IgnoreReason.IGNORED_DETECTOR
+    elif secret_config.ignore_known_secrets and policy_break.known_secret:
+        ignore_reason = IgnoreReason.KNOWN_SECRET
+
+    return ignore_reason
+
+
+@dataclass
 class Result:
     """
     Return model for a scan which zips the information
@@ -42,28 +71,7 @@ class Result:
     path: Path
     url: str
     policy_breaks: List[PolicyBreak]
-    ignored_policy_breaks_count_by_reason: Dict[IgnoreReason, int]
-
-    def __init__(self, file: Scannable, scan: ScanResult):
-        self.filename = file.filename
-        self.filemode = file.filemode
-        self.path = file.path
-        self.url = file.url
-        self.policy_breaks = scan.policy_breaks
-        lines = get_lines_from_content(file.content, self.filemode)
-        self.enrich_matches(lines)
-        self.ignored_policy_breaks_count_by_reason = {}
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Result):
-            return False
-        return (
-            self.filename == other.filename
-            and self.filemode == other.filemode
-            and self.path == other.path
-            and self.url == other.url
-            and self.policy_breaks == other.policy_breaks
-        )
+    ignored_policy_breaks_count_by_reason: Counter[str]
 
     @property
     def is_on_patch(self) -> bool:
@@ -90,21 +98,41 @@ class Result:
     def has_policy_breaks(self) -> bool:
         return len(self.policy_breaks) > 0
 
-    def apply_ignore_function(
-        self, reason: IgnoreReason, ignore_function: Callable[[PolicyBreak], bool]
-    ):
-        assert (
-            reason not in self.ignored_policy_breaks_count_by_reason
-        ), f"Ignore was already computed for {IgnoreReason}"
+    @classmethod
+    def from_scan_result(
+        cls, file: Scannable, scan_result: ScanResult, secret_config: SecretConfig
+    ) -> "Result":
+        """Creates a Result from a Scannable and a ScanResult.
+        - Removes ignored policy breaks
+        - replace matches by ExtendedMatches
+        """
+
         to_keep = []
-        ignored_count = 0
-        for policy_break in self.policy_breaks:
-            if ignore_function(policy_break):
-                ignored_count += 1
+        ignored_policy_breaks_count_by_reason = Counter()
+        for policy_break in scan_result.policy_breaks:
+            ignore_reason = compute_ignore_reason(policy_break, secret_config)
+            if ignore_reason is not None:
+                if secret_config.all_secrets:
+                    policy_break.exclude_reason = ignore_reason
+                    policy_break.is_excluded = True
+                    to_keep.append(policy_break)
+                else:
+                    ignored_policy_breaks_count_by_reason[ignore_reason] += 1
             else:
                 to_keep.append(policy_break)
-        self.policy_breaks = to_keep
-        self.ignored_policy_breaks_count_by_reason[reason] = ignored_count
+
+        result = Result(
+            filename=file.filename,
+            filemode=file.filemode,
+            path=file.path,
+            url=file.url,
+            policy_breaks=to_keep,
+            ignored_policy_breaks_count_by_reason=ignored_policy_breaks_count_by_reason,
+        )
+
+        lines = get_lines_from_content(file.content, file.filemode)
+        result.enrich_matches(lines)
+        return result
 
 
 class Error(NamedTuple):

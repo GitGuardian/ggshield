@@ -48,10 +48,12 @@ from tests.unit.conftest import (
 )
 
 
-ExpectedScan = namedtuple("expectedScan", "exit_code matches first_match want")
+ExpectedScan = namedtuple(
+    "expectedScan", ("exit_code", "matches", "first_match", "want")
+)
 _EXPECT_NO_SECRET = {
     "content": "@@ -0,0 +1 @@\n+this is a patch without secret\n",
-    "filename": "test.txt",
+    "filename": "commit://patch/test",
     "filemode": Filemode.NEW,
 }
 
@@ -123,7 +125,6 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
                 assert result.policy_breaks == []
 
             if expected.want:
-                assert result.content == expected.want["content"]
                 assert result.filename == expected.want["filename"]
                 assert result.filemode == expected.want["filemode"]
 
@@ -332,8 +333,9 @@ def test_request_headers(scan_mock: Mock, client):
             "GGShield-OS-Version": os_version,
             "GGShield-Python-Version": platform.python_version(),
             "mode": "path",
+            "scan_options": ANY,
         },
-        ignore_known_secrets=True,
+        all_secrets=True,
     )
 
 
@@ -427,3 +429,57 @@ def test_scan_unexpected_error(scan_mock: Mock, client):
     )
     with pytest.raises(UnexpectedError, match="Scanning failed.*"):
         scanner.scan([scannable], scanner_ui=Mock())
+
+
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_all_secrets_is_used(scan_mock: Mock, client):
+    """
+    GIVEN one secret ignored in backend, and one not ignored
+    WHEN calling scanner.scan with the all_secrets option set to False
+    THEN secrets excluded by the backend are ignored
+    """
+    scannable = StringScannable(url="localhost", content="known\nunknown")
+    matches = [
+        Match(
+            match="known",
+            match_type="apikey",
+            line_start=0,
+            line_end=0,
+            index_start=0,
+            index_end=1,
+        )
+    ]
+    secret = PolicyBreak(
+        break_type="not-excluded",
+        policy="Secrets detection",
+        validity="valid",
+        matches=matches,
+    )
+    excluded_secret = PolicyBreak(
+        break_type="excluded",
+        policy="Secrets detection",
+        validity="valid",
+        matches=matches,
+        is_excluded=True,
+        exclude_reason="dummy",
+    )
+
+    scan_result = ScanResult(
+        policy_break_count=1, policy_breaks=[secret, excluded_secret], policies=[]
+    )
+    multi_scan_result = MultiScanResult([scan_result])
+    multi_scan_result.status_code = 200
+    scan_mock.return_value = multi_scan_result
+
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield",
+        ),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+    results = scanner.scan([scannable], scanner_ui=Mock())
+    assert results.results[0].policy_breaks == [secret]

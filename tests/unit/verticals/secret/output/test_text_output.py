@@ -41,68 +41,74 @@ from tests.unit.conftest import (
     "result_input",
     [
         pytest.param(
-            Result(
+            Result.from_scan_result(
                 StringScannable(
                     content=_SIMPLE_SECRET_PATCH,
                     url="leak.txt",
                     filemode=Filemode.NEW,
                 ),
-                scan=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                scan_result=_SIMPLE_SECRET_PATCH_SCAN_RESULT,
+                secret_config=SecretConfig(),
             ),
             id="_SIMPLE_SECRET_PATCH_SCAN_RESULT",
         ),
         pytest.param(
-            Result(
+            Result.from_scan_result(
                 StringScannable(
                     content=_MULTI_SECRET_ONE_LINE_PATCH,
                     url="leak.txt",
                     filemode=Filemode.NEW,
                 ),
-                scan=_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
+                scan_result=_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
+                secret_config=SecretConfig(),
             ),
             id="_MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT",
         ),
         pytest.param(
-            Result(
+            Result.from_scan_result(
                 StringScannable(
                     content=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
                     url="leak.txt",
                     filemode=Filemode.NEW,
                 ),
-                scan=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT,
+                scan_result=_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT,
+                secret_config=SecretConfig(),
             ),
             id="_MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT",
         ),
         pytest.param(
-            Result(
+            Result.from_scan_result(
                 StringScannable(
                     content=_MULTI_SECRET_TWO_LINES_PATCH,
                     url="leak.txt",
                     filemode=Filemode.NEW,
                 ),
-                scan=_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
+                scan_result=_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT,
+                secret_config=SecretConfig(),
             ),
             id="_MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT",
         ),
         pytest.param(
-            Result(
+            Result.from_scan_result(
                 StringScannable(
                     content=_SIMPLE_SECRET_MULTILINE_PATCH,
                     url="leak.txt",
                     filemode=Filemode.NEW,
                 ),
-                scan=_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
+                scan_result=_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT,
+                secret_config=SecretConfig(),
             ),
             id="_SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT",
         ),
         pytest.param(
-            Result(
+            Result.from_scan_result(
                 StringScannable(
                     content=_ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
                     url="leak.txt",
                     filemode=Filemode.NEW,
                 ),
-                scan=_ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
+                scan_result=_ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
+                secret_config=SecretConfig(),
             ),
             id="_ONE_LINE_AND_MULTILINE_PATCH_CONTENT",
         ),

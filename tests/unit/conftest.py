@@ -683,10 +683,15 @@ def isolated_fs(fs):
 
 def write_text(filename: Union[str, Path], content: str):
     """Create a text file named `filename` with content `content.
-    Create any missing dirs if necessary."""
+    Create any missing dirs if necessary.
+
+    Note that using `write_bytes(content.encode())` ensures the
+    same content is created, independently of the OS
+    (whereas using Path.write_text creates different line ends depending on the OS)
+    """
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_bytes(content.encode())
 
 
 def write_yaml(filename: Union[str, Path], data: Any):

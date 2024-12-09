@@ -20,7 +20,7 @@ def test_scan_docset_positive(tmp_path: Path) -> None:
     result = run_ggshield_scan("docset", str(test_file), cwd=tmp_path, expected_code=1)
     assert "apikey =" in result.stdout
     assert (
-        "https://github.com/foo/bar/issues/1#issuecomment-42: 1 incident detected"
+        "https://github.com/foo/bar/issues/1#issuecomment-42: 1 secret detected"
         in result.stdout
     )
 

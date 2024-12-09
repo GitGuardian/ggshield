@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from dataclasses import field
@@ -47,6 +48,7 @@ class SecretConfig(FilteredConfig):
     ignore_known_secrets: bool = False
     with_incident_details: bool = False
     # if configuration key is left unset the dashboard's remediation message is used.
+    all_secrets: bool = False
     prereceive_remediation_message: str = ""
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
@@ -60,6 +62,22 @@ class SecretConfig(FilteredConfig):
                     match.name = secret.name
                 return
         self.ignored_matches.append(secret)
+
+    def dump_for_monitoring(self) -> str:
+        return json.dumps(
+            {
+                "show_secrets": self.show_secrets,
+                "ignored_detectors_count": len(self.ignored_detectors),
+                "ignored_matches_count": len(self.ignored_matches),
+                "ignored_paths_count": len(self.ignored_paths),
+                "ignore_known_secrets": self.ignore_known_secrets,
+                "with_incident_details": self.with_incident_details,
+                "has_prereceive_remediation_message": bool(
+                    self.prereceive_remediation_message
+                ),
+                "all_secrets": self.all_secrets,
+            }
+        )
 
 
 def validate_policy_id(policy_id: str) -> bool:

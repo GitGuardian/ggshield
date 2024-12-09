@@ -18,13 +18,14 @@ from tests.unit.conftest import (
     assert_invoke_exited_with,
     assert_invoke_ok,
     my_vcr,
+    write_text,
 )
 
 
 def create_normally_ignored_file() -> Path:
     path = Path("node_modules", "test.js")
     path.parent.mkdir()
-    path.write_text("// Test")
+    write_text(path, "// Test")
     return path
 
 
@@ -34,13 +35,13 @@ class TestPathScan:
     """
 
     def create_files(self):
-        Path("file1").write_text("This is a file with no secrets.")
-        Path("file2").write_text("This is a file with no secrets.")
+        write_text(Path("file1"), "This is a file with no secrets.")
+        write_text(Path("file2"), "This is a file with no secrets.")
 
     @my_vcr.use_cassette("test_scan_file")
     @pytest.mark.parametrize("verbose", [True, False])
     def test_scan_file(self, cli_fs_runner, verbose):
-        Path("file").write_text("This is a file with no secrets.")
+        write_text(Path("file"), "This is a file with no secrets.")
         assert os.path.isfile("file")
 
         if verbose:
@@ -58,7 +59,7 @@ class TestPathScan:
         THEN the secret is reported
         AND the exit code is not 0
         """
-        Path("file_secret").write_text(UNCHECKED_SECRET_PATCH)
+        write_text(Path("file_secret"), UNCHECKED_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
         cmd = ["secret", "scan", "path", "file_secret"]
@@ -79,7 +80,7 @@ class TestPathScan:
             )
 
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
-        Path("file_secret").write_text(VALID_SECRET_PATCH)
+        write_text(Path("file_secret"), VALID_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_path_file_secret_with_validity"):
@@ -102,7 +103,7 @@ class TestPathScan:
     @pytest.mark.parametrize("validity", [True, False])
     def test_scan_file_secret_json_with_validity(self, cli_fs_runner, validity):
         secret = VALID_SECRET_PATCH if validity else UNCHECKED_SECRET_PATCH
-        Path("file_secret").write_text(secret)
+        write_text(Path("file_secret"), secret)
         assert os.path.isfile("file_secret")
 
         cassette_name = f"test_scan_file_secret-{validity}"
@@ -122,7 +123,7 @@ class TestPathScan:
 
     @pytest.mark.parametrize("json_output", [False, True])
     def test_scan_file_secret_exit_zero(self, cli_fs_runner, json_output):
-        Path("file_secret").write_text(UNCHECKED_SECRET_PATCH)
+        write_text(Path("file_secret"), UNCHECKED_SECRET_PATCH)
         assert os.path.isfile("file_secret")
 
         with my_vcr.use_cassette("test_scan_file_secret"):
@@ -207,7 +208,7 @@ secret:
         - "file1"
 
 """
-        Path(".gitguardian.yaml").write_text(config)
+        write_text(Path(".gitguardian.yaml"), config)
 
         result = cli_fs_runner.invoke(
             cli, ["secret", "scan", "path", "file1", "file2", "-y"]
@@ -261,10 +262,10 @@ class TestScanDirectory:
     def create_files(self):
         os.makedirs("dir", exist_ok=True)
         os.makedirs("dir/subdir", exist_ok=True)
-        Path("file1").write_text("This is a file with no secrets.")
-        Path("dir/file2").write_text("This is a file with no secrets.")
-        Path("dir/subdir/file3").write_text("This is a file with no secrets.")
-        Path("dir/subdir/file4").write_text("This is a file with no secrets.")
+        write_text(Path("file1"), "This is a file with no secrets.")
+        write_text(Path("dir/file2"), "This is a file with no secrets.")
+        write_text(Path("dir/subdir/file3"), "This is a file with no secrets.")
+        write_text(Path("dir/subdir/file4"), "This is a file with no secrets.")
 
     def test_directory_error(self, cli_fs_runner):
         result = cli_fs_runner.invoke(
@@ -415,17 +416,17 @@ class TestScanDirectory:
         # files in repo
         ignored_secret = local_repo.path / "ignored_file_secret"
         found_secret = local_repo.path / "found_file_secret"
-        ignored_secret.write_text(VALID_SECRET_PATCH)
-        found_secret.write_text(VALID_SECRET_PATCH)
+        write_text(ignored_secret, VALID_SECRET_PATCH)
+        write_text(found_secret, VALID_SECRET_PATCH)
 
         gitignore = local_repo.path / ".gitignore"
-        gitignore.write_text("ignored_file_secret")
+        write_text(gitignore, "ignored_file_secret")
 
         # Submodule
         submodule_path = tmp_path / "submodule_repo"
         local_submodule = Repository.create(submodule_path)
         staged_sm_file = local_submodule.path / "committed_sm_file"
-        staged_sm_file.write_text("This is a file with no secrets.")
+        write_text(staged_sm_file, "This is a file with no secrets.")
         local_submodule.git("add", str(staged_sm_file))
         local_submodule.create_commit(message="Initial commit")
 
@@ -434,7 +435,7 @@ class TestScanDirectory:
 
         # Unstaged file in the submodule
         submodule_unstaged_file = local_submodule.path / "unstaged_sm_file"
-        submodule_unstaged_file.write_text("This is a file with no secrets.")
+        write_text(submodule_unstaged_file, "This is a file with no secrets.")
 
         # Scan with --use-gitignore
         with cli_runner.isolated_filesystem(temp_dir=tmp_path):
@@ -463,25 +464,23 @@ class TestScanDirectory:
             ]
         )
 
+    @pytest.mark.parametrize("all_secrets", (True, False))
     @pytest.mark.parametrize(
-        "ignored_detectors, nb_secret",
+        ("ignored_detectors", "nb_secret", "nb_ignored"),
         [
-            ([], 2),
-            (["-b", "RSA Private Key"], 1),
-            (["-b", "SendGrid Key"], 1),
-            (["-b", "host"], 2),
-            (["-b", "SendGrid Key", "-b", "host"], 1),
-            (["-b", "SendGrid Key", "-b", "RSA Private Key"], 0),
+            ([], 2, 0),
+            (["-b", "RSA Private Key"], 1, 1),
+            (["-b", "SendGrid Key"], 1, 1),
+            (["-b", "host"], 2, 0),
+            (["-b", "SendGrid Key", "-b", "host"], 1, 1),
+            (["-b", "SendGrid Key", "-b", "RSA Private Key"], 0, 2),
         ],
     )
     def test_ignore_detectors(
-        self,
-        cli_fs_runner,
-        ignored_detectors,
-        nb_secret,
+        self, cli_fs_runner, ignored_detectors, nb_secret, nb_ignored, all_secrets
     ):
-        Path("file_secret").write_text(_ONE_LINE_AND_MULTILINE_PATCH)
-
+        write_text(Path("file_secret"), _ONE_LINE_AND_MULTILINE_PATCH)
+        all_secrets_option = ["--all-secrets"] if all_secrets else []
         with my_vcr.use_cassette("test_scan_path_file_one_line_and_multiline_patch"):
             result = cli_fs_runner.invoke(
                 cli,
@@ -493,16 +492,23 @@ class TestScanDirectory:
                     "path",
                     "file_secret",
                     "--exit-zero",
+                    *all_secrets_option,
                 ],
             )
             assert result.exit_code == ExitCode.SUCCESS, result.output
-            if nb_secret:
-                plural = nb_secret > 1
+            if all_secrets:
+                total_secrets = nb_secret + nb_ignored
                 assert (
-                    f": {nb_secret} incident{'s' if plural else ''} "
+                    f": {total_secrets} secret{'s' if total_secrets != 1 else ''} detected"
                 ) in result.output
             else:
-                assert "No secrets have been found" in result.output
+                assert (
+                    f": {nb_secret} secret{'s' if nb_secret != 1 else ''} detected"
+                ) in result.output
+                if nb_ignored > 0:
+                    assert (
+                        f"{nb_ignored} secret{'s' if nb_ignored != 1 else ''} ignored"
+                    ) in result.output
 
     @patch("pygitguardian.GGClient.multi_content_scan")
     @my_vcr.use_cassette("test_scan_context_repository.yaml")
@@ -522,7 +528,7 @@ class TestScanDirectory:
         local_repo.git("remote", "add", "origin", remote_url)
 
         file = local_repo.path / "file_secret"
-        file.write_text("Hello")
+        write_text(file, "Hello")
         local_repo.add(file)
         local_repo.create_commit()
 
