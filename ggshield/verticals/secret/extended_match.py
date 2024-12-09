@@ -80,6 +80,9 @@ class ExtendedMatch(Match):
 
         match_split_lines = match.match.splitlines()
         assert len(match_split_lines) == len(lines_with_secret)
+
+        print(match)
+        print(span, lines_with_secret, lines)
         return cls(
             match=match.match,
             index_start=match.index_start,

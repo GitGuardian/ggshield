@@ -86,6 +86,7 @@ class TestPathScan:
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "path", "file_secret"]
             )
+        raise
         assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         assert result.exception
         assert re.search(
