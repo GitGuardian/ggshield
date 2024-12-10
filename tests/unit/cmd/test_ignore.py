@@ -9,6 +9,7 @@ from ggshield.cmd.secret.ignore import ignore_last_found
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.errors import ExitCode
+from ggshield.core.filter import get_ignore_sha
 from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.core.types import IgnoredMatch
 from ggshield.verticals.secret import SecretScanner
@@ -212,26 +213,14 @@ def test_do_not_duplicate_last_found_secrets(client, isolated_fs):
     )
     cache = Cache()
 
-    cache.add_found_policy_break(policy_break, "a")
-    cache.add_found_policy_break(policy_break, "b")
+    cache.add_found_policy_break(
+        policy_break.break_type, get_ignore_sha(policy_break), "a"
+    )
+    cache.add_found_policy_break(
+        policy_break.break_type, get_ignore_sha(policy_break), "b"
+    )
 
     assert len(cache.last_found_secrets) == 1
-
-
-def test_do_not_add_policy_breaks_to_last_found(client, isolated_fs):
-    """
-    GIVEN 1 policy breaks on different files with the same ignore sha
-    WHEN add_found_policy_break is called
-    THEN only one element should be added
-    """
-    policy_break = PolicyBreak(
-        "a", "gitignore", None, [Match("apikey", "apikey", 0, 0, 0, 0)]
-    )
-    cache = Cache()
-
-    cache.add_found_policy_break(policy_break, "a")
-
-    assert len(cache.last_found_secrets) == 0
 
 
 def test_ignore_last_found_preserve_previous_config(client, isolated_fs):

@@ -1,13 +1,11 @@
-from pygitguardian.models import PolicyBreak
-
 from ggshield.core.filter import censor_match
 from ggshield.core.text_utils import pluralize, translate_validity
 
-from ..secret_scan_collection import SecretScanCollection
+from ..secret_scan_collection import Secret, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 
-def format_policy_break(policy_break: PolicyBreak) -> str:
+def format_policy_break(policy_break: Secret) -> str:
     """Returns a string with the policy name, validity and a comma-separated,
     double-quoted, censored version of all `policy_break` matches.
 

@@ -349,7 +349,7 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     """
     scannable = StringScannable(url="localhost", content="known\nunknown")
     known_secret = PolicyBreak(
-        break_type="a",
+        break_type="known",
         policy="Secrets detection",
         validity="valid",
         known_secret=True,
@@ -365,7 +365,7 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
         ],
     )
     unknown_secret = PolicyBreak(
-        break_type="a",
+        break_type="unknown",
         policy="Secrets detection",
         validity="valid",
         known_secret=False,
@@ -401,9 +401,14 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     results = scanner.scan([scannable], scanner_ui=Mock())
 
     if ignore_known_secrets:
-        assert results.results[0].policy_breaks == [unknown_secret]
+        assert [pbreak.break_type for pbreak in results.results[0].policy_breaks] == [
+            "unknown"
+        ]
     else:
-        assert results.results[0].policy_breaks == [known_secret, unknown_secret]
+        assert [pbreak.break_type for pbreak in results.results[0].policy_breaks] == [
+            "known",
+            "unknown",
+        ]
 
 
 @patch("pygitguardian.GGClient.multi_content_scan")
@@ -482,4 +487,6 @@ def test_all_secrets_is_used(scan_mock: Mock, client):
         secret_config=SecretConfig(),
     )
     results = scanner.scan([scannable], scanner_ui=Mock())
-    assert results.results[0].policy_breaks == [secret]
+    assert [pbreak.break_type for pbreak in results.results[0].policy_breaks] == [
+        "not-excluded"
+    ]

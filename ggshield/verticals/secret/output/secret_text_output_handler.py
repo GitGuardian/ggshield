@@ -3,10 +3,8 @@ from io import StringIO
 from typing import Dict, List, Optional, Tuple
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak
 
 from ggshield.core.constants import IncidentStatus
-from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.lines import Line, get_offset, get_padding
 from ggshield.core.text_utils import (
     STYLE,
@@ -17,7 +15,13 @@ from ggshield.core.text_utils import (
 )
 
 from ..extended_match import ExtendedMatch
-from ..secret_scan_collection import IgnoreReason, Result, SecretScanCollection
+from ..secret_scan_collection import (
+    IgnoreKind,
+    Result,
+    Secret,
+    SecretScanCollection,
+    group_secrets_by_ignore_sha,
+)
 from .secret_output_handler import SecretOutputHandler
 
 
@@ -71,9 +75,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
             )
 
         known_secrets_count = sum(
-            result.ignored_policy_breaks_count_by_reason.get(
-                IgnoreReason.KNOWN_SECRET, 0
-            )
+            result.ignored_policy_breaks_count_by_kind.get(IgnoreKind.KNOWN_SECRET, 0)
             for result in scan.get_all_results()
         )
         if self.ignore_known_secrets and known_secrets_count > 0:
@@ -118,14 +120,14 @@ class SecretTextOutputHandler(SecretOutputHandler):
         """
         result_buf = StringIO()
 
-        sha_dict = group_policy_breaks_by_ignore_sha(result.policy_breaks)
+        sha_dict = group_secrets_by_ignore_sha(result.policy_breaks)
 
         if not self.show_secrets:
             result.censor()
 
         number_of_displayed_secrets = 0
         number_of_hidden_secrets = sum(
-            result.ignored_policy_breaks_count_by_reason.values()
+            result.ignored_policy_breaks_count_by_kind.values()
         )
         for ignore_sha, policy_breaks in sha_dict.items():
             number_of_displayed_secrets += 1
@@ -255,7 +257,7 @@ def leak_message_located(
 
 
 def flatten_policy_breaks_by_line(
-    policy_breaks: List[PolicyBreak],
+    policy_breaks: List[Secret],
 ) -> List[Tuple[Line, List[ExtendedMatch]]]:
     """
     flatten_policy_breaks_by_line turns a list of policy breaks into a list of
@@ -283,7 +285,7 @@ def flatten_policy_breaks_by_line(
 
 
 def policy_break_header(
-    policy_breaks: List[PolicyBreak],
+    policy_breaks: List[Secret],
     ignore_sha: str,
     known_secret: bool = False,
 ) -> str:
@@ -310,8 +312,10 @@ def policy_break_header(
 {indent}Incident URL: {policy_breaks[0].incident_url if known_secret and policy_break.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
 """
-    if policy_break.is_excluded:
-        message += f"{indent}Ignored: {policy_break.exclude_reason}\n"
+    if policy_break.ignore_reason is not None:
+        message += (
+            f"{indent}Ignored: {policy_break.ignore_reason.to_human_readable()}\n"
+        )
 
     return message + "\n"
 

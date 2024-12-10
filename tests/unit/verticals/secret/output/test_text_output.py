@@ -5,7 +5,6 @@ import click
 import pytest
 
 from ggshield.core.config.user_config import SecretConfig
-from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
@@ -13,6 +12,7 @@ from ggshield.verticals.secret.output import SecretTextOutputHandler
 from ggshield.verticals.secret.output.secret_text_output_handler import (
     format_line_count_break,
 )
+from ggshield.verticals.secret.secret_scan_collection import group_secrets_by_ignore_sha
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -148,7 +148,7 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # all ignore sha should be in the output
     assert all(
         ignore_sha in output
-        for ignore_sha in group_policy_breaks_by_ignore_sha(result_input.policy_breaks)
+        for ignore_sha in group_secrets_by_ignore_sha(result_input.policy_breaks)
     )
 
 
