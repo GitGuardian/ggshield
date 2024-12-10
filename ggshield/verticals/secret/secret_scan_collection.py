@@ -32,12 +32,12 @@ from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 
-class IgnoreReason(str, Enum):
-    IGNORED_MATCH = "ignored_match"
-    IGNORED_DETECTOR = "ignored_detector"
-    KNOWN_SECRET = "known_secret"
-    NOT_INTRODUCED = "not_introduced"
-    BACKEND_EXCLUDED = "backend_excluded"
+class IgnoreReason(Enum):
+    IGNORED_MATCH = "Match ignored via local .gitguardian yaml"
+    IGNORED_DETECTOR = "Detector ignored via local .gitguardian yaml"
+    KNOWN_SECRET = "Secret is known in dashboard and --ignore-known-secrets is used"
+    NOT_INTRODUCED = "Secret was not in added in commit"
+    BACKEND_EXCLUDED = "Excluded by dashboard"
 
 
 def compute_ignore_reason(
@@ -46,15 +46,15 @@ def compute_ignore_reason(
     """Computes the possible ignore reason associated with a PolicyBreak"""
     ignore_reason = None
     if policy_break.diff_kind in {DiffKind.DELETION, DiffKind.CONTEXT}:
-        ignore_reason = IgnoreReason.NOT_INTRODUCED
+        ignore_reason = IgnoreReason.NOT_INTRODUCED.value
     elif policy_break.is_excluded:
-        ignore_reason = f"Excluded from backend ({policy_break.exclude_reason})"
+        ignore_reason = f"Excluded by dashboard ({policy_break.exclude_reason})"
     elif is_in_ignored_matches(policy_break, secret_config.ignored_matches or []):
-        ignore_reason = IgnoreReason.IGNORED_MATCH
+        ignore_reason = IgnoreReason.IGNORED_MATCH.value
     elif policy_break.break_type in secret_config.ignored_detectors:
-        ignore_reason = IgnoreReason.IGNORED_DETECTOR
+        ignore_reason = IgnoreReason.IGNORED_DETECTOR.value
     elif secret_config.ignore_known_secrets and policy_break.known_secret:
-        ignore_reason = IgnoreReason.KNOWN_SECRET
+        ignore_reason = IgnoreReason.KNOWN_SECRET.value
 
     return ignore_reason
 

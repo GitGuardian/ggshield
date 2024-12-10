@@ -72,7 +72,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
 
         known_secrets_count = sum(
             result.ignored_policy_breaks_count_by_reason.get(
-                IgnoreReason.KNOWN_SECRET, 0
+                IgnoreReason.KNOWN_SECRET.value, 0
             )
             for result in scan.get_all_results()
         )
