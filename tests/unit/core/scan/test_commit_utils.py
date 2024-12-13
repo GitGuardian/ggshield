@@ -97,6 +97,21 @@ def test_patch_file_info_from_string(
  To get interesting indices.
 """,  # noqa:W293
         ),
+        (
+            """
+@@@ -1,1 -1,1 +1,2 @@@ I'm on the hunk header
+- baz
+ -bar
+++hello
+++world
+""",
+            """
+@@ -1,1 +1,2 @@ I'm on the hunk header
+-baz
++hello
++world
+""",
+        ),
     ],
 )
 def test_convert_multi_parent_diff(diff: str, expected: str):
