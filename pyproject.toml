@@ -63,18 +63,6 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.pdm.dev-dependencies]
-dev = [
-    "scriv[toml]",
-    "black==24.3.0",
-    "coverage",
-    "flake8",
-    "flake8-isort",
-    "flake8-quotes",
-    "pre-commit",
-    "pyright==1.1.367",
-    "build>=1.2.2.post1",
-    "check-wheel-contents",
-]
 
 
 standalone = [
@@ -161,6 +149,7 @@ dev = [
     "pyright==1.1.367",
     "build>=1.2.2.post1",
     "check-wheel-contents",
+    "ipython>=8.12.3",
 ]
 standalone = [
     "pyinstaller==6.7.0",
