@@ -52,6 +52,12 @@ class IgnoreReason:
             res += f" ({self.detail})"
         return res
 
+    def to_machine_readable(self):
+        res = self.kind.name.lower()
+        if self.detail:
+            res += f" ({self.detail})"
+        return res
+
 
 def compute_ignore_reason(
     policy_break: PolicyBreak, secret_config: SecretConfig

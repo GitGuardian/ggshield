@@ -132,6 +132,12 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             if details is not None:
                 flattened_dict["incident_details"] = details
 
+        if policy_breaks[0].ignore_reason is not None:
+            flattened_dict["is_ignored"] = True
+            flattened_dict["ignore_reason"] = policy_breaks[
+                0
+            ].ignore_reason.to_machine_readable()
+
         for policy_break in policy_breaks:
             flattened_dict["occurrences"].extend(
                 self.serialize_policy_break_matches(policy_break)
