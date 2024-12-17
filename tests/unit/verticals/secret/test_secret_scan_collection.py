@@ -9,6 +9,7 @@ from ggshield.core.scan import StringScannable
 from ggshield.core.types import IgnoredMatch
 from ggshield.verticals.secret import Results
 from ggshield.verticals.secret.secret_scan_collection import (
+    IgnoreKind,
     IgnoreReason,
     Result,
     compute_ignore_reason,
@@ -125,15 +126,12 @@ def test_create_result_removes_ignored_matches_bis(all_secrets):
     )
     if all_secrets:
         assert len(result.policy_breaks) == 2
-        assert result.policy_breaks[0].is_excluded is True
-        assert result.policy_breaks[1].is_excluded is False
+        assert result.policy_breaks[0].is_ignored is True
+        assert result.policy_breaks[1].is_ignored is False
     else:
         assert len(result.policy_breaks) == 1
-        assert result.policy_breaks[0].is_excluded is False
-        assert (
-            result.ignored_policy_breaks_count_by_reason[IgnoreReason.IGNORED_MATCH]
-            == 1
-        )
+        assert result.policy_breaks[0].is_ignored is False
+        assert result.ignored_policy_breaks_count_by_kind[IgnoreKind.IGNORED_MATCH] == 1
 
 
 class TestComputeIgnoreReason:
@@ -146,7 +144,9 @@ class TestComputeIgnoreReason:
         policy_break = PolicyBreakFactory(
             is_excluded=True, exclude_reason="BACKEND_REASON"
         )
-        assert "BACKEND_REASON" in compute_ignore_reason(policy_break, SecretConfig())
+        assert compute_ignore_reason(policy_break, SecretConfig()) == IgnoreReason(
+            IgnoreKind.BACKEND_EXCLUDED, "BACKEND_REASON"
+        )
 
     def test_ignore_ignored_match(self):
         """

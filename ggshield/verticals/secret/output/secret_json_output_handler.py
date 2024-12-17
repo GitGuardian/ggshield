@@ -1,12 +1,17 @@
 from typing import Any, Dict, List, cast
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak, SecretIncident
+from pygitguardian.models import SecretIncident
 
-from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 
-from ..secret_scan_collection import Error, Result, SecretScanCollection
+from ..secret_scan_collection import (
+    Error,
+    Result,
+    Secret,
+    SecretScanCollection,
+    group_secrets_by_ignore_sha,
+)
 from .schemas import JSONScanCollectionSchema
 from .secret_output_handler import SecretOutputHandler
 
@@ -74,7 +79,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "total_occurrences": 0,
             "total_incidents": 0,
         }
-        sha_dict = group_policy_breaks_by_ignore_sha(result.policy_breaks)
+        sha_dict = group_secrets_by_ignore_sha(result.policy_breaks)
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
@@ -105,7 +110,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
     def serialized_policy_break(
         self,
         ignore_sha: str,
-        policy_breaks: List[PolicyBreak],
+        policy_breaks: List[Secret],
         incident_details: Dict[str, SecretIncident],
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
@@ -127,6 +132,12 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             if details is not None:
                 flattened_dict["incident_details"] = details
 
+        if policy_breaks[0].ignore_reason is not None:
+            flattened_dict["is_ignored"] = True
+            flattened_dict["ignore_reason"] = policy_breaks[
+                0
+            ].ignore_reason.to_machine_readable()
+
         for policy_break in policy_breaks:
             flattened_dict["occurrences"].extend(
                 self.serialize_policy_break_matches(policy_break)
@@ -136,7 +147,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
     def serialize_policy_break_matches(
         self,
-        policy_break: PolicyBreak,
+        policy_break: Secret,
     ) -> List[Dict[str, Any]]:
         """
         Serialize policy_break matches. The method uses MatchSpan to get the start and

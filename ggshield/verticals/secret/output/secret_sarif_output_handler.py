@@ -2,14 +2,13 @@ import json
 from typing import Any, Dict, Iterable, List, cast
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak, SecretIncident
+from pygitguardian.models import SecretIncident
 
 from ggshield import __version__ as ggshield_version
-from ggshield.core.filter import get_ignore_sha
 from ggshield.core.match_span import MatchSpan
 
 from ..extended_match import ExtendedMatch
-from ..secret_scan_collection import Result, SecretScanCollection
+from ..secret_scan_collection import Result, Secret, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 
@@ -66,7 +65,7 @@ def _create_sarif_results(
 
 def _create_sarif_result_dict(
     url: str,
-    policy_break: PolicyBreak,
+    policy_break: Secret,
     incident_details: Dict[str, SecretIncident],
 ) -> Dict[str, Any]:
     # Prepare message with links to the related location for each match
@@ -98,7 +97,7 @@ def _create_sarif_result_dict(
             for id, m in enumerate(extended_matches)
         ],
         "partialFingerprints": {
-            "secret/v1": get_ignore_sha(policy_break),
+            "secret/v1": policy_break.get_ignore_sha(),
         },
     }
     if policy_break.incident_url:

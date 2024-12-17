@@ -2,12 +2,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from pygitguardian.models import PolicyBreak
-
 from ggshield.core import ui
 from ggshield.core.constants import CACHE_PATH
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.filter import get_ignore_sha
 from ggshield.core.types import IgnoredMatch
 
 
@@ -74,18 +71,18 @@ class Cache:
     def purge(self) -> None:
         self.last_found_secrets = []
 
-    def add_found_policy_break(self, policy_break: PolicyBreak, filename: str) -> None:
-        if policy_break.is_secret:
-            ignore_sha = get_ignore_sha(policy_break)
-            if not any(
-                last_found.match == ignore_sha for last_found in self.last_found_secrets
-            ):
-                self.last_found_secrets.append(
-                    IgnoredMatch(
-                        name=f"{policy_break.break_type} - {filename}",
-                        match=get_ignore_sha(policy_break),
-                    )
+    def add_found_policy_break(
+        self, break_type: str, ignore_sha: str, filename: str
+    ) -> None:
+        if not any(
+            last_found.match == ignore_sha for last_found in self.last_found_secrets
+        ):
+            self.last_found_secrets.append(
+                IgnoredMatch(
+                    name=f"{break_type} - {filename}",
+                    match=ignore_sha,
                 )
+            )
 
 
 class ReadOnlyCache(Cache):

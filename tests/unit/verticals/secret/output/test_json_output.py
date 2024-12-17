@@ -13,7 +13,6 @@ from voluptuous import Optional as VOptional
 from voluptuous import Required, validators
 
 from ggshield.core.config.user_config import SecretConfig
-from ggshield.core.filter import group_policy_breaks_by_ignore_sha
 from ggshield.core.scan import Commit, ScanContext, ScanMode, StringScannable
 from ggshield.core.scan.file import File
 from ggshield.utils.git_shell import Filemode
@@ -27,6 +26,7 @@ from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
 )
+from ggshield.verticals.secret.secret_scan_collection import group_secrets_by_ignore_sha
 from tests.unit.conftest import (
     _MULTILINE_SECRET_FILE,
     _MULTIPLE_SECRETS_PATCH,
@@ -425,7 +425,7 @@ def test_json_output_for_patch(
         assert all(
             ignore_sha in json_flat_results
             for result in results.results
-            for ignore_sha in group_policy_breaks_by_ignore_sha(result.policy_breaks)
+            for ignore_sha in group_secrets_by_ignore_sha(result.policy_breaks)
         )
 
 

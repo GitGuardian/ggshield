@@ -140,3 +140,17 @@ class ExtendedMatch(Match):
                 f"post_line_end:{self.post_line_end}",
             ]
         )
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, ExtendedMatch):
+            return False
+        return (
+            self.span == other.span
+            and self.lines_before_secret == other.lines_before_secret
+            and self.lines_with_secret == other.lines_with_secret
+            and self.lines_after_secret == other.lines_after_secret
+            and self.pre_line_start == other.pre_line_start
+            and self.pre_line_end == other.pre_line_end
+            and self.post_line_start == other.post_line_start
+            and self.post_line_end == other.post_line_end
+        )
