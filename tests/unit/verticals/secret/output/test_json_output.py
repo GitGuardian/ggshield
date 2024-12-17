@@ -26,7 +26,12 @@ from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
 )
-from ggshield.verticals.secret.secret_scan_collection import group_secrets_by_ignore_sha
+from ggshield.verticals.secret.secret_scan_collection import (
+    IgnoreKind,
+    IgnoreReason,
+    group_secrets_by_ignore_sha,
+)
+from tests.factories import PolicyBreakFactory, ScannableFactory, ScanResultFactory
 from tests.unit.conftest import (
     _MULTILINE_SECRET_FILE,
     _MULTIPLE_SECRETS_PATCH,
@@ -602,3 +607,52 @@ def test_with_incident_details(
                 assert "incident_details" not in incident
     else:
         assert client_mock.retrieve_secret_incident.call_count == 0
+
+
+@pytest.mark.parametrize(
+    ("ignore_reason", "expected_output"),
+    (
+        (None, None),
+        (
+            IgnoreReason(kind=IgnoreKind.IGNORED_MATCH),
+            {
+                "kind": IgnoreKind.IGNORED_MATCH.name.lower(),
+                "detail": None,
+            },
+        ),
+        (
+            IgnoreReason(kind=IgnoreKind.BACKEND_EXCLUDED, detail="some detail"),
+            {
+                "kind": IgnoreKind.BACKEND_EXCLUDED.name.lower(),
+                "detail": "some detail",
+            },
+        ),
+    ),
+)
+def test_ignore_reason(ignore_reason, expected_output):
+    """
+    GIVEN an result
+    WHEN it is passed to the json output handler
+    THEN the ignore_reason field is as expected
+    """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(content=scannable.content)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+    result.secrets[0].ignore_reason = ignore_reason
+
+    output_handler = SecretJSONOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan",
+            type="scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    parsed_incidents = json.loads(output)["entities_with_incidents"][0]["incidents"]
+    assert parsed_incidents[0]["ignore_reason"] == expected_output

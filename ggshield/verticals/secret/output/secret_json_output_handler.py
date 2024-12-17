@@ -1,3 +1,4 @@
+import dataclasses
 from typing import Any, Dict, List, cast
 
 from pygitguardian.client import VERSIONS
@@ -131,6 +132,11 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             details = incident_details.get(policy_breaks[0].incident_url)
             if details is not None:
                 flattened_dict["incident_details"] = details
+
+        if policy_breaks[0].ignore_reason is not None:
+            flattened_dict["ignore_reason"] = dataclasses.asdict(
+                policy_breaks[0].ignore_reason
+            )
 
         for policy_break in policy_breaks:
             flattened_dict["occurrences"].extend(

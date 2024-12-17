@@ -12,7 +12,12 @@ from ggshield.verticals.secret.output import SecretTextOutputHandler
 from ggshield.verticals.secret.output.secret_text_output_handler import (
     format_line_count_break,
 )
-from ggshield.verticals.secret.secret_scan_collection import group_secrets_by_ignore_sha
+from ggshield.verticals.secret.secret_scan_collection import (
+    IgnoreKind,
+    IgnoreReason,
+    group_secrets_by_ignore_sha,
+)
+from tests.factories import PolicyBreakFactory, ScannableFactory, ScanResultFactory
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY,
@@ -219,3 +224,43 @@ def assert_no_leak_message_is_diplayed(
 
 def test_format_line_count_break():
     assert format_line_count_break(5) == "\x1b[36m\x1b[22m\x1b[22m  ...\n\x1b[0m"
+
+
+@pytest.mark.parametrize(
+    ("ignore_reason"),
+    (
+        None,
+        IgnoreReason(kind=IgnoreKind.IGNORED_MATCH),
+        IgnoreReason(kind=IgnoreKind.BACKEND_EXCLUDED, detail="some detail"),
+    ),
+)
+def test_ignore_reason(ignore_reason):
+    """
+    GIVEN an result
+    WHEN it is passed to the json output handler
+    THEN the ignore_reason field is as expected
+    """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(content=scannable.content)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+    result.secrets[0].ignore_reason = ignore_reason
+
+    output_handler = SecretTextOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan",
+            type="scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    if ignore_reason is None:
+        assert "Ignored:" not in output
+    else:
+        assert "Ignored:" in output
+        assert ignore_reason.to_human_readable() in output
