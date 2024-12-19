@@ -148,16 +148,16 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # all ignore sha should be in the output
     assert all(
         ignore_sha in output
-        for ignore_sha in group_secrets_by_ignore_sha(result_input.policy_breaks)
+        for ignore_sha in group_secrets_by_ignore_sha(result_input.secrets)
     )
 
 
-def assert_policies_displayed(output, verbose, ignore_known_secrets, policy_breaks):
-    for policy_break in policy_breaks:
+def assert_policies_displayed(output, verbose, ignore_known_secrets, secrets):
+    for secret in secrets:
         if not ignore_known_secrets or verbose:
             # All secrets are displayed no matter if they're known or not
-            assert f"Secret detected: {policy_break.break_type}" in output
-            if policy_break.known_secret:
+            assert f"Secret detected: {secret.break_type}" in output
+            if secret.known_secret:
                 assert "Known by GitGuardian dashboard: YES" in output
                 assert (
                     "https://dashboard.gitguardian.com/workspace/1/incidents/" in output
@@ -166,13 +166,13 @@ def assert_policies_displayed(output, verbose, ignore_known_secrets, policy_brea
                 assert "Known by GitGuardian dashboard: NO" in output
                 assert "Incident URL: N/A" in output
         else:
-            if policy_break.known_secret:
-                assert f"Secret detected: {policy_break.break_type}" not in output
+            if secret.known_secret:
+                assert f"Secret detected: {secret.break_type}" not in output
 
     if ignore_known_secrets:
-        secrets_number = sum(1 for x in policy_breaks if not x.known_secret)
+        secrets_number = sum(1 for x in secrets if not x.known_secret)
     else:
-        secrets_number = len(policy_breaks)
+        secrets_number = len(secrets)
 
     if secrets_number:
         assert (

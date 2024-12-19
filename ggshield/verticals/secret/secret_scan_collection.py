@@ -141,21 +141,21 @@ class Result:
     filemode: Filemode
     path: Path
     url: str
-    policy_breaks: List[Secret]
-    ignored_policy_breaks_count_by_kind: Counter[IgnoreKind]
+    secrets: List[Secret]
+    ignored_secrets_count_by_kind: Counter[IgnoreKind]
 
     @property
     def is_on_patch(self) -> bool:
         return self.filemode != Filemode.FILE
 
     def censor(self) -> None:
-        for policy_break in self.policy_breaks:
-            for extended_match in policy_break.matches:
+        for secret in self.secrets:
+            for extended_match in secret.matches:
                 cast(ExtendedMatch, extended_match).censor()
 
     @property
-    def has_policy_breaks(self) -> bool:
-        return len(self.policy_breaks) > 0
+    def has_secrets(self) -> bool:
+        return len(self.secrets) > 0
 
     @classmethod
     def from_scan_result(
@@ -167,14 +167,14 @@ class Result:
         """
 
         to_keep: List[Tuple[PolicyBreak, Optional[IgnoreReason]]] = []
-        ignored_policy_breaks_count_by_kind = Counter()
+        ignored_secrets_count_by_kind = Counter()
         for policy_break in scan_result.policy_breaks:
             ignore_reason = compute_ignore_reason(policy_break, secret_config)
             if ignore_reason is not None:
                 if secret_config.all_secrets:
                     to_keep.append((policy_break, ignore_reason))
                 else:
-                    ignored_policy_breaks_count_by_kind[ignore_reason.kind] += 1
+                    ignored_secrets_count_by_kind[ignore_reason.kind] += 1
             else:
                 to_keep.append((policy_break, None))
 
@@ -183,8 +183,8 @@ class Result:
             filemode=file.filemode,
             path=file.path,
             url=file.url,
-            policy_breaks=[],
-            ignored_policy_breaks_count_by_kind=ignored_policy_breaks_count_by_kind,
+            secrets=[],
+            ignored_secrets_count_by_kind=ignored_secrets_count_by_kind,
         )
 
         lines = get_lines_from_content(file.content, file.filemode)
@@ -204,7 +204,7 @@ class Result:
             for policy_break, ignore_reason in to_keep
         ]
 
-        result.policy_breaks = secrets
+        result.secrets = secrets
         return result
 
 
@@ -240,8 +240,8 @@ class Results:
         self.errors.extend(others.errors)
 
     @property
-    def has_policy_breaks(self) -> bool:
-        return any(x.has_policy_breaks for x in self.results)
+    def has_secrets(self) -> bool:
+        return any(x.has_secrets for x in self.results)
 
 
 class SecretScanCollection:
@@ -268,8 +268,8 @@ class SecretScanCollection:
         self.optional_header = optional_header
         self.extra_info = extra_info
 
-        self.total_policy_breaks_count = sum(
-            len(result.policy_breaks) for result in self.get_all_results()
+        self.total_secrets_count = sum(
+            len(result.secrets) for result in self.get_all_results()
         )
 
     @property
@@ -290,8 +290,8 @@ class SecretScanCollection:
     def get_incident_details(self, client: GGClient) -> Dict[str, SecretIncident]:
         incident_details: dict[str, SecretIncident] = {}
         for result in self.get_all_results():
-            for policy_break in result.policy_breaks:
-                url = policy_break.incident_url
+            for secret in result.secrets:
+                url = secret.incident_url
                 if url and url not in incident_details:
                     incident_id = int(url.split("/")[-1])
                     resp = client.retrieve_secret_incident(

@@ -149,7 +149,7 @@ def test_cache_catches_nothing(client, isolated_fs):
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
 
-        assert sum(len(result.policy_breaks) for result in results.results) == 0
+        assert sum(len(result.secrets) for result in results.results) == 0
         assert config.user_config.secret.ignored_matches == FOUND_SECRETS
         assert cache.last_found_secrets == []
 

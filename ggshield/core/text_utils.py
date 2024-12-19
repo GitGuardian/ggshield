@@ -26,7 +26,7 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "warning": {"fg": "yellow"},
     "heading": {"fg": "green"},
     "incident_validity": {"fg": "bright_yellow", "bold": True},
-    "policy_break_type": {"fg": "bright_yellow", "bold": True},
+    "secret_type": {"fg": "bright_yellow", "bold": True},
     "occurrence_count": {"fg": "bright_yellow", "bold": True},
     "ignore_sha": {"fg": "bright_yellow", "bold": True},
     "iac_vulnerability_critical": {"fg": "red", "bold": True},

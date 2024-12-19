@@ -79,15 +79,15 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "total_occurrences": 0,
             "total_incidents": 0,
         }
-        sha_dict = group_secrets_by_ignore_sha(result.policy_breaks)
+        sha_dict = group_secrets_by_ignore_sha(result.secrets)
         result_dict["total_incidents"] = len(sha_dict)
 
         if not self.show_secrets:
             result.censor()
 
-        for ignore_sha, policy_breaks in sha_dict.items():
-            flattened_dict = self.serialized_policy_break(
-                ignore_sha, policy_breaks, incident_details
+        for ignore_sha, secrets in sha_dict.items():
+            flattened_dict = self.serialized_secret(
+                ignore_sha, secrets, incident_details
             )
             result_dict["incidents"].append(flattened_dict)
             result_dict["total_occurrences"] += flattened_dict["total_occurrences"]
@@ -107,55 +107,53 @@ class SecretJSONOutputHandler(SecretOutputHandler):
         }
         return error_dict
 
-    def serialized_policy_break(
+    def serialized_secret(
         self,
         ignore_sha: str,
-        policy_breaks: List[Secret],
+        secrets: List[Secret],
         incident_details: Dict[str, SecretIncident],
     ) -> Dict[str, Any]:
         flattened_dict: Dict[str, Any] = {
             "occurrences": [],
             "ignore_sha": ignore_sha,
-            "policy": policy_breaks[0].policy,
-            "break_type": policy_breaks[0].break_type,
-            "total_occurrences": len(policy_breaks),
+            "policy": secrets[0].policy,
+            "break_type": secrets[0].break_type,
+            "total_occurrences": len(secrets),
         }
 
-        if policy_breaks[0].validity:
-            flattened_dict["validity"] = policy_breaks[0].validity
+        if secrets[0].validity:
+            flattened_dict["validity"] = secrets[0].validity
 
-        if policy_breaks[0].known_secret:
-            flattened_dict["known_secret"] = policy_breaks[0].known_secret
-            flattened_dict["incident_url"] = policy_breaks[0].incident_url
-            assert policy_breaks[0].incident_url
-            details = incident_details.get(policy_breaks[0].incident_url)
+        if secrets[0].known_secret:
+            flattened_dict["known_secret"] = secrets[0].known_secret
+            flattened_dict["incident_url"] = secrets[0].incident_url
+            assert secrets[0].incident_url
+            details = incident_details.get(secrets[0].incident_url)
             if details is not None:
                 flattened_dict["incident_details"] = details
 
-        if policy_breaks[0].ignore_reason is not None:
+        if secrets[0].ignore_reason is not None:
             flattened_dict["is_ignored"] = True
-            flattened_dict["ignore_reason"] = policy_breaks[
+            flattened_dict["ignore_reason"] = secrets[
                 0
             ].ignore_reason.to_machine_readable()
 
-        for policy_break in policy_breaks:
-            flattened_dict["occurrences"].extend(
-                self.serialize_policy_break_matches(policy_break)
-            )
+        for secret in secrets:
+            flattened_dict["occurrences"].extend(self.serialize_secret_matches(secret))
 
         return flattened_dict
 
-    def serialize_policy_break_matches(
+    def serialize_secret_matches(
         self,
-        policy_break: Secret,
+        secret: Secret,
     ) -> List[Dict[str, Any]]:
         """
-        Serialize policy_break matches. The method uses MatchSpan to get the start and
+        Serialize secret matches. The method uses MatchSpan to get the start and
         end index of the match.
         Returns a list of matches.
         """
         matches_list: List[Dict[str, Any]] = []
-        for match in policy_break.matches:
+        for match in secret.matches:
             assert isinstance(match, ExtendedMatch)
 
             match_dict: Dict[str, Any] = {
