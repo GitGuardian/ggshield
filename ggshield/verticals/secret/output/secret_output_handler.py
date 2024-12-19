@@ -56,6 +56,6 @@ class SecretOutputHandler(ABC):
         raise NotImplementedError()
 
     def _get_exit_code(self, scan: SecretScanCollection) -> ExitCode:
-        if scan.total_policy_breaks_count > 0:
+        if scan.total_secrets_count > 0:
             return ExitCode.SCAN_FOUND_PROBLEMS
         return ExitCode.SUCCESS

@@ -75,7 +75,7 @@ class SecretTextOutputHandler(SecretOutputHandler):
             )
 
         known_secrets_count = sum(
-            result.ignored_policy_breaks_count_by_kind.get(IgnoreKind.KNOWN_SECRET, 0)
+            result.ignored_secrets_count_by_kind.get(IgnoreKind.KNOWN_SECRET, 0)
             for result in scan.get_all_results()
         )
         if self.ignore_known_secrets and known_secrets_count > 0:
@@ -120,27 +120,23 @@ class SecretTextOutputHandler(SecretOutputHandler):
         """
         result_buf = StringIO()
 
-        sha_dict = group_secrets_by_ignore_sha(result.policy_breaks)
+        sha_dict = group_secrets_by_ignore_sha(result.secrets)
 
         if not self.show_secrets:
             result.censor()
 
         number_of_displayed_secrets = 0
-        number_of_hidden_secrets = sum(
-            result.ignored_policy_breaks_count_by_kind.values()
-        )
-        for ignore_sha, policy_breaks in sha_dict.items():
+        number_of_hidden_secrets = sum(result.ignored_secrets_count_by_kind.values())
+        for ignore_sha, secrets in sha_dict.items():
             number_of_displayed_secrets += 1
 
             result_buf.write(
-                policy_break_header(
-                    policy_breaks, ignore_sha, policy_breaks[0].known_secret
-                )
+                secret_header(secrets, ignore_sha, secrets[0].known_secret)
             )
 
             result_buf.write(
                 leak_message_located(
-                    flatten_policy_breaks_by_line(policy_breaks),
+                    flatten_secrets_by_line(secrets),
                     result.is_on_patch,
                     clip_long_lines=not self.verbose,
                 )
@@ -256,17 +252,17 @@ def leak_message_located(
     return leak_msg.getvalue()
 
 
-def flatten_policy_breaks_by_line(
-    policy_breaks: List[Secret],
+def flatten_secrets_by_line(
+    secrets: List[Secret],
 ) -> List[Tuple[Line, List[ExtendedMatch]]]:
     """
-    flatten_policy_breaks_by_line turns a list of policy breaks into a list of
+    flatten_secrets_by_line turns a list of policy breaks into a list of
     tuples of (line, list of matches) mapping a line to a list of matches starting
     at that line. The list is sorted by line number.
     """
     flat_match_dict: Dict[Line, List[ExtendedMatch]] = dict()
-    for policy_break in policy_breaks:
-        for match in policy_break.matches:
+    for secret in secrets:
+        for match in secret.matches:
             assert isinstance(match, ExtendedMatch)
             for line in match.lines_before_secret + match.lines_after_secret:
                 if line not in flat_match_dict:
@@ -284,38 +280,36 @@ def flatten_policy_breaks_by_line(
     return ordered_flat_match
 
 
-def policy_break_header(
-    policy_breaks: List[Secret],
+def secret_header(
+    secrets: List[Secret],
     ignore_sha: str,
     known_secret: bool = False,
 ) -> str:
     """
     Build a header for the policy break.
     """
-    policy_break = policy_breaks[0]
+    secret = secrets[0]
     indent = "   "
     validity_msg = (
-        f"\n{indent}Validity: {format_text(translate_validity(policy_break.validity), STYLE['incident_validity'])}"
-        if policy_break.validity
+        f"\n{indent}Validity: {format_text(translate_validity(secret.validity), STYLE['incident_validity'])}"
+        if secret.validity
         else ""
     )
 
     start_line = format_text(">>", STYLE["detector_line_start"])
-    policy_break_type = format_text(policy_break.break_type, STYLE["policy_break_type"])
-    number_occurrences = format_text(str(len(policy_breaks)), STYLE["occurrence_count"])
+    secret_type = format_text(secret.break_type, STYLE["secret_type"])
+    number_occurrences = format_text(str(len(secrets)), STYLE["occurrence_count"])
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
     message = f"""
-{start_line} Secret detected: {policy_break_type}{validity_msg}
+{start_line} Secret detected: {secret_type}{validity_msg}
 {indent}Occurrences: {number_occurrences}
 {indent}Known by GitGuardian dashboard: {"YES" if known_secret else "NO"}
-{indent}Incident URL: {policy_breaks[0].incident_url if known_secret and policy_break.incident_url else "N/A"}
+{indent}Incident URL: {secrets[0].incident_url if known_secret and secret.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
 """
-    if policy_break.ignore_reason is not None:
-        message += (
-            f"{indent}Ignored: {policy_break.ignore_reason.to_human_readable()}\n"
-        )
+    if secret.ignore_reason is not None:
+        message += f"{indent}Ignored: {secret.ignore_reason.to_human_readable()}\n"
 
     return message + "\n"
 

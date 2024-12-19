@@ -115,14 +115,12 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
         for result in results.results:
-            if result.policy_breaks:
-                assert len(result.policy_breaks[0].matches) == expected.matches
+            if result.secrets:
+                assert len(result.secrets[0].matches) == expected.matches
                 if expected.first_match:
-                    assert (
-                        result.policy_breaks[0].matches[0].match == expected.first_match
-                    )
+                    assert result.secrets[0].matches[0].match == expected.first_match
             else:
-                assert result.policy_breaks == []
+                assert result.secrets == []
 
             if expected.want:
                 assert result.filename == expected.want["filename"]
@@ -253,10 +251,10 @@ index 7601807,5716ca5..8c27e55
             secret_config=SecretConfig(),
         )
         results = scanner.scan(commit.get_files(), scanner_ui=Mock())
-        policy_breaks = results.results[0].policy_breaks
-        assert len(policy_breaks) == 1
+        secrets = results.results[0].secrets
+        assert len(secrets) == 1
 
-        matches = {m.match_type: m.match for m in policy_breaks[0].matches}
+        matches = {m.match_type: m.match for m in secrets[0].matches}
         assert matches["username"] == "owly"
         assert matches["password"] == _SIMPLE_SECRET_TOKEN
 
@@ -401,11 +399,11 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     results = scanner.scan([scannable], scanner_ui=Mock())
 
     if ignore_known_secrets:
-        assert [pbreak.break_type for pbreak in results.results[0].policy_breaks] == [
+        assert [pbreak.break_type for pbreak in results.results[0].secrets] == [
             "unknown"
         ]
     else:
-        assert [pbreak.break_type for pbreak in results.results[0].policy_breaks] == [
+        assert [pbreak.break_type for pbreak in results.results[0].secrets] == [
             "known",
             "unknown",
         ]
@@ -487,6 +485,6 @@ def test_all_secrets_is_used(scan_mock: Mock, client):
         secret_config=SecretConfig(),
     )
     results = scanner.scan([scannable], scanner_ui=Mock())
-    assert [pbreak.break_type for pbreak in results.results[0].policy_breaks] == [
+    assert [pbreak.break_type for pbreak in results.results[0].secrets] == [
         "not-excluded"
     ]

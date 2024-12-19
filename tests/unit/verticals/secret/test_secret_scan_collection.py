@@ -96,7 +96,7 @@ def test_create_result_removes_ignored_matches(
             ignored_matches=[IgnoredMatch(name="", match=x) for x in ignores]
         ),
     )
-    assert len(result.policy_breaks) == final_len
+    assert len(result.secrets) == final_len
 
 
 @pytest.mark.parametrize("all_secrets", (True, False))
@@ -125,13 +125,13 @@ def test_create_result_removes_ignored_matches_bis(all_secrets):
         scannable, ScanResultFactory(policy_breaks=policy_breaks), config
     )
     if all_secrets:
-        assert len(result.policy_breaks) == 2
-        assert result.policy_breaks[0].is_ignored is True
-        assert result.policy_breaks[1].is_ignored is False
+        assert len(result.secrets) == 2
+        assert result.secrets[0].is_ignored is True
+        assert result.secrets[1].is_ignored is False
     else:
-        assert len(result.policy_breaks) == 1
-        assert result.policy_breaks[0].is_ignored is False
-        assert result.ignored_policy_breaks_count_by_kind[IgnoreKind.IGNORED_MATCH] == 1
+        assert len(result.secrets) == 1
+        assert result.secrets[0].is_ignored is False
+        assert result.ignored_secrets_count_by_kind[IgnoreKind.IGNORED_MATCH] == 1
 
 
 class TestComputeIgnoreReason:

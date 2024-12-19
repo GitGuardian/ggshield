@@ -430,7 +430,7 @@ def test_json_output_for_patch(
         assert all(
             ignore_sha in json_flat_results
             for result in results.results
-            for ignore_sha in group_secrets_by_ignore_sha(result.policy_breaks)
+            for ignore_sha in group_secrets_by_ignore_sha(result.secrets)
         )
 
 
@@ -463,24 +463,24 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
         secret_config=SecretConfig(),  # 2 policy breaks
     )
 
-    all_policy_breaks = result.policy_breaks
+    all_secrets = result.secrets
 
-    known_policy_breaks = []
-    new_policy_breaks = all_policy_breaks
+    known_secrets = []
+    new_secrets = all_secrets
 
     # add known_secret for the secrets that are known, when the option is, the known_secret field is not returned
     if ignore_known_secrets:
         if secrets_types == "only_known_secrets":
-            known_policy_breaks = all_policy_breaks
-            new_policy_breaks = []
+            known_secrets = all_secrets
+            new_secrets = []
         elif secrets_types == "mixed_secrets":
             # set only first policy break as known
-            known_policy_breaks = all_policy_breaks[:1]
-            new_policy_breaks = all_policy_breaks[1:]
+            known_secrets = all_secrets[:1]
+            new_secrets = all_secrets[1:]
 
-    for index, policy_break in enumerate(known_policy_breaks):
-        policy_break.known_secret = True
-        policy_break.incident_url = (
+    for index, secret in enumerate(known_secrets):
+        secret.known_secret = True
+        secret.incident_url = (
             f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
         )
 
@@ -506,23 +506,17 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     ]
     # We can rely on the policy break type, since in this test there are 2 policy breaks,
     # and they are of different types
-    incident_for_policy_break_type = {
-        incident["type"]: incident for incident in incidents
-    }
+    incident_for_secret_type = {incident["type"]: incident for incident in incidents}
 
-    for policy_break in known_policy_breaks:
-        assert incident_for_policy_break_type[policy_break.break_type]["known_secret"]
-        assert incident_for_policy_break_type[policy_break.break_type][
-            "incident_url"
-        ].startswith("https://dashboard.gitguardian.com/workspace/1/incidents/")
+    for secret in known_secrets:
+        assert incident_for_secret_type[secret.break_type]["known_secret"]
+        assert incident_for_secret_type[secret.break_type]["incident_url"].startswith(
+            "https://dashboard.gitguardian.com/workspace/1/incidents/"
+        )
 
-    for policy_break in new_policy_breaks:
-        assert not incident_for_policy_break_type[policy_break.break_type][
-            "known_secret"
-        ]
-        assert not incident_for_policy_break_type[policy_break.break_type][
-            "incident_url"
-        ]
+    for secret in new_secrets:
+        assert not incident_for_secret_type[secret.break_type]["known_secret"]
+        assert not incident_for_secret_type[secret.break_type]["incident_url"]
 
 
 @pytest.mark.parametrize("with_incident_details", [True, False])
@@ -557,20 +551,20 @@ def test_with_incident_details(
         secret_config=SecretConfig(),  # 2 policy breaks
     )
 
-    all_policy_breaks = result.policy_breaks
+    all_secrets = result.secrets
 
-    known_policy_breaks = []
+    known_secrets = []
 
     if with_incident_details:
         if secrets_types == "only_known_secrets":
-            known_policy_breaks = all_policy_breaks
+            known_secrets = all_secrets
         elif secrets_types == "mixed_secrets":
             # set only first policy break as known
-            known_policy_breaks = all_policy_breaks[:1]
+            known_secrets = all_secrets[:1]
 
-    for index, policy_break in enumerate(known_policy_breaks):
-        policy_break.known_secret = True
-        policy_break.incident_url = (
+    for index, secret in enumerate(known_secrets):
+        secret.known_secret = True
+        secret.incident_url = (
             f"https://dashboard.gitguardian.com/workspace/1/incidents/{index}"
         )
 
@@ -596,9 +590,7 @@ def test_with_incident_details(
     ]
 
     if with_incident_details:
-        assert client_mock.retrieve_secret_incident.call_count == len(
-            known_policy_breaks
-        )
+        assert client_mock.retrieve_secret_incident.call_count == len(known_secrets)
         for incident in incidents:
             if incident["known_secret"]:
                 assert incident["incident_details"]
