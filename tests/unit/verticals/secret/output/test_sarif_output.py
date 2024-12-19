@@ -264,17 +264,15 @@ def test_sarif_output_for_nested_scan(init_secrets_engine_version):
 
     assert SCHEMA_WITH_INCIDENTS == json_dict
 
-    # Create a flat list of policy breaks
-    policy_breaks = sum((s.results.results[0].policy_breaks for s in scan.scans), [])
+    # Create a flat list of secrets
+    secrets = sum((s.results.results[0].secrets for s in scan.scans), [])
 
     # Check each found secret is correctly represented
     sarif_results = json_dict["runs"][0]["results"]
-    for content, sarif_result, policy_break in zip(
-        contents, sarif_results, policy_breaks
-    ):
-        check_sarif_result(sarif_result, content, policy_break)
+    for content, sarif_result, secret in zip(contents, sarif_results, secrets):
+        check_sarif_result(sarif_result, content, secret)
 
-    assert len(sarif_results) == len(policy_breaks)
+    assert len(sarif_results) == len(secrets)
 
 
 def check_sarif_result(

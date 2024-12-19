@@ -14,6 +14,7 @@ class FlattenedPolicyBreak(BaseSchema):
     incident_url = fields.String(required=True, dump_default="")
     incident_details = fields.Nested(SecretIncidentSchema)
     known_secret = fields.Bool(required=True, dump_default=False)
+    ignore_reason = fields.String(required=False)
 
 
 class JSONResultSchema(BaseSchema):

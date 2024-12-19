@@ -4,11 +4,11 @@ from ggshield.core.config.user_config import SecretConfig
 from ggshield.verticals.secret import Results, SecretScanCollection
 from ggshield.verticals.secret.output.secret_gitlab_webui_output_handler import (
     SecretGitLabWebUIOutputHandler,
-    format_policy_break,
+    format_secret,
 )
 
 
-def test_format_policy_break():
+def test_format_secret():
     policy = PolicyBreak(
         "PayPal",
         "Secrets detection",
@@ -18,7 +18,7 @@ def test_format_policy_break():
             Match("abcdefghijk", "client_secret", line_start=456),
         ],
     )
-    out = format_policy_break(policy)
+    out = format_secret(policy)
 
     assert policy.break_type in out
     assert "Validity: Valid" in out

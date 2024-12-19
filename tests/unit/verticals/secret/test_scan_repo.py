@@ -147,10 +147,10 @@ def test_scan_2_commits_same_content(secret_scanner_mock):
 
     assert len(scan_collection.scans) == 2
 
-    all_policy_breaks_count = sum(
-        len(result.policy_breaks) for result in scan_collection.get_all_results()
+    all_secrets_count = sum(
+        len(result.secrets) for result in scan_collection.get_all_results()
     )
-    assert all_policy_breaks_count == 4
+    assert all_secrets_count == 4
 
 
 @patch("ggshield.verticals.secret.repo.SecretScanner")
