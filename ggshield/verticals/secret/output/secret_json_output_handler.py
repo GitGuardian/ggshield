@@ -133,7 +133,6 @@ class SecretJSONOutputHandler(SecretOutputHandler):
                 flattened_dict["incident_details"] = details
 
         if secrets[0].ignore_reason is not None:
-            flattened_dict["is_ignored"] = True
             flattened_dict["ignore_reason"] = secrets[
                 0
             ].ignore_reason.to_machine_readable()
