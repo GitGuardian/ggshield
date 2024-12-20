@@ -26,7 +26,12 @@ from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
     SecretOutputHandler,
 )
-from ggshield.verticals.secret.secret_scan_collection import group_secrets_by_ignore_sha
+from ggshield.verticals.secret.secret_scan_collection import (
+    IgnoreKind,
+    IgnoreReason,
+    group_secrets_by_ignore_sha,
+)
+from tests.factories import PolicyBreakFactory, ScannableFactory, ScanResultFactory
 from tests.unit.conftest import (
     _MULTILINE_SECRET_FILE,
     _MULTIPLE_SECRETS_PATCH,
@@ -594,3 +599,39 @@ def test_with_incident_details(
                 assert "incident_details" not in incident
     else:
         assert client_mock.retrieve_secret_incident.call_count == 0
+
+
+def test_ignore_reason():
+    """ """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_breaks = PolicyBreakFactory.create_batch(3, content=scannable.content)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=policy_breaks), secret_config
+    )
+    result.secrets[0].ignore_reason = IgnoreReason(kind=IgnoreKind.IGNORED_MATCH)
+    result.secrets[1].ignore_reason = IgnoreReason(
+        kind=IgnoreKind.BACKEND_EXCLUDED, detail="some detail"
+    )
+
+    output_handler = SecretJSONOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="outer_scan",
+            type="outer_scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    parsed_incidents = json.loads(output)["entities_with_incidents"][0]["incidents"]
+    assert parsed_incidents[0]["ignore_reason"] == {
+        "kind": IgnoreKind.IGNORED_MATCH.name.lower(),
+        "detail": None,
+    }
+    assert parsed_incidents[1]["ignore_reason"] == {
+        "kind": IgnoreKind.BACKEND_EXCLUDED.name.lower(),
+        "detail": "some detail",
+    }
+    assert "ignore_reason" not in parsed_incidents[2]
