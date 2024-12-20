@@ -1,3 +1,4 @@
+import dataclasses
 from typing import Any, Dict, List, cast
 
 from pygitguardian.client import VERSIONS
@@ -133,9 +134,9 @@ class SecretJSONOutputHandler(SecretOutputHandler):
                 flattened_dict["incident_details"] = details
 
         if secrets[0].ignore_reason is not None:
-            flattened_dict["ignore_reason"] = secrets[
-                0
-            ].ignore_reason.to_machine_readable()
+            flattened_dict["ignore_reason"] = dataclasses.asdict(
+                secrets[0].ignore_reason
+            )
 
         for secret in secrets:
             flattened_dict["occurrences"].extend(self.serialize_secret_matches(secret))

@@ -4,6 +4,11 @@ from pygitguardian.models import BaseSchema, SecretIncidentSchema
 from ggshield.verticals.secret.extended_match import ExtendedMatchSchema
 
 
+class IgnoreReasonSchema(BaseSchema):
+    kind = fields.String(required=True)
+    detail = fields.String()
+
+
 class FlattenedPolicyBreak(BaseSchema):
     policy = fields.String(required=True)
     occurrences = fields.List(fields.Nested(ExtendedMatchSchema), required=True)
@@ -14,7 +19,7 @@ class FlattenedPolicyBreak(BaseSchema):
     incident_url = fields.String(required=True, dump_default="")
     incident_details = fields.Nested(SecretIncidentSchema)
     known_secret = fields.Bool(required=True, dump_default=False)
-    ignore_reason = fields.String(required=False)
+    ignore_reason = fields.Nested(IgnoreReasonSchema)
 
 
 class JSONResultSchema(BaseSchema):

@@ -40,6 +40,9 @@ class IgnoreKind(str, Enum):
     NOT_INTRODUCED = "Secret was not in added in commit"
     BACKEND_EXCLUDED = "Excluded by dashboard"
 
+    def __str__(self):
+        return self.name.lower()
+
 
 @dataclass(frozen=True)
 class IgnoreReason:
@@ -48,12 +51,6 @@ class IgnoreReason:
 
     def to_human_readable(self):
         res = f"{self.kind.value}"
-        if self.detail:
-            res += f" ({self.detail})"
-        return res
-
-    def to_machine_readable(self):
-        res = self.kind.name.lower()
         if self.detail:
             res += f" ({self.detail})"
         return res
