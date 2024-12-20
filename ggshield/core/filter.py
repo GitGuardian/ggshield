@@ -2,7 +2,7 @@ import hashlib
 import math
 import operator
 import re
-from typing import Dict, Iterable, List, Pattern, Set
+from typing import Iterable, Pattern, Set
 
 from click import UsageError
 from pygitguardian.models import Match, PolicyBreak
@@ -58,20 +58,6 @@ def get_ignore_sha(policy_break: PolicyBreak) -> str:
     )
 
     return hashlib.sha256(hashable.encode("UTF-8")).hexdigest()
-
-
-def group_policy_breaks_by_ignore_sha(
-    policy_breaks: List[PolicyBreak],
-) -> Dict[str, List[PolicyBreak]]:
-    """
-    Group policy breaks by their ignore sha.
-    """
-    sha_dict: Dict[str, List[PolicyBreak]] = {}
-    for policy_break in policy_breaks:
-        ignore_sha = get_ignore_sha(policy_break)
-        sha_dict.setdefault(ignore_sha, []).append(policy_break)
-
-    return sha_dict
 
 
 def translate_user_pattern(pattern: str) -> str:

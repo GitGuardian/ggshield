@@ -214,8 +214,12 @@ class SecretScanner:
             assert isinstance(scan, MultiScanResult)
             for file, scan_result in zip(chunk, scan.scan_results):
                 result = Result.from_scan_result(file, scan_result, self.secret_config)
-                for policy_break in result.policy_breaks:
-                    self.cache.add_found_policy_break(policy_break, file.filename)
+                for secret in result.secrets:
+                    self.cache.add_found_policy_break(
+                        secret.detector,
+                        secret.get_ignore_sha(),
+                        file.filename,
+                    )
                 results.append(result)
 
         self.cache.save()

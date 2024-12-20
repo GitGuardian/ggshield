@@ -358,7 +358,7 @@ def docker_scan_archive(
                 ui.display_heading(f"Scanning layer {info.diff_id}")
                 with ui.create_scanner_ui(file_count) as scanner_ui:
                     layer_results = scanner.scan(files, scanner_ui=scanner_ui)
-                if not layer_results.has_policy_breaks:
+                if not layer_results.has_secrets:
                     layer_id_cache.add(layer_id)
                 results.extend(layer_results)
 

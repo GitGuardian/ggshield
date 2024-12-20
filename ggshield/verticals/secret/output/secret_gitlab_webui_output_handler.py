@@ -1,25 +1,23 @@
-from pygitguardian.models import PolicyBreak
-
 from ggshield.core.filter import censor_match
 from ggshield.core.text_utils import pluralize, translate_validity
 
-from ..secret_scan_collection import SecretScanCollection
+from ..secret_scan_collection import Secret, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 
-def format_policy_break(policy_break: PolicyBreak) -> str:
+def format_secret(secret: Secret) -> str:
     """Returns a string with the policy name, validity and a comma-separated,
-    double-quoted, censored version of all `policy_break` matches.
+    double-quoted, censored version of all `secret` matches.
 
     Looks like this:
 
     PayPal OAuth2 Keys (Validity: Valid, id="aa*******bb", secret="cc******dd")
     """
     match_str = ", ".join(
-        f'{x.match_type}: "{censor_match(x)}"' for x in policy_break.matches
+        f'{x.match_type}: "{censor_match(x)}"' for x in secret.matches
     )
-    validity = translate_validity(policy_break.validity)
-    return f"{policy_break.break_type} (Validity: {validity}, {match_str})"
+    validity = translate_validity(secret.validity)
+    return f"{secret.detector} (Validity: {validity}, {match_str})"
 
 
 class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
@@ -35,21 +33,17 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
     def _process_scan_impl(self, scan: SecretScanCollection) -> str:
         results = scan.get_all_results()
 
-        policy_breaks_to_report = [
-            policy_break for result in results for policy_break in result.policy_breaks
-        ]
+        secrets_to_report = [secret for result in results for secret in result.secrets]
 
         # If no secrets or no new secrets were found
-        if len(policy_breaks_to_report) == 0:
+        if len(secrets_to_report) == 0:
             return ""
 
         # Use a set to ensure we do not report duplicate incidents.
         # (can happen when the secret is present in both the old and the new version of
         # the document)
-        formatted_policy_breaks = {
-            format_policy_break(x) for x in policy_breaks_to_report
-        }
-        break_count = len(formatted_policy_breaks)
+        formatted_secrets = {format_secret(x) for x in secrets_to_report}
+        break_count = len(formatted_secrets)
 
         if self.ignore_known_secrets:
             summary_str = f"{break_count} new {pluralize('incident', break_count)}"
@@ -60,7 +54,7 @@ class SecretGitLabWebUIOutputHandler(SecretOutputHandler):
         # do this because of a bug in GitLab Web IDE which causes newline characters to
         # be shown as "<br>"
         # https://gitlab.com/gitlab-org/gitlab/-/issues/350349
-        breaks_str = ", ".join(formatted_policy_breaks)
+        breaks_str = ", ".join(formatted_secrets)
 
         return (
             f"GL-HOOK-ERR: ggshield found {summary_str} in these changes: {breaks_str}."

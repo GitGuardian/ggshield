@@ -2,14 +2,13 @@ import json
 from typing import Any, Dict, Iterable, List, cast
 
 from pygitguardian.client import VERSIONS
-from pygitguardian.models import PolicyBreak, SecretIncident
+from pygitguardian.models import SecretIncident
 
 from ggshield import __version__ as ggshield_version
-from ggshield.core.filter import get_ignore_sha
 from ggshield.core.match_span import MatchSpan
 
 from ..extended_match import ExtendedMatch
-from ..secret_scan_collection import Result, SecretScanCollection
+from ..secret_scan_collection import Result, Secret, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
 
@@ -60,31 +59,29 @@ def _create_sarif_results(
     per policy break.
     """
     for result in results:
-        for policy_break in result.policy_breaks:
-            yield _create_sarif_result_dict(result.url, policy_break, incident_details)
+        for secret in result.secrets:
+            yield _create_sarif_result_dict(result.url, secret, incident_details)
 
 
 def _create_sarif_result_dict(
     url: str,
-    policy_break: PolicyBreak,
+    secret: Secret,
     incident_details: Dict[str, SecretIncident],
 ) -> Dict[str, Any]:
     # Prepare message with links to the related location for each match
     matches_str = ", ".join(
-        f"[{m.match_type}]({id})" for id, m in enumerate(policy_break.matches)
+        f"[{m.match_type}]({id})" for id, m in enumerate(secret.matches)
     )
     matches_li = "\n".join(
-        f"- [{m.match_type}]({id})" for id, m in enumerate(policy_break.matches)
+        f"- [{m.match_type}]({id})" for id, m in enumerate(secret.matches)
     )
-    extended_matches = cast(List[ExtendedMatch], policy_break.matches)
-    message = f"Secret detected: {policy_break.break_type}.\nMatches: {matches_str}"
-    markdown_message = (
-        f"Secret detected: {policy_break.break_type}\nMatches:\n{matches_li}"
-    )
+    extended_matches = cast(List[ExtendedMatch], secret.matches)
+    message = f"Secret detected: {secret.detector}.\nMatches: {matches_str}"
+    markdown_message = f"Secret detected: {secret.detector}\nMatches:\n{matches_li}"
 
     # Create dict
     dct = {
-        "ruleId": policy_break.break_type,
+        "ruleId": secret.detector,
         "level": "error",
         "message": {
             "text": message,
@@ -98,12 +95,12 @@ def _create_sarif_result_dict(
             for id, m in enumerate(extended_matches)
         ],
         "partialFingerprints": {
-            "secret/v1": get_ignore_sha(policy_break),
+            "secret/v1": secret.get_ignore_sha(),
         },
     }
-    if policy_break.incident_url:
-        dct["hostedViewerUri"] = policy_break.incident_url
-        details = incident_details.get(policy_break.incident_url)
+    if secret.incident_url:
+        dct["hostedViewerUri"] = secret.incident_url
+        details = incident_details.get(secret.incident_url)
         if details is not None:
             dct["properties"] = {"incidentDetails": details.to_dict()}
     return dct

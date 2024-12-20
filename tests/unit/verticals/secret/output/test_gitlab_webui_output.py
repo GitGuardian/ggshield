@@ -1,28 +1,26 @@
-from pygitguardian.models import Match, PolicyBreak
+from pygitguardian.models import Match
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.verticals.secret import Results, SecretScanCollection
 from ggshield.verticals.secret.output.secret_gitlab_webui_output_handler import (
     SecretGitLabWebUIOutputHandler,
-    format_policy_break,
+    format_secret,
 )
+from tests.factories import SecretFactory
 
 
-def test_format_policy_break():
-    policy = PolicyBreak(
-        "PayPal",
-        "Secrets detection",
-        "valid",
-        [
+def test_format_secret():
+    secret = SecretFactory(
+        matches=[
             Match("AZERTYUIOP", "client_id", line_start=123),
             Match("abcdefghijk", "client_secret", line_start=456),
         ],
     )
-    out = format_policy_break(policy)
+    out = format_secret(secret)
 
-    assert policy.break_type in out
+    assert secret.detector in out
     assert "Validity: Valid" in out
-    for match in policy.matches:
+    for match in secret.matches:
         assert match.match_type in out
         # match value itself must be obfuscated
         assert match.match not in out
