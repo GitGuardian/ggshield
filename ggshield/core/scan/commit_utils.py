@@ -40,7 +40,7 @@ OLD_NAME_RX = re.compile(r"^--- a/(.*?)\t?$", flags=re.MULTILINE)
 NEW_NAME_RX = re.compile(r"^\+\+\+ b/(.*?)\t?$", flags=re.MULTILINE)
 
 MULTI_PARENT_HUNK_HEADER_RX = re.compile(
-    r"^(?P<at>@@+) (?P<from>-\d+(?:,\d+)?) .* (?P<to>\+\d+(?:,\d+)?) @@+$"
+    r"^(?P<at>@@+) (?P<from>-\d+(?:,\d+)?) .* (?P<to>\+\d+(?:,\d+)?) @@+(?P<trailing_content>.+)?"
 )
 
 
@@ -352,11 +352,14 @@ def process_multi_parent_hunk_header(header: str) -> Tuple[str, int]:
 
     from_ = match.group("from")
     to = match.group("to")
+    new_hunk_header = f"@@ {from_} {to} @@"
+    if match.group("trailing_content"):
+        new_hunk_header += f"{match.group('trailing_content')}"
 
     # Parent count is the number of '@' at the beginning of the header, minus 1
     parent_count = len(match.group("at")) - 1
 
-    return f"@@ {from_} {to} @@", parent_count
+    return new_hunk_header, parent_count
 
 
 def get_file_sha_in_ref(
