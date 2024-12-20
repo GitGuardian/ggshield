@@ -99,10 +99,6 @@ class Secret:
     def is_ignored(self) -> bool:
         return self.ignore_reason is not None
 
-    @property
-    def is_secret(self) -> bool:
-        return True
-
     def get_ignore_sha(self) -> str:
         hashable = "".join(
             [
