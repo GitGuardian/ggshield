@@ -399,11 +399,9 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     results = scanner.scan([scannable], scanner_ui=Mock())
 
     if ignore_known_secrets:
-        assert [pbreak.break_type for pbreak in results.results[0].secrets] == [
-            "unknown"
-        ]
+        assert [pbreak.detector for pbreak in results.results[0].secrets] == ["unknown"]
     else:
-        assert [pbreak.break_type for pbreak in results.results[0].secrets] == [
+        assert [pbreak.detector for pbreak in results.results[0].secrets] == [
             "known",
             "unknown",
         ]
@@ -485,6 +483,6 @@ def test_all_secrets_is_used(scan_mock: Mock, client):
         secret_config=SecretConfig(),
     )
     results = scanner.scan([scannable], scanner_ui=Mock())
-    assert [pbreak.break_type for pbreak in results.results[0].secrets] == [
+    assert [pbreak.detector for pbreak in results.results[0].secrets] == [
         "not-excluded"
     ]

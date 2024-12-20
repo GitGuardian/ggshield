@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 from pygitguardian import GGClient
-from pygitguardian.models import PolicyBreak, ScanResult, SecretIncident
+from pygitguardian.models import ScanResult, SecretIncident
 from pytest_voluptuous import S
 from voluptuous import Optional as VOptional
 from voluptuous import validators
@@ -15,6 +15,7 @@ from ggshield.core.scan import Commit
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretSARIFOutputHandler
 from ggshield.verticals.secret.output.secret_sarif_output_handler import SCHEMA_URL
+from ggshield.verticals.secret.secret_scan_collection import Secret
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_FULL_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
@@ -206,11 +207,11 @@ def test_sarif_output_for_flat_scan_with_secrets(
     sarif_results = json_dict["runs"][0]["results"]
 
     # Check each found secret is correctly represented
-    for sarif_result, policy_break in zip(sarif_results, scan_result.policy_breaks):
+    for sarif_result, secret in zip(sarif_results, result.secrets):
         check_sarif_result(
             sarif_result,
             scannable.content,
-            policy_break,
+            secret,
             with_incident_details and known_incidents,
         )
 
@@ -278,20 +279,19 @@ def test_sarif_output_for_nested_scan(init_secrets_engine_version):
 def check_sarif_result(
     sarif_result: Dict[str, Any],
     content: str,
-    policy_break: PolicyBreak,
+    secret: Secret,
     contains_incident_details: bool = False,
 ):
     """Check sarif_result contains a representation of policy_break, applied to content"""
 
     # Check the secret name
     secret_name = sarif_result["ruleId"]
-    assert secret_name == policy_break.break_type
+    assert secret_name == secret.detector
 
     # Check the matches point to the right part of the content. `expected_matches`
     # and `actual matches` are dicts of match_name => matched_text.
     expected_matches = {
-        m.match_type: content[m.index_start : m.index_end + 1]
-        for m in policy_break.matches
+        m.match_type: content[m.index_start : m.index_end + 1] for m in secret.matches
     }
 
     actual_matches = {}

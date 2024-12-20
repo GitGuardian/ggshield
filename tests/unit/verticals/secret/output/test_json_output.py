@@ -99,7 +99,7 @@ SCHEMA_WITH_INCIDENTS = S(
                         "incidents": validators.All(
                             [
                                 {
-                                    "break_type": str,
+                                    "detector": str,
                                     "policy": str,
                                     "total_occurrences": validators.All(int, min=1),
                                     Required("incident_url"): validators.Match(
@@ -509,14 +509,14 @@ def test_ignore_known_secrets(verbose, ignore_known_secrets, secrets_types):
     incident_for_secret_type = {incident["type"]: incident for incident in incidents}
 
     for secret in known_secrets:
-        assert incident_for_secret_type[secret.break_type]["known_secret"]
-        assert incident_for_secret_type[secret.break_type]["incident_url"].startswith(
+        assert incident_for_secret_type[secret.detector]["known_secret"]
+        assert incident_for_secret_type[secret.detector]["incident_url"].startswith(
             "https://dashboard.gitguardian.com/workspace/1/incidents/"
         )
 
     for secret in new_secrets:
-        assert not incident_for_secret_type[secret.break_type]["known_secret"]
-        assert not incident_for_secret_type[secret.break_type]["incident_url"]
+        assert not incident_for_secret_type[secret.detector]["known_secret"]
+        assert not incident_for_secret_type[secret.detector]["incident_url"]
 
 
 @pytest.mark.parametrize("with_incident_details", [True, False])

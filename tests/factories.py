@@ -6,6 +6,7 @@ from pygitguardian.models import Match, PolicyBreak, ScanResult
 
 from ggshield.core.scan.scannable import StringScannable
 from ggshield.utils.git_shell import Filemode
+from ggshield.verticals.secret.secret_scan_collection import Secret
 from tests.factory_constants import DETECTOR_NAMES, MATCH_NAMES
 
 
@@ -87,3 +88,16 @@ class ScanResultFactory(factory.Factory):
     policy_breaks = []
     policies = ["Secrets detection"]
     is_diff = False
+
+
+class SecretFactory(factory.Factory):
+    class Meta:
+        model = Secret
+
+    detector = factory.lazy_attribute(lambda obj: random.choice(DETECTOR_NAMES))
+    validity = "valid"
+    known_secret = True
+    incident_url = None
+    matches = []
+    ignore_reason = None
+    diff_kind = None

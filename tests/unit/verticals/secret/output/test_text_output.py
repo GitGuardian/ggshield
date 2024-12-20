@@ -161,7 +161,7 @@ def assert_policies_displayed(output, verbose, ignore_known_secrets, secrets):
     for secret in secrets:
         if not ignore_known_secrets or verbose:
             # All secrets are displayed no matter if they're known or not
-            assert f"Secret detected: {secret.break_type}" in output
+            assert f"Secret detected: {secret.detector}" in output
             if secret.known_secret:
                 assert "Known by GitGuardian dashboard: YES" in output
                 assert (
@@ -172,7 +172,7 @@ def assert_policies_displayed(output, verbose, ignore_known_secrets, secrets):
                 assert "Incident URL: N/A" in output
         else:
             if secret.known_secret:
-                assert f"Secret detected: {secret.break_type}" not in output
+                assert f"Secret detected: {secret.detector}" not in output
 
     if ignore_known_secrets:
         secrets_number = sum(1 for x in secrets if not x.known_secret)

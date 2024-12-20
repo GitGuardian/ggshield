@@ -76,12 +76,12 @@ def _create_sarif_result_dict(
         f"- [{m.match_type}]({id})" for id, m in enumerate(secret.matches)
     )
     extended_matches = cast(List[ExtendedMatch], secret.matches)
-    message = f"Secret detected: {secret.break_type}.\nMatches: {matches_str}"
-    markdown_message = f"Secret detected: {secret.break_type}\nMatches:\n{matches_li}"
+    message = f"Secret detected: {secret.detector}.\nMatches: {matches_str}"
+    markdown_message = f"Secret detected: {secret.detector}\nMatches:\n{matches_li}"
 
     # Create dict
     dct = {
-        "ruleId": secret.break_type,
+        "ruleId": secret.detector,
         "level": "error",
         "message": {
             "text": message,

@@ -83,7 +83,7 @@ class Secret:
     Named Secret since we are dropping other kind of policy breaks.
     """
 
-    break_type: str
+    detector: str
     validity: str
     known_secret: bool
     incident_url: Optional[str]
@@ -186,7 +186,7 @@ class Result:
                 validity=policy_break.validity,
                 known_secret=policy_break.known_secret,
                 incident_url=policy_break.incident_url,
-                break_type=policy_break.break_type,
+                detector=policy_break.break_type,
                 matches=[
                     ExtendedMatch.from_match(match, lines, result.is_on_patch)
                     for match in policy_break.matches
