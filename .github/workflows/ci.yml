@@ -164,42 +164,6 @@ jobs:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
 
-  test_github_iac_scan_action:
-    name: Test GitHub action for `iac scan`
-    # See note about steps requiring the GITGUARDIAN_API at the top of this file
-    if: ${{ !github.event.pull_request.head.repo.fork }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Scan commits for IaC vulnerabilities
-        uses: ./actions-unstable/iac
-        with:
-          args: .
-        env:
-          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
-          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
-
-  test_github_sca_scan_action:
-    name: Test GitHub action for `sca scan`
-    # See note about steps requiring the GITGUARDIAN_API at the top of this file
-    if: ${{ !github.event.pull_request.head.repo.fork }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Scan commits for SCA vulnerabilities
-        uses: ./actions-unstable/sca
-        with:
-          args: .
-        env:
-          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
-          GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
-
   dockerhub-unstable:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-22.04
@@ -207,8 +171,6 @@ jobs:
     needs:
       - lint
       - build
-      - test_github_iac_scan_action
-      - test_github_sca_scan_action
       - test_github_secret_scan_action
     steps:
       - name: Checkout
@@ -228,8 +190,6 @@ jobs:
     needs:
       - lint
       - build
-      - test_github_iac_scan_action
-      - test_github_sca_scan_action
       - test_github_secret_scan_action
     steps:
       - name: Check out the repo

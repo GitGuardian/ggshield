@@ -1,15 +1,10 @@
-import io
 import json
 import os
 import platform
-import tarfile
-import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import pytest
-
-from tests.repository import Repository
 
 
 # The directory holding ggshield repository checkout
@@ -40,39 +35,6 @@ skipwindows = pytest.mark.skipif(
     is_windows() and not os.environ.get("DISABLE_SKIPWINDOWS"),
     reason="Skipped on Windows for now, define DISABLE_SKIPWINDOWS environment variable to unskip",
 )
-
-
-IAC_SINGLE_VULNERABILITY = """
-resource "aws_alb_listener" "bad_example" {
-  protocol = "HTTP"
-}
-"""
-
-
-IAC_MULTIPLE_VULNERABILITIES = """
-resource "aws_security_group" "bad_example" {
-  egress {
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
- resource "aws_security_group_rule" "bad_example" {
-  type = "ingress"
-  cidr_blocks = ["0.0.0.0/0"]
-}
-
-"""
-
-IAC_NO_VULNERABILITIES = """
-resource "aws_network_acl_rule" "bad_example" {
-  egress         = false
-  protocol       = "tcp"
-  from_port      = 22
-  to_port        = 22
-  rule_action    = "allow"
-  cidr_block     = "12.13.14.15"
-}
-"""
 
 
 @pytest.fixture(autouse=True)
@@ -233,73 +195,6 @@ def clean_directory(path: Path):
             os.remove(filepath)
 
 
-def make_dummy_sca_repo():
-    """Function to create a dummy SCA repo as a tarfile. Files are added
-    to the tarfile root.
-    """
-    result_buffer = io.BytesIO()
-    with tempfile.TemporaryDirectory() as tmp_path_str:
-        tmp_path = Path(tmp_path_str)
-        repo = Repository.create(tmp_path)
-
-        repo.create_branch("branch_with_vuln", orphan=True)
-        clean_directory(tmp_path)
-        repo.create_commit("Empty commit to start with")
-        (tmp_path / "Pipfile").write_text(PIPFILE_WITH_VULN)
-        (tmp_path / "Pipfile.lock").write_text(PIPFILE_LOCK_WITH_VULN)
-        (tmp_path / "dummy_file.py").touch()
-        repo.add(".")
-        repo.create_commit("pipfile_with_vuln")
-
-        # Adds a branch with a vuln that has no fix
-        repo.create_branch("branch_with_vuln_no_fix", orphan=True)
-        clean_directory(tmp_path)
-        repo.create_commit("Empty commit to start with")
-        (tmp_path / "Pipfile.lock").write_text(PIPFILE_LOCK_WITH_VULN_NO_FIX)
-        (tmp_path / "dummy_file.py").touch()
-        repo.add(".")
-        repo.create_commit("pipfile_with_vuln")
-
-        repo.create_branch("branch_without_vuln", orphan=True)
-        clean_directory(tmp_path)
-        (tmp_path / "Pipfile").write_text(PIPFILE_NO_VULN)
-        (tmp_path / "Pipfile.lock").write_text(PIPFILE_LOCK_NO_VULN)
-        (tmp_path / "dummy_file.py").touch()
-        repo.add(".")
-        repo.create_commit("pipfile_without_vuln")
-
-        repo.create_branch("branch_without_lock", orphan=True)
-        clean_directory(tmp_path)
-        (tmp_path / "Pipfile").write_text(PIPFILE_NO_VULN)
-        (tmp_path / "dummy_file.py").touch()
-        repo.add(".")
-        repo.create_commit("pipfile_without_lock")
-
-        repo.create_branch("branch_without_sca", orphan=True)
-        clean_directory(tmp_path)
-        (tmp_path / "dummy_file.py").touch()
-        repo.add(".")
-        repo.create_commit("dummy file")
-
-        result_tar = tarfile.TarFile(fileobj=result_buffer, mode="w")
-        result_tar.add(tmp_path_str, arcname="./")
-    result_buffer.seek(0)
-    return tarfile.TarFile(fileobj=result_buffer, mode="r")
-
-
-DUMMY_SCA_REPO: Optional[tarfile.TarFile] = None
-
-
-@pytest.fixture
-def dummy_sca_repo(tmp_path):
-    global DUMMY_SCA_REPO
-    if not DUMMY_SCA_REPO:
-        DUMMY_SCA_REPO = make_dummy_sca_repo()
-    """Return a fresh copy of a dummy sca repo"""
-    DUMMY_SCA_REPO.extractall(path=tmp_path)
-    return Repository(tmp_path)
-
-
 @pytest.fixture(scope="session")
 def secret_json_schema() -> Dict[str, Any]:
     """Load the JSON schema for all `secret scan` commands,"""
@@ -322,18 +217,6 @@ def api_status_json_schema() -> Dict[str, Any]:
 def config_list_json_schema() -> Dict[str, Any]:
     """Load the JSON schema for `config list` command."""
     return _load_json_schema("config_list.json")
-
-
-@pytest.fixture(scope="session")
-def sca_scan_all_json_schema() -> Dict[str, Any]:
-    """Load the JSON schema for `sca scan all` command."""
-    return _load_json_schema("sca/scan_all.json")
-
-
-@pytest.fixture(scope="session")
-def sca_scan_diff_json_schema() -> Dict[str, Any]:
-    """Load the JSON schema for `sca scan diff` command."""
-    return _load_json_schema("sca/scan_diff.json")
 
 
 def _load_json_schema(name: str) -> Dict[str, Any]:

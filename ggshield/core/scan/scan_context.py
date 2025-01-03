@@ -28,7 +28,7 @@ class ScanContext:
         self,
     ) -> Optional[str]:
         repo_url = None
-        if self.scan_mode in [ScanMode.CI, ScanMode.CI_ALL, ScanMode.CI_DIFF]:
+        if self.scan_mode == ScanMode.CI:
             repo_url = get_repository_url_from_ci()
         if repo_url is None and self.target_path is not None:
             repo_url = get_repository_url_from_path(self.target_path)

@@ -12,7 +12,6 @@ from ggshield.utils.git_shell import (
     NotAGitDirectory,
     check_git_dir,
     check_git_ref,
-    get_commits_not_in_branch,
     get_default_branch,
     get_filepaths_from_ref,
     get_new_branch_ci_commits,
@@ -443,44 +442,3 @@ def test_git_ls_unstaged(tmp_path):
     # as relative to repo.path
     expected_paths = {x.relative_to(repo.path) for x in (repo_file, submodule_file)}
     assert {Path(x) for x in unstaged_files} == expected_paths
-
-
-class TestGetCommitsNotInBranch:
-    @pytest.fixture(autouse=True)
-    def setup_repo(self, tmp_path):
-        repo = Repository.create(tmp_path)
-        repo.create_commit()
-
-        first_file_name = "first.py"
-
-        # add a commit
-        first_file = repo.path / first_file_name
-        first_content = "First file (included)"
-        first_file.write_text(first_content)
-        repo.add(first_file_name)
-        repo.create_commit()
-
-        repo.create_branch("mr_branch")
-        self.repo = repo
-
-    def test_no_commit(self):
-        """
-        GIVEN a MR branch with no dedicated commit
-        WHEN calling get_commits_not_in_branch
-        THEN an empty list is returned
-        """
-        assert get_commits_not_in_branch("main", "mr_branch", wd=self.repo.path) == []
-
-    def test_some_commits(self):
-        """
-        GIVEN a MR branch with some commits
-        WHEN calling get_commits_not_in_branch
-        THEN the list of commits is returned, in descending order
-        """
-
-        sha1 = self.repo.create_commit()
-        sha2 = self.repo.create_commit()
-        assert get_commits_not_in_branch("main", "mr_branch", wd=self.repo.path) == [
-            sha2,
-            sha1,
-        ]

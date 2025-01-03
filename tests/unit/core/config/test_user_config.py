@@ -1,20 +1,10 @@
-import contextlib
-import io
 from datetime import datetime, timezone
 from typing import Optional
 
 import pytest
 
 from ggshield.core.config import Config
-from ggshield.core.config.user_config import (
-    CURRENT_CONFIG_VERSION,
-    IaCConfig,
-    IaCConfigIgnoredPath,
-    IaCConfigIgnoredPolicy,
-    SCAConfig,
-    SCAConfigIgnoredVulnerability,
-    UserConfig,
-)
+from ggshield.core.config.user_config import CURRENT_CONFIG_VERSION, UserConfig
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.types import IgnoredMatch
 from tests.unit.conftest import write_text, write_yaml
@@ -179,283 +169,6 @@ class TestUserConfig:
             IgnoredMatch(name="", match="dbca"),
         ]
 
-    @pytest.mark.parametrize(
-        "paths",
-        (
-            ["mypath"],
-            [{"path": "mypath"}],
-            [{"path": "mypath"}, {"path": "mypath"}],
-            [
-                {
-                    "path": "mypath",
-                    "comment": "mycomment",
-                    "until": "2050-01-01 00:00:00",
-                }
-            ],
-            ["myfirstpath", {"path": "mysecondpath", "comment": "mycomment"}],
-        ),
-    )
-    @pytest.mark.parametrize(
-        "policies",
-        (
-            ["GG_IAC_0001"],
-            [{"policy": "GG_IAC_0001"}],
-            [{"policy": "GG_IAC_0001"}, {"policy": "GG_IAC_0001"}],
-            [
-                {
-                    "policy": "GG_IAC_0001",
-                    "comment": "mycomment",
-                    "until": "2050-01-01 00:00:00",
-                }
-            ],
-            ["GG_IAC_0001", {"policy": "GG_IAC_0002", "comment": "mycomment"}],
-        ),
-    )
-    def test_iac_config(self, local_config_path, paths, policies):
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "iac": {
-                    "ignored_paths": paths,
-                    "ignored_policies": policies,
-                    "minimum_severity": "myseverity",
-                },
-            },
-        )
-        config = Config()
-        iac_config = config.user_config.iac
-
-        assert isinstance(iac_config, IaCConfig)
-        for i, result in enumerate(iac_config.ignored_policies):
-            expected = (
-                IaCConfigIgnoredPolicy(policy=policies[i])
-                if isinstance(policies[i], str)
-                else IaCConfigIgnoredPolicy(**policies[i])
-            )
-            assert isinstance(result, IaCConfigIgnoredPolicy)
-            assert result.policy == expected.policy
-            assert result.comment == expected.comment
-            self._assert_times(result.until, expected.until)
-        for i, result in enumerate(iac_config.ignored_paths):
-            expected = (
-                IaCConfigIgnoredPath(path=paths[i])
-                if isinstance(paths[i], str)
-                else IaCConfigIgnoredPath(**paths[i])
-            )
-            assert isinstance(result, IaCConfigIgnoredPath)
-            assert result.path == expected.path
-            assert result.comment == expected.comment
-            self._assert_times(result.until, expected.until)
-        assert iac_config.minimum_severity == "myseverity"
-
-    def test_iac_ignore_until(self, local_config_path):
-        """
-        GIVEN a local config file with iac configs
-        WHEN setting an ignore param with a past datetime
-        THEN it's ignored, and a warning is shown
-        """
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "iac": {
-                    "ignored_paths": [
-                        {
-                            "path": "mypath1",
-                            "until": "2010-05-01T00:00:00",
-                        },
-                        {
-                            "path": "mypath2",
-                            "until": "2050-05-01T00:00:00",
-                        },
-                        {"path": "mypath3"},
-                    ],
-                    "ignored_policies": [
-                        {
-                            "policy": "GG_IAC_0001",
-                            "until": "2010-05-01T00:00:00",
-                        },
-                        {
-                            "policy": "GG_IAC_0002",
-                            "until": "2050-05-01T00:00:00",
-                        },
-                        {"policy": "GG_IAC_0003"},
-                    ],
-                },
-            },
-        )
-        f = io.StringIO()
-        with contextlib.redirect_stderr(f):
-            config = Config()
-
-        iac_config = config.user_config.iac
-        assert isinstance(iac_config, IaCConfig)
-        assert {ignored.path for ignored in iac_config.ignored_paths} == {
-            "mypath2",
-            "mypath3",
-        }
-        assert {ignored.policy for ignored in iac_config.ignored_policies} == {
-            "GG_IAC_0002",
-            "GG_IAC_0003",
-        }
-
-        assert "mypath1 has an expired 'until' date" in f.getvalue()
-        assert "GG_IAC_0001 has an expired 'until' date" in f.getvalue()
-
-    def test_iac_ignore_dates(self, local_config_path):
-        """
-        GIVEN a local config file with iac configs
-        WHEN setting until dates in different formats
-        THEN all given formats are accepted
-        """
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "iac": {
-                    "ignored_paths": [
-                        {
-                            "path": "mypath1",
-                            "until": "2050-05-01T00:00:01Z",
-                        },
-                        {
-                            "path": "mypath2",
-                            "until": "2050-05-01T00:00:00",
-                        },
-                        {
-                            "path": "mypath3",
-                            "until": "2050-05-01 00:00:00",
-                        },
-                        {
-                            "path": "mypath4",
-                            "until": "2050-05-01",
-                        },
-                    ],
-                },
-            },
-        )
-        config = Config()
-        iac_config = config.user_config.iac
-        assert isinstance(iac_config, IaCConfig)
-        assert len(iac_config.ignored_paths) == 4
-
-    def test_iac_config_bad_policy_id(self, local_config_path):
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "iac": {
-                    "ignored_paths": ["mypath"],
-                    "ignored_policies": ["GG_ACI_0001"],
-                    "minimum_severity": "myseverity",
-                },
-            },
-        )
-        with pytest.raises(ParseError):
-            Config()
-
-    def test_iac_config_options_inheritance(
-        self, local_config_path, global_config_path
-    ):
-        write_yaml(
-            global_config_path,
-            {
-                "version": 2,
-                "iac": {
-                    "ignored_paths": ["myglobalpath"],
-                    "ignored_policies": ["GG_IAC_0001"],
-                    "minimum_severity": "myglobalseverity",
-                },
-            },
-        )
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "iac": {
-                    "ignored_paths": ["mypath"],
-                    "ignored_policies": ["GG_IAC_0002"],
-                    "minimum_severity": "myseverity",
-                },
-            },
-        )
-        config = Config()
-        iac_config = config.user_config.iac
-        assert isinstance(iac_config, IaCConfig)
-        assert {ignored.path for ignored in iac_config.ignored_paths} == {
-            "myglobalpath",
-            "mypath",
-        }
-        assert {ignored.policy for ignored in iac_config.ignored_policies} == {
-            "GG_IAC_0001",
-            "GG_IAC_0002",
-        }
-        assert iac_config.minimum_severity == "myseverity"
-
-    def test_sca_config(self, local_config_path):
-        """
-        GIVEN a local config file with sca configs
-        WHEN deserializing it
-        THEN we get the right values
-        """
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "sca": {
-                    "ignored_paths": ["mypath"],
-                    "minimum_severity": "myseverity",
-                    "ignored_vulnerabilities": [
-                        {
-                            "identifier": "GHSA-aaaa-bbbb-cccc",
-                            "path": "Pipfile",
-                            "comment": "Not my prob",
-                        }
-                    ],
-                },
-            },
-        )
-        config = Config()
-        sca_config = config.user_config.sca
-        assert isinstance(sca_config, SCAConfig)
-        assert sca_config.ignored_paths == {"mypath"}
-        assert sca_config.minimum_severity == "myseverity"
-        assert len(sca_config.ignored_vulnerabilities) == 1
-        assert sca_config.ignored_vulnerabilities[0] == SCAConfigIgnoredVulnerability(
-            identifier="GHSA-aaaa-bbbb-cccc",
-            path="Pipfile",
-            comment="Not my prob",
-            until=None,
-        )
-
-    def test_sca_ignore_vuln_until(self, local_config_path):
-        """
-        GIVEN a local config file with sca configs
-        WHEN setting an ignore vulnerability param with a past datetime
-        THEN it's ignored
-        """
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "sca": {
-                    "ignored_vulnerabilities": [
-                        {
-                            "identifier": "GHSA-aaaa-bbbb-cccc",
-                            "path": "Pipfile",
-                            "comment": "Not my prob",
-                            "until": "2023-05-01T00:00:00",
-                        }
-                    ],
-                },
-            },
-        )
-        config = Config()
-        sca_config = config.user_config.sca
-        assert isinstance(sca_config, SCAConfig)
-        assert len(sca_config.ignored_vulnerabilities) == 0
-
     def test_config_options_inheritance(self, local_config_path, global_config_path):
         """
         GIVEN two config files (global and local)
@@ -468,10 +181,7 @@ class TestUserConfig:
                 "version": 2,
                 "secret": {
                     "show_secrets": True,
-                },
-                "sca": {
                     "ignored_paths": ["myglobalpath"],
-                    "minimum_severity": "myglobalseverity",
                 },
             },
         )
@@ -479,9 +189,8 @@ class TestUserConfig:
             local_config_path,
             {
                 "version": 2,
-                "sca": {
+                "secret": {
                     "ignored_paths": ["mypath"],
-                    "minimum_severity": "myseverity",
                 },
             },
         )
@@ -491,35 +200,8 @@ class TestUserConfig:
         # the local config, which does not contain this key.
         assert config.user_config.secret.show_secrets
 
-        sca_config = config.user_config.sca
-        assert isinstance(sca_config, SCAConfig)
-        assert sca_config.ignored_paths == {"myglobalpath", "mypath"}
-        assert sca_config.minimum_severity == "myseverity"
-
-    def test_sca_config_invalid_identifier(self, local_config_path, capsys):
-        """
-        GIVEN a local config file with an invalid identifier in sca config
-        WHEN deserializing it
-        THEN we get the expected error
-        """
-        write_yaml(
-            local_config_path,
-            {
-                "version": 2,
-                "sca": {
-                    "ignored_vulnerabilities": [
-                        {
-                            # Invalid id
-                            "identifier": "ABCD-bbbb",
-                            "path": "Pipfile",
-                        }
-                    ],
-                },
-            },
-        )
-
-        with pytest.raises(ParseError):
-            UserConfig.load(local_config_path)
+        secret_config = config.user_config.secret
+        assert secret_config.ignored_paths == {"myglobalpath", "mypath"}
 
     def test_user_config_unknown_keys(self, local_config_path, capsys):
         """
@@ -532,7 +214,6 @@ class TestUserConfig:
             {
                 "version": 2,
                 "root_unknown": "false key",
-                "iac": {"ignored_paths": ["myglobalpath"], "iac_unknown": [""]},
                 "secret": {
                     "secret_invalid_key": "invalid key",
                     "ignored_matches": [
@@ -550,7 +231,6 @@ class TestUserConfig:
         UserConfig.load(local_config_path)
         captured = capsys.readouterr()
         assert "Unrecognized key in config: root_unknown" in captured.err
-        assert "Unrecognized key in config: iac_unknown" in captured.err
         assert "Unrecognized key in config: secret_invalid_key" in captured.err
         assert "Unrecognized key in config: match_invalid_key" in captured.err
         assert "Unrecognized key in config: hashed_key" in captured.err
@@ -566,7 +246,7 @@ class TestUserConfig:
             local_config_path,
             {
                 "version": 2,
-                "iac": {
+                "secret": {
                     "ignored-paths": ["myglobalpath"],
                 },
             },
@@ -574,7 +254,7 @@ class TestUserConfig:
         cfg, _ = UserConfig.load(local_config_path)
         captured = capsys.readouterr()
 
-        assert cfg.iac.ignored_paths[0].path == "myglobalpath"
+        assert cfg.secret.ignored_paths == {"myglobalpath"}
         assert (
             f"{local_config_path}: Config key ignored-paths is deprecated, use ignored_paths instead."
             in captured.err

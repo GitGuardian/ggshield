@@ -39,7 +39,6 @@ Only metadata such as call time, request size and scan mode is stored from scans
   - [Manual setup](#manual-setup)
 - [Getting started](#getting-started)
   - [Secrets](#secrets)
-  - [Infra as Code Security (IaC)](#infra-as-code-security-iac)
 - [Integrations](#integrations)
 - [Learn more](#learn-more)
 - [Output](#output)
@@ -165,22 +164,6 @@ You can now use `ggshield` to search for secrets:
 - in Docker images: `ggshield secret scan docker ubuntu:22.04`
 - in Pypi packages: `ggshield secret scan pypi flask`
 - and more, have a look at `ggshield secret scan --help` output for details.
-
-## Infra as Code Security (IaC)
-
-You can also search for vulnerabilities in your IaC files using the following command:
-
-```
-ggshield iac scan all .
-```
-
-However, if you are only interested in _new_ potential IaC vulnerabilities, you can run:
-
-```
-ggshield iac scan diff --ref=HEAD~1 .
-```
-
-Have a look at `ggshield iac scan --help` for more details.
 
 # Integrations
 

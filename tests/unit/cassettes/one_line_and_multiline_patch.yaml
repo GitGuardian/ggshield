@@ -210,10 +210,6 @@ interactions:
         x-frame-options:
           - DENY
           - SAMEORIGIN
-        x-sca-engine-version:
-          - 2.2.0
-        x-sca-last-vuln-fetch:
-          - '2024-11-27T11:13:18.771122+00:00'
         x-secrets-engine-version:
           - 2.127.0
         x-xss-protection:

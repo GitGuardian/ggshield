@@ -150,34 +150,6 @@ def repo_with_hook_content(tmp_path: Path, hook_content: str) -> Repository:
     return local_repo
 
 
-@pytest.fixture
-def iac_repo_with_hook(tmp_path: Path) -> Repository:
-    return repo_with_hook_content(
-        tmp_path=tmp_path, hook_content=HOOK_CONTENT.format("iac")
-    )
-
-
-@pytest.fixture
-def iac_repo_with_hook_all(tmp_path: Path) -> Repository:
-    return repo_with_hook_content(
-        tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("iac")
-    )
-
-
-@pytest.fixture
-def sca_repo_with_hook(tmp_path: Path) -> Repository:
-    return repo_with_hook_content(
-        tmp_path=tmp_path, hook_content=HOOK_CONTENT.format("sca")
-    )
-
-
-@pytest.fixture
-def sca_repo_with_hook_all(tmp_path: Path) -> Repository:
-    return repo_with_hook_content(
-        tmp_path=tmp_path, hook_content=HOOK_CONTENT_ALL.format("sca")
-    )
-
-
 def pytest_report_header(config, start_path: Path):
     """This function is called by pytest, it lets us insert messages in its report
     header"""
