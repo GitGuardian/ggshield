@@ -46,10 +46,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     when exit_zero is enabled
     """
     ctx_obj = ContextObj.get(ctx)
-    if (
-        exit_code == ExitCode.SCAN_FOUND_PROBLEMS
-        and ctx_obj.config.user_config.exit_zero
-    ):
+    if ctx_obj.config.user_config.exit_zero:
         logger.debug("scan exit_code forced to 0")
         sys.exit(ExitCode.SUCCESS)
 

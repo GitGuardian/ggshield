@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 from click.testing import CliRunner
 from pygitguardian.models import MultiScanResult
+from requests.exceptions import ConnectionError
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
@@ -145,6 +146,23 @@ class TestPathScan:
             assert not result.exception
             if json_output:
                 json.loads(result.output)
+
+    @patch("pygitguardian.GGClient.request", side_effect=ConnectionError)
+    def test_scan_connection_error_exit_zero(self, _, cli_fs_runner):
+        write_text(Path("file"), "")
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "-v",
+                "path",
+                "--exit-zero",
+                "file",
+            ],
+        )
+        assert_invoke_ok(result)
+        assert not result.exception
 
     def test_files_abort(self, cli_fs_runner):
         self.create_files()
