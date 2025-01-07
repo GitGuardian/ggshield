@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 import marshmallow_dataclass
 from marshmallow.decorators import pre_load
-from pygitguardian.models import FromDictMixin, ToDictMixin
+from pygitguardian.models_utils import FromDictMixin, ToDictMixin
 
 from ggshield.core import ui
 

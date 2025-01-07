@@ -1,5 +1,6 @@
 from marshmallow import fields
-from pygitguardian.models import BaseSchema, SecretIncidentSchema
+from pygitguardian.models import SecretIncidentSchema
+from pygitguardian.models_utils import BaseSchema
 
 from ggshield.verticals.secret.extended_match import ExtendedMatchSchema
 

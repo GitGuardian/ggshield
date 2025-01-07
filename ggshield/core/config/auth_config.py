@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, cast
 
 import marshmallow_dataclass
-from pygitguardian.models import FromDictMixin, ToDictMixin
+from pygitguardian.models_utils import FromDictMixin, ToDictMixin
 
 from ggshield.core.config.utils import (
     get_auth_config_filepath,

@@ -5,7 +5,7 @@ from pygitguardian.iac_models import (
     IaCScanResultSchema,
     IaCVulnerabilitySchema,
 )
-from pygitguardian.models import BaseSchema
+from pygitguardian.models_utils import BaseSchema
 
 
 class IaCJSONVulnerabilitySchema(IaCVulnerabilitySchema):
