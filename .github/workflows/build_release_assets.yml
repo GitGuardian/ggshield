@@ -291,11 +291,11 @@ jobs:
               dpkg -i packages/*.deb
               ;;
             rockylinux*)
-              yum install -y git
+              yum install -y git-core
               rpm -i packages/*.rpm
               ;;
             opensuse*)
-              zypper install -y git
+              zypper install -y git-core
               rpm -i packages/*.rpm
               ;;
             clearlinux*)
