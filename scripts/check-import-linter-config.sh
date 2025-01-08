@@ -11,7 +11,9 @@ $ git add .importlinter
 '
 
 cd "$(dirname $0)/.."
-if ! diff --color -u .importlinter <(pdm run ./scripts/generate-import-linter-config.py) ; then
+if ! diff --color --ignore-all-space --unified \
+        .importlinter <(pdm run ./scripts/generate-import-linter-config.py)
+then
     printf "${ERROR_MSG}"
     exit 1
 fi
