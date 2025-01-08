@@ -1,5 +1,27 @@
 # Changelog
 
+<a id='changelog-1.35.0'></a>
+
+## 1.35.0 — 2025-01-08
+
+### Added
+
+- The `--all-secrets` option to secret scans, allowing to display all found secrets, and their possible ignore reason.
+
+### Changed
+
+- Files contained in the `.git/` directory are now scanned. Files in subdirectories such as `.git/hooks` are still excluded.
+
+- When scanning commits, ggshield now ignores by default secrets that are removed or contextual to the patch.
+
+### Fixed
+
+- Handle trailing content in multi-parent hunk header.
+
+- Installing ggshield from the release RPM on EL9 failed because of a missing library. This is now fixed (#1036).
+
+- Fix Visual Studio not being able to show error messages from ggshield pre-commit (#170).
+
 <a id='changelog-1.34.0'></a>
 
 ## 1.34.0 — 2024-11-27
