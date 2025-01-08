@@ -90,7 +90,7 @@ repos:
     hooks:
       - id: import-linter-config
         name: Import Linter Config Check
-        entry: pdm run ./scripts/check-import-linter-config.sh
+        entry: ./scripts/check-import-linter-config.sh
         language: system
         pass_filenames: false
         types: [python]
