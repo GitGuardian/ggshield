@@ -3,6 +3,7 @@ import logging
 import multiprocessing
 import os
 import sys
+from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -175,6 +176,19 @@ def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -
     sys.exit(exit_code)
 
 
+def force_utf8_output():
+    """
+    Force stdout and stderr to always be UTF-8. This is not the case on Windows
+    when stdout or stderr is not the console. Doing this fixes integration with
+    Visual Studio (see #170).
+    """
+    for out in sys.stdout, sys.stderr:
+        # pyright is not sure sys.stdout and stderr are TextIOWrapper, so it complains when
+        # calling `reconfigure()` on them, unless this check is there.
+        assert isinstance(out, TextIOWrapper)
+        out.reconfigure(encoding="utf-8")
+
+
 def main(args: Optional[List[str]] = None) -> Any:
     """
     Wrapper around cli.main() to handle the GITGUARDIAN_CRASH_LOG variable.
@@ -189,6 +203,8 @@ def main(args: Optional[List[str]] = None) -> Any:
     log_utils.disable_logs()
     if sys.stderr.isatty():
         ui.set_ui(RichGGShieldUI())
+
+    force_utf8_output()
 
     show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
