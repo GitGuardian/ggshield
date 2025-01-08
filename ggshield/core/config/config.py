@@ -86,6 +86,7 @@ class Config:
         The instance name (defaulting to URL) of the selected instance
         priority order is:
         - set from the command line (by setting cmdline_instance_name)
+          - in case the user set the api url instead of dashboard url, we replace it
         - GITGUARDIAN_INSTANCE env var
         - GITGUARDIAN_API_URL env var
         - in local user config (in user_config.dashboard_url)
@@ -93,6 +94,14 @@ class Config:
         - the default instance
         """
         if self._cmdline_instance_name:
+            if (
+                "api" in self._cmdline_instance_name
+                and "gitguardian" in self._cmdline_instance_name
+            ):
+                return (
+                    api_to_dashboard_url(self._cmdline_instance_name),
+                    ConfigSource.CMD_OPTION,
+                )
             return self._cmdline_instance_name, ConfigSource.CMD_OPTION
 
         try:
