@@ -27,6 +27,13 @@ contents:
     dst: /usr/libexec/ggshield
     expand: true
 
+    # Required because our bundled Python binary still uses libcrypt.so.1, but
+    # some distributions ship with libcrypt.so.2 nowadays (see #1036).
+    # We copy libcrypt.so.1.1.0 and not libcrypt.so.1 because the later is a
+    # symlink to the former.
+  - src: /usr/lib64/libcrypt.so.1.1.0
+    dst: /usr/libexec/ggshield/_internal/libcrypt.so.1
+
   - src: README.md
     dst: /usr/share/doc/ggshield/README.md
 

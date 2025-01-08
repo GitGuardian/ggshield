@@ -46,12 +46,14 @@ jobs:
   build_os_packages:
     name: Build packages
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.os == 'ubuntu-22.04' && 'rockylinux/rockylinux:8.8' || null }}
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
+            # When building on Linux we use a container to build using an old enough version
+            container: rockylinux/rockylinux:8
           - os: windows-2022
           - os: macos-13
             arch: x86_64
@@ -84,6 +86,9 @@ jobs:
       - name: Install Linux specific dependencies
         if: matrix.os == 'ubuntu-22.04'
         run: |
+          # Install latest security updates
+          yum update -y
+
           # Install necessary packages
           yum install -y \
             python3.9 \
@@ -268,6 +273,7 @@ jobs:
           - debian:stable
           - ubuntu:latest
           - rockylinux/rockylinux:8.8
+          - rockylinux/rockylinux:9
           - opensuse/leap
           # Test a distribution with no deb or rpm support
           - clearlinux:latest
@@ -290,11 +296,11 @@ jobs:
               dpkg -i packages/*.deb
               ;;
             rockylinux*)
-              yum install -y git
+              yum install -y git-core
               rpm -i packages/*.rpm
               ;;
             opensuse*)
-              zypper install -y git
+              zypper install -y git-core
               rpm -i packages/*.rpm
               ;;
             clearlinux*)
