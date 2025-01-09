@@ -160,7 +160,8 @@ exit_zero_option = click.option(
     default=None,
     envvar="GITGUARDIAN_EXIT_ZERO",
     help=(
-        "Always return a 0 (non-error) status code, even if incidents are found."
+        "Return a 0 (non-error) status code, even if incidents are found."
+        " An error status code will still be returned for other errors, such as connection errors."
         " This option can also be set with the `GITGUARDIAN_EXIT_ZERO` environment"
         " variable."
     ),
