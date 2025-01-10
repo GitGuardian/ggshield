@@ -8,6 +8,7 @@ from ggshield.utils.os import getenv_int
 from .commit_information import CommitInformation
 from .commit_utils import (
     DIFF_EMPTY_COMMIT_INFO_BLOCK,
+    MAX_FILES_PER_GIT_COMMAND,
     PATCH_COMMON_ARGS,
     PATCH_PREFIX,
     STAGED_PREFIX,
@@ -96,14 +97,13 @@ class Commit:
                 files_to_scan.add(path)
 
         def parser_merge(commit: "Commit") -> Iterable[Scannable]:
-            patch = git(
-                ["diff", "--staged", *PATCH_COMMON_ARGS, *files_to_scan], cwd=cwd
-            )
-            yield from parse_patch(
-                STAGED_PREFIX,
-                DIFF_EMPTY_COMMIT_INFO_BLOCK + patch,
-                exclusion_regexes,
-            )
+            for files in batched(files_to_scan, MAX_FILES_PER_GIT_COMMAND):
+                patch = git(["diff", "--staged", *PATCH_COMMON_ARGS, *files], cwd=cwd)
+                yield from parse_patch(
+                    STAGED_PREFIX,
+                    DIFF_EMPTY_COMMIT_INFO_BLOCK + patch,
+                    exclusion_regexes,
+                )
 
         info = CommitInformation.from_staged(cwd)
         return Commit(sha=None, patch_parser=parser_merge, info=info)
