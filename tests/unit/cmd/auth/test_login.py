@@ -151,9 +151,18 @@ class TestAuthLoginToken:
         ("cmd_line_instance", "expected_instance"),
         [
             ("https://api.gitguardian.com/v1", "https://dashboard.gitguardian.com"),
+            ("https://api.gitguardian.com", "https://dashboard.gitguardian.com"),
             (
                 "https://api.eu1.gitguardian.com/v1",
                 "https://dashboard.eu1.gitguardian.com",
+            ),
+            (
+                "https://gitguardian.mycorp.local/exposed/",
+                "https://gitguardian.mycorp.local",
+            ),
+            (
+                "https://gitguardian.mycorp.local/exposed",
+                "https://gitguardian.mycorp.local",
             ),
         ],
     )
@@ -1002,6 +1011,7 @@ class TestAuthLoginWeb:
         [
             "https://api.gitguardian.com/v1",
             "https://api.eu1.gitguardian.com/v1",
+            "https://gitguardian.mycorp.local/exposed/",
         ],
     )
     def test_api_instance_url(self, instance_url, cli_fs_runner, monkeypatch):

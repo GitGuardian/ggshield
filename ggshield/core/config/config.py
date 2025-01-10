@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Set, Tuple
@@ -94,10 +95,10 @@ class Config:
         - the default instance
         """
         if self._cmdline_instance_name:
-            if (
-                "api" in self._cmdline_instance_name
-                and "gitguardian" in self._cmdline_instance_name
-            ):
+            if re.match(
+                r"^https:\/\/api(\.[a-z0-9]+)?\.gitguardian\.com",
+                self._cmdline_instance_name,
+            ) or re.match(r"/exposed/?$", self._cmdline_instance_name):
                 return (
                     api_to_dashboard_url(self._cmdline_instance_name),
                     ConfigSource.CMD_OPTION,
