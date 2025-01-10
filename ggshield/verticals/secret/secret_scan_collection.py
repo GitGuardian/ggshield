@@ -290,7 +290,7 @@ class SecretScanCollection:
                     resp = client.retrieve_secret_incident(
                         incident_id, with_occurrences=0
                     )
-                    if type(resp) == SecretIncident:
+                    if isinstance(resp, SecretIncident):
                         incident_details[url] = resp
                     else:
                         assert isinstance(resp, Detail)

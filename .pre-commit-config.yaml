@@ -1,38 +1,38 @@
 default_stages: [pre-commit]
 repos:
   - repo: https://github.com/ambv/black
-    rev: 24.3.0
+    rev: 24.10.0
     hooks:
       - id: black
         language_version: python3
         exclude: snap_
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 3.9.2
+    rev: 7.1.1
     hooks:
       - id: flake8
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
+    rev: v5.0.0
     hooks:
       - id: check-json
       - id: check-added-large-files
       - id: check-yaml
 
   - repo: https://github.com/Woile/commitizen
-    rev: v2.35.0
+    rev: v4.1.0
     hooks:
       - id: commitizen
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
         stages: [commit-msg]
 
   - repo: https://github.com/pre-commit/mirrors-prettier # to format JSON, YAML and markdown files among others
-    rev: v2.4.1
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
 
@@ -46,7 +46,7 @@ repos:
         files: '^README\.md$'
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.19.0
+    rev: 0.31.0
     hooks:
       - id: check-github-workflows
 
@@ -90,7 +90,7 @@ repos:
     hooks:
       - id: import-linter-config
         name: Import Linter Config Check
-        entry: pdm run ./scripts/check-import-linter-config.sh
+        entry: ./scripts/check-import-linter-config.sh
         language: system
         pass_filenames: false
         types: [python]
