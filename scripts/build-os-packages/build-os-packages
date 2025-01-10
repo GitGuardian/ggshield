@@ -119,7 +119,7 @@ init_system_vars() {
         die "Unknown OS. uname printed '$out'"
         ;;
     esac
-    ARCHIVE_DIR_NAME=ggshield-$VERSION-$TARGET
+    ARCHIVE_DIR_NAME=ggshield-$TARGET
 }
 
 load_os_specific_code() {
