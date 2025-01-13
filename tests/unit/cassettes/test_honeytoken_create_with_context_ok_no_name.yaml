@@ -52,8 +52,6 @@ interactions:
           - DENY
         X-Request-ID:
           - e579107c9d52ee9d189b2ee10dc8fd97
-        X-SCA-Engine-Version:
-          - 1.22.0
         X-Secrets-Engine-Version:
           - 2.104.0
       status:

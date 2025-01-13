@@ -29,9 +29,7 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 ROOT_DIR = Path(__file__).parent.parent
 CHANGELOG_PATH = ROOT_DIR / "CHANGELOG.md"
 INIT_PATH = ROOT_DIR / "ggshield" / "__init__.py"
-ACTION_PATHS = [
-    ROOT_DIR / "actions" / x / "action.yml" for x in ["iac", "secret", "sca"]
-]
+ACTION_PATHS = [ROOT_DIR / "actions" / "secret" / "action.yml"]
 CASSETTES_DIR = ROOT_DIR / "tests" / "unit" / "cassettes"
 
 # The branch this script must be run from, except in dev mode.

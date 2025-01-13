@@ -29,21 +29,6 @@ STYLE: Dict[str, Dict[str, Any]] = {
     "secret_type": {"fg": "bright_yellow", "bold": True},
     "occurrence_count": {"fg": "bright_yellow", "bold": True},
     "ignore_sha": {"fg": "bright_yellow", "bold": True},
-    "iac_vulnerability_critical": {"fg": "red", "bold": True},
-    "iac_vulnerability_high": {"fg": ORANGE, "bold": True},
-    "iac_vulnerability_medium": {"fg": "bright_yellow", "bold": True},
-    "iac_vulnerability_low": {"fg": LIGHT_GREY, "bold": True},
-    "iac_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
-    "iac_deleted_vulnerability": {"fg": "green", "bold": True},
-    "iac_remaining_vulnerability": {"fg": "yellow", "bold": True},
-    "iac_new_vulnerability": {"fg": "bright_red", "bold": True},
-    "iac_dim_summary": {"fg": LIGHT_GREY, "dim": True},
-    # SCA related styles
-    "sca_vulnerability_critical": {"fg": (255, 0, 0), "bold": True},  # red
-    "sca_vulnerability_high": {"fg": (255, 128, 0), "bold": True},  # orange
-    "sca_vulnerability_medium": {"fg": "bright_yellow", "bold": True},
-    "sca_vulnerability_low": {"fg": (146, 146, 146), "bold": True},  # light-grey
-    "sca_vulnerability_unknown": {"fg": "bright_yellow", "bold": True},
 }
 
 
@@ -144,28 +129,4 @@ def file_info(
         incident_count,
         pluralize("incident", incident_count, "incidents"),
         incident_status.value,
-    )
-
-
-def file_diff_info(
-    filename: str,
-    new_incident_count: int,
-    persisting_incident_count: Optional[int],
-    deleted_incident_count: Optional[int],
-) -> str:
-    """Return the formatted file info (number of incidents + filename)."""
-    incidents_count = [
-        f"{new_incident_count} new {pluralize('incident', new_incident_count, 'incidents')} detected",
-    ]
-    if deleted_incident_count or persisting_incident_count:
-        incidents_count.extend(
-            [
-                f"{deleted_incident_count} deleted",
-                f"{persisting_incident_count} remaining",
-            ]
-        )
-    return "\n{} {}: {}\n".format(
-        format_text(">", STYLE["detector_line_start"]),
-        format_text(filename, STYLE["filename"]),
-        ", ".join(incidents_count),
     )

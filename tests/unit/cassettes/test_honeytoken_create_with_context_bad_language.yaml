@@ -48,8 +48,6 @@ interactions:
           - nosniff
         X-Frame-Options:
           - DENY
-        X-SCA-Engine-Version:
-          - 1.22.0
         X-Secrets-Engine-Version:
           - 2.104.0
       status:

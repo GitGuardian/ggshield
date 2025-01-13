@@ -11,7 +11,6 @@ The `kwargs` argument is required because due to the way click works,
 `add_common_options()` adds an argument for each option it defines.
 """
 
-from pathlib import Path
 from typing import Any, Callable, List, Optional, TypeVar
 
 import click
@@ -169,33 +168,6 @@ exit_zero_option = click.option(
 )
 
 
-minimum_severity_option_iac = click.option(
-    "--minimum-severity",
-    "minimum_severity",
-    type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL")),
-    help="Minimum severity of the policies.",
-)
-
-
-minimum_severity_option_sca = click.option(
-    "--minimum-severity",
-    "minimum_severity",
-    type=click.Choice(("LOW", "MEDIUM", "HIGH", "CRITICAL", "MALICIOUS")),
-    help="Minimum severity of the vulnerabilities.",
-)
-
-
-ignore_path_option = click.option(
-    "--ignore-path",
-    "--ipa",
-    "ignore_paths",
-    default=None,
-    multiple=True,
-    help="Do not scan paths that match the specified glob-like patterns.",
-    metavar="PATTERN",
-)
-
-
 def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         _verbose_option(cmd)
@@ -257,33 +229,6 @@ text_json_sarif_format_option = _create_format_option(
 )
 
 
-directory_argument = click.argument(
-    "directory",
-    type=click.Path(exists=True, readable=True, path_type=Path, file_okay=False),
-    required=False,
-    # using a default value here makes the deprecated `iac scan` fail
-)
-
-all_option = click.option(
-    "--all",
-    "scan_all",
-    is_flag=True,
-    default=False,
-    help="Reports all vulnerabilities in the final state.",
-)
-
-reference_option = click.option(
-    "--ref",
-    required=True,
-    type=click.STRING,
-    help="A Git reference, such as a commit ID, a reference relative to HEAD or a remote.",
-    metavar="GIT_REF",
-)
-staged_option = click.option(
-    "--staged",
-    is_flag=True,
-    help="Include staged changes in the scan.",
-)
 instance_option = click.option(
     "--instance",
     required=False,

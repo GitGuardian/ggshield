@@ -9,7 +9,7 @@
 It is important for users (and for our tests) to be able to make the distinction between "a scan was successful but it found problems" and "something went wrong while scanning". To do so, GGShield uses different error codes for the different cases. At the time of this writing the following codes are supported:
 
 - 0: All good
-- 1: Scan was successful but it found problems (leaked secrets, IaC security issues...)
+- 1: Scan was successful but it found problems (e.g. leaked secrets)
 - 2: Error on the command-line, like a missing parameter
 - 3: An authentication subcommand failed
 - 128: Something else

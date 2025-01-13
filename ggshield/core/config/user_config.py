@@ -1,13 +1,11 @@
 import json
 import logging
-import re
 from dataclasses import field
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import marshmallow_dataclass
-from marshmallow import ValidationError, post_load, pre_load
+from marshmallow import ValidationError
 
 from ggshield.core import ui
 from ggshield.core.config.utils import (
@@ -29,10 +27,6 @@ logger = logging.getLogger(__name__)
 CURRENT_CONFIG_VERSION = 2
 
 _IGNORE_KNOWN_SECRETS_KEY = "ignore_known_secrets"
-
-GHSA_ID_PATTERN = re.compile("GHSA(-[a-zA-Z0-9]{4}){3}")
-CVE_ID_PATTERN = re.compile(r"CVE-\d{4}-\d{4,}")
-POLICY_ID_PATTERN = re.compile("GG_IAC_[0-9]{4}")
 
 
 @marshmallow_dataclass.dataclass
@@ -80,212 +74,6 @@ class SecretConfig(FilteredConfig):
         )
 
 
-def validate_policy_id(policy_id: str) -> bool:
-    return bool(POLICY_ID_PATTERN.fullmatch(policy_id))
-
-
-@marshmallow_dataclass.dataclass
-class ConfigIgnoredElement(FilteredConfig):
-    """
-    Base class for a config element which can be ignored temporarily.
-    Classes inheriting it must reject expired dates themselves.
-    """
-
-    comment: Optional[str]
-    until: Optional[datetime]
-
-    # Accept date yyyy-mm-dd instead of a full datetime
-    @pre_load
-    def parse_date(self, data: Dict[str, Any], **kwargs: Any):
-        if not (isinstance(data, dict)) or data.get("until") is None:
-            return data
-        try:
-            data["until"] = str(datetime.strptime(str(data["until"]), "%Y-%m-%d"))
-            return data
-        except ValueError:
-            return data
-
-    @post_load
-    def datetime_to_utc(self, data: Dict[str, Any], **kwargs: Any):
-        if data["until"] is not None:
-            data["until"] = data["until"].astimezone(timezone.utc)
-        return data
-
-
-def remove_expired_elements(
-    lst: List[ConfigIgnoredElement],
-) -> List[ConfigIgnoredElement]:
-    expired: List[ConfigIgnoredElement] = []
-    now = datetime.now(tz=timezone.utc)
-    for idx in range(len(lst) - 1, -1, -1):
-        ignored = lst[idx]
-        if ignored.until and ignored.until <= now:
-            lst.pop(idx)
-            expired.insert(0, ignored)
-
-    return expired
-
-
-def report_expired_elements(expired_lst: List[ConfigIgnoredElement]) -> None:
-    for element in expired_lst:
-        ui.display_warning(
-            f"{element} has an expired 'until' "
-            f"date ({element.until}), please update your configuration file."
-        )
-
-
-@marshmallow_dataclass.dataclass
-class IaCConfigIgnoredPath(ConfigIgnoredElement):
-    path: str
-
-    def __init__(
-        self,
-        path: str,
-        comment: Optional[str] = None,
-        until: Optional[datetime] = None,
-        *args: Any,
-        **kwargs: Any,
-    ):
-        super().__init__(comment, until, *args, **kwargs)
-        self.path = path
-
-    def __str__(self):
-        return f"Path {self.path}"
-
-    @pre_load
-    def convert_paths(self, in_data: Union[str, Dict[str, Any]], **kwargs: Any):
-        return {"path": in_data} if isinstance(in_data, str) else in_data
-
-
-@marshmallow_dataclass.dataclass
-class IaCConfigIgnoredPolicy(ConfigIgnoredElement):
-    policy: str = field(metadata={"validate": validate_policy_id})
-
-    def __init__(
-        self,
-        policy: str,
-        comment: Optional[str] = None,
-        until: Optional[datetime] = None,
-        *args: Any,
-        **kwargs: Any,
-    ):
-        super().__init__(comment, until, *args, **kwargs)
-        self.policy = policy
-
-    def __str__(self):
-        return f"Policy {self.policy}"
-
-    @pre_load
-    def convert_policies(self, in_data: Union[str, Dict[str, Any]], **kwargs: Any):
-        return {"policy": in_data} if isinstance(in_data, str) else in_data
-
-
-@marshmallow_dataclass.dataclass
-class IaCConfig(FilteredConfig):
-    """
-    Holds the iac config as defined .gitguardian.yaml files
-    (local and global).
-    """
-
-    ignored_paths: List[IaCConfigIgnoredPath] = field(default_factory=list)
-    ignored_policies: List[IaCConfigIgnoredPolicy] = field(default_factory=list)
-    minimum_severity: str = "LOW"
-
-    # If we hit any outdated ignore rules when loading the configuration file, we
-    # want to keep them in order to display additional details but we do not want
-    # to store them in ignored rules because they will be used to scan.
-    # Instead, we store them in these new computed fields. However we must mark them
-    # as excluded, otherwise they would be serialized if the user runs a command to
-    # write in the configuration file, which would be odd.
-    outdated_ignored_paths: List[IaCConfigIgnoredPath] = field(default_factory=list)
-    outdated_ignored_policies: List[IaCConfigIgnoredPolicy] = field(
-        default_factory=list
-    )
-
-    @post_load
-    def validate_ignored_paths(self, data: Dict[str, Any], **kwargs: Any):
-        expired_lst = remove_expired_elements(data["ignored_paths"])
-        report_expired_elements(expired_lst)
-        data["outdated_ignored_paths"] = expired_lst
-        return data
-
-    @post_load
-    def validate_ignored_policies(self, data: Dict[str, Any], **kwargs: Any):
-        expired_lst = remove_expired_elements(data["ignored_policies"])
-        report_expired_elements(expired_lst)
-        data["outdated_ignored_policies"] = expired_lst
-        return data
-
-
-def is_ghsa_valid(ghsa_id: str) -> bool:
-    return bool(GHSA_ID_PATTERN.fullmatch(ghsa_id))
-
-
-def is_cve_id_valid(cve_id: str) -> bool:
-    return bool(CVE_ID_PATTERN.fullmatch(cve_id))
-
-
-def validate_vuln_identifier(value: str):
-    if not (is_ghsa_valid(value) or is_cve_id_valid(value)):
-        raise ValidationError(
-            f"The given identifier '{value}' do not match any of the allowed patterns"
-            f" '{GHSA_ID_PATTERN.pattern}' or '{CVE_ID_PATTERN.pattern}'"
-        )
-
-
-@marshmallow_dataclass.dataclass
-class SCAConfigIgnoredVulnerability(ConfigIgnoredElement):
-    """
-    A model of an ignored vulnerability for SCA. This allows to ignore all occurrences
-    of a given vulnerability in a given dependency file.
-    - identifier: identifier (currently: either CVE id or GHSA id) of the vulnerability to ignore
-    - path: the path to the file in which ignore the vulnerability
-    - comment: The ignored reason
-    - until: A datetime until which the vulnerability is ignored
-    """
-
-    identifier: str = field(metadata={"validate": validate_vuln_identifier})
-    path: str
-
-    def __init__(
-        self,
-        identifier: str,
-        path: str,
-        comment: Optional[str] = None,
-        until: Optional[datetime] = None,
-        *args: Any,
-        **kwargs: Any,
-    ):
-        super().__init__(comment, until, *args, **kwargs)
-        self.identifier = identifier
-        self.path = path
-
-    def __str__(self):
-        return f"Vulnerability {self.identifier}"
-
-
-@marshmallow_dataclass.dataclass
-class SCAConfig(FilteredConfig):
-    """
-    Holds the sca config as defined .gitguardian.yaml files
-    (local and global).
-    """
-
-    ignored_paths: Set[str] = field(default_factory=set)
-    minimum_severity: str = "LOW"
-    ignored_vulnerabilities: List[SCAConfigIgnoredVulnerability] = field(
-        default_factory=list
-    )
-    ignore_not_fixable: bool = False
-    ignore_fixable: bool = False
-
-    @post_load
-    def validate_ignored_vulns(self, data: Dict[str, Any], **kwargs: Any):
-        expired_lst = remove_expired_elements(data["ignored_vulnerabilities"])
-        report_expired_elements(expired_lst)
-        return data
-
-
 @marshmallow_dataclass.dataclass
 class UserConfig(FilteredConfig):
     """
@@ -293,13 +81,11 @@ class UserConfig(FilteredConfig):
     (local and global).
     """
 
-    iac: IaCConfig = field(default_factory=IaCConfig)
     instance: Optional[str] = None
     exit_zero: bool = False
     verbose: bool = False
     allow_self_signed: bool = False
     max_commits_for_hook: int = 50
-    sca: SCAConfig = field(default_factory=SCAConfig)
     secret: SecretConfig = field(default_factory=SecretConfig)
     debug: bool = False
 
@@ -382,11 +168,7 @@ class UserConfig(FilteredConfig):
 
 
 UserConfig.SCHEMA = marshmallow_dataclass.class_schema(UserConfig)(
-    exclude=(
-        "deprecation_messages",
-        "iac.outdated_ignored_paths",
-        "iac.outdated_ignored_policies",
-    )
+    exclude=("deprecation_messages",)
 )
 
 

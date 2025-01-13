@@ -27,7 +27,7 @@ class ExitCode(IntEnum):
 
     # Everything went well
     SUCCESS = 0
-    # Scan was successful, and found problems (leaked secrets, IAC security issues...)
+    # Scan was successful, and found problems (e.g. leaked secrets)
     SCAN_FOUND_PROBLEMS = 1
     # Error on the command-line, like a missing parameter
     USAGE_ERROR = 2
@@ -131,19 +131,6 @@ class APIKeyCheckError(AuthError):
 
     def __init__(self, instance: str, message: str):
         super().__init__(instance, message)
-
-
-class NotAMergeRequestError(_ExitError):
-    """
-    Raised when the command is not run in a Merge Request, while
-    it expects it to.
-    """
-
-    def __init__(self):
-        super().__init__(
-            ExitCode.USAGE_ERROR,
-            "This command expects to be run from a merge request.",
-        )
 
 
 def format_validation_error(exc: ValidationError) -> str:

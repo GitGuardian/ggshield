@@ -6,7 +6,7 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from shutil import which
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 from ggshield.utils.os import getenv_int
 
@@ -403,77 +403,6 @@ def get_staged_filepaths(wd: Optional[Union[str, Path]] = None) -> List[Path]:
     return [Path(path_str) for path_str in filepaths]
 
 
-def get_diff_files_status(
-    ref: str,
-    staged: bool = False,
-    similarity: int = 100,
-    wd: Optional[Union[str, Path]] = None,
-    current_ref: Optional[str] = None,
-) -> Dict[Path, Filemode]:
-    """
-    Fetches the statuses of modified files since a given ref.
-    For more details on file statuses, see:
-    https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203
-    """
-
-    # Input validation
-
-    assert 0 <= similarity <= 100
-
-    if current_ref is None:
-        current_ref = "HEAD"
-
-    if not wd:
-        wd = Path.cwd()
-
-    check_git_ref(wd=wd, ref=ref)
-
-    if not staged:
-        check_git_ref(wd=wd, ref=current_ref)
-
-    if ref == "HEAD" and not staged:
-        return dict()
-
-    def parse_name_status_patch(patch: str) -> Dict[Path, Filemode]:
-        status_to_filemode = {
-            "A": Filemode.NEW,
-            "D": Filemode.DELETE,
-            "M": Filemode.MODIFY,
-            "T": Filemode.MODIFY,
-            "R": Filemode.RENAME,
-        }
-
-        split_patch = patch.split("\0")
-        chunks = (split_patch[i : i + 2] for i in range(0, len(split_patch) - 2, 2))
-
-        return {
-            Path(path): status_to_filemode.get(mode, Filemode.UNKNOWN)
-            for mode, path in chunks
-        }
-
-    is_working_tree = is_git_working_tree(wd)
-    cmd = [
-        "diff" if is_working_tree else "diff-tree",
-        f"-M{similarity}%",
-        "--name-status",
-        "--raw",
-        "-z",
-        "--patch",
-        "--diff-filter=ADMTR",
-    ]
-
-    if staged and is_working_tree:
-        cmd.append("--staged")
-
-    if not is_working_tree:
-        cmd.append(current_ref)
-    cmd.append(ref)
-
-    patch = git(cmd, cwd=wd)
-
-    return parse_name_status_patch(patch)
-
-
 @lru_cache(None)
 def read_git_file(ref: str, path: Path, wd: Optional[Union[str, Path]] = None) -> str:
     # Use as_posix to handle git and Windows
@@ -516,16 +445,3 @@ def get_default_branch(wd: Optional[Union[str, Path]] = None) -> str:
         return git(["config", "init.defaultBranch"], cwd=wd).strip()
 
     return default_branch
-
-
-def get_commits_not_in_branch(
-    target_branch: str, current_tip: str = "HEAD", wd: Optional[Union[str, Path]] = None
-) -> List[str]:
-    """
-    This function lists commits, starting from `current_tip`, that do not belong to `target_branch`.
-    It is used to list commits associated with a merge request
-    Commits are returned in descending order (most recent commit first)
-    """
-    cmd = ["log", current_tip, "--not", target_branch, "--format=%H"]
-    output = git(cmd, cwd=wd)
-    return output.splitlines()

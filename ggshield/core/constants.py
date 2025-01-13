@@ -30,7 +30,6 @@ DEFAULT_LOCAL_CONFIG_PATH = os.path.join(".", DEFAULT_CONFIG_FILENAME)
 
 class IncidentStatus(str, Enum):
     DETECTED = "detected"
-    REMOVED = "removed"
 
 
 class IncidentSeverity(str, Enum):

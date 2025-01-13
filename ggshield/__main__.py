@@ -14,10 +14,8 @@ from ggshield.cmd.auth import auth_group
 from ggshield.cmd.config import config_group
 from ggshield.cmd.hmsl import hmsl_group
 from ggshield.cmd.honeytoken import honeytoken_group
-from ggshield.cmd.iac import iac_group
 from ggshield.cmd.install import install_cmd
 from ggshield.cmd.quota import quota_cmd
-from ggshield.cmd.sca import sca_group
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
 from ggshield.cmd.status import status_cmd
@@ -39,7 +37,6 @@ logger = logging.getLogger(__name__)
 
 
 @scan_group.result_callback()
-@iac_group.result_callback()
 @click.pass_context
 def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     """
@@ -67,9 +64,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
         "install": install_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
-        "iac": iac_group,
         "honeytoken": honeytoken_group,
-        "sca": sca_group,
         "hmsl": hmsl_group,
     },
 )
