@@ -16,8 +16,8 @@ from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import MissingScopesError, UnexpectedError, handle_api_error
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
+from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.core.text_utils import pluralize
-from ggshield.core.ui.scanner_ui import ScannerUI
 
 from .secret_scan_collection import Error, Result, Results
 

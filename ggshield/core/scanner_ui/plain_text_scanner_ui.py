@@ -4,7 +4,7 @@ from typing_extensions import Self
 
 from ggshield.core import ui
 from ggshield.core.scan import Scannable
-from ggshield.core.ui.scanner_ui import ScannerUI
+from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 
 
 class PlainTextScannerUI(ScannerUI):

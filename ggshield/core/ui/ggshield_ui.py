@@ -8,8 +8,6 @@ from typing import Any, NamedTuple
 
 from typing_extensions import Self
 
-from .scanner_ui import ScannerUI
-
 
 class Level(IntEnum):
     ERROR = auto()
@@ -55,24 +53,6 @@ class GGShieldUI(ABC):
 
     def __init__(self):
         self.level = Level.INFO
-
-    @abstractmethod
-    def create_scanner_ui(self, total: int) -> ScannerUI:
-        """
-        Creates a ScannerUI instance. This is used to show progress on scanning
-        Scannables.
-        """
-        ...
-
-    @abstractmethod
-    def create_message_only_scanner_ui(self) -> ScannerUI:
-        """
-        Creates a ScannerUI instance without a progress bar. This is used when the scan
-        itself is part of a larger scan. For example when scanning a commit range, each
-        commit gets a message-only ScannerUI. Progress of the commit range scan is
-        represented by a progress bar created using `create_progress()`.
-        """
-        ...
 
     @abstractmethod
     def create_progress(self, total: int) -> GGShieldProgress:

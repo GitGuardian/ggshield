@@ -9,7 +9,6 @@ from logging import LogRecord
 
 from .ggshield_ui import GGShieldProgress, GGShieldUI, Level
 from .plain_text import PlainTextGGShieldUI
-from .scanner_ui import ScannerUI
 
 
 # GGShieldUI instance to which top-level functions forward their output.
@@ -49,6 +48,10 @@ def set_ui(ui: GGShieldUI) -> None:
     _ui = ui
 
 
+def get_ui() -> GGShieldUI:
+    return _ui
+
+
 def display_debug(message: str) -> None:
     _ui.display_debug(message)
 
@@ -79,14 +82,6 @@ def log(record: LogRecord) -> None:
 
 def create_progress(total: int) -> GGShieldProgress:
     return _ui.create_progress(total)
-
-
-def create_scanner_ui(total: int) -> ScannerUI:
-    return _ui.create_scanner_ui(total)
-
-
-def create_message_only_scanner_ui() -> ScannerUI:
-    return _ui.create_message_only_scanner_ui()
 
 
 def _reset_ui():

@@ -31,7 +31,7 @@ from ggshield.core.scan import (
     Scannable,
     StringScannable,
 )
-from ggshield.core.ui.scanner_ui import ScannerUI
+from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.utils.git_shell import Filemode
 from ggshield.utils.os import get_os_info
 from ggshield.verticals.secret import SecretScanner

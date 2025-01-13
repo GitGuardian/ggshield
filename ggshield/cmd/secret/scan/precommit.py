@@ -14,6 +14,7 @@ from ggshield.cmd.utils.hooks import check_user_requested_skip
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import Commit, ScanContext, ScanMode
+from ggshield.core.scanner_ui import create_scanner_ui
 from ggshield.utils.git_shell import check_git_dir, git
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 from ggshield.verticals.secret.output import SecretTextOutputHandler
@@ -95,7 +96,7 @@ def precommit_cmd(
         scan_context=scan_context,
         secret_config=config.user_config.secret,
     )
-    with ui.create_scanner_ui(len(commit.urls)) as scanner_ui:
+    with create_scanner_ui(len(commit.urls)) as scanner_ui:
         results = scanner.scan(commit.get_files(), scanner_ui)
 
     return_code = output_handler.process_scan(
