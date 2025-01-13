@@ -15,6 +15,7 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.core.scan.file import create_files_from_paths
+from ggshield.core.scanner_ui import create_scanner_ui
 from ggshield.utils.archive import safe_unpack
 from ggshield.utils.click import RealPath
 from ggshield.utils.files import ListFilesMode
@@ -54,7 +55,7 @@ def archive_cmd(
         print_file_list(files, binary_paths)
         ui.display_heading("Starting scan")
 
-        with ui.create_scanner_ui(len(files)) as scanner_ui:
+        with create_scanner_ui(len(files)) as scanner_ui:
             scan_context = ScanContext(
                 scan_mode=ScanMode.ARCHIVE,
                 command_path=ctx.command_path,

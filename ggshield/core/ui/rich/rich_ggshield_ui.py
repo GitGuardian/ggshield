@@ -7,10 +7,7 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
 from typing_extensions import Self
 
-from ggshield.core.ui.scanner_ui import ScannerUI
-
 from ..ggshield_ui import NAME_BY_LEVEL, DebugInfo, GGShieldProgress, GGShieldUI, Level
-from .rich_scanner_ui import RichMessageOnlyScannerUI, RichProgressScannerUI
 
 
 COLOR_BY_LEVEL = {
@@ -62,12 +59,6 @@ class RichGGShieldUI(GGShieldUI):
         super().__init__()
         self.console = Console(file=sys.stderr)
         self._previous_timestamp = ""
-
-    def create_scanner_ui(self, total: int) -> ScannerUI:
-        return RichProgressScannerUI(self, total)
-
-    def create_message_only_scanner_ui(self) -> ScannerUI:
-        return RichMessageOnlyScannerUI(self)
 
     def create_progress(self, total: int) -> GGShieldProgress:
         return RichGGShieldProgress(self.console, total)

@@ -8,8 +8,6 @@ from ggshield.core.ui.ggshield_ui import (
     GGShieldUI,
     Level,
 )
-from ggshield.core.ui.plain_text.plain_text_scanner_ui import PlainTextScannerUI
-from ggshield.core.ui.scanner_ui import ScannerUI
 
 
 class PlainTextGGShieldProgress(GGShieldProgress):
@@ -58,12 +56,6 @@ class PlainTextGGShieldUI(GGShieldUI):
         else:
             self.display_warning(f"Unsupported log level {level}")
             self.display_error(msg)
-
-    def create_scanner_ui(self, total: int) -> ScannerUI:
-        return PlainTextScannerUI()
-
-    def create_message_only_scanner_ui(self) -> ScannerUI:
-        return PlainTextScannerUI()
 
     def create_progress(self, total: int) -> GGShieldProgress:
         return PlainTextGGShieldProgress()

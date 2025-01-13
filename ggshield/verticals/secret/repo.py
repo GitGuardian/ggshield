@@ -16,6 +16,7 @@ from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
+from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
@@ -78,7 +79,7 @@ def scan_commits_content(
             check_api_key=False,  # Key has been checked in `scan_commit_range()`
             secret_config=secret_config,
         )
-        with ui.create_message_only_scanner_ui() as scanner_ui:
+        with create_message_only_scanner_ui() as scanner_ui:
             results = scanner.scan(
                 commit_files, scan_threads=SCAN_THREADS, scanner_ui=scanner_ui
             )

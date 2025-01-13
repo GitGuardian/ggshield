@@ -12,6 +12,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable, StringScannable
+from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.ui.ggshield_ui import GGShieldProgress
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
@@ -34,7 +35,7 @@ def create_scans_from_docset_files(
         ui.display_verbose(f"- {click.format_filename(input_file.name)}")
 
         files = generate_files_from_docsets(input_file)
-        with ui.create_message_only_scanner_ui() as scanner_ui:
+        with create_message_only_scanner_ui() as scanner_ui:
             results = scanner.scan(files, scanner_ui=scanner_ui)
         scans.append(
             SecretScanCollection(id=input_file.name, type="docset", results=results)

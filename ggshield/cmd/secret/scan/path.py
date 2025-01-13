@@ -15,6 +15,7 @@ from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
+from ggshield.core.scanner_ui import create_scanner_ui
 from ggshield.utils.click import RealPath
 from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
@@ -71,7 +72,7 @@ def path_cmd(
         ui.display_heading("Starting scan")
     target = paths[0] if len(paths) == 1 else Path.cwd()
     target_path = target if target.is_dir() else target.parent
-    with ui.create_scanner_ui(len(files)) as scanner_ui:
+    with create_scanner_ui(len(files)) as scanner_ui:
         scan_context = ScanContext(
             scan_mode=ScanMode.PATH,
             command_path=ctx.command_path,

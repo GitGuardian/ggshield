@@ -3,8 +3,8 @@ from typing import Any, Sequence
 from typing_extensions import Self
 
 from ggshield.core.scan import Scannable
+from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.core.ui.ggshield_ui import GGShieldUI
-from ggshield.core.ui.scanner_ui import ScannerUI
 
 
 class RichMessageOnlyScannerUI(ScannerUI):
