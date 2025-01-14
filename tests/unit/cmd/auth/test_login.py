@@ -148,6 +148,45 @@ class TestAuthLoginToken:
         self._request_mock.assert_all_requests_happened()
 
     @pytest.mark.parametrize(
+        ("cmd_line_instance", "expected_instance"),
+        [
+            ("https://api.gitguardian.com/v1", "https://dashboard.gitguardian.com"),
+            ("https://api.gitguardian.com", "https://dashboard.gitguardian.com"),
+            (
+                "https://api.eu1.gitguardian.com/v1",
+                "https://dashboard.eu1.gitguardian.com",
+            ),
+            (
+                "https://gitguardian.mycorp.local/exposed/",
+                "https://gitguardian.mycorp.local",
+            ),
+            (
+                "https://gitguardian.mycorp.local/exposed",
+                "https://gitguardian.mycorp.local",
+            ),
+        ],
+    )
+    def test_api_instance_url(
+        self, cmd_line_instance, expected_instance, cli_fs_runner
+    ):
+        """
+        GIVEN a valid API token and an instance URL matching GitGuardian API urls
+        WHEN running the login command
+        THEN it succeeds
+        """
+        token = "mysupertoken"
+        cmd = ["auth", "login", "--method=token", f"--instance={cmd_line_instance}"]
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
+        config = Config()
+        config_instance_urls = [
+            instance_config.url for instance_config in config.auth_config.instances
+        ]
+        assert_invoke_ok(result)
+        assert expected_instance in config_instance_urls
+        self._request_mock.assert_all_requests_happened()
+
+    @pytest.mark.parametrize(
         ("instance", "suggests"),
         (
             ("", False),
@@ -966,3 +1005,23 @@ class TestAuthLoginWeb:
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.USAGE_ERROR, output
         self._webbrowser_open_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "instance_url",
+        [
+            "https://api.gitguardian.com/v1",
+            "https://api.eu1.gitguardian.com/v1",
+            "https://gitguardian.mycorp.local/exposed/",
+        ],
+    )
+    def test_api_instance_url(self, instance_url, cli_fs_runner, monkeypatch):
+        """
+        GIVEN an instance URL matching GitGuardian API urls
+        WHEN running the login command
+        THEN it succeeds
+        """
+        monkeypatch.setenv("GITGUARDIAN_INSTANCE", instance_url)
+        self.prepare_mocks(monkeypatch)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+        self._webbrowser_open_mock.assert_called()
