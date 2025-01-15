@@ -335,6 +335,9 @@ def convert_multi_parent_diff(content: str) -> str:
         elif "-" in columns:
             # Removed from another parent, skip it
             continue
+        elif columns.startswith("@"):
+            # Another header
+            text, _ = process_multi_parent_hunk_header(line)
         else:
             # Unchanged
             text = f" {text}"
