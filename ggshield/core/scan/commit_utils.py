@@ -5,6 +5,7 @@ from typing import Iterable, List, Optional, Pattern, Set, Tuple
 
 from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import Filemode, git
+from ggshield.utils.itertools import batched
 
 from .scannable import Scannable
 
@@ -42,6 +43,8 @@ NEW_NAME_RX = re.compile(r"^\+\+\+ b/(.*?)\t?$", flags=re.MULTILINE)
 MULTI_PARENT_HUNK_HEADER_RX = re.compile(
     r"^(?P<at>@@+) (?P<from>-\d+(?:,\d+)?) .* (?P<to>\+\d+(?:,\d+)?) @@+(?P<trailing_content>.+)?"
 )
+
+MAX_FILES_PER_GIT_COMMAND = 100
 
 
 class PatchParseError(Exception):
@@ -370,10 +373,11 @@ def get_file_sha_in_ref(
     """
     Helper function to get the shas of files in the git reference.
     """
-    output = git(["ls-tree", "-z", ref] + files, cwd=cwd)
-    for line in output.split("\0")[:-1]:
-        _, _, sha, path = line.split(maxsplit=3)
-        yield (path, sha)
+    for files in batched(files, MAX_FILES_PER_GIT_COMMAND):
+        output = git(["ls-tree", "-z", ref] + files, cwd=cwd)
+        for line in output.split("\0")[:-1]:
+            _, _, sha, path = line.split(maxsplit=3)
+            yield (path, sha)
 
 
 def get_file_sha_stage(
@@ -382,10 +386,11 @@ def get_file_sha_stage(
     """
     Helper function to get the shas currently staged of files.
     """
-    output = git(["ls-files", "--stage", "-z"] + files, cwd=cwd)
-    for line in output.split("\0")[:-1]:
-        _, sha, _, path = line.split(maxsplit=3)
-        yield (path, sha)
+    for files in batched(files, MAX_FILES_PER_GIT_COMMAND):
+        output = git(["ls-files", "--stage", "-z"] + files, cwd=cwd)
+        for line in output.split("\0")[:-1]:
+            _, sha, _, path = line.split(maxsplit=3)
+            yield (path, sha)
 
 
 def get_diff_files(cwd: Optional[Path] = None) -> List[str]:

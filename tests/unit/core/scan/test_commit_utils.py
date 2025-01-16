@@ -1,10 +1,16 @@
+import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 
 import pytest
 
-from ggshield.core.scan.commit_utils import PatchFileInfo, convert_multi_parent_diff
+from ggshield.core.scan.commit_utils import (
+    PatchFileInfo,
+    convert_multi_parent_diff,
+    get_file_sha_in_ref,
+)
 from ggshield.utils.git_shell import Filemode
+from tests.repository import Repository
 
 
 @pytest.mark.parametrize(
@@ -124,3 +130,30 @@ def test_convert_multi_parent_diff(diff: str, expected: str):
     expected = expected.strip()
     result = convert_multi_parent_diff(diff)
     assert result == expected
+
+
+def test_get_file_sha_in_ref():
+    """
+    Assert that get_file_sha_in_ref doesn't crash when called
+    with a large number of files
+    """
+    with tempfile.TemporaryDirectory() as tmp_path_str:
+
+        tmp_path = Path(tmp_path_str)
+        repo = Repository.create(tmp_path)
+
+        for i in range(200):
+            file_path = tmp_path / f"{i:0200d}.txt"
+            file_path.write_text("dummy content")
+
+        repo.add(".")
+        repo.create_commit("Add 200 dummy files")
+
+        try:
+            files = [f"{i:0200d}.txt" for i in range(200)]
+            result = list(get_file_sha_in_ref("HEAD", files))
+
+            assert isinstance(result, list), "The result should be a list."
+
+        except Exception as e:
+            assert False, f"get_file_sha_in_ref crashed with error: {e}"
