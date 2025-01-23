@@ -23,7 +23,6 @@ Only metadata such as call time, request size and scan mode is stored from scans
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Installation](#installation)
-  - [Requirements](#requirements)
   - [macOS](#macos)
     - [Homebrew](#homebrew)
     - [Standalone .pkg package](#standalone-pkg-package)
@@ -55,19 +54,6 @@ ggshield" section of the "Getting started" page of ggshield public
 documentation.
 -->
 
-## Requirements
-
-`ggshield` works on macOS, Linux and Windows.
-
-It requires **Python 3.8 or above** (except for standalone packages) and git.
-
-⚠️ Python 3.8 is no longer supported by the Python Software Foundation since October, 14th 2024. GGShield will soon require Python 3.9 or above to run.
-
-Some commands require additional programs:
-
-- docker: to scan docker images.
-- pip: to scan pypi packages.
-
 ## macOS
 
 ### Homebrew
@@ -75,7 +61,7 @@ Some commands require additional programs:
 You can install `ggshield` using Homebrew:
 
 ```shell
-$ brew install gitguardian/tap/ggshield
+$ brew install ggshield
 ```
 
 Upgrading is handled by Homebrew.
@@ -112,6 +98,10 @@ This archive _does not_ require installing Python, but you have to manually down
 ## All operating systems
 
 `ggshield` can be installed on all supported operating systems via its [PyPI package](https://pypi.org/project/ggshield).
+
+It requires **a supported version of Python (not EOL)** (except for standalone packages) and git.
+
+If you don't use our packaged versions of `ggshield`, please be aware that we follow the [Python release cycle](https://devguide.python.org/versions/) and do not support versions that have reached EOL.
 
 ### Using pipx
 
@@ -161,8 +151,8 @@ You can now use `ggshield` to search for secrets:
 
 - in files: `ggshield secret scan path -r .`
 - in repositories: `ggshield secret scan repo .`
-- in Docker images: `ggshield secret scan docker ubuntu:22.04`
-- in Pypi packages: `ggshield secret scan pypi flask`
+- in Docker images (`docker` command must be available): `ggshield secret scan docker ubuntu:22.04`
+- in Pypi packages (`pip` command must be available): `ggshield secret scan pypi flask`
 - and more, have a look at `ggshield secret scan --help` output for details.
 
 # Integrations
