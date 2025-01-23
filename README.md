@@ -11,11 +11,16 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/GitGuardian/ggshield/main.yml?branch=main&style=for-the-badge)](https://github.com/GitGuardian/ggshield/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
-`ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 400+ types of secrets.
+`ggshield` is a CLI application that runs in your local environment or in a CI
+environment to help you detect more than 400+ types of secrets.
 
-`ggshield` uses our [public API](https://api.gitguardian.com/doc) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan and detect potential vulnerabilities in files and other text content.
+`ggshield` uses our [public API](https://api.gitguardian.com/doc) through
+[py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan and
+detect potential vulnerabilities in files and other text content.
 
-Only metadata such as call time, request size and scan mode is stored from scans using `ggshield`, therefore secrets will not be displayed on your dashboard and **your files and secrets won't be stored**.
+Only metadata such as call time, request size and scan mode is stored from scans
+using `ggshield`, therefore secrets will not be displayed on your dashboard and
+**your files and secrets won't be stored**.
 
 # Table of Contents
 
@@ -55,19 +60,6 @@ ggshield" section of the "Getting started" page of ggshield public
 documentation.
 -->
 
-## Requirements
-
-`ggshield` works on macOS, Linux and Windows.
-
-It requires **Python 3.8 or above** (except for standalone packages) and git.
-
-⚠️ Python 3.8 is no longer supported by the Python Software Foundation since October, 14th 2024. GGShield will soon require Python 3.9 or above to run.
-
-Some commands require additional programs:
-
-- docker: to scan docker images.
-- pip: to scan pypi packages.
-
 ## macOS
 
 ### Homebrew
@@ -75,22 +67,25 @@ Some commands require additional programs:
 You can install `ggshield` using Homebrew:
 
 ```shell
-$ brew install gitguardian/tap/ggshield
+$ brew install ggshield
 ```
 
 Upgrading is handled by Homebrew.
 
 ### Standalone .pkg package
 
-Alternatively, you can download and install a standalone .pkg package from [`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
+Alternatively, you can download and install a standalone .pkg package from
+[`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
 
-This package _does not_ require installing Python, but you have to manually download new versions.
+This package _does not_ require installing Python, but you have to manually
+download new versions.
 
 ## Linux
 
 ### Deb and RPM packages
 
-Deb and RPM packages are available on [Cloudsmith](https://cloudsmith.io/~gitguardian/repos/ggshield/packages/).
+Deb and RPM packages are available on
+[Cloudsmith](https://cloudsmith.io/~gitguardian/repos/ggshield/packages/).
 
 Setup instructions:
 
@@ -103,19 +98,32 @@ Upgrading is handled by the package manager.
 
 ### Standalone .zip archive
 
-We provide a standalone .zip archive on [`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
+We provide a standalone .zip archive on
+[`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
 
-Unpack the archive on your disk, then add the directory containing the `ggshield.exe` file to `%PATH%`.
+Unpack the archive on your disk, then add the directory containing the
+`ggshield.exe` file to `%PATH%`.
 
-This archive _does not_ require installing Python, but you have to manually download new versions.
+This archive _does not_ require installing Python, but you have to manually
+download new versions.
 
 ## All operating systems
 
-`ggshield` can be installed on all supported operating systems via its [PyPI package](https://pypi.org/project/ggshield).
+`ggshield` can be installed on all supported operating systems via its
+[PyPI package](https://pypi.org/project/ggshield).
+
+It requires **a supported Python version (not EOL)** and git.
+
+If you do not use our packaged versions of GGShield (which we strongly
+recommend), please be aware that we follow the
+[Python release cycle](https://devguide.python.org/versions/) and do not support
+Python versions that have reached EOL.
 
 ### Using pipx
 
-The recommended way to install `ggshield` from PyPI is to use [pipx](https://pypa.github.io/pipx/), which will install it in an isolated environment:
+The recommended way to install `ggshield` from PyPI is to use
+[pipx](https://pypa.github.io/pipx/), which will install it in an isolated
+environment:
 
 ```shell
 $ pipx install ggshield
@@ -129,7 +137,11 @@ $ pipx upgrade ggshield
 
 ### Using pip
 
-You can also install `ggshield` from PyPI using pip, but this is not recommended because the installation is not isolated, so other applications or packages installed this way may affect your `ggshield` installation. This method will also not work if your Python installation is declared as externally managed (for example when using the system Python on operating systems like Debian 12):
+You can also install `ggshield` from PyPI using pip, but this is not recommended
+because the installation is not isolated, so other applications or packages
+installed this way may affect your `ggshield` installation. This method will
+also not work if your Python installation is declared as externally managed (for
+example when using the system Python on operating systems like Debian 12):
 
 ```shell
 $ pip install --user ggshield
@@ -145,13 +157,18 @@ $ pip install --user --upgrade ggshield
 
 ## Using `ggshield auth login`
 
-To use `ggshield` you need to authenticate against GitGuardian servers. To do so, use the `ggshield auth login` command. This command automates the provisioning of a personal access token and its configuration on the local workstation.
+To use `ggshield` you need to authenticate against GitGuardian servers. To do
+so, use the `ggshield auth login` command. This command automates the
+provisioning of a personal access token and its configuration on the local
+workstation.
 
-You can learn more about it from [`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
+You can learn more about it from
+[`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
 
 ## Manual setup
 
-You can also create your personal access token manually and store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
+You can also create your personal access token manually and store it in the
+`GITGUARDIAN_API_KEY` environment variable to complete the setup.
 
 # Getting started
 
@@ -167,13 +184,16 @@ You can now use `ggshield` to search for secrets:
 
 # Integrations
 
-You can integrate `ggshield` in your [CI/CD workflow](https://docs.gitguardian.com/ggshield-docs/integrations/overview#cicd-integrations-secrets-detection-in-your-cicd-workflow).
+You can integrate `ggshield` in your
+[CI/CD workflow](https://docs.gitguardian.com/ggshield-docs/integrations/overview#cicd-integrations-secrets-detection-in-your-cicd-workflow).
 
-To catch errors earlier, use `ggshield` as a [pre-commit, pre-push or pre-receive Git hook](https://docs.gitguardian.com/ggshield-docs/integrations/overview#git-hooks-prevent-secrets-from-reaching-your-vcs).
+To catch errors earlier, use `ggshield` as a
+[pre-commit, pre-push or pre-receive Git hook](https://docs.gitguardian.com/ggshield-docs/integrations/overview#git-hooks-prevent-secrets-from-reaching-your-vcs).
 
 # Learn more
 
-For more information, have a look at [the documentation](https://docs.gitguardian.com/ggshield-docs/getting-started)
+For more information, have a look at
+[the documentation](https://docs.gitguardian.com/ggshield-docs/getting-started)
 
 # Output
 
@@ -183,7 +203,9 @@ If no secrets have been found, the exit code will be 0:
 $ ggshield secret scan pre-commit
 ```
 
-If a secret is found in your staged code or in your CI, you will have an alert giving you the filename where the secret has been found and a patch giving you the position of the secret in the file:
+If a secret is found in your staged code or in your CI, you will have an alert
+giving you the filename where the secret has been found and a patch giving you
+the position of the secret in the file:
 
 ```shell
 $ ggshield secret scan pre-commit
@@ -203,7 +225,8 @@ $ ggshield secret scan pre-commit
 17 | }
 ```
 
-Lines that are too long are truncated to match the size of the terminal, unless the verbose mode is used (`-v` or `--verbose`).
+Lines that are too long are truncated to match the size of the terminal, unless
+the verbose mode is used (`-v` or `--verbose`).
 
 # Related open source projects
 
