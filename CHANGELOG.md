@@ -1,5 +1,21 @@
 # Changelog
 
+<a id='changelog-1.36.0'></a>
+
+## 1.36.0 — 2025-01-27
+
+### Removed
+
+- SCA code and commands.
+
+- IaC code and commands.
+
+### Fixed
+
+- `--instance` param now handles input https://api.eu1.gitguardian.com/v1 or https://api.gitguardian.com/v1.
+
+- Fix `secret scan pre-commit` crashing on big merges (#1032).
+
 <a id='changelog-1.35.0'></a>
 
 ## 1.35.0 — 2025-01-08
