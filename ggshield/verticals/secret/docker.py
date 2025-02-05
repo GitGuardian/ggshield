@@ -17,6 +17,7 @@ from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import ScanContext, Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
+from ggshield.core.scanner_ui import create_scanner_ui
 from ggshield.utils.files import is_path_binary
 
 from .secret_scan_collection import SecretScanCollection
@@ -340,7 +341,7 @@ def docker_scan_archive(
 
     with DockerImage.open(archive_path) as docker_image:
         ui.display_heading("Scanning Docker config")
-        with ui.create_scanner_ui(1) as scanner_ui:
+        with create_scanner_ui(1) as scanner_ui:
             results = scanner.scan(
                 [docker_image.config_scannable], scanner_ui=scanner_ui
             )
@@ -356,7 +357,7 @@ def docker_scan_archive(
                 ui.display_heading(f"Skipping layer {layer_id}: already scanned")
             else:
                 ui.display_heading(f"Scanning layer {info.diff_id}")
-                with ui.create_scanner_ui(file_count) as scanner_ui:
+                with create_scanner_ui(file_count) as scanner_ui:
                     layer_results = scanner.scan(files, scanner_ui=scanner_ui)
                 if not layer_results.has_secrets:
                     layer_id_cache.add(layer_id)
