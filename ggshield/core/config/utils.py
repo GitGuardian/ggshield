@@ -59,13 +59,20 @@ def load_yaml_dict(path: Union[str, Path]) -> Optional[Dict[str, Any]]:
     return data
 
 
-def save_yaml_dict(data: Dict[str, Any], path: Union[str, Path]) -> None:
+def save_yaml_dict(
+    data: Dict[str, Any], path: Union[str, Path], restricted: bool = False
+) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("w") as f:
         try:
+            if restricted:
+                # Restrict file permissions: read and write for owner only (600)
+                p.chmod(0o600)
+
             stream = yaml.dump(data, indent=2, default_flow_style=False)
             f.write(stream)
+
         except Exception as e:
             raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
 

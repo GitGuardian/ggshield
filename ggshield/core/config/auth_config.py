@@ -130,7 +130,7 @@ class AuthConfig(FromDictMixin, ToDictMixin):
     def save(self) -> None:
         config_path = get_auth_config_filepath()
         data = prepare_auth_config_dict_for_save(self.to_dict())
-        save_yaml_dict(data, config_path)
+        save_yaml_dict(data, config_path, restricted=True)
 
     def get_instance(self, instance_name: str) -> InstanceConfig:
         for instance in self.instances:
