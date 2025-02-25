@@ -4,9 +4,9 @@
 
 To update a dependency:
 
-- Update the dependency version in `setup.py`.
+- Update the dependency version in `pyproject.toml`.
 - Make any necessary changes.
-- Run `make update-pipfile-lock` to update the `Pipfile.lock` file.
+- Run `pdm update <dependency>` to update the lock file.
 - File a PR.
 
 ## Using an unreleased version of py-gitguardian
@@ -26,17 +26,18 @@ You only need to do this once. From now on, changes you make in py-gitguardian a
 
 For the changes to pass on CI, you need to:
 
-1. Update py-gitguardian dependency in `setup.cfg` to use a git+https URL, like this:
+1. Update py-gitguardian dependency in `pyproject.toml` to use a git+https URL, like this:
 
-   ```python
-   install_requires =
-        ...
-        # TODO: replace this with a real version number as soon as a new version of
-        # py-gitguardian is out
-        pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@cfa919cff68cc4d3ca40bf2bb8a6f24bc5fca786
-    ...
+   ```
+   dependencies = [
+       (...)
+       # TODO: replace this with a real version number as soon as a new version of
+       # py-gitguardian is out
+       "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@cfa919cff68cc4d3ca40bf2bb8a6f24bc5fca786"
+       (...)
+   ]
    ```
 
-2. Update the `Pipfile.lock` with `make update-pipfile-lock`.
+2. Run `pdm update pygitguardian`.
 
 Remember to do what the `TODO` comment says!
