@@ -204,7 +204,8 @@ def git(
     try:
         logger.debug("command=%s timeout=%d", command, timeout)
         result = subprocess.run(
-            [_get_git_path(), "-c", "core.quotePath=false"] + command,
+            [_get_git_path(), "-c", "core.quotePath=false", "-c", "core.longpaths=true"]
+            + command,
             check=check,
             capture_output=True,
             timeout=timeout,
