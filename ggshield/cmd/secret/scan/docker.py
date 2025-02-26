@@ -61,6 +61,7 @@ def docker_name_cmd(
             cache=ctx_obj.cache,
             secret_config=config.user_config.secret,
             scan_context=scan_context,
+            exclusion_regexes=ctx_obj.exclusion_regexes,
         )
 
         return output_handler.process_scan(scan)
