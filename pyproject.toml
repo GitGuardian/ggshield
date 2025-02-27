@@ -62,13 +62,6 @@ ggshield = "ggshield.__main__:main"
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-[tool.pdm.dev-dependencies]
-
-
-standalone = [
-    "pyinstaller==6.7.0",
-]
-
 [tool.pdm.resolution.overrides]
 # vcrpy requires urllib3 < 2 if Python is < 3.10, but it works for us with
 # Python 3.9, so force urllib3 version.
@@ -150,6 +143,7 @@ dev = [
     "build>=1.2.2.post1",
     "check-wheel-contents",
     "ipython>=8.12.3",
+    "ipdb>=0.13.13",
 ]
 standalone = [
     "pyinstaller==6.7.0",
