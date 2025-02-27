@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 import subprocess
@@ -5,17 +7,14 @@ import tarfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List
+from typing import TYPE_CHECKING
 
 from click import UsageError
-from pygitguardian import GGClient
 
 from ggshield.core import ui
-from ggshield.core.cache import Cache
-from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import UnexpectedError
-from ggshield.core.scan import ScanContext, Scannable, StringScannable
+from ggshield.core.scan import Scannable, StringScannable
 from ggshield.core.scan.id_cache import IDCache
 from ggshield.core.scanner_ui import create_scanner_ui
 from ggshield.utils.files import is_path_binary
@@ -23,6 +22,15 @@ from ggshield.utils.files import is_path_binary
 from .secret_scan_collection import SecretScanCollection
 from .secret_scanner import SecretScanner
 
+
+if TYPE_CHECKING:
+    from typing import Any, Dict, Generator, Iterable, List, Set
+
+    from pygitguardian import GGClient
+
+    from ggshield.core.cache import Cache
+    from ggshield.core.config.user_config import SecretConfig
+    from ggshield.core.scan import ScanContext
 
 FILEPATH_BANLIST = [
     r"^/?usr/(?!share/nginx)",
@@ -42,6 +50,7 @@ FILEPATH_BANLIST = [
 FILEPATH_BANLIST_PATTERNS = {
     re.compile(banned_filepath) for banned_filepath in FILEPATH_BANLIST
 }
+# Note that FILEPATH_BANLIST_PATTERNS comes in addition to what's done in _exclude_callback
 
 LAYER_TO_SCAN_PATTERN = re.compile(r"\b(copy|add)\b", re.IGNORECASE)
 
@@ -225,7 +234,9 @@ class DockerImage:
         ]
         self.layer_infos = [x for x in layer_infos if x.should_scan()]
 
-    def get_layer_scannables(self, layer_info: LayerInfo) -> Iterable[Scannable]:
+    def get_layer_scannables(
+        self, layer_info: LayerInfo, exclusion_regexes: Set[re.Pattern[str]]
+    ) -> Iterable[Scannable]:
         """
         Extracts Scannable to be scanned for given layer.
         """
@@ -244,7 +255,9 @@ class DockerImage:
             if file_info.size == 0:
                 continue
 
-            if not _validate_filepath(filepath=file_info.path):
+            if not _validate_filepath(
+                filepath=file_info.path, exclusion_regexes=exclusion_regexes
+            ):
                 continue
 
             yield DockerContentScannable(layer_id, layer_archive, file_info)
@@ -252,9 +265,11 @@ class DockerImage:
 
 def _validate_filepath(
     filepath: str,
+    exclusion_regexes: Set[re.Pattern[str]],
 ) -> bool:
     if any(
-        banned_pattern.search(filepath) for banned_pattern in FILEPATH_BANLIST_PATTERNS
+        banned_pattern.search(filepath)
+        for banned_pattern in FILEPATH_BANLIST_PATTERNS | exclusion_regexes
     ):
         return False
 
@@ -328,6 +343,7 @@ def docker_scan_archive(
     cache: Cache,
     secret_config: SecretConfig,
     scan_context: ScanContext,
+    exclusion_regexes: Set[re.Pattern[str]],
 ) -> SecretScanCollection:
     scanner = SecretScanner(
         client=client,
@@ -347,7 +363,7 @@ def docker_scan_archive(
             )
 
         for info in docker_image.layer_infos:
-            files = list(docker_image.get_layer_scannables(info))
+            files = list(docker_image.get_layer_scannables(info, exclusion_regexes))
             file_count = len(files)
             if file_count == 0:
                 continue

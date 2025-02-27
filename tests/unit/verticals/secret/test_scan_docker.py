@@ -94,7 +94,7 @@ class TestDockerScan:
 
             # Fill layer_ids and layer_files
             for info in image.layer_infos:
-                if files := list(image.get_layer_scannables(info)):
+                if files := list(image.get_layer_scannables(info, set())):
                     layer_ids.append(info.diff_id)
                     layer_files.append(files)
 
