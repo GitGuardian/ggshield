@@ -7,7 +7,7 @@ from tests.unit.conftest import assert_invoke_ok, my_vcr
 
 
 @my_vcr.use_cassette
-def test_hmsl_api_status(cli_fs_runner: CliRunner, tmp_path: Path, no_api_key) -> None:
+def test_hmsl_api_status(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
     GIVEN our cli
     WHEN running the hmsl api-status command
