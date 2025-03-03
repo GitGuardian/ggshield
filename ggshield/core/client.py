@@ -8,7 +8,12 @@ from requests import Session
 
 from .config import Config
 from .constants import DEFAULT_INSTANCE_URL
-from .errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
+from .errors import (
+    APIKeyCheckError,
+    ServiceUnavailableError,
+    UnexpectedError,
+    UnknownInstanceError,
+)
 from .ui.client_callbacks import ClientCallbacks
 
 
@@ -103,9 +108,13 @@ def check_client_api_key(client: GGClient) -> None:
         raise APIKeyCheckError(client.base_uri, "Invalid API key.")
     elif response.status_code == 404:
         raise UnexpectedError(
-            "The server returned a 404 error. Check your instance URL" " settings."
+            "The server returned a 404 error. Check your instance URL settings.",
+        )
+    elif response.status_code is not None and 500 <= response.status_code < 600:
+        raise ServiceUnavailableError(
+            message=f"GitGuardian server is not responding.\nDetails: {response.detail}",
         )
     else:
         raise UnexpectedError(
-            f"Server is not responding as expected.\nDetails: {response.detail}"
+            f"GitGuardian server is not responding as expected.\nDetails: {response.detail}"
         )

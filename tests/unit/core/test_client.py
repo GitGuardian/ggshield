@@ -10,13 +10,18 @@ from pygitguardian.models import Detail
 
 from ggshield.core.client import check_client_api_key, create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
+from ggshield.core.errors import (
+    APIKeyCheckError,
+    ServiceUnavailableError,
+    UnexpectedError,
+    UnknownInstanceError,
+)
 
 
 @pytest.mark.parametrize(
     ("response", "error_class"),
     (
-        (Detail("Guru Meditation", 500), UnexpectedError),
+        (Detail("Guru Meditation", 500), ServiceUnavailableError),
         (Detail("Nobody here", 404), UnexpectedError),
         (Detail("Unauthorized", 401), APIKeyCheckError),
     ),
@@ -42,6 +47,7 @@ def test_check_client_api_key_network_error():
     """
     client_mock = Mock()
     client_mock.health_check = Mock(side_effect=requests.exceptions.ConnectionError)
+    client_mock.read_metadata = Mock(return_value=Detail("Not found", 404))
     with pytest.raises(UnexpectedError):
         check_client_api_key(client_mock)
 

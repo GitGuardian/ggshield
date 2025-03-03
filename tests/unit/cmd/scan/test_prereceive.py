@@ -2,6 +2,7 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from pygitguardian.models import Detail
 
 from ggshield.__main__ import cli
 from ggshield.core.config.user_config import SecretConfig
@@ -363,3 +364,27 @@ class TestPreReceive:
         )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
+
+    @patch(
+        "pygitguardian.client.GGClient.read_metadata",
+        return_value=Detail("Service is unavailable", 503),
+    )
+    def test_server_unavailable(self, _: Mock, tmp_path, cli_fs_runner: CliRunner):
+        """
+        GIVEN a repo on which the command is ran
+        WHEN the server is not responding (503)
+        THEN it should return 0
+        AND display an error message
+        """
+        # setting up repo to run the command
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        shas = [repo.create_commit() for _ in range(3)]
+        with cd(repo.path):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{old_sha} {shas[-1]} origin/main\n",
+            )
+        assert_invoke_ok(result)
+        assert "GitGuardian server is not responding" in result.output
