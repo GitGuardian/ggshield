@@ -1,20 +1,26 @@
 # Changelog
 
+<a id='changelog-1.37.0'></a>
+
+## 1.37.0 — 2025-03-03
+
+### Fixed
+
+- `ggshield secret scan docker` now correctly handles ignored paths (#548).
+
 <a id='changelog-1.36.0'></a>
 
 ## 1.36.0 — 2025-01-27
 
 ### Removed
 
-- SCA code and commands.
-
-- IaC code and commands.
+- `ggshield sca` and `ggshield iac` commands have been removed.
 
 ### Fixed
 
-- `--instance` param now handles input https://api.eu1.gitguardian.com/v1 or https://api.gitguardian.com/v1.
+- The `--instance` option now accepts both https://api.eu1.gitguardian.com/v1 or https://api.gitguardian.com/v1.
 
-- Fix `secret scan pre-commit` crashing on big merges (#1032).
+- Fix `ggshield secret scan pre-commit` crashing on big merges (#1032).
 
 <a id='changelog-1.35.0'></a>
 
@@ -22,7 +28,7 @@
 
 ### Added
 
-- The `--all-secrets` option to secret scans, allowing to display all found secrets, and their possible ignore reason.
+- `ggshield secret scan` now provides an `--all-secrets` option. When this option is set, it lists all found secrets and their possible ignore reason.
 
 ### Changed
 
