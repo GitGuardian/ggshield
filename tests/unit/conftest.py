@@ -1,9 +1,10 @@
+import json
 import os
 import platform
 import warnings
 from os.path import dirname, join, realpath
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 import pytest
 import vcr
@@ -604,6 +605,30 @@ DOCKER_EXAMPLE_LAYER_FILES = {
 }
 
 
+def _filter_vcr_response(response: Dict[str, Any]) -> Dict[str, Any]:
+    # Read content-type
+    headers = response["headers"]
+    for name in ("content-type", "Content-Type"):
+        try:
+            content_type = headers[name][0]
+            break
+        except KeyError:
+            pass
+    else:
+        # No content-type, let's assume it's not JSON
+        return response
+
+    # Remove token returned by calls to https://api.gitguardian.com/v1/auth/jwt.
+    # Unfortunately we don't have the URL of the request at this point. We only remove
+    # the token if it's the only field. If we don't we break honeytoken cassettes.
+    if content_type == "application/json":
+        content = json.loads(response["body"]["string"])
+        if isinstance(content, dict) and list(content.keys()) == ["token"]:
+            content["token"] = "<REDACTED>"
+            response["body"]["string"] = json.dumps(content).encode()
+    return response
+
+
 my_vcr = vcr.VCR(
     cassette_library_dir=join(dirname(realpath(__file__)), "cassettes"),
     path_transformer=vcr.VCR.ensure_suffix(".yaml"),
@@ -613,6 +638,7 @@ my_vcr = vcr.VCR(
     serializer="yaml",
     record_mode="once",
     filter_headers=["Authorization"],
+    before_record_response=_filter_vcr_response,
 )
 
 

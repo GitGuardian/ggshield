@@ -1,5 +1,63 @@
 interactions:
   - request:
+      body: '{"audience": "https://api.hasmysecretleaked.com", "audience_type": "hmsl"}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '74'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.20.0 (Linux;py3.11.8) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/auth/jwt
+    response:
+      body:
+        string: '{"token": "<REDACTED>"}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '741'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Thu, 27 Feb 2025 17:20:36 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.158.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '84'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.133.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
       body: '{"prefixes": []}'
       headers:
         Accept:
@@ -15,7 +73,7 @@ interactions:
         GGShield-HMSL-Command-Name:
           - cli_hmsl_quota
         User-Agent:
-          - GGShield 1.21.0
+          - GGShield 1.36.0
       method: POST
       uri: https://api.hasmysecretleaked.com/v1/prefixes
     response:
@@ -27,19 +85,19 @@ interactions:
         content-type:
           - application/json
         date:
-          - Tue, 28 Nov 2023 09:00:20 GMT
+          - Thu, 27 Feb 2025 17:20:36 GMT
         ratelimit-limit:
-          - '50'
+          - '10000'
         ratelimit-remaining:
-          - '8'
+          - '6502'
         ratelimit-reset:
-          - '53979'
+          - '23963'
         server:
           - istio-envoy
         x-app-version:
-          - 1.9.0
+          - 1.12.11
         x-envoy-upstream-service-time:
-          - '8'
+          - '9'
       status:
         code: 200
         message: OK

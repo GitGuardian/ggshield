@@ -8,9 +8,7 @@ from tests.unit.conftest import assert_invoke_ok, my_vcr
 
 
 @my_vcr.use_cassette
-def test_hmsl_check_random_secret(
-    cli_fs_runner: CliRunner, tmp_path: Path, no_api_key
-) -> None:
+def test_hmsl_check_random_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
     GIVEN a random secret
     WHEN running the check command on it
@@ -26,9 +24,7 @@ def test_hmsl_check_random_secret(
 
 
 @my_vcr.use_cassette
-def test_hmsl_check_common_secret(
-    cli_fs_runner: CliRunner, tmp_path: Path, no_api_key
-) -> None:
+def test_hmsl_check_common_secret(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
     GIVEN a common secret
     WHEN running the check command on it
@@ -47,9 +43,7 @@ def test_hmsl_check_common_secret(
 
 
 @my_vcr.use_cassette
-def test_hmsl_check_full_hash(
-    cli_fs_runner: CliRunner, tmp_path: Path, no_api_key
-) -> None:
+def test_hmsl_check_full_hash(cli_fs_runner: CliRunner, tmp_path: Path) -> None:
     """
     GIVEN a common secret
     WHEN running the check command on it with full hash option

@@ -1,5 +1,63 @@
 interactions:
   - request:
+      body: '{"audience": "https://api.hasmysecretleaked.com", "audience_type": "hmsl"}'
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        Content-Length:
+          - '74'
+        Content-Type:
+          - application/json
+        User-Agent:
+          - pygitguardian/1.20.0 (Linux;py3.11.8) ggshield
+      method: POST
+      uri: https://api.gitguardian.com/v1/auth/jwt
+    response:
+      body:
+        string: '{"token": "<REDACTED>"}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - POST, OPTIONS
+        content-length:
+          - '741'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Thu, 27 Feb 2025 17:20:35 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.158.0
+        x-content-type-options:
+          - nosniff
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '65'
+        x-frame-options:
+          - DENY
+          - SAMEORIGIN
+        x-secrets-engine-version:
+          - 2.133.0
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
       body: '{"hashes": ["743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47"]}'
       headers:
         Accept:
@@ -15,31 +73,31 @@ interactions:
         GGShield-HMSL-Command-Name:
           - cli_hmsl_query
         User-Agent:
-          - GGShield 1.21.0
+          - GGShield 1.36.0
       method: POST
       uri: https://api.hasmysecretleaked.com/v1/hashes
     response:
       body:
-        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":2135,"location":null}]}'
+        string: '{"secrets":[{"hash":"743d9fde380b7064cc6a8d3071184fc47905cf7440e5615cd46c7b6cbfb46d47","count":3637,"location":null}]}'
       headers:
         content-length:
           - '118'
         content-type:
           - application/json
         date:
-          - Tue, 28 Nov 2023 09:00:19 GMT
+          - Thu, 27 Feb 2025 17:20:35 GMT
         ratelimit-limit:
-          - '50'
+          - '10000'
         ratelimit-remaining:
-          - '8'
+          - '6502'
         ratelimit-reset:
-          - '53980'
+          - '23964'
         server:
           - istio-envoy
         x-app-version:
-          - 1.9.0
+          - 1.12.11
         x-envoy-upstream-service-time:
-          - '70'
+          - '14'
       status:
         code: 200
         message: OK

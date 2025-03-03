@@ -203,24 +203,27 @@ def run_tests() -> None:
     if "GITGUARDIAN_API_KEY" not in os.environ:
         fail("Environment variable $GITGUARDIAN_API_KEY is not set")
 
-    # If CASSETTES_DIR does not exist, tests fail, so recreate it
-    log_progress("Removing cassettes")
-    shutil.rmtree(CASSETTES_DIR)
-    CASSETTES_DIR.mkdir()
+    try:
+        # If CASSETTES_DIR does not exist, tests fail, so recreate it
+        log_progress("Removing cassettes")
+        shutil.rmtree(CASSETTES_DIR)
+        CASSETTES_DIR.mkdir()
 
-    # Start the hashicorp Vault server for HMSL tests
-    start_hashicorp_vault_server()
+        # Start the hashicorp Vault server for HMSL tests
+        log_progress("Starting Hashicorp server for HMSL tests")
+        start_hashicorp_vault_server()
 
-    log_progress("Running unit tests")
-    check_run(["pytest", "tests/unit"], cwd=ROOT_DIR)
+        log_progress("Running unit tests")
+        check_run(["pytest", "tests/unit"], cwd=ROOT_DIR)
 
-    log_progress("Running functional tests")
-    check_run(["pytest", "tests/functional"], cwd=ROOT_DIR)
+        log_progress("Running functional tests")
+        check_run(["pytest", "tests/functional"], cwd=ROOT_DIR)
+    finally:
+        log_progress("Restoring cassettes")
+        check_run(["git", "restore", CASSETTES_DIR], cwd=ROOT_DIR)
 
-    log_progress("Restoring cassettes")
-    check_run(["git", "restore", CASSETTES_DIR], cwd=ROOT_DIR)
-
-    stop_hashicorp_vault_server()
+        log_progress("Stopping Hashicorp server")
+        stop_hashicorp_vault_server()
 
 
 def replace_once_in_file(path: Path, src: str, dst: str, flags: int = 0) -> None:

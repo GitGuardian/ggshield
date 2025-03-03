@@ -155,7 +155,7 @@ class TestDockerCMD:
 
         docker_image_open_mock.return_value.__enter__.return_value = docker_image
 
-        with my_vcr.use_cassette("test_scan_file_secret"):
+        with my_vcr.use_cassette(f"test_docker_scan_archive-{ignore_secret_file}"):
             json_arg = ["--json"] if json_output else []
             cli_fs_runner.mix_stderr = False
             if ignore_secret_file:
