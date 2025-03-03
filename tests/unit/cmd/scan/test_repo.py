@@ -1,3 +1,7 @@
+from unittest.mock import Mock, patch
+
+from requests import Response
+
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with
@@ -35,3 +39,28 @@ class TestScanRepo:
             "Error: trial.gitguardian.com/gitguardian/ggshield is"
             " neither a valid path nor a git URL" in result.output
         )
+
+    @patch("pygitguardian.client.GGClient.read_metadata")
+    def test_server_unavailable(
+        self,
+        read_metadata_mock: Mock,
+        cli_fs_runner,
+    ):
+        """
+        GIVEN a server that is unavailable
+        WHEN scan repo is called
+        THEN it should return 0
+        """
+
+        # Set up the mock to return a 503 response
+        response = Response()
+        response.status_code = 503
+        response.detail = "Service Temporarily Unavailable"
+        read_metadata_mock.return_value = response
+
+        result = cli_fs_runner.invoke(
+            cli,
+            ["secret", "scan", "repo", "https://github.com/gitguardian/ggshield.git"],
+        )
+        assert "Server is not responding" in result.output
+        assert_invoke_exited_with(result, ExitCode.SERVER_UNAVAILABLE)
