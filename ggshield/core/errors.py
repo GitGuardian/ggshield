@@ -33,6 +33,8 @@ class ExitCode(IntEnum):
     USAGE_ERROR = 2
     # auth subcommand failed
     AUTHENTICATION_ERROR = 3
+    # GitGuardian server is not responding
+    GITGUARDIAN_SERVER_UNAVAILABLE = 4
 
     # Add new exit codes here.
     # If you add a new exit code, make sure you also add it to the documentation.
@@ -131,6 +133,15 @@ class APIKeyCheckError(AuthError):
 
     def __init__(self, instance: str, message: str):
         super().__init__(instance, message)
+
+
+class ServiceUnavailableError(_ExitError):
+    """
+    Raised when the server is unavailable
+    """
+
+    def __init__(self, message: str):
+        super().__init__(ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE, message)
 
 
 def format_validation_error(exc: ValidationError) -> str:

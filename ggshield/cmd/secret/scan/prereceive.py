@@ -17,7 +17,7 @@ from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.errors import handle_exception
+from ggshield.core.errors import ExitCode, handle_exception
 from ggshield.core.git_hooks.prereceive import (
     get_breakglass_option,
     get_prereceive_timeout,
@@ -136,6 +136,9 @@ def prereceive_cmd(
     if process.is_alive() or process.exitcode is None:
         ui.display_error("\nPre-receive hook took too long")
         process.kill()
+        return 0
+    if process.exitcode == ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE:
+        ui.display_error("\nGitGuardian server is not responding. Skipping checks.")
         return 0
 
     return process.exitcode
