@@ -111,7 +111,7 @@ def test_precommit_with_emoji_filename(tmp_path, cli_fs_runner):
     THEN it executes successfully
     """
     # Set up repository
-    repo = Repository.create(tmp_path, initial_branch="main")
+    repo = Repository.create(tmp_path)
 
     # Create a file with emoji in the name
     emoji_file = tmp_path / "my_😊_emoji_file.txt"
