@@ -1,5 +1,6 @@
 import logging
 import os
+import platform
 import re
 import subprocess
 from enum import Enum
@@ -204,8 +205,15 @@ def git(
     try:
         logger.debug("command=%s timeout=%d", command, timeout)
         result = subprocess.run(
-            [_get_git_path(), "-c", "core.quotePath=false", "-c", "core.longpaths=true"]
-            + command,
+            (
+                [_get_git_path(), "-c", "core.quotePath=false"]
+                + (
+                    ["-c", "core.longpaths=true"]
+                    if platform.system() == "Windows"
+                    else []
+                )
+                + command
+            ),
             check=check,
             capture_output=True,
             timeout=timeout,

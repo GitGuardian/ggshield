@@ -1,4 +1,6 @@
 import os
+import platform
+import subprocess
 import tarfile
 from io import BytesIO
 from pathlib import Path
@@ -442,3 +444,37 @@ def test_git_ls_unstaged(tmp_path):
     # as relative to repo.path
     expected_paths = {x.relative_to(repo.path) for x in (repo_file, submodule_file)}
     assert {Path(x) for x in unstaged_files} == expected_paths
+
+
+def test_git_command_includes_longpaths_on_windows(monkeypatch):
+    # GIVEN a mock for subprocess.run
+    commands_run = []
+
+    def mock_subprocess_run(args, **kwargs):
+        commands_run.append(args)
+
+        # Create a minimal mock result
+        class Result:
+            def __init__(self):
+                self.stdout = b""
+                self.stderr = b""
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+
+    # WHEN executing any git command
+    git(["status"])
+
+    # THEN the command includes core.longpaths=true if on Windows
+    assert len(commands_run) == 1
+    command = commands_run[0]
+    longpaths_included = any(param == "core.longpaths=true" for param in command)
+    if platform.system() == "Windows":
+        assert (
+            longpaths_included
+        ), f"core.longpaths=true not found in command: {command}"
+    else:
+        assert (
+            not longpaths_included
+        ), f"core.longpaths=true found in command: {command}"
