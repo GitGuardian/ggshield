@@ -196,7 +196,8 @@ def main(args: Optional[List[str]] = None) -> Any:
     multiprocessing.freeze_support()
 
     log_utils.disable_logs()
-    if sys.stderr.isatty():
+
+    if not os.getenv("GG_PLAINTEXT_OUTPUT", False) and sys.stderr.isatty():
         ui.set_ui(RichGGShieldUI())
 
     force_utf8_output()
