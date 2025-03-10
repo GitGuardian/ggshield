@@ -197,9 +197,8 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     log_utils.disable_logs()
 
-    if not os.getenv("DISABLE_GGSHIELD_OUTPUT", False):
-        if sys.stderr.isatty():
-            ui.set_ui(RichGGShieldUI())
+    if not os.getenv("GG_PLAINTEXT_OUTPUT", False) and sys.stderr.isatty():
+        ui.set_ui(RichGGShieldUI())
 
     force_utf8_output()
 
