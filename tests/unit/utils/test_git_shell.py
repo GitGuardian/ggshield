@@ -1,8 +1,10 @@
 import os
+import platform
 import tarfile
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -442,3 +444,22 @@ def test_git_ls_unstaged(tmp_path):
     # as relative to repo.path
     expected_paths = {x.relative_to(repo.path) for x in (repo_file, submodule_file)}
     assert {Path(x) for x in unstaged_files} == expected_paths
+
+
+@patch("subprocess.run", return_value=Mock(stdout=b""))
+def test_git_command_includes_longpaths_on_windows(mock_run):
+    # GIVEN any git command
+    git(["status"])
+    mock_run.assert_called_once()
+
+    # THEN the command includes core.longpaths=true if on Windows
+    command = mock_run.call_args[0][0]
+    longpaths_included = any(param == "core.longpaths=true" for param in command)
+    if platform.system() == "Windows":
+        assert (
+            longpaths_included
+        ), f"core.longpaths=true not found in command: {command}"
+    else:
+        assert (
+            not longpaths_included
+        ), f"core.longpaths=true found in command: {command}"
