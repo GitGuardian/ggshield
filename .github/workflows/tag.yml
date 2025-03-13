@@ -82,6 +82,12 @@ jobs:
             packages/ggshield-*.zip \
             packages/ggshield-*.gz
 
+      - name: Update VSCode extension
+        uses: ./.github/workflows/update_vscode_extension.yml
+        with:
+          version: ${{ steps.tags.outputs.tag }}
+          secrets: inherit
+
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-22.04
