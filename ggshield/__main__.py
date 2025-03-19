@@ -137,11 +137,6 @@ def _set_color(ctx: click.Context):
 def _display_deprecation_message(cfg: Config) -> None:
     for message in cfg.user_config.deprecation_messages:
         ui.display_warning(message)
-    if sys.version_info < (3, 9):
-        ui.display_warning(
-            "Python 3.8 is no longer supported by the Python Software Foundation. "
-            "GGShield will soon require Python 3.9 or above to run."
-        )
 
 
 def _check_for_updates(check_for_updates: bool) -> None:

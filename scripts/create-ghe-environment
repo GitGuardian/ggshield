@@ -6,7 +6,6 @@ PROGNAME=$(basename "$0")
 ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
 
 declare -A DISTRIB_FOR_GHE_VERSION
-DISTRIB_FOR_GHE_VERSION["3.8"]="buster"
 DISTRIB_FOR_GHE_VERSION["3.9"]="buster"
 DISTRIB_FOR_GHE_VERSION["3.10"]="buster"
 DISTRIB_FOR_GHE_VERSION["3.11"]="bookworm"

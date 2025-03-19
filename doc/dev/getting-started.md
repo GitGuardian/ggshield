@@ -71,7 +71,7 @@ Run `make lint` to run all configured linters at once.
 
 ## Python version
 
-We're committed to support Python 3.8+ for now.
+We're committed to support Python 3.9+ for now.
 
 ## Opening a pull request
 
