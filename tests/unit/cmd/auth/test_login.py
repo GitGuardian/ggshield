@@ -1,5 +1,4 @@
 import json
-import sys
 import urllib.parse as urlparse
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum, auto
@@ -602,12 +601,6 @@ class TestAuthLoginWeb:
             'You do not need to run "ggshield auth login" again. Future requests will automatically use the token.\n'
         )
 
-        if sys.version_info < (3, 9):
-            message += (
-                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
-                "GGShield will soon require Python 3.9 or above to run.\n"
-            )
-
         assert output.endswith(message)
 
         self._assert_config("mysupertoken")
@@ -804,11 +797,6 @@ class TestAuthLoginWeb:
         """
         assert that the last log output is the same as the one passed in param
         """
-        if sys.version_info < (3, 9) and "Error:" not in expected_str:
-            expected_str += (
-                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
-                "GGShield will soon require Python 3.9 or above to run.\n"
-            )
         assert output.endswith(expected_str)
 
     def _assert_open_url(
@@ -938,11 +926,6 @@ class TestAuthLoginWeb:
         exit_code, output = self.run_cmd(cli_fs_runner, method=method)
         assert exit_code > 0, output
         self._webbrowser_open_mock.assert_not_called()
-        if sys.version_info < (3, 9) and "Error:" not in expected_error:
-            expected_error += (
-                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
-                "GGShield will soon require Python 3.9 or above to run.\n"
-            )
         self._assert_last_print(output, expected_error)
 
     @pytest.mark.parametrize(

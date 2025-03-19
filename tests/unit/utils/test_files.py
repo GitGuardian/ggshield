@@ -1,5 +1,4 @@
 import re
-import sys
 import tarfile
 from io import BytesIO
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
@@ -24,9 +23,7 @@ def test_get_empty_tar():
     tar_stream = BytesIO(empty_tar_bytes)
 
     # THEN the file is considered as a .tar
-    # `tarfile.is_tarfile` won't work until Python 3.9
-    if sys.version_info >= (3, 9):
-        assert tarfile.is_tarfile(tar_stream)
+    assert tarfile.is_tarfile(tar_stream)
 
     # AND it contains no file
     with tarfile.open(fileobj=tar_stream, mode="w:gz") as tar:

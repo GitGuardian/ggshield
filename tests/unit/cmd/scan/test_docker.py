@@ -1,6 +1,5 @@
 import json
 import re
-import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -90,11 +89,6 @@ class TestDockerCMD:
         assert_invoke_ok(result)
 
         expected_output = ""
-        if sys.version_info < (3, 9):
-            expected_output += (
-                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
-                "GGShield will soon require Python 3.9 or above to run.\n"
-            )
         assert result.output == expected_output
 
     @patch("ggshield.cmd.secret.scan.docker.docker_save_to_tmp")

@@ -1,7 +1,7 @@
 #!/bin/sh
 # ggshield as a pre-commit hook
 # Requirements:
-# python >= 3.8, pip
+# python >= 3.9, pip
 # Installation instructions:
 # Run: pip install ggshield
 # Move `pre-receive.sample` to `.git/hooks/pre-receive`

@@ -1,4 +1,3 @@
-import sys
 from typing import Optional, Tuple
 from unittest.mock import Mock
 
@@ -80,12 +79,6 @@ class TestAuthLogout:
             expected_output += (
                 "Your personal access token has been removed "
                 "from your configuration.\n"
-            )
-
-        if sys.version_info < (3, 9):
-            expected_output += (
-                "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
-                "GGShield will soon require Python 3.9 or above to run.\n"
             )
 
         assert output == expected_output

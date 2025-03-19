@@ -1,5 +1,4 @@
 import json
-import sys
 from datetime import datetime, timezone
 from typing import Tuple
 
@@ -51,11 +50,6 @@ expiry: not set
 
 
 def _check_expected_output(output: str, expected_output: str):
-    if sys.version_info < (3, 9) and "Error:" not in expected_output:
-        expected_output += (
-            "Warning: Python 3.8 is no longer supported by the Python Software Foundation. "
-            "GGShield will soon require Python 3.9 or above to run.\n"
-        )
     assert output == expected_output
 
 
