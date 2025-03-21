@@ -54,6 +54,8 @@ jobs:
           - os: ubuntu-22.04
             # When building on Linux we use a container to build using an old enough version
             container: rockylinux/rockylinux:8
+            sha256sum:
+              python: e8d7ed8c6f8c6f85cd083d5051cafd8c6c01d09eca340d1da74d0c00ff1cb897
           - os: windows-2022
           - os: macos-13
             arch: x86_64
@@ -91,11 +93,22 @@ jobs:
 
           # Install necessary packages
           yum install -y \
-            python3.9 \
             git-core \
             findutils
 
-          echo PYTHON_CMD=/usr/bin/python3.9 >> $GITHUB_ENV
+          # Install Python 3.10 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
+          PYTHON_VERSION=3.10.16
+          PYTHON_BUILD=20250317
+          scripts/download \
+            https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz \
+            python.tar.gz \
+            ${{ matrix.sha256sum.python }}
+
+          tar xf python.tar.gz
+
+          # Make Python available
+          echo PATH=$PWD/python/bin:$PATH >> $GITHUB_ENV
+          echo PYTHON_CMD=$PWD/python/bin/python >> $GITHUB_ENV
 
           # Install NFPM
           NFPM_VERSION=2.36.1
