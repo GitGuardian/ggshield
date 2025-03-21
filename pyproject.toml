@@ -49,6 +49,7 @@ dependencies = [
     "rich~=12.5.1",
     "typing-extensions~=4.12.2",
     "urllib3~=2.2.2",
+    "truststore>=0.10.1; python_version >= \"3.10\"",
 ]
 
 [project.urls]

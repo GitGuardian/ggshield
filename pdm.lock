@@ -5,7 +5,7 @@
 groups = ["default", "dev", "standalone", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:7bf5b6ed96fe8e05e0e70e51d58373e9a53273632c5a1f419deb4104454a368a"
+content_hash = "sha256:d28146ab5c332796d72134c95254e9352a7eec1259f09bd2abd71d445656533e"
 
 [[metadata.targets]]
 requires_python = ">=3.9"
@@ -2210,6 +2210,18 @@ groups = ["dev"]
 files = [
     {file = "traitlets-5.14.3-py3-none-any.whl", hash = "sha256:b74e89e397b1ed28cc831db7aea759ba6640cb3de13090ca145426688ff1ac4f"},
     {file = "traitlets-5.14.3.tar.gz", hash = "sha256:9ed0579d3502c94b4b3732ac120375cda96f923114522847de4b3bb98b96b6b7"},
+]
+
+[[package]]
+name = "truststore"
+version = "0.10.1"
+requires_python = ">=3.10"
+summary = "Verify certificates using native system trust stores"
+groups = ["default"]
+marker = "python_version >= \"3.10\""
+files = [
+    {file = "truststore-0.10.1-py3-none-any.whl", hash = "sha256:b64e6025a409a43ebdd2807b0c41c8bff49ea7ae6550b5087ac6df6619352d4c"},
+    {file = "truststore-0.10.1.tar.gz", hash = "sha256:eda021616b59021812e800fa0a071e51b266721bef3ce092db8a699e21c63539"},
 ]
 
 [[package]]
