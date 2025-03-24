@@ -179,6 +179,17 @@ def force_utf8_output():
         out.reconfigure(encoding="utf-8")
 
 
+def setup_truststore():
+    """Use the system certificates instead of the ones bundled by certifi"""
+    if sys.version_info < (3, 10):
+        # truststore requires Python 3.10
+        return
+
+    import truststore
+
+    truststore.inject_into_ssl()
+
+
 def main(args: Optional[List[str]] = None) -> Any:
     """
     Wrapper around cli.main() to handle the GITGUARDIAN_CRASH_LOG variable.
@@ -196,6 +207,7 @@ def main(args: Optional[List[str]] = None) -> Any:
         ui.set_ui(RichGGShieldUI())
 
     force_utf8_output()
+    setup_truststore()
 
     show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)
