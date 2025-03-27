@@ -1,5 +1,27 @@
 # Changelog
 
+<a id='changelog-1.38.0'></a>
+
+## 1.38.0 — 2025-03-27
+
+### Removed
+
+- Removed support for python 3.8.
+
+### Added
+
+- ggshield now uses the system certificates instead of the bundled ones. Note that this only works with Python >= 3.10 (#1067).
+
+### Changed
+
+- Pre-receive hook isn't blocking anymore when GitGuardian server is temporarily unavailable (return 5xx status code).
+
+### Fixed
+
+- Files with emojis in their name are now handled properly.
+
+- Fix ggshield crashing on Windows when doing big merges (#1032).
+
 <a id='changelog-1.37.0'></a>
 
 ## 1.37.0 — 2025-03-03
