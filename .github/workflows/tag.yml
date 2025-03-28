@@ -39,6 +39,8 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build_release_assets
     continue-on-error: true
+    outputs:
+      tag: ${{ steps.tags.outputs.tag }}
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
 
     # This is required for `gh release create` to work
@@ -82,11 +84,12 @@ jobs:
             packages/ggshield-*.zip \
             packages/ggshield-*.gz
 
-      - name: Update VSCode extension
-        uses: ./.github/workflows/update_vscode_extension.yml
-        with:
-          version: ${{ steps.tags.outputs.tag }}
-          secrets: inherit
+  update_vscode_extension:
+    needs: release
+    uses: ./.github/workflows/update_vscode_extension.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.release.outputs.tag }}
 
   push_to_docker_hub:
     name: Push Docker image to Docker Hub
