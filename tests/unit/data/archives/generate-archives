@@ -20,12 +20,14 @@ set -euo pipefail
 cd "$(dirname "$0")"
 BAD_ZIP=$PWD/bad.zip
 BAD_TAR=$PWD/bad.tar
+BAD_JAR=$PWD/bad.jar
 
 GOOD_ZIP=$PWD/good.zip
 GOOD_WHL=$PWD/good.whl
 GOOD_TAR=$PWD/good.tar
+GOOD_JAR=$PWD/good.jar
 
-rm -f "$BAD_ZIP" "$BAD_TAR" "$GOOD_ZIP" "$GOOD_TAR" "$GOOD_WHL"
+rm -f "$BAD_ZIP" "$BAD_TAR" "$BAD_JAR" "$GOOD_ZIP" "$GOOD_TAR" "$GOOD_WHL" "$GOOD_JAR"
 
 rm -rf work
 mkdir -p work/archive-root
@@ -52,6 +54,11 @@ mkdir -p work/archive-root/subdir
     ZIP_CMD="7z a"
     7z a -spf -snl "$BAD_ZIP" ../bad-relative /tmp/bad-absolute . > /dev/null
     7z a "$GOOD_ZIP" fine subdir/fine-symlink > /dev/null
+    
+    # A .jar is a .zip with a different extension
+
+    cp "$BAD_ZIP" "$BAD_JAR"
+    cp "$GOOD_ZIP" "$GOOD_JAR"
 
     # A .whl is a .zip with a different extension
     cp "$GOOD_ZIP" "$GOOD_WHL"
@@ -65,6 +72,8 @@ rm -rf work
 echo "Generated:
 $BAD_ZIP
 $BAD_TAR
+$BAD_JAR
 $GOOD_ZIP
 $GOOD_WHL
-$GOOD_TAR"
+$GOOD_TAR
+$GOOD_JAR"

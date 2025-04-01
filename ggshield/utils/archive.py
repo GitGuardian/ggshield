@@ -46,7 +46,7 @@ def safe_unpack(archive: Path, extract_dir: Path) -> None:
     check_archive_content(archive)
 
     # unpack_archive does not know .whl files are zip files
-    archive_format = "zip" if archive.suffix == ".whl" else None
+    archive_format = "zip" if archive.suffix in {".whl", ".jar"} else None
 
     shutil.unpack_archive(archive, extract_dir, format=archive_format)
 
@@ -55,7 +55,7 @@ def check_archive_content(archive: Path) -> None:
     """
     Check `archive` safety, raise `UnsafeArchive` if it is unsafe.
     """
-    if archive.suffix in {".zip", ".whl"}:
+    if archive.suffix in {".zip", ".whl", ".jar"}:
         _check_zip_content(archive)
     else:
         _check_tar_content(archive)
