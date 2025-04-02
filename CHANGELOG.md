@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.38.1'></a>
+
+## 1.38.1 — 2025-04-02
+
+### Added
+
+- ggshield can now scan .jar files using `ggshield secret scan archive`.
+
 <a id='changelog-1.38.0'></a>
 
 ## 1.38.0 — 2025-03-27
