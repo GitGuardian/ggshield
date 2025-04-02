@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+    echo $* >&2
+    exit 1
+}
+
+if [ -z "${CHOCOLATEY_API_KEY:-}" ] ; then
+    die '$CHOCOLATEY_API_KEY is not set'
+fi
+
+if ! command -v unzip > /dev/null ; then
+    apt update
+    apt install unzip
+fi
+
+zip_name=$(ls packages)
+unzip packages/$zip_name -d packages
+
+version=$(echo "$zip_name" | grep -oP '(?<=ggshield-)[0-9.]+')
+
+mkdir ggshield-package
+mkdir ggshield-package/tools
+
+mv packages/*/_internal ggshield-package/tools
+mv packages/*/ggshield.exe ggshield-package/tools
+cp scripts/push-to-chocolatey/ggshield.nuspec ggshield-package
+sed -i "s/__VERSION__/$version/" ggshield-package/ggshield.nuspec
+
+cd ggshield-package
+choco pack
+
+choco push ggshield.$version.nupkg --source https://push.chocolatey.org/ --api-key $CHOCOLATEY_API_KEY
