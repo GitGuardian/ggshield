@@ -16,12 +16,14 @@ from tests.unit.conftest import DATA_PATH
 ARCHIVES_PATH = DATA_PATH / "archives"
 BAD_ZIP_PATH = ARCHIVES_PATH / "bad.zip"
 BAD_TAR_PATH = ARCHIVES_PATH / "bad.tar"
+BAD_JAR_PATH = ARCHIVES_PATH / "bad.jar"
 GOOD_ZIP_PATH = ARCHIVES_PATH / "good.zip"
 GOOD_WHL_PATH = ARCHIVES_PATH / "good.whl"
 GOOD_TAR_PATH = ARCHIVES_PATH / "good.tar"
+GOOD_JAR_PATH = ARCHIVES_PATH / "good.jar"
 
 """
-Both bad.zip and bad.tar have the same content:
+Both bad.zip, bad.tar, and bad.jar have the same content:
 
 ./
 ./fine
@@ -34,7 +36,7 @@ Both bad.zip and bad.tar have the same content:
 """
 
 
-@pytest.mark.parametrize("archive", [BAD_ZIP_PATH, BAD_TAR_PATH])
+@pytest.mark.parametrize("archive", [BAD_ZIP_PATH, BAD_TAR_PATH, BAD_JAR_PATH])
 def test_check_archive_content_raises_exception(archive: Path):
     """
     GIVEN a bad archive
@@ -62,7 +64,9 @@ def test_check_archive_content_raises_exception(archive: Path):
     assert "bad-absolute-symlink" in message
 
 
-@pytest.mark.parametrize("archive", [GOOD_ZIP_PATH, GOOD_WHL_PATH, GOOD_TAR_PATH])
+@pytest.mark.parametrize(
+    "archive", [GOOD_ZIP_PATH, GOOD_WHL_PATH, GOOD_TAR_PATH, GOOD_JAR_PATH]
+)
 def test_check_safe_unpack(tmp_path: Path, archive: Path):
     """
     GIVEN a good archive

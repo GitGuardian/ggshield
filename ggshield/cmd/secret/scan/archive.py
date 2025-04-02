@@ -34,7 +34,7 @@ def archive_cmd(
     **kwargs: Any,
 ) -> int:  # pragma: no cover
     """
-    Scan an archive file. Supported archive formats are zip, tar, tar.gz, tar.bz2 and tar.xz.
+    Scan an archive file. Supported archive formats are zip, whl, jar, tar, tar.gz, tar.bz2 and tar.xz.
     """
     with tempfile.TemporaryDirectory(suffix="ggshield") as temp_dir:
         temp_path = Path(temp_dir)
