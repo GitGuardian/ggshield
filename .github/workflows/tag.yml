@@ -124,34 +124,6 @@ jobs:
           tag_with_ref: true
           tags: latest
 
-  push_to_tap:
-    needs: push_to_pypi
-    name: Push to GitGuardian taps
-    runs-on: ubuntu-22.04
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-    steps:
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.9
-
-      - name: Checkout Homebrew-tap
-        uses: actions/checkout@v4
-        with:
-          repository: GitGuardian/homebrew-tap
-          token: ${{ secrets.PAT_GITHUB }}
-
-      - name: Update Homebrew-tap
-        run: |
-          version=${GITHUB_REF/refs\/tags\/v/}
-
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-
-          scripts/update-ggshield --commit "$version"
-
-          git push
-
   push_to_cloudsmith:
     needs: build_release_assets
     runs-on: ubuntu-22.04
