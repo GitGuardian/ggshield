@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>ggshield</id>
+    <version>__VERSION__</version>
+    <owners>GitGuardian</owners>
+    <title>GGShield</title>
+    <authors>GitGuardian</authors>
+    <projectUrl>https://github.com/GitGuardian/ggshield</projectUrl>
+    <iconUrl>https://avatars.githubusercontent.com/u/27360172</iconUrl>
+    <licenseUrl>https://raw.githubusercontent.com/GitGuardian/ggshield/refs/heads/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/GitGuardian/ggshield</projectSourceUrl>
+    <docsUrl>https://docs.gitguardian.com/ggshield-docs/getting-started</docsUrl>
+    <tags>ggshield</tags>
+    <summary>ggshield is a CLI application that helps you detect secrets.</summary>
+    <description>
+ggshield is a CLI application that runs in your local environment or in a CI environment to help you detect more than 400+ types of secrets.
+
+ggshield is open source on GitHub and accessible [here](https://github.com/GitGuardian/ggshield).
+
+ggshield can run:
+
+- in your local environment to scan local files and repositories or as a pre-commit hook.
+- in a CI environment,
+- in a pre-receive hook, if you have a self-managed VCS instance
+
+Note: ggshield uses our public API through py-gitguardian to scan files. Only metadata such as call time, request size and scan mode is stored when launching a scan with ggshield, therefore secrets incidents will not be displayed on your dashboard and your files and secrets won't be stored.
+    </description>
+    <releaseNotes>https://raw.githubusercontent.com/GitGuardian/ggshield/refs/heads/main/CHANGELOG.md</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
