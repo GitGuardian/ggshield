@@ -1,0 +1,31 @@
+VERIFICATION
+Verification is intended to assist the Chocolatey moderators and community
+in verifying that this package's contents are trustworthy.
+
+1. Go to the releases page and download the windows package for the relevant version:
+https://github.com/GitGuardian/ggshield/releases
+
+2. Extract the archive
+
+3. Get the hashes from both the downloaded release and the choco package. The hashes should match.
+
+To verify all files, you can use the following powershell script:
+
+$folder1 = "C:\Absolute\Path\To\Folder1"
+$folder2 = "C:\Absolute\Path\To\Folder2"
+
+$hashes1 = Get-ChildItem -Path $folder1 -Recurse -File | ForEach-Object {
+    [PSCustomObject]@{
+        RelativePath = $_.FullName.Substring($folder1.Length).TrimStart('\')
+        Hash = (Get-FileHash $_.FullName).Hash
+    }
+}
+
+$hashes2 = Get-ChildItem -Path $folder2 -Recurse -File | ForEach-Object {
+    [PSCustomObject]@{
+        RelativePath = $_.FullName.Substring($folder2.Length).TrimStart('\')
+        Hash = (Get-FileHash $_.FullName).Hash
+    }
+}
+
+Compare-Object -ReferenceObject $hashes1 -DifferenceObject $hashes2 -Property RelativePath, Hash
