@@ -11,6 +11,7 @@
     <licenseUrl>https://raw.githubusercontent.com/GitGuardian/ggshield/refs/heads/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/GitGuardian/ggshield</projectSourceUrl>
+    <packageSourceUrl>https://github.com/GitGuardian/ggshield/tree/main/scripts/push-to-chocolatey</packageSourceUrl>
     <docsUrl>https://docs.gitguardian.com/ggshield-docs/getting-started</docsUrl>
     <tags>ggshield</tags>
     <summary>ggshield is a CLI application that helps you detect secrets.</summary>

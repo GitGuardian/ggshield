@@ -26,6 +26,7 @@ mkdir ggshield-package/tools
 mv packages/*/_internal ggshield-package/tools
 mv packages/*/ggshield.exe ggshield-package/tools
 cp scripts/push-to-chocolatey/ggshield.nuspec ggshield-package
+cp scripts/push-to-chocolatey/VERIFICATION.txt ggshield-package
 sed -i "s/__VERSION__/$version/" ggshield-package/ggshield.nuspec
 
 cd ggshield-package
