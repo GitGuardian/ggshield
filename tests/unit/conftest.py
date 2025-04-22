@@ -592,6 +592,7 @@ DOCKER_EXAMPLE_PATH = DATA_PATH / "docker-example.tar.xz"
 DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH = (
     DATA_PATH / "docker-incomplete-manifest-example.tar.xz"
 )
+DOCKER_EXAMPLE_TAR_GZ_LAYER_PATH = DATA_PATH / "docker-tar-gz-layer.tar.xz"
 
 # Format is { layer_id: { path: content }}
 DOCKER_EXAMPLE_LAYER_FILES = {

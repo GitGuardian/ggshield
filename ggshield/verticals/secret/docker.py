@@ -241,7 +241,7 @@ class DockerImage:
         Extracts Scannable to be scanned for given layer.
         """
         layer_filename = layer_info.filename
-        layer_archive = tarfile.TarFile(
+        layer_archive = tarfile.open(
             name=self.archive_path / layer_filename,
             fileobj=self.tar_file.extractfile(layer_filename),
         )
