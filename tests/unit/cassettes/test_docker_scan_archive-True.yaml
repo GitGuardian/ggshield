@@ -9,18 +9,18 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.20.0 (Linux;py3.11.8) ggshield
+          - pygitguardian/1.20.0 (Linux;py3.11.10) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/metadata
     response:
       body:
         string:
-          '{"version":"v2.158.0","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"on_premise__default_sso_config_force_sso":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400,"general__mutual_tls_mode":"disabled","general__signup_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576},"remediation_messages":{"pre_commit":">
+          '{"version":"v2.193.0","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"on_premise__default_sso_config_force_sso":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400,"general__mutual_tls_mode":"disabled","general__signup_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576},"remediation_messages":{"pre_commit":">
           How to remediate\n\n  Since the secret was detected before the commit was
           made:\n  1. replace the secret with its reference (e.g. environment variable).\n  2.
-          commit again.\n\n> [To apply with caution] If you want to bypass ggshield
-          (false positive or other reason), run:\n  - if you use the pre-commit framework:\n\n    SKIP=ggshield
-          git commit -m \"<your message\"","pre_push":"> How to remediate\n\n  Since
+          commit again.\n\n> [Apply with caution] If you want to bypass ggshield (false
+          positive or other reason), run:\n  - if you use the pre-commit framework:\n\n    SKIP=ggshield
+          git commit -m \"<your message>\"\n    ","pre_push":"> How to remediate\n\n  Since
           the secret was detected before the push BUT after the commit, you need to:\n  1.
           rewrite the git history making sure to replace the secret with its reference
           (e.g. environment variable).\n  2. push again.\n\n  To prevent having to rewrite
@@ -41,13 +41,13 @@ interactions:
         allow:
           - GET, HEAD, OPTIONS
         content-length:
-          - '2194'
+          - '2198'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Thu, 27 Feb 2025 15:34:57 GMT
+          - Tue, 22 Apr 2025 14:06:46 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -59,17 +59,17 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.158.0
+          - v2.193.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '43'
+          - '42'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.133.0
+          - 2.136.1
         x-xss-protection:
           - 1; mode=block
       status:

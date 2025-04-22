@@ -349,6 +349,9 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     known_secret = PolicyBreak(
         break_type="known",
         policy="Secrets detection",
+        detector_name="known",
+        detector_group_name="known",
+        documentation_url=None,
         validity="valid",
         known_secret=True,
         matches=[
@@ -365,6 +368,9 @@ def test_scan_ignore_known_secrets(scan_mock: Mock, client, ignore_known_secrets
     unknown_secret = PolicyBreak(
         break_type="unknown",
         policy="Secrets detection",
+        detector_name="unknown",
+        detector_group_name="unknown",
+        documentation_url=None,
         validity="valid",
         known_secret=False,
         matches=[
@@ -453,12 +459,18 @@ def test_all_secrets_is_used(scan_mock: Mock, client):
     secret = PolicyBreak(
         break_type="not-excluded",
         policy="Secrets detection",
+        detector_name="not-excluded",
+        detector_group_name="not-excluded",
+        documentation_url=None,
         validity="valid",
         matches=matches,
     )
     excluded_secret = PolicyBreak(
         break_type="excluded",
         policy="Secrets detection",
+        detector_name="excluded",
+        detector_group_name="excluded",
+        documentation_url=None,
         validity="valid",
         matches=matches,
         is_excluded=True,

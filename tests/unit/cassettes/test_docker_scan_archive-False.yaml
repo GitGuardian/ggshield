@@ -9,18 +9,18 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.20.0 (Linux;py3.11.8) ggshield
+          - pygitguardian/1.20.0 (Linux;py3.11.10) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/metadata
     response:
       body:
         string:
-          '{"version":"v2.158.0","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"on_premise__default_sso_config_force_sso":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400,"general__mutual_tls_mode":"disabled","general__signup_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576},"remediation_messages":{"pre_commit":">
+          '{"version":"v2.193.0","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"on_premise__default_sso_config_force_sso":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400,"general__mutual_tls_mode":"disabled","general__signup_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576},"remediation_messages":{"pre_commit":">
           How to remediate\n\n  Since the secret was detected before the commit was
           made:\n  1. replace the secret with its reference (e.g. environment variable).\n  2.
-          commit again.\n\n> [To apply with caution] If you want to bypass ggshield
-          (false positive or other reason), run:\n  - if you use the pre-commit framework:\n\n    SKIP=ggshield
-          git commit -m \"<your message\"","pre_push":"> How to remediate\n\n  Since
+          commit again.\n\n> [Apply with caution] If you want to bypass ggshield (false
+          positive or other reason), run:\n  - if you use the pre-commit framework:\n\n    SKIP=ggshield
+          git commit -m \"<your message>\"\n    ","pre_push":"> How to remediate\n\n  Since
           the secret was detected before the push BUT after the commit, you need to:\n  1.
           rewrite the git history making sure to replace the secret with its reference
           (e.g. environment variable).\n  2. push again.\n\n  To prevent having to rewrite
@@ -41,13 +41,13 @@ interactions:
         allow:
           - GET, HEAD, OPTIONS
         content-length:
-          - '2194'
+          - '2198'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Thu, 27 Feb 2025 15:34:58 GMT
+          - Tue, 22 Apr 2025 13:41:24 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -59,17 +59,17 @@ interactions:
         vary:
           - Accept-Encoding,Cookie
         x-app-version:
-          - v2.158.0
+          - v2.193.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '41'
+          - '33'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.133.0
+          - 2.136.1
         x-xss-protection:
           - 1; mode=block
       status:
@@ -94,19 +94,19 @@ interactions:
         Content-Type:
           - application/json
         GGShield-Command-Id:
-          - 0f674b05-3a26-45ea-8a1c-1229fc77b1bc
+          - ef3db170-e2f9-4ca4-b301-5ae970b94c23
         GGShield-Command-Path:
           - cli secret scan docker-archive
         GGShield-OS-Name:
           - ubuntu
         GGShield-OS-Version:
-          - '22.04'
+          - '24.04'
         GGShield-Python-Version:
-          - 3.11.8
+          - 3.11.10
         GGShield-Version:
-          - 1.36.0
+          - 1.38.1
         User-Agent:
-          - pygitguardian/1.20.0 (Linux;py3.11.8) ggshield
+          - pygitguardian/1.20.0 (Linux;py3.11.10) ggshield
         mode:
           - docker
         scan_options:
@@ -119,20 +119,21 @@ interactions:
       body:
         string:
           '[{"policy_break_count":1,"policies":["Secrets detection"],"policy_breaks":[{"type":"GitGuardian
-          Development Secret","policy":"Secrets detection","matches":[{"type":"apikey","match":"8a784aab7090f6a4ba3b9f7a6594e2e727007a26590b58ed314e4b9ed4536479sRZlRup3xvtMVfiHWAanbe712Jtc3nY8veZux5raL1bhpaxiv0rfyhFoAIMZUCh2Njyk7gRVsSQFPrEphSJnxa16SIdWKb03sRft770LUTTYTAy3IM18A7Su4HjiHlGA9ihLj9ou3luadfRAATlKH6kAZwTw289Kq9uip67zxyWkUJdh6PTeFpMgCh3AhHcZ21VeZHlu12345","index_start":311,"index_end":579,"line_start":14,"line_end":14}],"is_excluded":false,"exclude_reason":null,"incident_url":"https://dashboard.gitguardian.com/workspace/8/incidents/8137386","known_secret":true,"validity":"no_checker","diff_kind":null}],"is_diff":false}]'
+          Development Secret","detector_name":"gitguardian_test_token","detector_group_name":"gitguardian_test_token","documentation_url":"https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/gitguardian_test_token","policy":"Secrets
+          detection","matches":[{"type":"apikey","match":"8a784aab7090f6a4ba3b9f7a6594e2e727007a26590b58ed314e4b9ed4536479sRZlRup3xvtMVfiHWAanbe712Jtc3nY8veZux5raL1bhpaxiv0rfyhFoAIMZUCh2Njyk7gRVsSQFPrEphSJnxa16SIdWKb03sRft770LUTTYTAy3IM18A7Su4HjiHlGA9ihLj9ou3luadfRAATlKH6kAZwTw289Kq9uip67zxyWkUJdh6PTeFpMgCh3AhHcZ21VeZHlu12345","index_start":311,"index_end":579,"line_start":14,"line_end":14}],"is_excluded":false,"exclude_reason":null,"incident_url":"https://dashboard.gitguardian.com/workspace/518431/incidents/9787735","known_secret":true,"validity":"no_checker","diff_kind":null}],"is_diff":false}]'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - POST, OPTIONS
         content-length:
-          - '722'
+          - '952'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Thu, 27 Feb 2025 15:34:59 GMT
+          - Tue, 22 Apr 2025 13:41:25 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -142,17 +143,17 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.158.0
+          - v2.193.0
         x-content-type-options:
           - nosniff
           - nosniff
         x-envoy-upstream-service-time:
-          - '442'
+          - '90'
         x-frame-options:
           - DENY
           - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.133.0
+          - 2.136.1
         x-xss-protection:
           - 1; mode=block
       status:

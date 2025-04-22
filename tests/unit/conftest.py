@@ -64,6 +64,9 @@ _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "MySQL Assignment",
+                "detector_name": "mysql",
+                "detector_group_name": "mysql",
+                "documentation_url": None,
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -169,6 +172,9 @@ _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "GitHub Token",
+                "detector_name": "github_token",
+                "detector_group_name": "github_token",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -186,15 +192,13 @@ _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
 
 _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
-        "policies": ["File extensions", "Filenames", "Secrets detection"],
+        "policies": ["Secrets detection"],
         "policy_breaks": [
             {
-                "type": ".env",
-                "policy": "Filenames",
-                "matches": [{"type": "filename", "match": ".env"}],
-            },
-            {
                 "type": "GitHub Token",
+                "detector_name": "github_token",
+                "detector_group_name": "github_token",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -206,7 +210,7 @@ _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                 ],
             },
         ],
-        "policy_break_count": 2,
+        "policy_break_count": 1,
     }
 )
 
@@ -237,6 +241,9 @@ _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "Facebook Access Tokens",
+                "detector_name": "facebook",
+                "detector_group_name": "facebook",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -270,6 +277,9 @@ _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "Facebook Access Tokens",
+                "detector_name": "facebook",
+                "detector_group_name": "facebook",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -303,6 +313,9 @@ _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "Facebook Access Tokens",
+                "detector_name": "facebook",
+                "detector_group_name": "facebook",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -340,6 +353,9 @@ _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "RSA Private Key",
+                "detector_name": "rsa_private_key",
+                "detector_group_name": "rsa_private_key",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -368,6 +384,9 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "Facebook Access Tokens",
+                "detector_name": "facebook",
+                "detector_group_name": "facebook",
+                "documentation_url": None,
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -390,6 +409,9 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
             },
             {
                 "type": "RSA Private Key",
+                "detector_name": "rsa_private_key",
+                "detector_group_name": "rsa_private_key",
+                "documentation_url": None,
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -404,6 +426,9 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
             },
             {
                 "type": "SendGrid Key",
+                "detector_name": "sendgrid",
+                "detector_group_name": "sendgrid",
+                "documentation_url": None,
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -528,6 +553,9 @@ TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "RSA Private Key",
+                "detector_name": "rsa_private_key",
+                "detector_group_name": "rsa_private_key",
+                "documentation_url": None,
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -542,6 +570,9 @@ TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
             },
             {
                 "type": "SendGrid Key",
+                "detector_name": "sendgrid_key",
+                "detector_group_name": "sendgrid_key",
+                "documentation_url": None,
                 "policy": "Secrets detection",
                 "matches": [
                     {

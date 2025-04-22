@@ -60,6 +60,9 @@ class PolicyBreakFactory(factory.Factory):
 
     break_type = factory.lazy_attribute(lambda obj: random.choice(DETECTOR_NAMES))
     policy = "Secrets detection"
+    detector_name = factory.lazy_attribute(lambda obj: obj.break_type)
+    detector_group_name = factory.lazy_attribute(lambda obj: obj.break_type)
+    documentation_url = None
     validity = "valid"
     known_secret = False
     incident_url = None
@@ -95,6 +98,9 @@ class SecretFactory(factory.Factory):
         model = Secret
 
     detector = factory.lazy_attribute(lambda obj: random.choice(DETECTOR_NAMES))
+    detector_name = factory.lazy_attribute(lambda obj: obj.detector)
+    detector_group_name = factory.lazy_attribute(lambda obj: obj.detector)
+    documentation_url = None
     validity = "valid"
     known_secret = True
     incident_url = None
