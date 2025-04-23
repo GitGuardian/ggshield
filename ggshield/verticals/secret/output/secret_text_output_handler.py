@@ -308,6 +308,8 @@ def secret_header(
 {indent}Incident URL: {secrets[0].incident_url if known_secret and secret.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
 """
+    if secret.documentation_url is not None:
+        message += f"{indent}Detector documentation: {secret.documentation_url}#revoke-the-secret\n"
     if secret.ignore_reason is not None:
         message += f"{indent}Ignored: {secret.ignore_reason.to_human_readable()}\n"
 
