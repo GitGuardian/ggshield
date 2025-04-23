@@ -7,7 +7,7 @@
     <title>GGShield</title>
     <authors>GitGuardian</authors>
     <projectUrl>https://github.com/GitGuardian/ggshield</projectUrl>
-    <iconUrl>https://avatars.githubusercontent.com/u/27360172</iconUrl>
+    <iconUrl>https://cdn.statically.io/gh/GitGuardian/ggshield/scripts/push-to-chocolatey/icon.png</iconUrl>
     <licenseUrl>https://raw.githubusercontent.com/GitGuardian/ggshield/refs/heads/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/GitGuardian/ggshield</projectSourceUrl>
