@@ -20,6 +20,7 @@ from tests.unit.conftest import (
     DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
     DOCKER_EXAMPLE_LAYER_FILES,
     DOCKER_EXAMPLE_PATH,
+    DOCKER_EXAMPLE_TAR_GZ_LAYER_PATH,
 )
 
 
@@ -83,7 +84,13 @@ class TestDockerScan:
             DockerImage(Path("dummy"), tarfile)
 
     @pytest.mark.parametrize(
-        "image_path", [DOCKER_EXAMPLE_PATH, DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH]
+        "image_path",
+        [
+            DOCKER_EXAMPLE_PATH,
+            DOCKER__INCOMPLETE_MANIFEST_EXAMPLE_PATH,
+            # 1 of the layers contains a tar.gz file -> extraction should work
+            DOCKER_EXAMPLE_TAR_GZ_LAYER_PATH,
+        ],
     )
     def test_docker_archive(self, image_path: Path):
         with DockerImage.open(image_path) as image:
