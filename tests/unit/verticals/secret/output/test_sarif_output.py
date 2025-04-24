@@ -286,7 +286,7 @@ def check_sarif_result(
 
     # Check the secret name
     secret_name = sarif_result["ruleId"]
-    assert secret_name == secret.detector
+    assert secret_name == secret.detector_display_name
 
     # Check the matches point to the right part of the content. `expected_matches`
     # and `actual matches` are dicts of match_name => matched_text.

@@ -297,7 +297,7 @@ def secret_header(
     )
 
     start_line = format_text(">>", STYLE["detector_line_start"])
-    secret_type = format_text(secret.detector, STYLE["secret_type"])
+    secret_type = format_text(secret.detector_display_name, STYLE["secret_type"])
     number_occurrences = format_text(str(len(secrets)), STYLE["occurrence_count"])
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 

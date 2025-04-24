@@ -118,7 +118,7 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "occurrences": [],
             "ignore_sha": ignore_sha,
             "policy": secrets[0].policy,
-            "detector": secrets[0].detector,
+            "detector": secrets[0].detector_display_name,
             "total_occurrences": len(secrets),
         }
 

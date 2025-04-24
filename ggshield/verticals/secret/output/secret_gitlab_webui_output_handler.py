@@ -17,7 +17,7 @@ def format_secret(secret: Secret) -> str:
         f'{x.match_type}: "{censor_match(x)}"' for x in secret.matches
     )
     validity = translate_validity(secret.validity)
-    return f"{secret.detector} (Validity: {validity}, {match_str})"
+    return f"{secret.detector_display_name} (Validity: {validity}, {match_str})"
 
 
 class SecretGitLabWebUIOutputHandler(SecretOutputHandler):

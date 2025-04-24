@@ -83,7 +83,7 @@ class Secret:
     Named Secret since we are dropping other kind of policy breaks.
     """
 
-    detector: str  # Detector display name
+    detector_display_name: str
     detector_name: str
     detector_group_name: str
     documentation_url: Optional[str]
@@ -189,7 +189,7 @@ class Result:
                 validity=policy_break.validity,
                 known_secret=policy_break.known_secret,
                 incident_url=policy_break.incident_url,
-                detector=policy_break.break_type,
+                detector_display_name=policy_break.break_type,
                 detector_name=policy_break.detector_name,
                 detector_group_name=policy_break.detector_group_name,
                 documentation_url=policy_break.documentation_url,
