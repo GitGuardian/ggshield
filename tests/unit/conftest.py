@@ -64,6 +64,9 @@ _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "MySQL Assignment",
+                "detector_name": "mysql_assignment",
+                "detector_group_name": "mysql_credentials",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/mysql_credentials",
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -169,6 +172,9 @@ _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "GitHub Token",
+                "detector_name": "github_token",
+                "detector_group_name": "github_access_token",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -186,15 +192,13 @@ _SIMPLE_SECRET_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
 
 _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
-        "policies": ["File extensions", "Filenames", "Secrets detection"],
+        "policies": ["Secrets detection"],
         "policy_breaks": [
             {
-                "type": ".env",
-                "policy": "Filenames",
-                "matches": [{"type": "filename", "match": ".env"}],
-            },
-            {
                 "type": "GitHub Token",
+                "detector_name": "github_token",
+                "detector_group_name": "github_access_token",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -206,7 +210,7 @@ _SIMPLE_SECRET_WITH_FILENAME_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
                 ],
             },
         ],
-        "policy_break_count": 2,
+        "policy_break_count": 1,
     }
 )
 
@@ -236,7 +240,10 @@ _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policies": ["File extensions", "Filenames", "Secrets detection"],
         "policy_breaks": [
             {
-                "type": "Facebook Access Tokens",
+                "type": "Facebook Access Token",
+                "detector_name": "facebook_access_token",
+                "detector_group_name": "facebook_access_token",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -269,7 +276,10 @@ _MULTI_SECRET_ONE_LINE_PATCH_OVERLAY_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policies": ["File extensions", "Filenames", "Secrets detection"],
         "policy_breaks": [
             {
-                "type": "Facebook Access Tokens",
+                "type": "Facebook Access Token",
+                "detector_name": "facebook_access_token",
+                "detector_group_name": "facebook_access_token",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -302,7 +312,10 @@ _MULTI_SECRET_TWO_LINES_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policies": ["File extensions", "Filenames", "Secrets detection"],
         "policy_breaks": [
             {
-                "type": "Facebook Access Tokens",
+                "type": "Facebook Access Token",
+                "detector_name": "facebook_access_token",
+                "detector_group_name": "facebook_access_token",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -340,6 +353,9 @@ _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "RSA Private Key",
+                "detector_name": "private_key_rsa",
+                "detector_group_name": "private_key_rsa",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -367,7 +383,10 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
         "policy_breaks": [
             {
-                "type": "Facebook Access Tokens",
+                "type": "Facebook Access Token",
+                "detector_name": "facebook_access_token",
+                "detector_group_name": "facebook_access_token",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token",
                 "policy": "Secrets Detection",
                 "matches": [
                     {
@@ -390,6 +409,9 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
             },
             {
                 "type": "RSA Private Key",
+                "detector_name": "private_key_rsa",
+                "detector_group_name": "private_key_rsa",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa",
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -404,6 +426,9 @@ _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
             },
             {
                 "type": "SendGrid Key",
+                "detector_name": "sendgrid",
+                "detector_group_name": "sendgrid_key",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key",
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -528,6 +553,9 @@ TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
         "policy_breaks": [
             {
                 "type": "RSA Private Key",
+                "detector_name": "private_key_rsa",
+                "detector_group_name": "private_key_rsa",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa",
                 "policy": "Secrets detection",
                 "matches": [
                     {
@@ -542,6 +570,9 @@ TWO_POLICY_BREAKS = ScanResult.SCHEMA.load(
             },
             {
                 "type": "SendGrid Key",
+                "detector_name": "sendgrid",
+                "detector_group_name": "sendgrid_key",
+                "documentation_url": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key",
                 "policy": "Secrets detection",
                 "matches": [
                     {

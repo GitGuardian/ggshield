@@ -216,7 +216,7 @@ class SecretScanner:
                 result = Result.from_scan_result(file, scan_result, self.secret_config)
                 for secret in result.secrets:
                     self.cache.add_found_policy_break(
-                        secret.detector,
+                        secret.detector_display_name,
                         secret.get_ignore_sha(),
                         file.filename,
                     )

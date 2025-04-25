@@ -209,7 +209,12 @@ def test_do_not_duplicate_last_found_secrets(client, isolated_fs):
     THEN only one element should be added
     """
     policy_break = PolicyBreak(
-        "a", "Secrets detection", None, [Match("apikey", "apikey", 0, 0, 0, 0)]
+        "a",
+        "a",
+        "a",
+        "Secrets detection",
+        None,
+        [Match("apikey", "apikey", 0, 0, 0, 0)],
     )
     cache = Cache()
 

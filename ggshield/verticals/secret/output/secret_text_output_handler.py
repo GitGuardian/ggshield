@@ -297,7 +297,7 @@ def secret_header(
     )
 
     start_line = format_text(">>", STYLE["detector_line_start"])
-    secret_type = format_text(secret.detector, STYLE["secret_type"])
+    secret_type = format_text(secret.detector_display_name, STYLE["secret_type"])
     number_occurrences = format_text(str(len(secrets)), STYLE["occurrence_count"])
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
@@ -308,6 +308,8 @@ def secret_header(
 {indent}Incident URL: {secrets[0].incident_url if known_secret and secret.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
 """
+    if secret.documentation_url is not None:
+        message += f"{indent}Detector documentation: {secret.documentation_url}\n"
     if secret.ignore_reason is not None:
         message += f"{indent}Ignored: {secret.ignore_reason.to_human_readable()}\n"
 

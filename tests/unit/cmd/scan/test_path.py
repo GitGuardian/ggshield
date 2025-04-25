@@ -82,7 +82,6 @@ class TestPathScan:
     def test_scan_file_secret_with_validity(self, cli_fs_runner):
         write_text(Path("file_secret"), VALID_SECRET_PATCH)
         assert os.path.isfile("file_secret")
-
         with my_vcr.use_cassette("test_scan_path_file_secret_with_validity"):
             result = cli_fs_runner.invoke(
                 cli, ["-v", "secret", "scan", "path", "file_secret"]

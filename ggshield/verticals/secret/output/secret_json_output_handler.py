@@ -118,9 +118,12 @@ class SecretJSONOutputHandler(SecretOutputHandler):
             "occurrences": [],
             "ignore_sha": ignore_sha,
             "policy": secrets[0].policy,
-            "detector": secrets[0].detector,
+            "detector": secrets[0].detector_display_name,
             "total_occurrences": len(secrets),
         }
+
+        if secrets[0].documentation_url:
+            flattened_dict["detector_documentation"] = secrets[0].documentation_url
 
         if secrets[0].validity:
             flattened_dict["validity"] = secrets[0].validity

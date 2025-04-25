@@ -18,7 +18,7 @@ def test_format_secret():
     )
     out = format_secret(secret)
 
-    assert secret.detector in out
+    assert secret.detector_display_name in out
     assert "Validity: Valid" in out
     for match in secret.matches:
         assert match.match_type in out

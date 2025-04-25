@@ -10,11 +10,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +Facebook = 294*********575 | ce3f9f********************5e4372;
@@ -28,11 +29,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -48,11 +50,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +Facebook = 294*********575 | ce3f9f********************5e4372;
@@ -68,11 +71,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +Facebook = 294790898041575 | ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -86,11 +90,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f*************…
@@ -104,11 +109,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01d…
@@ -124,11 +130,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294*********575; FacebookAppSecret = ce3f9f********************5e4372;
@@ -144,11 +151,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
   1 | +FacebookAppId = 294790898041575; FacebookAppSecret = ce3f9f0362bbe5ab01dfc8ee565e4372;
@@ -162,11 +170,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294*********575;
@@ -180,11 +189,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294790898041575;
@@ -200,11 +210,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294*********575;
@@ -220,11 +231,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 1 secret detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
   1 | +FacebookAppId = 294790898041575;
@@ -238,11 +250,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 3 secrets detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 ----…
@@ -257,6 +270,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
   1 | +…**573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -275,6 +289,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +**********************+*****************************************
   8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -287,11 +302,12 @@ snapshots[
 ] = """> This is an example header
 > leak.txt: 3 secrets detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 ----…
@@ -306,6 +322,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
   1 | +…41573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -324,6 +341,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
   8 | +RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -338,11 +356,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 3 secrets detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -357,6 +376,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294*********573 / ce3f9f********************5e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -375,6 +395,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +**********************+*****************************************
   8 | +****+******Xme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -389,11 +410,12 @@ secrets-engine-version: 3.14.159
 > This is an example header
 > leak.txt: 3 secrets detected
 
->> Secret detected: Facebook Access Tokens
+>> Secret detected: Facebook Access Token
    Occurrences: 1
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -408,6 +430,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
   1 | +FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----
@@ -426,6 +449,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
   8 | +RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
@@ -443,6 +467,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
@@ -468,6 +493,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
@@ -495,6 +521,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
@@ -522,6 +549,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
     1 | +PrivateKeyRsa:
@@ -547,6 +575,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
   1 | +github_token: 368ac3e**************************37ddf91
@@ -563,6 +592,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
   1 | +github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
@@ -581,6 +611,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
   1 | +github_token: 368ac3e**************************37ddf91
@@ -599,6 +630,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
   1 | +github_token: 368ac3edf9e850d1c0ff9d6c526496f8237ddf91
