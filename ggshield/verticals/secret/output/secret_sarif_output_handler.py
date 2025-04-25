@@ -79,9 +79,11 @@ def _create_sarif_result_dict(
     message = (
         f"Secret detected: {secret.detector_display_name}.\nMatches: {matches_str}"
     )
-    markdown_message = (
-        f"Secret detected: {secret.detector_display_name}\nMatches:\n{matches_li}"
-    )
+    if secret.documentation_url:
+        markdown_message = f"Secret detected: [{secret.detector_display_name}]({secret.documentation_url})"
+    else:
+        markdown_message = f"Secret detected: {secret.detector_display_name}"
+    markdown_message += f"\nMatches:\n{matches_li}"
 
     # Create dict
     dct = {

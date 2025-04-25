@@ -14,6 +14,7 @@ class FlattenedPolicyBreak(BaseSchema):
     policy = fields.String(required=True)
     occurrences = fields.List(fields.Nested(ExtendedMatchSchema), required=True)
     detector = fields.String(data_key="type", required=True)
+    detector_documentation = fields.String(required=False, allow_none=True)
     validity = fields.String(required=False, allow_none=True)
     ignore_sha = fields.String(required=True)
     total_occurrences = fields.Integer(required=True)

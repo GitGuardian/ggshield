@@ -309,7 +309,7 @@ def secret_header(
 {indent}Secret SHA: {ignore_sha}
 """
     if secret.documentation_url is not None:
-        message += f"{indent}Detector documentation: {secret.documentation_url}#revoke-the-secret\n"
+        message += f"{indent}Detector documentation: {secret.documentation_url}\n"
     if secret.ignore_reason is not None:
         message += f"{indent}Ignored: {secret.ignore_reason.to_human_readable()}\n"
 
