@@ -1,5 +1,19 @@
 # Changelog
 
+<a id='changelog-1.39.0'></a>
+
+## 1.39.0 — 2025-04-29
+
+### Added
+
+- ggshield is now available on Chocolatey (#934).
+
+- `ggshield secret scan` output now contains a link to the detector documentation for each secret found.
+
+### Fixed
+
+- Fixed error when scanning `.tar.gz` compressed files inside docker layers.
+
 <a id='changelog-1.38.1'></a>
 
 ## 1.38.1 — 2025-04-02
