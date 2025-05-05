@@ -29,6 +29,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
   - [Linux](#linux)
     - [Deb and RPM packages](#deb-and-rpm-packages)
   - [Windows](#windows)
+    - [Chocolatey](#chocolatey)
     - [Standalone .zip archive](#standalone-zip-archive)
   - [All operating systems](#all-operating-systems)
     - [Using pipx](#using-pipx)
