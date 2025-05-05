@@ -89,7 +89,7 @@ Upgrading is handled by the package manager.
 
 ### Chocolatey
 
-GGshield is available via the Chocolatey package manager - [official repo](https://chocolatey.org/packages/ggshield):
+`ggshield` is available via the [Chocolatey package manager](https://chocolatey.org/packages/ggshield):
 
 ```shell
 $ choco install ggshield
