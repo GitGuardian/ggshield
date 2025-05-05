@@ -87,6 +87,14 @@ Upgrading is handled by the package manager.
 
 ## Windows
 
+### Chocolatey
+
+GGshield is available via the Chocolatey package manager - [official repo](https://chocolatey.org/packages/ggshield):
+
+```shell
+$ choco install ggshield
+```
+
 ### Standalone .zip archive
 
 We provide a standalone .zip archive on [`ggshield` release page](https://github.com/GitGuardian/ggshield/releases).
