@@ -29,6 +29,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
   - [Linux](#linux)
     - [Deb and RPM packages](#deb-and-rpm-packages)
   - [Windows](#windows)
+    - [Chocolatey](#chocolatey)
     - [Standalone .zip archive](#standalone-zip-archive)
   - [All operating systems](#all-operating-systems)
     - [Using pipx](#using-pipx)
@@ -86,6 +87,14 @@ Setup instructions:
 Upgrading is handled by the package manager.
 
 ## Windows
+
+### Chocolatey
+
+`ggshield` is available via the [Chocolatey package manager](https://chocolatey.org/packages/ggshield):
+
+```shell
+$ choco install ggshield
+```
 
 ### Standalone .zip archive
 
