@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+    echo $* >&2
+    exit 1
+}
+
+if [ -z "${CHOCOLATEY_API_KEY:-}" ] ; then
+    die '$CHOCOLATEY_API_KEY is not set'
+fi
+
+# parse command line arguments
+choco_nupkg=$1
+
+# push to chocolatey
+choco push $choco_nupkg --source https://push.chocolatey.org/ --api-key $CHOCOLATEY_API_KEY
