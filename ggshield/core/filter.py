@@ -121,16 +121,12 @@ def censor_string(text: str) -> str:
     if len_match == 3:
         return f"**{text[2]}"
 
-    start_privy_len = min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
-    end_privy_len = len_match - min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
+    censor_start = min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
+    censor_end = len_match - censor_start
 
     censored = REGEX_MATCH_HIDE.sub("*", text)
 
-    return str(
-        text[:start_privy_len]
-        + censored[start_privy_len:end_privy_len]
-        + text[end_privy_len:]
-    )
+    return text[:censor_start] + censored[censor_start:censor_end] + text[censor_end:]
 
 
 def censor_match(match: Match) -> str:
