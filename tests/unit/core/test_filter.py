@@ -6,7 +6,7 @@ import pytest
 from pygitguardian.models import Match, PolicyBreak
 from snapshottest import Snapshot
 
-from ggshield.core.filter import censor_match, get_ignore_sha
+from ggshield.core.filter import censor_match, censor_string, get_ignore_sha
 from tests.unit.conftest import (
     _MULTILINE_SECRET,
     _MULTIPLE_SECRETS_SCAN_RESULT,
@@ -116,3 +116,18 @@ def test_censor_match(input_match: Match, expected_value: str) -> None:
     value = censor_match(input_match)
     assert len(value) == len(input_match.match)
     assert value == expected_value
+
+
+@pytest.mark.parametrize(
+    ["text", "expected"],
+    (
+        ("hello world", "he*** ***ld"),
+        ("abcd", "a**d"),
+        ("abc", "**c"),
+        ("ab", "**"),
+        ("a", "*"),
+    ),
+)
+def test_censor_string(text: str, expected: str) -> None:
+    censored = censor_string(text)
+    assert censored == expected

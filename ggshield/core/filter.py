@@ -114,6 +114,13 @@ def censor_string(text: str) -> str:
     :return: the text censored
     """
     len_match = len(text)
+
+    # Special cases for short lengths
+    if len_match <= 2:
+        return "*" * len_match
+    if len_match == 3:
+        return f"**{text[2]}"
+
     start_privy_len = min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
     end_privy_len = len_match - min(math.ceil(len_match / 6), MAXIMUM_CENSOR_LENGTH)
 
