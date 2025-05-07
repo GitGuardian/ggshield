@@ -93,6 +93,7 @@ class Secret:
     matches: List[ExtendedMatch]
     ignore_reason: Optional[IgnoreReason]
     diff_kind: Optional[DiffKind]
+    is_vaulted: bool
 
     @property
     def policy(self) -> str:
@@ -199,6 +200,7 @@ class Result:
                 ],
                 ignore_reason=ignore_reason,
                 diff_kind=policy_break.diff_kind,
+                is_vaulted=policy_break.is_vaulted,
             )
             for policy_break, ignore_reason in to_keep
         ]
