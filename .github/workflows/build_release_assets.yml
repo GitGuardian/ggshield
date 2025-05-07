@@ -240,16 +240,6 @@ jobs:
           # automatically do it on Windows
           pdm run bash -c "scripts/build-os-packages/build-os-packages $args"
 
-      - name: Build Chocolatey package & test it
-        # About test part, cf https://docs.chocolatey.org/en-us/create/create-packages/#testing-your-package
-        if: startsWith(matrix.os, 'windows-')
-        shell: bash
-        run: |
-          windows_zip=$(find packages -maxdepth 1 -type f -name "*.zip" | grep "windows" | head -n 1)
-          scripts/chocolatey/pack $windows_zip packages
-          cd packages
-          choco install ggshield --debug --verbose --source . --noop
-
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
         # This is required because GitHub Windows runner is not configured to
