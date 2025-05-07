@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# otherwise grep -P in pack chocolatey/pack script fails on Windows
+export LC_ALL=en_US.utf8
+
 # parse command line arguments
 zip_name=$1
 output_dir=$2

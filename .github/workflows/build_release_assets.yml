@@ -249,9 +249,6 @@ jobs:
           scripts/chocolatey/pack $windows_zip packages
           cd packages
           choco install ggshield --debug --verbose --source . --noop
-        env:
-          # otherwise grep -P in pack chocolatey/pack script fails on Windows
-          LC_ALL: en_US.utf8
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
