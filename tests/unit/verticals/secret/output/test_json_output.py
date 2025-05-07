@@ -652,3 +652,35 @@ def test_ignore_reason(ignore_reason, expected_output):
 
     parsed_incidents = json.loads(output)["entities_with_incidents"][0]["incidents"]
     assert parsed_incidents[0]["ignore_reason"] == expected_output
+
+
+@pytest.mark.parametrize(
+    "is_vaulted",
+    (True, False),
+)
+def test_vaulted_secret(is_vaulted: bool):
+    """
+    GIVEN an result
+    WHEN it is passed to the json output handler
+    THEN the vaulted_secret field is as expected
+    """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(content=scannable.content, is_vaulted=is_vaulted)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+
+    output_handler = SecretJSONOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan",
+            type="scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    parsed_incidents = json.loads(output)["entities_with_incidents"][0]["incidents"]
+    assert parsed_incidents[0]["secret_vaulted"] == is_vaulted

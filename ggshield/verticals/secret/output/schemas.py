@@ -22,6 +22,7 @@ class FlattenedPolicyBreak(BaseSchema):
     incident_details = fields.Nested(SecretIncidentSchema)
     known_secret = fields.Bool(required=True, dump_default=False)
     ignore_reason = fields.Nested(IgnoreReasonSchema, dump_default=None)
+    secret_vaulted = fields.Bool(required=True, dump_default=False)
 
 
 class JSONResultSchema(BaseSchema):
