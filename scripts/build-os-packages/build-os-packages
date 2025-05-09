@@ -114,6 +114,7 @@ init_system_vars() {
         EXE_EXT=".exe"
         HUMAN_OS=Windows
         TARGET="$arch-pc-windows-msvc"
+        REQUIREMENTS="$REQUIREMENTS choco"
         ;;
     *)
         die "Unknown OS. uname printed '$out'"
@@ -320,11 +321,8 @@ step_create_archive() {
         info "Archive created in $pkg_path & $archive_path"
         ;;
     Windows)
-        archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.zip"
-        pushd "$PACKAGES_DIR"
-        7z a "$archive_path" "$ARCHIVE_DIR_NAME"
-        popd
-        info "Archive created in $archive_path"
+        create_windows_packages
+        test_chocolatey_package
         ;;
     esac
 }

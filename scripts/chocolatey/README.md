@@ -1,4 +1,4 @@
-# Push to Chocolatey
+# Chocolatey
 
 This folder contains everything necessary to build and publish the chocolatey package.
 

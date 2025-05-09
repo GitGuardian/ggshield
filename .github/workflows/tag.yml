@@ -82,6 +82,7 @@ jobs:
             packages/ggshield_*.deb \
             packages/ggshield-*.rpm \
             packages/ggshield-*.zip \
+            packages/ggshield.*.nupkg \
             packages/ggshield-*.gz
 
   update_vscode_extension:
@@ -151,19 +152,22 @@ jobs:
   push_to_chocolatey:
     needs: build_release_assets
     name: Push to Chocolatey
-    runs-on: chocolatey/choco
+    runs-on: windows-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download packages
+      - name: Download nupkg
+        id: download-nupkg
         uses: actions/download-artifact@v4
         with:
-          pattern: os-packages-windows-2022
+          pattern: ggshield.*.nupkg
           path: packages
-          merge-multiple: true
 
       - name: Push to Chocolatey
+        shell: bash
         run: |
-          scripts/push-to-chocolatey/push-to-chocolatey
+          scripts/chocolatey/push packages/ggshield.*.nupkg
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}

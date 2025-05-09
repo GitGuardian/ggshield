@@ -261,7 +261,6 @@ jobs:
           TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
           TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
           TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -272,6 +271,7 @@ jobs:
             packages/ggshield-*.zip
             packages/ggshield-*.rpm
             packages/ggshield_*.deb
+            packages/ggshield.*.nupkg
 
   # Run some basic tests, the goal is to verify the ggshield binary has all the
   # libraries it needs to run
