@@ -31,7 +31,7 @@ windows_create_archive() {
     pushd "$PACKAGES_DIR"
     7z a "$archive_path" "$ARCHIVE_DIR_NAME"
     popd
-    #info "Archive created in $archive_path"
+    info "Archive created in $archive_path"
 }
 
 windows_build_chocolatey_package() {
@@ -49,7 +49,7 @@ windows_build_chocolatey_package() {
 
     choco pack choco-package/* --version $VERSION --outdir $PACKAGES_DIR
 
-    #info "Chocolatey package created in $PACKAGES_DIR/ggshield.$VERSION.nupkg"
+    info "Chocolatey package created in $PACKAGES_DIR/ggshield.$VERSION.nupkg"
 
     rm -rf choco-package
     

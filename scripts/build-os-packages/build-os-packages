@@ -114,6 +114,7 @@ init_system_vars() {
         EXE_EXT=".exe"
         HUMAN_OS=Windows
         TARGET="$arch-pc-windows-msvc"
+        REQUIREMENTS="$REQUIREMENTS choco"
         ;;
     *)
         die "Unknown OS. uname printed '$out'"
