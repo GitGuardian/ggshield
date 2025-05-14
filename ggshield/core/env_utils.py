@@ -6,7 +6,7 @@ from typing import Optional, Set
 from dotenv import dotenv_values, load_dotenv
 
 from ggshield.core import ui
-from ggshield.utils.git_shell import get_git_root, is_git_dir
+from ggshield.utils.git_shell import get_git_root, is_git_available, is_git_dir
 from ggshield.utils.os import getenv_bool
 
 
@@ -37,7 +37,7 @@ def _find_dot_env() -> Optional[Path]:
         return env
 
     # If we are in a git checkout, look for a .env at the root of the checkout
-    if is_git_dir(os.getcwd()):
+    if is_git_available() and is_git_dir(os.getcwd()):
         env = get_git_root() / ".env"
         if env.is_file():
             return env

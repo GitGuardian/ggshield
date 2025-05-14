@@ -1,4 +1,6 @@
 import json
+import shutil
+import sys
 from pathlib import Path
 
 import jsonschema
@@ -123,3 +125,35 @@ UNKNOWN_SECRET='{UNKNOWN_SECRET}'
     # THEN only the unknown secret is reported
     assert f"KNOWN_SECRET='{KNOWN_SECRET}'" not in result.stdout
     assert f"UNKNOWN_SECRET='{UNKNOWN_SECRET}'" in result.stdout
+
+
+def create_fake_path(tmp_path: Path) -> Path:
+    # Create a bin dir
+    bin_path = (tmp_path / "bin").absolute()
+    bin_path.mkdir()
+
+    # Copy the binary of our interpreter to it
+    shutil.copy2(sys.executable, bin_path)
+
+    return bin_path
+
+
+def test_scan_path_works_if_git_not_found(monkeypatch, tmp_path: Path) -> None:
+    # GIVEN a test file with no secret
+    test_file = tmp_path / "hello"
+    test_file.write_text("harmless")
+
+    # AND a fake PATH containing only Python
+    fake_path = create_fake_path(tmp_path)
+    monkeypatch.setenv("PATH", str(fake_path))
+
+    # the name of the interpreter might be python3, not just python
+    python_filename = Path(sys.executable).name
+    assert shutil.which(python_filename) is not None
+
+    # AND git cannot be found
+    assert shutil.which("git") is None
+
+    # WHEN ggshield scans the test file
+    # THEN it does not fail
+    run_ggshield_scan("path", "--debug", str(test_file), cwd=tmp_path, expected_code=0)

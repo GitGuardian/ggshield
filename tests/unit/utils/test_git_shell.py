@@ -10,6 +10,7 @@ import pytest
 
 from ggshield.core.tar_utils import tar_from_ref_and_filepaths
 from ggshield.utils.git_shell import (
+    GitExecutableNotFound,
     InvalidGitRefError,
     NotAGitDirectory,
     check_git_dir,
@@ -22,6 +23,7 @@ from ggshield.utils.git_shell import (
     get_staged_filepaths,
     git,
     git_ls_unstaged,
+    is_git_available,
     is_git_dir,
     is_valid_git_commit_ref,
     simplify_git_url,
@@ -45,6 +47,12 @@ def _create_repository_with_remote(
     local_repo = Repository.create(repository_path, bare=True)
     _add_remote(local_repo, repository_name, remote_name)
     return local_repo
+
+
+@patch("ggshield.utils.git_shell._get_git_path")
+def test_is_git_available(_get_git_path_mock):
+    _get_git_path_mock.side_effect = GitExecutableNotFound()
+    assert not is_git_available()
 
 
 def test_git_shell():
