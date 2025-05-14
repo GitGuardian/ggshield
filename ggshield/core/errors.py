@@ -13,6 +13,7 @@ import click
 from marshmallow import ValidationError
 from pygitguardian.models import Detail, TokenScope
 
+from ggshield.core import ui
 from ggshield.core.text_utils import pluralize
 from ggshield.utils.git_shell import GitError, InvalidGitRefError
 
@@ -170,8 +171,6 @@ def handle_exception(exc: Exception) -> int:
     """
     Take an exception, print information about it and return the exit code to use
     """
-    # TODO: fix this. It's required to avoid a circular import error
-    from ggshield.core import ui
 
     if isinstance(exc, click.exceptions.Abort):
         return ExitCode.SUCCESS
