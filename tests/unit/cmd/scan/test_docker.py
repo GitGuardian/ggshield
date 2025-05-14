@@ -35,6 +35,7 @@ class TestDockerUtils:
             ["/my/file/secret.py", set(), True],
             ["/my/file/usr/bin/secret.py", set(), True],
             ["/usr/share/nginx/secret.py", set(), True],
+            ["/usr/src/app/secret.py", set(), True],
             ["/gems/secret.py", set(), True],
             ["/npm-bis/secret.py", set(), True],
             ["/banned/extension/secret.exe", set(), False],
