@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from ggshield.core.scan import ScanContext
 
 FILEPATH_BANLIST = [
-    r"^/?usr/(?!share/nginx)",
+    r"^/?usr/(?!share/nginx|src/app)",
     r"^/?lib/",
     r"^/?share/",
     r"^/?bin/",
