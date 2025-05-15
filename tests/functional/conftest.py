@@ -107,7 +107,6 @@ def _start_no_quota_gitguardian_api(host: str, port: int):
 
 
 @pytest.fixture
-@pytest.mark.allow_hosts(["localhost"])
 def slow_gitguardian_api() -> Generator[str, None, None]:
     host, port = "localhost", 8123
     server_process = Process(target=_start_slow_gitguardian_api, args=(host, port))
@@ -120,7 +119,6 @@ def slow_gitguardian_api() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-@pytest.mark.allow_hosts(["localhost"])
 def no_quota_gitguardian_api() -> Generator[str, None, None]:
     host, port = "localhost", 8124
     server_process = Process(target=_start_no_quota_gitguardian_api, args=(host, port))
