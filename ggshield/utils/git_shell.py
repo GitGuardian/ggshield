@@ -59,6 +59,14 @@ class Filemode(Enum):
     UNKNOWN = "unknown"
 
 
+def is_git_available() -> bool:
+    try:
+        _get_git_path()
+        return True
+    except GitExecutableNotFound:
+        return False
+
+
 @lru_cache(None)
 def _get_git_path() -> str:
     git_path = which("git")
@@ -362,11 +370,11 @@ def get_last_commit_sha_of_branch(branch_name: str) -> Optional[str]:
 def get_repository_url_from_path(wd: Path) -> Optional[str]:
     """
     Returns one of the repository remote urls. Returns None if no remote are found,
-    or the directory is not a repository.
+    or the directory is not a repository or we don't have git so we can't know if the
+    directory is a repository.
     """
-    remotes_raw: List[str] = []
     try:
-        if not is_git_dir(wd):
+        if not is_git_available() or not is_git_dir(wd):
             return None
         remotes_raw = git(["remote", "-v"], cwd=wd).splitlines()
     except (subprocess.CalledProcessError, OSError):

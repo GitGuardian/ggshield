@@ -14,7 +14,7 @@ from marshmallow import ValidationError
 from pygitguardian.models import Detail, TokenScope
 
 from ggshield.core.text_utils import pluralize
-from ggshield.utils.git_shell import GitError, InvalidGitRefError
+from ggshield.utils.git_shell import InvalidGitRefError
 
 
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ def handle_exception(exc: Exception) -> int:
             " To workaround that, try setting the PYTHONUTF8 environment variable to 1."
         )
 
-    if not isinstance(exc, (click.ClickException, GitError)):
+    if not isinstance(exc, click.ClickException):
         click.echo()
         if ui.is_verbose():
             traceback.print_exc()
