@@ -264,3 +264,34 @@ def test_ignore_reason(ignore_reason):
     else:
         assert "Ignored:" in output
         assert ignore_reason.to_human_readable() in output
+
+
+@pytest.mark.parametrize(
+    "is_vaulted",
+    (True, False),
+)
+def test_vaulted_secret(is_vaulted: bool):
+    """
+    GIVEN a secret
+    WHEN it is passed to the text output handler
+    THEN the vaulted_secret field is displayed as expected
+    """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(content=scannable.content, is_vaulted=is_vaulted)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+
+    output_handler = SecretTextOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan",
+            type="scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    assert f"Secret in Secrets Manager: {is_vaulted}" in output

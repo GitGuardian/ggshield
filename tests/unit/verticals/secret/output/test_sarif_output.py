@@ -301,6 +301,13 @@ def check_sarif_result(
         matched_text = get_content_from_region(content, region)
         actual_matches[match_name] = matched_text
 
+    # Check that the markdown message contains the correct is_vaulted information
+    markdown_message = sarif_result["message"]["markdown"]
+    expected_is_vaulted_text = f"Secret in Secrets Manager: {secret.is_vaulted}"
+    assert (
+        expected_is_vaulted_text in markdown_message
+    ), f"Expected '{expected_is_vaulted_text}' in markdown message, but got: {markdown_message}"
+
     if contains_incident_details:
         assert (
             "properties" in sarif_result

@@ -15,6 +15,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -34,6 +35,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -55,6 +57,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -76,6 +79,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -95,6 +99,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -114,6 +119,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -135,6 +141,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -156,6 +163,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1 @@
@@ -175,6 +183,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
@@ -194,6 +203,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
@@ -215,6 +225,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
@@ -236,6 +247,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 38d9d3464520ed68f18d16e640a4a8b37ef5b17608b455267d100aa487ead314
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +2 @@
@@ -255,6 +267,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
@@ -270,6 +283,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
@@ -289,6 +303,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +**********************+*****************************************
@@ -307,6 +322,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
@@ -322,6 +338,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
@@ -341,6 +358,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
@@ -361,6 +379,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
@@ -376,6 +395,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
@@ -395,6 +415,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +**********************+*****************************************
@@ -415,6 +436,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 1945f4a0c42abb19c1a420ddd09b4b4681249a3057c427b95f794b18595e7ffa
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/facebook_access_token
 
     | @@ -0,0 +1,29 @@
@@ -430,6 +452,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
     | @@ -0,0 +1,29 @@
@@ -449,6 +472,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 530e5a4a7ea00814db8845dd0cae5efaa4b974a3ce1c76d0384ba715248a5dc1
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/sendgrid_key
 
   7 | +bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
@@ -467,6 +491,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
@@ -493,6 +518,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
@@ -521,6 +547,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
@@ -549,6 +576,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 060bf63de122848f5efa122fe6cea504aae3b24cea393d887fdefa1529c6a02e
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/private_key_rsa
 
       | @@ -0,0 +1,29 @@
@@ -575,6 +603,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
@@ -592,6 +621,7 @@ snapshots[
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
@@ -611,6 +641,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@
@@ -630,6 +661,7 @@ secrets-engine-version: 3.14.159
    Known by GitGuardian dashboard: NO
    Incident URL: N/A
    Secret SHA: 2b5840babacb6f089ddcce1fe5a56b803f8b1f636c6f44cdbf14b0c77a194c93
+   Secret in Secrets Manager: False
    Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/github_access_token
 
     | @@ -0,0 +1 @@

@@ -141,6 +141,8 @@ class SecretJSONOutputHandler(SecretOutputHandler):
                 secrets[0].ignore_reason
             )
 
+        if secrets[0].is_vaulted:
+            flattened_dict["secret_vaulted"] = secrets[0].is_vaulted
         for secret in secrets:
             flattened_dict["occurrences"].extend(self.serialize_secret_matches(secret))
 

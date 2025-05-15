@@ -67,6 +67,7 @@ class PolicyBreakFactory(factory.Factory):
     known_secret = False
     incident_url = None
     is_excluded = False
+    is_vaulted = False
     exclude_reason = None
     diff_kind = None
     content = factory.Faker("text")
@@ -109,3 +110,4 @@ class SecretFactory(factory.Factory):
     matches = []
     ignore_reason = None
     diff_kind = None
+    is_vaulted = False

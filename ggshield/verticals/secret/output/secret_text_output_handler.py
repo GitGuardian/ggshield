@@ -305,8 +305,9 @@ def secret_header(
 {start_line} Secret detected: {secret_type}{validity_msg}
 {indent}Occurrences: {number_occurrences}
 {indent}Known by GitGuardian dashboard: {"YES" if known_secret else "NO"}
-{indent}Incident URL: {secrets[0].incident_url if known_secret and secret.incident_url else "N/A"}
+{indent}Incident URL: {secret.incident_url if known_secret and secret.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
+{indent}Secret in Secrets Manager: {secret.is_vaulted}
 """
     if secret.documentation_url is not None:
         message += f"{indent}Detector documentation: {secret.documentation_url}\n"
