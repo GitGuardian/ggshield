@@ -1,5 +1,25 @@
 # Changelog
 
+<a id='changelog-1.40.0'></a>
+
+## 1.40.0 — 2025-05-27
+
+### Added
+
+- The release assets now contain a NuGet package.
+
+- Added a new section in `ggshield` outputs (text and JSON) to notify if a secret is in one of the accounts' secrets managers.
+
+### Changed
+
+- `ggshield secret scan docker` now scans files in `/usr/src/app`.
+
+### Fixed
+
+- Fixed a bug in the way `ggshield` obfuscated secrets that caused a crash for short secrets (#1086).
+
+- `ggshield` no longer crashes when it can't find git.
+
 <a id='changelog-1.39.0'></a>
 
 ## 1.39.0 — 2025-04-29
