@@ -9,6 +9,7 @@ from ggshield.core.lines import Line, get_offset, get_padding
 from ggshield.core.text_utils import (
     STYLE,
     clip_long_line,
+    format_bool,
     format_text,
     pluralize,
     translate_validity,
@@ -304,10 +305,10 @@ def secret_header(
     message = f"""
 {start_line} Secret detected: {secret_type}{validity_msg}
 {indent}Occurrences: {number_occurrences}
-{indent}Known by GitGuardian dashboard: {"YES" if known_secret else "NO"}
+{indent}Known by GitGuardian dashboard: {format_bool(known_secret)}
 {indent}Incident URL: {secret.incident_url if known_secret and secret.incident_url else "N/A"}
 {indent}Secret SHA: {ignore_sha}
-{indent}Secret in Secrets Manager: {secret.is_vaulted}
+{indent}Secret in Secrets Manager: {format_bool(secret.is_vaulted)}
 """
     if secret.documentation_url is not None:
         message += f"{indent}Detector documentation: {secret.documentation_url}\n"
