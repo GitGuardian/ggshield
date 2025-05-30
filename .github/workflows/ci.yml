@@ -141,7 +141,7 @@ jobs:
           TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
           TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
 
-  build_os_packages:
+  build_release_assets:
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit
 
@@ -202,3 +202,26 @@ jobs:
           registry: docker.pkg.github.com
           repository: gitguardian/ggshield/ggshield
           tags: unstable
+
+  fake_push_to_chocolatey:
+    needs: build_release_assets
+    name: Fake Push to Chocolatey
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download nupkg
+        id: download-nupkg
+        uses: actions/download-artifact@v4
+        with:
+          pattern: os-packages-windows-*
+          path: packages
+          merge-multiple: true
+
+      - name: Push to Chocolatey
+        shell: bash
+        run: |
+          ls
+          find packages
+          echo scripts/chocolatey/push packages/ggshield.*.nupkg
