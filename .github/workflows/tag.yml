@@ -158,12 +158,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download nupkg
-        id: download-nupkg
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: ggshield.*.nupkg
+          pattern: os-packages-windows-*
           path: packages
+          merge-multiple: true
 
       - name: Push to Chocolatey
         shell: bash
