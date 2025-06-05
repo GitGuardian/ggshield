@@ -6,6 +6,7 @@ import pytest
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import StringScannable
+from ggshield.core.text_utils import format_bool
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretTextOutputHandler
@@ -294,4 +295,4 @@ def test_vaulted_secret(is_vaulted: bool):
         )
     )
 
-    assert f"Secret in Secrets Manager: {is_vaulted}" in output
+    assert f"Secret in Secrets Manager: {format_bool(is_vaulted)}" in output

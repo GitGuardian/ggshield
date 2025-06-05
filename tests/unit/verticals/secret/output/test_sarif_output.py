@@ -12,6 +12,7 @@ from voluptuous import validators
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import Commit
+from ggshield.core.text_utils import format_bool
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretSARIFOutputHandler
 from ggshield.verticals.secret.output.secret_sarif_output_handler import SCHEMA_URL
@@ -303,7 +304,9 @@ def check_sarif_result(
 
     # Check that the markdown message contains the correct is_vaulted information
     markdown_message = sarif_result["message"]["markdown"]
-    expected_is_vaulted_text = f"Secret in Secrets Manager: {secret.is_vaulted}"
+    expected_is_vaulted_text = (
+        f"Secret in Secrets Manager: {format_bool(secret.is_vaulted)}"
+    )
     assert (
         expected_is_vaulted_text in markdown_message
     ), f"Expected '{expected_is_vaulted_text}' in markdown message, but got: {markdown_message}"
