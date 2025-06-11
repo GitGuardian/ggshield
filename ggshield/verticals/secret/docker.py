@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import platform
 import re
 import subprocess
 import tarfile
@@ -289,15 +290,46 @@ def docker_pull_image(image_name: str, timeout: int) -> None:
 
     Timeout after `timeout` seconds.
     """
-    command = ["docker", "pull", image_name]
+    # Base command for docker pull
+    base_command = ["docker", "pull", image_name]
+
+    # Try standard pull first
+    if _run_docker_command(base_command, timeout):
+        return
+
+    # Apple Silicon: fall back to linux/amd64 if no success
+    if platform.system() == "Darwin" and platform.machine() == "arm64":
+        amd64_command = base_command + ["--platform=linux/amd64"]
+        if _run_docker_command(amd64_command, timeout):
+            return
+
+    # Raise error if no success
+    raise UsageError(f'Image "{image_name}" not found')
+
+
+def _run_docker_command(command: List[str], timeout: int) -> bool:
+    """
+    Run a docker command with timeout and return success status
+
+    Args:
+        command: Docker command to run as a list of strings
+        timeout: Timeout in seconds
+
+    Returns:
+        True if command succeeded, False if CalledProcessError
+
+    Raises:
+        UnexpectedError: If command times out
+    """
     try:
         subprocess.run(
             command,
             check=True,
             timeout=timeout,
         )
+        return True
     except subprocess.CalledProcessError:
-        raise UsageError(f'Image "{image_name}" not found')
+        return False
     except subprocess.TimeoutExpired:
         raise UnexpectedError('Command "{}" timed out'.format(" ".join(command)))
 
@@ -325,7 +357,7 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
     except subprocess.CalledProcessError as exc:
         err_string = str(exc.stderr)
         if "No such image" in err_string or "reference does not exist" in err_string:
-            ui.display_info("need to download image first")
+            ui.display_info("need to download image first")  # ici
             docker_pull_image(image_name, timeout)
 
             docker_save_to_tmp(image_name, destination_path, timeout)
