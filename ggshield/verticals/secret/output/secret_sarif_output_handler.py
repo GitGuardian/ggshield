@@ -6,6 +6,7 @@ from pygitguardian.models import SecretIncident
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.match_span import MatchSpan
+from ggshield.core.text_utils import format_bool
 
 from ..extended_match import ExtendedMatch
 from ..secret_scan_collection import Result, Secret, SecretScanCollection
@@ -83,7 +84,7 @@ def _create_sarif_result_dict(
         markdown_message = f"Secret detected: [{secret.detector_display_name}]({secret.documentation_url})"
     else:
         markdown_message = f"Secret detected: {secret.detector_display_name}"
-    markdown_message += f"\nSecret in Secrets Manager: {secret.is_vaulted}"
+    markdown_message += f"\nSecret in Secrets Manager: {format_bool(secret.is_vaulted)}"
     markdown_message += f"\nMatches:\n{matches_li}"
 
     # Create dict

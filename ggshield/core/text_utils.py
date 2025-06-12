@@ -54,6 +54,10 @@ def format_line_count(line_count: Union[int, None], padding: int) -> str:
     return " " * max(0, padding - len(str(line_count))) + str(line_count)
 
 
+def format_bool(value: bool) -> str:
+    return "YES" if value else "NO"
+
+
 _VALIDITY_TEXT_FOR_ID = {
     "unknown": "Unknown",
     # cannot_check is the old ID for secrets for which there are no checkers
