@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import platform
 import re
 import subprocess
 import tarfile
@@ -297,11 +296,10 @@ def docker_pull_image(image_name: str, timeout: int) -> None:
     if _run_docker_command(base_command, timeout):
         return
 
-    # Apple Silicon: fall back to linux/amd64 if no success
-    if platform.system() == "Darwin" and platform.machine() == "arm64":
-        amd64_command = base_command + ["--platform=linux/amd64"]
-        if _run_docker_command(amd64_command, timeout):
-            return
+    # Fall back to linux/amd64 if no success
+    amd64_command = base_command + ["--platform=linux/amd64"]
+    if _run_docker_command(amd64_command, timeout):
+        return
 
     # Raise error if no success
     raise UsageError(f'Image "{image_name}" not found')
@@ -357,7 +355,7 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
     except subprocess.CalledProcessError as exc:
         err_string = str(exc.stderr)
         if "No such image" in err_string or "reference does not exist" in err_string:
-            ui.display_info("need to download image first")  # ici
+            ui.display_info("need to download image first")
             docker_pull_image(image_name, timeout)
 
             docker_save_to_tmp(image_name, destination_path, timeout)
