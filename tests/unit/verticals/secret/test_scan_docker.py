@@ -148,6 +148,20 @@ class TestDockerPull:
             ):
                 docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
 
+    def test_docker_pull_image_platform_fallback(self):
+        with patch(
+            "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=[])
+        ) as call, pytest.raises(
+            click.UsageError,
+            match='Image "ggshield-non-existant" not found',
+        ):
+            docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
+            call.assert_called_once_with(
+                ["docker", "pull", "ggshield-non-existant", "--platform=linux/amd64"],
+                check=True,
+                timeout=DOCKER_TIMEOUT,
+            )
+
 
 class TestDockerSave:
     TMP_ARCHIVE = Path("/tmp/as/archive.tar")
