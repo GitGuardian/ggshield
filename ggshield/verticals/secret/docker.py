@@ -289,15 +289,45 @@ def docker_pull_image(image_name: str, timeout: int) -> None:
 
     Timeout after `timeout` seconds.
     """
-    command = ["docker", "pull", image_name]
+    # Base command for docker pull
+    base_command = ["docker", "pull", image_name]
+
+    # Try standard pull first
+    if _run_docker_command(base_command, timeout):
+        return
+
+    # Fall back to linux/amd64 if no success
+    amd64_command = base_command + ["--platform=linux/amd64"]
+    if _run_docker_command(amd64_command, timeout):
+        return
+
+    # Raise error if no success
+    raise UsageError(f'Image "{image_name}" not found')
+
+
+def _run_docker_command(command: List[str], timeout: int) -> bool:
+    """
+    Run a docker command with timeout and return success status
+
+    Args:
+        command: Docker command to run as a list of strings
+        timeout: Timeout in seconds
+
+    Returns:
+        True if command succeeded, False if CalledProcessError
+
+    Raises:
+        UnexpectedError: If command times out
+    """
     try:
         subprocess.run(
             command,
             check=True,
             timeout=timeout,
         )
+        return True
     except subprocess.CalledProcessError:
-        raise UsageError(f'Image "{image_name}" not found')
+        return False
     except subprocess.TimeoutExpired:
         raise UnexpectedError('Command "{}" timed out'.format(" ".join(command)))
 
