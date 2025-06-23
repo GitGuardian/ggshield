@@ -18,7 +18,7 @@ on:
         default: false
 
 env:
-  PDM_VERSION: 2.20.1
+  PDM_VERSION: 2.22.4
 
 jobs:
   build_wheel_sdist:
@@ -292,6 +292,27 @@ jobs:
           - clearlinux:latest
 
     steps:
+      - name: Install requirements
+        run: |
+          case "${{ matrix.image }}" in
+            debian:*|ubuntu:*)
+              apt update
+              apt install --no-install-recommends -y git
+              ;;
+            rockylinux*)
+              yum install -y git-core
+              ;;
+            opensuse*)
+              zypper install -y git-core
+              ;;
+            clearlinux*)
+              # install libstdcpp: as of June 2025, libstdcpp is not part of clearlinux base image
+              # and it is needed by node in actions/download-artifact@v4
+              swupd bundle-add libstdcpp
+              swupd bundle-add git
+              ;;
+          esac
+
       - name: Download OS packages
         uses: actions/download-artifact@v4
         with:
@@ -304,20 +325,15 @@ jobs:
         run: |
           case "${{ matrix.image }}" in
             debian:*|ubuntu:*)
-              apt update
-              apt install --no-install-recommends -y git
               dpkg -i packages/*.deb
               ;;
             rockylinux*)
-              yum install -y git-core
               rpm -i packages/*.rpm
               ;;
             opensuse*)
-              zypper install -y git-core
               rpm -i packages/*.rpm
               ;;
             clearlinux*)
-              swupd bundle-add git
 
               # Unpack ggshield in /usr/local/ggshield
               pkg_dir=$PWD/packages

@@ -551,7 +551,6 @@ Yanked: release process issue.
 #### IaC
 
 - `ggshield iac scan` now provides three new commands for use as Git hooks:
-
   - `ggshield iac scan pre-commit`
   - `ggshield iac scan pre-push`
   - `ggshield iac scan pre-receive`
@@ -561,7 +560,6 @@ Yanked: release process issue.
 - The new `ggshield iac scan ci` command can be used to perform IaC scans in CI environments.
   It supports the same arguments as hook subcommands (in particular, `--all` to scan the whole repository).
   Supported CIs are:
-
   - Azure
   - Bitbucket
   - CircleCI
@@ -574,7 +572,6 @@ Yanked: release process issue.
 #### SCA
 
 - Introduces new commands to perform SCA scans with ggshield:
-
   - `ggshield sca scan all <DIRECTORY>` : scans a directory or a repository to find all existing SCA vulnerabilities.
   - `ggshield sca scan diff <DIRECTORY> --ref <GIT_REF>`: runs differential scan compared to a given git ref.
   - `ggshield sca scan pre-commit`
@@ -585,7 +582,6 @@ Yanked: release process issue.
 #### Other
 
 - It is now possible to manipulate the default instance using `ggshield config`:
-
   - `ggshield config set instance <THE_INSTANCE_URL>` defines the default instance.
   - `ggshield config unset instance` removes the previously defined instance.
   - The default instance can be printed with `ggshield config get instance` and `ggshield config list`.
@@ -639,7 +635,6 @@ Yanked: release process issue.
 - New command: `ggshield iac scan all`. This command replaces the now-deprecated `ggshield iac scan`. It scans a directory for IaC vulnerabilities.
 
 - New command: `ggshield iac scan diff`. This command scans a Git repository and inspects changes in IaC vulnerabilities between two points in the history.
-
   - All options from `ggshield iac scan all` are supported: `--ignore-policy`, `--minimum-severity`, `--ignore-path` etc. Execute `ggshield iac scan diff -h` for more details.
   - Two new options allow to choose which state to select for the difference: `--ref <GIT-REFERENCE>` and `--staged`.
   - The command can be integrated in Git hooks using the `--pre-commit`, `--pre-push`, `--pre-receive` options.
