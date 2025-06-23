@@ -306,6 +306,8 @@ jobs:
               zypper install -y git-core
               ;;
             clearlinux*)
+              # install libstdcpp: as of June 2025, libstdcpp is not part of clearlinux base image
+              # and it is needed by node in actions/download-artifact@v4
               swupd bundle-add libstdcpp
               swupd bundle-add git
               ;;
