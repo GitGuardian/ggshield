@@ -292,6 +292,14 @@ jobs:
           - clearlinux:latest
 
     steps:
+      - name: Install requirements
+        run: |
+          case "${{ matrix.image }}" in
+            clearlinux*)
+              swupd bundle-add libstdcpp
+              ;;
+          esac
+
       - name: Download OS packages
         uses: actions/download-artifact@v4
         with:
