@@ -5,7 +5,7 @@
 groups = ["default", "dev", "standalone", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:cd9650c400aadcb656f46e279e80977bef00995c9e898b801f795ddc1520a3e9"
+content_hash = "sha256:7f16af5aa56620c67fb3c78b59e00ad97631e71378ff293fb8de21890ce27bf2"
 
 [[metadata.targets]]
 requires_python = ">=3.9"
@@ -1676,7 +1676,7 @@ files = [
 
 [[package]]
 name = "pygitguardian"
-version = "1.22.0"
+version = "1.23.0"
 requires_python = ">=3.8"
 summary = "Python Wrapper for GitGuardian's API -- Scan security policy breaks everywhere"
 groups = ["default"]
@@ -1688,8 +1688,8 @@ dependencies = [
     "typing-extensions",
 ]
 files = [
-    {file = "pygitguardian-1.22.0-py3-none-any.whl", hash = "sha256:912b6cd06f5eff12a17b1ecc5bf3addf8fb6467a442d4e39d1e6da9ae0669edf"},
-    {file = "pygitguardian-1.22.0.tar.gz", hash = "sha256:d3e7214e16f06f2ba7c5ca1bc809dc1e1e4dbc9199e09f1c1b2947174d8b043b"},
+    {file = "pygitguardian-1.23.0-py3-none-any.whl", hash = "sha256:fe295a6915dbcf880d81ac8d595118e2fd159b3d52a764678cd605c0118225a0"},
+    {file = "pygitguardian-1.23.0.tar.gz", hash = "sha256:53d4c3019cc25a792b4e6e8788f137b98d0558a596aa0ba7bd4e2304cfd949ed"},
 ]
 
 [[package]]

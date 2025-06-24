@@ -84,8 +84,8 @@ class Secret:
     """
 
     detector_display_name: str
-    detector_name: str
-    detector_group_name: str
+    detector_name: Optional[str]
+    detector_group_name: Optional[str]
     documentation_url: Optional[str]
     validity: str
     known_secret: bool
