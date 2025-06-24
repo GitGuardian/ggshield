@@ -13,7 +13,7 @@ set -euo pipefail
 # subdir/fine-symlink -> ../fine
 #
 # It also createst good.zip, good.whl and good.tar, which only contain:
-# 
+#
 # fine
 # subdir/fine-symlink -> ../fine
 
@@ -54,7 +54,7 @@ mkdir -p work/archive-root/subdir
     ZIP_CMD="7z a"
     7z a -spf -snl "$BAD_ZIP" ../bad-relative /tmp/bad-absolute . > /dev/null
     7z a "$GOOD_ZIP" fine subdir/fine-symlink > /dev/null
-    
+
     # A .jar is a .zip with a different extension
 
     cp "$BAD_ZIP" "$BAD_JAR"

@@ -15,9 +15,14 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      - id: trailing-whitespace
+        exclude: .importlinter|tests/unit/verticals/secret/output/snapshots/*|tests/unit/core/scan/test_commit_utils.py
       - id: check-json
       - id: check-added-large-files
       - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+        exclude: .importlinter
 
   - repo: https://github.com/Woile/commitizen
     rev: v4.1.0
@@ -26,8 +31,8 @@ repos:
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
         stages: [commit-msg]
 
-  - repo: https://github.com/pre-commit/mirrors-prettier # to format JSON, YAML and markdown files among others
-    rev: v4.0.0-alpha.8
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.6.0
     hooks:
       - id: prettier
 
