@@ -210,8 +210,6 @@ def test_do_not_duplicate_last_found_secrets(client, isolated_fs):
     """
     policy_break = PolicyBreak(
         "a",
-        "a",
-        "a",
         "Secrets detection",
         None,
         [Match("apikey", "apikey", 0, 0, 0, 0)],
