@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.41.0'></a>
+
+## 1.41.0 — 2025-06-24
+
+### Changed
+
+- When scanning a docker image, if no image is found matching the client platform, try to pull the `linux/amd64` image.
+
 <a id='changelog-1.40.0'></a>
 
 ## 1.40.0 — 2025-05-27
