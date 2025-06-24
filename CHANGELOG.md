@@ -551,7 +551,6 @@ Yanked: release process issue.
 #### IaC
 
 - `ggshield iac scan` now provides three new commands for use as Git hooks:
-
   - `ggshield iac scan pre-commit`
   - `ggshield iac scan pre-push`
   - `ggshield iac scan pre-receive`
@@ -636,7 +635,6 @@ Yanked: release process issue.
 - New command: `ggshield iac scan all`. This command replaces the now-deprecated `ggshield iac scan`. It scans a directory for IaC vulnerabilities.
 
 - New command: `ggshield iac scan diff`. This command scans a Git repository and inspects changes in IaC vulnerabilities between two points in the history.
-
   - All options from `ggshield iac scan all` are supported: `--ignore-policy`, `--minimum-severity`, `--ignore-path` etc. Execute `ggshield iac scan diff -h` for more details.
   - Two new options allow to choose which state to select for the difference: `--ref <GIT-REFERENCE>` and `--staged`.
   - The command can be integrated in Git hooks using the `--pre-commit`, `--pre-push`, `--pre-receive` options.

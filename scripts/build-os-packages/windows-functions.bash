@@ -52,7 +52,7 @@ windows_build_chocolatey_package() {
     info "Chocolatey package created in $PACKAGES_DIR/ggshield.$VERSION.nupkg"
 
     rm -rf choco-package
-    
+
 }
 
 # cf https://docs.chocolatey.org/en-us/create/create-packages/#testing-your-package
