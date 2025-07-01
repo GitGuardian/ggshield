@@ -6,7 +6,7 @@ from pygitguardian.models import SecretIncident
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.match_span import MatchSpan
-from ggshield.core.text_utils import format_bool
+from ggshield.core.text_utils import pluralize
 
 from ..extended_match import ExtendedMatch
 from ..secret_scan_collection import Result, Secret, SecretScanCollection
@@ -84,7 +84,19 @@ def _create_sarif_result_dict(
         markdown_message = f"Secret detected: [{secret.detector_display_name}]({secret.documentation_url})"
     else:
         markdown_message = f"Secret detected: {secret.detector_display_name}"
-    markdown_message += f"\nSecret in Secrets Manager: {format_bool(secret.is_vaulted)}"
+
+    if secret.is_vaulted:
+        if secret.vault_path_count is None:
+            markdown_message += "\nSecret found in vault: Yes"
+        else:
+            vault_count_text = f"({secret.vault_path_count} {pluralize('location', secret.vault_path_count)})"
+            markdown_message += f"\nSecret found in vault: Yes {vault_count_text}"
+            markdown_message += f"\nVault Type: {secret.vault_type}"
+            markdown_message += f"\nVault Name: {secret.vault_name}"
+            markdown_message += f"\nSecret Path: {secret.vault_path}"
+    else:
+        markdown_message += "\nSecret found in vault: No"
+
     markdown_message += f"\nMatches:\n{matches_li}"
 
     # Create dict

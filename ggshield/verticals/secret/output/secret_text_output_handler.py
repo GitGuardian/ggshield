@@ -302,13 +302,30 @@ def secret_header(
     number_occurrences = format_text(str(len(secrets)), STYLE["occurrence_count"])
     ignore_sha = format_text(ignore_sha, STYLE["ignore_sha"])
 
+    # Build vault status message
+    vault_status_msg = ""
+    vault_details_msg = ""
+
+    if secret.is_vaulted:
+        if secret.vault_path_count is None:
+            vault_status_msg = f"\n{indent}Secret found in vault: Yes"
+        else:
+            vault_count_text = f"({secret.vault_path_count} {pluralize('location', secret.vault_path_count)})"
+            vault_status_msg = (
+                f"\n{indent}Secret found in vault: Yes {vault_count_text}"
+            )
+            vault_details_msg += f"\n{indent}├─ Vault Type: {secret.vault_type}"
+            vault_details_msg += f"\n{indent}├─ Vault Name: {secret.vault_name}"
+            vault_details_msg += f"\n{indent}└─ Secret Path: {secret.vault_path}"
+    else:
+        vault_status_msg = f"\n{indent}Secret found in vault: No"
+
     message = f"""
 {start_line} Secret detected: {secret_type}{validity_msg}
 {indent}Occurrences: {number_occurrences}
 {indent}Known by GitGuardian dashboard: {format_bool(known_secret)}
 {indent}Incident URL: {secret.incident_url if known_secret and secret.incident_url else "N/A"}
-{indent}Secret SHA: {ignore_sha}
-{indent}Secret in Secrets Manager: {format_bool(secret.is_vaulted)}
+{indent}Secret SHA: {ignore_sha}{vault_status_msg}{vault_details_msg}
 """
     if secret.documentation_url is not None:
         message += f"{indent}Detector documentation: {secret.documentation_url}\n"

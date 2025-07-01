@@ -6,7 +6,6 @@ import pytest
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import StringScannable
-from ggshield.core.text_utils import format_bool
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretTextOutputHandler
@@ -295,4 +294,89 @@ def test_vaulted_secret(is_vaulted: bool):
         )
     )
 
-    assert f"Secret in Secrets Manager: {format_bool(is_vaulted)}" in output
+    if is_vaulted:
+        assert "Secret found in vault: Yes" in output
+    else:
+        assert "Secret found in vault: No" in output
+
+
+@pytest.mark.parametrize(
+    "vault_type,vault_name,vault_path,vault_path_count,expected_messages",
+    [
+        (None, None, None, None, []),
+        (
+            "HashiCorp Vault",
+            "vault.example.org",
+            "/path/to/secret",
+            1,
+            [
+                "├─ Vault Type: HashiCorp Vault",
+                "├─ Vault Name: vault.example.org",
+                "└─ Secret Path: /path/to/secret",
+            ],
+        ),
+        (
+            "HashiCorp Vault",
+            "vault.example.org",
+            "/path/to/secret",
+            4,
+            [
+                "├─ Vault Type: HashiCorp Vault",
+                "├─ Vault Name: vault.example.org",
+                "└─ Secret Path: /path/to/secret",
+            ],
+        ),
+        (
+            "HashiCorp Vault",
+            "vault.example.org",
+            "/path/to/secret",
+            1,
+            [
+                "├─ Vault Type: HashiCorp Vault",
+                "├─ Vault Name: vault.example.org",
+                "└─ Secret Path: /path/to/secret",
+            ],
+        ),
+    ],
+)
+def test_vault_path_in_text_output(
+    vault_type, vault_name, vault_path, vault_path_count, expected_messages
+):
+    """
+    GIVEN a secret with vault information
+    WHEN it is passed to the text output handler
+    THEN the vault information is displayed as expected
+    """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(
+        content=scannable.content,
+        is_vaulted=vault_type is not None,
+        vault_type=vault_type,
+        vault_name=vault_name,
+        vault_path=vault_path,
+        vault_path_count=vault_path_count,
+    )
+
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+
+    output_handler = SecretTextOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan",
+            type="scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    if expected_messages:
+        for expected_message in expected_messages:
+            assert expected_message in output
+    else:
+        assert "├─ Vault Type:" not in output
+        assert "├─ Vault Name:" not in output
+        assert "└─ Secret Path:" not in output

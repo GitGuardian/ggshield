@@ -5,7 +5,7 @@
 groups = ["default", "dev", "standalone", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:83e8a01146542b936d2d7d980e1f270f5829cc4caec95966eef95c8737b92c42"
+content_hash = "sha256:d3511da6b8f711bdbc4deec84d12a9b206fa6923c6cb12e33cc2e5f519685f74"
 
 [[metadata.targets]]
 requires_python = ">=3.9"
@@ -1679,7 +1679,8 @@ name = "pygitguardian"
 version = "1.23.0"
 requires_python = ">=3.8"
 git = "https://github.com/GitGuardian/py-gitguardian.git"
-revision = "b1c4bef71e2ebb2fd912da3e5bcba6e07fb992e2"
+ref = "007c1098d4e17bf71087453b431beafbaf425825"
+revision = "007c1098d4e17bf71087453b431beafbaf425825"
 summary = "Python Wrapper for GitGuardian's API -- Scan security policy breaks everywhere"
 groups = ["default"]
 dependencies = [
@@ -2420,7 +2421,7 @@ files = [
 [[package]]
 name = "wasmer-compiler-cranelift"
 version = "1.1.0"
-summary = "The Cranelift compiler for the `wasmer` package (to compile WebAssembly module)"
+summary = "Python extension to run WebAssembly binaries"
 groups = ["tests"]
 files = [
     {file = "wasmer_compiler_cranelift-1.1.0-cp310-cp310-macosx_10_7_x86_64.whl", hash = "sha256:9869910179f39696a020edc5689f7759257ac1cce569a7a0fcf340c59788baad"},

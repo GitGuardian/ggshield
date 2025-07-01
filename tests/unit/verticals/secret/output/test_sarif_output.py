@@ -12,11 +12,11 @@ from voluptuous import validators
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import Commit
-from ggshield.core.text_utils import format_bool
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretSARIFOutputHandler
 from ggshield.verticals.secret.output.secret_sarif_output_handler import SCHEMA_URL
 from ggshield.verticals.secret.secret_scan_collection import Secret
+from tests.factories import PolicyBreakFactory, ScannableFactory, ScanResultFactory
 from tests.unit.conftest import (
     _MULTI_SECRET_ONE_LINE_FULL_PATCH,
     _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT,
@@ -304,12 +304,13 @@ def check_sarif_result(
 
     # Check that the markdown message contains the correct is_vaulted information
     markdown_message = sarif_result["message"]["markdown"]
-    expected_is_vaulted_text = (
-        f"Secret in Secrets Manager: {format_bool(secret.is_vaulted)}"
-    )
+    if secret.is_vaulted:
+        expected_vault_text = "Secret found in vault: Yes"
+    else:
+        expected_vault_text = "Secret found in vault: No"
     assert (
-        expected_is_vaulted_text in markdown_message
-    ), f"Expected '{expected_is_vaulted_text}' in markdown message, but got: {markdown_message}"
+        expected_vault_text in markdown_message
+    ), f"Expected '{expected_vault_text}' in markdown message, but got: {markdown_message}"
 
     if contains_incident_details:
         assert (
@@ -353,3 +354,91 @@ def get_content_from_region(content: str, region: RegionDict) -> str:
     lines[0] = lines[0][start_column:]
 
     return "\n".join(lines)
+
+
+@pytest.mark.parametrize(
+    "vault_type,vault_name,vault_path,vault_path_count,expected_messages",
+    [
+        (None, None, None, None, []),
+        (
+            "HashiCorp Vault",
+            "vault.example.org",
+            "/path/to/secret",
+            1,
+            [
+                "Vault Type: HashiCorp Vault",
+                "Vault Name: vault.example.org",
+                "Secret Path: /path/to/secret",
+            ],
+        ),
+        (
+            "HashiCorp Vault",
+            "vault.example.org",
+            "/path/to/secret",
+            4,
+            [
+                "Vault Type: HashiCorp Vault",
+                "Vault Name: vault.example.org",
+                "Secret Path: /path/to/secret",
+            ],
+        ),
+        (
+            "HashiCorp Vault",
+            "vault.example.org",
+            "/path/to/secret",
+            1,
+            [
+                "Vault Type: HashiCorp Vault",
+                "Vault Name: vault.example.org",
+                "Secret Path: /path/to/secret",
+            ],
+        ),
+    ],
+)
+def test_vault_path_in_sarif_output(
+    init_secrets_engine_version,
+    vault_type,
+    vault_name,
+    vault_path,
+    vault_path_count,
+    expected_messages,
+):
+    """
+    GIVEN a secret with vault information
+    WHEN it is passed to the SARIF output handler
+    THEN the vault information is included in the markdown message
+    """
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(
+        content=scannable.content,
+        is_vaulted=vault_type is not None,
+        vault_type=vault_type,
+        vault_name=vault_name,
+        vault_path=vault_path,
+        vault_path_count=vault_path_count,
+    )
+
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+
+    handler = SecretSARIFOutputHandler(
+        verbose=True, secret_config=SecretConfig(show_secrets=False)
+    )
+
+    output = handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan", type="scan", results=Results(results=[result], errors=[])
+        )
+    )
+
+    json_dict = json.loads(output)
+    sarif_results = json_dict["runs"][0]["results"]
+
+    assert len(sarif_results) == 1
+    markdown_message = sarif_results[0]["message"]["markdown"]
+
+    # Check that all expected messages are present
+    for expected_message in expected_messages:
+        assert expected_message in markdown_message

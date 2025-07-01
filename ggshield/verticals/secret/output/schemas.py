@@ -23,6 +23,10 @@ class FlattenedPolicyBreak(BaseSchema):
     known_secret = fields.Bool(required=True, dump_default=False)
     ignore_reason = fields.Nested(IgnoreReasonSchema, dump_default=None)
     secret_vaulted = fields.Bool(required=True, dump_default=False)
+    vault_type = fields.String(required=False, allow_none=True)
+    vault_name = fields.String(required=False, allow_none=True)
+    vault_path = fields.String(required=False, allow_none=True)
+    vault_path_count = fields.Integer(required=False, allow_none=True)
 
 
 class JSONResultSchema(BaseSchema):
