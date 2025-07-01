@@ -304,9 +304,7 @@ def check_sarif_result(
 
     # Check that the markdown message contains the correct is_vaulted information
     markdown_message = sarif_result["message"]["markdown"]
-    expected_is_vaulted_text = (
-        f"Secret in Secrets Manager: {format_bool(secret.is_vaulted)}"
-    )
+    expected_is_vaulted_text = f"Is secret vaulted: {format_bool(secret.is_vaulted)}"
     assert (
         expected_is_vaulted_text in markdown_message
     ), f"Expected '{expected_is_vaulted_text}' in markdown message, but got: {markdown_message}"
@@ -353,3 +351,65 @@ def get_content_from_region(content: str, region: RegionDict) -> str:
     lines[0] = lines[0][start_column:]
 
     return "\n".join(lines)
+
+
+@pytest.mark.parametrize(
+    "vault_path,vault_path_count,expected_message",
+    [
+        (None, None, ""),
+        ("vault_name:/path/to/secret", 1, "Secret's path: vault_name:/path/to/secret"),
+        (
+            "vault_name:/path/to/secret",
+            4,
+            "Secret's path: vault_name:/path/to/secret and 3 other locations",
+        ),
+        (
+            "vault_name:/path/to/secret",
+            None,
+            "Secret's path: vault_name:/path/to/secret",
+        ),
+    ],
+)
+def test_vault_path_in_sarif_output(
+    init_secrets_engine_version, vault_path, vault_path_count, expected_message
+):
+    """
+    GIVEN a secret with vault path information
+    WHEN it is passed to the SARIF output handler
+    THEN the vault path information is included in the markdown message
+    """
+    from ggshield.core.config.user_config import SecretConfig
+    from ggshield.verticals.secret import Result, Results, SecretScanCollection
+    from tests.factories import PolicyBreakFactory, ScannableFactory, ScanResultFactory
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(content=scannable.content)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+
+    # Set vault path information on the secret
+    result.secrets[0].vault_path = vault_path
+    result.secrets[0].vault_path_count = vault_path_count
+
+    handler = SecretSARIFOutputHandler(
+        verbose=True, secret_config=SecretConfig(show_secrets=False)
+    )
+
+    output = handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan", type="scan", results=Results(results=[result], errors=[])
+        )
+    )
+
+    json_dict = json.loads(output)
+    sarif_results = json_dict["runs"][0]["results"]
+
+    assert len(sarif_results) == 1
+    markdown_message = sarif_results[0]["message"]["markdown"]
+
+    if expected_message:
+        assert expected_message in markdown_message
+    else:
+        assert "Secret's path:" not in markdown_message

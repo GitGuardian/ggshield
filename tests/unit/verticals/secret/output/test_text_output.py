@@ -295,4 +295,55 @@ def test_vaulted_secret(is_vaulted: bool):
         )
     )
 
-    assert f"Secret in Secrets Manager: {format_bool(is_vaulted)}" in output
+    assert f"Is secret vaulted: {format_bool(is_vaulted)}" in output
+
+
+@pytest.mark.parametrize(
+    "vault_path,vault_path_count,expected_message",
+    [
+        (None, None, None),
+        ("vault_name:/path/to/secret", 1, "Secret's path: vault_name:/path/to/secret"),
+        (
+            "vault_name:/path/to/secret",
+            4,
+            "Secret's path: vault_name:/path/to/secret and 3 other locations",
+        ),
+        (
+            "vault_name:/path/to/secret",
+            None,
+            "Secret's path: vault_name:/path/to/secret",
+        ),
+    ],
+)
+def test_vault_path_in_text_output(vault_path, vault_path_count, expected_message):
+    """
+    GIVEN a secret with vault path information
+    WHEN it is passed to the text output handler
+    THEN the vault path information is displayed as expected
+    """
+
+    secret_config = SecretConfig()
+    scannable = ScannableFactory()
+    policy_break = PolicyBreakFactory(content=scannable.content)
+    result = Result.from_scan_result(
+        scannable, ScanResultFactory(policy_breaks=[policy_break]), secret_config
+    )
+
+    # Set vault path information on the secret
+    result.secrets[0].vault_path = vault_path
+    result.secrets[0].vault_path_count = vault_path_count
+
+    output_handler = SecretTextOutputHandler(secret_config=secret_config, verbose=False)
+
+    output = output_handler._process_scan_impl(
+        SecretScanCollection(
+            id="scan",
+            type="scan",
+            results=Results(results=[result], errors=[]),
+        )
+    )
+
+    if expected_message:
+        assert expected_message in output
+    else:
+        assert "Secret's path:" not in output
