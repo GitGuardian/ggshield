@@ -143,6 +143,13 @@ class SecretJSONOutputHandler(SecretOutputHandler):
 
         if secrets[0].is_vaulted:
             flattened_dict["secret_vaulted"] = secrets[0].is_vaulted
+
+        # Add vault path information if available
+        if secrets[0].vault_path is not None:
+            flattened_dict["vault_path"] = secrets[0].vault_path
+            if secrets[0].vault_path_count is not None:
+                flattened_dict["vault_path_count"] = secrets[0].vault_path_count
+
         for secret in secrets:
             flattened_dict["occurrences"].extend(self.serialize_secret_matches(secret))
 

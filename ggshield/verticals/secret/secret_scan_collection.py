@@ -94,6 +94,8 @@ class Secret:
     ignore_reason: Optional[IgnoreReason]
     diff_kind: Optional[DiffKind]
     is_vaulted: bool
+    vault_path: Optional[str]
+    vault_path_count: Optional[int]
 
     @property
     def policy(self) -> str:
@@ -201,6 +203,8 @@ class Result:
                 ignore_reason=ignore_reason,
                 diff_kind=policy_break.diff_kind,
                 is_vaulted=policy_break.is_vaulted,
+                vault_path=getattr(policy_break, "vault_path", None),
+                vault_path_count=getattr(policy_break, "vault_path_count", None),
             )
             for policy_break, ignore_reason in to_keep
         ]

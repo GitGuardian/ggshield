@@ -84,7 +84,16 @@ def _create_sarif_result_dict(
         markdown_message = f"Secret detected: [{secret.detector_display_name}]({secret.documentation_url})"
     else:
         markdown_message = f"Secret detected: {secret.detector_display_name}"
-    markdown_message += f"\nSecret in Secrets Manager: {format_bool(secret.is_vaulted)}"
+    markdown_message += f"\nIs secret vaulted: {format_bool(secret.is_vaulted)}"
+
+    # Add vault path information if available
+    if secret.vault_path is not None:
+        if secret.vault_path_count is None or secret.vault_path_count == 1:
+            markdown_message += f"\nSecret's path: {secret.vault_path}"
+        else:
+            other_locations = secret.vault_path_count - 1
+            markdown_message += f"\nSecret's path: {secret.vault_path} and {other_locations} other locations"
+
     markdown_message += f"\nMatches:\n{matches_li}"
 
     # Create dict
