@@ -38,7 +38,7 @@ def test_check_client_api_key_error(response: Detail, error_class: Type[Exceptio
     client_mock.base_uri = "http://localhost"
     client_mock.read_metadata.return_value = response
     with pytest.raises(error_class):
-        check_client_api_key(client_mock)
+        check_client_api_key(client_mock, set())
 
 
 def test_check_client_api_key_network_error():
@@ -51,13 +51,13 @@ def test_check_client_api_key_network_error():
     client_mock.health_check = Mock(side_effect=requests.exceptions.ConnectionError)
     client_mock.read_metadata = Mock(return_value=Detail("Not found", 404))
     with pytest.raises(UnexpectedError):
-        check_client_api_key(client_mock)
+        check_client_api_key(client_mock, set())
 
 
 def test_check_client_api_key_with_source_uuid_success():
     """
     GIVEN a client with valid API key and required scopes
-    WHEN check_client_api_key() is called with source_uuid
+    WHEN check_client_api_key() is called with scope scan:create-incidents
     THEN it succeeds without raising any exception
     """
     client_mock = Mock(spec=GGClient)
@@ -76,13 +76,13 @@ def test_check_client_api_key_with_source_uuid_success():
     )
 
     # Should not raise any exception
-    check_client_api_key(client_mock, source_uuid="test-uuid")
+    check_client_api_key(client_mock, {TokenScope.SCAN_CREATE_INCIDENTS})
 
 
 def test_check_client_api_key_with_source_uuid_missing_scope():
     """
     GIVEN a client with valid API key but missing required scope
-    WHEN check_client_api_key() is called with source_uuid
+    WHEN check_client_api_key() is called with scope scan:create-incidents
     THEN it raises MissingScopesError
     """
     client_mock = Mock(spec=GGClient)
@@ -106,13 +106,13 @@ def test_check_client_api_key_with_source_uuid_missing_scope():
         MissingScopesError,
         match="Token is missing the required scope scan:create-incidents",
     ):
-        check_client_api_key(client_mock, source_uuid="test-uuid")
+        check_client_api_key(client_mock, {TokenScope.SCAN_CREATE_INCIDENTS})
 
 
 def test_check_client_api_key_with_source_uuid_api_tokens_error():
     """
     GIVEN a client with valid API key but api_tokens returns an error
-    WHEN check_client_api_key() is called with source_uuid
+    WHEN check_client_api_key() is called with scope scan:create-incidents
     THEN it raises UnexpectedError
     """
     client_mock = Mock(spec=GGClient)
@@ -121,13 +121,13 @@ def test_check_client_api_key_with_source_uuid_api_tokens_error():
     client_mock.api_tokens.return_value = Detail("API tokens error", 500)
 
     with pytest.raises(UnexpectedError, match="API tokens error"):
-        check_client_api_key(client_mock, source_uuid="test-uuid")
+        check_client_api_key(client_mock, {TokenScope.SCAN_CREATE_INCIDENTS})
 
 
 def test_check_client_api_key_with_source_uuid_unexpected_response():
     """
     GIVEN a client with valid API key but api_tokens returns unexpected response type
-    WHEN check_client_api_key() is called with source_uuid
+    WHEN check_client_api_key() is called with scope scan:create-incidents
     THEN it raises UnexpectedError
     """
     client_mock = Mock(spec=GGClient)
@@ -136,20 +136,20 @@ def test_check_client_api_key_with_source_uuid_unexpected_response():
     client_mock.api_tokens.return_value = "unexpected_response_type"
 
     with pytest.raises(UnexpectedError, match="Unexpected api_tokens response"):
-        check_client_api_key(client_mock, source_uuid="test-uuid")
+        check_client_api_key(client_mock, {TokenScope.SCAN_CREATE_INCIDENTS})
 
 
 def test_check_client_api_key_without_source_uuid_no_token_check():
     """
     GIVEN a client with valid API key
-    WHEN check_client_api_key() is called without source_uuid
+    WHEN check_client_api_key() is called without required scopes
     THEN it doesn't call api_tokens
     """
     client_mock = Mock(spec=GGClient)
     client_mock.base_uri = "http://localhost"
     client_mock.read_metadata.return_value = None  # Success
 
-    check_client_api_key(client_mock)  # No source_uuid
+    check_client_api_key(client_mock, set())
 
     # Should not call api_tokens
     client_mock.api_tokens.assert_not_called()

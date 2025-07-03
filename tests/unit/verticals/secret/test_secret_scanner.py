@@ -284,6 +284,7 @@ index 7601807,5716ca5..8c27e55
 def test_with_incident_details_error(
     monkeypatch, client, cache, api_response, expected_exception, message
 ):
+    monkeypatch.setattr(client, "read_metadata", Mock(return_value=None))
     monkeypatch.setattr(client, "api_tokens", Mock(return_value=api_response))
     with pytest.raises(expected_exception) as exc_info:
         SecretScanner(
@@ -293,7 +294,7 @@ def test_with_incident_details_error(
                 scan_mode=ScanMode.PATH,
                 command_path="external",
             ),
-            check_api_key=False,
+            check_api_key=True,
             secret_config=SecretConfig(with_incident_details=True),
         )
         assert message in str(exc_info.value)
