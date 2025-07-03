@@ -3,6 +3,7 @@ import logging
 from dataclasses import field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+from uuid import UUID
 
 import marshmallow_dataclass
 from marshmallow import ValidationError
@@ -44,6 +45,7 @@ class SecretConfig(FilteredConfig):
     # if configuration key is left unset the dashboard's remediation message is used.
     all_secrets: bool = False
     prereceive_remediation_message: str = ""
+    source_uuid: Optional[UUID] = None
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
         """
@@ -70,6 +72,7 @@ class SecretConfig(FilteredConfig):
                     self.prereceive_remediation_message
                 ),
                 "all_secrets": self.all_secrets,
+                "source_uuid": self.source_uuid,
             }
         )
 

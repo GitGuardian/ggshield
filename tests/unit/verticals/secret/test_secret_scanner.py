@@ -41,6 +41,7 @@ from tests.unit.conftest import (
     _NO_SECRET_PATCH,
     _ONE_LINE_AND_MULTILINE_PATCH,
     _SIMPLE_SECRET_TOKEN,
+    API_TOKENS_RESPONSE_SCAN_CREATE_INCIDENTS_SCOPES,
     API_TOKENS_RESPONSE_SCAN_SCOPES,
     GG_TEST_TOKEN,
     UNCHECKED_SECRET_PATCH,
@@ -198,6 +199,12 @@ def test_handle_scan_error_api_key():
                 StringScannable(content="", url="valid"),
             ],
             id="single file exception",
+        ),
+        pytest.param(
+            Detail("Source not found"),
+            400,
+            [StringScannable(content="test", url="test.txt")],
+            id="source not found",
         ),
     ],
 )
@@ -502,3 +509,83 @@ def test_all_secrets_is_used(scan_mock: Mock, client):
     assert [pbreak.detector_display_name for pbreak in results.results[0].secrets] == [
         "not-excluded"
     ]
+
+
+@patch("pygitguardian.GGClient.api_tokens")
+@patch("pygitguardian.GGClient.scan_and_create_incidents")
+def test_source_uuid_is_used(
+    scan_and_create_incidents_mock: Mock, api_tokens_mock: Mock, client
+):
+    """
+    GIVEN a source_uuid is provided in the secret config
+    WHEN calling scanner.scan
+    THEN scan_and_create_incidents is called with the correct source_uuid
+    """
+    scannable = StringScannable(url="localhost", content="test content")
+    source_uuid = "test-source-uuid"
+
+    api_tokens_mock.return_value = APITokensResponse.from_dict(
+        API_TOKENS_RESPONSE_SCAN_CREATE_INCIDENTS_SCOPES
+    )
+    scan_result = ScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+    multi_scan_result = MultiScanResult([scan_result])
+    multi_scan_result.status_code = 200
+    scan_and_create_incidents_mock.return_value = multi_scan_result
+
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield",
+        ),
+        check_api_key=False,
+        secret_config=SecretConfig(source_uuid=source_uuid),
+    )
+    scanner.scan([scannable], scanner_ui=Mock())
+
+    scan_and_create_incidents_mock.assert_called_once()
+    args, _ = scan_and_create_incidents_mock.call_args
+    assert args[1] == source_uuid
+
+
+@pytest.mark.parametrize(
+    "api_response, expected_exception, message",
+    [
+        (
+            Detail(detail="Unexpected response"),
+            UnexpectedError,
+            "Unexpected response",
+        ),
+        (
+            APITokensResponse.from_dict(API_TOKENS_RESPONSE_SCAN_SCOPES),
+            MissingScopesError,
+            "Token is missing the required scope scan:create_incidents to perform this operation.",
+        ),
+    ],
+)
+def test_with_source_uuid_error(
+    monkeypatch, client, cache, api_response, expected_exception, message
+):
+    """
+    GIVEN a source_uuid is provided in the secret config
+    WHEN creating a SecretScanner with check_api_key=True
+    AND the token scope check fails
+    THEN a correct error is raised during check_client_api_key
+    """
+    monkeypatch.setattr(
+        client, "read_metadata", Mock(return_value=None)
+    )  # Success for API key check
+    monkeypatch.setattr(client, "api_tokens", Mock(return_value=api_response))
+    with pytest.raises(expected_exception) as exc_info:
+        SecretScanner(
+            client=client,
+            cache=cache,
+            scan_context=ScanContext(
+                scan_mode=ScanMode.PATH,
+                command_path="external",
+            ),
+            check_api_key=True,  # This will trigger check_client_api_key with source_uuid
+            secret_config=SecretConfig(source_uuid="test-uuid"),
+        )
+        assert message in str(exc_info.value)

@@ -7,14 +7,14 @@ from concurrent.futures import Future
 from typing import Dict, Iterable, List, Optional, Union
 
 from pygitguardian import GGClient
-from pygitguardian.models import APITokensResponse, Detail, MultiScanResult, TokenScope
+from pygitguardian.models import Detail, MultiScanResult, TokenScope
 
 from ggshield.core import ui
 from ggshield.core.cache import Cache
 from ggshield.core.client import check_client_api_key
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
-from ggshield.core.errors import MissingScopesError, UnexpectedError, handle_api_error
+from ggshield.core.errors import handle_api_error
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
 from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.core.text_utils import pluralize
@@ -50,7 +50,8 @@ class SecretScanner:
         check_api_key: Optional[bool] = True,
     ):
         if check_api_key:
-            check_client_api_key(client)
+            scopes = get_required_token_scopes_from_config(secret_config)
+            check_client_api_key(client, scopes)
 
         self.client = client
         self.cache = cache
@@ -59,16 +60,6 @@ class SecretScanner:
         self.headers.update({"scan_options": secret_config.dump_for_monitoring()})
 
         self.command_id = scan_context.command_id
-
-        if secret_config.with_incident_details:
-            response = self.client.api_tokens()
-
-            if not isinstance(response, (Detail, APITokensResponse)):
-                raise UnexpectedError("Unexpected api_tokens response")
-            elif isinstance(response, Detail):
-                raise UnexpectedError(response.detail)
-            if TokenScope.INCIDENTS_READ not in response.scopes:
-                raise MissingScopesError([TokenScope.INCIDENTS_READ])
 
     def scan(
         self,
@@ -109,12 +100,21 @@ class SecretScanner:
             for x in chunk
         ]
 
-        return executor.submit(
-            self.client.multi_content_scan,
-            documents,
-            self.headers,
-            all_secrets=True,
-        )
+        # Use scan_and_create_incidents if source_uuid is provided, otherwise use multi_content_scan
+        if self.secret_config.source_uuid:
+            return executor.submit(
+                self.client.scan_and_create_incidents,
+                documents,
+                self.secret_config.source_uuid,
+                extra_headers=self.headers,
+            )
+        else:
+            return executor.submit(
+                self.client.multi_content_scan,
+                documents,
+                self.headers,
+                all_secrets=True,
+            )
 
     def _start_scans(
         self,
@@ -230,6 +230,11 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     handle_api_error(detail)
     details = None
 
+    # Handle source_uuid not found error specifically
+    if "Source not found" in detail.detail:
+        ui.display_error("The provided source was not found in GitGuardian.")
+        return
+
     ui.display_error("Scanning failed. Results may be incomplete.")
     try:
         # try to load as list of dicts to get per file details
@@ -251,5 +256,24 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
         # if the details had a request error
         filenames = "\n".join(f"- {file.filename}" for file in chunk)
         ui.display_error(f"The following chunk is affected:\n{filenames}")
-
         ui.display_error(str(detail))
+
+
+def get_required_token_scopes_from_config(
+    secret_config: SecretConfig,
+) -> set[TokenScope]:
+    """
+    Get the required token scopes based on the secret configuration.
+
+    Args:
+        secret_config: The secret configuration to analyze
+
+    Returns:
+        A set of TokenScope values required for the given configuration
+    """
+    scopes = {TokenScope.SCAN}
+    if secret_config.with_incident_details:
+        scopes.add(TokenScope.INCIDENTS_READ)
+    if secret_config.source_uuid:
+        scopes.add(TokenScope.SCAN_CREATE_INCIDENTS)
+    return scopes
