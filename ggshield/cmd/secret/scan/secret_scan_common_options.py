@@ -1,3 +1,4 @@
+import uuid
 from typing import Callable, List, Optional
 
 import click
@@ -149,6 +150,26 @@ _all_secrets = click.option(
 )
 
 
+def _source_uuid_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[str]
+) -> Optional[str]:
+    if value is not None:
+        try:
+            uuid.UUID(value)
+        except ValueError:
+            raise click.BadParameter("source-uuid must be a valid UUID")
+    return create_config_callback("secret", "source_uuid")(ctx, param, value)
+
+
+_source_uuid_option = click.option(
+    "--source-uuid",
+    help="Identifier of the custom source in GitGuardian. If used, incidents will be created and visible on the "
+    "dashboard. Requires the 'scan:create-incidents' scope.",
+    callback=_source_uuid_callback,
+    default=None,
+)
+
+
 def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
     def decorator(cmd: AnyFunction) -> AnyFunction:
         add_common_options()(cmd)
@@ -163,6 +184,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _with_incident_details_option(cmd)
         instance_option(cmd)
         _all_secrets(cmd)
+        _source_uuid_option(cmd)
         return cmd
 
     return decorator

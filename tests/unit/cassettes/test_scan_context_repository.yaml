@@ -9,25 +9,47 @@ interactions:
         Connection:
           - keep-alive
         User-Agent:
-          - pygitguardian/1.10.0 (Linux;py3.10.4) ggshield
+          - pygitguardian/1.23.0 (Linux;py3.11.9) ggshield
       method: GET
       uri: https://api.gitguardian.com/v1/metadata
     response:
       body:
-        string: '{"version":"v2.41.5","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"onboarding__segmentation_v1_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576}}'
+        string:
+          '{"version":"v2.240.0","preferences":{"marketplaces__aws_product_url":"http://aws.amazon.com/marketplace/pp/prodview-mrmulzykamba6","on_premise__restrict_signup":true,"on_premise__is_email_server_configured":true,"on_premise__default_sso_config_api_id":null,"on_premise__default_sso_config_force_sso":null,"onboarding__segmentation_v1_enabled":true,"general__maximum_payload_size":26214400,"general__mutual_tls_mode":"disabled","general__signup_enabled":true},"secret_scan_preferences":{"maximum_documents_per_scan":20,"maximum_document_size":1048576},"remediation_messages":{"pre_commit":">
+          How to remediate\n\n  Since the secret was detected before the commit was
+          made:\n  1. replace the secret with its reference (e.g. environment variable).\n  2.
+          commit again.\n\n> [Apply with caution] If you want to bypass ggshield (false
+          positive or other reason), run:\n  - if you use the pre-commit framework:\n\n    SKIP=ggshield
+          git commit -m \"<your message>\"\n    ","pre_push":"> How to remediate\n\n  Since
+          the secret was detected before the push BUT after the commit, you need to:\n  1.
+          rewrite the git history making sure to replace the secret with its reference
+          (e.g. environment variable).\n  2. push again.\n\n  To prevent having to rewrite
+          git history in the future, setup ggshield as a pre-commit hook:\n    https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit\n\n>
+          [Apply with caution] If you want to bypass ggshield (false positive or other
+          reason), run:\n  - if you use the pre-commit framework:\n\n    SKIP=ggshield-push
+          git push","pre_receive":"> How to remediate\n\n  A pre-receive hook set server
+          side prevented you from pushing secrets.\n\n  Since the secret was detected
+          during the push BUT after the commit, you need to:\n  1. rewrite the git history
+          making sure to replace the secret with its reference (e.g. environment variable).\n  2.
+          push again.\n\n  To prevent having to rewrite git history in the future, setup
+          ggshield as a pre-commit hook:\n    https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit\n\n>
+          [Apply with caution] If you want to bypass ggshield (false positive or other
+          reason), run:\n\n    git push -o breakglass"}}'
       headers:
         access-control-expose-headers:
           - X-App-Version
         allow:
           - GET, HEAD, OPTIONS
         content-length:
-          - '392'
+          - '2198'
+        content-security-policy:
+          - frame-ancestors 'none'
         content-type:
           - application/json
         cross-origin-opener-policy:
           - same-origin
         date:
-          - Wed, 25 Oct 2023 13:36:10 GMT
+          - Thu, 03 Jul 2025 14:25:09 GMT
         referrer-policy:
           - strict-origin-when-cross-origin
         server:
@@ -37,17 +59,69 @@ interactions:
         vary:
           - Cookie
         x-app-version:
-          - v2.41.5
+          - v2.240.0
         x-content-type-options:
           - nosniff
-          - nosniff
         x-envoy-upstream-service-time:
-          - '21'
+          - '30'
         x-frame-options:
           - DENY
-          - SAMEORIGIN
         x-secrets-engine-version:
-          - 2.98.0
+          - 2.141.1
+        x-xss-protection:
+          - 1; mode=block
+      status:
+        code: 200
+        message: OK
+  - request:
+      body: null
+      headers:
+        Accept:
+          - '*/*'
+        Accept-Encoding:
+          - gzip, deflate
+        Connection:
+          - keep-alive
+        User-Agent:
+          - pygitguardian/1.23.0 (Linux;py3.11.9) ggshield
+      method: GET
+      uri: https://api.gitguardian.com/v1/api_tokens/self
+    response:
+      body:
+        string: '{"id":"b6cec120-cde4-41b8-a59e-1ca2eedb3c13","name":"scan","type":"personal_access_token","scopes":["scan","scan:create-incidents"],"member_id":304824,"workspace_id":295980,"created_at":"2025-07-03T13:10:37.610471Z","last_used_at":"2025-07-03T14:25:00Z","expire_at":null,"revoked_at":null,"status":"active","creator_id":304824}'
+      headers:
+        access-control-expose-headers:
+          - X-App-Version
+        allow:
+          - GET, DELETE, HEAD, OPTIONS
+        content-length:
+          - '327'
+        content-security-policy:
+          - frame-ancestors 'none'
+        content-type:
+          - application/json
+        cross-origin-opener-policy:
+          - same-origin
+        date:
+          - Thu, 03 Jul 2025 14:25:10 GMT
+        referrer-policy:
+          - strict-origin-when-cross-origin
+        server:
+          - istio-envoy
+        strict-transport-security:
+          - max-age=31536000; includeSubDomains
+        vary:
+          - Cookie
+        x-app-version:
+          - v2.240.0
+        x-content-type-options:
+          - nosniff
+        x-envoy-upstream-service-time:
+          - '24'
+        x-frame-options:
+          - DENY
+        x-secrets-engine-version:
+          - 2.141.1
         x-xss-protection:
           - 1; mode=block
       status:

@@ -122,6 +122,21 @@ API_TOKENS_RESPONSE_SCAN_SCOPES = {
     "scopes": ["scan"],
 }
 
+API_TOKENS_RESPONSE_SCAN_CREATE_INCIDENTS_SCOPES = {
+    "id": "5ddaad0c-5a0c-4674-beb5-1cd198d13360",
+    "name": "myTokenName",
+    "workspace_id": 42,
+    "type": "personal_access_token",
+    "status": "active",
+    "created_at": "2023-05-20T12:40:55.662949Z",
+    "last_used_at": "2023-05-24T12:40:55.662949Z",
+    "expire_at": None,
+    "revoked_at": None,
+    "member_id": 22015,
+    "creator_id": 22015,
+    "scopes": ["scan:create-incidents"],
+}
+
 # This long token is a test token, always reported as an uncheckable secret
 GG_TEST_TOKEN = (
     "8a784aab7090f6a4ba3b9f7a6594e2e727007a26590b58ed314e4b9ed4536479sRZlRup3xvtMVfiHWA"

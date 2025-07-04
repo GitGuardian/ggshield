@@ -327,7 +327,7 @@ class OAuthClient:
         # Check our API key is valid, if not forget it
         client = create_client_from_config(self.config)
         try:
-            check_client_api_key(client)
+            check_client_api_key(client, set())
         except APIKeyCheckError:
             # Forget the account
             logger.debug(

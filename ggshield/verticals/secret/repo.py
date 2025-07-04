@@ -20,6 +20,9 @@ from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
+from ggshield.verticals.secret.secret_scanner import (
+    get_required_token_scopes_from_config,
+)
 
 from .output import SecretOutputHandler
 from .secret_scan_collection import Results, SecretScanCollection
@@ -176,7 +179,7 @@ def scan_commit_range(
     :param commit_list: List of commits sha to scan
     :param verbose: Display successful scan's message
     """
-    check_client_api_key(client)
+    check_client_api_key(client, get_required_token_scopes_from_config(secret_config))
     max_documents = client.secret_scan_preferences.maximum_documents_per_scan
 
     with ui.create_progress(len(commit_list) + int(include_staged)) as progress:

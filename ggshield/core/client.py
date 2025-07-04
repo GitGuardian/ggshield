@@ -4,12 +4,14 @@ from typing import Optional
 import requests
 import urllib3
 from pygitguardian import GGClient, GGClientCallbacks
+from pygitguardian.models import APITokensResponse, Detail, TokenScope
 from requests import Session
 
 from .config import Config
 from .constants import DEFAULT_INSTANCE_URL
 from .errors import (
     APIKeyCheckError,
+    MissingScopesError,
     ServiceUnavailableError,
     UnexpectedError,
     UnknownInstanceError,
@@ -87,10 +89,12 @@ def create_session(allow_self_signed: bool = False) -> Session:
     return session
 
 
-def check_client_api_key(client: GGClient) -> None:
+def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> None:
     """
     Raises APIKeyCheckError if the API key configured for the client is not usable
     (either it is invalid or unset). Raises UnexpectedError if the API is down.
+
+    If required_scopes is not empty, also checks that the API key has the required scopes.
     """
     try:
         response = client.read_metadata()
@@ -102,9 +106,8 @@ def check_client_api_key(client: GGClient) -> None:
 
     if response is None:
         # None means success
-        return
-
-    if response.status_code == 401:
+        pass
+    elif response.status_code == 401:
         raise APIKeyCheckError(client.base_uri, "Invalid API key.")
     elif response.status_code == 404:
         raise UnexpectedError(
@@ -118,3 +121,18 @@ def check_client_api_key(client: GGClient) -> None:
         raise UnexpectedError(
             f"GitGuardian server is not responding as expected.\nDetails: {response.detail}"
         )
+
+    # Check token scopes if required_scopes is not empty
+    if required_scopes:
+        response = client.api_tokens()
+
+        if not isinstance(response, (Detail, APITokensResponse)):
+            raise UnexpectedError("Unexpected api_tokens response")
+        elif isinstance(response, Detail):
+            raise UnexpectedError(response.detail)
+
+        missing_scopes = required_scopes - set(
+            TokenScope(scope) for scope in response.scopes
+        )
+        if missing_scopes:
+            raise MissingScopesError(list(missing_scopes))
