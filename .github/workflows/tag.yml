@@ -92,38 +92,49 @@ jobs:
     with:
       version: ${{ needs.release.outputs.tag }}
 
-  push_to_docker_hub:
-    name: Push Docker image to Docker Hub
+  push_docker_images:
+    name: Push Docker image to Docker Hub and GitHub Packages
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Build and push
-        uses: docker/build-push-action@v1
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            gitguardian/ggshield
+            ghcr.io/gitguardian/ggshield/ggshield
+          tags: |
+            type=ref,event=tag
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: gitguardian/ggshield
-          tag_with_ref: true
-          tags: latest
 
-  push_to_github_packages:
-    name: Push Docker image to GitHub Packages
-    runs-on: ubuntu-22.04
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      - name: Push to GitHub Packages
-        uses: docker/build-push-action@v1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          username: ${{ github.actor }}
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          registry: docker.pkg.github.com
-          repository: gitguardian/ggshield/ggshield
-          tag_with_ref: true
-          tags: latest
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            gitguardian/ggshield:latest
+            ghcr.io/gitguardian/ggshield/ggshield:latest
 
   push_to_cloudsmith:
     needs: build_release_assets
