@@ -70,6 +70,10 @@ class PolicyBreakFactory(factory.Factory):
     is_vaulted = False
     exclude_reason = None
     diff_kind = None
+    vault_type = None
+    vault_name = None
+    vault_path = None
+    vault_path_count = None
     content = factory.Faker("text")
     nb_matches = factory.fuzzy.FuzzyInteger(1, 2)
 
@@ -111,3 +115,7 @@ class SecretFactory(factory.Factory):
     ignore_reason = None
     diff_kind = None
     is_vaulted = False
+    vault_type = None
+    vault_name = None
+    vault_path = None
+    vault_path_count = None
