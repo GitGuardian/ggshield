@@ -16,7 +16,7 @@
     <tags>ggshield</tags>
     <summary>ggshield is a CLI application that helps you detect secrets.</summary>
     <description>
-ggshield is a CLI application that runs in your local environment or in a CI environment to help you detect more than 400+ types of secrets.
+ggshield is a CLI application that runs in your local environment or in a CI environment to help you detect more than 500+ types of secrets.
 
 ggshield is open source on GitHub and accessible [here](https://github.com/GitGuardian/ggshield).
 
