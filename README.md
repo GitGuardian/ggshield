@@ -11,7 +11,7 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/GitGuardian/ggshield/main.yml?branch=main&style=for-the-badge)](https://github.com/GitGuardian/ggshield/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
-`ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 400+ types of secrets.
+`ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 500+ types of secrets.
 
 `ggshield` uses our [public API](https://api.gitguardian.com/docs) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan and detect potential vulnerabilities in files and other text content.
 
