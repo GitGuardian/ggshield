@@ -16,7 +16,7 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: .importlinter|tests/unit/verticals/secret/output/snapshots/*|tests/unit/core/scan/test_commit_utils.py
+        exclude: \.importlinter|tests/unit/verticals/secret/output/snapshots/.*|tests/unit/core/scan/test_commit_utils.py
       - id: check-json
       - id: check-added-large-files
       - id: check-yaml

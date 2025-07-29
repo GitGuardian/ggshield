@@ -138,8 +138,8 @@ def generate_repo_with_merge_commit(
             file_size,
             nb_files_per_commit,
             0,
-            f"Commit master n°{i+1}",
-            file_prefix=f"file-master-{i+1}",
+            f"Commit master n°{i + 1}",
+            file_prefix=f"file-master-{i + 1}",
         )
     # Pick one of the files of HEAD  commit at random
     files_last_commit = repo.git(*["diff", "--name-only", "HEAD~1"]).splitlines()

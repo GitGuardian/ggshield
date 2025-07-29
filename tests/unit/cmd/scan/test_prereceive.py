@@ -360,7 +360,7 @@ class TestPreReceive:
         result = cli_fs_runner.invoke(
             cli,
             ["-v", "secret", "scan", "pre-receive"],
-            input=f"{'a'*40} {EMPTY_SHA} main",
+            input=f"{'a' * 40} {EMPTY_SHA} main",
         )
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
