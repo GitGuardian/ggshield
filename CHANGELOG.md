@@ -1,5 +1,22 @@
 # Changelog
 
+<a id='changelog-1.42.0'></a>
+
+## 1.42.0 — 2025-07-29
+
+### Added
+
+- Added an additional section in `ggshield` outputs to return vault related fields if the account setting is enabled.
+
+- `ggshield` Docker image now supports both linux/amd64 and linux/arm64 architectures (#952).
+
+- `ggshield secret scan docker` now scans more files.
+
+### Changed
+
+- `ggshield secret scan` now provides an `--source-uuid` option. When this option is set, it will create the incidents on the GIM
+  dashboard on the corresponding source. Note that the token should have the scope `scan:create-incidents`.
+
 <a id='changelog-1.41.0'></a>
 
 ## 1.41.0 — 2025-06-24
@@ -34,7 +51,7 @@
 
 ### Added
 
-- ggshield is now available on Chocolatey (#934).
+- `ggshield` is now available on Chocolatey (#934).
 
 - `ggshield secret scan` output now contains a link to the detector documentation for each secret found.
 
