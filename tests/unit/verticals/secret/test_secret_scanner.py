@@ -170,7 +170,7 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
 
 
 def test_handle_scan_error_api_key():
-    detail = Detail("Invalid API key.")
+    detail = Detail("Invalid GitGuardian API key.")
     detail.status_code = 401
     with pytest.raises(click.UsageError):
         handle_scan_chunk_error(detail, [])

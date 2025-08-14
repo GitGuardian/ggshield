@@ -108,7 +108,7 @@ def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> 
         # None means success
         pass
     elif response.status_code == 401:
-        raise APIKeyCheckError(client.base_uri, "Invalid API key.")
+        raise APIKeyCheckError(client.base_uri, "Invalid GitGuardian API key.")
     elif response.status_code == 404:
         raise UnexpectedError(
             "The server returned a 404 error. Check your instance URL settings.",

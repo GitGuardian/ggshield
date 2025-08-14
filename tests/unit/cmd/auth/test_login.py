@@ -54,7 +54,9 @@ VALID_TOKEN_INVALID_SCOPE_RESPONSE = create_json_response(
     }
 )
 
-INVALID_TOKEN_RESPONSE = create_json_response({"detail": "Invalid API key."}, 401)
+INVALID_TOKEN_RESPONSE = create_json_response(
+    {"detail": "Invalid GitGuardian API key."}, 401
+)
 
 METADATA_ENDPOINT = "/v1/metadata"
 
