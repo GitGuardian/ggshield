@@ -212,7 +212,7 @@ def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
     detail.status_code = 400
     handle_scan_chunk_error(detail, chunk)
     captured = capsys.readouterr()
-    snapshot.assert_match(captured.err)
+    assert captured.err == snapshot
 
 
 def test_handle_scan_quota_limit_reached():

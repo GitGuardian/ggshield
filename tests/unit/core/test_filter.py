@@ -4,7 +4,6 @@ from typing import List, Set
 
 import pytest
 from pygitguardian.models import Match, PolicyBreak
-from snapshottest import Snapshot
 
 from ggshield.core.filter import censor_match, censor_string, get_ignore_sha
 from tests.unit.conftest import (
@@ -69,7 +68,7 @@ def test_get_ignore_sha(
     policy_breaks: List[PolicyBreak],
     duplicates: bool,
     expected_shas: Set[str],
-    snapshot: Snapshot,
+    snapshot,
 ) -> None:
     copy_policy_breaks = copy.deepcopy(policy_breaks)
     if duplicates:

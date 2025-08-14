@@ -34,3 +34,4 @@ secret:
     - .env
     - 'tests/unit/cassettes/*'
     - 'tests/unit/**/snapshots/*'
+    - 'tests/unit/verticals/secret/output/__snapshots__/*'
