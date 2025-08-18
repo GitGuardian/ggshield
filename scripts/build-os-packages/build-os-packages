@@ -178,7 +178,7 @@ step_build() {
         extra_args="--strip"
     fi
 
-    pyinstaller ggshield/__main__.py --name ggshield --noupx $extra_args
+    pyinstaller ggshield/__main__.py --name ggshield --exclude-module pkg_resources --noupx $extra_args
 
     if [ "$HUMAN_OS" != Windows ] ; then
         # Libraries do not need to be executable
