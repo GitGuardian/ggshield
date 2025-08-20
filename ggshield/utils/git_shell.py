@@ -214,7 +214,13 @@ def git(
         logger.debug("command=%s timeout=%d", command, timeout)
         result = subprocess.run(
             (
-                [_get_git_path(), "-c", "core.quotePath=false"]
+                [
+                    _get_git_path(),
+                    "-c",
+                    "core.quotePath=false",
+                    "-c",
+                    "safe.directory=*",
+                ]
                 + (
                     ["-c", "core.longpaths=true"]
                     if platform.system() == "Windows"
