@@ -24,5 +24,4 @@ RUN pip install .
 WORKDIR /data
 VOLUME [ "/data" ]
 
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["ggshield"]
