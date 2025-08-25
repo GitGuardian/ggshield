@@ -148,7 +148,7 @@ def test_leak_message(result_input, snapshot, show_secrets, verbose):
     # to compare the output with snapshots.
     output = click.unstyle(output)
 
-    snapshot.assert_match(output)
+    assert output == snapshot
 
     # all ignore sha should be in the output
     assert all(
