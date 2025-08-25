@@ -68,7 +68,6 @@ def test_get_ignore_sha(
     policy_breaks: List[PolicyBreak],
     duplicates: bool,
     expected_shas: Set[str],
-    snapshot,
 ) -> None:
     copy_policy_breaks = copy.deepcopy(policy_breaks)
     if duplicates:
