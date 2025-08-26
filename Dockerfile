@@ -13,7 +13,7 @@ WORKDIR /app
 RUN \
     apt-get update \
     && apt-get dist-upgrade -y --no-install-recommends \
-    && apt-get install -y --no-install-recommends git openssh-client \
+    && apt-get install -y --no-install-recommends git openssh-client curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
