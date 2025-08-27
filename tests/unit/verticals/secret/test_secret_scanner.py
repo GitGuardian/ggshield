@@ -200,19 +200,19 @@ def test_handle_scan_error_api_key():
             ],
             id="single file exception",
         ),
-        pytest.param(
-            Detail("Source not found"),
-            400,
-            [StringScannable(content="test", url="test.txt")],
-            id="source not found",
-        ),
     ],
 )
 def test_handle_scan_error(detail, status_code, chunk, capsys, snapshot):
-    detail.status_code = 400
+    detail.status_code = status_code
     handle_scan_chunk_error(detail, chunk)
     captured = capsys.readouterr()
     assert captured.err == snapshot
+
+
+def test_scan_source_uuid_not_found():
+    detail = Detail(detail="Source not found.", status_code=400)
+    with pytest.raises(UnexpectedError):
+        handle_scan_chunk_error(detail, Mock())
 
 
 def test_handle_scan_quota_limit_reached():
