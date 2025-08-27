@@ -231,7 +231,7 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     details = None
 
     # Handle source_uuid not found error specifically
-    if "Source not found" in detail.detail:
+    if "Source" in detail.detail and "not found" in detail.detail:
         ui.display_error("The provided source was not found in GitGuardian.")
         return
 

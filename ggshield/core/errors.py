@@ -213,3 +213,7 @@ def handle_api_error(detail: Detail) -> None:
         raise UnexpectedError(f"Scanning failed: {detail.detail}")
     if detail.status_code == 403 and detail.detail == "Quota limit reached.":
         raise QuotaLimitReachedError()
+    if detail.status_code == 400 and "not found" in detail.detail:
+        raise UnexpectedError(detail.detail)
+    if 500 <= detail.status_code < 600:
+        raise ServiceUnavailableError(detail.detail)
