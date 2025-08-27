@@ -1,5 +1,17 @@
 # Changelog
 
+<a id='changelog-1.43.0'></a>
+
+## 1.43.0 — 2025-08-27
+
+### Fixed
+
+- Fixed PyInstaller deprecation warning when running PyInstaller-based ggshield.
+
+- Scanning git repositories can no longer fail with git "dubious ownership" errors.
+
+- Extended the range of API error status codes supported by ggshield so the UI correctly displays them.
+
 <a id='changelog-1.42.0'></a>
 
 ## 1.42.0 — 2025-07-29
