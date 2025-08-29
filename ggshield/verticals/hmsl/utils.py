@@ -150,3 +150,7 @@ def remove_token_from_disk() -> None:
         pass
     except Exception as e:
         logger.warning(f"Error while removing token: {e}")
+
+
+def clean_key(key):
+    return key.split("<gg>", maxsplit=1)[-1]

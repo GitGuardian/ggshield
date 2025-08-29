@@ -17,7 +17,7 @@ from dotenv import dotenv_values
 from ggshield.core.filter import censor_string
 from ggshield.verticals.hmsl import PREFIX_LENGTH
 from ggshield.verticals.hmsl.crypto import hash_string
-from ggshield.verticals.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES
+from ggshield.verticals.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES, clean_key
 
 
 class InputType(Enum):
@@ -47,7 +47,7 @@ NAMING_STRATEGIES: Dict[str, NamingStrategy] = {
     "censored": lambda secret: censor_string(secret.value),
     "cleartext": lambda secret: secret.value,
     "none": lambda _: "",
-    "key": lambda secret: secret.key or censor_string(secret.value),
+    "key": lambda secret: clean_key(secret.key or censor_string(secret.value)),
 }
 
 
