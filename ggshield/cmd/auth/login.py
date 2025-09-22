@@ -142,7 +142,7 @@ def login_cmd(
     If a valid personal access token is already configured, this command simply displays
     a success message indicating that ggshield is already ready to use.
 
-    [1]: https://docs.gitguardian.com/api-docs/introduction#scopes
+    [1]: https://docs.gitguardian.com/api-docs/authentication#scopes
     """
     config = ContextObj.get(ctx).config
 
