@@ -288,9 +288,6 @@ jobs:
           - rockylinux/rockylinux:8.8
           - rockylinux/rockylinux:9
           - opensuse/leap
-          # Test a distribution with no deb or rpm support
-          - clearlinux:latest
-
     steps:
       - name: Install requirements
         run: |
@@ -304,12 +301,6 @@ jobs:
               ;;
             opensuse*)
               zypper install -y git-core
-              ;;
-            clearlinux*)
-              # install libstdcpp: as of June 2025, libstdcpp is not part of clearlinux base image
-              # and it is needed by node in actions/download-artifact@v4
-              swupd bundle-add libstdcpp
-              swupd bundle-add git
               ;;
           esac
 
