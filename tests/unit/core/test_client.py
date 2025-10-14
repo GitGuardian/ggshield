@@ -155,6 +155,31 @@ def test_check_client_api_key_without_source_uuid_no_token_check():
     client_mock.api_tokens.assert_not_called()
 
 
+def test_check_client_api_key_unknown_scope():
+    """
+    GIVEN a client with valid API key and API returns unknown scopes
+    WHEN check_client_api_key() is called with required scopes
+    THEN it ignores unknown scopes and validates only the required ones
+    """
+    client_mock = Mock(spec=GGClient)
+    client_mock.base_uri = "http://localhost"
+    client_mock.read_metadata.return_value = None  # Success
+    client_mock.api_tokens.return_value = APITokensResponse.from_dict(
+        {
+            "id": "5ddaad0c-5a0c-4674-beb5-1cd198d13360",
+            "name": "test-name",
+            "workspace_id": 1,
+            "type": "personal_access_token",
+            "status": "active",
+            "created_at": "2023-01-01T00:00:00Z",
+            "scopes": [TokenScope.SCAN_CREATE_INCIDENTS.value, "scope:unknown"],
+        }
+    )
+
+    # Should not raise any exception
+    check_client_api_key(client_mock, {TokenScope.SCAN_CREATE_INCIDENTS})
+
+
 def test_retrieve_client_invalid_api_url():
     """
     GIVEN a GITGUARDIAN_API_URL missing its https scheme
