@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import Optional
 
@@ -8,6 +7,7 @@ from pygitguardian import GGClient, GGClientCallbacks
 from pygitguardian.models import APITokensResponse, Detail, TokenScope
 from requests import Session
 
+from . import ui
 from .config import Config
 from .constants import DEFAULT_INSTANCE_URL
 from .errors import (
@@ -18,9 +18,6 @@ from .errors import (
     UnknownInstanceError,
 )
 from .ui.client_callbacks import ClientCallbacks
-
-
-logger = logging.getLogger(__name__)
 
 
 def create_client_from_config(config: Config) -> GGClient:
@@ -88,12 +85,12 @@ def create_client(
 def create_session(allow_self_signed: bool = False) -> Session:
     session = Session()
     if allow_self_signed:
-        logger.warning(
+        ui.display_warning(
             "SSL verification is disabled. Your connection to the GitGuardian API is NOT encrypted "
             "and is vulnerable to man-in-the-middle attacks. Traffic, including API keys and scan results, "
             "can be intercepted and modified."
         )
-        logger.warning(
+        ui.display_warning(
             "To securely use self-signed certificates with Python >= 3.10, disable this option and "
             "install your certificate in your system's trust store. "
             "See: https://docs.gitguardian.com/ggshield-docs/configuration#allow_self_signed"
