@@ -294,6 +294,26 @@ class TestUserConfig:
         config, _ = UserConfig.load(local_config_path)
         assert config.secret.ignore_known_secrets
 
+    def test_allow_self_signed_deprecation_warning(self, local_config_path):
+        """
+        GIVEN a config file containing allow_self_signed: true
+        WHEN loading the config
+        THEN a deprecation warning is added to deprecation_messages
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": 2,
+                "allow_self_signed": True,
+            },
+        )
+        config, _ = UserConfig.load(local_config_path)
+        assert config.allow_self_signed is True
+        assert len(config.deprecation_messages) == 1
+        assert "allow_self_signed" in config.deprecation_messages[0]
+        assert "deprecated" in config.deprecation_messages[0]
+        assert "insecure" in config.deprecation_messages[0]
+
     def test_bad_local_config(self, local_config_path, global_config_path):
         """
         GIVEN a malformed .gitguardian.yaml, with a list of instance
