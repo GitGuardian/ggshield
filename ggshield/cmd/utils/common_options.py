@@ -144,6 +144,14 @@ _allow_self_signed_option = click.option(
     callback=create_config_callback("allow_self_signed"),
 )
 
+_insecure_option = click.option(
+    "--insecure",
+    is_flag=True,
+    default=None,
+    help="Disable SSL verification. This makes the connection vulnerable to man-in-the-middle attacks.",
+    callback=create_config_callback("insecure"),
+)
+
 _check_for_updates = click.option(
     "--check-for-updates/--no-check-for-updates",
     is_flag=True,
@@ -174,6 +182,7 @@ def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _debug_option(cmd)
         _log_file_option(cmd)
         _allow_self_signed_option(cmd)
+        _insecure_option(cmd)
         _check_for_updates(cmd)
         return cmd
 
