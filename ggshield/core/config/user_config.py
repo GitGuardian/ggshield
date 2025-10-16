@@ -88,6 +88,7 @@ class UserConfig(FilteredConfig):
     exit_zero: bool = False
     verbose: bool = False
     allow_self_signed: bool = False
+    insecure: bool = False
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
     debug: bool = False
