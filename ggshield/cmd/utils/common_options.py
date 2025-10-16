@@ -136,12 +136,24 @@ _log_file_option = click.option(
 )
 
 
+def allow_self_signed_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    if value:
+        ui.display_warning(
+            "The --allow-self-signed option is deprecated and will be removed in a future version. "
+            "Use --insecure instead, which more accurately describes what this option does "
+            "(it disables all certificate validation, not just allows self-signed certificates)."
+        )
+    return create_config_callback("allow_self_signed")(ctx, param, value)
+
+
 _allow_self_signed_option = click.option(
     "--allow-self-signed",
     is_flag=True,
     default=None,
-    help="Ignore ssl verification.",
-    callback=create_config_callback("allow_self_signed"),
+    help="(Deprecated: use --insecure) Ignore ssl verification.",
+    callback=allow_self_signed_callback,
 )
 
 _insecure_option = click.option(
