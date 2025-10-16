@@ -148,7 +148,7 @@ _insecure_option = click.option(
     "--insecure",
     is_flag=True,
     default=None,
-    help="Disable SSL verification. This makes the connection vulnerable to man-in-the-middle attacks.",
+    help="WARNING: using this option makes the transfer insecure, by skipping all certificate's validation checks.",
     callback=create_config_callback("insecure"),
 )
 
