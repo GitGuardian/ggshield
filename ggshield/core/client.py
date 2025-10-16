@@ -51,7 +51,8 @@ https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
     return create_client(
         api_key,
         api_url,
-        allow_self_signed=config.user_config.allow_self_signed or config.user_config.insecure,
+        allow_self_signed=config.user_config.allow_self_signed
+        or config.user_config.insecure,
         callbacks=callbacks,
     )
 
