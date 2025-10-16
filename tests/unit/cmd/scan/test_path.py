@@ -246,6 +246,23 @@ secret:
             _, kwargs = client_mock.call_args
             assert kwargs["session"].verify is False
 
+    @pytest.mark.parametrize("position", [0, 1, 2, 3, 4])
+    def test_ssl_verify_insecure(self, cli_fs_runner, position):
+        """
+        GIVEN the --insecure flag
+        WHEN running the path scan command
+        THEN SSL verification is disabled
+        """
+        self.create_files()
+
+        cmd = ["secret", "scan", "path", "file1"]
+        cmd.insert(position, "--insecure")
+
+        with patch("ggshield.core.client.GGClient") as client_mock:
+            cli_fs_runner.invoke(cli, cmd)
+            _, kwargs = client_mock.call_args
+            assert kwargs["session"].verify is False
+
 
 class TestScanDirectory:
     """
