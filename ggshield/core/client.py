@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Optional
 
@@ -17,6 +18,9 @@ from .errors import (
     UnknownInstanceError,
 )
 from .ui.client_callbacks import ClientCallbacks
+
+
+logger = logging.getLogger(__name__)
 
 
 def create_client_from_config(config: Config) -> GGClient:
@@ -131,8 +135,14 @@ def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> 
         elif isinstance(response, Detail):
             raise UnexpectedError(response.detail)
 
-        missing_scopes = required_scopes - set(
-            TokenScope(scope) for scope in response.scopes
-        )
+        # Build set of API scopes, ignoring unknown ones for forward compatibility
+        api_scopes = set()
+        for scope_str in response.scopes:
+            try:
+                api_scopes.add(TokenScope(scope_str))
+            except ValueError:
+                logger.debug("Ignoring unknown scope from API: '%s'", scope_str)
+
+        missing_scopes = required_scopes - api_scopes
         if missing_scopes:
             raise MissingScopesError(list(missing_scopes))
