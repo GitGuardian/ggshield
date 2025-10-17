@@ -82,6 +82,7 @@ def cli(
     ctx: click.Context,
     *,
     allow_self_signed: Optional[bool],
+    insecure: Optional[bool],
     config_path: Optional[Path],
     **kwargs: Any,
 ) -> None:
@@ -97,11 +98,11 @@ def cli(
     elif user_config.verbose and ui.get_level() < ui.Level.VERBOSE:
         ensure_level(ui.Level.VERBOSE)
 
-    # Update allow_self_signed in the config
+    # Update SSL verification settings in the config
     # TODO: this should be reworked: if a command which writes the config is called with
-    # --allow-self-signed, the config will contain `allow_self_signed: true`.
-    if allow_self_signed:
-        user_config.allow_self_signed = allow_self_signed
+    # --insecure, the config will contain `insecure: true`.
+    if insecure or allow_self_signed:
+        user_config.insecure = True
 
     ctx_obj.config._dotenv_vars = load_dot_env()
 

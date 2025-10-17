@@ -96,7 +96,7 @@ def revoke_token(config: Config, instance_url: str) -> None:
     client = create_client(
         token,
         dashboard_to_api_url(instance_url),
-        allow_self_signed=config.user_config.allow_self_signed,
+        allow_self_signed=config.user_config.insecure,
     )
     try:
         response = client.post(endpoint="token/revoke")

@@ -60,7 +60,7 @@ def convert_v1_config_dict(
     copy_if_set(dct, "instance")
     copy_if_set(dct, "exit_zero")
     copy_if_set(dct, "verbose")
-    copy_if_set(dct, "allow_self_signed")
+    copy_if_set(dct, "insecure", "allow_self_signed")
     copy_if_set(dct, "max_commits_for_hook")
 
     return dct

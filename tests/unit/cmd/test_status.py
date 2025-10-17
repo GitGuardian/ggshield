@@ -122,12 +122,36 @@ def test_api_status_sources(_, hs_mock, cli_fs_runner, tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("verify", [True, False])
 def test_ssl_verify(cli_fs_runner, verify):
-    cmd = ["api-status"] if verify else ["--allow-self-signed", "api-status"]
+    """
+    GIVEN the --insecure flag
+    WHEN running the api-status command
+    THEN SSL verification is disabled
+    """
+    cmd = ["api-status"] if verify else ["--insecure", "api-status"]
 
     with mock.patch("ggshield.core.client.GGClient") as client_mock:
         cli_fs_runner.invoke(cli, cmd)
         _, kwargs = client_mock.call_args
         assert kwargs["session"].verify == verify
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        ["api-status", "--allow-self-signed"],
+        ["--allow-self-signed", "api-status"],
+    ],
+)
+def test_allow_self_signed_backward_compatibility(cli_fs_runner, cmd):
+    """
+    GIVEN the deprecated --allow-self-signed flag
+    WHEN it's placed before or after the subcommand
+    THEN SSL verification is disabled in both cases (backward compatibility)
+    """
+    with mock.patch("ggshield.core.client.GGClient") as client_mock:
+        cli_fs_runner.invoke(cli, cmd)
+        _, kwargs = client_mock.call_args
+        assert kwargs["session"].verify is False
 
 
 @pytest.mark.parametrize("command", ["api-status", "quota"])
