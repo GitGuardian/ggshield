@@ -192,7 +192,7 @@ def token_login(config: Config, instance: Optional[str]) -> None:
     client = create_client(
         api_key=token,
         api_url=config.api_url,
-        allow_self_signed=config.user_config.allow_self_signed,
+        allow_self_signed=config.user_config.insecure,
     )
     try:
         response = client.get(endpoint="token")
