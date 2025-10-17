@@ -93,7 +93,7 @@ def create_session(allow_self_signed: bool = False) -> Session:
         ui.display_warning(
             "To securely use self-signed certificates with Python >= 3.10, disable this option and "
             "install your certificate in your system's trust store. "
-            "See: https://docs.gitguardian.com/ggshield-docs/configuration#allow_self_signed"
+            "See: https://docs.gitguardian.com/ggshield-docs/configuration#support-for-self-signed-certificates"
         )
         urllib3.disable_warnings()
         session.verify = False
