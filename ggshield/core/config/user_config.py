@@ -87,7 +87,6 @@ class UserConfig(FilteredConfig):
     instance: Optional[str] = None
     exit_zero: bool = False
     verbose: bool = False
-    allow_self_signed: bool = False
     insecure: bool = False
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
@@ -199,7 +198,7 @@ def _load_config_dict(
         if dash_keys:
             _warn_about_dash_keys(config_path, dash_keys)
         _fix_ignore_known_secrets(dct)
-        _check_allow_self_signed_deprecation(dct, config_path, deprecation_messages)
+        _fix_allow_self_signed(dct, config_path)
     elif config_version == 1:
         deprecation_messages.append(
             f"{config_path} uses a deprecated configuration file format."
@@ -228,16 +227,14 @@ def _fix_ignore_known_secrets(data: Dict[str, Any]) -> None:
     secret_dct[_IGNORE_KNOWN_SECRETS_KEY] = value
 
 
-def _check_allow_self_signed_deprecation(
-    data: Dict[str, Any], config_path: Path, deprecation_messages: List[str]
-) -> None:
-    """Check if allow_self_signed is used and add a deprecation warning."""
-    if data.get("allow_self_signed"):
-        deprecation_messages.append(
-            f"{config_path}: The 'allow_self_signed' option is deprecated and will be removed in a future version. "
-            "Use 'insecure: true' instead, which more accurately describes what this option does "
-            "(it disables all certificate validation, not just allows self-signed certificates)."
+def _fix_allow_self_signed(data: Dict[str, Any], config_path: Path) -> None:
+    """Convert allow_self_signed to insecure and display a deprecation warning."""
+    if insecure := data.pop("allow_self_signed", None):
+        ui.display_warning(
+            f"{config_path}: The 'allow_self_signed' option is deprecated. "
+            "Use 'insecure: true' instead."
         )
+        data["insecure"] = insecure
 
 
 def _warn_about_dash_keys(config_path: Path, dash_keys: Set[str]) -> None:

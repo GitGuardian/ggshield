@@ -141,18 +141,16 @@ def allow_self_signed_callback(
 ) -> Optional[bool]:
     if value:
         ui.display_warning(
-            "The --allow-self-signed option is deprecated and will be removed in a future version. "
-            "Use --insecure instead, which more accurately describes what this option does "
-            "(it disables all certificate validation, not just allows self-signed certificates)."
+            "The --allow-self-signed option is deprecated. Use --insecure instead."
         )
-    return create_config_callback("allow_self_signed")(ctx, param, value)
+    return create_config_callback("insecure")(ctx, param, value)
 
 
 _allow_self_signed_option = click.option(
     "--allow-self-signed",
     is_flag=True,
     default=None,
-    help="(Deprecated: use --insecure) Ignore ssl verification.",
+    help="Deprecated: use --insecure.",
     callback=allow_self_signed_callback,
 )
 
@@ -160,7 +158,7 @@ _insecure_option = click.option(
     "--insecure",
     is_flag=True,
     default=None,
-    help="WARNING: using this option makes the transfer insecure, by skipping all certificate's validation checks.",
+    help="Skip all certificate verification checks. WARNING: this option makes the transfer insecure.",
     callback=create_config_callback("insecure"),
 )
 

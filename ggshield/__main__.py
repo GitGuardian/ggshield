@@ -81,7 +81,6 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
 def cli(
     ctx: click.Context,
     *,
-    allow_self_signed: Optional[bool],
     insecure: Optional[bool],
     config_path: Optional[Path],
     **kwargs: Any,
@@ -99,14 +98,10 @@ def cli(
         ensure_level(ui.Level.VERBOSE)
 
     # Update SSL verification settings in the config
-    # Both --allow-self-signed and --insecure disable SSL verification
-    # If either is set, we enable both for backward compatibility
     # TODO: this should be reworked: if a command which writes the config is called with
-    # --allow-self-signed or --insecure, the config will contain the enabled flag.
-    if allow_self_signed or insecure:
-        # Set both flags to maintain consistency
-        user_config.allow_self_signed = True
-        user_config.insecure = True
+    # --insecure, the config will contain `insecure: true`.
+    if insecure:
+        user_config.insecure = insecure
 
     ctx_obj.config._dotenv_vars = load_dot_env()
 

@@ -294,11 +294,11 @@ class TestUserConfig:
         config, _ = UserConfig.load(local_config_path)
         assert config.secret.ignore_known_secrets
 
-    def test_allow_self_signed_deprecation_warning(self, local_config_path):
+    def test_allow_self_signed_deprecation_warning(self, local_config_path, capsys):
         """
         GIVEN a config file containing allow_self_signed: true
         WHEN loading the config
-        THEN a deprecation warning is added to deprecation_messages
+        THEN it is converted to insecure and a deprecation warning is displayed
         """
         write_yaml(
             local_config_path,
@@ -308,11 +308,11 @@ class TestUserConfig:
             },
         )
         config, _ = UserConfig.load(local_config_path)
-        assert config.allow_self_signed is True
-        assert len(config.deprecation_messages) == 1
-        assert "allow_self_signed" in config.deprecation_messages[0]
-        assert "deprecated" in config.deprecation_messages[0]
-        assert "insecure" in config.deprecation_messages[0]
+        assert config.insecure is True
+        captured = capsys.readouterr()
+        assert "allow_self_signed" in captured.err
+        assert "deprecated" in captured.err
+        assert "insecure" in captured.err
 
     def test_bad_local_config(self, local_config_path, global_config_path):
         """
