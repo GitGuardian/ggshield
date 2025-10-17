@@ -81,6 +81,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
 def cli(
     ctx: click.Context,
     *,
+    allow_self_signed: Optional[bool],
     insecure: Optional[bool],
     config_path: Optional[Path],
     **kwargs: Any,
@@ -100,8 +101,8 @@ def cli(
     # Update SSL verification settings in the config
     # TODO: this should be reworked: if a command which writes the config is called with
     # --insecure, the config will contain `insecure: true`.
-    if insecure:
-        user_config.insecure = insecure
+    if insecure or allow_self_signed:
+        user_config.insecure = True
 
     ctx_obj.config._dotenv_vars = load_dot_env()
 
