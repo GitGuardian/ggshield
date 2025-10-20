@@ -1,8 +1,10 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from ggshield.core.scan import StringScannable
+from ggshield.core.scan import File, StringScannable
+from ggshield.core.scan.scannable import NonSeekableFileError
 
 
 def test_string_scannable_path():
@@ -32,3 +34,23 @@ def test_string_scannable_is_longer_than(content, is_longer):
     """
     scannable = StringScannable(content=content, url="u")
     assert scannable.is_longer_than(50) == is_longer
+
+
+@patch("pathlib.Path.open")
+def test_file_non_seekable(mock_open, tmp_path):
+    """
+    GIVEN a File instance
+    AND the file reports as seekable but seeking operations fail
+    WHEN is_longer_than() is called on it
+    THEN it raises NonSeekableFileError
+    """
+    mock_file = mock_open.return_value.__enter__.return_value
+    mock_file.seekable.return_value = True
+    mock_file.seek.side_effect = OSError(22, "Invalid argument")
+
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("test content")
+    file_obj = File(test_file)
+
+    with pytest.raises(NonSeekableFileError):
+        file_obj.is_longer_than(1000)
