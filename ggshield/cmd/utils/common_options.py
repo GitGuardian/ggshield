@@ -136,12 +136,30 @@ _log_file_option = click.option(
 )
 
 
+def allow_self_signed_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[bool]
+) -> Optional[bool]:
+    if value:
+        ui.display_warning(
+            "The --allow-self-signed option is deprecated. Use --insecure instead."
+        )
+    return create_config_callback("insecure")(ctx, param, value)
+
+
 _allow_self_signed_option = click.option(
     "--allow-self-signed",
     is_flag=True,
     default=None,
-    help="Ignore ssl verification.",
-    callback=create_config_callback("allow_self_signed"),
+    help="Deprecated: use --insecure.",
+    callback=allow_self_signed_callback,
+)
+
+_insecure_option = click.option(
+    "--insecure",
+    is_flag=True,
+    default=None,
+    help="Skip all certificate verification checks. WARNING: this option makes the transfer insecure.",
+    callback=create_config_callback("insecure"),
 )
 
 _check_for_updates = click.option(
@@ -174,6 +192,7 @@ def add_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _debug_option(cmd)
         _log_file_option(cmd)
         _allow_self_signed_option(cmd)
+        _insecure_option(cmd)
         _check_for_updates(cmd)
         return cmd
 
