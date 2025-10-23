@@ -31,6 +31,12 @@ class DecodeError(Exception):
     pass
 
 
+class NonSeekableFileError(Exception):
+    """Raised when a file cannot be seeked"""
+
+    pass
+
+
 class Scannable(ABC):
     """Base class for content that can be scanned by GGShield"""
 
@@ -143,8 +149,12 @@ class Scannable(ABC):
         Raises DecodeError if the file cannot be decoded.
         """
         # Get the byte size
-        assert fp.seekable()
-        byte_size = fp.seek(0, SEEK_END)
+        # Note: IOBase.seekable() returns True on some non-seekable files like /proc/self/mounts
+        try:
+            byte_size = fp.seek(0, SEEK_END)
+            fp.seek(0, SEEK_SET)
+        except OSError as exc:
+            raise NonSeekableFileError() from exc
 
         if byte_size > max_utf8_encoded_size * UTF8_TO_WORSE_OTHER_ENCODING_RATIO:
             # Even if the file used the worst encoding (UTF-32), encoding the content of
@@ -153,7 +163,6 @@ class Scannable(ABC):
             return True, None, None
 
         # Determine the encoding
-        fp.seek(0, SEEK_SET)
         charset_matches = charset_normalizer.from_fp(fp)
         charset_match = charset_matches.best()
         if charset_match is None:
