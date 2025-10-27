@@ -1,5 +1,32 @@
 # Changelog
 
+<a id='changelog-1.44.0'></a>
+
+## 1.44.0 — 2025-10-27
+
+### Added
+
+- Added `--insecure` CLI option and `insecure` configuration setting as clearer alternatives to `--allow-self-signed` and `allow_self_signed`. The new option explicitly communicates that SSL verification is completely disabled, making the connection vulnerable to man-in-the-middle attacks.
+- Added prominent warning messages when SSL verification is disabled (via either `--insecure` or `--allow-self-signed`), explaining the security risks and recommending the secure alternative of using the system certificate trust store (available with Python >= 3.10).
+
+### Changed
+
+- Removed Clear Linux from the OS package testing workflow as the project has been discontinued.
+
+### Deprecated
+
+- The `--allow-self-signed` CLI option and `allow_self_signed` configuration setting are now deprecated in favor of `--insecure` and `insecure`. Deprecation warnings are displayed when these options are used, guiding users to the clearer alternative. Both options remain functional for backward compatibility and will be maintained for an extended deprecation period before removal.
+
+### Fixed
+
+- Fixed crash when API returns scopes not yet recognized by py-gitguardian.
+
+- Skip non-seekable files instead of crashing.
+
+### Security
+
+- Improved clarity around SSL verification settings. The `--allow-self-signed` option name was misleading as it suggests certificate validation is still performed, when in reality all SSL verification is disabled. The new `--insecure` option makes this behavior explicit. Both options remain functional for backward compatibility.
+
 <a id='changelog-1.43.0'></a>
 
 ## 1.43.0 — 2025-08-27
