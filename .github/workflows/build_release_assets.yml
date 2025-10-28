@@ -18,7 +18,8 @@ on:
         default: false
 
 env:
-  PDM_VERSION: 2.22.4
+  PDM_VERSION: 2.26.0
+  DEFAULT_PYTHON_VERSION: '3.12'
 
 jobs:
   build_wheel_sdist:
@@ -31,6 +32,7 @@ jobs:
         uses: pdm-project/setup-pdm@v4
         with:
           version: ${{ env.PDM_VERSION }}
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
       - name: Create packages
         run: |
