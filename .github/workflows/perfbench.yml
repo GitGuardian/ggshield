@@ -11,7 +11,7 @@ on:
         default: '3.10'
 
 env:
-  PDM_VERSION: 2.22.4
+  PDM_VERSION: 2.26.0
   DEFAULT_PYTHON_VERSION: '3.10'
 
 jobs:
