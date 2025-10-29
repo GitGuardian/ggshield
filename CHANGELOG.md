@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.44.1'></a>
+
+## 1.44.1 — 2025-10-28
+
+### Changed
+
+- Fixed Python version for PDM install in the build release workflow.
+
 <a id='changelog-1.44.0'></a>
 
 ## 1.44.0 — 2025-10-27
