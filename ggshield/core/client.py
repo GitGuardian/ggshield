@@ -7,6 +7,7 @@ import urllib3
 from pygitguardian import GGClient, GGClientCallbacks
 from pygitguardian.models import APITokensResponse, Detail, TokenScope
 from requests import Session
+from requests.adapters import HTTPAdapter
 
 from . import ui
 from .config import Config
@@ -101,6 +102,12 @@ def create_session(allow_self_signed: bool = False) -> Session:
         )
         urllib3.disable_warnings()
         session.verify = False
+    # Mount HTTPAdapter with larger pool sizes for better concurrency
+    adapter = HTTPAdapter(
+        pool_maxsize=100,  # default 10
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
     return session
 
 

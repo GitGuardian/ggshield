@@ -9,7 +9,11 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 from pygitguardian import GGClient
 from pygitguardian.models import APITokensResponse, Detail, TokenScope
 
-from ggshield.core.client import check_client_api_key, create_client_from_config
+from ggshield.core.client import (
+    check_client_api_key,
+    create_client_from_config,
+    create_session,
+)
 from ggshield.core.config import Config
 from ggshield.core.errors import (
     APIKeyCheckError,
@@ -239,3 +243,37 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs: FakeFilesyste
             config = Config()
             config.cmdline_instance_name = "https://example.com"
             create_client_from_config(config)
+
+
+def test_create_session_pool_configuration():
+    """
+    GIVEN create_session is called
+    WHEN the session is created
+    THEN the HTTPAdapter has the correct pool configuration
+    """
+    session = create_session()
+
+    adapter = session.get_adapter("https://example.com")
+
+    # Verify pool configuration by checking the init parameters
+    assert getattr(adapter, "_pool_maxsize", None) == 100
+
+
+@pytest.mark.parametrize("allow_self_signed", [True, False])
+def test_create_session_with_self_signed_option(allow_self_signed: bool):
+    """
+    GIVEN create_session is called with allow_self_signed parameter
+    WHEN the session is created
+    THEN HTTPAdapter is mounted regardless of allow_self_signed value
+    AND verify is set correctly
+    """
+    session = create_session(allow_self_signed=allow_self_signed)
+
+    # Verify adapters are mounted
+    assert "https://" in session.adapters
+
+    # Verify SSL verification setting
+    if allow_self_signed:
+        assert session.verify is False
+    else:
+        assert session.verify is True
