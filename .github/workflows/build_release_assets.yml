@@ -19,7 +19,7 @@ on:
 
 env:
   PDM_VERSION: 2.26.1
-  DEFAULT_PYTHON_VERSION: '3.12'
+  DEFAULT_PYTHON_VERSION: '3.10'
 
 jobs:
   build_wheel_sdist:
