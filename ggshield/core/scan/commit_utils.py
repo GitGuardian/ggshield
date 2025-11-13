@@ -160,6 +160,8 @@ class PatchFileInfo:
 
         if "M" in status:  # modify
             mode = Filemode.MODIFY
+        elif "U" in status:  # unmerged
+            mode = Filemode.UNMERGED
         elif "C" in status:  # copy
             mode = Filemode.NEW
         elif "A" in status:  # add
