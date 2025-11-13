@@ -28,11 +28,6 @@ from ggshield.utils.datetime import get_pretty_date
 CLIENT_ID = "ggshield_oauth"
 SCAN_SCOPE = "scan"
 
-# potential port range to be used to run local server
-# to handle authorization code callback
-# this is the largest band of not commonly occupied ports
-# https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-USABLE_PORT_RANGE = (29170, 29998)
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +66,7 @@ class OAuthClient:
         self._access_token: Optional[str] = None
         # If the PAT expiration date has been enforced to respect the workspace policy
         self._expire_at_downsized: bool = False
-        self._port = USABLE_PORT_RANGE[0]
+        self._port = 0
         self.server: Optional[HTTPServer] = None
 
         self._generate_pkce_pair()
@@ -163,19 +158,14 @@ class OAuthClient:
         webbrowser.open_new_tab(request_uri)
 
     def _prepare_server(self) -> None:
-        for port in range(*USABLE_PORT_RANGE):
-            try:
-                self.server = HTTPServer(
-                    # only consider requests from localhost on the predetermined port
-                    ("127.0.0.1", port),
-                    functools.partial(RequestHandler, self),
-                )
-                self._port = port
-                break
-            except OSError:
-                continue
-        else:
-            raise UnexpectedError("Could not find unoccupied port.")
+        try:
+            self.server = HTTPServer(
+                ("127.0.0.1", 0),  # Let OS choose an available port
+                functools.partial(RequestHandler, self),
+            )
+            self._port = self.server.server_port  # Get the assigned port
+        except OSError as e:
+            raise UnexpectedError(f"Could not create local server: {e}")
 
     def _wait_for_callback(self) -> None:
         """
