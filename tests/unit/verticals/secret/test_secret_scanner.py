@@ -134,6 +134,7 @@ def test_scan_patch(client, cache, name: str, input_patch: str, expected: Expect
         "EMPTY",
         "TOO_BIG",
         "BINARY",
+        "FILE_NOT_FOUND",
     ],
 )
 def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: str):
@@ -151,6 +152,8 @@ def test_scanner_skips_unscannable_files(client, fs, cache, unscannable_type: st
         mock.is_longer_than.return_value = True
     elif unscannable_type == "BINARY":
         mock.is_longer_than.side_effect = DecodeError
+    elif unscannable_type == "FILE_NOT_FOUND":
+        mock.is_longer_than.side_effect = FileNotFoundError
 
     scanner_ui = Mock(spec=ScannerUI)
 

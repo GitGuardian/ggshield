@@ -161,6 +161,9 @@ class SecretScanner:
             except NonSeekableFileError:
                 scanner_ui.on_skipped(scannable, "file cannot be seeked")
                 continue
+            except FileNotFoundError:
+                scanner_ui.on_skipped(scannable, "file not found")
+                continue
 
             if content:
                 if (
