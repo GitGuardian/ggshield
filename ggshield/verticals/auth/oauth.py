@@ -164,6 +164,7 @@ class OAuthClient:
                 functools.partial(RequestHandler, self),
             )
             self._port = self.server.server_port  # Get the assigned port
+            
         except OSError as e:
             raise UnexpectedError(f"Could not create local server: {e}")
 
