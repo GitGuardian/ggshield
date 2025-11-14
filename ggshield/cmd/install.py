@@ -103,13 +103,50 @@ def get_global_hook_dir_path() -> Optional[Path]:
 def install_local(hook_type: str, force: bool, append: bool) -> int:
     """Local pre-commit/pre-push hook installation."""
     check_git_dir()
+    hook_dir_path = get_local_hook_dir_path()
     return create_hook(
-        hook_dir_path=Path(".git/hooks"),
+        hook_dir_path=hook_dir_path,
         force=force,
         local_hook_support=False,
         hook_type=hook_type,
         append=append,
     )
+
+
+def get_local_hook_dir_path() -> Path:
+    """
+    Return the directory where local hooks should be installed.
+
+    If core.hooksPath is configured, honor it and detect Husky-managed repositories
+    to avoid overwriting Husky's shim scripts.
+    """
+    hooks_path = get_local_hooks_path()
+    if hooks_path is None:
+        return Path(".git/hooks")
+
+    if is_husky_hooks_path(hooks_path):
+        return hooks_path.parent
+
+    return hooks_path
+
+
+def get_local_hooks_path() -> Optional[Path]:
+    """Return the hooks path defined in the repository config, if any."""
+    try:
+        out = git(
+            ["config", "--local", "--get", "core.hooksPath"], ignore_git_config=False
+        )
+    except subprocess.CalledProcessError:
+        return None
+    return Path(click.format_filename(out)).expanduser()
+
+
+def is_husky_hooks_path(path: Path) -> bool:
+    """Detect Husky-generated hooks directories (.husky/_)."""
+    try:
+        return path.name == "_" and path.parent.name == ".husky"
+    except IndexError:
+        return False
 
 
 def create_hook(
