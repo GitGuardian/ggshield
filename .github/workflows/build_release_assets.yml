@@ -59,7 +59,7 @@ jobs:
             sha256sum:
               python: e8d7ed8c6f8c6f85cd083d5051cafd8c6c01d09eca340d1da74d0c00ff1cb897
           - os: windows-2022
-          - os: macos-13
+          - os: macos-15-intel
             arch: x86_64
             sha256sum:
               python: 6378dfd22f58bb553ddb02be28304d739cd730c1f95c15c74955c923a1bc3d6a
