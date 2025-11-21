@@ -165,7 +165,6 @@ class OAuthClient:
             )
             self._port = self.server.server_port  # Get the assigned port
             
-        except OSError as e:
             raise UnexpectedError(f"Could not create local server: {e}")
 
     def _wait_for_callback(self) -> None:
