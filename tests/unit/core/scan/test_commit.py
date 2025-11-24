@@ -20,6 +20,7 @@ Date:   Fri Oct 18 13:20:00 2012 +0100
     + ":000000 100644 0000000 19465ef A\0tests/test_scannable.py\0"
     + ":100644 100755 b4d3aef b4d3aef M\0bin/shutdown.sh\0"
     + ":000000 100644 0000000 12356ef A\0.env\0"
+    + ":000000 100644 0000000 12323ef U\0unmerged.txt\0"
     + ":100644 100644 ac204ec ac204ec R100\0ggshield/tests/test_config.py\0tests/test_config.py\0"
     + ":100644 100644 6546aef b41653f M\0data/utils/email_sender.py\0"
     + """\0diff --git a/ggshield/tests/cassettes/test_files_yes.yaml b/ggshield/tests/cassettes/test_files_yes.yaml

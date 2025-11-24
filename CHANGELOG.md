@@ -1,5 +1,17 @@
 # Changelog
 
+<a id='changelog-1.45.0'></a>
+
+## 1.45.0 — 2025-11-14
+
+### Fixed
+
+- ggshield no longer crashes when scanning invalid symlinks, it emits a warning instead.
+
+- Handle unmerged files in pre-commit scanning during an ongoing merge.
+
+- Fixed crash when ggshield received missing tags.
+
 <a id='changelog-1.44.1'></a>
 
 ## 1.44.1 — 2025-10-28

@@ -56,6 +56,7 @@ class Filemode(Enum):
     NEW = "new file"
     RENAME = "renamed file"
     FILE = "file"
+    UNMERGED = "unmerged file"
     UNKNOWN = "unknown"
 
 
