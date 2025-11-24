@@ -104,7 +104,7 @@ class OAuthClient:
         if extra_scopes is not None:
             self._extra_scopes = extra_scopes
 
-        self._prepare_server()
+        self.158()
         self._redirect_to_login()
         self._wait_for_callback()
         self._print_login_success()
@@ -163,20 +163,11 @@ class OAuthClient:
         webbrowser.open_new_tab(request_uri)
 
     def _prepare_server(self) -> None:
-        for port in range(*USABLE_PORT_RANGE):
-            try:
-                self.server = HTTPServer(
-                    # only consider requests from localhost on the predetermined port
-                    ("127.0.0.1", port),
-                    functools.partial(RequestHandler, self),
-                )
-                self._port = port
-                break
-            except OSError:
-                continue
-        else:
-            raise UnexpectedError("Could not find unoccupied port.")
-
+self.server = HTTPServer(
+            ("127.0.0.1", 0),
+            functools.partial(RequestHandler, self),
+        )
+        self._port = self.server.server_port
     def _wait_for_callback(self) -> None:
         """
         Wait to receive and process the authorization callback on the local server.
