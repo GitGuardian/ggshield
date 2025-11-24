@@ -120,7 +120,7 @@ def get_local_hook_dir_path() -> Path:
     If core.hooksPath is configured, honor it and detect Husky-managed repositories
     to avoid overwriting Husky's shim scripts.
     """
-    hooks_path = get_local_hooks_path()
+    hooks_path = get_git_local_hooks_path()
     if hooks_path is None:
         return Path(".git/hooks")
 
@@ -130,7 +130,7 @@ def get_local_hook_dir_path() -> Path:
     return hooks_path
 
 
-def get_local_hooks_path() -> Optional[Path]:
+def get_git_local_hooks_path() -> Optional[Path]:
     """Return the hooks path defined in the repository config, if any."""
     try:
         out = git(

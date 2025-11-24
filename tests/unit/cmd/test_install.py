@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
-from ggshield.cmd.install import get_default_global_hook_dir_path
+from ggshield.cmd.install import get_default_global_hook_dir_path, install_local
 from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
@@ -176,6 +176,39 @@ class TestInstallLocal:
 
         assert f"pre-push successfully added in {hook_path}\n" in result.output
         assert_invoke_ok(result)
+
+    @patch("ggshield.cmd.install.check_git_dir")
+    @patch("ggshield.cmd.install.git")
+    def test_install_local_detects_husky(
+        self,
+        git_mock: Mock,
+        check_dir_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a repository configured with Husky (.husky/_ directory as hooks path)
+        WHEN install_local is called
+        THEN it should create the hook in .husky/pre-commit instead of .git/hooks
+        """
+        husky_dir = Path(".husky")
+        husky_hooks_dir = husky_dir / "_"
+        husky_hooks_dir.mkdir(parents=True)
+
+        # Mock git to return .husky/_ as the local hooks path
+        git_mock.return_value = ".husky/_"
+
+        return_code = install_local(hook_type="pre-commit", force=False, append=False)
+
+        assert return_code == 0
+
+        # Hook should be in .husky/pre-commit, not .husky/_/pre-commit
+        husky_hook = husky_dir / "pre-commit"
+        assert husky_hook.is_file()
+        assert 'ggshield secret scan pre-commit "$@"' in husky_hook.read_text()
+
+        # Hook should NOT be in .git/hooks/pre-commit
+        default_hook = Path(".git/hooks/pre-commit")
+        assert not default_hook.exists()
 
 
 @pytest.fixture()
