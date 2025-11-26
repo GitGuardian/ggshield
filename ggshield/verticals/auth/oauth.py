@@ -104,7 +104,6 @@ class OAuthClient:
         if extra_scopes is not None:
             self._extra_scopes = extra_scopes
 
-        self.158()
         self._redirect_to_login()
         self._wait_for_callback()
         self._print_login_success()
