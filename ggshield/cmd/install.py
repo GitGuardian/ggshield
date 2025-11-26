@@ -17,6 +17,7 @@ from ggshield.utils.git_shell import check_git_dir, git
 # Because of #467, we must use /bin/sh as a shell, so the shell code must
 # not make use of any Bash extension, such as double square brackets in
 # `if` statements.
+# This also ensures compatibility with Husky and other git hook managers.
 LOCAL_HOOK_SNIPPET = """
 if [ -f .git/hooks/{hook_type} ]; then
     if ! .git/hooks/{hook_type} "$@"; then
