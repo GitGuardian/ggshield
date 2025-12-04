@@ -97,12 +97,12 @@ archive_path="$PWD/$image_name.tar.gz"
 
 log_progress "Building custom image, based on $distrib"
 # Sanity check
-if ! grep -q -- "-slim as build\$" "$ROOT_DIR/Dockerfile" ; then
+if ! grep -q -- "-slim AS build\$" "$ROOT_DIR/Dockerfile" ; then
     die "Dockerfile has changed, this script is outdated"
 fi
 
 # Modify the FROM command to use the distribution we want
-sed "s/-slim as build\$/-slim-$distrib as build/" "$ROOT_DIR/Dockerfile" \
+sed "s/-slim AS build\$/-slim-$distrib AS build/" "$ROOT_DIR/Dockerfile" \
     | docker build --tag "$image_name" --file - "$ROOT_DIR"
 
 log_progress "Building container from image"
