@@ -38,7 +38,7 @@ input_type_option = click.option(
     help="""Type of input to process.
 
             \b
-            - `file`: the input is a simple file containing secrets.
+            - `file`: the input is a text file containing secrets. One line per secret.
             - `env`: the input is a file containing environment variables.""",
     callback=lambda _, __, value: InputType[value.upper()],
 )
