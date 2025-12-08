@@ -100,10 +100,13 @@ def _create_sarif_result_dict(
     markdown_message += f"\nMatches:\n{matches_li}"
 
     # Create dict
+        # Determine level based on detector status (fix for issue #1122)
+    # TODO: Add logic to check if detector is enabled/disabled from platform
+    level = "error"  # Default to error, should be "note" if detector is disabled
+    
     dct = {
         "ruleId": secret.detector_display_name,
-        "level": "error",
-        "message": {
+        "level": level,        "message": {
             "text": message,
             "markdown": markdown_message,
         },
