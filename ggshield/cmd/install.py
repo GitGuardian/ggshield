@@ -103,13 +103,74 @@ def get_global_hook_dir_path() -> Optional[Path]:
 def install_local(hook_type: str, force: bool, append: bool) -> int:
     """Local pre-commit/pre-push hook installation."""
     check_git_dir()
+    hook_dir_path = get_local_hook_dir_path()
     return create_hook(
-        hook_dir_path=Path(".git/hooks"),
+        hook_dir_path=hook_dir_path,
         force=force,
         local_hook_support=False,
         hook_type=hook_type,
         append=append,
     )
+
+
+def get_local_hook_dir_path() -> Path:
+    """
+    Return the directory where local hooks should be installed.
+
+    Respects git's core.hooksPath configuration while handling special cases:
+    - Husky-managed repositories: returns .husky instead of .husky/_ to avoid
+      overwriting Husky's shim scripts
+    - Custom hooks path: returns the configured path
+    - Default: returns .git/hooks
+
+    Returns:
+        Path object pointing to the appropriate hooks directory.
+    """
+    hooks_path = get_local_hooks_path()
+
+    if hooks_path is None:
+        return Path(".git/hooks")
+
+    # Husky uses .husky/_ for shim scripts - install alongside, not inside
+    if is_husky_hooks_path(hooks_path):
+        return hooks_path.parent
+
+    return hooks_path
+
+
+def get_local_hooks_path() -> Optional[Path]:
+    """
+    Reads the 'core.hooksPath' configuration from git's local repository
+    config.
+
+    Returns:
+        Configured hooks path, or None if core.hooksPath is not set.
+
+    Note:
+        Does not validate that the returned path exists or is accessible.
+    """
+    try:
+        out = git(
+            ["config", "--local", "--get", "core.hooksPath"], ignore_git_config=False
+        )
+        # Strip whitespace and expand ~ to user home directory
+        return Path(click.format_filename(out)).expanduser()
+    except subprocess.CalledProcessError:
+        # core.hooksPath not configured in local repository
+        return None
+
+
+def is_husky_hooks_path(path: Path) -> bool:
+    """
+    Detect Husky-generated hooks directories.
+
+    Husky v6+ uses a .husky/_ directory for hook shim scripts.
+    This function identifies that pattern to avoid overwriting Husky's setup.
+
+    Args:
+        path: Path to check for Husky pattern.
+    """
+    return path.name == "_" and path.parent.name == ".husky"
 
 
 def create_hook(
