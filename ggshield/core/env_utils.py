@@ -14,6 +14,7 @@ TRACKED_ENV_VARS = {
     "GITGUARDIAN_INSTANCE",
     "GITGUARDIAN_API_URL",
     "GITGUARDIAN_API_KEY",
+    "REPOSITORY_REMOTE_FALLBACK",
 }
 
 logger = logging.getLogger(__name__)
