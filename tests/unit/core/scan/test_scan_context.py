@@ -123,3 +123,78 @@ def test_ci_no_env(env, fake_url_repo: Repository) -> None:
             target_path=fake_url_repo.path,
         )
         _assert_repo_url_in_headers(context, EXPECTED_HEADER_REMOTE)
+
+
+@pytest.mark.parametrize(
+    ("setup_type", "env_var_value", "expected_url"),
+    [
+        # Repository with remote - remote takes precedence
+        (
+            "repo_with_remote",
+            "https://github.com/fallback/repository.git",
+            EXPECTED_HEADER_REMOTE,
+        ),
+        ("repo_with_remote", None, EXPECTED_HEADER_REMOTE),
+        # Repository without remote - fallback to env var
+        (
+            "repo_without_remote",
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        ("repo_without_remote", None, None),
+        # Non-git directory - fallback to env var
+        (
+            "non_git_dir",
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        ("non_git_dir", None, None),
+    ],
+    ids=[
+        "repo_with_remote_with_env_var",
+        "repo_with_remote_no_env_var",
+        "repo_without_remote_with_env_var",
+        "repo_without_remote_no_env_var",
+        "non_git_dir_with_env_var",
+        "non_git_dir_no_env_var",
+    ],
+)
+def test_repository_url_fallback_in_scan_context(
+    tmp_path: Path,
+    fake_url_repo: Repository,
+    setup_type: str,
+    env_var_value: Union[str, None],
+    expected_url: Union[str, None],
+) -> None:
+    """
+    Test that REPOSITORY_REMOTE_FALLBACK environment variable is properly used in scan context.
+    Covers all combinations of repo types (with remote, without remote, non-git) and env var presence.
+    """
+    # Setup the target path based on the test case
+    if setup_type == "repo_with_remote":
+        target_path = fake_url_repo.path
+    elif setup_type == "repo_without_remote":
+        repo = Repository.create(tmp_path / "repo")
+        repo.create_commit()
+        target_path = repo.path
+    else:  # non_git_dir
+        target_path = tmp_path
+
+    # Create context with or without env var
+    env_dict = (
+        {"REPOSITORY_REMOTE_FALLBACK": env_var_value}
+        if env_var_value is not None
+        else {}
+    )
+    with mock.patch.dict(os.environ, env_dict, clear=False):
+        context = ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield secret scan path",
+            target_path=target_path,
+        )
+
+        # Assert the expected URL in headers
+        if expected_url:
+            _assert_repo_url_in_headers(context, expected_url)
+        else:
+            _assert_no_repo_url_in_headers(context)
