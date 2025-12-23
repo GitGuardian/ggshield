@@ -27,7 +27,7 @@ default_token_lifetime: None
 default_token_lifetime: None
 workspace_id: 1
 url: https://dashboard.gitguardian.com
-token: some token
+token: so** ***en
 token_name: some token name
 expiry: 2022-05-04T17:00:00Z
 
@@ -35,7 +35,7 @@ expiry: 2022-05-04T17:00:00Z
 default_token_lifetime: None
 workspace_id: 1
 url: https://some-gg-instance.com
-token: some token
+token: so** ***en
 token_name: first token
 expiry: 2022-05-04T17:00:00Z
 
