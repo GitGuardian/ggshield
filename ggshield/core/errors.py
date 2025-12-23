@@ -123,7 +123,11 @@ class AuthExpiredError(AuthError):
 
 class MissingTokenError(AuthError):
     def __init__(self, instance: str):
-        super().__init__(instance, f"No token is saved for this instance: '{instance}'")
+        super().__init__(
+            instance,
+            f"No token is saved for this instance: '{instance}'. "
+            "Run `ggshield auth login` to generate one.",
+        )
 
 
 class APIKeyCheckError(AuthError):
