@@ -1,5 +1,6 @@
 import os
 import platform
+import subprocess
 import tarfile
 from io import BytesIO
 from pathlib import Path
@@ -290,6 +291,214 @@ def test_get_repository_url_from_path_subrepo(tmp_path: Path):
     assert "repository1" in get_repository_url_from_path(local_repo1.path)
     # AND scanning local repo 2 returns remote repo 2 url
     assert "repository2" in get_repository_url_from_path(local_repo2.path)
+
+
+@pytest.mark.parametrize(
+    ("has_remote", "env_var_value", "expected_result"),
+    [
+        # Repository with remote - remote takes precedence
+        (True, None, "github.com/owner/repository"),
+        (True, "https://github.com/fallback/repo.git", "github.com/owner/repository"),
+        (True, "", "github.com/owner/repository"),
+        # Repository without remote - fallback to env var
+        (
+            False,
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        (False, None, None),
+        (False, "", None),
+    ],
+    ids=[
+        "repo_with_remote_no_env_var",
+        "repo_with_remote_with_env_var_remote_wins",
+        "repo_with_remote_empty_env_var",
+        "repo_without_remote_with_env_var",
+        "repo_without_remote_no_env_var",
+        "repo_without_remote_empty_env_var",
+    ],
+)
+def test_get_repository_url_from_path_with_fallback(
+    tmp_path: Path,
+    has_remote: bool,
+    env_var_value: Optional[str],
+    expected_result: Optional[str],
+):
+    """
+    Test repository URL detection with GITGUARDIAN_GIT_REMOTE_FALLBACK_URL environment variable.
+    Covers all combinations of having/not having a remote and having/not having env var.
+    """
+    # GIVEN a repository
+    if has_remote:
+        local_repo = _create_repository_with_remote(tmp_path, "repository")
+        repo_path = local_repo.path
+    else:
+        local_repository_path = tmp_path / "repo"
+        repo = Repository.create(local_repository_path)
+        repo.create_commit()
+        repo_path = local_repository_path
+
+    # WHEN getting the repository URL with or without env var
+    env_dict = (
+        {"GITGUARDIAN_GIT_REMOTE_FALLBACK_URL": env_var_value}
+        if env_var_value is not None
+        else {}
+    )
+    with patch.dict(os.environ, env_dict, clear=False):
+        url = get_repository_url_from_path(repo_path)
+
+    # THEN the expected URL is returned
+    assert url == expected_result
+
+
+@pytest.mark.parametrize(
+    ("env_var_value", "expected_result"),
+    [
+        # Non-git directory - fallback to env var
+        (
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        (None, None),
+        ("", None),
+    ],
+    ids=[
+        "non_git_dir_with_env_var",
+        "non_git_dir_no_env_var",
+        "non_git_dir_empty_env_var",
+    ],
+)
+def test_get_repository_url_from_path_non_git_dir_with_fallback(
+    tmp_path: Path,
+    env_var_value: Optional[str],
+    expected_result: Optional[str],
+):
+    """
+    Test repository URL detection in non-git directories with GITGUARDIAN_GIT_REMOTE_FALLBACK_URL.
+    """
+    # GIVEN a local directory with no git repository
+    local_directory_path = tmp_path / "local"
+    local_directory_path.mkdir()
+
+    # WHEN getting the repository URL with or without env var
+    env_dict = (
+        {"GITGUARDIAN_GIT_REMOTE_FALLBACK_URL": env_var_value}
+        if env_var_value is not None
+        else {}
+    )
+    with patch.dict(os.environ, env_dict, clear=False):
+        url = get_repository_url_from_path(local_directory_path)
+
+    # THEN the expected URL is returned
+    assert url == expected_result
+
+
+@pytest.mark.parametrize(
+    ("fallback_url", "expected_simplified"),
+    [
+        (
+            "https://github.com/owner/repo.git",
+            "github.com/owner/repo",
+        ),
+        (
+            "https://user:password@github.com:84/owner/repo.git",
+            "github.com/owner/repo",
+        ),
+        (
+            "git@gitlab.com:owner/repo.git",
+            "gitlab.com/owner/repo",
+        ),
+        (
+            "https://dev.azure.com/owner/project/_git/repository",
+            "dev.azure.com/owner/project/repository",
+        ),
+    ],
+    ids=[
+        "simple_https_url",
+        "https_with_credentials_and_port",
+        "ssh_url",
+        "azure_devops_url",
+    ],
+)
+def test_get_repository_url_from_path_env_var_simplifies_url(
+    tmp_path: Path,
+    fallback_url: str,
+    expected_simplified: str,
+):
+    """
+    Test that GITGUARDIAN_GIT_REMOTE_FALLBACK_URL URLs are properly simplified.
+    """
+    # GIVEN a repository without a remote
+    local_repository_path = tmp_path / "repo"
+    repo = Repository.create(local_repository_path)
+    repo.create_commit()
+
+    # WHEN getting the repository URL with a complex fallback URL
+    with patch.dict(os.environ, {"GITGUARDIAN_GIT_REMOTE_FALLBACK_URL": fallback_url}):
+        url = get_repository_url_from_path(local_repository_path)
+
+    # THEN the URL is simplified
+    assert url == expected_simplified
+
+
+@pytest.mark.parametrize(
+    ("exception_type", "env_var_value", "expected_result"),
+    [
+        # Git command fails with CalledProcessError - fallback to env var
+        (
+            subprocess.CalledProcessError,
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        (subprocess.CalledProcessError, None, None),
+        # Git command fails with OSError - fallback to env var
+        (
+            OSError,
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        (OSError, None, None),
+    ],
+    ids=[
+        "called_process_error_with_env_var",
+        "called_process_error_no_env_var",
+        "os_error_with_env_var",
+        "os_error_no_env_var",
+    ],
+)
+def test_get_repository_url_from_path_with_git_command_error(
+    tmp_path: Path,
+    exception_type: type,
+    env_var_value: Optional[str],
+    expected_result: Optional[str],
+):
+    """
+    Test that GITGUARDIAN_GIT_REMOTE_FALLBACK_URL is used when git command fails with an exception.
+    This covers the exception handling block in get_repository_url_from_path.
+    """
+    # GIVEN a repository with a remote
+    local_repo = _create_repository_with_remote(tmp_path, "repository")
+
+    # AND the git command will raise an exception
+    with patch("ggshield.utils.git_shell.git") as git_mock:
+        if exception_type == subprocess.CalledProcessError:
+            git_mock.side_effect = subprocess.CalledProcessError(
+                1, ["git", "remote", "-v"], stderr=b"error"
+            )
+        else:  # OSError
+            git_mock.side_effect = OSError("Permission denied")
+
+        # WHEN getting the repository URL with or without env var
+        env_dict = (
+            {"GITGUARDIAN_GIT_REMOTE_FALLBACK_URL": env_var_value}
+            if env_var_value is not None
+            else {}
+        )
+        with patch.dict(os.environ, env_dict, clear=False):
+            url = get_repository_url_from_path(local_repo.path)
+
+    # THEN the fallback URL is returned (or None if no env var)
+    assert url == expected_result
 
 
 def test_get_filepaths_from_ref(tmp_path):

@@ -88,6 +88,7 @@ def test_ci_repo_found(env, fake_url_repo: Repository) -> None:
     WHEN a repository url is found in the CI environment
     THEN it is sent instead of the remote url
     """
+    env = {"GITGUARDIAN_API_KEY": os.environ.get("GITGUARDIAN_API_KEY", ""), **env}
     with mock.patch.dict(os.environ, env, clear=True):
         context = ScanContext(
             scan_mode=ScanMode.CI,
@@ -115,7 +116,11 @@ def test_ci_no_env(env, fake_url_repo: Repository) -> None:
     THEN the remote url is sent by default
     """
     # Copying the path is needed for windows to find git
-    environ = {"PATH": os.environ.get("PATH"), **env}
+    environ = {
+        "PATH": os.environ.get("PATH", ""),
+        "GITGUARDIAN_API_KEY": os.environ.get("GITGUARDIAN_API_KEY", ""),
+        **env,
+    }
     with mock.patch.dict(os.environ, environ, clear=True):
         context = ScanContext(
             scan_mode=ScanMode.PATH,
@@ -123,3 +128,82 @@ def test_ci_no_env(env, fake_url_repo: Repository) -> None:
             target_path=fake_url_repo.path,
         )
         _assert_repo_url_in_headers(context, EXPECTED_HEADER_REMOTE)
+
+
+@pytest.mark.parametrize(
+    ("setup_type", "env_var_value", "expected_url"),
+    [
+        # Repository with remote - remote takes precedence
+        (
+            "repo_with_remote",
+            "https://github.com/fallback/repository.git",
+            EXPECTED_HEADER_REMOTE,
+        ),
+        ("repo_with_remote", None, EXPECTED_HEADER_REMOTE),
+        # Repository without remote - fallback to env var
+        (
+            "repo_without_remote",
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        ("repo_without_remote", None, None),
+        # Non-git directory - fallback to env var
+        (
+            "non_git_dir",
+            "https://github.com/fallback/repository.git",
+            "github.com/fallback/repository",
+        ),
+        ("non_git_dir", None, None),
+    ],
+    ids=[
+        "repo_with_remote_with_env_var",
+        "repo_with_remote_no_env_var",
+        "repo_without_remote_with_env_var",
+        "repo_without_remote_no_env_var",
+        "non_git_dir_with_env_var",
+        "non_git_dir_no_env_var",
+    ],
+)
+def test_scan_context_with_fallback_repository_url(
+    tmp_path: Path,
+    fake_url_repo: Repository,
+    setup_type: str,
+    env_var_value: Union[str, None],
+    expected_url: Union[str, None],
+) -> None:
+    """
+    GIVEN a target path (repo with remote, repo without remote, or non-git directory)
+    WHEN creating a ScanContext with or without GITGUARDIAN_GIT_REMOTE_FALLBACK_URL set
+    THEN the repository URL header reflects the remote URL if available,
+         otherwise the fallback URL
+    """
+    # Setup the target path based on the test case
+    if setup_type == "repo_with_remote":
+        target_path = fake_url_repo.path
+    elif setup_type == "repo_without_remote":
+        repo = Repository.create(tmp_path / "repo")
+        repo.create_commit()
+        target_path = repo.path
+    else:  # non_git_dir
+        target_path = tmp_path
+
+    # Create context with or without env var
+    # PATH is needed for git to be found
+    env_dict = {
+        "PATH": os.environ.get("PATH", ""),
+        "GITGUARDIAN_API_KEY": os.environ.get("GITGUARDIAN_API_KEY", ""),
+    }
+    if env_var_value is not None:
+        env_dict["GITGUARDIAN_GIT_REMOTE_FALLBACK_URL"] = env_var_value
+    with mock.patch.dict(os.environ, env_dict, clear=True):
+        context = ScanContext(
+            scan_mode=ScanMode.PATH,
+            command_path="ggshield secret scan path",
+            target_path=target_path,
+        )
+
+        # Assert the expected URL in headers
+        if expected_url:
+            _assert_repo_url_in_headers(context, expected_url)
+        else:
+            _assert_no_repo_url_in_headers(context)

@@ -379,13 +379,16 @@ def get_repository_url_from_path(wd: Path) -> Optional[str]:
     Returns one of the repository remote urls. Returns None if no remote are found,
     or the directory is not a repository or we don't have git so we can't know if the
     directory is a repository.
+
+    If GITGUARDIAN_GIT_REMOTE_FALLBACK_URL environment variable is set, it will be used as a
+    fallback value when no remote URL can be detected from the git repository.
     """
     try:
         if not is_git_available() or not is_git_dir(wd):
-            return None
+            return _get_repository_url_fallback()
         remotes_raw = git(["remote", "-v"], cwd=wd).splitlines()
     except (subprocess.CalledProcessError, OSError):
-        return None
+        return _get_repository_url_fallback()
 
     url: Optional[str] = None
     for line in remotes_raw:
@@ -393,7 +396,22 @@ def get_repository_url_from_path(wd: Path) -> Optional[str]:
             name, url = match.groups()
             if name == "origin":
                 break
-    return simplify_git_url(url) if url else None
+
+    if url:
+        return simplify_git_url(url)
+
+    return _get_repository_url_fallback()
+
+
+def _get_repository_url_fallback() -> Optional[str]:
+    """
+    Returns the repository URL from the GITGUARDIAN_GIT_REMOTE_FALLBACK_URL environment variable.
+    Returns None if the environment variable is not set or empty.
+    """
+    url = os.getenv("GITGUARDIAN_GIT_REMOTE_FALLBACK_URL")
+    if url:
+        return simplify_git_url(url)
+    return None
 
 
 def get_filepaths_from_ref(

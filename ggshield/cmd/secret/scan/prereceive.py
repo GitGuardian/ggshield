@@ -85,6 +85,10 @@ def prereceive_cmd(
 ) -> int:
     """
     Scan as a pre-receive git hook all commits about to enter the remote git repository.
+
+    The GITGUARDIAN_GIT_REMOTE_FALLBACK_URL environment variable can be set to provide
+    a fallback repository URL when it cannot be detected from the git remote
+    configuration.
     """
     ctx_obj = ContextObj.get(ctx)
     ctx_obj.client = create_client_from_config(ctx_obj.config)
