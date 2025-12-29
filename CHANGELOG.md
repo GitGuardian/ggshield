@@ -1,5 +1,25 @@
 # Changelog
 
+<a id='changelog-1.46.0'></a>
+
+## 1.46.0 — 2025-12-29
+
+### Added
+
+- A HTTPAdapter with wider parameters has been setup to better address scanning multiple files at the same time.
+
+- Add `GITGUARDIAN_GIT_REMOTE_FALLBACK_URL` environment variable that allows setting a fallback value for the repository remote.
+
+- Tokens are obfuscated in `ggshield config list` output.
+
+### Changed
+
+- Clearer error message when token is missing: specify the command to run to generate a token (ggshield auth login).
+
+### Fixed
+
+- Install `ggshield` hooks inside `.husky/` when the repository uses Husky-managed hooks so local installs work out of the box. (#1143).
+
 <a id='changelog-1.45.0'></a>
 
 ## 1.45.0 — 2025-11-14
