@@ -10,12 +10,8 @@ keywords = [
     "gitguardian",
 ]
 readme = "README.md"
-authors = [
-    {name = "GitGuardian", email = "support@gitguardian.com"},
-]
-maintainers = [
-    {name = "GitGuardian", email = "support@gitguardian.com"},
-]
+authors = [{ name = "GitGuardian", email = "support@gitguardian.com" }]
+maintainers = [{ name = "GitGuardian", email = "support@gitguardian.com" }]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -32,7 +28,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Security",
 ]
-license = {text = "MIT"}
+license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
     "platformdirs~=3.0.0",
@@ -42,7 +38,7 @@ dependencies = [
     "marshmallow~=3.18.0",
     "marshmallow-dataclass~=8.5.8",
     "oauthlib~=3.2.1",
-    "pygitguardian~=1.27.0",
+    "pygitguardian~=1.28.0",
     "pyjwt~=2.6.0",
     "python-dotenv~=0.21.0",
     "pyyaml~=6.0.1",
@@ -91,11 +87,12 @@ lines_after_imports = 2
 
 [tool.coverage.report]
 exclude_lines = [
-  "@abstractmethod",
-  "if TYPE_CHECKING:",
-  "pragma: no cover",
-  "raise NotImplementedError",
-  "assert False"]
+    "@abstractmethod",
+    "if TYPE_CHECKING:",
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "assert False",
+]
 omit = ["tests/*"]
 fail_under = 80
 show_missing = true
@@ -146,6 +143,4 @@ dev = [
     "ipython>=8.12.3",
     "ipdb>=0.13.13",
 ]
-standalone = [
-    "pyinstaller==6.7.0",
-]
+standalone = ["pyinstaller==6.7.0"]
