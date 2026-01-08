@@ -487,3 +487,18 @@ def get_default_branch(wd: Optional[Union[str, Path]] = None) -> str:
         return git(["config", "init.defaultBranch"], cwd=wd).strip()
 
     return default_branch
+
+
+def is_gitignored(path: Path, wd: Optional[Union[str, Path]] = None) -> bool | None:
+    """
+    Returns True if the path is ignored by git, False if it is not,
+        or None if git is not available or the directory is not a git repository.
+    :param path: path to the file or directory to check
+    """
+    if wd is None:
+        wd = Path.cwd()
+    if not is_git_available() or not is_git_dir(wd):
+        return None
+    else:
+        res = git(["check-ignore", "--", path.as_posix()], cwd=wd, check=False)
+        return res == path.as_posix()

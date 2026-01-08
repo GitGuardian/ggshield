@@ -7,6 +7,7 @@ import yaml
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.types import IgnoredMatch
+from tests.repository import Repository
 
 
 @pytest.mark.usefixtures("isolated_fs")
@@ -86,3 +87,24 @@ class TestCache:
 
         config = Config()
         assert config.user_config.max_commits_for_hook == 75
+
+
+def test_unignored_cache_file_warning(capsys, tmp_path):
+    """
+    GIVEN a cache file in a git repository
+    WHEN it is not ignored by git
+    THEN a warning is displayed
+    """
+    Repository.create(tmp_path)
+    current_dir= os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        with open(tmp_path / ".cache_ggshield", "w") as file:
+            json.dump({"last_found_secrets": [{"name": "", "match": "XXX"}]}, file)
+
+        Cache()
+        captured = capsys.readouterr()
+        assert "is not ignored by git" in captured.err
+    finally:
+        os.chdir(current_dir)

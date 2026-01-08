@@ -26,6 +26,7 @@ from ggshield.utils.git_shell import (
     git_ls_unstaged,
     is_git_available,
     is_git_dir,
+    is_gitignored,
     is_valid_git_commit_ref,
     simplify_git_url,
 )
@@ -680,3 +681,28 @@ def test_git_command_includes_longpaths_on_windows(mock_run):
         assert (
             not longpaths_included
         ), f"core.longpaths=true found in command: {command}"
+
+
+def test_check_if_path_is_gitignored(tmp_path):
+    # GIVEN a repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # WHEN checking if the path is ignored
+    not_ignored = is_gitignored(Path("*.pyc"), wd=repo.path)
+    with open(repo.path / ".gitignore", "w") as f:
+        f.write("*.pyc")
+    ignored = is_gitignored(Path("*.pyc"), wd=repo.path)
+
+    # THEN the correct value is returned
+    assert ignored
+    assert not_ignored is False
+
+
+def test_check_if_path_is_gitignored_no_repo(tmp_path):
+    # GIVEN a directory that is not a git repository
+    # WHEN checking if the path is ignored
+    no_git = is_gitignored(Path("*.pyc"), wd=tmp_path)
+
+    # THEN None is returned
+    assert no_git is None
