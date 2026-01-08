@@ -489,16 +489,39 @@ def get_default_branch(wd: Optional[Union[str, Path]] = None) -> str:
     return default_branch
 
 
-def is_gitignored(path: Path, wd: Optional[Union[str, Path]] = None) -> bool | None:
+def is_gitignored(path: Path) -> Optional[bool]:
     """
     Returns True if the path is ignored by git, False if it is not,
         or None if git is not available or the directory is not a git repository.
     :param path: path to the file or directory to check
     """
-    if wd is None:
-        wd = Path.cwd()
-    if not is_git_available() or not is_git_dir(wd):
+    working_dir = Path.cwd()
+    if not is_git_available() or not is_git_dir(working_dir):
         return None
     else:
-        res = git(["check-ignore", "--", path.as_posix()], cwd=wd, check=False)
+        res = git(["check-ignore", "--", path.as_posix()], cwd=working_dir, check=False)
         return res == path.as_posix()
+
+
+def gitignore(path: Path):
+    """
+    Tries to add a path to the gitignore file.
+    :param path: path to the file or directory to add to .gitignore
+    """
+    working_dir = Path.cwd()
+
+    if not is_git_available() or not is_git_dir(working_dir):
+        return
+
+    repo_root = _git_rev_parse(option="--show-toplevel", wd=working_dir)
+    if repo_root is not None:
+        try:
+            with open(Path(repo_root) / ".gitignore", "a") as f:
+                f.write("\n# Added by ggshield\n")
+                f.write(path.as_posix() + "\n")
+        except OSError:
+            logger.debug(
+                "Failed to add %s to .gitignore in %s",
+                path,
+                working_dir,
+            )

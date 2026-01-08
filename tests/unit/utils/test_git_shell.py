@@ -1,3 +1,4 @@
+import logging
 import os
 import platform
 import subprocess
@@ -24,6 +25,7 @@ from ggshield.utils.git_shell import (
     get_staged_filepaths,
     git,
     git_ls_unstaged,
+    gitignore,
     is_git_available,
     is_git_dir,
     is_gitignored,
@@ -689,10 +691,11 @@ def test_check_if_path_is_gitignored(tmp_path):
     repo.create_commit()
 
     # WHEN checking if the path is ignored
-    not_ignored = is_gitignored(Path("*.pyc"), wd=repo.path)
-    with open(repo.path / ".gitignore", "w") as f:
-        f.write("*.pyc")
-    ignored = is_gitignored(Path("*.pyc"), wd=repo.path)
+    with cd(str(repo.path)):
+        not_ignored = is_gitignored(Path("*.pyc"))
+        with open(repo.path / ".gitignore", "w") as f:
+            f.write("*.pyc")
+        ignored = is_gitignored(Path("*.pyc"))
 
     # THEN the correct value is returned
     assert ignored
@@ -702,7 +705,65 @@ def test_check_if_path_is_gitignored(tmp_path):
 def test_check_if_path_is_gitignored_no_repo(tmp_path):
     # GIVEN a directory that is not a git repository
     # WHEN checking if the path is ignored
-    no_git = is_gitignored(Path("*.pyc"), wd=tmp_path)
+    with cd(str(tmp_path)):
+        no_git = is_gitignored(Path("*.pyc"))
 
     # THEN None is returned
     assert no_git is None
+
+
+def test_gitignore(tmp_path):
+    # GIVEN a repository
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    # WHEN adding a path to the gitignore
+    with cd(str(repo.path)):
+        gitignore(Path("*.pyc"))
+
+    # THEN the path is added to the gitignore file
+    gitignore_content = (repo.path / ".gitignore").read_text()
+    assert "\n*.pyc\n" in gitignore_content
+
+
+def test_gitignore_with_existing_gitignore(tmp_path):
+    # GIVEN a repository with an existing gitignore file
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+    with open(tmp_path / ".gitignore", "w") as f:
+        f.write("node_modules/")
+
+    # WHEN adding a path to the gitignore
+    with cd(str(repo.path)):
+        gitignore(Path("*.pyc"))
+
+    # THEN the path is added to the gitignore file
+    gitignore_content = (repo.path / ".gitignore").read_text()
+    assert "\n*.pyc\n" in gitignore_content
+
+
+def test_gitignore_in_non_git_directory(tmp_path):
+    # GIVEN a non-git directory
+    # WHEN adding a path to the gitignore
+    with cd(str(tmp_path)):
+        gitignore(Path("*.pyc"))
+
+    # THEN the path is not added to the gitignore file
+    assert not (tmp_path / ".gitignore").exists()
+
+
+def test_gitignore_write_error(caplog, tmp_path):
+    # GIVEN a repository with a gitignore file that cannot be written
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+    with open(tmp_path / ".gitignore", "w") as f:
+        f.write("node_modules/")
+    (tmp_path / ".gitignore").chmod(0o000)
+
+    with caplog.at_level(logging.DEBUG):
+        # WHEN adding a path to the gitignore
+        with cd(str(repo.path)):
+            gitignore(Path("*.pyc"))
+
+        # THEN the error is logged
+        assert "Failed to add *.pyc to .gitignore in" in caplog.text
