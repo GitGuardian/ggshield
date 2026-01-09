@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 import pytest
 import yaml
@@ -7,6 +8,9 @@ import yaml
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.types import IgnoredMatch
+from ggshield.utils.git_shell import is_gitignored
+from ggshield.utils.os import cd
+from tests.repository import Repository
 
 
 @pytest.mark.usefixtures("isolated_fs")
@@ -86,3 +90,21 @@ class TestCache:
 
         config = Config()
         assert config.user_config.max_commits_for_hook == 75
+
+
+def test_auto_ignore_cache_file(tmp_path):
+    """
+    GIVEN a cache file in a git repository
+    WHEN it is not ignored by git
+    THEN the cache file is automatically added to the gitignore file
+    """
+    Repository.create(tmp_path)
+
+    with open(tmp_path / ".cache_ggshield", "w") as file:
+        json.dump({"last_found_secrets": [{"name": "", "match": "XXX"}]}, file)
+
+    with cd(str(tmp_path)):
+        assert not is_gitignored(Path(".cache_ggshield"))
+
+        Cache()
+        assert is_gitignored(Path(".cache_ggshield"))

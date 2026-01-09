@@ -6,6 +6,7 @@ from ggshield.core import ui
 from ggshield.core.constants import CACHE_PATH
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.types import IgnoredMatch
+from ggshield.utils.git_shell import gitignore, is_gitignored
 
 
 SECRETS_CACHE_KEY = "last_found_secrets"
@@ -19,6 +20,9 @@ class Cache:
         self.load_cache()
 
     def load_cache(self) -> None:
+        if self.cache_path.is_file() and is_gitignored(self.cache_path) is False:
+            gitignore(self.cache_path)
+
         if not self.cache_path.is_file() or self.cache_path.stat().st_size == 0:
             return
 
