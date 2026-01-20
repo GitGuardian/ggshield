@@ -8,11 +8,10 @@ import click
 from click import UsageError
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.cursor import CURSOR_HOOK_COMMAND, CursorEventType
+from ggshield.core.cursor import CURSOR_EVENT_COMMANDS
 from ggshield.core.dirs import get_data_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import check_git_dir, git
-
 
 # This snippet is used by the global hook to call the hook defined in the
 # repository, if it exists.
@@ -244,8 +243,8 @@ def create_cursor_hooks(hooks_path: Path, force: bool) -> int:
     added_count = 0
     already_present_count = 0
 
-    # Add ggshield hooks for each event type
-    for event_type in CursorEventType:
+    # Add ggshield hooks for each event type that has a command defined
+    for event_type, command in CURSOR_EVENT_COMMANDS.items():
         event_name = event_type.value
         hook_list = hooks.setdefault(event_name, [])
 
@@ -262,12 +261,12 @@ def create_cursor_hooks(hooks_path: Path, force: bool) -> int:
                     for hook in hook_list
                     if "ggshield" not in hook.get("command", "")
                 ]
-                hook_list.append({"command": CURSOR_HOOK_COMMAND})
+                hook_list.append({"command": command})
                 added_count += 1
             else:
                 already_present_count += 1
         else:
-            hook_list.append({"command": CURSOR_HOOK_COMMAND})
+            hook_list.append({"command": command})
             added_count += 1
 
     # Ensure parent directory exists

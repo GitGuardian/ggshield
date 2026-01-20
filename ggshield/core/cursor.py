@@ -14,3 +14,12 @@ class CursorEventType(str, Enum):
 
 
 CURSOR_HOOK_COMMAND = "ggshield secret scan ai-hook --mode cursor"
+CURSOR_MCP_MONITOR_COMMAND = "ggshield secret scan mcp-monitor"
+
+CURSOR_EVENT_COMMANDS = {
+    CursorEventType.BEFORE_SHELL_EXECUTION: CURSOR_HOOK_COMMAND,
+    CursorEventType.BEFORE_MCP_EXECUTION: CURSOR_MCP_MONITOR_COMMAND,
+    CursorEventType.BEFORE_READ_FILE: CURSOR_HOOK_COMMAND,
+    CursorEventType.BEFORE_TAB_FILE_READ: CURSOR_HOOK_COMMAND,
+    CursorEventType.BEFORE_SUBMIT_PROMPT: CURSOR_HOOK_COMMAND,
+}

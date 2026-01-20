@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.ci import ci_cmd
 from ggshield.cmd.secret.scan.docker import docker_name_cmd
 from ggshield.cmd.secret.scan.dockerarchive import docker_archive_cmd
 from ggshield.cmd.secret.scan.docset import docset_cmd
+from ggshield.cmd.secret.scan.mcp_monitor import mcp_monitor_cmd
 from ggshield.cmd.secret.scan.path import path_cmd
 from ggshield.cmd.secret.scan.precommit import precommit_cmd
 from ggshield.cmd.secret.scan.prepush import prepush_cmd
@@ -29,6 +30,7 @@ from ggshield.core import ui
         "ai-hook": ai_hook_cmd,
         "commit-range": range_cmd,
         "changes": changes_cmd,
+        "mcp-monitor": mcp_monitor_cmd,
         "pre-commit": precommit_cmd,
         "pre-push": prepush_cmd,
         "pre-receive": prereceive_cmd,
