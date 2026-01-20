@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 from typing import Any, Dict, List
 
 import click
@@ -59,13 +60,16 @@ def scan_content(ctx: click.Context, content: str, identifier: str) -> List[Secr
     return secrets
 
 
-def format_secrets_for_message(secrets: List[Secret], message: str) -> str:
+def format_secrets_for_message(
+    secrets: List[Secret], message: str, escape_markdown: bool = False
+) -> str:
     """
     Format detected secrets into a user-friendly message.
 
     Args:
         secrets: List of detected secrets
         message: Text to display after the secrets output
+        escape_markdown: If True, escape asterisks to prevent markdown interpretation
 
     Returns:
         Formatted message describing the detected secrets
@@ -79,6 +83,8 @@ def format_secrets_for_message(secrets: List[Secret], message: str) -> str:
         if validity == "valid":
             validity = f"**{validity}**"
         match_str = ", ".join(censor_match(m) for m in secret.matches)
+        if escape_markdown:
+            match_str = match_str.replace("*", "•")
         secret_lines.append(
             f"  - {secret.detector_display_name} ({validity}): {match_str}"
         )
@@ -95,11 +101,10 @@ def send_secret_notification(secrets: List[Secret], source: str) -> None:
         secret_count: Number of secrets detected
         source: Description of the source (e.g., "shell command", "MCP tool")
     """
-    secret_list = format_secrets_for_message(secrets)
-    secret_count = len(secret_list)
+    secret_count = len(secrets)
     notification = Notify()
     notification.title = "ggshield - Secrets Detected"
-    notification.message = f"Cursor got access to {pluralize('secret', secret_count)} via {source}: {secret_list}"
+    notification.message = f"Cursor got access to {pluralize('secret', secret_count)} via {source}"
     notification.application_name = "ggshield"
     notification.icon = "scripts/chocolatey/icon.png"
     notification.send()
@@ -129,6 +134,7 @@ def handle_before_shell_execution(
             secrets,
             "Please remove the secrets from the command before executing it. "
             "Consider using environment variables or a secrets manager instead.",
+            escape_markdown=True,
         )
         return {
             "permission": "deny",
@@ -165,6 +171,7 @@ def handle_before_mcp_execution(
             secrets,
             "Please remove the secrets from the tool input before executing. "
             "Consider using environment variables or a secrets manager instead.",
+            escape_markdown=True,
         )
         return {
             "permission": "deny",
@@ -240,17 +247,31 @@ def handle_before_submit_prompt(
 
     Returns continue decision with optional user message.
     """
+    all_secrets: List[Secret] = []
+
+    # Scan the prompt text
     prompt = event_data.get("prompt", "")
+    if prompt:
+        all_secrets.extend(scan_content(ctx, prompt, "user-prompt"))
 
-    if not prompt:
-        return {"continue": True}
+    # Scan attached files
+    attachments = event_data.get("attachments", [])
+    for attachment in attachments:
+        if attachment.get("type") == "file":
+            file_path = attachment.get("file_path", "")
+            if file_path:
+                try:
+                    content = Path(file_path).read_text()
+                    all_secrets.extend(scan_content(ctx, content, file_path))
+                except (OSError, IOError):
+                    # Skip files that cannot be read
+                    pass
 
-    secrets = scan_content(ctx, prompt, "user-prompt")
-
-    if secrets:
+    if all_secrets:
         message = format_secrets_for_message(
-            secrets,
-            "Please remove the secrets from your prompt before submitting.",
+            all_secrets,
+            "Please remove the secrets from your prompt or attached files before submitting.",
+            escape_markdown=True,
         )
         return {
             "continue": False,
