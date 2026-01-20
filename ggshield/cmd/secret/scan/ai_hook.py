@@ -10,19 +10,15 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.cursor import CursorEventType
+from ggshield.core.filter import censor_match
 from ggshield.core.scan import ScanContext, ScanMode, StringScannable
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
-from ggshield.core.text_utils import pluralize
+from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.secret import SecretScanner
-from ggshield.verticals.secret.output.secret_gitlab_webui_output_handler import (
-    format_secret,
-)
 from ggshield.verticals.secret.secret_scan_collection import Secret
 
 
-def scan_content(
-    ctx: click.Context, content: str, identifier: str
-) -> List[Secret]:
+def scan_content(ctx: click.Context, content: str, identifier: str) -> List[Secret]:
     """
     Scan content for secrets using the SecretScanner.
 
@@ -62,20 +58,32 @@ def scan_content(
     return secrets
 
 
-def format_secrets_for_message(secrets: List[Secret]) -> str:
+def format_secrets_for_message(secrets: List[Secret], message: str) -> str:
     """
     Format detected secrets into a user-friendly message.
 
     Args:
         secrets: List of detected secrets
+        message: Text to display after the secrets output
 
     Returns:
         Formatted message describing the detected secrets
     """
-    formatted_secrets = {format_secret(s) for s in secrets}
-    secrets_list = ", ".join(formatted_secrets)
-    count = len(formatted_secrets)
-    return f"ggshield detected {count} {pluralize('secret', count)}: {secrets_list}"
+    count = len(secrets)
+    header = f"**🚨 Detected {count} {pluralize('secret', count)} 🚨**"
+
+    secret_lines = []
+    for secret in secrets:
+        validity = translate_validity(secret.validity).lower()
+        if validity == "valid":
+            validity = f"**{validity}**"
+        match_str = ", ".join(censor_match(m) for m in secret.matches)
+        secret_lines.append(
+            f"  - {secret.detector_display_name} ({validity}): {match_str}"
+        )
+
+    secrets_block = "\n".join(secret_lines)
+    return f"{header}\n{secrets_block}\n\n{message}"
 
 
 def handle_before_shell_execution(
@@ -98,15 +106,15 @@ def handle_before_shell_execution(
     secrets = scan_content(ctx, command, "shell-command")
 
     if secrets:
-        message = format_secrets_for_message(secrets)
+        message = format_secrets_for_message(
+            secrets,
+            "Please remove the secrets from the command before executing it. "
+            "Consider using environment variables or a secrets manager instead.",
+        )
         return {
             "permission": "deny",
-            "user_message": f"{message}. The command has been blocked.",
-            "agent_message": (
-                f"{message}. "
-                "Please remove the secrets from the command before executing it. "
-                "Consider using environment variables or a secrets manager instead."
-            ),
+            "user_message": f"{message}\n\nThe command has been blocked.",
+            "agent_message": message,
         }
 
     return {"permission": "allow"}
@@ -134,15 +142,15 @@ def handle_before_mcp_execution(
     secrets = scan_content(ctx, tool_input, f"mcp-tool:{tool_name}")
 
     if secrets:
-        message = format_secrets_for_message(secrets)
+        message = format_secrets_for_message(
+            secrets,
+            "Please remove the secrets from the tool input before executing. "
+            "Consider using environment variables or a secrets manager instead.",
+        )
         return {
             "permission": "deny",
-            "user_message": f"{message}. The MCP tool execution has been blocked.",
-            "agent_message": (
-                f"{message}. "
-                "Please remove the secrets from the tool input before executing. "
-                "Consider using environment variables or a secrets manager instead."
-            ),
+            "user_message": f"{message}\n\nThe MCP tool execution has been blocked.",
+            "agent_message": message,
         }
 
     return {"permission": "allow"}
@@ -221,13 +229,13 @@ def handle_before_submit_prompt(
     secrets = scan_content(ctx, prompt, "user-prompt")
 
     if secrets:
-        message = format_secrets_for_message(secrets)
+        message = format_secrets_for_message(
+            secrets,
+            "Please remove the secrets from your prompt before submitting.",
+        )
         return {
             "continue": False,
-            "user_message": (
-                f"{message}. "
-                "Please remove the secrets from your prompt before submitting."
-            ),
+            "user_message": message,
         }
 
     return {"continue": True}
@@ -243,7 +251,9 @@ EVENT_HANDLERS = {
 }
 
 
-def process_hook_event(ctx: click.Context, event_data: Dict[str, Any]) -> Dict[str, Any]:
+def process_hook_event(
+    ctx: click.Context, event_data: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Process a Cursor hook event and route to the appropriate handler.
 
