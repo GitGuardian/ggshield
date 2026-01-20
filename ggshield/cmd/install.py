@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -7,7 +8,8 @@ import click
 from click import UsageError
 
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.core.dirs import get_data_dir
+from ggshield.core.cursor import CURSOR_HOOK_COMMAND, CursorEventType
+from ggshield.core.dirs import get_data_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import check_git_dir, git
 
@@ -38,7 +40,7 @@ fi
 @click.option(
     "--hook-type",
     "-t",
-    type=click.Choice(["pre-commit", "pre-push"]),
+    type=click.Choice(["pre-commit", "pre-push", "cursor"]),
     help="Type of hook to install.",
     default="pre-commit",
 )
@@ -49,16 +51,24 @@ def install_cmd(
     mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any
 ) -> int:
     """
-    Installs ggshield as a pre-commit or pre-push hook.
+    Installs ggshield as a pre-commit, pre-push, or Cursor hook.
 
     The `install` command installs ggshield as a git pre-commit or pre-push hook, either
     for the current repository (locally) or for all repositories (globally).
+    It can also install ggshield as a Cursor IDE agent hook.
     """
-    return_code = (
-        install_global(hook_type=hook_type, force=force, append=append)
-        if mode == "global"
-        else install_local(hook_type=hook_type, force=force, append=append)
-    )
+    if hook_type == "cursor":
+        return_code = (
+            install_cursor_global(force=force)
+            if mode == "global"
+            else install_cursor_local(force=force)
+        )
+    else:
+        return_code = (
+            install_global(hook_type=hook_type, force=force, append=append)
+            if mode == "global"
+            else install_local(hook_type=hook_type, force=force, append=append)
+        )
     return return_code
 
 
@@ -189,5 +199,92 @@ def create_hook(
         f"{hook_type} successfully added in"
         f" {click.style(hook_path, fg='yellow', bold=True)}"
     )
+
+    return 0
+
+
+def install_cursor_global(force: bool) -> int:
+    """Global Cursor hooks installation (~/.cursor/hooks.json)."""
+    hooks_path = get_user_home_dir() / ".cursor" / "hooks.json"
+    return create_cursor_hooks(hooks_path=hooks_path, force=force)
+
+
+def install_cursor_local(force: bool) -> int:
+    """Local Cursor hooks installation (.cursor/hooks.json)."""
+    hooks_path = Path(".cursor") / "hooks.json"
+    return create_cursor_hooks(hooks_path=hooks_path, force=force)
+
+
+def create_cursor_hooks(hooks_path: Path, force: bool) -> int:
+    """
+    Create or update the Cursor hooks.json file with ggshield hooks.
+
+    Args:
+        hooks_path: Path to the hooks.json file
+        force: If True, replace existing ggshield hooks with new command
+
+    Returns:
+        0 on success
+    """
+    # Load existing config or create new one
+    existing_config: dict = {"version": 1, "hooks": {}}
+    if hooks_path.exists():
+        try:
+            with hooks_path.open("r", encoding="utf-8") as f:
+                existing_config = json.load(f)
+        except json.JSONDecodeError as e:
+            raise UnexpectedError(
+                f"Failed to parse {hooks_path}: {e}. "
+                "Please fix or remove the file before installing hooks."
+            )
+
+    hooks = existing_config.setdefault("hooks", {})
+
+    # Track what we did for reporting
+    added_count = 0
+    already_present_count = 0
+
+    # Add ggshield hooks for each event type
+    for event_type in CursorEventType:
+        event_name = event_type.value
+        hook_list = hooks.setdefault(event_name, [])
+
+        # Check if ggshield is already present in this hook list
+        ggshield_present = any(
+            "ggshield" in hook.get("command", "") for hook in hook_list
+        )
+
+        if ggshield_present:
+            if force:
+                # Remove existing ggshield hooks and add the new one
+                hook_list[:] = [
+                    hook
+                    for hook in hook_list
+                    if "ggshield" not in hook.get("command", "")
+                ]
+                hook_list.append({"command": CURSOR_HOOK_COMMAND})
+                added_count += 1
+            else:
+                already_present_count += 1
+        else:
+            hook_list.append({"command": CURSOR_HOOK_COMMAND})
+            added_count += 1
+
+    # Ensure parent directory exists
+    hooks_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write the updated config
+    with hooks_path.open("w", encoding="utf-8") as f:
+        json.dump(existing_config, f, indent=2)
+        f.write("\n")
+
+    # Report what happened
+    styled_path = click.style(hooks_path, fg="yellow", bold=True)
+    if added_count == 0 and already_present_count > 0:
+        click.echo(f"Cursor hooks already installed in {styled_path}")
+    elif added_count > 0 and already_present_count > 0:
+        click.echo(f"Cursor hooks updated in {styled_path}")
+    else:
+        click.echo(f"Cursor hooks successfully added in {styled_path}")
 
     return 0

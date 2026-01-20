@@ -8,3 +8,6 @@ class CursorEventType(str, Enum):
     BEFORE_MCP_EXECUTION = "beforeMCPExecution"
     BEFORE_TAB_FILE_READ = "beforeTabFileRead"
     BEFORE_SUBMIT_PROMPT = "beforeSubmitPrompt"
+
+
+CURSOR_HOOK_COMMAND = "ggshield secret scan ai-hook --mode cursor"
