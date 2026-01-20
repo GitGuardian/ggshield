@@ -13,8 +13,8 @@ class CursorEventType(str, Enum):
     AFTER_MCP_EXECUTION = "afterMCPExecution"
 
 
-CURSOR_HOOK_COMMAND = "ggshield secret scan ai-hook --mode cursor"
-CURSOR_MCP_MONITOR_COMMAND = "ggshield secret scan mcp-monitor"
+CURSOR_HOOK_COMMAND = "uvx --from 'git+https://github.com/gitguardian/ggshield.git@poc_cursor' ggshield secret scan ai-hook --mode cursor"
+CURSOR_MCP_MONITOR_COMMAND = "uvx --from 'git+https://github.com/gitguardian/ggshield.git@poc_cursor' ggshield secret scan mcp-monitor"
 
 CURSOR_EVENT_COMMANDS: dict[CursorEventType, list[str]] = {
     CursorEventType.BEFORE_SHELL_EXECUTION: [CURSOR_HOOK_COMMAND],

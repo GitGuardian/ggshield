@@ -261,18 +261,15 @@ def create_cursor_hooks(hooks_path: Path, force: bool) -> int:
         )
 
         if ggshield_present:
-            if force:
-                # Remove existing ggshield hooks and add the new ones
-                hook_list[:] = [
-                    hook
-                    for hook in hook_list
-                    if "ggshield" not in hook.get("command", "")
-                ]
-                for command in commands:
-                    hook_list.append({"command": command})
-                added_count += len(commands)
-            else:
-                already_present_count += 1
+            # Remove existing ggshield hooks and replace with the latest ones
+            hook_list[:] = [
+                hook
+                for hook in hook_list
+                if "ggshield" not in hook.get("command", "")
+            ]
+            for command in commands:
+                hook_list.append({"command": command})
+            added_count += len(commands)
         else:
             for command in commands:
                 hook_list.append({"command": command})
@@ -370,26 +367,23 @@ def create_claude_code_hooks(settings_path: Path, force: bool) -> int:
                             break
 
             if ggshield_present:
-                if force:
-                    # Remove existing ggshield hooks for this matcher
-                    for existing_hook in hook_list:
-                        existing_matcher = existing_hook.get("matcher")
-                        if existing_matcher == matcher:
-                            existing_hook["hooks"] = [
-                                h
-                                for h in existing_hook.get("hooks", [])
-                                if "ggshield" not in h.get("command", "")
-                            ]
-                            # Add the new ggshield hook
-                            existing_hook["hooks"].extend(hook_config["hooks"])
-                            added_count += 1
-                            break
-                    else:
-                        # Matcher not found, add new entry
-                        hook_list.append(hook_config)
+                # Remove existing ggshield hooks for this matcher and replace with latest
+                for existing_hook in hook_list:
+                    existing_matcher = existing_hook.get("matcher")
+                    if existing_matcher == matcher:
+                        existing_hook["hooks"] = [
+                            h
+                            for h in existing_hook.get("hooks", [])
+                            if "ggshield" not in h.get("command", "")
+                        ]
+                        # Add the new ggshield hook
+                        existing_hook["hooks"].extend(hook_config["hooks"])
                         added_count += 1
+                        break
                 else:
-                    already_present_count += 1
+                    # Matcher not found, add new entry
+                    hook_list.append(hook_config)
+                    added_count += 1
             else:
                 # Check if we have an existing entry with this matcher
                 found_matcher = False

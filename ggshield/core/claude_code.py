@@ -22,7 +22,7 @@ class ClaudeCodeToolName:
     MCP_PREFIX = "mcp__"
 
 
-CLAUDE_CODE_HOOK_COMMAND = "ggshield secret scan ai-hook --mode claude-code"
+CLAUDE_CODE_HOOK_COMMAND = "uvx --from 'git+https://github.com/gitguardian/ggshield.git@poc_cursor' ggshield secret scan ai-hook --mode claude-code"
 
 # Matchers for PreToolUse and PostToolUse events
 # Each tuple is (matcher_pattern, description)
