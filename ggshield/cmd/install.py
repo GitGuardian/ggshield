@@ -8,6 +8,7 @@ import click
 from click import UsageError
 
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.core.claude_code import CLAUDE_CODE_EVENT_CONFIGS
 from ggshield.core.cursor import CURSOR_EVENT_COMMANDS
 from ggshield.core.dirs import get_data_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
@@ -39,7 +40,7 @@ fi
 @click.option(
     "--hook-type",
     "-t",
-    type=click.Choice(["pre-commit", "pre-push", "cursor"]),
+    type=click.Choice(["pre-commit", "pre-push", "cursor", "claude-code"]),
     help="Type of hook to install.",
     default="pre-commit",
 )
@@ -50,17 +51,23 @@ def install_cmd(
     mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any
 ) -> int:
     """
-    Installs ggshield as a pre-commit, pre-push, or Cursor hook.
+    Installs ggshield as a pre-commit, pre-push, Cursor, or Claude Code hook.
 
     The `install` command installs ggshield as a git pre-commit or pre-push hook, either
     for the current repository (locally) or for all repositories (globally).
-    It can also install ggshield as a Cursor IDE agent hook.
+    It can also install ggshield as a Cursor IDE or Claude Code agent hook.
     """
     if hook_type == "cursor":
         return_code = (
             install_cursor_global(force=force)
             if mode == "global"
             else install_cursor_local(force=force)
+        )
+    elif hook_type == "claude-code":
+        return_code = (
+            install_claude_code_global(force=force)
+            if mode == "global"
+            else install_claude_code_local(force=force)
         )
     else:
         return_code = (
@@ -287,5 +294,133 @@ def create_cursor_hooks(hooks_path: Path, force: bool) -> int:
         click.echo(f"Cursor hooks updated in {styled_path}")
     else:
         click.echo(f"Cursor hooks successfully added in {styled_path}")
+
+    return 0
+
+
+def install_claude_code_global(force: bool) -> int:
+    """Global Claude Code hooks installation (~/.claude/settings.json)."""
+    settings_path = get_user_home_dir() / ".claude" / "settings.json"
+    return create_claude_code_hooks(settings_path=settings_path, force=force)
+
+
+def install_claude_code_local(force: bool) -> int:
+    """Local Claude Code hooks installation (.claude/settings.json)."""
+    settings_path = Path(".claude") / "settings.json"
+    return create_claude_code_hooks(settings_path=settings_path, force=force)
+
+
+def create_claude_code_hooks(settings_path: Path, force: bool) -> int:
+    """
+    Create or update the Claude Code settings.json file with ggshield hooks.
+
+    Claude Code hooks have a different structure than Cursor hooks:
+    - Hooks are organized by event type (PreToolUse, PostToolUse, UserPromptSubmit)
+    - PreToolUse/PostToolUse use matchers to filter by tool name
+    - Each matcher can have multiple hooks
+
+    Args:
+        settings_path: Path to the settings.json file
+        force: If True, replace existing ggshield hooks with new command
+
+    Returns:
+        0 on success
+    """
+    # Load existing config or create new one
+    existing_config: dict = {}
+    if settings_path.exists():
+        try:
+            with settings_path.open("r", encoding="utf-8") as f:
+                existing_config = json.load(f)
+        except json.JSONDecodeError as e:
+            raise UnexpectedError(
+                f"Failed to parse {settings_path}: {e}. "
+                "Please fix or remove the file before installing hooks."
+            )
+
+    hooks = existing_config.setdefault("hooks", {})
+
+    # Track what we did for reporting
+    added_count = 0
+    already_present_count = 0
+
+    # Add ggshield hooks for each event type
+    for event_type, hook_configs in CLAUDE_CODE_EVENT_CONFIGS.items():
+        event_name = event_type.value
+        hook_list = hooks.setdefault(event_name, [])
+
+        for hook_config in hook_configs:
+            matcher = hook_config.get("matcher")
+
+            # Check if ggshield is already present for this matcher
+            ggshield_present = False
+            for existing_hook in hook_list:
+                existing_matcher = existing_hook.get("matcher")
+                if existing_matcher == matcher:
+                    # Check if any of the hooks contain ggshield
+                    for h in existing_hook.get("hooks", []):
+                        if "ggshield" in h.get("command", ""):
+                            ggshield_present = True
+                            break
+                elif matcher is None and existing_matcher is None:
+                    # For hooks without matchers (like UserPromptSubmit)
+                    for h in existing_hook.get("hooks", []):
+                        if "ggshield" in h.get("command", ""):
+                            ggshield_present = True
+                            break
+
+            if ggshield_present:
+                if force:
+                    # Remove existing ggshield hooks for this matcher
+                    for existing_hook in hook_list:
+                        existing_matcher = existing_hook.get("matcher")
+                        if existing_matcher == matcher:
+                            existing_hook["hooks"] = [
+                                h
+                                for h in existing_hook.get("hooks", [])
+                                if "ggshield" not in h.get("command", "")
+                            ]
+                            # Add the new ggshield hook
+                            existing_hook["hooks"].extend(hook_config["hooks"])
+                            added_count += 1
+                            break
+                    else:
+                        # Matcher not found, add new entry
+                        hook_list.append(hook_config)
+                        added_count += 1
+                else:
+                    already_present_count += 1
+            else:
+                # Check if we have an existing entry with this matcher
+                found_matcher = False
+                for existing_hook in hook_list:
+                    if existing_hook.get("matcher") == matcher:
+                        # Add to existing matcher entry
+                        existing_hook.setdefault("hooks", []).extend(hook_config["hooks"])
+                        added_count += 1
+                        found_matcher = True
+                        break
+
+                if not found_matcher:
+                    # Add new matcher entry
+                    hook_list.append(hook_config)
+                    added_count += 1
+
+    # Ensure parent directory exists
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write the updated config
+    with settings_path.open("w", encoding="utf-8") as f:
+        json.dump(existing_config, f, indent=2)
+        f.write("\n")
+
+    # Report what happened
+    styled_path = click.style(settings_path, fg="yellow", bold=True)
+    if added_count == 0 and already_present_count > 0:
+        click.echo(f"Claude Code hooks already installed in {styled_path}")
+    elif added_count > 0 and already_present_count > 0:
+        click.echo(f"Claude Code hooks updated in {styled_path}")
+    else:
+        click.echo(f"Claude Code hooks successfully added in {styled_path}")
 
     return 0
