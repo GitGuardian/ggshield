@@ -24,6 +24,6 @@ CURSOR_EVENT_COMMANDS: dict[CursorEventType, list[str]] = {
     ],
     CursorEventType.AFTER_MCP_EXECUTION: [CURSOR_HOOK_COMMAND],
     CursorEventType.BEFORE_READ_FILE: [CURSOR_HOOK_COMMAND],
-    CursorEventType.BEFORE_TAB_FILE_READ: [CURSOR_HOOK_COMMAND],
+    # CursorEventType.BEFORE_TAB_FILE_READ: [CURSOR_HOOK_COMMAND],  # Slooooow
     CursorEventType.BEFORE_SUBMIT_PROMPT: [CURSOR_HOOK_COMMAND],
 }
