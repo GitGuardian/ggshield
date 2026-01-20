@@ -6,6 +6,7 @@ class CursorEventType(str, Enum):
 
     BEFORE_SHELL_EXECUTION = "beforeShellExecution"
     BEFORE_MCP_EXECUTION = "beforeMCPExecution"
+    BEFORE_READ_FILE = "beforeReadFile"
     BEFORE_TAB_FILE_READ = "beforeTabFileRead"
     BEFORE_SUBMIT_PROMPT = "beforeSubmitPrompt"
 

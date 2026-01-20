@@ -148,11 +148,38 @@ def handle_before_mcp_execution(
     return {"permission": "allow"}
 
 
+def handle_before_read_file(
+    ctx: click.Context, event_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Handle beforeReadFile hook event (for Agent file reads).
+
+    Input fields:
+        - file_path: absolute path to the file
+        - content: file contents
+        - attachments: list of file/rule attachments
+
+    Returns permission decision.
+    """
+    content = event_data.get("content", "")
+    file_path = event_data.get("file_path", "unknown")
+
+    if not content:
+        return {"permission": "allow"}
+
+    secrets = scan_content(ctx, content, file_path)
+
+    if secrets:
+        return {"permission": "deny"}
+
+    return {"permission": "allow"}
+
+
 def handle_before_tab_file_read(
     ctx: click.Context, event_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Handle beforeTabFileRead hook event.
+    Handle beforeTabFileRead hook event (for Tab inline completions).
 
     Input fields:
         - file_path: absolute path to the file
@@ -210,6 +237,7 @@ def handle_before_submit_prompt(
 EVENT_HANDLERS = {
     CursorEventType.BEFORE_SHELL_EXECUTION: handle_before_shell_execution,
     CursorEventType.BEFORE_MCP_EXECUTION: handle_before_mcp_execution,
+    CursorEventType.BEFORE_READ_FILE: handle_before_read_file,
     CursorEventType.BEFORE_TAB_FILE_READ: handle_before_tab_file_read,
     CursorEventType.BEFORE_SUBMIT_PROMPT: handle_before_submit_prompt,
 }
