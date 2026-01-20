@@ -3,6 +3,7 @@ import sys
 from typing import Any, Dict, List
 
 import click
+from notifypy import Notify
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
@@ -84,6 +85,24 @@ def format_secrets_for_message(secrets: List[Secret], message: str) -> str:
 
     secrets_block = "\n".join(secret_lines)
     return f"{header}\n{secrets_block}\n\n{message}"
+
+
+def send_secret_notification(secrets: List[Secret], source: str) -> None:
+    """
+    Send desktop notification when secrets are detected.
+
+    Args:
+        secret_count: Number of secrets detected
+        source: Description of the source (e.g., "shell command", "MCP tool")
+    """
+    secret_list = format_secrets_for_message(secrets)
+    secret_count = len(secret_list)
+    notification = Notify()
+    notification.title = "ggshield - Secrets Detected"
+    notification.message = f"Cursor got access to {pluralize('secret', secret_count)} via {source}: {secret_list}"
+    notification.application_name = "ggshield"
+    notification.icon = "scripts/chocolatey/icon.png"
+    notification.send()
 
 
 def handle_before_shell_execution(
@@ -241,6 +260,63 @@ def handle_before_submit_prompt(
     return {"continue": True}
 
 
+def handle_after_shell_execution(
+    ctx: click.Context, event_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Handle afterShellExecution hook event.
+
+    Input fields:
+        - command: full terminal command
+        - cwd: current working directory
+        - output: stdout/stderr content
+        - exit_code: command exit code
+
+    Returns empty dict (no output fields supported, fire-and-forget).
+    Sends desktop notification if secrets are detected.
+    """
+    output = event_data.get("output", "")
+
+    if not output:
+        return {}
+
+    secrets = scan_content(ctx, output, "shell-output")
+
+    if secrets:
+        send_secret_notification(secrets, "shell command")
+
+    return {}
+
+
+def handle_after_mcp_execution(
+    ctx: click.Context, event_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Handle afterMCPExecution hook event.
+
+    Input fields:
+        - tool_name: name of the MCP tool
+        - tool_input: JSON params string
+        - url or command: server identifier
+        - tool_output: tool execution result
+
+    Returns empty dict (no output fields supported, fire-and-forget).
+    Sends desktop notification if secrets are detected.
+    """
+    tool_output = event_data.get("tool_output", "")
+    tool_name = event_data.get("tool_name", "unknown")
+
+    if not tool_output:
+        return {}
+
+    secrets = scan_content(ctx, tool_output, f"mcp-tool-output:{tool_name}")
+
+    if secrets:
+        send_secret_notification(len(secrets), f"MCP tool '{tool_name}'")
+
+    return {}
+
+
 # Mapping of event types to their handler functions
 EVENT_HANDLERS = {
     CursorEventType.BEFORE_SHELL_EXECUTION: handle_before_shell_execution,
@@ -248,6 +324,8 @@ EVENT_HANDLERS = {
     CursorEventType.BEFORE_READ_FILE: handle_before_read_file,
     CursorEventType.BEFORE_TAB_FILE_READ: handle_before_tab_file_read,
     CursorEventType.BEFORE_SUBMIT_PROMPT: handle_before_submit_prompt,
+    CursorEventType.AFTER_SHELL_EXECUTION: handle_after_shell_execution,
+    CursorEventType.AFTER_MCP_EXECUTION: handle_after_mcp_execution,
 }
 
 
