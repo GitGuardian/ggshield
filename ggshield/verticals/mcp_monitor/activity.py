@@ -16,6 +16,7 @@ from ggshield.verticals.mcp_monitor.config import (
     load_mcp_config,
     save_json_file,
 )
+from ggshield.verticals.mcp_monitor.identity import MCPIdentityMapper
 
 
 @dataclass
@@ -34,16 +35,20 @@ def create_activity_entry(
     server_config: Optional[Dict[str, Any]],
     tool_name: str,
     user_email: Optional[str],
-    identity_mapping: Dict[str, Any],
     scopes_mapping: Dict[str, str],
 ) -> MCPActivityEntry:
+    identity = None
+    if server_name and server_config:
+        identity_mapper = MCPIdentityMapper()
+        identity = identity_mapper.get_identity(server_name, server_config)
+
     return MCPActivityEntry(
         timestamp=datetime.now().isoformat(),
         service=server_name,
         host=extract_host_from_config(server_config),
         cursor_email=user_email,
         tool=tool_name,
-        identity=identity_mapping.get(server_name) if server_name else None,
+        identity=identity,
         scopes=scopes_mapping.get(server_name) if server_name else None,
     )
 
@@ -53,7 +58,6 @@ class MCPActivityMonitor:
     workspace_roots: List[str] = field(default_factory=list)
     _mcp_config: Optional[Dict[str, Any]] = field(default=None, init=False)
     _tool_mapping: Optional[Dict[str, str]] = field(default=None, init=False)
-    _identity_mapping: Optional[Dict[str, Any]] = field(default=None, init=False)
     _scopes_mapping: Optional[Dict[str, str]] = field(default=None, init=False)
 
     @property
@@ -71,10 +75,6 @@ class MCPActivityMonitor:
     @property
     def tool_mapping_path(self) -> Path:
         return self.cache_dir / "mcp_tool_mapping.json"
-
-    @property
-    def identity_mapping_path(self) -> Path:
-        return self.cache_dir / "mcp_identity_mapping.json"
 
     @property
     def scopes_mapping_path(self) -> Path:
@@ -108,13 +108,6 @@ class MCPActivityMonitor:
                 builder = MCPToolMappingBuilder(workspace_roots=self.workspace_roots)
                 self._tool_mapping = builder.save_mapping()
         return self._tool_mapping
-
-    @property
-    def identity_mapping(self) -> Dict[str, Any]:
-        if self._identity_mapping is None:
-            mapping = load_json_file(self.identity_mapping_path)
-            self._identity_mapping = mapping if isinstance(mapping, dict) else {}
-        return self._identity_mapping
 
     @property
     def scopes_mapping(self) -> Dict[str, str]:
@@ -242,7 +235,6 @@ class MCPActivityMonitor:
             server_config=server_config,
             tool_name=tool_name,
             user_email=event_data.get("user_email"),
-            identity_mapping=self.identity_mapping,
             scopes_mapping=self.scopes_mapping,
         )
 
