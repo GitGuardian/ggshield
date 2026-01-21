@@ -22,7 +22,6 @@ from ggshield.verticals.mcp_monitor.config import (
 )
 from ggshield.verticals.mcp_monitor.discovery import (
     compute_identity_repr,
-    get_server_info_for_tool,
     load_discovery_cache,
     parse_scopes_to_list,
 )
@@ -48,35 +47,20 @@ def create_activity_entry(
     server_config: Optional[Dict[str, Any]],
     tool_name: str,
     user_email: Optional[str],
-    scopes_mapping: Dict[str, str],
 ) -> MCPActivityEntry:
     identity = None
     identity_repr = None
     scopes: Optional[List[str]] = None
     host = extract_host_from_config(server_config)
 
-    cached_server = get_server_info_for_tool(tool_name)
-    if cached_server:
-        server_name = server_name or cached_server.name
-        identity = cached_server.identity
-        identity_repr = cached_server.identity_repr
-        scopes = cached_server.scopes
-        if not host and cached_server.env_vars:
-            host = cached_server.env_vars.get(
-                "CLICKHOUSE_HOST"
-            ) or cached_server.env_vars.get("GITLAB_API_URL")
-    elif server_name and server_config:
+    if server_name and server_config:
         identity_mapper = MCPIdentityMapper()
         identity, fetched_scopes = identity_mapper.get_identity_and_scopes(
             server_name, server_config
         )
         if fetched_scopes:
-            scopes = parse_scopes_to_list(fetched_scopes)
+            scopes = parse_scopes_to_list(fetched_scopes, server_name)
         identity_repr = compute_identity_repr(server_name, identity)
-    elif server_name:
-        scopes_str = scopes_mapping.get(server_name)
-        if scopes_str:
-            scopes = parse_scopes_to_list(scopes_str)
 
     return MCPActivityEntry(
         timestamp=datetime.now().isoformat(),
@@ -94,8 +78,7 @@ def create_activity_entry(
 class MCPActivityMonitor:
     workspace_roots: List[str] = field(default_factory=list)
     _mcp_config: Optional[Dict[str, Any]] = field(default=None, init=False)
-    _tool_mapping: Optional[Dict[str, str]] = field(default=None, init=False)
-    _scopes_mapping: Optional[Dict[str, str]] = field(default=None, init=False)
+    _discovery_cache: Optional[Dict[str, Any]] = field(default=None, init=False)
 
     @property
     def cache_dir(self) -> Path:
@@ -108,14 +91,6 @@ class MCPActivityMonitor:
     @property
     def server_cache_path(self) -> Path:
         return self.cache_dir / "mcp_server_cache.json"
-
-    @property
-    def tool_mapping_path(self) -> Path:
-        return self.cache_dir / "mcp_tool_mapping.json"
-
-    @property
-    def scopes_mapping_path(self) -> Path:
-        return self.cache_dir / "mcp_scopes_mapping.json"
 
     @property
     def log_debug_path(self) -> Path:
@@ -132,32 +107,10 @@ class MCPActivityMonitor:
         return self._mcp_config
 
     @property
-    def tool_mapping(self) -> Dict[str, str]:
-        if self._tool_mapping is None:
-            if self.tool_mapping_path.exists():
-                mapping = load_json_file(self.tool_mapping_path)
-                self._tool_mapping = mapping if isinstance(mapping, dict) else {}
-            else:
-                from ggshield.verticals.mcp_monitor.tool_mapping import (
-                    MCPToolMappingBuilder,
-                )
-
-                builder = MCPToolMappingBuilder(workspace_roots=self.workspace_roots)
-                self._tool_mapping = builder.save_mapping()
-        return self._tool_mapping
-
-    @property
-    def scopes_mapping(self) -> Dict[str, str]:
-        if self._scopes_mapping is None:
-            if self.scopes_mapping_path.exists():
-                mapping = load_json_file(self.scopes_mapping_path)
-                self._scopes_mapping = mapping if isinstance(mapping, dict) else {}
-            else:
-                identity_mapper = MCPIdentityMapper(
-                    workspace_roots=self.workspace_roots
-                )
-                _, self._scopes_mapping = identity_mapper.build_mappings()
-        return self._scopes_mapping
+    def discovery_cache(self) -> Dict[str, Any]:
+        if self._discovery_cache is None:
+            self._discovery_cache = load_discovery_cache() or {}
+        return self._discovery_cache
 
     def find_server_by_command(
         self, command: str
@@ -178,45 +131,13 @@ class MCPActivityMonitor:
         if not tool_name:
             return None, None
 
-        discovery_cache = load_discovery_cache()
-        if discovery_cache:
-            server_name = discovery_cache.get("tool_to_server", {}).get(tool_name)
-            if server_name:
-                server_config = self.mcp_config.get("mcpServers", {}).get(server_name)
-                if server_config:
-                    return server_name, server_config
-
-        server_name = self.tool_mapping.get(tool_name)
+        server_name = self.discovery_cache.get("tool_to_server", {}).get(tool_name)
         if server_name:
             server_config = self.mcp_config.get("mcpServers", {}).get(server_name)
             if server_config:
                 return server_name, server_config
 
         return None, None
-
-    def _is_remote_server(self, server_name: str) -> bool:
-        from ggshield.verticals.mcp_monitor.config import get_mcp_remote_url
-
-        server_config = self.mcp_config.get("mcpServers", {}).get(server_name, {})
-        return get_mcp_remote_url(server_config) is not None
-
-    def learn_tool_mapping(self, tool_name: str, server_name: str) -> None:
-        if not tool_name or not server_name:
-            return
-
-        existing_server = self.tool_mapping.get(tool_name)
-        if existing_server == server_name:
-            return
-
-        if existing_server:
-            existing_is_remote = self._is_remote_server(existing_server)
-            new_is_remote = self._is_remote_server(server_name)
-            if not existing_is_remote and new_is_remote:
-                return
-
-        self._tool_mapping = dict(self.tool_mapping)
-        self._tool_mapping[tool_name] = server_name
-        save_json_file(self.tool_mapping_path, self._tool_mapping)
 
     def get_cache_key(self, data: Dict[str, Any]) -> str:
         return f"{data.get('generation_id', '')}:{data.get('tool_name', '')}"
@@ -262,7 +183,6 @@ class MCPActivityMonitor:
 
         if server_name and event_type == "beforeMCPExecution":
             self.cache_server_info(cache_key, server_name, server_config)
-            self.learn_tool_mapping(tool_name, server_name)
 
         return server_name, server_config
 
@@ -301,7 +221,6 @@ class MCPActivityMonitor:
             server_config=server_config,
             tool_name=tool_name,
             user_email=event_data.get("user_email"),
-            scopes_mapping=self.scopes_mapping,
         )
 
         info_entries = (

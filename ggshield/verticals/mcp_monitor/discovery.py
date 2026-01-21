@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from ggshield.verticals.mcp_monitor.config import (
     get_mcp_cache_dir,
+    get_mcp_remote_url,
     load_json_file,
     save_json_file,
 )
@@ -221,21 +222,43 @@ def get_discovery_cache_path() -> Path:
     return get_mcp_cache_dir() / DISCOVERY_CACHE_FILENAME
 
 
+def _is_remote_server(server: MCPServerInfo) -> bool:
+    """Check if a server is remote (connects to external URL)."""
+    if server.server_type == "remote":
+        return True
+    server_config = {"args": server.args}
+    return get_mcp_remote_url(server_config) is not None
+
+
 def save_discovery_cache(servers: List[MCPServerInfo]) -> None:
     """
     Save discovery results to cache. Creates two mappings:
     1. servers: Full server info by server name
     2. tool_to_server: Maps each tool name to its server name for fast lookup
+
+    When multiple servers have the same tool, stdio servers take priority over
+    remote servers to ensure proper attribution.
     """
     cache_data: Dict[str, Any] = {
         "servers": {server.name: server.to_dict() for server in servers},
         "tool_to_server": {},
     }
 
+    server_is_remote = {server.name: _is_remote_server(server) for server in servers}
+
     for server in servers:
         for tool in server.tools:
-            if tool:
-                cache_data["tool_to_server"][tool] = server.name
+            if not tool:
+                continue
+
+            existing_server = cache_data["tool_to_server"].get(tool)
+            if existing_server:
+                existing_is_remote = server_is_remote.get(existing_server, False)
+                current_is_remote = server_is_remote.get(server.name, False)
+                if not existing_is_remote and current_is_remote:
+                    continue
+
+            cache_data["tool_to_server"][tool] = server.name
 
     save_json_file(get_discovery_cache_path(), cache_data)
 
