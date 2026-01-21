@@ -27,7 +27,8 @@ class MCPServerInfo:
     args: List[str]
     tools: List[str]
     identity: Optional[Dict[str, Any]]
-    scopes: Optional[str]
+    scopes: Optional[List[str]]
+    identity_repr: Optional[str] = None
     env_vars: Dict[str, str] = field(default_factory=dict)
     server_type: Optional[str] = None
 
@@ -38,6 +39,7 @@ class MCPServerInfo:
             "args": self.args,
             "tools": self.tools,
             "identity": self.identity,
+            "identity_repr": self.identity_repr,
             "scopes": self.scopes,
             "env_vars": self.env_vars,
             "server_type": self.server_type,
@@ -45,16 +47,68 @@ class MCPServerInfo:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MCPServerInfo":
+        scopes = data.get("scopes")
+        if isinstance(scopes, str):
+            scopes = scopes.split() if scopes else []
         return cls(
             name=data.get("name", ""),
             command=data.get("command", ""),
             args=data.get("args", []),
             tools=data.get("tools", []),
             identity=data.get("identity"),
-            scopes=data.get("scopes"),
+            scopes=scopes,
+            identity_repr=data.get("identity_repr"),
             env_vars=data.get("env_vars", {}),
             server_type=data.get("server_type"),
         )
+
+
+def compute_identity_repr(
+    server_name: str, identity: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    if not identity:
+        return None
+
+    server_name_lower = server_name.lower()
+
+    if "clickhouse" in server_name_lower:
+        username = identity.get("username")
+        return username if username else None
+
+    if "sentry" in server_name_lower:
+        user_id = identity.get("user_id")
+        return f"user_id:{user_id}" if user_id else None
+
+    if "linear" in server_name_lower:
+        client_id = identity.get("client_id")
+        return f"client_id:{client_id}" if client_id else None
+
+    if "gitlab" in server_name_lower:
+        token_name = identity.get("token_name")
+        username = identity.get("username")
+        if token_name and username:
+            return f"token {token_name} from {username}"
+        elif username:
+            return username
+        return None
+
+    return None
+
+
+def parse_scopes_to_list(
+    scopes: Optional[str], server_name: Optional[str] = None
+) -> Optional[List[str]]:
+    if not scopes:
+        return None
+
+    server_lower = (server_name or "").lower()
+    if "clickhouse" in server_lower or scopes.strip().upper().startswith("GRANT"):
+        return [scopes.strip()]
+
+    if "\n" in scopes:
+        return [line.strip() for line in scopes.strip().split("\n") if line.strip()]
+
+    return scopes.split()
 
 
 def discover_mcp_servers(
@@ -93,12 +147,14 @@ def discover_mcp_servers(
             tools = tool_builder.get_tools_from_mcp_server(server_name, server_config)
 
         identity: Optional[Dict[str, Any]] = None
-        scopes: Optional[str] = None
+        scopes_str: Optional[str] = None
         if identity_mapper:
-            identity, scopes = identity_mapper.get_identity_and_scopes(
+            identity, scopes_str = identity_mapper.get_identity_and_scopes(
                 server_name, server_config
             )
 
+        scopes_list = parse_scopes_to_list(scopes_str, server_name)
+        identity_repr = compute_identity_repr(server_name, identity)
         sanitized_env = _sanitize_env_vars(env_vars)
 
         server_info = MCPServerInfo(
@@ -107,7 +163,8 @@ def discover_mcp_servers(
             args=args,
             tools=tools,
             identity=identity,
-            scopes=scopes,
+            scopes=scopes_list,
+            identity_repr=identity_repr,
             env_vars=sanitized_env,
             server_type=server_type,
         )

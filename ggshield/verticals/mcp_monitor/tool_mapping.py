@@ -293,6 +293,9 @@ class MCPToolMappingBuilder:
 
         return []
 
+    def _is_remote_server(self, server_config: Dict[str, Any]) -> bool:
+        return get_mcp_remote_url(server_config) is not None
+
     def build_tool_mapping(self) -> Dict[str, str]:
         mcp_config = load_mcp_config(self.workspace_roots)
         existing_mapping = load_json_file(self.tool_mapping_path)
@@ -300,12 +303,22 @@ class MCPToolMappingBuilder:
             existing_mapping = {}
 
         mapping: Dict[str, str] = dict(existing_mapping)
+        server_configs = mcp_config.get("mcpServers", {})
 
-        for server_name, server_config in mcp_config.get("mcpServers", {}).items():
+        for server_name, server_config in server_configs.items():
+            is_remote = self._is_remote_server(server_config)
             tools = self.get_tools_from_mcp_server(server_name, server_config)
             for tool in tools:
                 if tool:
-                    mapping[tool] = server_name
+                    if tool in mapping and mapping[tool] != server_name:
+                        existing_server_config = server_configs.get(mapping[tool], {})
+                        existing_is_remote = self._is_remote_server(
+                            existing_server_config
+                        )
+                        if existing_is_remote and not is_remote:
+                            mapping[tool] = server_name
+                    else:
+                        mapping[tool] = server_name
 
         return mapping
 

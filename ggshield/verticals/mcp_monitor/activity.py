@@ -21,8 +21,10 @@ from ggshield.verticals.mcp_monitor.config import (
     save_json_file,
 )
 from ggshield.verticals.mcp_monitor.discovery import (
+    compute_identity_repr,
     get_server_info_for_tool,
     load_discovery_cache,
+    parse_scopes_to_list,
 )
 from ggshield.verticals.mcp_monitor.identity import MCPIdentityMapper
 
@@ -37,7 +39,8 @@ class MCPActivityEntry:
     cursor_email: Optional[str]
     tool: str
     identity: Optional[Dict[str, Any]]
-    scopes: Optional[str]
+    identity_repr: Optional[str]
+    scopes: Optional[List[str]]
 
 
 def create_activity_entry(
@@ -48,13 +51,15 @@ def create_activity_entry(
     scopes_mapping: Dict[str, str],
 ) -> MCPActivityEntry:
     identity = None
-    scopes = scopes_mapping.get(server_name) if server_name else None
+    identity_repr = None
+    scopes: Optional[List[str]] = None
     host = extract_host_from_config(server_config)
 
     cached_server = get_server_info_for_tool(tool_name)
     if cached_server:
         server_name = server_name or cached_server.name
         identity = cached_server.identity
+        identity_repr = cached_server.identity_repr
         scopes = cached_server.scopes
         if not host and cached_server.env_vars:
             host = cached_server.env_vars.get(
@@ -66,7 +71,12 @@ def create_activity_entry(
             server_name, server_config
         )
         if fetched_scopes:
-            scopes = fetched_scopes
+            scopes = parse_scopes_to_list(fetched_scopes)
+        identity_repr = compute_identity_repr(server_name, identity)
+    elif server_name:
+        scopes_str = scopes_mapping.get(server_name)
+        if scopes_str:
+            scopes = parse_scopes_to_list(scopes_str)
 
     return MCPActivityEntry(
         timestamp=datetime.now().isoformat(),
@@ -75,6 +85,7 @@ def create_activity_entry(
         cursor_email=user_email,
         tool=tool_name,
         identity=identity,
+        identity_repr=identity_repr,
         scopes=scopes,
     )
 
@@ -183,14 +194,29 @@ class MCPActivityMonitor:
 
         return None, None
 
+    def _is_remote_server(self, server_name: str) -> bool:
+        from ggshield.verticals.mcp_monitor.config import get_mcp_remote_url
+
+        server_config = self.mcp_config.get("mcpServers", {}).get(server_name, {})
+        return get_mcp_remote_url(server_config) is not None
+
     def learn_tool_mapping(self, tool_name: str, server_name: str) -> None:
         if not tool_name or not server_name:
             return
 
-        if self.tool_mapping.get(tool_name) != server_name:
-            self._tool_mapping = dict(self.tool_mapping)
-            self._tool_mapping[tool_name] = server_name
-            save_json_file(self.tool_mapping_path, self._tool_mapping)
+        existing_server = self.tool_mapping.get(tool_name)
+        if existing_server == server_name:
+            return
+
+        if existing_server:
+            existing_is_remote = self._is_remote_server(existing_server)
+            new_is_remote = self._is_remote_server(server_name)
+            if not existing_is_remote and new_is_remote:
+                return
+
+        self._tool_mapping = dict(self.tool_mapping)
+        self._tool_mapping[tool_name] = server_name
+        save_json_file(self.tool_mapping_path, self._tool_mapping)
 
     def get_cache_key(self, data: Dict[str, Any]) -> str:
         return f"{data.get('generation_id', '')}:{data.get('tool_name', '')}"
@@ -290,6 +316,7 @@ class MCPActivityMonitor:
             "cursor_email": entry.cursor_email,
             "tool": entry.tool,
             "identity": entry.identity,
+            "identity_repr": entry.identity_repr,
             "scopes": entry.scopes,
         }
         info_entries.append(entry_dict)

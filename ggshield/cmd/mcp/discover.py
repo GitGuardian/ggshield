@@ -39,7 +39,9 @@ def format_server_text(server: MCPServerInfo) -> str:
 
     lines.append("")
     lines.append("  Identity:")
-    if server.identity:
+    if server.identity_repr:
+        lines.append(f"    {server.identity_repr}")
+    elif server.identity:
         for key, value in server.identity.items():
             lines.append(f"    {key}: {value}")
     else:
@@ -48,10 +50,10 @@ def format_server_text(server: MCPServerInfo) -> str:
     lines.append("")
     lines.append("  Scopes:")
     if server.scopes:
-        scopes_display = server.scopes
-        if len(scopes_display) > 80:
-            scopes_display = scopes_display[:80] + "..."
-        lines.append(f"    {scopes_display}")
+        for scope in server.scopes[:10]:
+            lines.append(f"    • {scope}")
+        if len(server.scopes) > 10:
+            lines.append(f"    ... and {len(server.scopes) - 10} more")
     else:
         lines.append("    (not available)")
 
