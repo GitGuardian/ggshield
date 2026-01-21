@@ -64,6 +64,9 @@ STATIC_CONFIG = {
                 "ggshield.cmd.{}.** -> ggshield.verticals.{}.**",
                 # FIXME: #521 - enforce boundaries between cmd.auth and verticals.hmsl
                 "ggshield.cmd.auth.** -> ggshield.verticals.hmsl.**",
+                # Allow secret cmd to import mcp_monitor vertical for AI hook functionality
+                "ggshield.cmd.secret.** -> ggshield.verticals.mcp_monitor",
+                "ggshield.cmd.secret.** -> ggshield.verticals.mcp_monitor.**",
             ],
             "unmatched_ignore_imports_alerting": "none",
         },

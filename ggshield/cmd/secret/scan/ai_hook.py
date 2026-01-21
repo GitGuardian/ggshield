@@ -1,5 +1,4 @@
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -95,9 +94,7 @@ def format_secrets_for_message(
     return f"{header}\n{secrets_block}\n\n{message}"
 
 
-def send_secret_notification(
-    secrets: List[Secret], source: str, ai_tool: str
-) -> None:
+def send_secret_notification(secrets: List[Secret], source: str, ai_tool: str) -> None:
     """
     Send desktop notification when secrets are detected.
 
@@ -270,7 +267,7 @@ def handle_before_submit_prompt(
                 try:
                     content = Path(file_path).read_text()
                     all_secrets.extend(scan_content(ctx, content, file_path))
-                except (OSError, IOError):
+                except (OSError, IOError, UnicodeDecodeError):
                     # Skip files that cannot be read
                     pass
 
@@ -311,7 +308,7 @@ def handle_after_shell_execution(
     secrets = scan_content(ctx, output, "shell-output")
 
     if secrets:
-        send_secret_notification(secrets, "shell command")
+        send_secret_notification(secrets, "shell command", "Cursor")
 
     return {}
 
@@ -494,7 +491,7 @@ def cc_handle_read_tool(
     if secrets:
         return {
             "decision": "block",
-            "reason": f"File contains secrets and cannot be read by the AI assistant.",
+            "reason": "File contains secrets and cannot be read by the AI assistant.",
         }
 
     return {}
