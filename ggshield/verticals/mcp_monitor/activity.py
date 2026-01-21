@@ -3,11 +3,15 @@ MCP Activity Monitor - Logs all MCP tool executions with server identification.
 """
 
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ggshield.core.client import create_session
+from ggshield.core.config import Config
+from ggshield.core.url_utils import urljoin
 from ggshield.verticals.mcp_monitor.config import (
     extract_host_from_config,
     get_mcp_cache_dir,
@@ -17,6 +21,8 @@ from ggshield.verticals.mcp_monitor.config import (
     save_json_file,
 )
 from ggshield.verticals.mcp_monitor.identity import MCPIdentityMapper
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -205,11 +211,11 @@ class MCPActivityMonitor:
         event_data: Dict[str, Any],
         server_name: Optional[str],
         server_config: Optional[Dict[str, Any]],
-    ) -> None:
+    ) -> Dict[str, Any]:
         event_type = event_data.get("hook_event_name", "")
 
         if event_type == "afterMCPExecution":
-            return
+            return {"decision": "allow"}
 
         self._parse_json_field(event_data, "tool_input")
 
@@ -243,18 +249,19 @@ class MCPActivityMonitor:
         )
         if not isinstance(info_entries, list):
             info_entries = []
-        info_entries.append(
-            {
-                "timestamp": entry.timestamp,
-                "service": entry.service,
-                "host": entry.host,
-                "cursor_email": entry.cursor_email,
-                "tool": entry.tool,
-                "identity": entry.identity,
-                "scopes": entry.scopes,
-            }
-        )
+        entry_dict = {
+            "timestamp": entry.timestamp,
+            "service": entry.service,
+            "host": entry.host,
+            "cursor_email": entry.cursor_email,
+            "tool": entry.tool,
+            "identity": entry.identity,
+            "scopes": entry.scopes,
+        }
+        info_entries.append(entry_dict)
         save_json_file(self.log_info_path, info_entries)
+
+        return self._send_to_api(entry_dict)
 
     def _parse_json_field(self, data: Dict[str, Any], field: str) -> None:
         if field in data and isinstance(data[field], str):
@@ -263,7 +270,41 @@ class MCPActivityMonitor:
             except json.JSONDecodeError:
                 pass
 
-    def process_event(self, event_data: Dict[str, Any]) -> Dict[str, str]:
+    def _send_to_api(self, entry_dict: Dict[str, Any]) -> Dict[str, Any]:
+        default_response = {"decision": "deny"}
+        try:
+            config = Config()
+            api_url = config.api_url
+            api_key = config.api_key
+            allow_self_signed = config.user_config.insecure
+        except Exception as e:
+            logger.warning("Failed to load config for API call: %s", e)
+            return default_response
+
+        try:
+            session = create_session(allow_self_signed=allow_self_signed)
+
+            response = session.post(
+                urljoin(api_url, "/v1/ai-security/mcp"),
+                json=entry_dict,
+                headers={
+                    "Authorization": f"Token {api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            logger.warning("API call to /v1/ai-security/mcp: %s", response.json())
+            if not response.ok:
+                logger.warning(
+                    "API call to /v1/ai-security/mcp failed: %s %s",
+                    response.status_code,
+                    response.text,
+                )
+                return default_response
+            return response.json()
+        except Exception as e:
+            logger.warning("Failed to send activity to API: %s", e)
+            return default_response
+
+    def process_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         server_name, server_config = self.identify_server(event_data)
-        self.log_activity(event_data, server_name, server_config)
-        return {"decision": "allow"}
+        return self.log_activity(event_data, server_name, server_config)
