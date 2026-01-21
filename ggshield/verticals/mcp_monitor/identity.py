@@ -8,11 +8,10 @@ This module queries each MCP server to determine:
 
 import hashlib
 import json
-import os
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.request import Request, urlopen
 
 from ggshield.verticals.mcp_monitor.config import (
     get_mcp_cache_dir,
@@ -70,72 +69,46 @@ class MCPIdentityMapper:
     def scopes_mapping_path(self) -> Path:
         return self.cache_dir / "mcp_scopes_mapping.json"
 
-    def get_gitlab_identity(
+    def get_gitlab_identity_and_scopes(
         self, server_config: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        command = server_config.get("command", "")
-        args = server_config.get("args", [])
+    ) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
         env_vars = server_config.get("env", {})
+        api_url = env_vars.get("GITLAB_API_URL")
+        token = env_vars.get("GITLAB_PERSONAL_ACCESS_TOKEN")
 
-        if not command:
-            return None
+        if not api_url or not token:
+            return None, None
 
-        full_command = [command] + args
-
-        graphql_query = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/call",
-            "params": {
-                "name": "execute_graphql",
-                "arguments": {
-                    "query": "query { currentUser { id username name email } }"
-                },
-            },
-        }
+        headers = {"PRIVATE-TOKEN": token}
+        base_url = api_url.rstrip("/")
 
         try:
-            proc_env = os.environ.copy()
-            proc_env.update(env_vars)
+            token_url = f"{base_url}/api/v4/personal_access_tokens/self"
+            token_req = Request(token_url, headers=headers)
+            with urlopen(token_req, timeout=10) as response:
+                token_info = json.loads(response.read().decode())
 
-            result = subprocess.run(
-                full_command,
-                input=json.dumps(graphql_query) + "\n",
-                capture_output=True,
-                text=True,
-                timeout=self.timeout,
-                env=proc_env,
-            )
+            scopes = token_info.get("scopes", [])
+            scopes_str = " ".join(scopes) if scopes else None
 
-            for line in result.stdout.strip().split("\n"):
-                if not line:
-                    continue
-                try:
-                    response = json.loads(line)
-                    if "result" in response:
-                        content = response.get("result", {}).get("content", [])
-                        for item in content:
-                            if item.get("type") == "text":
-                                data = json.loads(item.get("text", "{}"))
-                                if "data" in data and "currentUser" in data["data"]:
-                                    user = data["data"]["currentUser"]
-                                    return {
-                                        "user_id": user.get("id"),
-                                        "username": user.get("username"),
-                                        "name": user.get("name"),
-                                        "email": user.get("email"),
-                                    }
-                except json.JSONDecodeError:
-                    continue
+            user_url = f"{base_url}/api/v4/user"
+            user_req = Request(user_url, headers=headers)
+            with urlopen(user_req, timeout=10) as response:
+                user_info = json.loads(response.read().decode())
 
-        except (
-            subprocess.TimeoutExpired,
-            subprocess.SubprocessError,
-            FileNotFoundError,
-        ):
+            identity = {
+                "user_id": user_info.get("id"),
+                "username": user_info.get("username"),
+                "name": user_info.get("name"),
+                "email": user_info.get("email"),
+                "token_name": token_info.get("name"),
+            }
+
+            return identity, scopes_str
+        except Exception:
             pass
 
-        return None
+        return None, None
 
     def get_sentry_identity(
         self, server_config: Dict[str, Any]
@@ -188,62 +161,70 @@ class MCPIdentityMapper:
 
     def get_scopes_from_tokens(self, server_config: Dict[str, Any]) -> Optional[str]:
         url = get_mcp_remote_url(server_config)
-        if not url:
-            return None
-
-        _, tokens = find_mcp_auth_files(url)
-
-        if tokens:
-            return tokens.get("scope")
+        if url:
+            _, tokens = find_mcp_auth_files(url)
+            if tokens:
+                return tokens.get("scope")
 
         return None
 
-    def get_identity(
+    def get_gitlab_scopes(self, server_config: Dict[str, Any]) -> Optional[str]:
+        env_vars = server_config.get("env", {})
+        api_url = env_vars.get("GITLAB_API_URL")
+        token = env_vars.get("GITLAB_PERSONAL_ACCESS_TOKEN")
+
+        if not api_url or not token:
+            return None
+
+        try:
+            url = f"{api_url.rstrip('/')}/api/v4/personal_access_tokens/self"
+            req = Request(url, headers={"PRIVATE-TOKEN": token})
+            with urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode())
+                scopes = data.get("scopes", [])
+                if scopes:
+                    return " ".join(scopes)
+        except Exception:
+            pass
+
+        return None
+
+    def get_identity_and_scopes(
         self, server_name: str, server_config: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
         server_name_lower = server_name.lower()
 
         if "gitlab" in server_name_lower:
-            return self.get_gitlab_identity(server_config)
+            return self.get_gitlab_identity_and_scopes(server_config)
         elif "sentry" in server_name_lower:
-            return self.get_sentry_identity(server_config)
+            identity = self.get_sentry_identity(server_config)
+            scopes = self.get_scopes_from_tokens(server_config)
+            return identity, scopes
         elif "clickhouse" in server_name_lower:
-            return self.get_clickhouse_identity(server_config)
+            return self.get_clickhouse_identity(server_config), None
         elif "linear" in server_name_lower:
-            return self.get_linear_identity(server_config)
+            identity = self.get_linear_identity(server_config)
+            scopes = self.get_scopes_from_tokens(server_config)
+            return identity, scopes
         else:
             identity = self.get_clickhouse_identity(server_config)
             if not identity:
                 identity = self.get_linear_identity(server_config)
-            return identity
-
-    def build_identity_mapping(
-        self, mcp_config: Dict[str, Any]
-    ) -> Dict[str, Dict[str, Any]]:
-        mapping: Dict[str, Dict[str, Any]] = {}
-
-        for server_name, server_config in mcp_config.get("mcpServers", {}).items():
-            identity = self.get_identity(server_name, server_config)
-            if identity:
-                mapping[server_name] = identity
-
-        return mapping
-
-    def build_scopes_mapping(self, mcp_config: Dict[str, Any]) -> Dict[str, str]:
-        mapping: Dict[str, str] = {}
-
-        for server_name, server_config in mcp_config.get("mcpServers", {}).items():
             scopes = self.get_scopes_from_tokens(server_config)
-            if scopes:
-                mapping[server_name] = scopes
-
-        return mapping
+            return identity, scopes
 
     def build_mappings(self) -> tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:
         mcp_config = load_mcp_config(self.workspace_roots)
 
-        identity_mapping = self.build_identity_mapping(mcp_config)
-        scopes_mapping = self.build_scopes_mapping(mcp_config)
+        identity_mapping: Dict[str, Dict[str, Any]] = {}
+        scopes_mapping: Dict[str, str] = {}
+
+        for server_name, server_config in mcp_config.get("mcpServers", {}).items():
+            identity, scopes = self.get_identity_and_scopes(server_name, server_config)
+            if identity:
+                identity_mapping[server_name] = identity
+            if scopes:
+                scopes_mapping[server_name] = scopes
 
         save_json_file(self.identity_mapping_path, identity_mapping)
         save_json_file(self.scopes_mapping_path, scopes_mapping)

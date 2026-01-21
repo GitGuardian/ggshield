@@ -44,9 +44,14 @@ def create_activity_entry(
     scopes_mapping: Dict[str, str],
 ) -> MCPActivityEntry:
     identity = None
+    scopes = scopes_mapping.get(server_name) if server_name else None
     if server_name and server_config:
         identity_mapper = MCPIdentityMapper()
-        identity = identity_mapper.get_identity(server_name, server_config)
+        identity, fetched_scopes = identity_mapper.get_identity_and_scopes(
+            server_name, server_config
+        )
+        if fetched_scopes:
+            scopes = fetched_scopes
 
     return MCPActivityEntry(
         timestamp=datetime.now().isoformat(),
@@ -55,7 +60,7 @@ def create_activity_entry(
         cursor_email=user_email,
         tool=tool_name,
         identity=identity,
-        scopes=scopes_mapping.get(server_name) if server_name else None,
+        scopes=scopes,
     )
 
 
@@ -118,8 +123,14 @@ class MCPActivityMonitor:
     @property
     def scopes_mapping(self) -> Dict[str, str]:
         if self._scopes_mapping is None:
-            mapping = load_json_file(self.scopes_mapping_path)
-            self._scopes_mapping = mapping if isinstance(mapping, dict) else {}
+            if self.scopes_mapping_path.exists():
+                mapping = load_json_file(self.scopes_mapping_path)
+                self._scopes_mapping = mapping if isinstance(mapping, dict) else {}
+            else:
+                identity_mapper = MCPIdentityMapper(
+                    workspace_roots=self.workspace_roots
+                )
+                _, self._scopes_mapping = identity_mapper.build_mappings()
         return self._scopes_mapping
 
     def find_server_by_command(
