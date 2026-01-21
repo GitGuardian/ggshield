@@ -14,14 +14,20 @@ from ggshield.core.claude_code import ClaudeCodeEventType, ClaudeCodeToolName
 from ggshield.core.client import create_client_from_config
 from ggshield.core.cursor import CursorEventType
 from ggshield.core.filter import censor_match
-from ggshield.core.scan import ScanContext, ScanMode, StringScannable
+from ggshield.core.scan import AiHookScannable, ScanContext, ScanMode
+from ggshield.core.scan.scannable import AiHookMetadata
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.secret import SecretScanner
 from ggshield.verticals.secret.secret_scan_collection import Secret
 
 
-def scan_content(ctx: click.Context, content: str, identifier: str) -> List[Secret]:
+def scan_content(
+    ctx: click.Context,
+    content: str,
+    identifier: str,
+    ai_hook_metadata: AiHookMetadata,
+) -> List[Secret]:
     """
     Scan content for secrets using the SecretScanner.
 
@@ -48,7 +54,9 @@ def scan_content(ctx: click.Context, content: str, identifier: str) -> List[Secr
         secret_config=config.user_config.secret,
     )
 
-    scannable = StringScannable(url=identifier, content=content)
+    scannable = AiHookScannable(
+        url=identifier, content=content, ai_hook_metadata=ai_hook_metadata
+    )
 
     with create_message_only_scanner_ui() as scanner_ui:
         results = scanner.scan([scannable], scanner_ui=scanner_ui)
@@ -131,7 +139,16 @@ def handle_before_shell_execution(
     if not command:
         return {"permission": "allow"}
 
-    secrets = scan_content(ctx, command, "shell-command")
+    secrets = scan_content(
+        ctx,
+        command,
+        "shell-command",
+        AiHookMetadata(
+            mode="cursor",
+            event_name=CursorEventType.BEFORE_SHELL_EXECUTION.value,
+            tool_or_command_input=command,
+        ),
+    )
 
     if secrets:
         message = format_secrets_for_message(
@@ -168,7 +185,17 @@ def handle_before_mcp_execution(
     if not tool_input:
         return {"permission": "allow"}
 
-    secrets = scan_content(ctx, tool_input, f"mcp-tool:{tool_name}")
+    secrets = scan_content(
+        ctx,
+        tool_input,
+        f"mcp-tool:{tool_name}",
+        AiHookMetadata(
+            mode="cursor",
+            event_name=CursorEventType.BEFORE_MCP_EXECUTION.value,
+            tool_name=tool_name,
+            tool_or_command_input=tool_input,
+        ),
+    )
 
     if secrets:
         message = format_secrets_for_message(
@@ -195,7 +222,6 @@ def handle_before_read_file(
     Input fields:
         - file_path: absolute path to the file
         - content: file contents
-        - attachments: list of file/rule attachments
 
     Returns permission decision.
     """
@@ -205,7 +231,16 @@ def handle_before_read_file(
     if not content:
         return {"permission": "allow"}
 
-    secrets = scan_content(ctx, content, file_path)
+    secrets = scan_content(
+        ctx,
+        content,
+        file_path,
+        AiHookMetadata(
+            mode="cursor",
+            event_name=CursorEventType.BEFORE_READ_FILE.value,
+            file_path=file_path,
+        ),
+    )
 
     if secrets:
         return {"permission": "deny"}
@@ -231,7 +266,16 @@ def handle_before_tab_file_read(
     if not content:
         return {"permission": "allow"}
 
-    secrets = scan_content(ctx, content, file_path)
+    secrets = scan_content(
+        ctx,
+        content,
+        file_path,
+        AiHookMetadata(
+            mode="cursor",
+            event_name=CursorEventType.BEFORE_TAB_FILE_READ.value,
+            file_path=file_path,
+        ),
+    )
 
     if secrets:
         return {"permission": "deny"}
@@ -256,7 +300,18 @@ def handle_before_submit_prompt(
     # Scan the prompt text
     prompt = event_data.get("prompt", "")
     if prompt:
-        all_secrets.extend(scan_content(ctx, prompt, "user-prompt"))
+        all_secrets.extend(
+            scan_content(
+                ctx,
+                prompt,
+                "user-prompt",
+                AiHookMetadata(
+                    mode="cursor",
+                    event_name=CursorEventType.BEFORE_SUBMIT_PROMPT.value,
+                    prompt=prompt,
+                ),
+            )
+        )
 
     # Scan attached files
     attachments = event_data.get("attachments", [])
@@ -266,7 +321,19 @@ def handle_before_submit_prompt(
             if file_path:
                 try:
                     content = Path(file_path).read_text()
-                    all_secrets.extend(scan_content(ctx, content, file_path))
+                    all_secrets.extend(
+                        scan_content(
+                            ctx,
+                            content,
+                            file_path,
+                            AiHookMetadata(
+                                mode="cursor",
+                                event_name=CursorEventType.BEFORE_SUBMIT_PROMPT.value,
+                                file_path=file_path,
+                                prompt=prompt,
+                            ),
+                        )
+                    )
                 except (OSError, IOError, UnicodeDecodeError):
                     # Skip files that cannot be read
                     pass
@@ -301,11 +368,22 @@ def handle_after_shell_execution(
     Sends desktop notification if secrets are detected.
     """
     output = event_data.get("output", "")
+    command = event_data.get("command", "")
 
     if not output:
         return {}
 
-    secrets = scan_content(ctx, output, "shell-output")
+    secrets = scan_content(
+        ctx,
+        output,
+        "shell-output",
+        AiHookMetadata(
+            mode="cursor",
+            event_name=CursorEventType.AFTER_SHELL_EXECUTION.value,
+            tool_or_command_input=command,
+            tool_or_command_output=output,
+        ),
+    )
 
     if secrets:
         send_secret_notification(secrets, "shell command", "Cursor")
@@ -330,11 +408,23 @@ def handle_after_mcp_execution(
     """
     tool_output = event_data.get("tool_output", "")
     tool_name = event_data.get("tool_name", "unknown")
+    tool_input = event_data.get("tool_input", "")
 
     if not tool_output:
         return {}
 
-    secrets = scan_content(ctx, tool_output, f"mcp-tool-output:{tool_name}")
+    secrets = scan_content(
+        ctx,
+        tool_output,
+        f"mcp-tool-output:{tool_name}",
+        AiHookMetadata(
+            mode="cursor",
+            event_name=CursorEventType.AFTER_MCP_EXECUTION.value,
+            tool_name=tool_name,
+            tool_or_command_input=tool_input,
+            tool_or_command_output=tool_output,
+        ),
+    )
 
     if secrets:
         send_secret_notification(secrets, f"MCP tool '{tool_name}'", "Cursor")
@@ -400,7 +490,17 @@ def cc_handle_bash_tool(
     if not command:
         return {}
 
-    secrets = scan_content(ctx, command, "shell-command")
+    secrets = scan_content(
+        ctx,
+        command,
+        "shell-command",
+        AiHookMetadata(
+            mode="claude_code",
+            event_name=ClaudeCodeEventType.PRE_TOOL_USE.value,
+            tool_name=ClaudeCodeToolName.BASH,
+            tool_or_command_input=command,
+        ),
+    )
 
     if secrets:
         message = format_secrets_for_message(
@@ -444,7 +544,17 @@ def cc_handle_write_edit_tool(
     if not content:
         return {}
 
-    secrets = scan_content(ctx, content, file_path)
+    secrets = scan_content(
+        ctx,
+        content,
+        file_path,
+        AiHookMetadata(
+            mode="claude_code",
+            event_name=ClaudeCodeEventType.PRE_TOOL_USE.value,
+            tool_name=tool_name,
+            file_path=file_path,
+        ),
+    )
 
     if secrets:
         message = format_secrets_for_message(
@@ -486,7 +596,17 @@ def cc_handle_read_tool(
         # Cannot read file, let Claude Code handle the error
         return {}
 
-    secrets = scan_content(ctx, content, file_path)
+    secrets = scan_content(
+        ctx,
+        content,
+        file_path,
+        AiHookMetadata(
+            mode="claude_code",
+            event_name=ClaudeCodeEventType.PRE_TOOL_USE.value,
+            tool_name=ClaudeCodeToolName.READ,
+            file_path=file_path,
+        ),
+    )
 
     if secrets:
         return {
@@ -518,7 +638,17 @@ def cc_handle_mcp_tool(
     if not content or content == "{}":
         return {}
 
-    secrets = scan_content(ctx, content, f"mcp-tool:{tool_name}")
+    secrets = scan_content(
+        ctx,
+        content,
+        f"mcp-tool:{tool_name}",
+        AiHookMetadata(
+            mode="claude_code",
+            event_name=ClaudeCodeEventType.PRE_TOOL_USE.value,
+            tool_name=tool_name,
+            tool_or_command_input=content,
+        ),
+    )
 
     if secrets:
         message = format_secrets_for_message(
@@ -550,6 +680,7 @@ def cc_handle_post_tool_use(
     Returns empty dict (fire-and-forget, notification only).
     """
     tool_name = event_data.get("tool_name", "unknown")
+    tool_input = event_data.get("tool_input", {})
 
     # Try different possible field names for tool output
     # First check for nested tool_response (Bash tool returns {stdout, stderr, ...})
@@ -573,7 +704,23 @@ def cc_handle_post_tool_use(
     if not tool_output:
         return {}
 
-    secrets = scan_content(ctx, str(tool_output), f"tool-output:{tool_name}")
+    # Convert tool_input to string for metadata
+    tool_input_str = (
+        json.dumps(tool_input) if isinstance(tool_input, dict) else str(tool_input)
+    )
+
+    secrets = scan_content(
+        ctx,
+        str(tool_output),
+        f"tool-output:{tool_name}",
+        AiHookMetadata(
+            mode="claude_code",
+            event_name=ClaudeCodeEventType.POST_TOOL_USE.value,
+            tool_name=tool_name,
+            tool_or_command_input=tool_input_str,
+            tool_or_command_output=str(tool_output),
+        ),
+    )
 
     if secrets:
         send_secret_notification(secrets, f"tool '{tool_name}'", ai_tool="Claude Code")
@@ -597,7 +744,16 @@ def cc_handle_user_prompt_submit(
     if not prompt:
         return {}
 
-    secrets = scan_content(ctx, prompt, "user-prompt")
+    secrets = scan_content(
+        ctx,
+        prompt,
+        "user-prompt",
+        AiHookMetadata(
+            mode="claude_code",
+            event_name=ClaudeCodeEventType.USER_PROMPT_SUBMIT.value,
+            prompt=prompt,
+        ),
+    )
 
     if secrets:
         message = format_secrets_for_message(

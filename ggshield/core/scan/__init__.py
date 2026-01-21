@@ -2,7 +2,13 @@ from .commit import Commit
 from .file import File, create_files_from_paths
 from .scan_context import ScanContext
 from .scan_mode import ScanMode
-from .scannable import DecodeError, NonSeekableFileError, Scannable, StringScannable
+from .scannable import (
+    AiHookScannable,
+    DecodeError,
+    NonSeekableFileError,
+    Scannable,
+    StringScannable,
+)
 
 
 __all__ = [
@@ -15,4 +21,5 @@ __all__ = [
     "ScanMode",
     "Scannable",
     "StringScannable",
+    "AiHookScannable",
 ]

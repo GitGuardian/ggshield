@@ -4,10 +4,11 @@ import os
 import sys
 from ast import literal_eval
 from concurrent.futures import Future
-from typing import Dict, Iterable, List, Optional, Union
+from dataclasses import asdict
+from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 from pygitguardian import GGClient
-from pygitguardian.models import Detail, MultiScanResult, TokenScope
+from pygitguardian.models import Detail, Document, MultiScanResult, TokenScope
 
 from ggshield.core import ui
 from ggshield.core.cache import Cache
@@ -16,7 +17,7 @@ from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import handle_api_error
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
-from ggshield.core.scan.scannable import NonSeekableFileError
+from ggshield.core.scan.scannable import AiHookScannable, NonSeekableFileError
 from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.core.text_utils import pluralize
 
@@ -95,11 +96,29 @@ class SecretScanner:
         """
         Sends a chunk of files to scan to the API
         """
-        # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
-        documents = [
-            {"document": x.content, "filename": x.filename[-_API_PATH_MAX_LENGTH:]}
-            for x in chunk
-        ]
+        # Build documents with ai_hook_metadata for AiHookScannable
+        documents = []
+        for x in chunk:
+            doc: Dict[str, Any] = {
+                "document": x.content,
+                "filename": x.filename[-_API_PATH_MAX_LENGTH:],
+            }
+            if isinstance(x, AiHookScannable):
+                doc["ai_hook_metadata"] = asdict(x.ai_hook_metadata)
+            documents.append(doc)
+
+        # Extract ai_hook_metadata before schema strips it
+        metadata_list = [doc.get("ai_hook_metadata") for doc in documents]
+
+        # Process through schema (validation, encoding fixes - strips unknown fields)
+        request_obj = cast(
+            List[Dict[str, Any]], Document.SCHEMA.load(documents, many=True)
+        )
+
+        # Re-add ai_hook_metadata where it existed
+        for i, metadata in enumerate(metadata_list):
+            if metadata is not None:
+                request_obj[i]["ai_hook_metadata"] = metadata
 
         # Use scan_and_create_incidents if source_uuid is provided, otherwise use multi_content_scan
         if self.secret_config.source_uuid:
@@ -110,12 +129,35 @@ class SecretScanner:
                 extra_headers=self.headers,
             )
         else:
+            # Make API call directly to preserve ai_hook_metadata
             return executor.submit(
-                self.client.multi_content_scan,
-                documents,
-                self.headers,
-                all_secrets=True,
+                self._multi_content_scan_with_metadata,
+                request_obj,
             )
+
+    def _multi_content_scan_with_metadata(
+        self,
+        request_obj: List[Dict[str, Any]],
+    ) -> Union[Detail, MultiScanResult]:
+        """
+        Call multiscan API with pre-processed request that includes ai_hook_metadata.
+        """
+        resp = self.client.post(
+            endpoint="multiscan",
+            data=request_obj,
+            extra_headers=self.headers,
+            params={"all_secrets": True},
+        )
+
+        if resp.ok:
+            obj: Union[Detail, MultiScanResult] = MultiScanResult.from_dict(
+                {"scan_results": resp.json()}
+            )
+        else:
+            obj = Detail.from_dict(resp.json())
+
+        obj.status_code = resp.status_code
+        return obj
 
     def _start_scans(
         self,

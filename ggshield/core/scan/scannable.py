@@ -2,6 +2,7 @@ import codecs
 import logging
 import urllib.parse
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from io import SEEK_END, SEEK_SET
 from pathlib import Path
 from typing import BinaryIO, Optional, Tuple
@@ -218,3 +219,32 @@ class StringScannable(Scannable):
         self._read_content()
         assert self._utf8_encoded_size is not None
         return self._utf8_encoded_size > max_utf8_encoded_size
+
+
+@dataclass
+class AiHookMetadata:
+    """Metadata associated with AI hook scannables"""
+
+    mode: str  # "cursor" or "claude_code"
+    event_name: str
+    tool_name: str | None = None
+    file_path: str | None = None
+    prompt: str | None = None
+
+    # For MCP or shell
+    tool_or_command_input: str | None = None
+    tool_or_command_output: str | None = None
+
+
+class AiHookScannable(StringScannable):
+    """Implementation of Scannable for AI hook content"""
+
+    def __init__(
+        self,
+        url: str,
+        content: str,
+        ai_hook_metadata: AiHookMetadata,
+        filemode: Filemode = Filemode.FILE,
+    ):
+        super().__init__(url, content, filemode)
+        self.ai_hook_metadata = ai_hook_metadata
