@@ -6,6 +6,7 @@ This module queries each MCP server to determine:
 2. The OAuth scopes/permissions granted to the MCP server
 """
 
+import base64
 import hashlib
 import json
 from dataclasses import dataclass, field
@@ -128,20 +129,43 @@ class MCPIdentityMapper:
 
         return None
 
-    def get_clickhouse_identity(
+    def get_clickhouse_identity_and_scopes(
         self, server_config: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
         env_vars = server_config.get("env", {})
         user = env_vars.get("CLICKHOUSE_USER")
+        password = env_vars.get("CLICKHOUSE_PASSWORD", "")
+        host = env_vars.get("CLICKHOUSE_HOST")
+        port = env_vars.get("CLICKHOUSE_PORT", "8443")
+        secure = env_vars.get("CLICKHOUSE_SECURE", "false").lower() == "true"
+        database = env_vars.get("CLICKHOUSE_DATABASE")
 
-        if user:
-            return {
-                "username": user,
-                "host": env_vars.get("CLICKHOUSE_HOST"),
-                "database": env_vars.get("CLICKHOUSE_DATABASE"),
-            }
+        if not user or not host:
+            return None, None
 
-        return None
+        identity = {
+            "username": user,
+            "host": host,
+            "database": database,
+        }
+
+        scopes = None
+        try:
+            protocol = "https" if secure else "http"
+            url = f"{protocol}://{host}:{port}/?query=SHOW+GRANTS+FOR+CURRENT_USER"
+            req = Request(url)
+
+            credentials = base64.b64encode(f"{user}:{password}".encode()).decode()
+            req.add_header("Authorization", f"Basic {credentials}")
+
+            with urlopen(req, timeout=10) as response:
+                grants = response.read().decode().strip()
+                if grants:
+                    scopes = grants
+        except Exception:
+            pass
+
+        return identity, scopes
 
     def get_linear_identity(
         self, server_config: Dict[str, Any]
@@ -201,16 +225,16 @@ class MCPIdentityMapper:
             scopes = self.get_scopes_from_tokens(server_config)
             return identity, scopes
         elif "clickhouse" in server_name_lower:
-            return self.get_clickhouse_identity(server_config), None
+            return self.get_clickhouse_identity_and_scopes(server_config)
         elif "linear" in server_name_lower:
             identity = self.get_linear_identity(server_config)
             scopes = self.get_scopes_from_tokens(server_config)
             return identity, scopes
         else:
-            identity = self.get_clickhouse_identity(server_config)
+            identity, scopes = self.get_clickhouse_identity_and_scopes(server_config)
             if not identity:
                 identity = self.get_linear_identity(server_config)
-            scopes = self.get_scopes_from_tokens(server_config)
+                scopes = self.get_scopes_from_tokens(server_config)
             return identity, scopes
 
     def build_mappings(self) -> tuple[Dict[str, Dict[str, Any]], Dict[str, str]]:

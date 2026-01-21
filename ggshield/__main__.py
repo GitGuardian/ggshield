@@ -15,6 +15,7 @@ from ggshield.cmd.config import config_group
 from ggshield.cmd.hmsl import hmsl_group
 from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.install import install_cmd
+from ggshield.cmd.mcp import mcp_group
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
@@ -31,7 +32,6 @@ from ggshield.core.ui import ensure_level, log_utils
 from ggshield.core.ui.rich import RichGGShieldUI
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
-
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
         "api-status": status_cmd,
         "honeytoken": honeytoken_group,
         "hmsl": hmsl_group,
+        "mcp": mcp_group,
     },
 )
 @click.option(

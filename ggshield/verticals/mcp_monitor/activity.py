@@ -20,6 +20,10 @@ from ggshield.verticals.mcp_monitor.config import (
     load_mcp_config,
     save_json_file,
 )
+from ggshield.verticals.mcp_monitor.discovery import (
+    get_server_info_for_tool,
+    load_discovery_cache,
+)
 from ggshield.verticals.mcp_monitor.identity import MCPIdentityMapper
 
 logger = logging.getLogger(__name__)
@@ -45,7 +49,18 @@ def create_activity_entry(
 ) -> MCPActivityEntry:
     identity = None
     scopes = scopes_mapping.get(server_name) if server_name else None
-    if server_name and server_config:
+    host = extract_host_from_config(server_config)
+
+    cached_server = get_server_info_for_tool(tool_name)
+    if cached_server:
+        server_name = server_name or cached_server.name
+        identity = cached_server.identity
+        scopes = cached_server.scopes
+        if not host and cached_server.env_vars:
+            host = cached_server.env_vars.get(
+                "CLICKHOUSE_HOST"
+            ) or cached_server.env_vars.get("GITLAB_API_URL")
+    elif server_name and server_config:
         identity_mapper = MCPIdentityMapper()
         identity, fetched_scopes = identity_mapper.get_identity_and_scopes(
             server_name, server_config
@@ -56,7 +71,7 @@ def create_activity_entry(
     return MCPActivityEntry(
         timestamp=datetime.now().isoformat(),
         service=server_name,
-        host=extract_host_from_config(server_config),
+        host=host,
         cursor_email=user_email,
         tool=tool_name,
         identity=identity,
@@ -151,6 +166,14 @@ class MCPActivityMonitor:
     ) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
         if not tool_name:
             return None, None
+
+        discovery_cache = load_discovery_cache()
+        if discovery_cache:
+            server_name = discovery_cache.get("tool_to_server", {}).get(tool_name)
+            if server_name:
+                server_config = self.mcp_config.get("mcpServers", {}).get(server_name)
+                if server_config:
+                    return server_name, server_config
 
         server_name = self.tool_mapping.get(tool_name)
         if server_name:
