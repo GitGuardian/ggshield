@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.47.0'></a>
+
+## 1.47.0 — 2026-01-27
+
+### Added
+
+- Display a warning if .cache_ggshield is not ignored in a git repository.
+
 <a id='changelog-1.46.0'></a>
 
 ## 1.46.0 — 2025-12-29
