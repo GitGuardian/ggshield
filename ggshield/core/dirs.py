@@ -44,6 +44,14 @@ def get_data_dir() -> Path:
         )  # pragma: no cover
 
 
+def get_plugins_dir(*, create: bool = False) -> Path:
+    """Return the plugin directory inside the ggshield data directory."""
+    plugins_dir = get_data_dir() / "plugins"
+    if create:
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+    return plugins_dir
+
+
 def get_project_root_dir(path: Path) -> Path:
     """
     Returns the source basedir required to find file within filesystem.
