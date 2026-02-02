@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Pattern, Set, cast
+from typing import TYPE_CHECKING, Optional, Pattern, Set, cast
 
 import click
 from pygitguardian import GGClient
@@ -7,6 +7,10 @@ from pygitguardian import GGClient
 from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+
+
+if TYPE_CHECKING:
+    from ggshield.core.plugin.registry import PluginRegistry
 
 
 class ContextObj:
@@ -29,10 +33,11 @@ class ContextObj:
     `Optional[Foo]` but exposing it as `Foo`.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._config: Optional[Config] = None
         self._client: Optional[GGClient] = None
         self._cache: Optional[Cache] = None
+        self._plugin_registry: Optional["PluginRegistry"] = None
 
         # Depending on the vertical, this is set by configuration options or
         # command-line parameters
@@ -76,6 +81,19 @@ class ContextObj:
     @cache.setter
     def cache(self, value: Cache) -> None:
         self._cache = value
+
+    @property
+    def plugin_registry(self) -> "PluginRegistry":
+        assert self._plugin_registry
+        return self._plugin_registry
+
+    @plugin_registry.setter
+    def plugin_registry(self, value: "PluginRegistry") -> None:
+        self._plugin_registry = value
+
+    def has_plugin_registry(self) -> bool:
+        """Check if plugin registry has been set."""
+        return self._plugin_registry is not None
 
     @staticmethod
     def get(ctx: click.Context) -> "ContextObj":

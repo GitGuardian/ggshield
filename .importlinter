@@ -7,13 +7,13 @@ include_external_packages = True
 [importlinter:contract:ggshield-layers]
 name = ggshield-layers
 type = layers
-layers =
+layers = 
 	ggshield.__main__
 	ggshield.cmd.auth | ggshield.cmd.config | ggshield.cmd.hmsl | ggshield.cmd.honeytoken | ggshield.cmd.install | ggshield.cmd.plugin | ggshield.cmd.quota | ggshield.cmd.secret | ggshield.cmd.status | ggshield.cmd.utils
 	ggshield.verticals.auth | ggshield.verticals.hmsl | ggshield.verticals.secret
 	ggshield.core
 	click | ggshield.utils | pygitguardian
-ignore_imports =
+ignore_imports = 
 	ggshield.cmd.** -> ggshield.cmd.utils.*
 	ggshield.utils.click.** -> click
 unmatched_ignore_imports_alerting = warn
@@ -21,7 +21,7 @@ unmatched_ignore_imports_alerting = warn
 [importlinter:contract:verticals-cmd-transversals]
 name = verticals-cmd-transversals
 type = forbidden
-source_modules =
+source_modules = 
 	ggshield.cmd.auth
 	ggshield.cmd.config
 	ggshield.cmd.hmsl
@@ -32,11 +32,11 @@ source_modules =
 	ggshield.cmd.secret
 	ggshield.cmd.status
 	ggshield.cmd.utils
-forbidden_modules =
+forbidden_modules = 
 	ggshield.verticals.auth
 	ggshield.verticals.hmsl
 	ggshield.verticals.secret
-ignore_imports =
+ignore_imports = 
 	ggshield.cmd.auth.** -> ggshield.verticals.auth
 	ggshield.cmd.auth.** -> ggshield.verticals.auth.**
 	ggshield.cmd.auth.** -> ggshield.verticals.hmsl.**
@@ -48,8 +48,8 @@ ignore_imports =
 	ggshield.cmd.honeytoken.** -> ggshield.verticals.honeytoken.**
 	ggshield.cmd.install.** -> ggshield.verticals.install
 	ggshield.cmd.install.** -> ggshield.verticals.install.**
-	ggshield.cmd.plugin.** -> ggshield.verticals.plugin
-	ggshield.cmd.plugin.** -> ggshield.verticals.plugin.**
+	ggshield.cmd.plugin.** -> ggshield.core.plugin
+	ggshield.cmd.plugin.** -> ggshield.core.plugin.**
 	ggshield.cmd.quota.** -> ggshield.verticals.quota
 	ggshield.cmd.quota.** -> ggshield.verticals.quota.**
 	ggshield.cmd.secret.** -> ggshield.verticals.secret

@@ -102,10 +102,15 @@ def expand_glob(line: str) -> List[str]:
         return [" | ".join(sorted(get_submodules(name=line[:-2], prefixed=True)))]
     if "{}" in line:
         name = line[: line.index(".{}")]
-        return [
-            line.replace("{}", module)
-            for module in get_submodules(name=name, prefixed=False)
-        ]
+        expanded_lines = []
+        for module in get_submodules(name=name, prefixed=False):
+            expanded_line = line.replace("{}", module)
+            if module == "plugin":
+                expanded_line = expanded_line.replace(
+                    "ggshield.verticals.plugin", "ggshield.core.plugin"
+                )
+            expanded_lines.append(expanded_line)
+        return expanded_lines
     return [line]
 
 
