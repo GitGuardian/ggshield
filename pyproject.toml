@@ -71,6 +71,9 @@ pyinstaller = "6.7.0"
 source = "file"
 path = "ggshield/__init__.py"
 
+[tool.pdm.scripts]
+ggshield = { call = "ggshield.__main__:main" }
+
 [tool.black]
 target-version = ['py36']
 line-length = 88
