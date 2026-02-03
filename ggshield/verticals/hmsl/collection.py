@@ -17,7 +17,7 @@ from dotenv import dotenv_values
 from ggshield.core.filter import censor_string
 from ggshield.verticals.hmsl import PREFIX_LENGTH
 from ggshield.verticals.hmsl.crypto import hash_string
-from ggshield.verticals.hmsl.utils import EXCLUDED_KEYS, EXCLUDED_VALUES
+from ggshield.verticals.hmsl.utils import should_process_secret
 
 
 class InputType(Enum):
@@ -59,13 +59,9 @@ def collect_list(input: List[Tuple[str, str]]) -> Iterator[SecretWithKey]:
     key and the second the secret value.
     """
     for key, value in input:
-        # filter our excluded keys and values
-        if not key or not value:
+        if not key:
             continue
-        if (
-            key.split("/")[-1].upper() in EXCLUDED_KEYS  # Only use the variable name
-            or value.lower() in EXCLUDED_VALUES
-        ):
+        if not should_process_secret(value, key):
             continue
         yield SecretWithKey(key=key, value=value)
 
@@ -79,17 +75,16 @@ def collect(
     if input_type == InputType.ENV:
         config = dotenv_values(stream=input)
         for key, value in config.items():
-            # filter our excluded keys and values
-            if not key or not value:
+            if not key:
                 continue
-            if key.upper() in EXCLUDED_KEYS or value.lower() in EXCLUDED_VALUES:
+            if not should_process_secret(value, key):
                 continue
-            yield SecretWithKey(value=value, key=key)
+            # value is guaranteed to be non-None here (checked by should_process_secret)
+            yield SecretWithKey(value=value, key=key)  # type: ignore[arg-type]
     else:
         for line in input:
             secret = line.strip()
-            if secret == "":
-                # Skip empty lines
+            if not should_process_secret(secret):
                 continue
             yield SecretWithKey(value=secret, key=None)
 

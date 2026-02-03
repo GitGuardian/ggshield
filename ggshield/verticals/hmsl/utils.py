@@ -48,6 +48,29 @@ EXCLUDED_VALUES = {
 }
 
 
+def should_process_secret(value: Optional[str], key: Optional[str] = None) -> bool:
+    """
+    Check if a secret should be processed (sent to HMSL).
+    Returns False if the secret should be excluded.
+    """
+    # Empty check
+    if not value:
+        return False
+
+    # Excluded values check
+    if value.lower() in EXCLUDED_VALUES:
+        return False
+
+    # Excluded keys check (if key provided)
+    if key:
+        # Handle Vault-style paths: "secret/app/DB_PASSWORD" → "DB_PASSWORD"
+        key_name = key.split("/")[-1].upper()
+        if key_name in EXCLUDED_KEYS:
+            return False
+
+    return True
+
+
 def get_client(config: Config, hmsl_command_path: str) -> HMSLClient:
     """
     Get an instance of HMSLClient according to your current CLI config and the
