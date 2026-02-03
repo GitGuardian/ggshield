@@ -106,6 +106,13 @@ def _load_plugins() -> PluginRegistry:
     is_eager=True,
     help="Set a custom config file. Ignores local and global config files.",
 )
+@click.option(
+    "--instance",
+    required=False,
+    type=str,
+    help="URL of the GitGuardian instance to use.",
+    metavar="URL",
+)
 @add_common_options()
 @click.version_option(version=__version__)
 @click.pass_context
@@ -115,6 +122,7 @@ def cli(
     allow_self_signed: Optional[bool],
     insecure: Optional[bool],
     config_path: Optional[Path],
+    instance: Optional[str],
     **kwargs: Any,
 ) -> None:
     # Create ContextObj, load config
@@ -136,6 +144,10 @@ def cli(
         user_config.insecure = True
 
     ctx_obj.config._dotenv_vars = load_dot_env()
+
+    # Apply instance from command line
+    if instance:
+        ctx_obj.config.cmdline_instance_name = instance
 
     # Use pre-loaded plugin registry
     ctx_obj.plugin_registry = _load_plugins()
