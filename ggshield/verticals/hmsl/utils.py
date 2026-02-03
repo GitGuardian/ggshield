@@ -32,8 +32,15 @@ EXCLUDED_KEYS = {
 
 # Values that are obviously not secrets (checked after length filter)
 EXCLUDED_VALUES = {
+    "changeme",
     "disabled",
     "enabled",
+    "example",
+    "placeholder",
+    "redacted",
+    "secret",
+    "xxxxxx",
+    "your_secret_here",
 }
 
 # Secrets shorter than MIN_SECRET_LENGTH are not processed
