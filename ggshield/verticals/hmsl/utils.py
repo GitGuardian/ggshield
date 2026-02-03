@@ -30,22 +30,14 @@ EXCLUDED_KEYS = {
     "PORT",
 }
 
+# Values that are obviously not secrets (checked after length filter)
 EXCLUDED_VALUES = {
-    "0",
-    "1",
     "disabled",
     "enabled",
-    "false",
-    "n",
-    "no",
-    "none",
-    "null",
-    "off",
-    "on",
-    "true",
-    "y",
-    "yes",
 }
+
+# Secrets shorter than MIN_SECRET_LENGTH are not processed
+MIN_SECRET_LENGTH = 6
 
 
 def should_process_secret(value: Optional[str], key: Optional[str] = None) -> bool:
@@ -55,6 +47,10 @@ def should_process_secret(value: Optional[str], key: Optional[str] = None) -> bo
     """
     # Empty check
     if not value:
+        return False
+
+    # Length check: secrets must be at least MIN_SECRET_LENGTH chars
+    if len(value) < MIN_SECRET_LENGTH:
         return False
 
     # Excluded values check

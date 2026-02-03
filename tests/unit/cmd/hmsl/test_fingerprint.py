@@ -11,17 +11,17 @@ from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
 ENV_FILE = r"""
-FOO=bar
-PASSWORD=1234
+FOO=barbaz
+PASSWORD=123456
 # Don't take "export" into account
-export SECRET=foo
+export SECRET=foobar
 
 this line does not contain a secret
 
 # Commented secrets should be detected
 # BAR=prod123
 # But comments should be ignored
-BAZ=spam # eggs
+BAZ=spameggs # eggs
 # All at once
    # FOOBAR=toto42 # a super secret
 
@@ -34,7 +34,7 @@ PASSWORD6="another escaped \" quote" # and "quotes" in comments afterwards
 # Empty secret
 PASSWORD7=""
 
-# Ignored common values
+# Ignored common values (all <6 chars, will be filtered by length)
 KEY1=1
 KEY2=0
 KEY3=true
@@ -62,8 +62,8 @@ LAST=aBcD1234!@#$
 
 @pytest.fixture
 def secrets():
-    """Prepare a file with some secrets"""
-    return ["foo", "bar", "password", "1234"]
+    """Prepare a file with some secrets (all must be >=6 chars to pass length filter)"""
+    return ["foobar", "barbaz", "password", "123456"]
 
 
 @pytest.fixture
@@ -80,10 +80,10 @@ def expected_from_env_file(cli_fs_runner):
     with open(".env", "w") as f:
         f.write(ENV_FILE)
     return {
-        "FOO": "bar",
-        "PASSWORD": "1234",
-        "SECRET": "foo",
-        "BAZ": "spam",
+        "FOO": "barbaz",
+        "PASSWORD": "123456",
+        "SECRET": "foobar",
+        "BAZ": "spameggs",
         "PASSWORD2": "123v4@!,asTd",  # ggignore
         "PASSWORD3": "P@ssw0rd3",  # ggignore
         "PASSWORD4": "secret with spaces",
