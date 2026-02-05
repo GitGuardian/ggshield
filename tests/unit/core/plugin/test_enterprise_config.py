@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from ggshield.core.config.enterprise_config import EnterpriseConfig, PluginConfig
 
 
@@ -56,14 +58,12 @@ class TestEnterpriseConfig:
         assert config.plugins["test-plugin"].enabled is True
         assert config.plugins["test-plugin"].version == "1.0.0"
 
-    def test_disable_plugin(self) -> None:
-        """Test disabling a plugin."""
+    def test_disable_plugin_missing_raises(self) -> None:
+        """Test disabling a missing plugin raises an error."""
         config = EnterpriseConfig()
 
-        config.disable_plugin("test-plugin")
-
-        assert "test-plugin" in config.plugins
-        assert config.plugins["test-plugin"].enabled is False
+        with pytest.raises(ValueError, match="not configured"):
+            config.disable_plugin("test-plugin")
 
     def test_disable_existing_plugin(self) -> None:
         """Test disabling an already configured plugin."""

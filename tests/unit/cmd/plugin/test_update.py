@@ -650,6 +650,81 @@ class TestPluginUpdate:
         assert "tokenscanner" in result.output
         assert "up to date" in result.output
 
+    def test_update_no_downgrade(self, cli_fs_runner):
+        """
+        GIVEN the installed version is higher than the latest API version
+        WHEN running 'ggshield plugin update --check'
+        THEN it does NOT show an update (no downgrade)
+        """
+        mock_catalog = PluginCatalog(
+            plan="Enterprise",
+            plugins=[
+                PluginInfo(
+                    name="tokenscanner",
+                    display_name="Token Scanner",
+                    description="Local secret scanning",
+                    available=True,
+                    latest_version="1.0.0",
+                    reason=None,
+                ),
+            ],
+            features={},
+        )
+
+        mock_discovered_plugins = [
+            DiscoveredPlugin(
+                name="tokenscanner",
+                entry_point=None,
+                wheel_path=Path("/path/to/wheel"),
+                is_installed=True,
+                is_enabled=True,
+                version="2.0.0",
+            ),
+        ]
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.update.create_client_from_config"
+            ) as mock_create_client,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginAPIClient"
+            ) as mock_plugin_api_client_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
+        ):
+            mock_client = mock.MagicMock()
+            mock_create_client.return_value = mock_client
+
+            mock_plugin_api_client = mock.MagicMock()
+            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
+            mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_discovered_plugins
+            mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
+            mock_downloader_class.return_value = mock_downloader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "update", "--check"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        assert "up to date" in result.output
+        assert "Updates Available" not in result.output
+
     def test_update_download_error(self, cli_fs_runner):
         """
         GIVEN downloading a plugin update fails
@@ -890,3 +965,220 @@ class TestPluginUpdate:
 
         assert result.exit_code == ExitCode.UNEXPECTED_ERROR
         assert "Failed to update tokenscanner" in result.output
+
+    def test_update_non_updatable_plugin(self, cli_fs_runner):
+        """
+        GIVEN a plugin installed from local file
+        WHEN running 'ggshield plugin update <plugin>'
+        THEN it shows the plugin cannot be auto-updated
+        """
+        from ggshield.core.plugin.client import PluginSource, PluginSourceType
+
+        mock_discovered_plugins = [
+            DiscoveredPlugin(
+                name="localplugin",
+                entry_point=None,
+                wheel_path=Path("/path/to/wheel"),
+                is_installed=True,
+                is_enabled=True,
+                version="1.0.0",
+            ),
+        ]
+
+        mock_source = PluginSource(
+            type=PluginSourceType.LOCAL_FILE,
+            local_path="/path/to/local.whl",
+        )
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.update.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
+        ):
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_discovered_plugins
+            mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = mock_source
+            mock_downloader_class.return_value = mock_downloader
+
+            result = cli_fs_runner.invoke(cli, ["plugin", "update", "localplugin"])
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "cannot be auto-updated" in result.output
+
+    def test_update_check_shows_non_updatable_plugins(self, cli_fs_runner):
+        """
+        GIVEN plugins installed from different sources
+        WHEN running 'ggshield plugin update --check'
+        THEN it shows non-updatable plugins separately
+        """
+        from ggshield.core.plugin.client import PluginSource, PluginSourceType
+
+        mock_catalog = PluginCatalog(
+            plan="Enterprise",
+            plugins=[],
+            features={},
+        )
+
+        mock_discovered_plugins = [
+            DiscoveredPlugin(
+                name="localplugin",
+                entry_point=None,
+                wheel_path=Path("/path/to/wheel"),
+                is_installed=True,
+                is_enabled=True,
+                version="1.0.0",
+            ),
+        ]
+
+        mock_source = PluginSource(
+            type=PluginSourceType.LOCAL_FILE,
+            local_path="/path/to/local.whl",
+        )
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.update.create_client_from_config"
+            ) as mock_create_client,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginAPIClient"
+            ) as mock_plugin_api_client_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
+        ):
+            mock_client = mock.MagicMock()
+            mock_create_client.return_value = mock_client
+
+            mock_plugin_api_client = mock.MagicMock()
+            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
+            mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_discovered_plugins
+            mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = mock_source
+            mock_downloader_class.return_value = mock_downloader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "update", "--check"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        assert "Cannot Auto-Update" in result.output
+        assert "localplugin" in result.output
+        assert "local_file" in result.output
+
+
+class TestUpdateHelperFunctions:
+    """Tests for update command helper functions."""
+
+    def test_check_github_release_update_success(self):
+        """Test checking GitHub release returns latest release."""
+        from ggshield.cmd.plugin.update import _check_github_release_update
+
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "tag_name": "v2.0.0",
+            "assets": [],
+        }
+
+        with mock.patch("requests.get", return_value=mock_response):
+            result = _check_github_release_update("owner/repo")
+
+        assert result is not None
+        assert result["tag_name"] == "v2.0.0"
+
+    def test_check_github_release_update_failure(self):
+        """Test checking GitHub release handles errors."""
+        from ggshield.cmd.plugin.update import _check_github_release_update
+
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 404
+
+        with mock.patch("requests.get", return_value=mock_response):
+            result = _check_github_release_update("owner/repo")
+
+        assert result is None
+
+    def test_check_github_release_update_network_error(self):
+        """Test checking GitHub release handles network errors."""
+        import requests
+
+        from ggshield.cmd.plugin.update import _check_github_release_update
+
+        with mock.patch(
+            "requests.get", side_effect=requests.RequestException("Network error")
+        ):
+            result = _check_github_release_update("owner/repo")
+
+        assert result is None
+
+    def test_find_wheel_asset_found(self):
+        """Test finding wheel asset in release."""
+        from ggshield.cmd.plugin.update import _find_wheel_asset
+
+        release = {
+            "assets": [
+                {
+                    "name": "README.md",
+                    "browser_download_url": "https://example.com/readme",
+                },
+                {
+                    "name": "plugin-1.0.0-py3-none-any.whl",
+                    "browser_download_url": "https://example.com/plugin.whl",
+                },
+            ],
+        }
+
+        result = _find_wheel_asset(release)
+
+        assert result == "https://example.com/plugin.whl"
+
+    def test_find_wheel_asset_not_found(self):
+        """Test finding wheel asset when none exists."""
+        from ggshield.cmd.plugin.update import _find_wheel_asset
+
+        release = {
+            "assets": [
+                {
+                    "name": "README.md",
+                    "browser_download_url": "https://example.com/readme",
+                },
+            ],
+        }
+
+        result = _find_wheel_asset(release)
+
+        assert result is None
+
+    def test_find_wheel_asset_empty_assets(self):
+        """Test finding wheel asset with empty assets."""
+        from ggshield.cmd.plugin.update import _find_wheel_asset
+
+        release = {"assets": []}
+
+        result = _find_wheel_asset(release)
+
+        assert result is None

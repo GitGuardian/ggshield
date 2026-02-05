@@ -2,6 +2,7 @@
 
 import importlib.metadata
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -437,7 +438,7 @@ myplugin = other:Plugin
         assert discovered[0].version == "2.0.0"
 
     def test_check_version_compatibility_parse_error(self) -> None:
-        """Test version compatibility returns True on parse error."""
+        """Test version compatibility returns False on parse error."""
         config = EnterpriseConfig()
         loader = PluginLoader(config)
 
@@ -449,8 +450,7 @@ myplugin = other:Plugin
             min_ggshield_version="not-a-version",
         )
 
-        # Should return True (permissive) when version parsing fails
-        assert loader._check_version_compatibility(metadata) is True
+        assert loader._check_version_compatibility(metadata) is False
 
     def test_parse_entry_point_name_valid(self) -> None:
         """Test parsing entry point name from entry_points.txt."""
@@ -619,11 +619,45 @@ myplugin = other:Plugin
 
         assert result is None
 
+    def test_load_from_wheel_appends_to_sys_path(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test extracted wheel directory is appended to sys.path."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        wheel_path = tmp_path / "test_plugin-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("test_plugin/__init__.py", "class TestPlugin: pass")
+            zf.writestr(
+                "test_plugin-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
+            )
+
+        initial_sys_path = ["/existing/path", *sys.path]
+        monkeypatch.setattr(sys, "path", initial_sys_path)
+
+        with patch(
+            "ggshield.core.plugin.loader.importlib.import_module"
+        ) as mock_import:
+            mock_module = MagicMock()
+            mock_module.TestPlugin = MockPlugin
+            mock_import.return_value = mock_module
+
+            loader._load_from_wheel(wheel_path)
+
+        extract_dir = tmp_path / ".test_plugin-1.0.0_extracted"
+        assert sys.path[0] == "/existing/path"
+        assert str(extract_dir) in sys.path
+        assert sys.path.index(str(extract_dir)) > 0
+
 
 class TestGetPluginsDir:
     """Tests for get_plugins_dir function."""
 
-    @patch("ggshield.core.plugin.loader.get_data_dir")
+    @patch("ggshield.core.dirs.get_data_dir")
     def test_returns_plugins_subdirectory(self, mock_data_dir: MagicMock) -> None:
         """Test that get_plugins_dir returns plugins subdirectory."""
         mock_data_dir.return_value = Path("/home/user/.local/share/ggshield")

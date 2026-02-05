@@ -143,6 +143,27 @@ class TestPluginDisable:
         mock_config.disable_plugin.assert_called_once_with("testplugin")
         mock_config.save.assert_called_once()
 
+    def test_disable_unknown_plugin(self, cli_fs_runner):
+        """
+        GIVEN a plugin is not configured
+        WHEN running 'ggshield plugin disable <plugin>'
+        THEN it shows an error and does not save config
+        """
+        with mock.patch(
+            "ggshield.cmd.plugin.manage.EnterpriseConfig"
+        ) as mock_config_class:
+            mock_config = mock.MagicMock()
+            mock_config.disable_plugin.side_effect = ValueError(
+                "Plugin 'unknown' is not configured"
+            )
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(cli, ["plugin", "disable", "unknown"])
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "not configured" in result.output
+        mock_config.save.assert_not_called()
+
 
 class TestPluginUninstall:
     """Tests for 'ggshield plugin uninstall' command."""
