@@ -231,6 +231,150 @@ class TestPluginDownloader:
 
                 assert "Failed to download plugin" in str(exc_info.value)
 
+    def test_is_installed_by_entry_point_name(self, tmp_path: Path) -> None:
+        """Test is_installed finds plugin by entry point name."""
+        # Create plugin with different package name than entry point name
+        plugin_dir = tmp_path / "package-name"
+        plugin_dir.mkdir()
+        wheel_path = plugin_dir / "package_name-1.0.0.whl"
+
+        # Create wheel with entry point named "my_plugin"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "package_name-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
+            )
+
+        manifest = {
+            "plugin_name": "package-name",
+            "version": "1.0.0",
+            "wheel_filename": "package_name-1.0.0.whl",
+        }
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        # Should find by entry point name
+        assert downloader.is_installed("my_plugin") is True
+        # Should also find by package name
+        assert downloader.is_installed("package-name") is True
+        # Should not find non-existent
+        assert downloader.is_installed("nonexistent") is False
+
+    def test_get_installed_version_by_entry_point_name(self, tmp_path: Path) -> None:
+        """Test get_installed_version finds plugin by entry point name."""
+        # Create plugin with different package name than entry point name
+        plugin_dir = tmp_path / "package-name"
+        plugin_dir.mkdir()
+        wheel_path = plugin_dir / "package_name-1.0.0.whl"
+
+        # Create wheel with entry point named "my_plugin"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "package_name-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
+            )
+
+        manifest = {
+            "plugin_name": "package-name",
+            "version": "2.0.0",
+            "wheel_filename": "package_name-1.0.0.whl",
+        }
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        # Should find version by entry point name
+        assert downloader.get_installed_version("my_plugin") == "2.0.0"
+
+    def test_uninstall_by_entry_point_name(self, tmp_path: Path) -> None:
+        """Test uninstall can remove plugin by entry point name."""
+        # Create plugin with different package name than entry point name
+        plugin_dir = tmp_path / "package-name"
+        plugin_dir.mkdir()
+        wheel_path = plugin_dir / "package_name-1.0.0.whl"
+
+        # Create wheel with entry point named "my_plugin"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "package_name-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
+            )
+
+        manifest = {
+            "plugin_name": "package-name",
+            "version": "1.0.0",
+            "wheel_filename": "package_name-1.0.0.whl",
+        }
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        # Should uninstall by entry point name
+        assert downloader.uninstall("my_plugin") is True
+        assert not plugin_dir.exists()
+
+    def test_find_plugin_dir_by_entry_point_not_found(self, tmp_path: Path) -> None:
+        """Test _find_plugin_dir_by_entry_point returns None when not found."""
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        assert downloader._find_plugin_dir_by_entry_point("nonexistent") is None
+
+    def test_find_plugin_dir_by_entry_point_no_plugins_dir(
+        self, tmp_path: Path
+    ) -> None:
+        """Test _find_plugin_dir_by_entry_point when plugins dir doesn't exist."""
+        nonexistent_dir = tmp_path / "nonexistent"
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir",
+            return_value=nonexistent_dir,
+        ):
+            downloader = PluginDownloader()
+
+        assert downloader._find_plugin_dir_by_entry_point("test") is None
+
+    def test_read_entry_point_name_from_wheel_no_entry_points(
+        self, tmp_path: Path
+    ) -> None:
+        """Test _read_entry_point_name_from_wheel when no entry points."""
+        wheel_path = tmp_path / "test-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("test-1.0.0.dist-info/METADATA", "Name: test\nVersion: 1.0.0\n")
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        assert downloader._read_entry_point_name_from_wheel(wheel_path) is None
+
+    def test_read_entry_point_name_from_wheel_invalid_file(
+        self, tmp_path: Path
+    ) -> None:
+        """Test _read_entry_point_name_from_wheel with invalid file."""
+        invalid_file = tmp_path / "not-a-wheel.txt"
+        invalid_file.write_text("not a zip file")
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        assert downloader._read_entry_point_name_from_wheel(invalid_file) is None
+
 
 class TestChecksumMismatchError:
     """Tests for ChecksumMismatchError."""

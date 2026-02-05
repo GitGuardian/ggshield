@@ -427,6 +427,17 @@ class TestPluginUpdate:
         """
         from ggshield.core.plugin.client import PluginAPIError
 
+        mock_discovered_plugins = [
+            DiscoveredPlugin(
+                name="tokenscanner",
+                entry_point=None,
+                wheel_path=Path("/path/to/wheel"),
+                is_installed=True,
+                is_enabled=True,
+                version="1.0.0",
+            ),
+        ]
+
         with (
             mock.patch(
                 "ggshield.cmd.plugin.update.create_client_from_config"
@@ -434,6 +445,13 @@ class TestPluginUpdate:
             mock.patch(
                 "ggshield.cmd.plugin.update.PluginAPIClient"
             ) as mock_plugin_api_client_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
         ):
             mock_client = mock.MagicMock()
             mock_create_client.return_value = mock_client
@@ -443,6 +461,17 @@ class TestPluginUpdate:
                 "API error"
             )
             mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_discovered_plugins
+            mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
+            mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(cli, ["plugin", "update", "--check"])
 
@@ -455,6 +484,17 @@ class TestPluginUpdate:
         WHEN running 'ggshield plugin update --check'
         THEN it shows an error
         """
+        mock_discovered_plugins = [
+            DiscoveredPlugin(
+                name="tokenscanner",
+                entry_point=None,
+                wheel_path=Path("/path/to/wheel"),
+                is_installed=True,
+                is_enabled=True,
+                version="1.0.0",
+            ),
+        ]
+
         with (
             mock.patch(
                 "ggshield.cmd.plugin.update.create_client_from_config"
@@ -462,6 +502,13 @@ class TestPluginUpdate:
             mock.patch(
                 "ggshield.cmd.plugin.update.PluginAPIClient"
             ) as mock_plugin_api_client_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
         ):
             mock_client = mock.MagicMock()
             mock_create_client.return_value = mock_client
@@ -471,6 +518,17 @@ class TestPluginUpdate:
                 "Connection refused"
             )
             mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_discovered_plugins
+            mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
+            mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(cli, ["plugin", "update", "--check"])
 

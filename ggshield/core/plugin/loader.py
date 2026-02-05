@@ -28,6 +28,7 @@ class WheelInfo(TypedDict):
     name: str
     version: str
     path: Path
+    entry_point_name: Optional[str]
 
 
 logger = logging.getLogger(__name__)
@@ -57,8 +58,35 @@ class PluginLoader:
     def discover_plugins(self) -> List[DiscoveredPlugin]:
         """Discover all available plugins from entry points and local wheels."""
         discovered: Dict[str, DiscoveredPlugin] = {}
+
+        # 1. Discover from local wheels first and track their entry point names
+        local_entry_point_names: set[str] = set()
+        for wheel_info in self._scan_local_wheels():
+            plugin_name: str = wheel_info["name"]
+            wheel_path: Path = wheel_info["path"]
+            wheel_version: str = wheel_info["version"]
+            entry_point_name: Optional[str] = wheel_info["entry_point_name"]
+
+            # Use entry point name as key if available, otherwise package name
+            key = entry_point_name if entry_point_name else plugin_name
+            if entry_point_name:
+                local_entry_point_names.add(entry_point_name)
+
+            discovered[key] = DiscoveredPlugin(
+                name=key,
+                entry_point=None,
+                wheel_path=wheel_path,
+                is_installed=True,
+                is_enabled=self._is_enabled(key),
+                version=wheel_version,
+            )
+
+        # 2. Discover from entry points (skip if already found in local wheels)
         for ep in self._get_entry_points():
             plugin_name = ep.name
+            # Skip if this entry point is provided by a local wheel
+            if plugin_name in local_entry_point_names:
+                continue
             discovered[plugin_name] = DiscoveredPlugin(
                 name=plugin_name,
                 entry_point=ep,
@@ -66,20 +94,6 @@ class PluginLoader:
                 is_installed=True,
                 is_enabled=self._is_enabled(plugin_name),
                 version=self._get_entry_point_version(ep),
-            )
-
-        # 2. Discover from local wheels (may override entry points)
-        for wheel_info in self._scan_local_wheels():
-            plugin_name: str = wheel_info["name"]
-            wheel_path: Path = wheel_info["path"]
-            wheel_version: str = wheel_info["version"]
-            discovered[plugin_name] = DiscoveredPlugin(
-                name=plugin_name,
-                entry_point=None,
-                wheel_path=wheel_path,
-                is_installed=True,
-                is_enabled=self._is_enabled(plugin_name),
-                version=wheel_version,
             )
 
         return list(discovered.values())
@@ -182,6 +196,32 @@ class PluginLoader:
                 return value.strip()
         return None
 
+    def _read_wheel_entry_point_name(self, wheel_path: Path) -> Optional[str]:
+        """Read the entry point name from a wheel's entry_points.txt."""
+        try:
+            with ZipFile(wheel_path, "r") as zf:
+                for name in zf.namelist():
+                    if name.endswith("entry_points.txt"):
+                        content = zf.read(name).decode("utf-8")
+                        return self._parse_entry_point_name(content)
+        except Exception as e:
+            logger.debug("Failed to read wheel entry point name: %s", e)
+        return None
+
+    def _parse_entry_point_name(self, content: str) -> Optional[str]:
+        """Parse entry_points.txt content to get the entry point name."""
+        in_section = False
+        for line in content.splitlines():
+            line = line.strip()
+            if line == f"[{PLUGIN_ENTRY_POINT_GROUP}]":
+                in_section = True
+            elif line.startswith("["):
+                in_section = False
+            elif in_section and "=" in line:
+                name, _ = line.split("=", 1)
+                return name.strip()
+        return None
+
     def _get_entry_points(self) -> Iterator[importlib.metadata.EntryPoint]:
         """Get all entry points in the ggshield.plugins group."""
         try:
@@ -210,10 +250,13 @@ class PluginLoader:
                     wheel_path = plugin_dir / wheel_filename
 
                     if wheel_path.exists():
+                        # Extract entry point name from wheel for deduplication
+                        entry_point_name = self._read_wheel_entry_point_name(wheel_path)
                         yield WheelInfo(
                             name=manifest["plugin_name"],
                             version=manifest["version"],
                             path=wheel_path,
+                            entry_point_name=entry_point_name,
                         )
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning("Invalid manifest in %s: %s", plugin_dir, e)

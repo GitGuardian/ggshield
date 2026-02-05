@@ -452,6 +452,173 @@ myplugin = other:Plugin
         # Should return True (permissive) when version parsing fails
         assert loader._check_version_compatibility(metadata) is True
 
+    def test_parse_entry_point_name_valid(self) -> None:
+        """Test parsing entry point name from entry_points.txt."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        content = """
+[ggshield.plugins]
+my_plugin = my_package.plugin:MyPlugin
+"""
+        result = loader._parse_entry_point_name(content)
+
+        assert result == "my_plugin"
+
+    def test_parse_entry_point_name_missing_section(self) -> None:
+        """Test parsing entry point name without ggshield section."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        content = """
+[other.plugins]
+myplugin = other:Plugin
+"""
+        result = loader._parse_entry_point_name(content)
+
+        assert result is None
+
+    def test_read_wheel_entry_point_name(self, tmp_path: Path) -> None:
+        """Test reading entry point name from wheel file."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        # Create a mock wheel file with entry_points.txt
+        wheel_path = tmp_path / "test-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "test-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest_plugin = test.plugin:TestPlugin\n",
+            )
+
+        result = loader._read_wheel_entry_point_name(wheel_path)
+
+        assert result == "test_plugin"
+
+    def test_read_wheel_entry_point_name_no_entry_points(self, tmp_path: Path) -> None:
+        """Test reading entry point name when wheel has no entry_points.txt."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        # Create a mock wheel file without entry_points.txt
+        wheel_path = tmp_path / "test-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("test-1.0.0.dist-info/METADATA", "Name: test\nVersion: 1.0.0\n")
+
+        result = loader._read_wheel_entry_point_name(wheel_path)
+
+        assert result is None
+
+    def test_discover_plugins_deduplicates_by_entry_point_name(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that local wheel takes precedence over pip entry point."""
+        import zipfile
+
+        config = EnterpriseConfig()
+
+        # Create plugin directory with manifest and wheel
+        plugin_dir = tmp_path / "package-name"
+        plugin_dir.mkdir()
+        wheel_file = plugin_dir / "package_name-1.0.0.whl"
+
+        # Create wheel with entry point named "my_plugin"
+        with zipfile.ZipFile(wheel_file, "w") as zf:
+            zf.writestr(
+                "package_name-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
+            )
+
+        manifest = {
+            "plugin_name": "package-name",
+            "version": "1.0.0",
+            "wheel_filename": "package_name-1.0.0.whl",
+        }
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        # Mock a pip entry point with the same name "my_plugin"
+        mock_ep = MagicMock()
+        mock_ep.name = "my_plugin"
+        mock_ep.value = "other_package:Plugin"
+
+        with patch.object(
+            PluginLoader, "_get_entry_points", return_value=iter([mock_ep])
+        ):
+            with patch(
+                "ggshield.core.plugin.loader.get_plugins_dir", return_value=tmp_path
+            ):
+                loader = PluginLoader(config)
+                loader.plugins_dir = tmp_path
+                discovered = loader.discover_plugins()
+
+        # Should only have one plugin (local wheel takes precedence)
+        assert len(discovered) == 1
+        assert discovered[0].name == "my_plugin"
+        assert discovered[0].wheel_path == wheel_file
+        assert discovered[0].entry_point is None  # Local wheel, not entry point
+
+    def test_load_from_wheel_extracts_wheel(self, tmp_path: Path) -> None:
+        """Test that _load_from_wheel extracts wheel to directory."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        # Create a mock wheel with a Python module
+        wheel_path = tmp_path / "test_plugin-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "test_plugin/__init__.py",
+                "class TestPlugin: pass",
+            )
+            zf.writestr(
+                "test_plugin-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
+            )
+
+        # Mock the import to avoid actual module loading
+        with patch(
+            "ggshield.core.plugin.loader.importlib.import_module"
+        ) as mock_import:
+            mock_module = MagicMock()
+            mock_module.TestPlugin = MockPlugin
+            mock_import.return_value = mock_module
+
+            loader._load_from_wheel(wheel_path)
+
+        # Verify extraction directory was created
+        extract_dir = tmp_path / ".test_plugin-1.0.0_extracted"
+        assert extract_dir.exists()
+        assert (extract_dir / "test_plugin" / "__init__.py").exists()
+
+    def test_load_from_wheel_handles_exception(self, tmp_path: Path) -> None:
+        """Test that _load_from_wheel returns None on exception."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        # Create wheel with entry point
+        wheel_path = tmp_path / "test-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "test-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test:Plugin\n",
+            )
+
+        # Module import will fail
+        with patch(
+            "ggshield.core.plugin.loader.importlib.import_module",
+            side_effect=ImportError("Module not found"),
+        ):
+            result = loader._load_from_wheel(wheel_path)
+
+        assert result is None
+
 
 class TestGetPluginsDir:
     """Tests for get_plugins_dir function."""
