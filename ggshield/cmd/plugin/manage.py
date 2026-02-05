@@ -104,26 +104,57 @@ def uninstall_cmd(
     """
     downloader = PluginDownloader()
 
-    # Check if installed
-    if not downloader.is_installed(plugin_name):
-        ui.display_error(f"Plugin '{plugin_name}' is not installed")
-        ctx.exit(ExitCode.USAGE_ERROR)
+    # Check if installed via manifest (wheel/artifact)
+    if downloader.is_installed(plugin_name):
+        # Confirm
+        if not yes:
+            click.confirm(
+                f"Uninstall plugin '{plugin_name}'?",
+                abort=True,
+            )
 
-    # Confirm
-    if not yes:
-        click.confirm(
-            f"Uninstall plugin '{plugin_name}'?",
-            abort=True,
-        )
+        # Uninstall
+        if downloader.uninstall(plugin_name):
+            # Remove from config
+            enterprise_config = EnterpriseConfig.load()
+            enterprise_config.remove_plugin(plugin_name)
+            enterprise_config.save()
 
-    # Uninstall
-    if downloader.uninstall(plugin_name):
-        # Remove from config
-        enterprise_config = EnterpriseConfig.load()
-        enterprise_config.remove_plugin(plugin_name)
-        enterprise_config.save()
+            ui.display_info(f"Uninstalled plugin: {plugin_name}")
+        else:
+            ui.display_error(f"Failed to uninstall plugin: {plugin_name}")
+            ctx.exit(ExitCode.UNEXPECTED_ERROR)
+        return
 
-        ui.display_info(f"Uninstalled plugin: {plugin_name}")
-    else:
-        ui.display_error(f"Failed to uninstall plugin: {plugin_name}")
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
+    # Check if it's an entry-point plugin
+    from ggshield.core.plugin.loader import PluginLoader
+
+    loader = PluginLoader(EnterpriseConfig.load())
+    discovered = {p.name: p for p in loader.discover_plugins()}
+
+    if plugin_name in discovered:
+        ep = discovered[plugin_name].entry_point
+        if ep is not None:
+            # Entry point format: "plugin_name = module:attr" - get the distribution name
+            dist_name: str | None = None
+            try:
+                dist = getattr(ep, "dist", None)
+                if dist is not None:
+                    dist_name = dist.name
+            except Exception:
+                pass
+
+            ui.display_error(
+                f"Plugin '{plugin_name}' was installed via pip, not ggshield."
+            )
+            if dist_name:
+                ui.display_info(f"To uninstall, run: pip uninstall {dist_name}")
+            else:
+                ui.display_info(
+                    "To uninstall, use pip uninstall with the package name."
+                )
+            ctx.exit(ExitCode.USAGE_ERROR)
+
+    # Not found anywhere
+    ui.display_error(f"Plugin '{plugin_name}' is not installed")
+    ctx.exit(ExitCode.USAGE_ERROR)

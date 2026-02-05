@@ -275,3 +275,107 @@ class TestPluginUninstall:
 
         assert result.exit_code == ExitCode.UNEXPECTED_ERROR
         assert "Failed to uninstall plugin" in result.output
+
+    def test_uninstall_pip_plugin_shows_pip_command(self, cli_fs_runner):
+        """
+        GIVEN a plugin is installed via pip (entry point)
+        WHEN running 'ggshield plugin uninstall <plugin>'
+        THEN it shows a helpful pip uninstall command
+        """
+        from ggshield.core.plugin.loader import DiscoveredPlugin
+
+        mock_ep = mock.MagicMock()
+        mock_dist = mock.MagicMock()
+        mock_dist.name = "my-pip-package"
+        mock_ep.dist = mock_dist
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.manage.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch("ggshield.core.plugin.loader.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.manage.EnterpriseConfig"
+            ) as mock_config_class,
+        ):
+            mock_downloader = mock.MagicMock()
+            mock_downloader.is_installed.return_value = False
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            # Plugin discovered via entry point (pip installed)
+            mock_plugins = [
+                DiscoveredPlugin(
+                    name="pipplugin",
+                    entry_point=mock_ep,
+                    wheel_path=None,
+                    is_installed=True,
+                    is_enabled=True,
+                    version="1.0.0",
+                ),
+            ]
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_plugins
+            mock_loader_class.return_value = mock_loader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "uninstall", "pipplugin"],
+            )
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "installed via pip" in result.output
+        assert "pip uninstall my-pip-package" in result.output
+
+    def test_uninstall_pip_plugin_no_dist_name(self, cli_fs_runner):
+        """
+        GIVEN a pip plugin without dist info
+        WHEN running 'ggshield plugin uninstall <plugin>'
+        THEN it shows a generic pip uninstall message
+        """
+        from ggshield.core.plugin.loader import DiscoveredPlugin
+
+        mock_ep = mock.MagicMock()
+        # No dist attribute
+        del mock_ep.dist
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.manage.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch("ggshield.core.plugin.loader.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.manage.EnterpriseConfig"
+            ) as mock_config_class,
+        ):
+            mock_downloader = mock.MagicMock()
+            mock_downloader.is_installed.return_value = False
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            mock_plugins = [
+                DiscoveredPlugin(
+                    name="pipplugin",
+                    entry_point=mock_ep,
+                    wheel_path=None,
+                    is_installed=True,
+                    is_enabled=True,
+                    version="1.0.0",
+                ),
+            ]
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_plugins
+            mock_loader_class.return_value = mock_loader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "uninstall", "pipplugin"],
+            )
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "installed via pip" in result.output
+        assert "use pip uninstall with the package name" in result.output
