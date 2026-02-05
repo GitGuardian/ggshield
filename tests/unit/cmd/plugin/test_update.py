@@ -68,6 +68,9 @@ class TestPluginUpdate:
                 "ggshield.cmd.plugin.update.EnterpriseConfig"
             ) as mock_config_class,
             mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
         ):
             mock_client = mock.MagicMock()
             mock_create_client.return_value = mock_client
@@ -82,6 +85,10 @@ class TestPluginUpdate:
             mock_loader = mock.MagicMock()
             mock_loader.discover_plugins.return_value = mock_discovered_plugins
             mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
+            mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(
                 cli,
@@ -137,6 +144,9 @@ class TestPluginUpdate:
                 "ggshield.cmd.plugin.update.EnterpriseConfig"
             ) as mock_config_class,
             mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
         ):
             mock_client = mock.MagicMock()
             mock_create_client.return_value = mock_client
@@ -151,6 +161,10 @@ class TestPluginUpdate:
             mock_loader = mock.MagicMock()
             mock_loader.discover_plugins.return_value = mock_discovered_plugins
             mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
+            mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(
                 cli,
@@ -232,6 +246,8 @@ class TestPluginUpdate:
             mock_loader_class.return_value = mock_loader
 
             mock_downloader = mock.MagicMock()
+            # Return None for get_plugin_source to treat as legacy GitGuardian plugin
+            mock_downloader.get_plugin_source.return_value = None
             mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(
@@ -387,6 +403,8 @@ class TestPluginUpdate:
             mock_loader_class.return_value = mock_loader
 
             mock_downloader = mock.MagicMock()
+            # Return None for get_plugin_source to treat as legacy GitGuardian plugin
+            mock_downloader.get_plugin_source.return_value = None
             mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(
@@ -647,6 +665,7 @@ class TestPluginUpdate:
             mock_loader_class.return_value = mock_loader
 
             mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
             mock_downloader.download_and_install.side_effect = DownloadError(
                 "Network error"
             )
@@ -724,6 +743,7 @@ class TestPluginUpdate:
             mock_loader_class.return_value = mock_loader
 
             mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
             mock_downloader_class.return_value = mock_downloader
 
             result = cli_fs_runner.invoke(cli, ["plugin", "update", "tokenscanner"])
@@ -802,6 +822,7 @@ class TestPluginUpdate:
             mock_loader_class.return_value = mock_loader
 
             mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
             mock_downloader.download_and_install.side_effect = Exception(
                 "Unexpected error"
             )

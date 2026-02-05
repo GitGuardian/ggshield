@@ -5,14 +5,24 @@ Plugin downloader - downloads and installs plugin wheels.
 import hashlib
 import json
 import logging
+import os
+import re
 import shutil
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional, Tuple
+from zipfile import ZipFile
 
 import requests
 
 from ggshield.core.dirs import get_plugins_dir
-from ggshield.core.plugin.client import PluginDownloadInfo
+from ggshield.core.plugin.client import (
+    PluginDownloadInfo,
+    PluginSource,
+    PluginSourceType,
+)
+from ggshield.core.plugin.wheel_utils import WheelError, extract_wheel_metadata
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +45,18 @@ class ChecksumMismatchError(DownloadError):
         )
 
 
+class InsecureSourceError(DownloadError):
+    """Plugin source is not secure (e.g., HTTP instead of HTTPS)."""
+
+    pass
+
+
+class GitHubArtifactError(DownloadError):
+    """Error downloading GitHub artifact."""
+
+    pass
+
+
 class PluginDownloader:
     """Downloads and installs plugin wheels."""
 
@@ -45,6 +67,7 @@ class PluginDownloader:
         self,
         download_info: PluginDownloadInfo,
         plugin_name: str,
+        source: Optional[PluginSource] = None,
     ) -> Path:
         """Download a plugin wheel and install it locally."""
         self._validate_plugin_name(plugin_name)
@@ -68,17 +91,20 @@ class PluginDownloader:
 
             computed_hash = sha256_hash.hexdigest()
             if computed_hash.lower() != download_info.sha256.lower():
-                temp_path.unlink()
                 raise ChecksumMismatchError(download_info.sha256, computed_hash)
 
-            manifest = {
-                "plugin_name": plugin_name,
-                "version": download_info.version,
-                "wheel_filename": download_info.filename,
-                "sha256": download_info.sha256,
-            }
-            manifest_path = plugin_dir / "manifest.json"
-            manifest_path.write_text(json.dumps(manifest, indent=2))
+            # Use GitGuardian API as default source if not provided
+            if source is None:
+                source = PluginSource(type=PluginSourceType.GITGUARDIAN_API)
+
+            self._write_manifest(
+                plugin_dir=plugin_dir,
+                plugin_name=plugin_name,
+                version=download_info.version,
+                wheel_filename=download_info.filename,
+                sha256=download_info.sha256,
+                source=source,
+            )
 
             temp_path.rename(wheel_path)
 
@@ -87,19 +113,352 @@ class PluginDownloader:
             return wheel_path
 
         except requests.RequestException as e:
+            raise DownloadError(f"Failed to download plugin: {e}") from e
+        finally:
             if temp_path.exists():
                 temp_path.unlink()
-            raise DownloadError(f"Failed to download plugin: {e}") from e
+
+    def install_from_wheel(
+        self,
+        wheel_path: Path,
+        force: bool = False,
+    ) -> Tuple[str, str, Path]:
+        """
+        Install a plugin from a local wheel file.
+
+        Args:
+            wheel_path: Path to the wheel file.
+            force: Skip security warnings if True.
+
+        Returns:
+            Tuple of (plugin_name, version, installed_wheel_path).
+
+        Raises:
+            WheelError: If the wheel file is invalid.
+            DownloadError: If installation fails.
+        """
+        # Extract metadata from wheel
+        try:
+            metadata = extract_wheel_metadata(wheel_path)
+        except WheelError as e:
+            raise DownloadError(f"Invalid wheel file: {e}") from e
+
+        plugin_name = metadata.name
+        version = metadata.version
+        self._validate_plugin_name(plugin_name)
+
+        # Create plugin directory
+        plugin_dir = self.plugins_dir / plugin_name
+        plugin_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy wheel to plugin directory
+        dest_wheel_path = plugin_dir / wheel_path.name
+        shutil.copy2(wheel_path, dest_wheel_path)
+
+        # Compute SHA256
+        sha256 = self._compute_sha256(dest_wheel_path)
+
+        # Create source tracking
+        source = PluginSource(
+            type=PluginSourceType.LOCAL_FILE,
+            local_path=str(wheel_path.resolve()),
+            sha256=sha256,
+        )
+
+        self._write_manifest(
+            plugin_dir=plugin_dir,
+            plugin_name=plugin_name,
+            version=version,
+            wheel_filename=wheel_path.name,
+            sha256=sha256,
+            source=source,
+        )
+
+        logger.info("Installed %s v%s from local wheel", plugin_name, version)
+
+        return plugin_name, version, dest_wheel_path
+
+    def download_from_url(
+        self,
+        url: str,
+        sha256: Optional[str] = None,
+        force: bool = False,
+    ) -> Tuple[str, str, Path]:
+        """
+        Download and install a plugin from a URL.
+
+        Args:
+            url: URL to download the wheel from.
+            sha256: Expected SHA256 checksum (optional but recommended).
+            force: Skip security warnings if True.
+
+        Returns:
+            Tuple of (plugin_name, version, installed_wheel_path).
+
+        Raises:
+            InsecureSourceError: If URL uses HTTP instead of HTTPS.
+            ChecksumMismatchError: If checksum doesn't match.
+            DownloadError: If download or installation fails.
+        """
+        # Security check: require HTTPS
+        if url.startswith("http://"):
+            raise InsecureSourceError(
+                "HTTP URLs are not allowed for security reasons. Use HTTPS instead."
+            )
+
+        if not url.startswith("https://"):
+            raise DownloadError(f"Invalid URL scheme: {url}")
+
+        # Download to temp file
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract filename from URL
+            filename = url.split("/")[-1].split("?")[0]
+            if not filename.endswith(".whl"):
+                filename = "plugin.whl"
+
+            temp_wheel_path = Path(temp_dir) / filename
+
+            try:
+                logger.info("Downloading from %s...", url)
+                response = requests.get(url, stream=True)
+                response.raise_for_status()
+
+                sha256_hash = hashlib.sha256()
+                with open(temp_wheel_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                        sha256_hash.update(chunk)
+
+                computed_hash = sha256_hash.hexdigest()
+
+                # Verify checksum if provided
+                if sha256 and computed_hash.lower() != sha256.lower():
+                    raise ChecksumMismatchError(sha256, computed_hash)
+
+            except requests.RequestException as e:
+                raise DownloadError(f"Failed to download from URL: {e}") from e
+
+            # Extract metadata
+            try:
+                metadata = extract_wheel_metadata(temp_wheel_path)
+            except WheelError as e:
+                raise DownloadError(f"Downloaded file is not a valid wheel: {e}") from e
+
+            plugin_name = metadata.name
+            version = metadata.version
+            self._validate_plugin_name(plugin_name)
+
+            # Create plugin directory and copy wheel
+            plugin_dir = self.plugins_dir / plugin_name
+            plugin_dir.mkdir(parents=True, exist_ok=True)
+
+            dest_wheel_path = plugin_dir / temp_wheel_path.name
+            shutil.copy2(temp_wheel_path, dest_wheel_path)
+
+        # Create source tracking
+        source = PluginSource(
+            type=PluginSourceType.URL,
+            url=url,
+            sha256=computed_hash,
+        )
+
+        self._write_manifest(
+            plugin_dir=plugin_dir,
+            plugin_name=plugin_name,
+            version=version,
+            wheel_filename=dest_wheel_path.name,
+            sha256=computed_hash,
+            source=source,
+        )
+
+        logger.info("Installed %s v%s from URL", plugin_name, version)
+
+        return plugin_name, version, dest_wheel_path
+
+    def download_from_github_release(
+        self,
+        url: str,
+        sha256: Optional[str] = None,
+        force: bool = False,
+    ) -> Tuple[str, str, Path]:
+        """
+        Download and install a plugin from a GitHub release asset.
+
+        Args:
+            url: GitHub release asset URL.
+            sha256: Expected SHA256 checksum (optional).
+            force: Skip security warnings if True.
+
+        Returns:
+            Tuple of (plugin_name, version, installed_wheel_path).
+        """
+        # Extract repo info from URL for source tracking
+        github_repo = self._extract_github_repo(url)
+
+        # Download using standard URL method
+        plugin_name, version, wheel_path = self.download_from_url(url, sha256, force)
+
+        # Update source to track GitHub release
+        manifest_path = self.plugins_dir / plugin_name / "manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+
+        source = PluginSource(
+            type=PluginSourceType.GITHUB_RELEASE,
+            url=url,
+            github_repo=github_repo,
+            sha256=manifest.get("sha256"),
+        )
+        manifest["source"] = source.to_dict()
+        manifest_path.write_text(json.dumps(manifest, indent=2))
+
+        return plugin_name, version, wheel_path
+
+    def download_from_github_artifact(
+        self,
+        url: str,
+        force: bool = False,
+    ) -> Tuple[str, str, Path]:
+        """
+        Download and install a plugin from a GitHub Actions artifact.
+
+        GitHub artifacts are ZIP files containing wheel(s). This method:
+        1. Downloads the artifact ZIP
+        2. Extracts the wheel file
+        3. Installs the wheel
+
+        Args:
+            url: GitHub artifact URL (browser URL or API URL).
+            force: Skip security warnings if True.
+
+        Returns:
+            Tuple of (plugin_name, version, installed_wheel_path).
+
+        Raises:
+            GitHubArtifactError: If artifact cannot be downloaded or processed.
+            DownloadError: If installation fails.
+        """
+        # Parse artifact URL to get API endpoint
+        artifact_info = self._parse_github_artifact_url(url)
+        if not artifact_info:
+            raise GitHubArtifactError(f"Invalid GitHub artifact URL: {url}")
+
+        owner, repo, artifact_id = artifact_info
+
+        # Get GitHub token from environment
+        github_token = os.environ.get("GITHUB_TOKEN")
+        if not github_token:
+            # Try gh CLI as fallback
+            github_token = self._get_gh_token()
+
+        if not github_token:
+            raise GitHubArtifactError(
+                "GitHub authentication required. Set GITHUB_TOKEN environment variable "
+                "or install and authenticate with GitHub CLI (gh auth login)."
+            )
+
+        # Download artifact ZIP
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            artifact_zip_path = temp_dir_path / "artifact.zip"
+
+            try:
+                logger.info("Downloading GitHub artifact...")
+                response = requests.get(
+                    api_url,
+                    headers={
+                        "Authorization": f"Bearer {github_token}",
+                        "Accept": "application/vnd.github+json",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    },
+                    stream=True,
+                )
+                response.raise_for_status()
+
+                with open(artifact_zip_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+
+            except requests.RequestException as e:
+                raise GitHubArtifactError(f"Failed to download artifact: {e}") from e
+
+            # Extract ZIP and find wheel
+            extract_dir = temp_dir_path / "extracted"
+
+            try:
+                from ggshield.utils.archive import safe_unpack
+
+                safe_unpack(artifact_zip_path, extract_dir)
+            except Exception as e:
+                raise GitHubArtifactError(f"Failed to extract artifact: {e}") from e
+
+            # Find wheel file in extracted contents
+            wheel_files = list(extract_dir.glob("**/*.whl"))
+            if not wheel_files:
+                raise GitHubArtifactError("No wheel file found in artifact")
+
+            if len(wheel_files) > 1:
+                logger.warning(
+                    "Multiple wheel files found in artifact, using first: %s",
+                    wheel_files[0].name,
+                )
+
+            temp_wheel_path = wheel_files[0]
+
+            # Extract metadata
+            try:
+                metadata = extract_wheel_metadata(temp_wheel_path)
+            except WheelError as e:
+                raise DownloadError(f"Invalid wheel in artifact: {e}") from e
+
+            plugin_name = metadata.name
+            version = metadata.version
+            self._validate_plugin_name(plugin_name)
+
+            # Create plugin directory and copy wheel
+            plugin_dir = self.plugins_dir / plugin_name
+            plugin_dir.mkdir(parents=True, exist_ok=True)
+
+            dest_wheel_path = plugin_dir / temp_wheel_path.name
+            shutil.copy2(temp_wheel_path, dest_wheel_path)
+
+            # Compute SHA256
+            sha256 = self._compute_sha256(dest_wheel_path)
+
+        # Create source tracking
+        source = PluginSource(
+            type=PluginSourceType.GITHUB_ARTIFACT,
+            url=url,
+            github_repo=f"{owner}/{repo}",
+            sha256=sha256,
+        )
+
+        self._write_manifest(
+            plugin_dir=plugin_dir,
+            plugin_name=plugin_name,
+            version=version,
+            wheel_filename=dest_wheel_path.name,
+            sha256=sha256,
+            source=source,
+        )
+
+        logger.info("Installed %s v%s from GitHub artifact", plugin_name, version)
+
+        return plugin_name, version, dest_wheel_path
 
     def uninstall(self, plugin_name: str) -> bool:
-        """Uninstall a plugin."""
+        """Uninstall a plugin (by package name or entry point name)."""
         if not self._is_valid_plugin_name(plugin_name):
             logger.warning("Invalid plugin name: %s", plugin_name)
             return False
 
         plugin_dir = self.plugins_dir / plugin_name
         if not plugin_dir.exists():
-            return False
+            # Try finding by entry point name
+            plugin_dir = self._find_plugin_dir_by_entry_point(plugin_name)
+            if plugin_dir is None:
+                return False
 
         shutil.rmtree(plugin_dir)
 
@@ -107,14 +466,18 @@ class PluginDownloader:
         return True
 
     def get_installed_version(self, plugin_name: str) -> Optional[str]:
-        """Get the installed version of a plugin."""
+        """Get the installed version of a plugin (by package name or entry point name)."""
         if not self._is_valid_plugin_name(plugin_name):
             logger.warning("Invalid plugin name: %s", plugin_name)
             return None
 
         manifest_path = self.plugins_dir / plugin_name / "manifest.json"
         if not manifest_path.exists():
-            return None
+            # Try finding by entry point name
+            plugin_dir = self._find_plugin_dir_by_entry_point(plugin_name)
+            if plugin_dir is None:
+                return None
+            manifest_path = plugin_dir / "manifest.json"
 
         try:
             manifest = json.loads(manifest_path.read_text())
@@ -123,8 +486,60 @@ class PluginDownloader:
             return None
 
     def is_installed(self, plugin_name: str) -> bool:
-        """Check if a plugin is installed."""
+        """Check if a plugin is installed (by package name or entry point name)."""
         return self.get_installed_version(plugin_name) is not None
+
+    def _find_plugin_dir_by_entry_point(self, entry_point_name: str) -> Optional[Path]:
+        """Find a plugin directory by its entry point name."""
+        if not self.plugins_dir.exists():
+            return None
+
+        for plugin_dir in self.plugins_dir.iterdir():
+            if not plugin_dir.is_dir():
+                continue
+
+            manifest_path = plugin_dir / "manifest.json"
+            if not manifest_path.exists():
+                continue
+
+            try:
+                manifest = json.loads(manifest_path.read_text())
+                wheel_filename = manifest.get("wheel_filename", "")
+                wheel_path = plugin_dir / wheel_filename
+
+                if wheel_path.exists():
+                    # Read entry point name from wheel
+                    ep_name = self._read_entry_point_name_from_wheel(wheel_path)
+                    if ep_name == entry_point_name:
+                        return plugin_dir
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        return None
+
+    def _read_entry_point_name_from_wheel(self, wheel_path: Path) -> Optional[str]:
+        """Read the entry point name from a wheel file."""
+        from ggshield.core.plugin.loader import PLUGIN_ENTRY_POINT_GROUP
+
+        try:
+            with ZipFile(wheel_path, "r") as zf:
+                for name in zf.namelist():
+                    if name.endswith("entry_points.txt"):
+                        content = zf.read(name).decode("utf-8")
+                        # Parse to get entry point name
+                        in_section = False
+                        for line in content.splitlines():
+                            line = line.strip()
+                            if line == f"[{PLUGIN_ENTRY_POINT_GROUP}]":
+                                in_section = True
+                            elif line.startswith("["):
+                                in_section = False
+                            elif in_section and "=" in line:
+                                ep_name, _ = line.split("=", 1)
+                                return ep_name.strip()
+        except Exception:
+            pass
+        return None
 
     def get_wheel_path(self, plugin_name: str) -> Optional[Path]:
         """Get the path to an installed plugin's wheel file."""
@@ -148,6 +563,37 @@ class PluginDownloader:
 
         return None
 
+    def get_manifest(self, plugin_name: str) -> Optional[Dict[str, Any]]:
+        """Get the full manifest for an installed plugin."""
+        if not self._is_valid_plugin_name(plugin_name):
+            logger.warning("Invalid plugin name: %s", plugin_name)
+            return None
+
+        manifest_path = self.plugins_dir / plugin_name / "manifest.json"
+        if not manifest_path.exists():
+            return None
+
+        try:
+            return json.loads(manifest_path.read_text())
+        except json.JSONDecodeError:
+            return None
+
+    def get_plugin_source(self, plugin_name: str) -> Optional[PluginSource]:
+        """Get the source information for an installed plugin."""
+        manifest = self.get_manifest(plugin_name)
+        if not manifest:
+            return None
+
+        source_data = manifest.get("source")
+        if not source_data:
+            # Legacy manifest without source tracking - assume GitGuardian API
+            return PluginSource(type=PluginSourceType.GITGUARDIAN_API)
+
+        try:
+            return PluginSource.from_dict(source_data)
+        except (KeyError, ValueError):
+            return None
+
     @staticmethod
     def _is_valid_plugin_name(plugin_name: str) -> bool:
         """Check if plugin name is safe to use as a path segment."""
@@ -163,3 +609,72 @@ class PluginDownloader:
         """Validate plugin name and raise on unsafe values."""
         if not self._is_valid_plugin_name(plugin_name):
             raise DownloadError(f"Invalid plugin name: {plugin_name!r}")
+
+    def _write_manifest(
+        self,
+        plugin_dir: Path,
+        plugin_name: str,
+        version: str,
+        wheel_filename: str,
+        sha256: str,
+        source: PluginSource,
+    ) -> None:
+        """Write the plugin manifest file."""
+        manifest = {
+            "plugin_name": plugin_name,
+            "version": version,
+            "wheel_filename": wheel_filename,
+            "sha256": sha256,
+            "source": source.to_dict(),
+            "installed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        manifest_path = plugin_dir / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2))
+
+    def _compute_sha256(self, file_path: Path) -> str:
+        """Compute SHA256 hash of a file."""
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+
+    def _extract_github_repo(self, url: str) -> Optional[str]:
+        """Extract owner/repo from a GitHub URL."""
+        # Pattern: github.com/{owner}/{repo}/...
+        match = re.match(r"https://github\.com/([^/]+)/([^/]+)", url)
+        if match:
+            return f"{match.group(1)}/{match.group(2)}"
+        return None
+
+    def _parse_github_artifact_url(self, url: str) -> Optional[Tuple[str, str, str]]:
+        """
+        Parse GitHub artifact URL to extract owner, repo, and artifact ID.
+
+        Supports URLs like:
+        - https://github.com/{owner}/{repo}/actions/runs/{run_id}/artifacts/{artifact_id}
+        """
+        pattern = (
+            r"https://github\.com/([^/]+)/([^/]+)/actions/runs/\d+/artifacts/(\d+)"
+        )
+        match = re.match(pattern, url)
+        if match:
+            return match.group(1), match.group(2), match.group(3)
+        return None
+
+    def _get_gh_token(self) -> Optional[str]:
+        """Try to get GitHub token from gh CLI."""
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["gh", "auth", "token"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except (subprocess.SubprocessError, FileNotFoundError):
+            pass
+        return None

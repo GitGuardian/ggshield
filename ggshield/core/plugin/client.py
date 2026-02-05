@@ -3,12 +3,58 @@ Plugin API client - fetches available plugins from GitGuardian API.
 """
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import requests
 from pygitguardian import GGClient
 
 from ggshield.core.plugin.platform import PlatformInfo, get_platform_info
+
+
+class PluginSourceType(Enum):
+    """Types of plugin sources."""
+
+    GITGUARDIAN_API = "gitguardian_api"
+    LOCAL_FILE = "local_file"
+    URL = "url"
+    GITHUB_RELEASE = "github_release"
+    GITHUB_ARTIFACT = "github_artifact"
+
+
+@dataclass
+class PluginSource:
+    """Information about where a plugin was installed from."""
+
+    type: PluginSourceType
+    url: Optional[str] = None
+    github_repo: Optional[str] = None
+    sha256: Optional[str] = None
+    local_path: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result: Dict[str, Any] = {"type": self.type.value}
+        if self.url:
+            result["url"] = self.url
+        if self.github_repo:
+            result["github_repo"] = self.github_repo
+        if self.sha256:
+            result["sha256"] = self.sha256
+        if self.local_path:
+            result["local_path"] = self.local_path
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PluginSource":
+        """Create from dictionary."""
+        return cls(
+            type=PluginSourceType(data["type"]),
+            url=data.get("url"),
+            github_repo=data.get("github_repo"),
+            sha256=data.get("sha256"),
+            local_path=data.get("local_path"),
+        )
 
 
 @dataclass
