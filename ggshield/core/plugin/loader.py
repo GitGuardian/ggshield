@@ -151,12 +151,33 @@ class PluginLoader:
         return plugin_class()
 
     def _load_from_wheel(self, wheel_path: Path) -> Optional[GGShieldPlugin]:
-        """Load a plugin from a local wheel file."""
-        wheel_str = str(wheel_path)
-        if wheel_str not in sys.path:
-            sys.path.insert(0, wheel_str)
+        """Load a plugin from a local wheel file.
+
+        Wheels are extracted to a directory before loading because Python
+        cannot import native extensions (.so/.pyd) directly from zip files.
+        """
+        # Extract wheel to a directory alongside the wheel file
+        extract_dir = wheel_path.parent / f".{wheel_path.stem}_extracted"
 
         try:
+            # Extract if not already extracted or wheel is newer
+            if not extract_dir.exists() or (
+                wheel_path.stat().st_mtime > extract_dir.stat().st_mtime
+            ):
+                import shutil
+
+                if extract_dir.exists():
+                    shutil.rmtree(extract_dir)
+
+                from ggshield.utils.archive import safe_unpack
+
+                safe_unpack(wheel_path, extract_dir)
+
+            # Add extracted directory to sys.path
+            extract_str = str(extract_dir)
+            if extract_str not in sys.path:
+                sys.path.append(extract_str)
+
             entry_point_str = self._read_wheel_entry_point(wheel_path)
             if not entry_point_str:
                 logger.warning("No entry point found in wheel: %s", wheel_path)
