@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 import tarfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO, cast
 
 from click import UsageError
 
@@ -101,10 +102,9 @@ class DockerContentScannable(Scannable):
                 self._content,
                 self._utf8_encoded_size,
             ) = Scannable._is_file_longer_than(
-                fp, max_utf8_encoded_size  # type:ignore
+                cast(BinaryIO, fp),
+                max_utf8_encoded_size,
             )
-            # mypy complains that fp is IO[bytes] but _is_file_longer_than() expects
-            # BinaryIO. They are compatible, ignore the error.
         return result
 
     def _read_content(self) -> None:
@@ -323,6 +323,8 @@ def _run_docker_command(command: List[str], timeout: int) -> bool:
         subprocess.run(
             command,
             check=True,
+            stdout=sys.stderr,
+            stderr=sys.stderr,
             timeout=timeout,
         )
         return True
@@ -348,6 +350,7 @@ def docker_save_to_tmp(image_name: str, destination_path: Path, timeout: int) ->
         subprocess.run(
             command,
             check=True,
+            stdout=sys.stderr,
             stderr=subprocess.PIPE,
             timeout=timeout,
         )
