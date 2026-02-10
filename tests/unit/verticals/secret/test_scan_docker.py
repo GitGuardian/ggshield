@@ -1,5 +1,6 @@
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List
 from unittest.mock import patch
@@ -124,6 +125,8 @@ class TestDockerPull:
             call.assert_called_once_with(
                 ["docker", "pull", "ggshield-non-existant"],
                 check=True,
+                stdout=sys.stderr,
+                stderr=sys.stderr,
                 timeout=DOCKER_TIMEOUT,
             )
 
@@ -149,16 +152,21 @@ class TestDockerPull:
                 docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
 
     def test_docker_pull_image_platform_fallback(self):
-        with patch(
-            "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=[])
-        ) as call, pytest.raises(
-            click.UsageError,
-            match='Image "ggshield-non-existant" not found',
+        with (
+            patch(
+                "subprocess.run", side_effect=subprocess.CalledProcessError(1, cmd=[])
+            ) as call,
+            pytest.raises(
+                click.UsageError,
+                match='Image "ggshield-non-existant" not found',
+            ),
         ):
             docker_pull_image("ggshield-non-existant", DOCKER_TIMEOUT)
             call.assert_called_once_with(
                 ["docker", "pull", "ggshield-non-existant", "--platform=linux/amd64"],
                 check=True,
+                stdout=sys.stderr,
+                stderr=sys.stderr,
                 timeout=DOCKER_TIMEOUT,
             )
 
@@ -180,7 +188,8 @@ class TestDockerSave:
                     str(self.TMP_ARCHIVE),
                 ],
                 check=True,
-                stderr=-1,
+                stderr=subprocess.PIPE,
+                stdout=sys.stderr,
                 timeout=DOCKER_TIMEOUT,
             )
 
