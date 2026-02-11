@@ -59,6 +59,11 @@ def check_cmd(
     prepared_data = prepare(secrets, naming_strategy, full_hashes=True)
     ui.display_info(f"Collected {len(prepared_data.payload)} secrets.")
 
+    # Short-circuit if no secrets to check
+    if len(prepared_data.payload) == 0:
+        ui.display_heading("All right! No leaked secret has been found.")
+        return 0
+
     check_secrets(
         ctx=ctx,
         prepared_secrets=prepared_data,

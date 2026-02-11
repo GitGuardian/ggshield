@@ -59,6 +59,12 @@ def fingerprint_cmd(
 
     # Prepare and write the output files
     secrets = list(collect(input, input_type))
+
+    # Short-circuit if no secrets to process
+    if len(secrets) == 0:
+        ui.display_info("No secrets to prepare.")
+        return 0
+
     result = prepare(secrets, naming_strategy, full_hashes=full_hashes)
     write_outputs(result, prefix)
 

@@ -168,6 +168,11 @@ def check_hashicorp_vault_cmd(
     # They will correctly be truncated by our client later (same as normal check cmd)
     prepared_secrets = prepare(collected_secrets, naming_strategy, full_hashes=True)
 
+    # Short-circuit if no secrets to check
+    if len(prepared_secrets.payload) == 0:
+        ui.display_heading("All right! No leaked secret has been found.")
+        return 0
+
     check_secrets(
         ctx=ctx,
         prepared_secrets=prepared_secrets,

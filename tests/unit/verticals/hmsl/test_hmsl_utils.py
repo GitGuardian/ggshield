@@ -7,10 +7,14 @@ from pygitguardian.models import JWTResponse
 
 from ggshield.core.config.config import Config
 from ggshield.verticals.hmsl.utils import (
+    EXCLUDED_KEYS,
+    EXCLUDED_VALUES,
+    MIN_SECRET_LENGTH,
     get_token,
     is_token_valid,
     load_token_from_disk,
     remove_token_from_disk,
+    should_process_secret,
 )
 
 
@@ -169,3 +173,65 @@ def test_good_token_validation(monkeypatch):
     )
     monkeypatch.setattr(time, "time", lambda: 1680000001)
     assert is_token_valid(token, "https://hasmysecretleaked.gitguardian.com")
+
+
+@pytest.mark.parametrize(
+    "value, key, expected",
+    [
+        # Empty value
+        pytest.param("", None, False, id="empty_value"),
+        # Short values (below MIN_SECRET_LENGTH)
+        pytest.param(
+            "a" * (MIN_SECRET_LENGTH - 1), None, False, id="too_short_boundary"
+        ),
+        pytest.param("abc", None, False, id="too_short_abc"),
+        pytest.param("12345", None, False, id="too_short_12345"),
+        # Exact MIN_SECRET_LENGTH is accepted
+        pytest.param("a" * MIN_SECRET_LENGTH, None, True, id="min_length_accepted"),
+        # Excluded values (case insensitive)
+        *[
+            pytest.param(variant, None, False, id=f"excluded_value_{value}_{form}")
+            for value in sorted(EXCLUDED_VALUES)
+            for form, variant in [
+                ("lower", value),
+                ("upper", value.upper()),
+                ("capitalized", value.capitalize()),
+            ]
+        ],
+        # Excluded keys (case insensitive)
+        *[
+            pytest.param(
+                "some-secret-value", variant, False, id=f"excluded_key_{key}_{form}"
+            )
+            for key in sorted(EXCLUDED_KEYS)
+            for form, variant in [("original", key), ("lower", key.lower())]
+        ],
+        # Vault-style path keys
+        pytest.param("secret-value", "secret/app/HOST", False, id="vault_path_host"),
+        pytest.param(
+            "secret-value", "secret/app/prod/PORT", False, id="vault_path_port"
+        ),
+        # Valid secrets
+        pytest.param("my-secret-api-key", None, True, id="valid_api_key"),
+        pytest.param("password123456", None, True, id="valid_password"),
+        pytest.param("ghp_xxxxxxxxxxxxxxxxxxxx", None, True, id="valid_ghp_token"),
+        # Valid secrets with non-excluded keys
+        pytest.param("my-secret-value", "API_KEY", True, id="valid_with_key"),
+        pytest.param(
+            "my-secret-value", "DB_PASSWORD", True, id="valid_with_db_password_key"
+        ),
+        pytest.param(
+            "my-secret-value",
+            "secret/app/API_KEY",
+            True,
+            id="valid_with_vault_path_key",
+        ),
+    ],
+)
+def test_should_process_secret(value, key, expected):
+    """
+    GIVEN a secret value and optional key
+    WHEN checking if it should be processed
+    THEN it returns the expected result based on validation rules
+    """
+    assert should_process_secret(value, key=key) is expected
