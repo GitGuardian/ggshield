@@ -35,6 +35,7 @@ repos:
     rev: v3.6.0
     hooks:
       - id: prettier
+        exclude: \.wxs$
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
