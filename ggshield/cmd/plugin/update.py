@@ -4,10 +4,11 @@ Plugin update command - updates installed plugins.
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import click
 import requests
+from packaging import version as packaging_version
 
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -26,38 +27,16 @@ from ggshield.core.plugin.loader import PluginLoader
 from ggshield.core.text_utils import pluralize
 
 
-try:
-    from packaging import version as packaging_version
-except ImportError:  # pragma: no cover
-    packaging_version = None
-
-
 logger = logging.getLogger(__name__)
-
-
-def _split_version(version: str) -> Tuple[int, ...]:
-    return tuple(int(x) for x in version.split("."))
 
 
 def _is_newer_version(installed_version: str, candidate_version: str) -> bool:
     """Return True if candidate version is newer than installed version."""
-    if packaging_version is not None:
-        try:
-            return packaging_version.parse(installed_version) < packaging_version.parse(
-                candidate_version
-            )
-        except Exception as e:
-            logger.warning(
-                "Failed to parse plugin versions '%s' and '%s': %s",
-                installed_version,
-                candidate_version,
-                e,
-            )
-            return False
-
     try:
-        return _split_version(installed_version) < _split_version(candidate_version)
-    except ValueError as e:
+        return packaging_version.parse(installed_version) < packaging_version.parse(
+            candidate_version
+        )
+    except Exception as e:
         logger.warning(
             "Failed to parse plugin versions '%s' and '%s': %s",
             installed_version,
