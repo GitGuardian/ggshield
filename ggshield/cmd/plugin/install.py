@@ -29,10 +29,6 @@ from ggshield.core.plugin.downloader import (
 )
 
 
-# Backward-compatible alias for existing tests/imports.
-SourceType = PluginSourceType
-
-
 def detect_source_type(plugin_source: str) -> PluginSourceType:
     """
     Detect the type of plugin source from the argument.

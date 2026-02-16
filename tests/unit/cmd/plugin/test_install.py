@@ -6,9 +6,14 @@ from pathlib import Path
 from unittest import mock
 
 from ggshield.__main__ import cli
-from ggshield.cmd.plugin.install import SourceType, detect_source_type
+from ggshield.cmd.plugin.install import detect_source_type
 from ggshield.core.errors import ExitCode
-from ggshield.core.plugin.client import PluginCatalog, PluginDownloadInfo, PluginInfo
+from ggshield.core.plugin.client import (
+    PluginCatalog,
+    PluginDownloadInfo,
+    PluginInfo,
+    PluginSourceType,
+)
 
 
 class TestPluginInstall:
@@ -541,38 +546,43 @@ class TestDetectSourceType:
     def test_detect_github_artifact(self) -> None:
         """Test detection of GitHub artifact URLs."""
         url = "https://github.com/owner/repo/actions/runs/123456/artifacts/789"
-        assert detect_source_type(url) == SourceType.GITHUB_ARTIFACT
+        assert detect_source_type(url) == PluginSourceType.GITHUB_ARTIFACT
 
     def test_detect_github_release(self) -> None:
         """Test detection of GitHub release URLs."""
         url = "https://github.com/owner/repo/releases/download/v1.0.0/plugin.whl"
-        assert detect_source_type(url) == SourceType.GITHUB_RELEASE
+        assert detect_source_type(url) == PluginSourceType.GITHUB_RELEASE
 
     def test_detect_generic_url(self) -> None:
         """Test detection of generic HTTPS URLs."""
-        assert detect_source_type("https://example.com/plugin.whl") == SourceType.URL
         assert (
-            detect_source_type("https://pypi.org/packages/plugin.whl") == SourceType.URL
+            detect_source_type("https://example.com/plugin.whl") == PluginSourceType.URL
+        )
+        assert (
+            detect_source_type("https://pypi.org/packages/plugin.whl")
+            == PluginSourceType.URL
         )
 
     def test_detect_http_url(self) -> None:
         """Test detection of HTTP URLs (will be rejected later)."""
-        assert detect_source_type("http://example.com/plugin.whl") == SourceType.URL
+        assert (
+            detect_source_type("http://example.com/plugin.whl") == PluginSourceType.URL
+        )
 
     def test_detect_local_file(self, tmp_path: Path) -> None:
         """Test detection of local wheel files."""
         wheel_path = tmp_path / "plugin.whl"
         wheel_path.touch()
-        assert detect_source_type(str(wheel_path)) == SourceType.LOCAL_FILE
+        assert detect_source_type(str(wheel_path)) == PluginSourceType.LOCAL_FILE
 
     def test_detect_local_file_nonexistent(self) -> None:
         """Test non-existent local wheel paths are treated as local sources."""
-        assert detect_source_type("./nonexistent.whl") == SourceType.LOCAL_FILE
+        assert detect_source_type("./nonexistent.whl") == PluginSourceType.LOCAL_FILE
 
     def test_detect_plugin_name(self) -> None:
         """Test plugin names default to GitGuardian API."""
-        assert detect_source_type("tokenscanner") == SourceType.GITGUARDIAN_API
-        assert detect_source_type("my-plugin") == SourceType.GITGUARDIAN_API
+        assert detect_source_type("tokenscanner") == PluginSourceType.GITGUARDIAN_API
+        assert detect_source_type("my-plugin") == PluginSourceType.GITGUARDIAN_API
 
 
 class TestInstallFromLocalWheel:
@@ -596,7 +606,7 @@ class TestInstallFromLocalWheel:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.LOCAL_FILE,
+                return_value=PluginSourceType.LOCAL_FILE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -639,7 +649,7 @@ class TestInstallFromLocalWheel:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.LOCAL_FILE,
+                return_value=PluginSourceType.LOCAL_FILE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -681,7 +691,7 @@ class TestInstallFromUrl:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.URL,
+                return_value=PluginSourceType.URL,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -729,7 +739,7 @@ class TestInstallFromUrl:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.URL,
+                return_value=PluginSourceType.URL,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -769,7 +779,7 @@ class TestInstallFromUrl:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.URL,
+                return_value=PluginSourceType.URL,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -808,7 +818,7 @@ class TestInstallFromGitHubRelease:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_RELEASE,
+                return_value=PluginSourceType.GITHUB_RELEASE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -855,7 +865,7 @@ class TestInstallFromGitHubArtifact:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_ARTIFACT,
+                return_value=PluginSourceType.GITHUB_ARTIFACT,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -898,7 +908,7 @@ class TestInstallFromGitHubArtifact:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_ARTIFACT,
+                return_value=PluginSourceType.GITHUB_ARTIFACT,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -942,7 +952,7 @@ class TestInstallFromGitHubArtifact:
             ) as mock_config_class,
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_ARTIFACT,
+                return_value=PluginSourceType.GITHUB_ARTIFACT,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -981,7 +991,7 @@ class TestInstallErrorHandling:
 
         with mock.patch(
             "ggshield.cmd.plugin.install.detect_source_type",
-            return_value=SourceType.LOCAL_FILE,
+            return_value=PluginSourceType.LOCAL_FILE,
         ):
             result = cli_fs_runner.invoke(
                 cli,
@@ -1011,7 +1021,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.LOCAL_FILE,
+                return_value=PluginSourceType.LOCAL_FILE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1046,7 +1056,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.LOCAL_FILE,
+                return_value=PluginSourceType.LOCAL_FILE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1076,7 +1086,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.URL,
+                return_value=PluginSourceType.URL,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1115,7 +1125,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.URL,
+                return_value=PluginSourceType.URL,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1145,7 +1155,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.URL,
+                return_value=PluginSourceType.URL,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1175,7 +1185,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_RELEASE,
+                return_value=PluginSourceType.GITHUB_RELEASE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1214,7 +1224,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_RELEASE,
+                return_value=PluginSourceType.GITHUB_RELEASE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1249,7 +1259,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_RELEASE,
+                return_value=PluginSourceType.GITHUB_RELEASE,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1286,7 +1296,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_ARTIFACT,
+                return_value=PluginSourceType.GITHUB_ARTIFACT,
             ),
         ):
             mock_downloader = mock.MagicMock()
@@ -1321,7 +1331,7 @@ class TestInstallErrorHandling:
             mock.patch("ggshield.cmd.plugin.install.EnterpriseConfig"),
             mock.patch(
                 "ggshield.cmd.plugin.install.detect_source_type",
-                return_value=SourceType.GITHUB_ARTIFACT,
+                return_value=PluginSourceType.GITHUB_ARTIFACT,
             ),
         ):
             mock_downloader = mock.MagicMock()
