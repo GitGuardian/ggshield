@@ -8,7 +8,11 @@ from unittest.mock import MagicMock, patch
 
 from ggshield.core.config.enterprise_config import EnterpriseConfig, PluginConfig
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
-from ggshield.core.plugin.loader import PluginLoader, get_plugins_dir
+from ggshield.core.plugin.loader import (
+    PluginLoader,
+    get_plugins_dir,
+    parse_entry_point_from_content,
+)
 from ggshield.core.plugin.registry import PluginRegistry
 
 
@@ -168,27 +172,21 @@ class TestPluginLoader:
 
     def test_parse_entry_points_valid(self) -> None:
         """Test parsing valid entry points."""
-        config = EnterpriseConfig()
-        loader = PluginLoader(config)
-
         content = """
 [ggshield.plugins]
 myplugin = my_package.plugin:MyPlugin
 """
-        result = loader._parse_entry_points(content)
+        result = parse_entry_point_from_content(content)
 
-        assert result == "my_package.plugin:MyPlugin"
+        assert result == ("myplugin", "my_package.plugin:MyPlugin")
 
     def test_parse_entry_points_missing_section(self) -> None:
         """Test parsing entry points without ggshield section."""
-        config = EnterpriseConfig()
-        loader = PluginLoader(config)
-
         content = """
 [other.plugins]
 myplugin = other:Plugin
 """
-        result = loader._parse_entry_points(content)
+        result = parse_entry_point_from_content(content)
 
         assert result is None
 
@@ -454,27 +452,22 @@ myplugin = other:Plugin
 
     def test_parse_entry_point_name_valid(self) -> None:
         """Test parsing entry point name from entry_points.txt."""
-        config = EnterpriseConfig()
-        loader = PluginLoader(config)
-
         content = """
 [ggshield.plugins]
 my_plugin = my_package.plugin:MyPlugin
 """
-        result = loader._parse_entry_point_name(content)
+        result = parse_entry_point_from_content(content)
 
-        assert result == "my_plugin"
+        assert result is not None
+        assert result[0] == "my_plugin"
 
     def test_parse_entry_point_name_missing_section(self) -> None:
         """Test parsing entry point name without ggshield section."""
-        config = EnterpriseConfig()
-        loader = PluginLoader(config)
-
         content = """
 [other.plugins]
 myplugin = other:Plugin
 """
-        result = loader._parse_entry_point_name(content)
+        result = parse_entry_point_from_content(content)
 
         assert result is None
 

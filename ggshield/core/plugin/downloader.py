@@ -12,7 +12,6 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-from zipfile import ZipFile
 
 import requests
 
@@ -519,27 +518,10 @@ class PluginDownloader:
 
     def _read_entry_point_name_from_wheel(self, wheel_path: Path) -> Optional[str]:
         """Read the entry point name from a wheel file."""
-        from ggshield.core.plugin.loader import PLUGIN_ENTRY_POINT_GROUP
+        from ggshield.core.plugin.loader import read_entry_point_from_wheel
 
-        try:
-            with ZipFile(wheel_path, "r") as zf:
-                for name in zf.namelist():
-                    if name.endswith("entry_points.txt"):
-                        content = zf.read(name).decode("utf-8")
-                        # Parse to get entry point name
-                        in_section = False
-                        for line in content.splitlines():
-                            line = line.strip()
-                            if line == f"[{PLUGIN_ENTRY_POINT_GROUP}]":
-                                in_section = True
-                            elif line.startswith("["):
-                                in_section = False
-                            elif in_section and "=" in line:
-                                ep_name, _ = line.split("=", 1)
-                                return ep_name.strip()
-        except Exception:
-            pass
-        return None
+        result = read_entry_point_from_wheel(wheel_path)
+        return result[0] if result else None
 
     def get_wheel_path(self, plugin_name: str) -> Optional[Path]:
         """Get the path to an installed plugin's wheel file."""

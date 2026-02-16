@@ -8,20 +8,16 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, TypedDict
+from typing import Dict, Iterator, List, Optional, Tuple, TypedDict
 from zipfile import ZipFile
+
+from packaging import version as packaging_version
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.dirs import get_plugins_dir
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.registry import PluginRegistry
-
-
-try:
-    from packaging import version as packaging_version
-except ImportError:  # pragma: no cover
-    packaging_version = None
 
 
 class WheelInfo(TypedDict):
@@ -34,6 +30,40 @@ class WheelInfo(TypedDict):
 logger = logging.getLogger(__name__)
 
 PLUGIN_ENTRY_POINT_GROUP = "ggshield.plugins"
+
+
+def parse_entry_point_from_content(content: str) -> Optional[Tuple[str, str]]:
+    """Parse entry_points.txt to find the ggshield.plugins entry.
+
+    Returns (name, value) or None.
+    """
+    import configparser
+
+    parser = configparser.ConfigParser()
+    parser.optionxform = str  # type: ignore[assignment]  # preserve case
+    parser.read_string(content)
+    if not parser.has_section(PLUGIN_ENTRY_POINT_GROUP):
+        return None
+    items = parser.items(PLUGIN_ENTRY_POINT_GROUP)
+    if not items:
+        return None
+    return items[0]
+
+
+def read_entry_point_from_wheel(wheel_path: Path) -> Optional[Tuple[str, str]]:
+    """Read ggshield.plugins entry point from a wheel.
+
+    Returns (name, value) or None.
+    """
+    try:
+        with ZipFile(wheel_path, "r") as zf:
+            for zip_name in zf.namelist():
+                if zip_name.endswith("entry_points.txt"):
+                    content = zf.read(zip_name).decode("utf-8")
+                    return parse_entry_point_from_content(content)
+    except Exception as e:
+        logger.debug("Failed to read wheel entry points: %s", e)
+    return None
 
 
 @dataclass
@@ -192,56 +222,14 @@ class PluginLoader:
             return None
 
     def _read_wheel_entry_point(self, wheel_path: Path) -> Optional[str]:
-        """Read the ggshield.plugins entry point from a wheel's metadata."""
-        try:
-            with ZipFile(wheel_path, "r") as zf:
-                for name in zf.namelist():
-                    if name.endswith("entry_points.txt"):
-                        content = zf.read(name).decode("utf-8")
-                        return self._parse_entry_points(content)
-        except Exception as e:
-            logger.debug("Failed to read wheel entry points: %s", e)
-        return None
-
-    def _parse_entry_points(self, content: str) -> Optional[str]:
-        """Parse entry_points.txt content to find ggshield.plugins entry."""
-        in_section = False
-        for line in content.splitlines():
-            line = line.strip()
-            if line == f"[{PLUGIN_ENTRY_POINT_GROUP}]":
-                in_section = True
-            elif line.startswith("["):
-                in_section = False
-            elif in_section and "=" in line:
-                _, value = line.split("=", 1)
-                return value.strip()
-        return None
+        """Read the ggshield.plugins entry point value from a wheel's metadata."""
+        result = read_entry_point_from_wheel(wheel_path)
+        return result[1] if result else None
 
     def _read_wheel_entry_point_name(self, wheel_path: Path) -> Optional[str]:
         """Read the entry point name from a wheel's entry_points.txt."""
-        try:
-            with ZipFile(wheel_path, "r") as zf:
-                for name in zf.namelist():
-                    if name.endswith("entry_points.txt"):
-                        content = zf.read(name).decode("utf-8")
-                        return self._parse_entry_point_name(content)
-        except Exception as e:
-            logger.debug("Failed to read wheel entry point name: %s", e)
-        return None
-
-    def _parse_entry_point_name(self, content: str) -> Optional[str]:
-        """Parse entry_points.txt content to get the entry point name."""
-        in_section = False
-        for line in content.splitlines():
-            line = line.strip()
-            if line == f"[{PLUGIN_ENTRY_POINT_GROUP}]":
-                in_section = True
-            elif line.startswith("["):
-                in_section = False
-            elif in_section and "=" in line:
-                name, _ = line.split("=", 1)
-                return name.strip()
-        return None
+        result = read_entry_point_from_wheel(wheel_path)
+        return result[0] if result else None
 
     def _get_entry_points(self) -> Iterator[importlib.metadata.EntryPoint]:
         """Get all entry points in the ggshield.plugins group."""
@@ -303,12 +291,6 @@ class PluginLoader:
 
     def _check_version_compatibility(self, metadata: PluginMetadata) -> bool:
         """Check if plugin is compatible with current ggshield version."""
-        if packaging_version is None:
-            logger.error(
-                "Cannot check plugin compatibility: 'packaging' is unavailable"
-            )
-            return False
-
         try:
             current = packaging_version.parse(ggshield_version)
             required = packaging_version.parse(metadata.min_ggshield_version)
