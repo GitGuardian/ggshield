@@ -15,6 +15,7 @@ from ggshield.cmd.config import config_group
 from ggshield.cmd.hmsl import hmsl_group
 from ggshield.cmd.honeytoken import honeytoken_group
 from ggshield.cmd.install import install_cmd
+from ggshield.cmd.plugin import plugin_group
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
@@ -25,8 +26,11 @@ from ggshield.cmd.utils.debug import setup_debug_mode
 from ggshield.core import check_updates, ui
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.env_utils import load_dot_env
 from ggshield.core.errors import ExitCode
+from ggshield.core.plugin.loader import PluginLoader
+from ggshield.core.plugin.registry import PluginRegistry
 from ggshield.core.ui import ensure_level, log_utils
 from ggshield.core.ui.rich import RichGGShieldUI
 from ggshield.utils.click import RealPath
@@ -55,11 +59,38 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     return exit_code
 
 
+# Plugin registry, lazily initialized when _load_plugins() is called.
+_plugin_registry: Optional[PluginRegistry] = None
+
+# Warnings collected during plugin loading, before logging is configured.
+_deferred_warnings: List[str] = []
+
+
+def _load_plugins() -> PluginRegistry:
+    """Load plugins at module level so commands are available."""
+    global _plugin_registry
+    if _plugin_registry is None:
+        try:
+            enterprise_config = EnterpriseConfig.load()
+            plugin_loader = PluginLoader(enterprise_config)
+            _plugin_registry = plugin_loader.load_enabled_plugins()
+        except Exception as e:
+            _deferred_warnings.append(f"Failed to load plugins: {e}")
+            _plugin_registry = PluginRegistry()
+
+        # Make registry available to hooks module
+        from ggshield.core.plugin.hooks import set_plugin_registry
+
+        set_plugin_registry(_plugin_registry)
+    return _plugin_registry
+
+
 @click.group(
     context_settings={"help_option_names": ["-h", "--help"]},
     commands={
         "auth": auth_group,
         "config": config_group,
+        "plugin": plugin_group,
         "secret": secret_group,
         "install": install_cmd,
         "quota": quota_cmd,
@@ -75,6 +106,13 @@ def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
     is_eager=True,
     help="Set a custom config file. Ignores local and global config files.",
 )
+@click.option(
+    "--instance",
+    required=False,
+    type=str,
+    help="URL of the GitGuardian instance to use.",
+    metavar="URL",
+)
 @add_common_options()
 @click.version_option(version=__version__)
 @click.pass_context
@@ -84,6 +122,7 @@ def cli(
     allow_self_signed: Optional[bool],
     insecure: Optional[bool],
     config_path: Optional[Path],
+    instance: Optional[str],
     **kwargs: Any,
 ) -> None:
     # Create ContextObj, load config
@@ -106,7 +145,45 @@ def cli(
 
     ctx_obj.config._dotenv_vars = load_dot_env()
 
+    # Apply instance from command line
+    if instance:
+        ctx_obj.config.cmdline_instance_name = instance
+
+    # Use pre-loaded plugin registry
+    ctx_obj.plugin_registry = _load_plugins()
+
+    # Flush deferred plugin warnings now that logging is configured
+    for msg in _deferred_warnings:
+        logger.warning(msg)
+    _deferred_warnings.clear()
+
     _set_color(ctx)
+
+
+# Register plugin commands with the CLI group.
+# Called from main() to avoid import-time side effects.
+def _register_plugin_commands() -> None:
+    """Register plugin commands with the CLI."""
+    try:
+        registry = _load_plugins()
+        existing_commands = set(cli.commands)
+        for cmd in registry.get_commands():
+            cmd_name = cmd.name
+            if not cmd_name:
+                _deferred_warnings.append("Skipping unnamed plugin command")
+                continue
+
+            if cmd_name in existing_commands:
+                _deferred_warnings.append(
+                    "Skipping plugin command "
+                    f"'{cmd_name}' because it conflicts with an existing command"
+                )
+                continue
+
+            cli.add_command(cmd)
+            existing_commands.add(cmd_name)
+    except Exception as e:
+        _deferred_warnings.append(f"Failed to register plugin commands: {e}")
 
 
 def _set_color(ctx: click.Context):
@@ -197,6 +274,7 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     `args` is only used by unit-tests.
     """
+    _register_plugin_commands()
 
     # Required by pyinstaller when forking.
     # See https://pyinstaller.org/en/latest/common-issues-and-pitfalls.html#multi-processing

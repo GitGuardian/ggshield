@@ -38,6 +38,7 @@ dependencies = [
     "marshmallow~=3.18.0",
     "marshmallow-dataclass~=8.5.8",
     "oauthlib~=3.2.1",
+    "packaging>=22.0",
     "pygitguardian~=1.28.0",
     "pyjwt~=2.6.0",
     "python-dotenv~=0.21.0",
@@ -70,6 +71,9 @@ pyinstaller = "6.7.0"
 [tool.pdm.version]
 source = "file"
 path = "ggshield/__init__.py"
+
+[tool.pdm.scripts]
+ggshield = { call = "ggshield.__main__:main" }
 
 [tool.black]
 target-version = ['py36']
