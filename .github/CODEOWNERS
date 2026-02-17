@@ -1,1 +1,18 @@
 * @GitGuardian/ggshield-admins
+
+# plugin feature
+# (the last matching pattern takes the most precedence)
+ggshield/cmd/plugin/ @GitGuardian/nhi-governance
+ggshield/core/plugin/ @GitGuardian/nhi-governance
+tests/test_plugin/ @GitGuardian/nhi-governance
+tests/unit/cmd/plugin/ @GitGuardian/nhi-governance
+tests/unit/core/plugin/ @GitGuardian/nhi-governance
+
+# hmsl
+ggshield/cmd/hmsl/ @GitGuardian/nhi-governance
+ggshield/verticals/hmsl/ @GitGuardian/nhi-governance
+tests/functional/hmsl/ @GitGuardian/nhi-governance
+tests/unit/verticals/hmsl/ @GitGuardian/nhi-governance
+scripts/hmsl/ @GitGuardian/nhi-governance
+doc/dev/hmsl/ @GitGuardian/nhi-governance
+tests/unit/cmd/hmsl/ @GitGuardian/nhi-governance
