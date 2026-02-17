@@ -1,5 +1,25 @@
 # Changelog
 
+<a id='changelog-1.48.0'></a>
+
+## 1.48.0 — 2026-02-17
+
+### Added
+
+- Add enterprise plugin system for ggshield, allowing organizations to install and manage plugins from GitGuardian.
+
+- `hmsl`: Secrets shorter than 6 characters are now filtered out before being sent to the HMSL API, reducing false positives from obvious non-secrets.
+
+### Changed
+
+- `hmsl`: Expand the list of excluded placeholder values (e.g., `changeme`, `placeholder`, `redacted`) that are not sent to the HMSL API.
+
+- Relax `urllib3` dependency pin from `~=2.2.2` to `>=2.2.2,<3`, allowing compatibility with newer urllib3 versions (#1160).
+
+### Fixed
+
+- Prevent docker scan stdout from leaking into JSON output.
+
 <a id='changelog-1.47.0'></a>
 
 ## 1.47.0 — 2026-01-27
