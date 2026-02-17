@@ -1,4 +1,6 @@
+import logging
 import os
+import subprocess
 from typing import List, Tuple
 
 from ggshield.core.errors import UnexpectedError
@@ -6,10 +8,18 @@ from ggshield.core.git_hooks.ci.get_scan_ci_parameters import (
     CI_TARGET_BRANCH_ASSOC,
     get_remote_prefix,
 )
-from ggshield.utils.git_shell import EMPTY_SHA, get_list_commit_SHA
+from ggshield.utils.git_shell import (
+    EMPTY_SHA,
+    GitCommandTimeoutExpired,
+    get_list_commit_SHA,
+    git,
+)
 
 from ... import ui
 from .supported_ci import SupportedCI
+
+
+logger = logging.getLogger(__name__)
 
 
 CI_PREVIOUS_COMMIT_VAR = {
@@ -32,6 +42,21 @@ CI_COMMIT_VAR = {
 }
 
 
+def _fetch_target_branch(remote: str, branch: str) -> None:
+    """
+    Fetch the target branch from the remote to ensure the local ref is up to date.
+
+    In CI environments with cached repos (GIT_STRATEGY=fetch) or shallow clones,
+    the local origin/<target_branch> ref can be stale, causing the commit range
+    computation to include unrelated commits from the target branch.
+    """
+    try:
+        git(["fetch", remote, branch])
+        ui.display_verbose(f"\tFetched {branch} from {remote}")
+    except (subprocess.CalledProcessError, GitCommandTimeoutExpired):
+        logger.warning("Failed to fetch %s from %s", branch, remote)
+
+
 def collect_commit_range_from_ci_env() -> Tuple[List[str], SupportedCI]:
     ci_mode = SupportedCI.from_ci_env()
 
@@ -46,8 +71,11 @@ def collect_commit_range_from_ci_env() -> Tuple[List[str], SupportedCI]:
         target_branch = os.getenv(target_branch_var)
         if target_branch and target_branch != EMPTY_SHA:
             ui.display_verbose(f"\tIdentified target branch as {target_branch}")
+            remote_prefix = get_remote_prefix()
+            if remote_prefix:
+                _fetch_target_branch(remote_prefix.rstrip("/"), target_branch)
             commit_list = get_list_commit_SHA(
-                f"{get_remote_prefix()}{target_branch}..{base_commit}"
+                f"{remote_prefix}{target_branch}..{base_commit}"
             )
             if commit_list:
                 return commit_list, ci_mode
