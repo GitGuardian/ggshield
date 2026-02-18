@@ -164,7 +164,7 @@ jobs:
       - name: Install WiX Toolset
         if: matrix.os == 'windows-2022'
         shell: bash
-        run: dotnet tool install --global wix --version 4.0.4
+        run: dotnet tool install --global wix --version 5.0.2
 
       - name: Install dependencies
         shell: bash
