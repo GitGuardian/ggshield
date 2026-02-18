@@ -21,8 +21,6 @@
             <File Source="!(bindpath.SourceDir)\ggshield.exe" />
           </Component>
 
-          <Files Include="!(bindpath.SourceDir)\_internal\**" />
-
           <Component Id="PathEntry" Guid="d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80">
             <Environment
               Id="PATH"
@@ -38,8 +36,13 @@
       </Directory>
     </StandardDirectory>
 
+    <ComponentGroup Id="InternalFiles" Directory="INSTALLFOLDER">
+      <Files Include="!(bindpath.SourceDir)\_internal\**" />
+    </ComponentGroup>
+
     <Feature Id="Complete" Level="1">
       <ComponentRef Id="MainExecutable" />
+      <ComponentGroupRef Id="InternalFiles" />
       <ComponentRef Id="PathEntry" />
     </Feature>
   </Package>
