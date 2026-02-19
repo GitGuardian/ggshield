@@ -30,6 +30,7 @@ def clear_current_ci_envs(monkeypatch):
 @patch(
     "ggshield.core.git_hooks.ci.commit_range.get_remote_prefix", return_value="origin/"
 )
+@patch("ggshield.core.git_hooks.ci.commit_range._fetch_target_branch")
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")
 @pytest.mark.parametrize(
     "env,expected_parameter",
@@ -70,6 +71,7 @@ def clear_current_ci_envs(monkeypatch):
 )
 def test_gitlab_ci_range(
     _: Mock,
+    fetch_target_branch_mock: Mock,
     get_remote_prefix_mock: Mock,
     get_list_mock: Mock,
     cli_fs_runner: click.testing.CliRunner,
@@ -97,6 +99,17 @@ def test_gitlab_ci_range(
 
     collect_commit_range_from_ci_env()
     get_list_mock.assert_called_once_with(expected_parameter)
+
+    # Verify that the target branch is fetched when a MR target branch is set
+    if (
+        "CI_MERGE_REQUEST_TARGET_BRANCH_NAME" in env
+        and env["CI_MERGE_REQUEST_TARGET_BRANCH_NAME"] != EMPTY_SHA
+    ):
+        fetch_target_branch_mock.assert_called_once_with(
+            "origin", env["CI_MERGE_REQUEST_TARGET_BRANCH_NAME"]
+        )
+    else:
+        fetch_target_branch_mock.assert_not_called()
 
     captured = capsys.readouterr()
     assert captured.out == ""
