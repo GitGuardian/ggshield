@@ -13,7 +13,7 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.errors import ExitCode
 from ggshield.core.plugin.client import PluginAPIClient, PluginAPIError
-from ggshield.core.plugin.downloader import PluginDownloader
+from ggshield.core.plugin.downloader import PluginDownloader, get_signature_label
 
 
 @click.command()
@@ -79,6 +79,12 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> None:
             status_str = ", ".join(status_parts)
             ui.display_info(f"  {plugin.display_name} ({plugin.name})")
             ui.display_info(f"    Status: {status_str}")
+            if installed_version:
+                manifest = downloader.get_manifest(plugin.name)
+                if manifest:
+                    sig_label = get_signature_label(manifest)
+                    if sig_label:
+                        ui.display_info(f"    Signature: {sig_label}")
             ui.display_info(f"    {plugin.description}")
         else:
             ui.display_info(f"  {plugin.display_name} ({plugin.name}) - not available")

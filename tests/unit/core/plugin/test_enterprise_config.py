@@ -3,8 +3,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from ggshield.core.config.enterprise_config import EnterpriseConfig, PluginConfig
 
 
@@ -58,12 +56,14 @@ class TestEnterpriseConfig:
         assert config.plugins["test-plugin"].enabled is True
         assert config.plugins["test-plugin"].version == "1.0.0"
 
-    def test_disable_plugin_missing_raises(self) -> None:
-        """Test disabling a missing plugin raises an error."""
+    def test_disable_plugin_missing_creates_config(self) -> None:
+        """Test disabling a missing plugin creates a disabled config entry."""
         config = EnterpriseConfig()
 
-        with pytest.raises(ValueError, match="not configured"):
-            config.disable_plugin("test-plugin")
+        config.disable_plugin("test-plugin")
+
+        assert "test-plugin" in config.plugins
+        assert config.plugins["test-plugin"].enabled is False
 
     def test_disable_existing_plugin(self) -> None:
         """Test disabling an already configured plugin."""
@@ -74,11 +74,11 @@ class TestEnterpriseConfig:
         assert config.plugins["test-plugin"].enabled is False
 
     def test_is_plugin_enabled_default(self) -> None:
-        """Test that plugins are disabled by default."""
+        """Test that plugins are enabled by default."""
         config = EnterpriseConfig()
 
-        # Plugin not in config should be considered disabled
-        assert config.is_plugin_enabled("nonexistent") is False
+        # Plugin not in config should be considered enabled by default
+        assert config.is_plugin_enabled("nonexistent") is True
 
     def test_is_plugin_enabled_explicit(self) -> None:
         """Test checking if plugin is enabled explicitly."""
