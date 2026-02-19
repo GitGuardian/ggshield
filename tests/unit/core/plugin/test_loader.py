@@ -14,6 +14,7 @@ from ggshield.core.plugin.loader import (
     parse_entry_point_from_content,
 )
 from ggshield.core.plugin.registry import PluginRegistry
+from ggshield.core.plugin.signature import SignatureVerificationMode
 
 
 class MockPlugin(GGShieldPlugin):
@@ -559,7 +560,7 @@ myplugin = other:Plugin
         import zipfile
 
         config = EnterpriseConfig()
-        loader = PluginLoader(config)
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
 
         # Create a mock wheel with a Python module
         wheel_path = tmp_path / "test_plugin-1.0.0.whl"
@@ -619,7 +620,7 @@ myplugin = other:Plugin
         import zipfile
 
         config = EnterpriseConfig()
-        loader = PluginLoader(config)
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
 
         wheel_path = tmp_path / "test_plugin-1.0.0.whl"
         with zipfile.ZipFile(wheel_path, "w") as zf:

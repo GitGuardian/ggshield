@@ -27,6 +27,10 @@ from ggshield.core.plugin.downloader import (
     InsecureSourceError,
     PluginDownloader,
 )
+from ggshield.core.plugin.signature import (
+    SignatureVerificationError,
+    SignatureVerificationMode,
+)
 
 
 def detect_source_type(plugin_source: str) -> PluginSourceType:
@@ -64,12 +68,6 @@ def detect_source_type(plugin_source: str) -> PluginSourceType:
     return PluginSourceType.GITGUARDIAN_API
 
 
-def _display_unsigned_warning() -> None:
-    """Display warning about installing unsigned plugins."""
-    ui.display_warning("This plugin is not from GitGuardian and has not been verified.")
-    ui.display_warning("Only install plugins from sources you trust.")
-
-
 @click.command()
 @click.argument("plugin_source")
 @click.option(
@@ -85,10 +83,10 @@ def _display_unsigned_warning() -> None:
     help="Expected SHA256 checksum for URL verification",
 )
 @click.option(
-    "--force",
-    "force",
+    "--allow-unsigned",
+    "allow_unsigned",
     is_flag=True,
-    help="Skip security warnings for non-GitGuardian sources",
+    help="Allow installing plugins without valid signatures (overrides strict mode)",
 )
 @add_common_options()
 @click.pass_context
@@ -97,7 +95,7 @@ def install_cmd(
     plugin_source: str,
     version: Optional[str],
     sha256: Optional[str],
-    force: bool,
+    allow_unsigned: bool,
     **kwargs: Any,
 ) -> None:
     """
@@ -127,24 +125,31 @@ def install_cmd(
 
         ggshield plugin install https://github.com/owner/repo/actions/runs/123/artifacts/456
     """
+    # Determine signature verification mode
+    enterprise_config = EnterpriseConfig.load()
+    signature_mode = enterprise_config.get_signature_mode()
+    if allow_unsigned:
+        signature_mode = SignatureVerificationMode.WARN
+
     source_type = detect_source_type(plugin_source)
 
     if source_type == PluginSourceType.GITHUB_ARTIFACT:
-        _install_from_github_artifact(ctx, plugin_source, force)
+        _install_from_github_artifact(ctx, plugin_source, signature_mode)
     elif source_type == PluginSourceType.GITHUB_RELEASE:
-        _install_from_github_release(ctx, plugin_source, sha256, force)
+        _install_from_github_release(ctx, plugin_source, sha256, signature_mode)
     elif source_type == PluginSourceType.URL:
-        _install_from_url(ctx, plugin_source, sha256, force)
+        _install_from_url(ctx, plugin_source, sha256, signature_mode)
     elif source_type == PluginSourceType.LOCAL_FILE:
-        _install_from_local_wheel(ctx, plugin_source, force)
+        _install_from_local_wheel(ctx, plugin_source, signature_mode)
     else:
-        _install_from_gitguardian(ctx, plugin_source, version)
+        _install_from_gitguardian(ctx, plugin_source, version, signature_mode)
 
 
 def _install_from_gitguardian(
     ctx: click.Context,
     plugin_name: str,
     version: Optional[str],
+    signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
 ) -> None:
     """Install a plugin from GitGuardian API."""
     ctx_obj = ContextObj.get(ctx)
@@ -192,7 +197,9 @@ def _install_from_gitguardian(
         )
 
         # Download and install
-        downloader.download_and_install(download_info, plugin_name)
+        downloader.download_and_install(
+            download_info, plugin_name, signature_mode=signature_mode
+        )
 
         # Enable in config
         enterprise_config.enable_plugin(plugin_name, version=download_info.version)
@@ -202,6 +209,12 @@ def _install_from_gitguardian(
 
         ui.display_info(f"Installed {plugin_name} v{download_info.version}")
 
+    except SignatureVerificationError as e:
+        ui.display_error(f"Signature verification failed for {plugin_name}: {e}")
+        ui.display_info(
+            "Use --allow-unsigned to install without signature verification"
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except PluginNotAvailableError as e:
         ui.display_error(f"Failed to install {plugin_name}: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
@@ -216,7 +229,7 @@ def _install_from_gitguardian(
 def _install_from_local_wheel(
     ctx: click.Context,
     wheel_path_str: str,
-    force: bool,
+    signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
 ) -> None:
     """Install a plugin from a local wheel file."""
     wheel_path = Path(wheel_path_str)
@@ -225,16 +238,15 @@ def _install_from_local_wheel(
         ui.display_error(f"Wheel file not found: {wheel_path}")
         ctx.exit(ExitCode.USAGE_ERROR)
 
-    if not force:
-        _display_unsigned_warning()
-
     downloader = PluginDownloader()
     enterprise_config = EnterpriseConfig.load()
 
     ui.display_info(f"Installing from {wheel_path.name}...")
 
     try:
-        plugin_name, version, _ = downloader.install_from_wheel(wheel_path, force)
+        plugin_name, version, _ = downloader.install_from_wheel(
+            wheel_path, signature_mode=signature_mode
+        )
 
         # Enable in config
         enterprise_config.enable_plugin(plugin_name, version=version)
@@ -242,6 +254,12 @@ def _install_from_local_wheel(
 
         ui.display_info(f"Installed {plugin_name} v{version}")
 
+    except SignatureVerificationError as e:
+        ui.display_error(f"Signature verification failed: {e}")
+        ui.display_info(
+            "Use --allow-unsigned to install without signature verification"
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except DownloadError as e:
         ui.display_error(f"Failed to install from wheel: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
@@ -254,23 +272,18 @@ def _install_from_url(
     ctx: click.Context,
     url: str,
     sha256: Optional[str],
-    force: bool,
+    signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
 ) -> None:
     """Install a plugin from a URL."""
-    if not force:
-        _display_unsigned_warning()
-        if not sha256:
-            ui.display_warning(
-                "No SHA256 checksum provided. Consider using --sha256 for verification."
-            )
-
     downloader = PluginDownloader()
     enterprise_config = EnterpriseConfig.load()
 
     ui.display_info("Installing from URL...")
 
     try:
-        plugin_name, version, _ = downloader.download_from_url(url, sha256, force)
+        plugin_name, version, _ = downloader.download_from_url(
+            url, sha256, signature_mode=signature_mode
+        )
 
         # Enable in config
         enterprise_config.enable_plugin(plugin_name, version=version)
@@ -278,6 +291,12 @@ def _install_from_url(
 
         ui.display_info(f"Installed {plugin_name} v{version}")
 
+    except SignatureVerificationError as e:
+        ui.display_error(f"Signature verification failed: {e}")
+        ui.display_info(
+            "Use --allow-unsigned to install without signature verification"
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except InsecureSourceError as e:
         ui.display_error(str(e))
         ctx.exit(ExitCode.USAGE_ERROR)
@@ -296,12 +315,9 @@ def _install_from_github_release(
     ctx: click.Context,
     url: str,
     sha256: Optional[str],
-    force: bool,
+    signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
 ) -> None:
     """Install a plugin from a GitHub release asset."""
-    if not force:
-        _display_unsigned_warning()
-
     downloader = PluginDownloader()
     enterprise_config = EnterpriseConfig.load()
 
@@ -309,7 +325,7 @@ def _install_from_github_release(
 
     try:
         plugin_name, version, _ = downloader.download_from_github_release(
-            url, sha256, force
+            url, sha256, signature_mode=signature_mode
         )
 
         # Enable in config
@@ -318,6 +334,12 @@ def _install_from_github_release(
 
         ui.display_info(f"Installed {plugin_name} v{version}")
 
+    except SignatureVerificationError as e:
+        ui.display_error(f"Signature verification failed: {e}")
+        ui.display_info(
+            "Use --allow-unsigned to install without signature verification"
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except InsecureSourceError as e:
         ui.display_error(str(e))
         ctx.exit(ExitCode.USAGE_ERROR)
@@ -335,12 +357,10 @@ def _install_from_github_release(
 def _install_from_github_artifact(
     ctx: click.Context,
     url: str,
-    force: bool,
+    signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
 ) -> None:
     """Install a plugin from a GitHub Actions artifact."""
-    if not force:
-        _display_unsigned_warning()
-        ui.display_warning("GitHub artifacts are ephemeral and cannot be auto-updated.")
+    ui.display_warning("GitHub artifacts are ephemeral and cannot be auto-updated.")
 
     downloader = PluginDownloader()
     enterprise_config = EnterpriseConfig.load()
@@ -348,7 +368,9 @@ def _install_from_github_artifact(
     ui.display_info("Installing from GitHub artifact...")
 
     try:
-        plugin_name, version, _ = downloader.download_from_github_artifact(url, force)
+        plugin_name, version, _ = downloader.download_from_github_artifact(
+            url, signature_mode=signature_mode
+        )
 
         # Enable in config
         enterprise_config.enable_plugin(plugin_name, version=version)
@@ -356,6 +378,12 @@ def _install_from_github_artifact(
 
         ui.display_info(f"Installed {plugin_name} v{version}")
 
+    except SignatureVerificationError as e:
+        ui.display_error(f"Signature verification failed: {e}")
+        ui.display_info(
+            "Use --allow-unsigned to install without signature verification"
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except GitHubArtifactError as e:
         ui.display_error(str(e))
         ctx.exit(ExitCode.UNEXPECTED_ERROR)

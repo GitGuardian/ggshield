@@ -21,10 +21,44 @@ from ggshield.core.plugin.client import (
     PluginSource,
     PluginSourceType,
 )
+from ggshield.core.plugin.signature import (
+    SignatureInfo,
+    SignatureVerificationError,
+    SignatureVerificationMode,
+    verify_wheel_signature,
+)
 from ggshield.core.plugin.wheel_utils import WheelError, extract_wheel_metadata
 
 
 logger = logging.getLogger(__name__)
+
+
+def parse_wheel_filename(filename: str) -> Optional[Tuple[str, str]]:
+    """Parse a wheel filename into (name, version).
+
+    Returns None if the filename doesn't match the wheel naming convention.
+    """
+    match = re.match(r"^([A-Za-z0-9_.-]+?)-(\d+[^-]*)-", filename)
+    if match:
+        return match.group(1), match.group(2)
+    return None
+
+
+def get_signature_label(manifest: Dict[str, Any]) -> Optional[str]:
+    """Get a human-readable signature status label from a manifest.
+
+    Returns a string like "valid (GitGuardian/satori)", "missing", etc.
+    or None if no signature info is in the manifest.
+    """
+    sig_info = manifest.get("signature")
+    if not sig_info:
+        return None
+
+    status = sig_info.get("status", "unknown")
+    identity = sig_info.get("identity")
+    if identity:
+        return f"{status} ({identity})"
+    return status
 
 
 class DownloadError(Exception):
@@ -67,6 +101,7 @@ class PluginDownloader:
         download_info: PluginDownloadInfo,
         plugin_name: str,
         source: Optional[PluginSource] = None,
+        signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
     ) -> Path:
         """Download a plugin wheel and install it locally."""
         self._validate_plugin_name(plugin_name)
@@ -92,6 +127,13 @@ class PluginDownloader:
             if computed_hash.lower() != download_info.sha256.lower():
                 raise ChecksumMismatchError(download_info.sha256, computed_hash)
 
+            # Download signature bundle if available
+            temp_path.rename(wheel_path)
+            self._download_bundle(download_info, plugin_dir)
+
+            # Verify signature
+            sig_info = verify_wheel_signature(wheel_path, signature_mode)
+
             # Use GitGuardian API as default source if not provided
             if source is None:
                 source = PluginSource(type=PluginSourceType.GITGUARDIAN_API)
@@ -103,16 +145,19 @@ class PluginDownloader:
                 wheel_filename=download_info.filename,
                 sha256=download_info.sha256,
                 source=source,
+                signature_info=sig_info,
             )
-
-            temp_path.rename(wheel_path)
 
             logger.info("Installed %s v%s", plugin_name, download_info.version)
 
             return wheel_path
 
         except requests.RequestException as e:
+            self._cleanup_failed_install(wheel_path)
             raise DownloadError(f"Failed to download plugin: {e}") from e
+        except SignatureVerificationError:
+            self._cleanup_failed_install(wheel_path)
+            raise
         finally:
             if temp_path.exists():
                 temp_path.unlink()
@@ -120,14 +165,14 @@ class PluginDownloader:
     def install_from_wheel(
         self,
         wheel_path: Path,
-        force: bool = False,
+        signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
     ) -> Tuple[str, str, Path]:
         """
         Install a plugin from a local wheel file.
 
         Args:
             wheel_path: Path to the wheel file.
-            force: Skip security warnings if True.
+            signature_mode: Signature verification mode.
 
         Returns:
             Tuple of (plugin_name, version, installed_wheel_path).
@@ -135,6 +180,7 @@ class PluginDownloader:
         Raises:
             WheelError: If the wheel file is invalid.
             DownloadError: If installation fails.
+            SignatureVerificationError: In STRICT mode when signature is invalid.
         """
         # Extract metadata from wheel
         try:
@@ -154,6 +200,16 @@ class PluginDownloader:
         dest_wheel_path = plugin_dir / wheel_path.name
         shutil.copy2(wheel_path, dest_wheel_path)
 
+        # Copy bundle if it exists alongside the wheel
+        from ggshield.core.plugin.signature import get_bundle_path
+
+        bundle_path = get_bundle_path(wheel_path)
+        if bundle_path is not None:
+            shutil.copy2(bundle_path, plugin_dir / bundle_path.name)
+
+        # Verify signature
+        sig_info = verify_wheel_signature(dest_wheel_path, signature_mode)
+
         # Compute SHA256
         sha256 = self._compute_sha256(dest_wheel_path)
 
@@ -171,6 +227,7 @@ class PluginDownloader:
             wheel_filename=wheel_path.name,
             sha256=sha256,
             source=source,
+            signature_info=sig_info,
         )
 
         logger.info("Installed %s v%s from local wheel", plugin_name, version)
@@ -181,7 +238,7 @@ class PluginDownloader:
         self,
         url: str,
         sha256: Optional[str] = None,
-        force: bool = False,
+        signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
     ) -> Tuple[str, str, Path]:
         """
         Download and install a plugin from a URL.
@@ -189,7 +246,7 @@ class PluginDownloader:
         Args:
             url: URL to download the wheel from.
             sha256: Expected SHA256 checksum (optional but recommended).
-            force: Skip security warnings if True.
+            signature_mode: Signature verification mode.
 
         Returns:
             Tuple of (plugin_name, version, installed_wheel_path).
@@ -198,6 +255,7 @@ class PluginDownloader:
             InsecureSourceError: If URL uses HTTP instead of HTTPS.
             ChecksumMismatchError: If checksum doesn't match.
             DownloadError: If download or installation fails.
+            SignatureVerificationError: In STRICT mode when signature is invalid.
         """
         # Security check: require HTTPS
         if url.startswith("http://"):
@@ -254,6 +312,9 @@ class PluginDownloader:
             dest_wheel_path = plugin_dir / temp_wheel_path.name
             shutil.copy2(temp_wheel_path, dest_wheel_path)
 
+        # Verify signature
+        sig_info = verify_wheel_signature(dest_wheel_path, signature_mode)
+
         # Create source tracking
         source = PluginSource(
             type=PluginSourceType.URL,
@@ -268,6 +329,7 @@ class PluginDownloader:
             wheel_filename=dest_wheel_path.name,
             sha256=computed_hash,
             source=source,
+            signature_info=sig_info,
         )
 
         logger.info("Installed %s v%s from URL", plugin_name, version)
@@ -278,7 +340,7 @@ class PluginDownloader:
         self,
         url: str,
         sha256: Optional[str] = None,
-        force: bool = False,
+        signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
     ) -> Tuple[str, str, Path]:
         """
         Download and install a plugin from a GitHub release asset.
@@ -286,7 +348,7 @@ class PluginDownloader:
         Args:
             url: GitHub release asset URL.
             sha256: Expected SHA256 checksum (optional).
-            force: Skip security warnings if True.
+            signature_mode: Signature verification mode.
 
         Returns:
             Tuple of (plugin_name, version, installed_wheel_path).
@@ -295,7 +357,9 @@ class PluginDownloader:
         github_repo = self._extract_github_repo(url)
 
         # Download using standard URL method
-        plugin_name, version, wheel_path = self.download_from_url(url, sha256, force)
+        plugin_name, version, wheel_path = self.download_from_url(
+            url, sha256, signature_mode=signature_mode
+        )
 
         # Update source to track GitHub release
         manifest_path = self.plugins_dir / plugin_name / "manifest.json"
@@ -315,7 +379,7 @@ class PluginDownloader:
     def download_from_github_artifact(
         self,
         url: str,
-        force: bool = False,
+        signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
     ) -> Tuple[str, str, Path]:
         """
         Download and install a plugin from a GitHub Actions artifact.
@@ -327,7 +391,7 @@ class PluginDownloader:
 
         Args:
             url: GitHub artifact URL (browser URL or API URL).
-            force: Skip security warnings if True.
+            signature_mode: Signature verification mode.
 
         Returns:
             Tuple of (plugin_name, version, installed_wheel_path).
@@ -335,6 +399,7 @@ class PluginDownloader:
         Raises:
             GitHubArtifactError: If artifact cannot be downloaded or processed.
             DownloadError: If installation fails.
+            SignatureVerificationError: In STRICT mode when signature is invalid.
         """
         # Parse artifact URL to get API endpoint
         artifact_info = self._parse_github_artifact_url(url)
@@ -425,6 +490,9 @@ class PluginDownloader:
             # Compute SHA256
             sha256 = self._compute_sha256(dest_wheel_path)
 
+        # Verify signature
+        sig_info = verify_wheel_signature(dest_wheel_path, signature_mode)
+
         # Create source tracking
         source = PluginSource(
             type=PluginSourceType.GITHUB_ARTIFACT,
@@ -440,6 +508,7 @@ class PluginDownloader:
             wheel_filename=dest_wheel_path.name,
             sha256=sha256,
             source=source,
+            signature_info=sig_info,
         )
 
         logger.info("Installed %s v%s from GitHub artifact", plugin_name, version)
@@ -600,9 +669,10 @@ class PluginDownloader:
         wheel_filename: str,
         sha256: str,
         source: PluginSource,
+        signature_info: Optional[SignatureInfo] = None,
     ) -> None:
         """Write the plugin manifest file."""
-        manifest = {
+        manifest: Dict[str, Any] = {
             "plugin_name": plugin_name,
             "version": version,
             "wheel_filename": wheel_filename,
@@ -610,8 +680,53 @@ class PluginDownloader:
             "source": source.to_dict(),
             "installed_at": datetime.now(timezone.utc).isoformat(),
         }
+        if signature_info is not None:
+            sig_data: Dict[str, Any] = {"status": signature_info.status.value}
+            if signature_info.identity:
+                sig_data["identity"] = signature_info.identity
+            if signature_info.message:
+                sig_data["message"] = signature_info.message
+            manifest["signature"] = sig_data
+
         manifest_path = plugin_dir / "manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2))
+
+    def _download_bundle(
+        self,
+        download_info: PluginDownloadInfo,
+        plugin_dir: Path,
+    ) -> Optional[Path]:
+        """Download the sigstore bundle for a wheel if a signature URL is available."""
+        if not download_info.signature_url:
+            return None
+
+        bundle_filename = download_info.filename + ".sigstore"
+        bundle_path = plugin_dir / bundle_filename
+
+        try:
+            logger.info("Downloading signature bundle...")
+            response = requests.get(download_info.signature_url, stream=True)
+            response.raise_for_status()
+
+            with open(bundle_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            return bundle_path
+        except requests.RequestException as e:
+            logger.warning("Failed to download signature bundle: %s", e)
+            return None
+
+    def _cleanup_failed_install(self, wheel_path: Path) -> None:
+        """Remove wheel and bundle files after a failed install."""
+        if wheel_path.exists():
+            wheel_path.unlink()
+
+        # Also clean up any bundle files
+        for ext in (".sigstore", ".sigstore.json"):
+            bundle = wheel_path.parent / (wheel_path.name + ext)
+            if bundle.exists():
+                bundle.unlink()
 
     def _compute_sha256(self, file_path: Path) -> str:
         """Compute SHA256 hash of a file."""

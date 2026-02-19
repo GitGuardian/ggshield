@@ -70,6 +70,15 @@ def _load_plugins() -> PluginRegistry:
     """Load plugins at module level so commands are available."""
     global _plugin_registry
     if _plugin_registry is None:
+        # Suppress signature/loader loggers during startup to avoid noisy output
+        # before logging is configured
+        sig_logger = logging.getLogger("ggshield.core.plugin.signature")
+        loader_logger = logging.getLogger("ggshield.core.plugin.loader")
+        orig_sig_level = sig_logger.level
+        orig_loader_level = loader_logger.level
+        sig_logger.setLevel(logging.CRITICAL)
+        loader_logger.setLevel(logging.CRITICAL)
+
         try:
             enterprise_config = EnterpriseConfig.load()
             plugin_loader = PluginLoader(enterprise_config)
@@ -77,6 +86,9 @@ def _load_plugins() -> PluginRegistry:
         except Exception as e:
             _deferred_warnings.append(f"Failed to load plugins: {e}")
             _plugin_registry = PluginRegistry()
+        finally:
+            sig_logger.setLevel(orig_sig_level)
+            loader_logger.setLevel(orig_loader_level)
 
         # Make registry available to hooks module
         from ggshield.core.plugin.hooks import set_plugin_registry

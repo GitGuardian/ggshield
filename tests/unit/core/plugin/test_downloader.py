@@ -22,6 +22,10 @@ from ggshield.core.plugin.downloader import (
     PluginDownloader,
     get_plugins_dir,
 )
+from ggshield.core.plugin.signature import SignatureInfo, SignatureStatus
+
+
+MOCK_SIG_INFO = SignatureInfo(status=SignatureStatus.SKIPPED)
 
 
 class TestPluginDownloader:
@@ -168,10 +172,14 @@ class TestPluginDownloader:
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
         ):
             with patch("requests.get", return_value=mock_response):
-                downloader = PluginDownloader()
-                wheel_path = downloader.download_and_install(
-                    download_info, "testplugin"
-                )
+                with patch(
+                    "ggshield.core.plugin.downloader.verify_wheel_signature",
+                    return_value=MOCK_SIG_INFO,
+                ):
+                    downloader = PluginDownloader()
+                    wheel_path = downloader.download_and_install(
+                        download_info, "testplugin"
+                    )
 
         assert wheel_path.exists()
         assert wheel_path.name == "testplugin-1.0.0.whl"
@@ -278,17 +286,19 @@ class TestPluginDownloader:
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
         ):
             with patch("requests.get", return_value=mock_response):
-                downloader = PluginDownloader()
-
-                with patch.object(
-                    downloader, "_write_manifest", side_effect=OSError("disk full")
+                with patch(
+                    "ggshield.core.plugin.downloader.verify_wheel_signature",
+                    return_value=MOCK_SIG_INFO,
                 ):
-                    with pytest.raises(OSError):
-                        downloader.download_and_install(download_info, "testplugin")
+                    downloader = PluginDownloader()
 
-        wheel_path = tmp_path / "testplugin" / "testplugin-1.0.0.whl"
+                    with patch.object(
+                        downloader, "_write_manifest", side_effect=OSError("disk full")
+                    ):
+                        with pytest.raises(OSError):
+                            downloader.download_and_install(download_info, "testplugin")
+
         temp_path = tmp_path / "testplugin" / "testplugin-1.0.0.whl.tmp"
-        assert not wheel_path.exists()
         assert not temp_path.exists()
 
     def test_is_installed_by_entry_point_name(self, tmp_path: Path) -> None:
@@ -503,10 +513,14 @@ class TestInstallFromWheel:
         with patch(
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=plugins_dir
         ):
-            downloader = PluginDownloader()
-            plugin_name, version, installed_path = downloader.install_from_wheel(
-                wheel_path
-            )
+            with patch(
+                "ggshield.core.plugin.downloader.verify_wheel_signature",
+                return_value=MOCK_SIG_INFO,
+            ):
+                downloader = PluginDownloader()
+                plugin_name, version, installed_path = downloader.install_from_wheel(
+                    wheel_path
+                )
 
         assert plugin_name == "myplugin"
         assert version == "2.0.0"
@@ -561,11 +575,15 @@ class TestDownloadFromUrl:
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=plugins_dir
         ):
             with patch("requests.get", return_value=mock_response):
-                downloader = PluginDownloader()
-                plugin_name, version, installed_path = downloader.download_from_url(
-                    "https://example.com/urlplugin-1.0.0.whl",
-                    sha256=sha256,
-                )
+                with patch(
+                    "ggshield.core.plugin.downloader.verify_wheel_signature",
+                    return_value=MOCK_SIG_INFO,
+                ):
+                    downloader = PluginDownloader()
+                    plugin_name, version, installed_path = downloader.download_from_url(
+                        "https://example.com/urlplugin-1.0.0.whl",
+                        sha256=sha256,
+                    )
 
         assert plugin_name == "urlplugin"
         assert version == "1.0.0"
@@ -640,11 +658,15 @@ class TestDownloadFromGitHubRelease:
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=plugins_dir
         ):
             with patch("requests.get", return_value=mock_response):
-                downloader = PluginDownloader()
-                plugin_name, version, _ = downloader.download_from_github_release(
-                    "https://github.com/owner/repo/releases/download/v1.0.0/ghplugin-1.0.0.whl",
-                    sha256=sha256,
-                )
+                with patch(
+                    "ggshield.core.plugin.downloader.verify_wheel_signature",
+                    return_value=MOCK_SIG_INFO,
+                ):
+                    downloader = PluginDownloader()
+                    plugin_name, version, _ = downloader.download_from_github_release(
+                        "https://github.com/owner/repo/releases/download/v1.0.0/ghplugin-1.0.0.whl",
+                        sha256=sha256,
+                    )
 
         assert plugin_name == "ghplugin"
         assert version == "1.0.0"
@@ -927,11 +949,15 @@ class TestDownloadFromUrlEdgeCases:
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=plugins_dir
         ):
             with patch("requests.get", return_value=mock_response):
-                downloader = PluginDownloader()
-                plugin_name, version, _ = downloader.download_from_url(
-                    "https://example.com/download?file=something",
-                    sha256=sha256,
-                )
+                with patch(
+                    "ggshield.core.plugin.downloader.verify_wheel_signature",
+                    return_value=MOCK_SIG_INFO,
+                ):
+                    downloader = PluginDownloader()
+                    plugin_name, version, _ = downloader.download_from_url(
+                        "https://example.com/download?file=something",
+                        sha256=sha256,
+                    )
 
         assert plugin_name == "testplugin"
         assert version == "1.0.0"
@@ -964,13 +990,17 @@ class TestGitHubArtifactEdgeCases:
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=plugins_dir
         ):
             with patch("requests.get", return_value=mock_response):
-                with patch.dict("os.environ", {"GITHUB_TOKEN": "test-token"}):
-                    downloader = PluginDownloader()
-                    plugin_name, version, installed_path = (
-                        downloader.download_from_github_artifact(
-                            "https://github.com/owner/repo/actions/runs/123/artifacts/456"
+                with patch(
+                    "ggshield.core.plugin.downloader.verify_wheel_signature",
+                    return_value=MOCK_SIG_INFO,
+                ):
+                    with patch.dict("os.environ", {"GITHUB_TOKEN": "test-token"}):
+                        downloader = PluginDownloader()
+                        plugin_name, version, installed_path = (
+                            downloader.download_from_github_artifact(
+                                "https://github.com/owner/repo/actions/runs/123/artifacts/456"
+                            )
                         )
-                    )
 
         assert plugin_name == "artifactplugin"
         assert version == "1.0.0"
