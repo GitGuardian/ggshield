@@ -18,6 +18,12 @@ from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.dirs import get_plugins_dir
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.registry import PluginRegistry
+from ggshield.core.plugin.signature import (
+    SignatureStatus,
+    SignatureVerificationError,
+    SignatureVerificationMode,
+    verify_wheel_signature,
+)
 
 
 class WheelInfo(TypedDict):
@@ -81,9 +87,18 @@ class DiscoveredPlugin:
 class PluginLoader:
     """Discovers and loads ggshield plugins from entry points and local wheels."""
 
-    def __init__(self, enterprise_config: EnterpriseConfig) -> None:
+    def __init__(
+        self,
+        enterprise_config: EnterpriseConfig,
+        signature_mode: Optional[SignatureVerificationMode] = None,
+    ) -> None:
         self.enterprise_config = enterprise_config
         self.plugins_dir = get_plugins_dir()
+        self.signature_mode = (
+            signature_mode
+            if signature_mode is not None
+            else enterprise_config.get_signature_mode()
+        )
 
     def discover_plugins(self) -> List[DiscoveredPlugin]:
         """Discover all available plugins from entry points and local wheels."""
@@ -186,6 +201,29 @@ class PluginLoader:
         Wheels are extracted to a directory before loading because Python
         cannot import native extensions (.so/.pyd) directly from zip files.
         """
+        # Verify signature before loading
+        try:
+            sig_info = verify_wheel_signature(wheel_path, self.signature_mode)
+            if sig_info.status == SignatureStatus.VALID:
+                logger.info(
+                    "Signature valid for %s (identity: %s)",
+                    wheel_path.name,
+                    sig_info.identity,
+                )
+            elif sig_info.status in (
+                SignatureStatus.MISSING,
+                SignatureStatus.INVALID,
+            ):
+                logger.warning(
+                    "Signature %s for %s: %s",
+                    sig_info.status.value,
+                    wheel_path.name,
+                    sig_info.message or "",
+                )
+        except SignatureVerificationError as e:
+            logger.error("Signature verification failed for %s: %s", wheel_path.name, e)
+            return None
+
         # Extract wheel to a directory alongside the wheel file
         extract_dir = wheel_path.parent / f".{wheel_path.stem}_extracted"
 
