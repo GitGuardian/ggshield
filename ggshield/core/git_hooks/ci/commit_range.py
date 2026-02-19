@@ -51,8 +51,8 @@ def _fetch_target_branch(remote: str, branch: str) -> None:
     computation to include unrelated commits from the target branch.
     """
     try:
+        ui.display_verbose(f"\tFetching {branch} from {remote}")
         git(["fetch", remote, branch])
-        ui.display_verbose(f"\tFetched {branch} from {remote}")
     except (subprocess.CalledProcessError, GitCommandTimeoutExpired):
         logger.warning("Failed to fetch %s from %s", branch, remote)
 
