@@ -17,6 +17,7 @@ from ggshield.core.plugin.client import (
     PluginSourceType,
 )
 from ggshield.core.plugin.downloader import ChecksumMismatchError, DownloadError
+from ggshield.core.plugin.signature import SignatureStatus, SignatureVerificationError
 
 
 class TestPluginInstall:
@@ -1054,3 +1055,221 @@ class TestInstallErrorHandling:
 
         assert result.exit_code == ExitCode.UNEXPECTED_ERROR
         assert "Checksum verification failed" in result.output
+
+
+class TestSignatureVerificationHandling:
+    """Tests for signature verification error handling in install commands."""
+
+    def test_gitguardian_install_signature_error(self, cli_fs_runner) -> None:
+        """
+        GIVEN a plugin with invalid signature
+        WHEN installing from GitGuardian API
+        THEN signature error is shown with --allow-unsigned hint
+        """
+        mock_catalog = PluginCatalog(
+            plan="Enterprise",
+            plugins=[
+                PluginInfo(
+                    name="tokenscanner",
+                    display_name="Token Scanner",
+                    description="Local secret scanning",
+                    available=True,
+                    latest_version="1.0.0",
+                    reason=None,
+                ),
+            ],
+            features={},
+        )
+
+        mock_download_info = PluginDownloadInfo(
+            download_url="https://example.com/plugin.whl",
+            filename="tokenscanner-1.0.0.whl",
+            sha256="abc123",
+            version="1.0.0",
+            expires_at="2099-12-31T23:59:59Z",
+        )
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.install.create_client_from_config"
+            ) as mock_create_client,
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginAPIClient"
+            ) as mock_plugin_api_client_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.EnterpriseConfig"
+            ) as mock_config_class,
+        ):
+            mock_client = mock.MagicMock()
+            mock_create_client.return_value = mock_client
+
+            mock_plugin_api_client = mock.MagicMock()
+            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
+            mock_plugin_api_client.get_download_info.return_value = mock_download_info
+            mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.download_and_install.side_effect = (
+                SignatureVerificationError(
+                    SignatureStatus.INVALID, "no trusted identity matched"
+                )
+            )
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config.get_signature_mode.return_value = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(cli, ["plugin", "install", "tokenscanner"])
+
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "Signature verification failed" in result.output
+        assert "--allow-unsigned" in result.output
+
+    def test_local_wheel_signature_error(self, cli_fs_runner, tmp_path: Path) -> None:
+        """
+        GIVEN a local wheel with invalid signature
+        WHEN installing from local wheel
+        THEN signature error is shown with --allow-unsigned hint
+        """
+        wheel_path = tmp_path / "plugin.whl"
+        wheel_path.touch()
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.detect_source_type",
+                return_value=PluginSourceType.LOCAL_FILE,
+            ),
+        ):
+            mock_downloader = mock.MagicMock()
+            mock_downloader.install_from_wheel.side_effect = SignatureVerificationError(
+                SignatureStatus.MISSING, "No bundle found"
+            )
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config.get_signature_mode.return_value = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(cli, ["plugin", "install", str(wheel_path)])
+
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "Signature verification failed" in result.output
+        assert "--allow-unsigned" in result.output
+
+    @pytest.mark.parametrize(
+        "source_type, method, cli_args",
+        [
+            pytest.param(
+                PluginSourceType.URL,
+                "download_from_url",
+                ["plugin", "install", "https://example.com/plugin.whl"],
+                id="url",
+            ),
+            pytest.param(
+                PluginSourceType.GITHUB_RELEASE,
+                "download_from_github_release",
+                [
+                    "plugin",
+                    "install",
+                    "https://github.com/o/r/releases/download/v1/p.whl",
+                ],
+                id="github_release",
+            ),
+            pytest.param(
+                PluginSourceType.GITHUB_ARTIFACT,
+                "download_from_github_artifact",
+                [
+                    "plugin",
+                    "install",
+                    "https://github.com/o/r/actions/runs/1/artifacts/2",
+                ],
+                id="github_artifact",
+            ),
+        ],
+    )
+    def test_signature_error_all_sources(
+        self, cli_fs_runner, source_type, method, cli_args
+    ) -> None:
+        """Test that SignatureVerificationError is handled for all source types."""
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.detect_source_type",
+                return_value=source_type,
+            ),
+        ):
+            mock_downloader = mock.MagicMock()
+            getattr(mock_downloader, method).side_effect = SignatureVerificationError(
+                SignatureStatus.INVALID, "bad signature"
+            )
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config.get_signature_mode.return_value = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(cli, cli_args)
+
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "Signature verification failed" in result.output
+        assert "--allow-unsigned" in result.output
+
+    def test_allow_unsigned_flag(self, cli_fs_runner, tmp_path: Path) -> None:
+        """
+        GIVEN --allow-unsigned flag
+        WHEN installing a plugin
+        THEN signature mode is set to WARN (not STRICT)
+        """
+        wheel_path = tmp_path / "plugin.whl"
+        wheel_path.touch()
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.detect_source_type",
+                return_value=PluginSourceType.LOCAL_FILE,
+            ),
+        ):
+            mock_downloader = mock.MagicMock()
+            mock_downloader.install_from_wheel.return_value = (
+                "plugin",
+                "1.0.0",
+                wheel_path,
+            )
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config.get_signature_mode.return_value = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "install", str(wheel_path), "--allow-unsigned"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        call_kwargs = mock_downloader.install_from_wheel.call_args[1]
+        from ggshield.core.plugin.signature import SignatureVerificationMode
+
+        assert call_kwargs["signature_mode"] == SignatureVerificationMode.WARN

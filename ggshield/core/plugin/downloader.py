@@ -33,17 +33,6 @@ from ggshield.core.plugin.wheel_utils import WheelError, extract_wheel_metadata
 logger = logging.getLogger(__name__)
 
 
-def parse_wheel_filename(filename: str) -> Optional[Tuple[str, str]]:
-    """Parse a wheel filename into (name, version).
-
-    Returns None if the filename doesn't match the wheel naming convention.
-    """
-    match = re.match(r"^([A-Za-z0-9_.-]+?)-(\d+[^-]*)-", filename)
-    if match:
-        return match.group(1), match.group(2)
-    return None
-
-
 def get_signature_label(manifest: Dict[str, Any]) -> Optional[str]:
     """Get a human-readable signature status label from a manifest.
 

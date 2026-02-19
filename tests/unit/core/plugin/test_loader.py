@@ -14,7 +14,11 @@ from ggshield.core.plugin.loader import (
     parse_entry_point_from_content,
 )
 from ggshield.core.plugin.registry import PluginRegistry
-from ggshield.core.plugin.signature import SignatureVerificationMode
+from ggshield.core.plugin.signature import (
+    SignatureStatus,
+    SignatureVerificationError,
+    SignatureVerificationMode,
+)
 
 
 class MockPlugin(GGShieldPlugin):
@@ -588,6 +592,66 @@ myplugin = other:Plugin
         extract_dir = tmp_path / ".test_plugin-1.0.0_extracted"
         assert extract_dir.exists()
         assert (extract_dir / "test_plugin" / "__init__.py").exists()
+
+    def test_load_from_wheel_rejects_on_strict_signature_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that _load_from_wheel returns None when signature fails in STRICT mode."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.STRICT)
+
+        wheel_path = tmp_path / "test-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr(
+                "test-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test:Plugin\n",
+            )
+
+        with patch(
+            "ggshield.core.plugin.loader.verify_wheel_signature",
+            side_effect=SignatureVerificationError(
+                SignatureStatus.MISSING, "No bundle found"
+            ),
+        ):
+            result = loader._load_from_wheel(wheel_path)
+
+        assert result is None
+
+    def test_load_from_wheel_warns_on_missing_signature(self, tmp_path: Path) -> None:
+        """Test that _load_from_wheel proceeds with warning in WARN mode."""
+        import zipfile
+
+        from ggshield.core.plugin.signature import SignatureInfo
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.WARN)
+
+        wheel_path = tmp_path / "test_plugin-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("test_plugin/__init__.py", "class TestPlugin: pass")
+            zf.writestr(
+                "test_plugin-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
+            )
+
+        with patch(
+            "ggshield.core.plugin.loader.verify_wheel_signature",
+            return_value=SignatureInfo(
+                status=SignatureStatus.MISSING, message="No bundle found"
+            ),
+        ):
+            with patch(
+                "ggshield.core.plugin.loader.importlib.import_module"
+            ) as mock_import:
+                mock_module = MagicMock()
+                mock_module.TestPlugin = MockPlugin
+                mock_import.return_value = mock_module
+
+                result = loader._load_from_wheel(wheel_path)
+
+        assert result is not None
 
     def test_load_from_wheel_handles_exception(self, tmp_path: Path) -> None:
         """Test that _load_from_wheel returns None on exception."""

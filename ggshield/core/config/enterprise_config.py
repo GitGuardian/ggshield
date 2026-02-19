@@ -2,16 +2,22 @@
 Enterprise configuration - plugin settings.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional
+
+from ggshield.core.config.utils import load_yaml_dict, save_yaml_dict
+from ggshield.core.dirs import get_config_dir
 
 
 if TYPE_CHECKING:
     from ggshield.core.plugin.signature import SignatureVerificationMode
 
-from ggshield.core.config.utils import load_yaml_dict, save_yaml_dict
-from ggshield.core.dirs import get_config_dir
+
+_PLUGIN_SIGNATURE_MODE_KEY = "plugin_signature_mode"
+_DEFAULT_SIGNATURE_MODE = "strict"
 
 
 def get_enterprise_config_filepath() -> Path:
@@ -33,10 +39,10 @@ class EnterpriseConfig:
     """Enterprise configuration stored in ~/.config/ggshield/enterprise_config.yaml"""
 
     plugins: Dict[str, PluginConfig] = field(default_factory=dict)
-    plugin_signature_mode: str = "strict"
+    plugin_signature_mode: str = _DEFAULT_SIGNATURE_MODE
 
     @classmethod
-    def load(cls) -> "EnterpriseConfig":
+    def load(cls) -> EnterpriseConfig:
         """Load enterprise config from file."""
         config_path = get_enterprise_config_filepath()
         data = load_yaml_dict(config_path)
@@ -59,7 +65,9 @@ class EnterpriseConfig:
             else:
                 plugins[name] = PluginConfig(enabled=True)
 
-        plugin_signature_mode = data.get("plugin_signature_mode", "strict")
+        plugin_signature_mode = data.get(
+            _PLUGIN_SIGNATURE_MODE_KEY, _DEFAULT_SIGNATURE_MODE
+        )
 
         return cls(plugins=plugins, plugin_signature_mode=plugin_signature_mode)
 
@@ -79,7 +87,7 @@ class EnterpriseConfig:
             }
         }
 
-        data["plugin_signature_mode"] = self.plugin_signature_mode
+        data[_PLUGIN_SIGNATURE_MODE_KEY] = self.plugin_signature_mode
 
         # Remove None values for cleaner YAML
         for plugin_data in data["plugins"].values():
@@ -88,8 +96,10 @@ class EnterpriseConfig:
 
         save_yaml_dict(data, config_path)
 
-    def get_signature_mode(self) -> "SignatureVerificationMode":
+    def get_signature_mode(self) -> SignatureVerificationMode:
         """Get the signature verification mode."""
+        # Deferred import to avoid circular dependency:
+        # enterprise_config -> plugin.__init__ -> loader -> enterprise_config
         from ggshield.core.plugin.signature import SignatureVerificationMode
 
         try:
