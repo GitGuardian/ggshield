@@ -3,7 +3,7 @@ import http.server
 import shutil
 import socketserver
 import time
-from multiprocessing import Process
+from multiprocessing import Event, Process, Value
 from pathlib import Path
 from typing import Generator
 from urllib.parse import urlparse
@@ -96,38 +96,45 @@ class ReuseAddressServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 
-def _start_slow_gitguardian_api(host: str, port: int):
-    with ReuseAddressServer((host, port), SlowGGAPIHandler) as httpd:
+def _start_gitguardian_api(
+    handler_class: type[AbstractGGAPIHandler],
+    host: str,
+    port_value: Value,
+    ready_event: Event,
+) -> None:
+    with ReuseAddressServer((host, 0), handler_class) as httpd:
+        port_value.value = httpd.server_address[1]
+        ready_event.set()
         httpd.serve_forever()
 
 
-def _start_no_quota_gitguardian_api(host: str, port: int):
-    with ReuseAddressServer((host, port), NoQuotaGGAPIHandler) as httpd:
-        httpd.serve_forever()
+def _gitguardian_api(
+    handler_class: type[AbstractGGAPIHandler], name: str
+) -> Generator[str, None, None]:
+    host = "localhost"
+    port_value = Value("i", 0)
+    ready_event = Event()
+    server_process = Process(
+        target=_start_gitguardian_api,
+        args=(handler_class, host, port_value, ready_event),
+    )
+    server_process.start()
+    try:
+        assert ready_event.wait(timeout=5), f"{name} server did not start"
+        yield f"http://{host}:{port_value.value}"
+    finally:
+        server_process.kill()
+        server_process.join()
 
 
 @pytest.fixture
 def slow_gitguardian_api() -> Generator[str, None, None]:
-    host, port = "localhost", 8123
-    server_process = Process(target=_start_slow_gitguardian_api, args=(host, port))
-    server_process.start()
-    try:
-        yield f"http://{host}:{port}"
-    finally:
-        server_process.kill()
-        server_process.join()
+    yield from _gitguardian_api(SlowGGAPIHandler, "slow_gitguardian_api")
 
 
 @pytest.fixture
 def no_quota_gitguardian_api() -> Generator[str, None, None]:
-    host, port = "localhost", 8124
-    server_process = Process(target=_start_no_quota_gitguardian_api, args=(host, port))
-    server_process.start()
-    try:
-        yield f"http://{host}:{port}"
-    finally:
-        server_process.kill()
-        server_process.join()
+    yield from _gitguardian_api(NoQuotaGGAPIHandler, "no_quota_gitguardian_api")
 
 
 def repo_with_hook_content(tmp_path: Path, hook_content: str) -> Repository:
