@@ -1,0 +1,49 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="ggshield"
+    Manufacturer="GitGuardian"
+    Version="$(var.Version)"
+    UpgradeCode="b0e3a5b8-6a44-4c2f-8c72-5f3e9a1d7b4e"
+    Scope="perMachine"
+    Compressed="yes"
+  >
+    <MajorUpgrade DowngradeErrorMessage="A newer version of ggshield is already installed." />
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="GitGuardianDir" Name="GitGuardian">
+        <Directory Id="INSTALLFOLDER" Name="ggshield">
+          <Component
+            Id="MainExecutable"
+            Guid="a1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e"
+          >
+            <File Source="!(bindpath.SourceDir)\ggshield.exe" />
+          </Component>
+
+          <Component Id="PathEntry" Guid="d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80">
+            <Environment
+              Id="PATH"
+              Name="PATH"
+              Value="[INSTALLFOLDER]"
+              Permanent="no"
+              Part="last"
+              Action="set"
+              System="yes"
+            />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="InternalFiles" Directory="INSTALLFOLDER">
+      <Files Include="!(bindpath.SourceDir)\_internal\**" />
+    </ComponentGroup>
+
+    <Feature Id="Complete" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentGroupRef Id="InternalFiles" />
+      <ComponentRef Id="PathEntry" />
+    </Feature>
+  </Package>
+</Wix>
