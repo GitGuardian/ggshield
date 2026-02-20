@@ -13,7 +13,7 @@ def _get_max_workers() -> int:
     return getenv_int("GG_MAX_WORKERS", 32)
 
 
-MAX_WORKERS = min(CPU_COUNT, _get_max_workers())
+MAX_WORKERS = max(1, min(CPU_COUNT, _get_max_workers()))
 
 DEFAULT_CONFIG_FILENAME = ".gitguardian.yaml"
 USER_CONFIG_FILENAMES = [".gitguardian", ".gitguardian.yml", DEFAULT_CONFIG_FILENAME]
