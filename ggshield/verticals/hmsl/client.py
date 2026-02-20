@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -11,6 +12,9 @@ from ggshield import __version__
 from ggshield.utils.itertools import batched
 
 from .crypto import decrypt, make_hint
+
+
+logger = logging.getLogger(__name__)
 
 
 PREFIX_LENGTH = 5
@@ -176,9 +180,15 @@ class HMSLClient:
         )
         response.raise_for_status()
         now = datetime.now().replace(microsecond=0)
-        self._quota = Quota(
-            remaining=int(response.headers["RateLimit-Remaining"]),
-            limit=int(response.headers["RateLimit-Limit"]),
-            reset=now + timedelta(seconds=1 + int(response.headers["RateLimit-Reset"])),
-        )
+        try:
+            self._quota = Quota(
+                remaining=int(response.headers.get("RateLimit-Remaining", 0)),
+                limit=int(response.headers.get("RateLimit-Limit", 0)),
+                reset=now
+                + timedelta(
+                    seconds=1 + int(response.headers.get("RateLimit-Reset", 0))
+                ),
+            )
+        except (ValueError, TypeError):
+            logger.warning("Could not parse RateLimit headers from HMSL response")
         return response.json()
