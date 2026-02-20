@@ -5,6 +5,7 @@ from random import randrange
 import charset_normalizer
 import pytest
 
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.scan import DecodeError, File
 from ggshield.core.scan.file import create_files_from_paths
 from tests.conftest import is_windows
@@ -46,6 +47,17 @@ def test_file_decode_content(tmp_path, encoding: str, bom: bytes):
     path.write_bytes(raw_content)
     file = File(path)
     assert file.content == UNICODE_TEST_CONTENT
+
+
+def test_file_read_content_io_error_raises_unexpected_error(tmp_path):
+    """
+    GIVEN a File instance whose path does not exist
+    WHEN the content is accessed
+    THEN an UnexpectedError is raised (not a raw OSError)
+    """
+    file = File(tmp_path / "nonexistent.txt")
+    with pytest.raises(UnexpectedError, match="Failed to read"):
+        _ = file.content
 
 
 def test_file_does_not_decode_binary(tmp_path):
