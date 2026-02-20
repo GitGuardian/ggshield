@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Pattern, Set, Tuple, Union
 
+from ggshield.core.errors import UnexpectedError
 from ggshield.utils.files import ListFilesMode, is_path_binary, list_files, url_for_path
 
 from .scannable import Scannable
@@ -40,10 +41,13 @@ class File(Scannable):
 
     def _read_content(self) -> None:
         if self._content is None:
-            with self.path.open("rb") as f:
-                self._content, self._utf8_encoded_size = Scannable._decode_bytes(
-                    f.read()
-                )
+            try:
+                with self.path.open("rb") as f:
+                    self._content, self._utf8_encoded_size = Scannable._decode_bytes(
+                        f.read()
+                    )
+            except OSError as e:
+                raise UnexpectedError(f"Failed to read {self._path}: {e}") from e
 
 
 def create_files_from_paths(
