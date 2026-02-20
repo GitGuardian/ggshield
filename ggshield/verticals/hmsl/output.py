@@ -79,7 +79,11 @@ def show_results(
             if secret.get("url"):
                 template = template.rstrip() + URL_DISPLAY_TEMPLATE
 
-            click.echo(template.format(number=i + 1, **secret))
+            safe_secret = {
+                k: v.replace("{", "{{").replace("}", "}}") if isinstance(v, str) else v
+                for k, v in secret.items()
+            }
+            click.echo(template.format(number=i + 1, **safe_secret))
             if secret["count"] >= TOO_MANY_SECRETS_THRESHOLD:
                 ui.display_warning(
                     "Given the number of occurrences, your secret might be a template value."
