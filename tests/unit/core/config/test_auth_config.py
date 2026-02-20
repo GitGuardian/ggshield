@@ -55,7 +55,7 @@ class TestAuthConfig:
         write_yaml(get_auth_config_filepath(), raw_config)
 
         with pytest.raises(
-            AssertionError,
+            ValueError,
             match="Each GitGuardian instance should have exactly one account",
         ):
             Config()
