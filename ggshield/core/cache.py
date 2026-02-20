@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -60,7 +61,10 @@ class Cache:
             # if there are no found secrets, don't modify the cache file
             return
         try:
-            f = self.cache_path.open("w")
+            fd = os.open(
+                str(self.cache_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+            )
+            f = os.fdopen(fd, "w")
         except OSError:
             # Hotfix: for the time being we skip cache handling if permission denied
             return
