@@ -19,6 +19,10 @@ CHECK_AT_KEY = "check-at"
 # Use a short timeout to prevent blocking
 CHECK_TIMEOUT = 5
 
+GGSHIELD_GITHUB_RELEASES_URL = (
+    "https://api.github.com/repos/GitGuardian/ggshield/releases/latest"
+)
+
 
 def _split_version(version: str) -> Tuple[int, ...]:
     return tuple([int(x) for x in version.split(".")])
@@ -67,7 +71,7 @@ def check_for_updates() -> Optional[str]:
 
     try:
         resp = requests.get(
-            "https://api.github.com/repos/GitGuardian/GGShield/releases/latest",
+            GGSHIELD_GITHUB_RELEASES_URL,
             headers={
                 "Accept": "application/vnd.github+json",
                 "User-Agent": f"GGShield {__version__}",
