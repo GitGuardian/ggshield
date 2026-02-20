@@ -100,7 +100,7 @@ def create_session(allow_self_signed: bool = False) -> Session:
             "install your certificate in your system's trust store. "
             "See: https://docs.gitguardian.com/ggshield-docs/configuration#support-for-self-signed-certificates"
         )
-        urllib3.disable_warnings()
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         session.verify = False
     # Mount HTTPAdapter with larger pool sizes for better concurrency
     adapter = HTTPAdapter(
