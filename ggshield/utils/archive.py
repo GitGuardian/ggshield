@@ -1,3 +1,4 @@
+import os
 import shutil
 import stat
 import tarfile
@@ -83,9 +84,11 @@ def _is_bad_path(path: Path) -> bool:
 
     root = _archive_root()
 
+    # Use normpath for purely lexical resolution to avoid filesystem access
+    # (resolve() follows symlinks on the real filesystem which can be bypassed)
     # Code can be simplified to use Path.is_relative_to() when we move to Python 3.9
     try:
-        root.joinpath(path).resolve().relative_to(root)
+        Path(os.path.normpath(root.joinpath(path))).relative_to(root)
         return False
     except ValueError:
         return True
