@@ -26,3 +26,9 @@ class VaultForbiddenItemError(Exception):
     """Raised when a 403 forbidden error was returned for an item."""
 
     pass
+
+
+class VaultAPIError(Exception):
+    """Raised when a network or API error occurs while contacting Vault."""
+
+    pass

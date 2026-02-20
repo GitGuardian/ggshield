@@ -33,8 +33,10 @@ class DefaultCommandGroup(click.Group):
         try:
             # test if the command parses
             return super().resolve_command(ctx, args)
-        except click.UsageError:
-            # command did not parse, assume it is the default command
-            if self.default_command is not None:
+        except click.UsageError as e:
+            # Only redirect to default command when the error is an unknown command.
+            # Other UsageErrors (missing options, bad arguments, etc.) should propagate.
+            if self.default_command is not None and "No such command" in str(e):
                 args.insert(0, self.default_command)
-            return super().resolve_command(ctx, args)
+                return super().resolve_command(ctx, args)
+            raise

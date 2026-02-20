@@ -80,9 +80,10 @@ def prepare_auth_config_dict_for_parse(data: Dict[str, Any]) -> Dict[str, Any]:
 
     for instance in instances:
         accounts = instance.pop("accounts")
-        assert (
-            len(accounts) == 1
-        ), "Each GitGuardian instance should have exactly one account"
+        if len(accounts) != 1:
+            raise ValueError(
+                f"Each GitGuardian instance should have exactly one account, got {len(accounts)}"
+            )
         instance["account"] = accounts[0]
 
     return data

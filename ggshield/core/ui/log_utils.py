@@ -35,6 +35,11 @@ def set_log_handler(filename: Optional[str] = None) -> None:
     # Re-enable logging, reverting any call to disable_logs()
     logging.disable(logging.NOTSET)
 
+    # Close and remove the previous handler to avoid resource leaks
+    if _log_handler is not None:
+        logging.getLogger().removeHandler(_log_handler)
+        _log_handler.close()
+
     if filename and filename != "-":
         _log_handler = logging.FileHandler(filename)
         _log_handler.setFormatter(logging.Formatter(FILE_LOG_FORMAT))

@@ -37,6 +37,8 @@ class IDCache:
         text = json.dumps(list(self._ids))
         try:
             self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-            self.cache_path.write_text(text)
+            tmp = self.cache_path.with_suffix(".tmp")
+            tmp.write_text(text)
+            tmp.replace(self.cache_path)
         except Exception as exc:
             logger.warning("Failed to save cache to %s: %s", self.cache_path, exc)

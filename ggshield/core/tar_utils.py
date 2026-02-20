@@ -44,7 +44,8 @@ def tar_from_ref_and_filepaths(
             raw_file_content = read_git_file(ref, path, wd)
             data = BytesIO(raw_file_content.encode())
 
-            tarinfo = tarfile.TarInfo(str(path))
+            safe_name = Path(path).as_posix().lstrip("/")
+            tarinfo = tarfile.TarInfo(safe_name)
             tarinfo.size = len(data.getbuffer())
             total_tar_size += tarinfo.size
 
