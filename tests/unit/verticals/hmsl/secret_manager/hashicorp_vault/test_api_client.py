@@ -1,11 +1,13 @@
 from unittest.mock import patch
 
 import pytest
+import requests
 
 from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.api_client import (
     VaultAPIClient,
 )
 from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.exceptions import (
+    VaultAPIError,
     VaultForbiddenItemError,
     VaultNotFoundItemError,
     VaultPathIsNotADirectoryError,
@@ -489,3 +491,18 @@ def test_get_secrets_on_directory(recursive):
                 ("PASSWORD_prod", "my_password"),
                 ("PASSWORD_sandbox", "my_password"),
             ]
+
+
+def test_make_request_network_error(vault_api_client):
+    """
+    GIVEN a Vault API client
+    WHEN a network error occurs during _make_request
+    THEN a VaultAPIError is raised with a descriptive message
+    """
+    with patch.object(
+        vault_api_client.session,
+        "request",
+        side_effect=requests.exceptions.ConnectionError("network down"),
+    ):
+        with pytest.raises(VaultAPIError, match="Network error contacting Vault"):
+            vault_api_client._make_request("sys/mounts")

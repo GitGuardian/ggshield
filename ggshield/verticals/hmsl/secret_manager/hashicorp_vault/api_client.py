@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import requests
 
 from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.exceptions import (
+    VaultAPIError,
     VaultForbiddenItemError,
     VaultInvalidUrlError,
     VaultNotFoundItemError,
@@ -35,15 +36,22 @@ class VaultAPIClient:
                 f"cannot parse the Vault URL '{vault_url}'. Are you sure it is valid?"
             )
 
+    _DEFAULT_TIMEOUT = 30
+
     def _make_request(
         self, endpoint: str, method: str = "GET", api_version: str = "v1"
     ) -> Dict[str, Any]:
-        """ "
+        """
         Make request to the API.
         """
-        api_res = self.session.request(
-            method, f"{self.vault_url}/{api_version}/{endpoint}"
-        )
+        try:
+            api_res = self.session.request(
+                method,
+                f"{self.vault_url}/{api_version}/{endpoint}",
+                timeout=self._DEFAULT_TIMEOUT,
+            )
+        except requests.exceptions.RequestException as e:
+            raise VaultAPIError(f"Network error contacting Vault: {e}") from e
         api_res.raise_for_status()
 
         return api_res.json()
