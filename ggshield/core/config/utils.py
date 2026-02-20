@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, Union, overload
 
@@ -64,17 +65,18 @@ def save_yaml_dict(
 ) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("w") as f:
-        try:
-            if restricted:
-                # Restrict file permissions: read and write for owner only (600)
-                p.chmod(0o600)
-
-            stream = yaml.dump(data, indent=2, default_flow_style=False)
-            f.write(stream)
-
-        except Exception as e:
-            raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
+    try:
+        stream = yaml.dump(data, indent=2, default_flow_style=False)
+        if restricted:
+            # Create file with owner-only permissions (0o600) atomically
+            fd = os.open(str(p), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(stream)
+        else:
+            with p.open("w") as f:
+                f.write(stream)
+    except Exception as e:
+        raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
 
 
 def get_auth_config_filepath() -> Path:
