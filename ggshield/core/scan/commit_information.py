@@ -44,7 +44,8 @@ class CommitInformation:
         """
         header = PatchHeader.from_string(header_str)
         match = _INFO_HEADER_REGEX.search(header.info)
-        assert match is not None, f"Failed to extract commit info from `{header.info}`"
+        if match is None:
+            raise ValueError(f"Failed to extract commit info from `{header.info}`")
 
         if header.files:
             # Usual commit, with files in it
