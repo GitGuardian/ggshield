@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple
 
 
@@ -30,5 +30,5 @@ class VaultSecrets:
     (permission denied, errors etc.).
     """
 
-    secrets: List[Tuple[str, str]]
+    secrets: List[Tuple[str, str]] = field(repr=False)
     not_fetched_paths: List[str]
