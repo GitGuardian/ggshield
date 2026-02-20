@@ -72,7 +72,9 @@ class SecretConfig(FilteredConfig):
                     self.prereceive_remediation_message
                 ),
                 "all_secrets": self.all_secrets,
-                "source_uuid": self.source_uuid,
+                "source_uuid": (
+                    str(self.source_uuid) if self.source_uuid is not None else None
+                ),
             }
         )
 
