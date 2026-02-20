@@ -1,10 +1,16 @@
+import json
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import UUID
 
 import pytest
 
 from ggshield.core.config import Config
-from ggshield.core.config.user_config import CURRENT_CONFIG_VERSION, UserConfig
+from ggshield.core.config.user_config import (
+    CURRENT_CONFIG_VERSION,
+    SecretConfig,
+    UserConfig,
+)
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.types import IgnoredMatch
 from tests.unit.conftest import write_text, write_yaml
@@ -313,6 +319,19 @@ class TestUserConfig:
         assert "allow_self_signed" in captured.err
         assert "deprecated" in captured.err
         assert "insecure" in captured.err
+
+    def test_dump_for_monitoring_serializes_uuid_as_string(self):
+        """
+        GIVEN a SecretConfig with a UUID source_uuid
+        WHEN dump_for_monitoring() is called
+        THEN source_uuid is serialized as a plain string, not a UUID object
+        """
+        uid = UUID("12345678-1234-5678-1234-567812345678")
+        config = SecretConfig()
+        config.source_uuid = uid
+        result = json.loads(config.dump_for_monitoring())
+        assert isinstance(result["source_uuid"], str)
+        assert result["source_uuid"] == str(uid)
 
     def test_bad_local_config(self, local_config_path, global_config_path):
         """
