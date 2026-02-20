@@ -7,6 +7,7 @@ from typing import Iterable, Optional
 from pygitguardian import ContentTooLarge
 from pygitguardian.client import MAX_TAR_CONTENT_SIZE
 
+from ggshield.utils.archive import _is_bad_path
 from ggshield.utils.git_shell import check_git_ref, read_git_file
 
 
@@ -44,7 +45,11 @@ def tar_from_ref_and_filepaths(
             raw_file_content = read_git_file(ref, path, wd)
             data = BytesIO(raw_file_content.encode())
 
-            tarinfo = tarfile.TarInfo(str(path))
+            safe_path = Path(path)
+            if _is_bad_path(safe_path):
+                raise ValueError(f"Unsafe path detected in archive: {path}")
+            safe_name = safe_path.as_posix()
+            tarinfo = tarfile.TarInfo(safe_name)
             tarinfo.size = len(data.getbuffer())
             total_tar_size += tarinfo.size
 
