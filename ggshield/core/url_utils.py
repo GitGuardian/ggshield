@@ -95,10 +95,13 @@ def urljoin(url: str, *args: str) -> str:
     ('http://somesite.com/path1/', 'path2') -> http://somesite.com/path1/path2
     ('http://somesite.com/path1', '/path2') -> http://somesite.com/path1/path2
     """
-    if url[-1] == "/":
-        url = url[:-1]
+    if not url:
+        raise ValueError("Base URL cannot be empty")
+    url = url.rstrip("/")
 
     for url_part in args:
+        if not url_part:
+            continue
         if url_part[0] != "/":
             url_part = "/" + url_part
         url += url_part
