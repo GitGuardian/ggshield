@@ -1,7 +1,7 @@
 import pytest
 from click import UsageError
 
-from ggshield.core.url_utils import api_to_dashboard_url, dashboard_to_api_url
+from ggshield.core.url_utils import api_to_dashboard_url, dashboard_to_api_url, urljoin
 
 
 @pytest.mark.parametrize(
@@ -78,3 +78,22 @@ def test_unexpected_path_api_url(api_url):
 def test_unexpected_path_dashboard_url(dashboard_url):
     with pytest.raises(UsageError, match="got an unexpected path"):
         api_to_dashboard_url(dashboard_url)
+
+
+def test_urljoin_empty_base_raises_value_error():
+    """
+    GIVEN an empty base URL
+    WHEN urljoin() is called
+    THEN a ValueError is raised (not an IndexError)
+    """
+    with pytest.raises(ValueError, match="Base URL cannot be empty"):
+        urljoin("", "path")
+
+
+def test_urljoin_empty_segment_is_skipped():
+    """
+    GIVEN a urljoin call with an empty path segment
+    WHEN urljoin() is called
+    THEN the empty segment is skipped (not an IndexError)
+    """
+    assert urljoin("http://example.com", "", "path") == "http://example.com/path"
