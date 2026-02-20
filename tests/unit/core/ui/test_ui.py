@@ -6,6 +6,7 @@ import pytest
 
 from ggshield.core import ui
 from ggshield.core.ui import Level
+from ggshield.core.ui.ggshield_ui import GGShieldUI
 from ggshield.core.ui.rich.rich_ggshield_ui import RichGGShieldUI
 
 
@@ -55,3 +56,18 @@ def test_rich_ggshield_ui_log_escapes_markup():
 
     output = mock_print.call_args[0][0]
     assert "\\[bold]injection" in output
+
+
+def test_ggshield_ui_log_is_abstract():
+    """
+    GIVEN a subclass of GGShieldUI that implements _echo but not log
+    WHEN trying to instantiate it
+    THEN a TypeError is raised
+    """
+
+    class NoLogUI(GGShieldUI):
+        def _echo(self, level: Level, message: str) -> None:
+            pass
+
+    with pytest.raises(TypeError):
+        NoLogUI()
