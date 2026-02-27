@@ -226,3 +226,44 @@ def test_get_previous_commit_from_ci_env_all_commits_forced_push(
         # Simulate CI env
         setup_ci_env(monkeypatch, "new-branch", "HEAD", before_sha)
         assert get_previous_commit_from_ci_env() is None
+
+
+def test_azure_regular_push_not_scanned_against_itself(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """
+    GIVEN   a repository with two commits on main, both pushed to origin,
+            and an Azure CI env where BUILD_SOURCEVERSION = current HEAD
+    WHEN    computing the previous commit SHA
+    THEN    it returns HEAD~1 (the parent commit), not HEAD itself
+            (i.e., BUILD_SOURCEVERSION is NOT treated as the previous commit)
+
+    Regression test for: BUILD_SOURCEVERSION incorrectly used as push-before-SHA.
+    """
+    remote_repository = Repository.create(tmp_path / "remote", bare=True)
+    repository = Repository.clone(remote_repository.path, tmp_path / "local")
+
+    # First commit — this is what we expect as "previous commit"
+    previous_sha = repository.create_commit()
+    repository.push()
+
+    # Second commit — this is the current HEAD (what Azure sets BUILD_SOURCEVERSION to)
+    head_sha = repository.create_commit()
+    repository.push()
+
+    with cd(repository.path), mock.patch.dict(os.environ, clear=True):
+        # Azure sets BUILD_SOURCEVERSION = current HEAD, NOT the previous commit
+        monkeypatch.setenv("BUILD_BUILDID", "1")
+        monkeypatch.setenv("BUILD_SOURCEVERSION", head_sha)
+        monkeypatch.setenv("BUILD_SOURCEBRANCHNAME", "main")
+
+        found_sha = get_previous_commit_from_ci_env()
+
+    assert found_sha is not None, "Expected a previous commit SHA"
+    found_sha_evaluated = git(["rev-parse", found_sha], cwd=repository.path)
+    # Must return HEAD~1 (previous_sha), NOT HEAD (head_sha = BUILD_SOURCEVERSION)
+    assert found_sha_evaluated == previous_sha, (
+        f"Expected previous commit {previous_sha!r}, got {found_sha_evaluated!r}. "
+        "BUILD_SOURCEVERSION must not be used as the previous commit."
+    )
