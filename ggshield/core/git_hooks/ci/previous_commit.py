@@ -196,60 +196,53 @@ def jenkins_previous_commit_sha() -> Optional[str]:
 
 
 def azure_previous_commit_sha() -> Optional[str]:
-    push_before_sha = azure_push_previous_commit_sha()
     pull_req_base_sha = azure_pull_request_previous_commit_sha()
 
-    ui.display_verbose(
-        f"PUSH_PREVIOUS_COMMIT: {push_before_sha}\n"
-        f"PR_TARGET_COMMIT: {pull_req_base_sha}\n"
-    )
+    ui.display_verbose(f"PR_TARGET_COMMIT: {pull_req_base_sha}\n")
 
     if pull_req_base_sha is not None:
         return pull_req_base_sha
 
-    if push_before_sha is not None and push_before_sha != EMPTY_SHA:
-        ui.display_verbose(
-            "The number of commits of a push event is not available in Azure pipelines."
-        )
-        ui.display_verbose("Scanning only last commit.")
-        return get_commit_except_forced_push(push_before_sha)
-
-    # New branch push
+    # Azure Pipelines does not provide a "push before SHA" variable.
+    # BUILD_SOURCEVERSION is the current HEAD commit, not the commit before the push.
+    # We detect new branch pushes by checking for commits exclusive to this branch.
     current_branch = os.getenv("BUILD_SOURCEBRANCHNAME")
     if current_branch:
-        return get_new_branch_parent_commit(current_branch)
+        remote_ref = f"refs/remotes/origin/{current_branch}"
+        if not is_valid_git_commit_ref(remote_ref):
+            # Branch does not exist on the remote yet: it is a new branch push.
+            new_commits = get_new_branch_ci_commits(
+                current_branch, Path.cwd(), "origin"
+            )
+            if new_commits:
+                # New branch with commits: return the parent of the oldest new commit.
+                new_branch_before_sha = f"{new_commits[-1]}^1"
+                ui.display_verbose(f"new_branch_before_sha: {new_branch_before_sha}\n")
+                if is_valid_git_commit_ref(new_branch_before_sha):
+                    return new_branch_before_sha
+                else:
+                    # No parent commit exists: this is a new repository.
+                    ui.display_verbose("> This might be a new repository.")
+                    return None
+            else:
+                # No commits exclusive to this branch: newly-created branch with no
+                # extra commits → return HEAD so ggshield scans nothing new.
+                return "HEAD"
 
-    # Can't find previous SHA, return last commit
+    # Regular push to an existing branch, or no branch info available.
+    # Azure doesn't provide a before-SHA, so we can only scan the last commit.
     head_commit = os.getenv("BUILD_SOURCEVERSION")
+    ui.display_verbose(
+        "The number of commits of a push event is not available in Azure pipelines."
+    )
+    ui.display_verbose("Scanning only last commit.")
     last_commits = get_list_commit_SHA(f"{head_commit}~1", max_count=1)
 
     if len(last_commits) == 0:
         ui.display_verbose("Unable to find commit HEAD~1.")
         return None
 
-    ui.display_verbose(
-        "The number of commits of a push event is not available in Azure pipelines."
-    )
-    ui.display_verbose("Scanning only last commit.")
-
-    if last_commits[0] is not None:
-        return last_commits[0]
-
-    raise UnexpectedError(
-        "Unable to get previous commit. Please submit an issue with the following info:\n"
-        "  Repository URL: <Fill if public>\n"
-        f"azure_push_before_sha: {push_before_sha}\n"
-        f"azure_pull_req_base_sha: {pull_req_base_sha}\n"
-    )
-
-
-def azure_push_previous_commit_sha() -> Optional[str]:
-    push_before_sha = os.getenv("BUILD_SOURCEVERSION")
-
-    if not push_before_sha:
-        return None
-
-    return push_before_sha
+    return last_commits[0]
 
 
 def azure_pull_request_previous_commit_sha() -> Optional[str]:
