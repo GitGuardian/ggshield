@@ -208,6 +208,9 @@ def azure_previous_commit_sha() -> Optional[str]:
     # We detect new branch pushes by checking for commits exclusive to this branch.
     current_branch = os.getenv("BUILD_SOURCEBRANCHNAME")
     if current_branch:
+        # Check the remote ref first: get_new_branch_ci_commits is designed for new
+        # branches only. If the branch already exists on the remote, treat as a regular
+        # push and fall through to the BUILD_SOURCEVERSION~1 fallback.
         remote_ref = f"refs/remotes/origin/{current_branch}"
         if not is_valid_git_commit_ref(remote_ref):
             # Branch does not exist on the remote yet: it is a new branch push.

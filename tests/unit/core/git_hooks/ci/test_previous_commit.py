@@ -49,10 +49,10 @@ def _setup_jenkins_ci_env_new_branch(
 
 
 def _setup_azure_ci_env_new_branch(
-    monkeypatch: MonkeyPatch, branch_name: str, head_sha: str, before_sha: str = ""
+    monkeypatch: MonkeyPatch, branch_name: str, head_sha: str, _before_sha: str = ""
 ):
     monkeypatch.setenv("BUILD_BUILDID", "1")
-    monkeypatch.setenv("BUILD_SOURCEVERSION", before_sha)
+    monkeypatch.setenv("BUILD_SOURCEVERSION", head_sha)
     monkeypatch.setenv("BUILD_SOURCEBRANCHNAME", branch_name)
 
 
@@ -65,6 +65,18 @@ parametrized_ci_provider = pytest.mark.parametrize(
         _setup_jenkins_ci_env_new_branch,
     ],
     ids=["github", "gitlab", "azure_devops", "jenkins"],
+)
+
+# Azure DevOps does not provide a "push before SHA" variable, so it cannot
+# detect forced pushes. This parametrize set excludes Azure.
+parametrized_ci_provider_with_before_sha = pytest.mark.parametrize(
+    "setup_ci_env",
+    [
+        _setup_github_ci_env_new_branch,
+        _setup_gitlab_ci_env_new_branch,
+        _setup_jenkins_ci_env_new_branch,
+    ],
+    ids=["github", "gitlab", "jenkins"],
 )
 
 
@@ -129,11 +141,11 @@ def test_get_previous_commit_from_ci_env_new_repo(
         assert get_previous_commit_from_ci_env() is None
 
 
-@parametrized_ci_provider
+@parametrized_ci_provider_with_before_sha
 def test_get_previous_commit_from_ci_env_sub_branch_forced_push(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    setup_ci_env: Callable[[MonkeyPatch, str, str], None],
+    setup_ci_env: Callable[[MonkeyPatch, str, str, str], None],
 ) -> None:
     """
     GIVEN   a repository with:
@@ -174,7 +186,7 @@ def test_get_previous_commit_from_ci_env_sub_branch_forced_push(
 def test_get_previous_commit_from_ci_env_default_branch_forced_push(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    setup_ci_env: Callable[[MonkeyPatch, str, str], None],
+    setup_ci_env: Callable[[MonkeyPatch, str, str, str], None],
 ):
     """
     GIVEN   a new, empty repository
@@ -204,7 +216,7 @@ def test_get_previous_commit_from_ci_env_default_branch_forced_push(
 def test_get_previous_commit_from_ci_env_all_commits_forced_push(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
-    setup_ci_env: Callable[[MonkeyPatch, str, str], None],
+    setup_ci_env: Callable[[MonkeyPatch, str, str, str], None],
 ):
     """
     GIVEN   a new, empty repository
