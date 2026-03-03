@@ -46,6 +46,7 @@ ignore_imports =
 	ggshield.cmd.hmsl.** -> ggshield.verticals.hmsl.**
 	ggshield.cmd.honeytoken.** -> ggshield.verticals.honeytoken
 	ggshield.cmd.honeytoken.** -> ggshield.verticals.honeytoken.**
+	ggshield.cmd.install -> ggshield.verticals.secret.ai_hook
 	ggshield.cmd.install.** -> ggshield.verticals.install
 	ggshield.cmd.install.** -> ggshield.verticals.install.**
 	ggshield.cmd.plugin.** -> ggshield.core.plugin

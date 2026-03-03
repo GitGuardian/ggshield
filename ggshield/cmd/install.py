@@ -1,7 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import click
 from click import UsageError
@@ -10,6 +10,7 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core.dirs import get_data_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import check_git_dir, git
+from ggshield.verticals.secret.ai_hook import AI_FLAVORS, install_hooks
 
 
 # This snippet is used by the global hook to call the hook defined in the
@@ -38,7 +39,7 @@ fi
 @click.option(
     "--hook-type",
     "-t",
-    type=click.Choice(["pre-commit", "pre-push"]),
+    type=click.Choice(["pre-commit", "pre-push"] + list(AI_FLAVORS.keys())),
     help="Type of hook to install.",
     default="pre-commit",
 )
@@ -46,14 +47,23 @@ fi
 @click.option("--append", "-a", is_flag=True, help="Append to existing script.")
 @add_common_options()
 def install_cmd(
-    mode: str, hook_type: str, force: bool, append: bool, **kwargs: Any
+    mode: Literal["local", "global"],
+    hook_type: str,
+    force: bool,
+    append: bool,
+    **kwargs: Any,
 ) -> int:
     """
-    Installs ggshield as a pre-commit or pre-push hook.
+    Installs ggshield as a pre-commit, pre-push, or AI coding assistant hook.
 
     The `install` command installs ggshield as a git pre-commit or pre-push hook, either
     for the current repository (locally) or for all repositories (globally).
+    It can also install ggshield as a Cursor IDE or Claude Code agent hook.
     """
+
+    if hook_type in AI_FLAVORS:
+        return install_hooks(name=hook_type, mode=mode, force=force)
+
     return_code = (
         install_global(hook_type=hook_type, force=force, append=append)
         if mode == "global"
