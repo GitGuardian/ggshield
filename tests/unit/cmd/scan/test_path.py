@@ -610,3 +610,89 @@ class TestScanDirectory:
             and arg.get("GGShield-Repository-URL") == "github.com/fallback/repository"
             for arg in scan_mock.call_args[0]
         )
+
+
+class TestPathScanAtFile:
+    """Tests for the @file argument expansion in ggshield secret scan path"""
+
+    @my_vcr.use_cassette("test_scan_file")
+    def test_scan_at_file(self, cli_fs_runner):
+        """
+        GIVEN a file listing paths and a target file
+        WHEN running path scan with @file
+        THEN the listed paths are scanned successfully
+        """
+        write_text(Path("target.txt"), "This is a file with no secrets.")
+        write_text(Path("paths.txt"), "target.txt\n")
+
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "@paths.txt"])
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+        assert not result.exception
+
+    @my_vcr.use_cassette("test_scan_file")
+    def test_scan_at_file_mixed_with_literal(self, cli_fs_runner):
+        """
+        GIVEN a mix of @file arguments and literal paths
+        WHEN running path scan
+        THEN all paths are scanned
+        """
+        write_text(Path("file1"), "This is a file with no secrets.")
+        write_text(Path("file2"), "This is a file with no secrets.")
+        write_text(Path("paths.txt"), "file2\n")
+
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "path", "file1", "@paths.txt", "-y"]
+        )
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+        assert not result.exception
+
+    def test_scan_at_file_not_found(self, cli_fs_runner):
+        """
+        GIVEN a @file reference that does not exist
+        WHEN running path scan
+        THEN an error is reported
+        """
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "path", "@nonexistent.txt"]
+        )
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+        assert "does not exist or is not a file" in result.output
+
+    def test_scan_at_file_contains_nonexistent_path(self, cli_fs_runner):
+        """
+        GIVEN a @file that references a path that does not exist
+        WHEN running path scan
+        THEN an error is reported with the line number
+        """
+        write_text(Path("paths.txt"), "no_such_file.txt\n")
+
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "@paths.txt"])
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+        assert "line 1" in result.output
+        assert "does not exist" in result.output
+
+    @my_vcr.use_cassette("test_scan_file")
+    def test_scan_at_file_blank_lines_ignored(self, cli_fs_runner):
+        """
+        GIVEN a @file that contains blank lines
+        WHEN running path scan
+        THEN blank lines are skipped and valid paths are scanned
+        """
+        write_text(Path("target.txt"), "This is a file with no secrets.")
+        write_text(Path("paths.txt"), "\n  \ntarget.txt\n\n")
+
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "@paths.txt"])
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+        assert not result.exception
+
+    def test_scan_nonexistent_literal_path(self, cli_fs_runner):
+        """
+        GIVEN a literal path that does not exist
+        WHEN running path scan
+        THEN an error is reported
+        """
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "path", "no_such_file.txt"]
+        )
+        assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+        assert "does not exist" in result.output
