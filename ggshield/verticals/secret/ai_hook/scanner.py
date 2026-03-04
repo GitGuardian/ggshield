@@ -10,6 +10,7 @@ from ggshield.core.scan import StringScannable
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.secret import SecretScanner
+from ggshield.verticals.secret.ai_hook.constants import MAX_FILE_READ_SIZE
 from ggshield.verticals.secret.ai_hook.copilot import Copilot
 from ggshield.verticals.secret.secret_scan_collection import Secret
 
@@ -91,8 +92,12 @@ class AIHookScanner:
             elif tool == Tool.READ:
                 identifier = lookup(tool_input, ["file_path", "filePath"], "")
                 # Read the file before the AI tool
-                if Path(identifier).exists():
-                    content = open(identifier, "r").read()
+                file = Path(identifier)
+                if file.is_file() and file.stat().st_size <= MAX_FILE_READ_SIZE:
+                    try:
+                        content = file.read_text()
+                    except (UnicodeDecodeError, OSError):
+                        content = ""
                 else:
                     content = ""
             else:
@@ -103,7 +108,7 @@ class AIHookScanner:
             tool = TOOL_NAME_TO_TOOL.get(tool_name, Tool.OTHER)
             content = data.get("tool_output", "") or data.get("tool_response", {})
             # Claude Code returns a dict for the tool output
-            if isinstance(content, dict):
+            if isinstance(content, (dict, list)):
                 content = json.dumps(content)
 
         else:
@@ -120,7 +125,8 @@ class AIHookScanner:
             flavor = Cursor()
         elif "github.copilot-chat" in data.get("transcript_path", "").lower():
             flavor = Copilot()
-        elif "claude" in data.get("transcript_path", ""):
+        # no .lower() here to reduce the risk of false positives (this is also why this check is last)
+        elif "session_id" in data and "claude" in data.get("transcript_path", ""):
             flavor = Claude()
         else:
             # Fallback that respect base conventions
@@ -178,7 +184,7 @@ class AIHookScanner:
 
         Args:
             secrets: List of detected secrets
-            message: Text to display after the secrets output
+            payload: Text to display after the secrets output
             escape_markdown: If True, escape asterisks to prevent markdown interpretation
 
         Returns:
@@ -227,8 +233,9 @@ class AIHookScanner:
         Send desktop notification when secrets are detected.
 
         Args:
-            secrets: List of detected secrets
-            source: Description of the source (e.g., "shell command", "MCP tool")
+            nbr_secrets: Number of detected secrets
+            tool: Tool used to detect the secrets
+            agent_name: Name of the agent that detected the secrets
         """
         source = "using a tool"
         if tool == Tool.READ:
@@ -242,7 +249,6 @@ class AIHookScanner:
             f" {pluralize('secret', nbr_secrets)} by {source}"
         )
         notification.application_name = "ggshield"
-        notification.icon = "scripts/chocolatey/icon.png"
         notification.send()
 
 

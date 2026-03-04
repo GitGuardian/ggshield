@@ -6,6 +6,9 @@ from typing import Any, Dict, List, Optional
 import click
 
 
+MAX_FILE_READ_SIZE = 1024 * 1024 * 10  # 10MB
+
+
 class EventType(Enum):
     """Event type constants for hook events."""
 
