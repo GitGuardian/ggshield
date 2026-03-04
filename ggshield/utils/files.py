@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from pathlib import Path, PurePath, PurePosixPath
-from typing import List, Pattern, Set, Union
+from typing import List, Pattern, Set, Tuple, Union
 from urllib.parse import quote
 
 from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
@@ -10,6 +10,53 @@ from ggshield.utils.git_shell import (
     git_ls_unstaged,
     is_git_dir,
 )
+
+
+class InvalidPathError(Exception):
+    """Raised when a path argument is invalid (does not exist, etc.)."""
+
+    pass
+
+
+def expand_path_args(raw_paths: Tuple[str, ...]) -> Tuple[Path, ...]:
+    """Expand ``@file`` arguments into real paths.
+
+    Each element of *raw_paths* is either a literal path or a ``@file``
+    reference.  When a ``@file`` reference is encountered the referenced file
+    is read and each non-blank line is treated as a path.  All resulting paths
+    are resolved and validated for existence.
+
+    Raises :class:`InvalidPathError` if any path is invalid.
+    """
+    expanded: List[Path] = []
+    for raw in raw_paths:
+        if raw.startswith("@"):
+            list_file = Path(raw[1:])
+            if not list_file.is_file():
+                raise InvalidPathError(
+                    f"Path list file '{list_file}' does not exist or is not a file."
+                )
+            for line_no, line in enumerate(
+                list_file.read_text().splitlines(), start=1
+            ):
+                line = line.strip()
+                if not line:
+                    continue
+                p = Path(line).resolve()
+                if not p.exists():
+                    raise InvalidPathError(
+                        f"In '{list_file}', line {line_no}: "
+                        f"path '{line}' does not exist."
+                    )
+                expanded.append(p)
+        else:
+            p = Path(raw).resolve()
+            if not p.exists():
+                raise InvalidPathError(f"Path '{raw}' does not exist.")
+            expanded.append(p)
+    if not expanded:
+        raise InvalidPathError("No paths provided.")
+    return tuple(expanded)
 
 
 class ListFilesMode(Enum):

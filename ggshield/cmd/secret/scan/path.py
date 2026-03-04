@@ -16,61 +16,24 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.scanner_ui import create_scanner_ui
-from ggshield.utils.files import ListFilesMode
+from ggshield.utils.files import (
+    InvalidPathError,
+    ListFilesMode,
+    expand_path_args,
+)
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
-def expand_paths_from_files(
+def _expand_paths_callback(
     ctx: click.Context,
     param: click.Parameter,
     value: Tuple[str, ...],
 ) -> Tuple[Path, ...]:
-    """Expand ``@file`` arguments into real paths.
-
-    Each element of *value* is either a literal path or a ``@file`` reference.
-    When a ``@file`` reference is encountered the referenced file is read and
-    each non-blank line is treated as a path.  All resulting paths are resolved
-    and validated for existence.
-    """
-    expanded: List[Path] = []
-    for raw in value:
-        if raw.startswith("@"):
-            list_file = Path(raw[1:])
-            if not list_file.is_file():
-                raise click.BadParameter(
-                    f"Path list file '{list_file}' does not exist or is not a file.",
-                    ctx=ctx,
-                    param=param,
-                )
-            for line_no, line in enumerate(list_file.read_text().splitlines(), start=1):
-                line = line.strip()
-                if not line:
-                    continue
-                p = Path(line).resolve()
-                if not p.exists():
-                    raise click.BadParameter(
-                        f"In '{list_file}', line {line_no}: "
-                        f"path '{line}' does not exist.",
-                        ctx=ctx,
-                        param=param,
-                    )
-                expanded.append(p)
-        else:
-            p = Path(raw).resolve()
-            if not p.exists():
-                raise click.BadParameter(
-                    f"Path '{raw}' does not exist.",
-                    ctx=ctx,
-                    param=param,
-                )
-            expanded.append(p)
-    if not expanded:
-        raise click.BadParameter(
-            "No paths provided.",
-            ctx=ctx,
-            param=param,
-        )
-    return tuple(expanded)
+    """Click callback that delegates to :func:`expand_path_args`."""
+    try:
+        return expand_path_args(value)
+    except InvalidPathError as e:
+        raise click.BadParameter(str(e), ctx=ctx, param=param)
 
 
 @click.command()
@@ -79,7 +42,7 @@ def expand_paths_from_files(
     nargs=-1,
     type=click.STRING,
     required=True,
-    callback=expand_paths_from_files,
+    callback=_expand_paths_callback,
     is_eager=True,
 )
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
