@@ -6,7 +6,7 @@ To update a dependency:
 
 - Update the dependency version in `pyproject.toml`.
 - Make any necessary changes.
-- Run `pdm update <dependency>` to update the lock file.
+- Run `uv lock --upgrade-package <dependency>` to update the lock file.
 - File a PR.
 
 ## Using an unreleased version of py-gitguardian
@@ -38,6 +38,6 @@ For the changes to pass on CI, you need to:
    ]
    ```
 
-2. Run `pdm update pygitguardian`.
+2. Run `uv lock --upgrade-package pygitguardian`.
 
 Remember to do what the `TODO` comment says!

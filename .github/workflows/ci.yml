@@ -18,7 +18,7 @@ on:
       - 'README.md'
 
 env:
-  PDM_VERSION: 2.26.1
+  UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.10'
 
 jobs:
@@ -30,15 +30,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          version: ${{ env.PDM_VERSION }}
+          version: ${{ env.UV_VERSION }}
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
       - name: Install dependencies
         run: |
-          pdm sync
+          uv sync --group tests --group dev
 
       - uses: actions/cache@v4
         with:
@@ -46,7 +46,7 @@ jobs:
           key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install pre-commit hooks
-        run: pdm run pre-commit install --install-hooks
+        run: uv run pre-commit install --install-hooks
 
       - name: Skip ggshield hooks when running from a fork
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
@@ -56,7 +56,7 @@ jobs:
 
       - name: Run pre-commit checks
         run: |
-          pdm run pre-commit run --show-diff-on-failure --all-files
+          uv run pre-commit run --show-diff-on-failure --all-files
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
@@ -86,15 +86,15 @@ jobs:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
 
-      - name: Setup PDM & Python ${{ matrix.python-version }}
-        uses: pdm-project/setup-pdm@v4
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v7
         with:
-          version: ${{ env.PDM_VERSION }}
+          version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          pdm sync --group dev --group tests
+          uv sync --group dev --group tests
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -106,18 +106,18 @@ jobs:
 
       - name: Ensure a clean package installation
         run: |
-          pdm build --no-sdist
+          uv build --wheel
           # The created wheel (.whl) file will be found and analyzed within the `dist/` folder
-          pdm run check-wheel-contents dist/
+          uv run check-wheel-contents dist/
 
       - name: Run unit tests
         run: |
-          pdm run coverage run --source ggshield -m pytest --disable-pytest-warnings --disable-socket tests/unit
+          uv run coverage run --source ggshield -m pytest --disable-pytest-warnings --disable-socket tests/unit
 
       - name: Gather coverage report
         run: |
-          pdm run coverage report --fail-under=80
-          pdm run coverage xml
+          uv run coverage report --fail-under=80
+          uv run coverage xml
 
       - uses: codecov/codecov-action@v4
         with:

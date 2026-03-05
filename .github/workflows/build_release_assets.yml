@@ -18,7 +18,7 @@ on:
         default: false
 
 env:
-  PDM_VERSION: 2.26.1
+  UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.10'
 
 jobs:
@@ -28,15 +28,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          version: ${{ env.PDM_VERSION }}
+          version: ${{ env.UV_VERSION }}
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
       - name: Create packages
         run: |
-          pdm build
+          uv build
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -165,10 +165,9 @@ jobs:
         shell: bash
         run: |
           $PYTHON_CMD -m pip install --upgrade pip
-          # We do not install pdm using setup-pdm because we want to use $PYTHON_CMD for
-          # our interpreter
-          $PYTHON_CMD -m pip install --upgrade pdm==$PDM_VERSION
-          pdm sync --group tests --group standalone
+          # Install uv
+          $PYTHON_CMD -m pip install --upgrade uv
+          uv sync --group tests --group standalone
 
       - name: Prepare macOS secrets
         if: startsWith(matrix.os, 'macos-') && inputs.release_mode
@@ -238,9 +237,9 @@ jobs:
           else
             args="--suffix +${GITHUB_SHA:0:7}"
           fi
-          # Run the script with `bash -c` because `pdm run` does not
+          # Run the script with `bash -c` because `uv run` does not
           # automatically do it on Windows
-          pdm run bash -c "scripts/build-os-packages/build-os-packages $args"
+          uv run bash -c "scripts/build-os-packages/build-os-packages $args"
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -255,7 +254,7 @@ jobs:
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
         if: ${{ !github.event.pull_request.head.repo.fork }}
         run: |
-          pdm run bash -c "scripts/build-os-packages/build-os-packages functests"
+          uv run bash -c "scripts/build-os-packages/build-os-packages functests"
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}

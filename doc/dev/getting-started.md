@@ -2,7 +2,7 @@
 
 ## Setup your development environment
 
-1. Install [pdm](https://pdm-project.org/en/latest/).
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 1. Install the [pre-commit framework](https://pre-commit.com/#install)
 
@@ -11,7 +11,7 @@
 1. Install dev packages and environment
 
    ```sh
-   pdm install --dev
+   uv sync
    ```
 
 1. Install pre-commit hooks
@@ -77,9 +77,9 @@ We're committed to support Python 3.9+ for now.
 
 ### Changelog
 
-We use [scriv](https://github.com/nedbat/scriv) to manage our changelog. It is automatically installed by `pdm install --dev`.
+We use [scriv](https://github.com/nedbat/scriv) to manage our changelog. It is automatically installed by `uv sync`.
 
-All user-visible changes must be documented in a changelog fragment. You can create one with `pdm run scriv create`.
+All user-visible changes must be documented in a changelog fragment. You can create one with `uv run scriv create`.
 
 The CI rejects any pull request without changelog fragments unless it has been assigned the `skip-changelog` label. The `skip-changelog` label should only be used if your pull request only contains non-visible changes such as refactors, or fixes for regressions introduced _after_ the latest release.
 
