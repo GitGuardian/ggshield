@@ -16,11 +16,7 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.scanner_ui import create_scanner_ui
-from ggshield.utils.files import (
-    InvalidPathError,
-    ListFilesMode,
-    expand_path_args,
-)
+from ggshield.utils.files import InvalidPathError, ListFilesMode, expand_path_args
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 

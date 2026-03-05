@@ -36,9 +36,7 @@ def expand_path_args(raw_paths: Tuple[str, ...]) -> Tuple[Path, ...]:
                 raise InvalidPathError(
                     f"Path list file '{list_file}' does not exist or is not a file."
                 )
-            for line_no, line in enumerate(
-                list_file.read_text().splitlines(), start=1
-            ):
+            for line_no, line in enumerate(list_file.read_text().splitlines(), start=1):
                 line = line.strip()
                 if not line:
                     continue
