@@ -210,7 +210,8 @@ def handle_exception(exc: Exception) -> int:
 def handle_api_error(detail: Detail) -> None:
     # Use %s for status_code because it can be None. Logger is OK with an int being
     # passed for a %s placeholder.
-    logger.error("status_code=%s detail=%s", detail.status_code, detail.detail)
+    logger.error("status_code=%s", detail.status_code)
+    logger.debug("detail=%s", detail.detail)
     if detail.status_code == 401:
         raise click.UsageError(detail.detail)
     if detail.status_code is None:

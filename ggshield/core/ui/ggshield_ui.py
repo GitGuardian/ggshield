@@ -85,12 +85,12 @@ class GGShieldUI(ABC):
         if self.level >= Level.ERROR:
             self._echo(Level.ERROR, message)
 
+    @abstractmethod
     def log(self, record: LogRecord) -> None:
         """
         Print a log record produced by the logging package.
         Should not be called directly.
         """
-        ...
 
     @abstractmethod
     def _echo(self, level: Level, message: str) -> None:

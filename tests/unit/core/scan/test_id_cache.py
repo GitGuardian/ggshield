@@ -42,6 +42,18 @@ def test_contains(fs: FakeFilesystem):
     assert "unknown_id" not in cache
 
 
+def test_add_leaves_no_tmp_file(fs: FakeFilesystem):
+    """
+    GIVEN a cache instance
+    WHEN add() is called
+    THEN no temporary .tmp file is left behind
+    """
+    cache_path = Path("/some_dir/cache.json")
+    cache = IDCache(cache_path)
+    cache.add("some_id")
+    assert not cache_path.with_suffix(".tmp").exists()
+
+
 def test_does_not_fail_if_cache_file_cannot_be_written(caplog, fs: FakeFilesystem):
     """
     GIVEN an instance of IDCache created for a path which cannot be created

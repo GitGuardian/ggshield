@@ -38,6 +38,10 @@ class MatchSpan(NamedTuple):
         while match.index_start >= index + len_line:
             index += len_line
             line_index += 1
+            if line_index >= len(lines):
+                raise ValueError(
+                    f"Match index_start {match.index_start} is beyond the end of the provided lines"
+                )
             len_line = len(lines[line_index].content) + 1
 
         line_index_start = line_index
@@ -48,6 +52,10 @@ class MatchSpan(NamedTuple):
         while match.index_end > index + len_line:
             index += len_line
             line_index += 1
+            if line_index >= len(lines):
+                raise ValueError(
+                    f"Match index_end {match.index_end} is beyond the end of the provided lines"
+                )
             len_line = len(lines[line_index].content) + 1
 
         line_index_end = line_index

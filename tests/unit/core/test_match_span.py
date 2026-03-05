@@ -1,9 +1,9 @@
 from typing import List
 
 import pytest
-from pygitguardian.models import ScanResult
+from pygitguardian.models import Match, ScanResult
 
-from ggshield.core.lines import get_lines_from_content
+from ggshield.core.lines import Line, get_lines_from_content
 from ggshield.core.match_span import MatchSpan
 from ggshield.utils.git_shell import Filemode
 from tests.unit.conftest import (
@@ -91,3 +91,27 @@ def test_from_match(
         assert span == expected_span, f"Error on match[{idx}]"
 
     assert len(expected_spans) == len(matches)
+
+
+@pytest.mark.parametrize(
+    "index_start, index_end, expected_msg",
+    [
+        pytest.param(99, 100, "index_start", id="index_start_out_of_bounds"),
+        pytest.param(0, 99, "index_end", id="index_end_out_of_bounds"),
+    ],
+)
+def test_from_match_out_of_bounds_raises_value_error(
+    index_start, index_end, expected_msg
+):
+    """
+    GIVEN a Match whose index is beyond the provided lines
+    WHEN MatchSpan.from_match() is called
+    THEN a ValueError is raised (not an IndexError)
+    """
+    lines = [Line(content="hello", pre_index=None, post_index=1)]
+    match = Match(
+        match="x", match_type="test", index_start=index_start, index_end=index_end
+    )
+
+    with pytest.raises(ValueError, match=expected_msg):
+        MatchSpan.from_match(match, lines)

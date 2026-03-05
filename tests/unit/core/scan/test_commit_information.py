@@ -80,6 +80,16 @@ def test_commit_information_from_patch_header(patch: str, expected: CommitInform
     assert CommitInformation.from_patch_header(patch) == expected
 
 
+def test_from_patch_header_invalid_raises_value_error():
+    """
+    GIVEN a header string that does not match the expected Author/Date format
+    WHEN CommitInformation.from_patch_header() is called
+    THEN a ValueError is raised
+    """
+    with pytest.raises(ValueError, match="Failed to extract commit info"):
+        CommitInformation.from_patch_header("not a valid header\n")
+
+
 def test_from_staged_without_changes(tmp_path):
     """
     GIVEN a repository with no changes

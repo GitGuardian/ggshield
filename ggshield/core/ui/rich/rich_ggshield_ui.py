@@ -114,5 +114,5 @@ class RichGGShieldUI(GGShieldUI):
 
     def log(self, record: logging.LogRecord) -> None:
         level = LEVEL_BY_LOGGING_LEVEL.get(record.levelno, Level.ERROR)
-        msg = f"[magenta]{record.name}:{record.lineno}[/] {record.getMessage()}"
+        msg = f"[magenta]{record.name}:{record.lineno}[/] {rich.markup.escape(record.getMessage())}"
         self._debug_echo(level, msg)
