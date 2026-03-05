@@ -2,7 +2,7 @@
 Plugin management commands (enable/disable/uninstall).
 """
 
-from typing import Any
+from typing import Any, Optional
 
 import click
 
@@ -136,7 +136,7 @@ def uninstall_cmd(
         ep = discovered[plugin_name].entry_point
         if ep is not None:
             # Entry point format: "plugin_name = module:attr" - get the distribution name
-            dist_name: str | None = None
+            dist_name: Optional[str] = None
             try:
                 dist = getattr(ep, "dist", None)
                 if dist is not None:

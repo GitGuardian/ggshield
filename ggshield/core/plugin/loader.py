@@ -233,10 +233,10 @@ class PluginLoader:
 
     def _get_entry_points(self) -> Iterator[importlib.metadata.EntryPoint]:
         """Get all entry points in the ggshield.plugins group."""
-        try:
+        if sys.version_info >= (3, 10):
             eps = importlib.metadata.entry_points(group=PLUGIN_ENTRY_POINT_GROUP)
             yield from eps
-        except TypeError:
+        else:
             all_eps = importlib.metadata.entry_points()
             yield from all_eps.get(PLUGIN_ENTRY_POINT_GROUP, [])
 

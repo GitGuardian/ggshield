@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import concurrent.futures
 import logging
 import os
-import sys
 from ast import literal_eval
 from concurrent.futures import Future
 from typing import Dict, Iterable, List, Optional, Union
@@ -31,10 +32,7 @@ _SIZE_METADATA_OVERHEAD = 10240  # 10 KB
 logger = logging.getLogger(__name__)
 
 
-if sys.version_info >= (3, 10):
-    ScanFuture = Future[Union[Detail, MultiScanResult]]
-else:
-    ScanFuture = Future
+ScanFuture = Future[Union[Detail, MultiScanResult]]
 
 
 class SecretScanner:
