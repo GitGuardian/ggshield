@@ -18,7 +18,7 @@ class InvalidPathError(Exception):
     pass
 
 
-def expand_path_args(raw_paths: Tuple[str, ...]) -> Tuple[Path, ...]:
+def expand_path_args(raw_paths: Tuple[str, ...]) -> List[Path]:
     """Expand ``@file`` arguments into real paths.
 
     Each element of *raw_paths* is either a literal path or a ``@file``
@@ -54,7 +54,7 @@ def expand_path_args(raw_paths: Tuple[str, ...]) -> Tuple[Path, ...]:
             expanded.append(p)
     if not expanded:
         raise InvalidPathError("No paths provided.")
-    return tuple(expanded)
+    return expanded
 
 
 class ListFilesMode(Enum):

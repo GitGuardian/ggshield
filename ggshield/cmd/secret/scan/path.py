@@ -24,7 +24,7 @@ def _expand_paths_callback(
     ctx: click.Context,
     param: click.Parameter,
     value: Tuple[str, ...],
-) -> Tuple[Path, ...]:
+) -> List[Path]:
     """Click callback that delegates to :func:`expand_path_args`."""
     try:
         return expand_path_args(value)
@@ -51,7 +51,7 @@ def _expand_paths_callback(
 @exception_wrapper
 def path_cmd(
     ctx: click.Context,
-    paths: Tuple[Path, ...],
+    paths: List[Path],
     recursive: bool,
     yes: bool,
     use_gitignore: bool,
