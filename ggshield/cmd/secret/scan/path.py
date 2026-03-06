@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Tuple
 
 import click
 
@@ -16,13 +16,31 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode, Scannable
 from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.scanner_ui import create_scanner_ui
-from ggshield.utils.click import RealPath
-from ggshield.utils.files import ListFilesMode
+from ggshield.utils.files import InvalidPathError, ListFilesMode, expand_path_args
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
+def _expand_paths_callback(
+    ctx: click.Context,
+    param: click.Parameter,
+    value: Tuple[str, ...],
+) -> List[Path]:
+    """Click callback that delegates to :func:`expand_path_args`."""
+    try:
+        return expand_path_args(value)
+    except InvalidPathError as e:
+        raise click.BadParameter(str(e), ctx=ctx, param=param)
+
+
 @click.command()
-@click.argument("paths", nargs=-1, type=RealPath(exists=True), required=True)
+@click.argument(
+    "paths",
+    nargs=-1,
+    type=click.STRING,
+    required=True,
+    callback=_expand_paths_callback,
+    is_eager=True,
+)
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan.")
 @click.option(
@@ -41,6 +59,8 @@ def path_cmd(
 ) -> int:  # pragma: no cover
     """
     Scan files and directories.
+
+    Use @file to load paths from a file (one path per line).
     """
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
