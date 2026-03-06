@@ -19,6 +19,7 @@ from ggshield.cmd.plugin import plugin_group
 from ggshield.cmd.quota import quota_cmd
 from ggshield.cmd.secret import secret_group
 from ggshield.cmd.secret.scan import scan_group
+from ggshield.cmd.skill import skill_group
 from ggshield.cmd.status import status_cmd
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -92,6 +93,7 @@ def _load_plugins() -> PluginRegistry:
         "config": config_group,
         "plugin": plugin_group,
         "secret": secret_group,
+        "skill": skill_group,
         "install": install_cmd,
         "quota": quota_cmd,
         "api-status": status_cmd,
