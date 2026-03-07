@@ -61,7 +61,7 @@ repos:
     hooks:
       - id: pyright
         name: pyright
-        entry: 'pdm run pyright'
+        entry: 'uv run pyright'
         language: system
         types: [python]
         # do not pass filenames, otherwise Pyright might scan files we don't want it to scan
@@ -71,7 +71,7 @@ repos:
     hooks:
       - id: ggshield-local
         name: GitGuardian Shield
-        entry: pdm run ggshield secret scan pre-commit
+        entry: uv run ggshield secret scan pre-commit
         language: system
         stages: [pre-commit]
 
@@ -79,7 +79,7 @@ repos:
     hooks:
       - id: ggshield-local
         name: GitGuardian Shield
-        entry: pdm run ggshield secret scan pre-push
+        entry: uv run ggshield secret scan pre-push
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -103,7 +103,7 @@ repos:
 
       - id: import-linter
         name: Import Linter
-        entry: pdm run lint-imports
+        entry: uv run lint-imports
         language: system
         pass_filenames: false
         types: [python]

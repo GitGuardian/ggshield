@@ -16,32 +16,32 @@ all:
 	echo "  isort                Run isort linter"
 	echo ""
 	echo "Other targets:"
-	echo "  lock                 Update pdm.lock"
+	echo "  lock                 Update uv.lock"
 
 test: unittest functest
 
 unittest:
-	pdm run pytest --disable-pytest-warnings -vvv tests/unit
+	uv run pytest --disable-pytest-warnings -vvv tests/unit
 
 functest:
 	scripts/run-functional-tests
 
 coverage:
-	pdm run coverage run --source ggshield -m pytest --disable-pytest-warnings tests/unit
-	pdm run coverage report --fail-under=80
-	pdm run coverage xml
-	pdm run coverage html
+	uv run coverage run --source ggshield -m pytest --disable-pytest-warnings tests/unit
+	uv run coverage report --fail-under=80
+	uv run coverage xml
+	uv run coverage html
 
 black:
-	pdm run black .
+	uv run black .
 
 flake8:
-	pdm run flake8
+	uv run flake8
 
 isort:
-	pdm run isort **/*.py
+	uv run isort **/*.py
 
 lint: isort black flake8
 
 lock:
-	pdm lock --group :all
+	uv lock

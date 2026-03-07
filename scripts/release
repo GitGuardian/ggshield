@@ -121,36 +121,31 @@ def check_working_tree_is_up_to_date() -> bool:
 
 
 def check_dependencies() -> bool:
-    with (ROOT_DIR / "pdm.lock").open("rb") as fp:
+    with (ROOT_DIR / "uv.lock").open("rb") as fp:
         dct = tomllib.load(fp)
 
     """
-    The structure of a pdm.lock looks like this:
+    The structure of a uv.lock looks like this:
     {
-        "metadata": {...}
+        "version": 1,
         "package": [
             {
                 "name": ...
-                "groups": [
-                    "default",
-                    ...
-                ]
-                "version":
-                "revision": # only present if on a git commit
+                "version": ...
+                "source": { "git": "..." }  # only present if on a git commit
             }
         ]
     }
 
     We want to check we only depend on released versions of our dependencies, so we
-    check the content of each entry in `package` that is in the "default" group
+    check the content of each entry in `package` that has a git source
     """
-    for package in dct["package"]:
-        if "default" not in package["groups"]:
-            continue
-        if "revision" in package:
+    for package in dct.get("package", []):
+        source = package.get("source", {})
+        if "git" in source:
             name = package["name"]
             log_error(
-                f"pdm.lock contains a dependency on an unreleased version of {name}"
+                f"uv.lock contains a dependency on an unreleased version of {name}"
             )
             return False
 

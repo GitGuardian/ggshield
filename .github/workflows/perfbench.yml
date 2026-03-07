@@ -11,7 +11,7 @@ on:
         default: '3.10'
 
 env:
-  PDM_VERSION: 2.26.1
+  UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.10'
 
 jobs:
@@ -31,16 +31,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          version: ${{ env.PDM_VERSION }}
+          version: ${{ env.UV_VERSION }}
           python-version: ${{ inputs.python_version || env.DEFAULT_PYTHON_VERSION }}
 
       - name: Install dependencies
         run: |
-          python --version
-          pdm sync --global --project . --prod
+          uv sync --no-dev
 
       - name: Setup benchmark
         run: |
