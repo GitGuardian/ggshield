@@ -97,6 +97,7 @@ class PluginDownloadInfo:
     sha256: str
     version: str
     expires_at: str
+    signature_url: Optional[str] = None
 
 
 class PluginAPIError(Exception):
@@ -215,6 +216,7 @@ class PluginAPIClient:
             sha256=data["sha256"],
             version=data["version"],
             expires_at=data["expires_at"],
+            signature_url=data.get("signature_url"),
         )
 
     def _is_plugin_available(

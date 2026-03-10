@@ -274,13 +274,13 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     `args` is only used by unit-tests.
     """
+    log_utils.disable_logs()
+
     _register_plugin_commands()
 
     # Required by pyinstaller when forking.
     # See https://pyinstaller.org/en/latest/common-issues-and-pitfalls.html#multi-processing
     multiprocessing.freeze_support()
-
-    log_utils.disable_logs()
 
     if not os.getenv("GG_PLAINTEXT_OUTPUT", False) and sys.stderr.isatty():
         ui.set_ui(RichGGShieldUI())

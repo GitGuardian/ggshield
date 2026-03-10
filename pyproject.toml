@@ -31,7 +31,7 @@ classifiers = [
 license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
-    "platformdirs~=3.0.0",
+    "platformdirs~=4.2",
     "charset-normalizer~=3.1.0",
     "click~=8.1.0",
     "cryptography~=43.0.1",
@@ -44,8 +44,9 @@ dependencies = [
     "python-dotenv~=0.21.0",
     "pyyaml~=6.0.1",
     "requests~=2.32.0",
-    "rich~=12.5.1",
-    "typing-extensions~=4.12.2",
+    "rich~=13.0",
+    "sigstore>=3.0.0",
+    "typing-extensions~=4.14",
     "urllib3>=2.2.2,<3",
     "truststore>=0.10.1; python_version >= \"3.10\"",
 ]
