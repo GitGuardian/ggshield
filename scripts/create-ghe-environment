@@ -5,11 +5,6 @@ PROGNAME=$(basename "$0")
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." ; pwd)
 
-declare -A DISTRIB_FOR_GHE_VERSION
-DISTRIB_FOR_GHE_VERSION["3.9"]="buster"
-DISTRIB_FOR_GHE_VERSION["3.10"]="buster"
-DISTRIB_FOR_GHE_VERSION["3.11"]="bookworm"
-
 die() {
     echo "$PROGNAME: $*" >&2
     exit 1
@@ -31,15 +26,6 @@ log_progress() {
     echo "$PROGNAME: $*" >&2
 }
 
-select_distrib() {
-    local wanted_version="$1"
-    local distrib=${DISTRIB_FOR_GHE_VERSION[$wanted_version]:-}
-    if [ -z "$distrib" ] ; then
-        usage "'$wanted_version' is not a supported GitHub Enterprise version."
-    fi
-    echo "$distrib"
-}
-
 usage() {
     if [ "$*" != "" ] ; then
         echo "Error: $*" >&2
@@ -47,12 +33,10 @@ usage() {
     fi
 
     cat << EOF
-Usage: $PROGNAME [OPTION ...] [GHE_VERSION]
+Usage: $PROGNAME [OPTION ...]
 Creates a GitHub Enterprise pre-receive hook environment for GGShield.
 
 Expects GitGuardian API key to be set in \$GITGUARDIAN_API_KEY.
-
-GHE_VERSION must be one of: ${!DISTRIB_FOR_GHE_VERSION[@]}.
 
 Options:
   -h, --help          display this usage message and exit
@@ -61,37 +45,25 @@ EOF
     exit 1
 }
 
-ghe_version=""
 while [ $# -gt 0 ] ; do
     case "$1" in
     -h|--help)
         usage
         ;;
-    -*)
-        usage "Unknown option '$1'"
-        ;;
     *)
-        if [ -z "$ghe_version" ] ; then
-            ghe_version="$1"
-        else
-            usage "Too many arguments"
-        fi
+        usage "Unknown option '$1'"
         ;;
     esac
     shift
 done
 
-if [ -z "$ghe_version" ] ; then
-    usage "Not enough arguments"
-fi
-
 if [ -z "${GITGUARDIAN_API_KEY:-}" ] ; then
     die "\$GITGUARDIAN_API_KEY environment variable not set"
 fi
 
-distrib=$(select_distrib "$ghe_version")
+distrib="trixie"
 
-image_name=ggshield-ghe-$ghe_version
+image_name=ggshield-ghe
 container_name=ggshield-ghe
 archive_path="$PWD/$image_name.tar.gz"
 

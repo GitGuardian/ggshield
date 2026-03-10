@@ -26,4 +26,4 @@ Creates a GitHub Enterprise Server (GHES) [pre-receive hook environment][ghe] co
 
 To run this script you must have Docker installed. The script must be run on the same machine architecture as the GHES server on which the environment will be uploaded.
 
-[ghe]: https://docs.github.com/en/enterprise-server@3.11/admin/policies/enforcing-policy-with-pre-receive-hooks/creating-a-pre-receive-hook-environment
+[ghe]: https://docs.github.com/en/enterprise-server@3.20/admin/policies/enforcing-policy-with-pre-receive-hooks/creating-a-pre-receive-hook-environment
