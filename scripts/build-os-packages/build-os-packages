@@ -114,7 +114,7 @@ init_system_vars() {
         EXE_EXT=".exe"
         HUMAN_OS=Windows
         TARGET="$arch-pc-windows-msvc"
-        REQUIREMENTS="$REQUIREMENTS choco"
+        REQUIREMENTS="$REQUIREMENTS choco wix"
         ;;
     *)
         die "Unknown OS. uname printed '$out'"
@@ -323,6 +323,7 @@ step_create_archive() {
     Windows)
         create_windows_packages
         test_chocolatey_package
+        test_msi_package
         ;;
     esac
 }

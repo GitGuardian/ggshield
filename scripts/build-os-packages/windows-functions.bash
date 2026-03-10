@@ -62,7 +62,53 @@ test_chocolatey_package() {
     popd
 }
 
+windows_build_msi_package() {
+    # MSI only supports X.Y.Z version format, strip any suffix (e.g. +sha)
+    local msi_version="${VERSION%%[+]*}"
+
+    local wxs_path
+    wxs_path=$(cygpath -w "$SCRIPT_DIR/ggshield.wxs")
+
+    local source_dir
+    source_dir=$(cygpath -w "$PACKAGES_DIR/$ARCHIVE_DIR_NAME")
+
+    local msi_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.msi"
+    local msi_path_win
+    msi_path_win=$(cygpath -w "$msi_path")
+
+    info "Building MSI package"
+    wix build "$wxs_path" \
+        -arch x64 \
+        -d Version="$msi_version" \
+        -bindpath "SourceDir=$source_dir" \
+        -o "$msi_path_win"
+
+    if [ "$DO_SIGN" -eq 1 ] ; then
+        info "Signing MSI package"
+        smctl sign \
+            --verbose \
+            --exit-non-zero-on-fail \
+            --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
+            --tool signtool \
+            --input "$msi_path"
+    fi
+
+    info "MSI package created in $msi_path"
+}
+
+test_msi_package() {
+    local msi_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.msi"
+    if [ ! -f "$msi_path" ] ; then
+        die "MSI package not found: $msi_path"
+    fi
+    if [ ! -s "$msi_path" ] ; then
+        die "MSI package is empty: $msi_path"
+    fi
+    info "MSI package OK: $msi_path"
+}
+
 create_windows_packages() {
     windows_create_archive
     windows_build_chocolatey_package
+    windows_build_msi_package
 }

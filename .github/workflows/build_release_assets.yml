@@ -161,6 +161,11 @@ jobs:
           # Make it available
           cp rcodesign /usr/local/bin
 
+      - name: Install WiX Toolset
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: dotnet tool install --global wix --version 5.0.2
+
       - name: Install dependencies
         shell: bash
         run: |
@@ -274,6 +279,7 @@ jobs:
             packages/ggshield-*.rpm
             packages/ggshield_*.deb
             packages/ggshield.*.nupkg
+            packages/ggshield-*.msi
 
   # Run some basic tests, the goal is to verify the ggshield binary has all the
   # libraries it needs to run

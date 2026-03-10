@@ -23,6 +23,7 @@ flowchart TD
     signing -->|no| create_archive
     sign --> create_archive --> pkg[/"pkg 🍏"/]
     create_archive --> zip[/"zip 🪟"/]
+    create_archive --> msi[/"msi 🪟"/]
     create_archive --> tar.gz[/"tar.gz 🐧"/]
     create_archive --> deb[/"deb 🐧"/]
     create_archive --> rpm[/"rpm 🐧"/]
@@ -96,3 +97,13 @@ Note 2: `install-keylocker-tools` expects `$PATH` to already contain the install
 #### Building signed binaries
 
 Once all environment variables are set and DigiCert tools are installed, one can build signed Windows binaries using `build-os-packages --sign`.
+
+### MSI Package
+
+The build produces an MSI installer (`ggshield-VERSION-x86_64-pc-windows-msvc.msi`) using [WiX Toolset v4](https://wixtoolset.org/). The WiX source file is `scripts/build-os-packages/ggshield.wxs`.
+
+- **Install location**: `C:\Program Files\GitGuardian\ggshield\`
+- **PATH**: The installer adds the install location to the system `PATH`. This is removed on uninstall.
+- **Upgrades**: Installing a newer version automatically removes the previous one (via `MajorUpgrade`).
+- **Silent install**: `msiexec /i ggshield-X.Y.Z-x86_64-pc-windows-msvc.msi /quiet`
+- **Silent uninstall**: `msiexec /x ggshield-X.Y.Z-x86_64-pc-windows-msvc.msi /quiet`
