@@ -7,10 +7,12 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret import SecretScanner
 from ggshield.verticals.secret.ai_hook import AIHookScanner
+from ggshield.verticals.secret.ai_hook.models import MAX_READ_SIZE
 
 
 @click.command()
@@ -40,10 +42,10 @@ def ai_hook_cmd(
     )
 
     # Read input from stdin
-    stdin_content = sys.stdin.read()
+    stdin_content = sys.stdin.read(MAX_READ_SIZE).strip()
 
     try:
         return AIHookScanner(scanner).scan(stdin_content)
     except ValueError as e:
-        click.echo(str(e.args[0]), err=True)
+        ui.display_error(str(e.args[0]))
         return 1

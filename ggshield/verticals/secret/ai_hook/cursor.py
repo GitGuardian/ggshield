@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-from .constants import EventType, Flavor, Result
+from .models import EventType, Flavor, Result
 
 
 class Cursor(Flavor):

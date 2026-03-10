@@ -10,19 +10,18 @@ from ggshield.core.scan import StringScannable
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.secret import SecretScanner
-from ggshield.verticals.secret.ai_hook.constants import MAX_FILE_READ_SIZE
 from ggshield.verticals.secret.ai_hook.copilot import Copilot
 from ggshield.verticals.secret.secret_scan_collection import Secret
 
 from .claude_code import Claude
-from .constants import EventType, Flavor, Payload, Result, Tool
 from .cursor import Cursor
+from .models import MAX_READ_SIZE, EventType, Flavor, Payload, Result, Tool
 
 
 class AIHookScanner:
     """AI hook scanner.
 
-    It is called with the paylod of a hook event.
+    It is called with the payload of a hook event.
     Note that instead of having a base class with common method and a subclass per supported AI tool,
     we instead have a single class which detects which protocol to use (called "flavor").
     This is because some tools sloppily support hooks from others. For instance,
@@ -75,11 +74,13 @@ class AIHookScanner:
             raise ValueError("Error: couldn't find event type")
         event_type = HOOK_NAME_TO_EVENT_TYPE.get(event_name.lower(), EventType.OTHER)
 
-        # Extract the identifier and content based on the event type
         identifier = ""
+        content = ""
+        tool = None
+
+        # Extract the identifier and content based on the event type
         if event_type == EventType.USER_PROMPT:
             content = data.get("prompt", "")
-            tool = None
 
         elif event_type == EventType.PRE_TOOL_USE:
             tool_name = data.get("tool_name", "").lower()
@@ -93,15 +94,11 @@ class AIHookScanner:
                 identifier = lookup(tool_input, ["file_path", "filePath"], "")
                 # Read the file before the AI tool
                 file = Path(identifier)
-                if file.is_file() and file.stat().st_size <= MAX_FILE_READ_SIZE:
+                if file.is_file() and file.stat().st_size <= MAX_READ_SIZE:
                     try:
                         content = file.read_text()
                     except (UnicodeDecodeError, OSError):
-                        content = ""
-                else:
-                    content = ""
-            else:
-                content = ""
+                        pass
 
         elif event_type == EventType.POST_TOOL_USE:
             tool_name = data.get("tool_name", "").lower()
@@ -110,11 +107,6 @@ class AIHookScanner:
             # Claude Code returns a dict for the tool output
             if isinstance(content, (dict, list)):
                 content = json.dumps(content)
-
-        else:
-            content = ""
-            identifier = ""
-            tool = None
 
         # If identifier was not set, hash the content
         if not identifier:
@@ -145,6 +137,14 @@ class AIHookScanner:
         payload: Payload,
     ) -> Result:
         """Scan content for secrets using the SecretScanner."""
+        # Short path: if there is no content, no need to do an API call
+        if not payload.content:
+            return Result(
+                event_type=payload.event_type,
+                block=False,
+                message="",
+                nbr_secrets=0,
+            )
 
         scannable = StringScannable(url=payload.identifier, content=payload.content)
 
@@ -249,7 +249,12 @@ class AIHookScanner:
             f" {pluralize('secret', nbr_secrets)} by {source}"
         )
         notification.application_name = "ggshield"
-        notification.send()
+        try:
+            notification.send()
+        except Exception:
+            # This is best effort, we don't want to propagate an error
+            # if the notification fails.
+            pass
 
 
 HOOK_NAME_TO_EVENT_TYPE = {

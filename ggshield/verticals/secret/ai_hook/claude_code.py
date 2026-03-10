@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-from .constants import Flavor, Result
+from .models import Flavor, Result
 
 
 class Claude(Flavor):

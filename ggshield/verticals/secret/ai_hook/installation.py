@@ -1,5 +1,6 @@
 import json
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional
 
@@ -18,6 +19,12 @@ AI_FLAVORS = {
     "claude-code": Claude,
     "copilot": Copilot,
 }
+
+
+@dataclass
+class InstallationStats:
+    added: int
+    already_present: int
 
 
 def install_hooks(
@@ -57,12 +64,12 @@ def install_hooks(
             )
 
     # Track what we did for reporting
-    stats = {
-        "added": 0,
-        "already_present": 0,
-    }
+    stats = InstallationStats(
+        added=0,
+        already_present=0,
+    )
 
-    _fill_dict(
+    stats = _fill_dict(
         config=existing_config,
         template=flavor.settings_template,
         command=command,
@@ -81,9 +88,9 @@ def install_hooks(
 
     # Report what happened
     styled_path = click.style(settings_path, fg="yellow", bold=True)
-    if stats["added"] == 0 and stats["already_present"] > 0:
+    if stats.added == 0 and stats.already_present > 0:
         click.echo(f"{flavor.name} hooks already installed in {styled_path}")
-    elif stats["added"] > 0 and stats["already_present"] > 0:
+    elif stats.added > 0 and stats.already_present > 0:
         click.echo(f"{flavor.name} hooks updated in {styled_path}")
     else:
         click.echo(f"{flavor.name} hooks successfully added in {styled_path}")
@@ -96,9 +103,9 @@ def _fill_dict(
     template: Dict[str, Any],
     command: str,
     overwrite: bool,
-    stats: Dict[str, int],
+    stats: InstallationStats,
     locator: Callable[[List[Dict[str, Any]], Dict[str, Any]], Optional[Dict[str, Any]]],
-):
+) -> InstallationStats:
     """
     Recursively fill a dictionary with the template, leaving other keys untouched.
 
@@ -129,7 +136,6 @@ def _fill_dict(
             if existing_value is not None:
                 # Found it. Continue with this object.
                 _fill_dict(existing_value, value[0], command, overwrite, stats, locator)
-                break
             else:
                 # Not found. Add new object.
                 config_list.append(deepcopy(value[0]))
@@ -143,10 +149,12 @@ def _fill_dict(
                 config[key] = value
             # for stats
             if "ggshield" in str(config.get(key, "")):
-                stats["already_present"] += 1
+                stats.already_present += 1
             # Update if needed
             if overwrite:
                 config[key] = value
             if config[key] == "<COMMAND>":
                 config[key] = command
-                stats["added"] += 1
+                stats.added += 1
+
+    return stats

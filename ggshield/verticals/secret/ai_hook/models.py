@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 import click
 
 
-MAX_FILE_READ_SIZE = 1024 * 1024 * 10  # 10MB
+MAX_READ_SIZE = 1024 * 1024 * 50  # We restrict payloads read to 50MB
 
 
 class EventType(Enum):
@@ -41,7 +41,7 @@ class Result:
 
 class Flavor:
     """
-    Class that can be derived to implement behavior specific to some AI tools.
+    Class that can be derived to implement behavior specific to some AI code assistants.
     """
 
     name = "Your AI coding tool"

@@ -9,11 +9,11 @@ import pytest
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import SecretScanner
 from ggshield.verticals.secret.ai_hook.claude_code import Claude
-from ggshield.verticals.secret.ai_hook.constants import EventType, Flavor, Payload
-from ggshield.verticals.secret.ai_hook.constants import Result as HookResult
-from ggshield.verticals.secret.ai_hook.constants import Tool
 from ggshield.verticals.secret.ai_hook.copilot import Copilot
 from ggshield.verticals.secret.ai_hook.cursor import Cursor
+from ggshield.verticals.secret.ai_hook.models import EventType, Flavor, Payload
+from ggshield.verticals.secret.ai_hook.models import Result as HookResult
+from ggshield.verticals.secret.ai_hook.models import Tool
 from ggshield.verticals.secret.ai_hook.scanner import AIHookScanner
 from ggshield.verticals.secret.secret_scan_collection import Result as ScanResult
 from ggshield.verticals.secret.secret_scan_collection import Results, Secret
@@ -640,7 +640,7 @@ class TestFlavorOutputResult:
         assert kwargs.get("err", False) is False  # stdout (default)
         out = json.loads(args[0])
         assert out["continue"] is True
-        assert out["stopReason"] == ""
+        assert "stopReason" not in out
 
     @patch("ggshield.verticals.secret.ai_hook.claude_code.click.echo")
     def test_copilot_output_result_block(self, mock_echo: MagicMock):
@@ -664,7 +664,7 @@ class TestFlavorOutputResult:
 class TestBaseFlavor:
     """Unit tests for the base Flavor class."""
 
-    @patch("ggshield.verticals.secret.ai_hook.constants.click.echo")
+    @patch("ggshield.verticals.secret.ai_hook.models.click.echo")
     def test_base_flavor_output_result_allow(self, mock_echo: MagicMock):
         """Base Flavor with block=False: prints allow message, returns 0."""
         result = HookResult(
@@ -677,7 +677,7 @@ class TestBaseFlavor:
         assert code == 0
         mock_echo.assert_called_once_with("No secrets found. Good to go.")
 
-    @patch("ggshield.verticals.secret.ai_hook.constants.click.echo")
+    @patch("ggshield.verticals.secret.ai_hook.models.click.echo")
     def test_base_flavor_output_result_block(self, mock_echo: MagicMock):
         """Base Flavor with block=True: prints message to stderr, returns 2."""
         result = HookResult(
@@ -752,6 +752,19 @@ class TestAIHookScannerScan:
         code = scanner.scan(json.dumps(data))
         # Claude output_result always returns 0
         assert code == 0
+
+    def test_scan_no_content_returns_allow(self):
+        """scan() with no content returns 0 (and doesn't call the API)."""
+        mock_scanner = _mock_scanner([])
+        scanner = AIHookScanner(mock_scanner)
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "doesn-t-exist"},
+        }
+        code = scanner.scan(json.dumps(data))
+        assert code == 0
+        mock_scanner.scan.assert_not_called()
 
 
 class TestMessageFromSecrets:
