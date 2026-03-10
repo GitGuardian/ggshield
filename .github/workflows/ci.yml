@@ -19,7 +19,7 @@ on:
 
 env:
   PDM_VERSION: 2.26.1
-  DEFAULT_PYTHON_VERSION: '3.10'
+  DEFAULT_PYTHON_VERSION: '3.9'
 
 jobs:
   lint:
