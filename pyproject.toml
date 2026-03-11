@@ -56,6 +56,9 @@ Homepage = "https://github.com/GitGuardian/ggshield"
 [project.scripts]
 ggshield = "ggshield.__main__:main"
 
+[tool.pdm.build]
+includes = ["ggshield/resources/"]
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
