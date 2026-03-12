@@ -14,3 +14,4 @@ class ScanMode(Enum):
     ARCHIVE = "archive"
     DOCSET = "docset"
     CHANGE = "change"
+    AI_HOOK = "ai_hook"

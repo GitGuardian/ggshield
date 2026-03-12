@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 import click
 
+from ggshield.cmd.secret.scan.ai_hook import ai_hook_cmd
 from ggshield.cmd.secret.scan.archive import archive_cmd
 from ggshield.cmd.secret.scan.changes import changes_cmd
 from ggshield.cmd.secret.scan.ci import ci_cmd
@@ -25,6 +26,7 @@ from ggshield.core import ui
 
 @click.group(
     commands={
+        "ai-hook": ai_hook_cmd,
         "commit-range": range_cmd,
         "changes": changes_cmd,
         "pre-commit": precommit_cmd,
