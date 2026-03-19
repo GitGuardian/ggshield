@@ -50,6 +50,7 @@ dependencies = [
     "truststore>=0.10.1; python_version >= \"3.10\"",
     "notify-py>=0.3.43",
     "keyring>=24.0.0,<26",
+    "pydantic>=2.11.10",
 ]
 
 [project.urls]
@@ -61,6 +62,9 @@ ggshield = "ggshield.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[[tool.uv.index]]
+url = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple"
 
 [tool.hatch.version]
 path = "ggshield/__init__.py"

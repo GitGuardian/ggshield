@@ -2,7 +2,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from pydantic import BaseModel, Field
 
 from ggshield.core.scan import File, Scannable, StringScannable
 from ggshield.utils.files import is_path_binary
@@ -63,6 +65,98 @@ class HookPayload:
     def empty(self) -> bool:
         """Return True if the payload is empty."""
         return not self.scannable.is_longer_than(0)
+
+
+class Transport(Enum):
+    STDIO = "stdio"
+    HTTP = "http"
+    SSE = "sse"
+
+
+class Scope(Enum):
+    USER = "user"
+    PROJECT = "project"
+
+
+class MCPArgumentInfo(BaseModel):
+    name: str
+    type: str
+    description: Optional[str] = None
+    required: bool = False
+
+
+class MCPToolInfo(BaseModel):
+    name: str
+    description: Optional[str] = None
+    arguments: Optional[List[MCPArgumentInfo]] = None
+
+
+class MCPResourceInfo(BaseModel):
+    uri: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+    mime_type: Optional[str] = None
+
+
+class MCPPromptInfo(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+ConfigurationKey = Tuple[str, Scope, Optional[Path], str]
+
+
+class MCPConfiguration(BaseModel):
+    name: str
+    agent: str
+    scope: Scope
+    transport: Transport
+    project: Optional[Path] = None
+    # stdio fields
+    command: Optional[str] = None
+    args: List[str] = Field(default_factory=list)
+    env: Dict[str, str] = Field(default_factory=dict)
+    # remote fields
+    url: Optional[str] = None
+    headers: Dict[str, str] = Field(default_factory=dict)
+
+
+class MCPServer(BaseModel):
+    name: str
+    display_name: Optional[str] = None
+    tools: List[MCPToolInfo] = Field(default_factory=list)
+    resources: List[MCPResourceInfo] = Field(default_factory=list)
+    prompts: List[MCPPromptInfo] = Field(default_factory=list)
+    configurations: List[MCPConfiguration] = Field(default_factory=list)
+
+
+class UserInfo(BaseModel):
+    hostname: str
+    username: str
+    machine_id: str
+    user_email: Optional[str] = None
+
+
+class AIDiscovery(BaseModel):
+    user: UserInfo
+    servers: List[MCPServer] = Field(default_factory=list)
+    # Metadata for analytics
+    discovery_duration: float  # in s
+
+
+class MCPActivityResponse(BaseModel):
+    allowed: bool
+    reason: str
+
+
+class MCPActivityRequest(BaseModel):
+    user: UserInfo
+    tool: str
+    server: str
+    agent: str
+    model: str
+    cwd: Path
+    input: Dict[str, Any]
 
 
 class Agent(ABC):
