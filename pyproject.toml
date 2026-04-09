@@ -137,6 +137,9 @@ format = "md"
 md_header_level = "2"
 insert_marker = "# Changelog"
 
+[tool.ty.src]
+include = ["ggshield/"]
+
 [dependency-groups]
 tests = [
     "pytest-mock",
@@ -165,5 +168,6 @@ dev = [
     "check-wheel-contents",
     "ipython>=8.12.3",
     "ipdb>=0.13.13",
+    "ty>=0.0.32",
 ]
 standalone = ["pyinstaller==6.7.0"]

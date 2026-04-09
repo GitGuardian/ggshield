@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Iterable, List, cast
+from typing import Any, Dict, Iterable, List
 
 from pygitguardian.client import VERSIONS
 from pygitguardian.models import SecretIncident
@@ -76,7 +76,7 @@ def _create_sarif_result_dict(
     matches_li = "\n".join(
         f"- [{m.match_type}]({id})" for id, m in enumerate(secret.matches)
     )
-    extended_matches = cast(List[ExtendedMatch], secret.matches)
+    extended_matches = secret.matches
     message = (
         f"Secret detected: {secret.detector_display_name}.\nMatches: {matches_str}"
     )
@@ -100,7 +100,7 @@ def _create_sarif_result_dict(
     markdown_message += f"\nMatches:\n{matches_li}"
 
     # Create dict
-    dct = {
+    dct: Dict[str, Any] = {
         "ruleId": secret.detector_display_name,
         "level": "error",
         "message": {

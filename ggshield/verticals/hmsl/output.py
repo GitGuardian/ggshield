@@ -1,8 +1,9 @@
 import json
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, TypedDict
 
 import click
 from requests import HTTPError
+from typing_extensions import List
 
 from ggshield.core import ui
 from ggshield.core.text_utils import pluralize
@@ -23,6 +24,18 @@ First location:
 """
 
 TOO_MANY_SECRETS_THRESHOLD = 100
+
+
+class Leak(TypedDict):
+    name: str
+    hash: str
+    count: int
+    url: Optional[str]
+
+
+class Data(TypedDict):
+    leaks_count: int
+    leaks: List[Leak]
 
 
 def write_outputs(result: PreparedSecrets, prefix: str) -> None:
@@ -58,7 +71,7 @@ def show_results(
     elif not error:
         ui.display_heading("All right! No leaked secret has been found.")
 
-    data = {
+    data: Data = {
         "leaks_count": len(secrets),
         "leaks": [
             {

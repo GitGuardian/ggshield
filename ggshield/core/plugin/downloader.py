@@ -244,7 +244,7 @@ class PluginDownloader:
                 raise ChecksumMismatchError(download_info.sha256, computed_hash)
 
             if temp_bundle_path is not None:
-                temp_bundle_path.write_bytes(bundle_bytes)  # type: ignore[arg-type]
+                temp_bundle_path.write_bytes(bundle_bytes)  # type: ignore
 
             # Verify on the temp wheel BEFORE we touch the existing
             # install. ``verify_wheel_signature`` looks for the bundle

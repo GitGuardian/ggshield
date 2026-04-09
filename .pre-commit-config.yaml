@@ -109,3 +109,12 @@ repos:
         pass_filenames: false
         types: [python]
         stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty
+        entry: uv run ty check --exclude tests/
+        language: python
+        pass_filenames: false
+        stages: [pre-commit]
