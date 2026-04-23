@@ -5,6 +5,7 @@ import pytest
 from requests.exceptions import ConnectionError
 
 from ggshield.__main__ import cli
+from ggshield.core import auth_check_cache
 from ggshield.core.config import Config
 from ggshield.core.config.token_store import KeyringTokenStore, reset_token_store
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
@@ -191,6 +192,36 @@ class TestAuthLogout:
         assert exit_code == ExitCode.SUCCESS, output
         mock_store.delete_token.assert_called_once_with(DEFAULT_INSTANCE_URL)
         reset_token_store()
+
+    def test_logout_invalidates_auth_check_cache(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN a saved instance and a populated auth-check cache
+        WHEN running the logout command
+        THEN the auth-check cache file is removed so a stale "still valid" hit
+             cannot survive across the logout
+        """
+        post_mock = Mock(return_value=Mock(status_code=204, ok=True))
+        monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
+
+        add_instance_config()
+
+        auth_check_cache.store(
+            "https://api.gitguardian.com",
+            "test-api-key",
+            auth_check_cache.CachedAuthCheck(
+                scopes=None,
+                secrets_engine_version=None,
+                maximum_payload_size=None,
+                secret_scan_preferences=None,
+                remediation_messages=None,
+            ),
+        )
+        assert auth_check_cache._cache_file().exists()
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS, output
+        assert not auth_check_cache._cache_file().exists()
 
     @staticmethod
     def run_cmd(

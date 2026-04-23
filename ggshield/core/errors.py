@@ -13,6 +13,7 @@ import click
 from marshmallow import ValidationError
 from pygitguardian.models import Detail, TokenScope
 
+from ggshield.core import auth_check_cache
 from ggshield.core.text_utils import pluralize
 from ggshield.utils.git_shell import InvalidGitRefError
 
@@ -213,6 +214,9 @@ def handle_api_error(detail: Detail) -> None:
     logger.error("status_code=%s", detail.status_code)
     logger.debug("detail=%s", detail.detail)
     if detail.status_code == 401:
+        # The cached metadata/scopes check must not keep masking a revoked
+        # or rotated API key within its TTL.
+        auth_check_cache.invalidate()
         raise click.UsageError(detail.detail)
     if detail.status_code is None:
         raise UnexpectedError(f"Scanning failed: {detail.detail}")

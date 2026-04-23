@@ -7,6 +7,7 @@ from requests.exceptions import ConnectionError
 import ggshield.verticals.hmsl.utils as hmsl_utils
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import auth_check_cache
 from ggshield.core.client import create_client
 from ggshield.core.config import Config
 from ggshield.core.config.token_store import get_token_store
@@ -70,6 +71,10 @@ def logout_cmd(
 
 def logout(config: Config, instance_url: str, revoke: bool) -> None:
     check_account_config_exists(config, instance_url)
+    # Invalidate first so a failing revoke_token (raises AuthError on non-204)
+    # cannot leave a stale "still valid" cache entry behind, which would let a
+    # subsequent scan pass auth within the TTL window.
+    auth_check_cache.invalidate()
     if revoke:
         revoke_token(config, instance_url)
         hmsl_utils.remove_token_from_disk()
