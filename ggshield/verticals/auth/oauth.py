@@ -28,6 +28,13 @@ from ggshield.utils.datetime import get_pretty_date
 CLIENT_ID = "ggshield_oauth"
 SCAN_SCOPE = "scan"
 
+# Sentinel `redirect_uri` value used by the out-of-band (browser-less) OAuth
+# flow. Mirrors gcloud's `--no-launch-browser` and the historical Google
+# `urn:ietf:wg:oauth:2.0:oob` pattern. When the CLI sends this value, the
+# backend renders a page displaying the authorization code as text instead of
+# redirecting to localhost; the user pastes the code back into the terminal.
+OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+
 # potential port range to be used to run local server
 # to handle authorization code callback
 # this is the largest band of not commonly occupied ports
@@ -74,6 +81,12 @@ class OAuthClient:
         self._port = USABLE_PORT_RANGE[0]
         self.server: Optional[HTTPServer] = None
 
+        # When True, run the browser-less (out-of-band) flow: the CLI prints
+        # the authorize URL and prompts the user to paste back the code shown
+        # by the dashboard, instead of opening a browser and listening on
+        # localhost.
+        self._no_browser: bool = False
+
         self._generate_pkce_pair()
 
     def oauth_process(
@@ -82,11 +95,19 @@ class OAuthClient:
         lifetime: Optional[int] = None,
         login_path: Optional[str] = None,
         extra_scopes: Optional[List[str]] = None,
+        no_browser: bool = False,
     ) -> None:
         """
-        Handle the whole oauth process which includes
-        - opening the user's webbrowser to GitGuardian login page
-        - open a server and wait for the callback processing
+        Handle the whole oauth process.
+
+        Two modes are supported:
+        - localhost flow (default): open the user's webbrowser to
+          GitGuardian login page and wait for the OAuth callback on a
+          temporary local HTTP server.
+        - out-of-band flow (``no_browser=True``): print the authorize URL,
+          ask the user to open it and paste back the code shown by the
+          dashboard. No browser is opened and no localhost listener is
+          started.
         """
         # enable redirection to http://localhost
         os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = str(True)
@@ -104,10 +125,59 @@ class OAuthClient:
         if extra_scopes is not None:
             self._extra_scopes = extra_scopes
 
-        self._prepare_server()
-        self._redirect_to_login()
-        self._wait_for_callback()
+        self._no_browser = no_browser
+
+        if no_browser:
+            # OOB flow: skip the localhost listener entirely, prompt the
+            # user for the code, and exchange it directly.
+            self._run_oob_flow()
+        else:
+            self._prepare_server()
+            self._redirect_to_login()
+            self._wait_for_callback()
         self._print_login_success()
+
+    def _run_oob_flow(self) -> None:
+        """
+        Run the out-of-band (browser-less) authorization code flow.
+
+        Print the authorize URL on stderr (so it stays visible even when
+        stdout is piped), prompt the user for the code displayed by the
+        dashboard, then exchange it for a personal access token.
+
+        Note on state validation: in the localhost flow, the CLI checks
+        that the ``state`` query param of the redirect matches the one it
+        sent. In OOB mode there is no redirect — the user only pastes the
+        ``code``, with no ``state`` to check. PKCE (``code_verifier`` /
+        ``code_challenge``) still binds the token exchange to this client,
+        so dropping the state check is safe and matches how OOB flows
+        work in other tools (e.g. gcloud).
+        """
+        request_uri = self._build_authorize_uri()
+        click.echo(
+            "Open the following URL in a browser, sign in, and paste "
+            "the code shown on the page below.\n"
+            f"  {request_uri}",
+            err=True,
+        )
+        try:
+            authorization_code = click.prompt(
+                "Authorization code", hide_input=False, type=str
+            ).strip()
+        except click.Abort:
+            # User pressed Ctrl-C at the prompt: re-raise so click exits
+            # cleanly without leaving any temporary state behind (we
+            # never started a server in OOB mode).
+            raise
+        if not authorization_code:
+            raise UnexpectedError("No authorization code was provided.")
+
+        try:
+            self._claim_token(authorization_code)
+        except OAuthError as error:
+            raise UnexpectedError(error.message)
+        token_data = self._validate_access_token()
+        self._save_token(token_data)
 
     def process_callback(self, callback_url: str) -> None:
         """
@@ -136,9 +206,13 @@ class OAuthClient:
             .rstrip("=")
         )
 
-    def _redirect_to_login(self) -> None:
+    def _build_authorize_uri(self) -> str:
         """
-        Open the user's browser to the GitGuardian ggshield authentication page
+        Build the authorize URL with all the standard query parameters
+        (PKCE challenge, state, scope, client_id, response_type,
+        auth_mode, utm tags) and the current ``redirect_uri`` (which is
+        the OOB sentinel in browser-less mode and ``http://localhost:port``
+        otherwise).
         """
         static_params = {
             "auth_mode": "ggshield_login",
@@ -146,7 +220,7 @@ class OAuthClient:
             "utm_medium": "login",
             "utm_campaign": "ggshield",
         }
-        request_uri = self._oauth_client.prepare_request_uri(
+        return self._oauth_client.prepare_request_uri(
             uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,
             scope=[SCAN_SCOPE, *self._extra_scopes],
@@ -155,6 +229,12 @@ class OAuthClient:
             state=self.state,
             **static_params,
         )
+
+    def _redirect_to_login(self) -> None:
+        """
+        Open the user's browser to the GitGuardian ggshield authentication page
+        """
+        request_uri = self._build_authorize_uri()
         click.echo(
             f"Complete the login process at:\n"
             f"  {request_uri}.\n"
@@ -296,6 +376,8 @@ class OAuthClient:
 
     @property
     def redirect_uri(self) -> str:
+        if self._no_browser:
+            return OOB_REDIRECT_URI
         return f"http://localhost:{self._port}"
 
     @property

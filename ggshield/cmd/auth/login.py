@@ -110,6 +110,17 @@ def print_default_instance_message(config: Config) -> None:
     help="Number of days before the token expires. 0 means the token never expires.",
     metavar="DAYS",
 )
+@click.option(
+    "--no-browser",
+    is_flag=True,
+    default=False,
+    help=(
+        "Run the web login flow without opening a browser. ggshield prints the"
+        " authorization URL; open it on any device, sign in, then paste the"
+        " code shown by the dashboard back into the terminal. Useful on"
+        " headless machines (SSH sessions, containers, CI shells)."
+    ),
+)
 @add_common_options()
 @click.pass_context
 def login_cmd(
@@ -120,6 +131,7 @@ def login_cmd(
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
+    no_browser: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -157,13 +169,27 @@ def login_cmd(
                 "--scopes is reserved for the web login method.", param_hint="scopes"
             )
 
+        if no_browser:
+            raise click.BadParameter(
+                "--no-browser is reserved for the web login method.",
+                param_hint="no-browser",
+            )
+
     if method == "token":
         token_login(config, instance)
         return 0
 
     if method == "web":
         extra_scopes = scopes.split(" ") if scopes else None
-        web_login(config, instance, token_name, lifetime, sso_url, extra_scopes)
+        web_login(
+            config,
+            instance,
+            token_name,
+            lifetime,
+            sso_url,
+            extra_scopes,
+            no_browser=no_browser,
+        )
         return 0
 
     return 1
@@ -223,6 +249,7 @@ def web_login(
     lifetime: Optional[int],
     sso_url: Optional[str],
     extra_scopes: Optional[List[str]],
+    no_browser: bool = False,
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
     if instance:
@@ -242,5 +269,6 @@ def web_login(
         lifetime=lifetime,
         login_path=login_path,
         extra_scopes=extra_scopes,
+        no_browser=no_browser,
     )
     print_default_instance_message(config)

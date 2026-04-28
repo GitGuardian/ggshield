@@ -1010,3 +1010,196 @@ class TestAuthLoginWeb:
         exit_code, output = self.run_cmd(cli_fs_runner)
         assert exit_code == ExitCode.SUCCESS, output
         self._webbrowser_open_mock.assert_called()
+
+
+OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+
+
+class TestAuthLoginWebNoBrowser:
+    """Tests for the browser-less (out-of-band / `--no-browser`) flow.
+
+    These mirror TestAuthLoginWeb but check that:
+    - the authorize URL uses the OOB sentinel as redirect_uri,
+    - the browser is NOT opened,
+    - the localhost listener is NOT started,
+    - the code is read from stdin,
+    - the token-exchange POST body sends redirect_uri=<OOB sentinel>.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_method(self, monkeypatch):
+        # Ensure webbrowser.open_new_tab is never called: monkeypatch it to
+        # something that would fail loudly if invoked.
+        self._webbrowser_open_mock = Mock()
+        monkeypatch.setattr(
+            "ggshield.verticals.auth.oauth.webbrowser.open_new_tab",
+            self._webbrowser_open_mock,
+        )
+        # Localhost listener: replace HTTPServer with a Mock so that any
+        # attempt to start it would fail the test.
+        self._http_server_mock = Mock(
+            side_effect=AssertionError(
+                "HTTPServer must not be instantiated in OOB mode"
+            )
+        )
+        monkeypatch.setattr(
+            "ggshield.verticals.auth.oauth.HTTPServer", self._http_server_mock
+        )
+
+        self._request_mock = RequestMock()
+        monkeypatch.setattr("ggshield.core.client.Session.request", self._request_mock)
+
+        config = Config()
+        assert len(config.auth_config.instances) == 0
+
+    def _add_token_endpoints(self, post_checker=None):
+        token = "mysupertoken"
+        token_payload = VALID_TOKEN_RESPONSE.json().copy()
+        self._request_mock.add_POST(
+            "/v1/oauth/token",
+            create_json_response({"key": token, **token_payload}),
+            post_checker,
+        )
+        self._request_mock.add_GET(TOKEN_ENDPOINT, create_json_response(token_payload))
+        return token
+
+    def test_no_browser_happy_path(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN --no-browser is passed
+        WHEN the user pastes a valid authorization code
+        THEN the authorize URL uses the OOB sentinel,
+             the browser is not opened,
+             the localhost listener is not started,
+             and the token is persisted as in the localhost flow.
+        """
+        captured = {}
+
+        def post_checker(payload):
+            request_body = urlparse.parse_qs(payload)
+            captured["redirect_uri"] = request_body["redirect_uri"][0]
+            captured["code"] = request_body["code"][0]
+            captured["grant_type"] = request_body["grant_type"][0]
+            assert "code_verifier" in request_body
+            assert request_body["client_id"][0] == "ggshield_oauth"
+
+        token = self._add_token_endpoints(post_checker)
+
+        # Capture the authorize URL by patching click.echo to record stderr
+        # output (we print the URL with err=True). Easier: spy on _build_authorize_uri.
+        captured_urls = []
+        original_build = OAuthClient._build_authorize_uri
+
+        def spy_build(self):
+            url = original_build(self)
+            captured_urls.append(url)
+            return url
+
+        monkeypatch.setattr(
+            "ggshield.verticals.auth.oauth.OAuthClient._build_authorize_uri",
+            spy_build,
+        )
+
+        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        result = cli_fs_runner.invoke(
+            cli, cmd, color=False, input="some_authorization_code\n"
+        )
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+
+        # No browser, no listener.
+        self._webbrowser_open_mock.assert_not_called()
+        self._http_server_mock.assert_not_called()
+
+        # Authorize URL has the OOB sentinel as redirect_uri.
+        assert len(captured_urls) == 1
+        parsed = urlparse.urlparse(captured_urls[0])
+        url_params = urlparse.parse_qs(parsed.query)
+        assert url_params["redirect_uri"] == [OOB_REDIRECT_URI]
+        # Standard params are still there.
+        for key, value in _EXPECTED_URL_PARAMS.items():
+            assert url_params[key] == value, key
+
+        # Token exchange used the OOB sentinel and the pasted code.
+        assert captured["redirect_uri"] == OOB_REDIRECT_URI
+        assert captured["code"] == "some_authorization_code"
+        assert captured["grant_type"] == "authorization_code"
+
+        # Config persisted exactly like the localhost flow.
+        config = Config()
+        assert (
+            config.auth_config.get_instance(config.instance_name).account.token == token
+        )
+
+        # Successful login message.
+        assert "Success! You are now authenticated" in result.output
+        # Stderr should mention pasting the code.
+        assert (
+            "paste" in result.output.lower() or "paste" in (result.stderr or "").lower()
+        )
+
+        self._request_mock.assert_all_requests_happened()
+
+    def test_no_browser_strips_whitespace_around_code(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN --no-browser
+        WHEN the user pastes a code surrounded by whitespace
+        THEN the whitespace is stripped before sending the code to the backend.
+        """
+        captured = {}
+
+        def post_checker(payload):
+            request_body = urlparse.parse_qs(payload)
+            captured["code"] = request_body["code"][0]
+
+        self._add_token_endpoints(post_checker)
+
+        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input="  padded_code  \n")
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+        assert captured["code"] == "padded_code"
+
+    def test_no_browser_empty_code_errors_out(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN --no-browser
+        WHEN the user submits an empty code (just whitespace)
+        THEN the command fails with a friendly error and no token POST is sent.
+        """
+        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input="   \n")
+        assert result.exit_code != 0
+        assert "No authorization code was provided." in result.output
+        # No HTTP POST should have happened.
+        self._request_mock.assert_all_requests_happened()
+        self._webbrowser_open_mock.assert_not_called()
+        self._http_server_mock.assert_not_called()
+
+    def test_no_browser_token_exchange_failure(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN --no-browser
+        WHEN the backend rejects the code at the token endpoint
+        THEN the error is surfaced like the localhost flow does.
+        """
+        self._request_mock.add_POST(
+            "/v1/oauth/token",
+            create_json_response({"detail": "kaboom"}, status_code=400),
+        )
+
+        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        result = cli_fs_runner.invoke(
+            cli, cmd, color=False, input="some_authorization_code\n"
+        )
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "Cannot create a token: kaboom." in result.output
+        self._webbrowser_open_mock.assert_not_called()
+        self._http_server_mock.assert_not_called()
+        self._request_mock.assert_all_requests_happened()
+
+    def test_no_browser_rejected_for_non_web_method(self, cli_fs_runner):
+        """
+        GIVEN --no-browser combined with --method=token
+        WHEN running the login command
+        THEN the CLI rejects the combination (the flag is web-only).
+        """
+        cmd = ["auth", "login", "--method=token", "--no-browser"]
+        result = cli_fs_runner.invoke(cli, cmd, color=False)
+        assert result.exit_code != 0
+        assert "--no-browser is reserved for the web login method." in result.output
