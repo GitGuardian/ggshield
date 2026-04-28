@@ -1136,6 +1136,11 @@ class TestAuthLoginWebNoBrowser:
             "paste" in result.output.lower() or "paste" in (result.stderr or "").lower()
         )
 
+        # Pasted code must not appear in plain text in the terminal output.
+        # Only the first 4 chars are echoed back, followed by `*` placeholders.
+        assert "some_authorization_code" not in result.output
+        assert "some" + "*" * (len("some_authorization_code") - 4) in result.output
+
         self._request_mock.assert_all_requests_happened()
 
     def test_no_browser_strips_whitespace_around_code(self, cli_fs_runner, monkeypatch):

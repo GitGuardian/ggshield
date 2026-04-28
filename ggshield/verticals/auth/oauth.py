@@ -43,6 +43,18 @@ USABLE_PORT_RANGE = (29170, 29998)
 
 logger = logging.getLogger(__name__)
 
+# Number of leading characters of an authorization code we keep visible when
+# echoing it back; the rest is replaced by `*` so the full code never lands
+# in the terminal scrollback in plain text.
+_OOB_CODE_VISIBLE_PREFIX = 4
+
+
+def _mask_code(code: str) -> str:
+    """Return ``code`` with all but the first 4 characters replaced by ``*``."""
+    if len(code) <= _OOB_CODE_VISIBLE_PREFIX:
+        return "*" * len(code)
+    return code[:_OOB_CODE_VISIBLE_PREFIX] + "*" * (len(code) - _OOB_CODE_VISIBLE_PREFIX)
+
 
 def get_error_param(parsed_url: urlparse.ParseResult) -> Optional[str]:
     """
@@ -161,8 +173,12 @@ class OAuthClient:
             err=True,
         )
         try:
+            # hide_input=True prevents the terminal from echoing the pasted
+            # code, so it doesn't end up in the scrollback in plain text.
+            # We print a masked confirmation ourselves below so the user
+            # gets visual feedback that something was received.
             authorization_code = click.prompt(
-                "Authorization code", hide_input=False, type=str
+                "Authorization code", hide_input=True, type=str
             ).strip()
         except click.Abort:
             # User pressed Ctrl-C at the prompt: re-raise so click exits
@@ -171,6 +187,7 @@ class OAuthClient:
             raise
         if not authorization_code:
             raise UnexpectedError("No authorization code was provided.")
+        click.echo(f"Authorization code: {_mask_code(authorization_code)}", err=True)
 
         try:
             self._claim_token(authorization_code)
