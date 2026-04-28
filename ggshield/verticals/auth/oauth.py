@@ -53,7 +53,9 @@ def _mask_code(code: str) -> str:
     """Return ``code`` with all but the first 4 characters replaced by ``*``."""
     if len(code) <= _OOB_CODE_VISIBLE_PREFIX:
         return "*" * len(code)
-    return code[:_OOB_CODE_VISIBLE_PREFIX] + "*" * (len(code) - _OOB_CODE_VISIBLE_PREFIX)
+    return code[:_OOB_CODE_VISIBLE_PREFIX] + "*" * (
+        len(code) - _OOB_CODE_VISIBLE_PREFIX
+    )
 
 
 def get_error_param(parsed_url: urlparse.ParseResult) -> Optional[str]:
