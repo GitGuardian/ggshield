@@ -177,7 +177,7 @@ To catch errors earlier, use `ggshield` as a [pre-commit, pre-push or pre-receiv
 
 You can install the hooks with the `ggshield install` command.
 
-Supported tools: **Cursor**, **Claude Code**, and **Copilot Chat**.
+Supported tools: **Cursor**, **Claude Code**, **Copilot Chat**, and **Codex**.
 
 # Learn more
 

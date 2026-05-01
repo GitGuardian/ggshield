@@ -1,4 +1,5 @@
 import json
+import re
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,6 +78,9 @@ def install_hooks(
         json.dump(existing_config, f, indent=2)
         f.write("\n")
 
+    if agent.name == "codex":
+        _enable_codex_hooks_feature(base_dir)
+
     # Report what happened
     styled_path = click.style(settings_path, fg="yellow", bold=True)
     if stats.added == 0 and stats.already_present > 0:
@@ -87,6 +91,38 @@ def install_hooks(
         click.echo(f"{agent.display_name} hooks successfully added in {styled_path}")
 
     return 0
+
+
+CODEX_HOOKS_FALSE_RE = re.compile(r"(?m)^(\s*codex_hooks\s*=\s*)false(\s*(?:#.*)?)$")
+
+
+def _enable_codex_hooks_feature(base_dir: Path) -> None:
+    """Ensure Codex's hook feature flag is enabled in config.toml."""
+    config_path = base_dir / ".codex" / "config.toml"
+    if not config_path.exists():
+        config_path.write_text("[features]\ncodex_hooks = true\n", encoding="utf-8")
+        return
+
+    content = config_path.read_text(encoding="utf-8")
+    if "codex_hooks = true" in content:
+        return
+    updated = CODEX_HOOKS_FALSE_RE.sub(r"\1true\2", content)
+    if updated != content:
+        config_path.write_text(updated, encoding="utf-8")
+        return
+
+    lines = content.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == "[features]":
+            lines.insert(index + 1, "codex_hooks = true")
+            config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            return
+
+    separator = "\n" if content.endswith("\n") else "\n\n"
+    config_path.write_text(
+        f"{content}{separator}[features]\ncodex_hooks = true\n",
+        encoding="utf-8",
+    )
 
 
 def _fill_dict(

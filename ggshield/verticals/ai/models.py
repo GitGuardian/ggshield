@@ -38,6 +38,7 @@ class Tool(Enum):
 
     BASH = auto()
     READ = auto()
+    EDIT = auto()
     MCP = auto()
     # We are not interested in other tools for now
     OTHER = auto()

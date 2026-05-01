@@ -9,7 +9,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import MCPActivityResponse
 
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.ai.agents import Claude, Copilot, Cursor
+from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
 from ggshield.verticals.ai.hooks import AIHookScanner, find_filepaths, parse_hook_input
 from ggshield.verticals.ai.mcp import send_mcp_activity
 from ggshield.verticals.ai.models import EventType, HookPayload, HookResult, Tool
@@ -665,6 +665,62 @@ class TestAIHookScannerParseInput:
         assert "user1" in payload.content
         assert isinstance(payload.agent, Copilot)
 
+    def test_codex_user_prompt(self):
+        """Test Codex UserPromptSubmit parsing."""
+        data = {
+            "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+            "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "UserPromptSubmit",
+            "turn_id": "turn_123",
+            "model": "gpt-5.4",
+            "prompt": "hello world",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.USER_PROMPT
+        assert payload.content == "hello world"
+        assert payload.tool is None
+        assert isinstance(payload.agent, Codex)
+
+    def test_codex_pre_tool_use_bash(self):
+        """Test Codex PreToolUse with Bash parsing."""
+        data = {
+            "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+            "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "PreToolUse",
+            "turn_id": "turn_123",
+            "model": "gpt-5.4",
+            "tool_name": "Bash",
+            "tool_input": {"command": "whoami"},
+            "tool_use_id": "call_123",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.BASH
+        assert payload.content == "whoami"
+        assert isinstance(payload.agent, Codex)
+
+    def test_codex_pre_tool_use_apply_patch(self):
+        """Test Codex PreToolUse with apply_patch parsing."""
+        patch = "*** Begin Patch\n*** Add File: secret.txt\n+token\n*** End Patch\n"
+        data = {
+            "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+            "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "PreToolUse",
+            "turn_id": "turn_123",
+            "model": "gpt-5.4",
+            "tool_name": "apply_patch",
+            "tool_input": {"command": patch},
+            "tool_use_id": "call_123",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.EDIT
+        assert payload.content == patch
+        assert isinstance(payload.agent, Codex)
+
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""
         content = json.dumps(
@@ -888,6 +944,50 @@ class TestFlavorOutputResult:
         args, _ = mock_echo.call_args
         out = json.loads(args[0])
         assert not out["continue"]
+
+    @patch("ggshield.verticals.ai.agents.codex.click.echo")
+    def test_codex_output_result_allow(self, mock_echo: MagicMock):
+        """Codex with block=False: empty JSON to stdout, return 0."""
+        result = HookResult.allow(_dummy_payload(EventType.PRE_TOOL_USE))
+        code = Codex().output_result(result)
+        assert code == 0
+        mock_echo.assert_called_once_with("{}")
+
+    @patch("ggshield.verticals.ai.agents.codex.click.echo")
+    def test_codex_output_result_pre_tool_use_block(self, mock_echo: MagicMock):
+        """Codex PRE_TOOL_USE with block=True: permission deny JSON, return 0."""
+        result = HookResult(
+            block=True,
+            message="Secrets detected in command",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.PRE_TOOL_USE),
+        )
+        code = Codex().output_result(result)
+        assert code == 0
+        args, kwargs = mock_echo.call_args
+        assert kwargs.get("err", False) is False
+        out = json.loads(args[0])
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert (
+            out["hookSpecificOutput"]["permissionDecisionReason"]
+            == "Secrets detected in command"
+        )
+
+    @patch("ggshield.verticals.ai.agents.codex.click.echo")
+    def test_codex_output_result_user_prompt_block(self, mock_echo: MagicMock):
+        """Codex USER_PROMPT with block=True: block decision JSON, return 0."""
+        result = HookResult(
+            block=True,
+            message="Secrets detected in prompt",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.USER_PROMPT),
+        )
+        code = Codex().output_result(result)
+        assert code == 0
+        args, _ = mock_echo.call_args
+        out = json.loads(args[0])
+        assert out["decision"] == "block"
+        assert out["reason"] == "Secrets detected in prompt"
 
 
 @pytest.mark.parametrize(

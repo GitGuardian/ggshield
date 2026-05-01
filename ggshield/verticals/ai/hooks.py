@@ -12,7 +12,7 @@ from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.ai.mcp import send_mcp_activity
 
-from .agents import Claude, Copilot, Cursor
+from .agents import Claude, Codex, Copilot, Cursor
 from .models import Agent, EventType, HookPayload, HookResult, Tool
 
 
@@ -27,6 +27,7 @@ TOOL_NAME_TO_TOOL = {
     "shell": Tool.BASH,  # Cursor
     "bash": Tool.BASH,  # Claude Code
     "run_in_terminal": Tool.BASH,  # Copilot
+    "apply_patch": Tool.EDIT,  # Codex
     "read": Tool.READ,  # Claude/Cursor
     "read_file": Tool.READ,  # Copilot
 }
@@ -109,6 +110,9 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         if tool == Tool.BASH:
             content = tool_input.get("command", "")
             identifier = content
+        elif tool == Tool.EDIT:
+            content = tool_input.get("command", "")
+            identifier = content
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
             identifier = lookup(tool_input, ["file_path", "filePath"], "")
@@ -154,6 +158,8 @@ def _detect_agent(data: Dict[str, Any]) -> Agent:
     # no .lower() here to reduce the risk of false positives (this is also why this check is last)
     elif "session_id" in data and "claude" in data.get("transcript_path", ""):
         return Claude()
+    elif "turn_id" in data or ".codex" in data.get("transcript_path", "").lower():
+        return Codex()
     # No other agent is supported yet
     raise ValueError("Unsupported agent")
 
@@ -317,6 +323,11 @@ class AIHookScanner:
                     "Please remove the secrets from the command before executing it. "
                     "Consider using environment variables or a secrets manager instead."
                 )
+        elif payload.tool == Tool.EDIT:
+            message = (
+                "Please remove the secrets from the file edit before applying it. "
+                "Consider using environment variables or a secrets manager instead."
+            )
         elif payload.tool == Tool.READ:
             message = f"Please remove the secrets from {payload.identifier} before reading it."
         elif payload.event_type == EventType.USER_PROMPT:
@@ -347,6 +358,8 @@ class AIHookScanner:
             source = "reading a file"
         elif tool == Tool.BASH:
             source = "running a command"
+        elif tool == Tool.EDIT:
+            source = "editing a file"
         notification = Notify()
         notification.title = "ggshield - Secrets Detected"
         notification.message = (
