@@ -282,6 +282,20 @@ class TestMessageFromSecrets:
         message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
         assert "remove the secrets from" in message
 
+    def test_message_for_edit_tool(self):
+        """Message for EDIT tool mentions file edits."""
+        payload = HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=Tool.EDIT,
+            content="*** Begin Patch\n+sk-xxx\n*** End Patch\n",
+            identifier="patch",
+            agent=Codex(),
+            raw={},
+        )
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "remove the secrets from the file edit" in message
+        assert "environment variables" in message
+
     def test_message_for_other_tool(self):
         """Message for OTHER tool uses generic message."""
         payload = HookPayload(
@@ -340,6 +354,15 @@ class TestSendSecretNotification:
         AIHookScanner._send_secret_notification(1, Tool.OTHER, "Copilot")
         instance = mock_notify_cls.return_value
         assert "using a tool" in instance.message
+        instance.send.assert_called_once()
+
+    @patch("ggshield.verticals.ai.hooks.Notify")
+    def test_notification_for_edit_tool(self, mock_notify_cls: MagicMock):
+        """Notification for EDIT tool says 'editing a file'."""
+        AIHookScanner._send_secret_notification(1, Tool.EDIT, "Codex")
+        instance = mock_notify_cls.return_value
+        assert "editing a file" in instance.message
+        assert "Codex" in instance.message
         instance.send.assert_called_once()
 
 
@@ -988,6 +1011,19 @@ class TestFlavorOutputResult:
         out = json.loads(args[0])
         assert out["decision"] == "block"
         assert out["reason"] == "Secrets detected in prompt"
+
+    @patch("ggshield.verticals.ai.agents.codex.click.echo")
+    def test_codex_output_result_other_block(self, mock_echo: MagicMock):
+        """Codex unsupported event with block=True writes to stderr and returns 2."""
+        result = HookResult(
+            block=True,
+            message="Unsupported Codex event",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.OTHER),
+        )
+        code = Codex().output_result(result)
+        assert code == 2
+        mock_echo.assert_called_once_with("Unsupported Codex event", err=True)
 
 
 @pytest.mark.parametrize(

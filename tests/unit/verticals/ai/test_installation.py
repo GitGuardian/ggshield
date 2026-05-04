@@ -9,6 +9,7 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
 from ggshield.verticals.ai.installation import (
     InstallationStats,
+    _enable_codex_hooks_feature,
     _fill_dict,
     install_hooks,
 )
@@ -324,6 +325,69 @@ class TestFlavorSettingsProperties:
         template = {"type": "command", "command": "<COMMAND>"}
         result = codex.settings_locate(candidates, template)
         assert result is candidates[1]
+
+    def test_codex_settings_locate_finds_matching_matcher(self):
+        codex = Codex()
+        candidates = [
+            {"matcher": "Bash", "hooks": []},
+            {"matcher": ".*", "hooks": []},
+        ]
+        template = {"matcher": ".*", "hooks": []}
+        result = codex.settings_locate(candidates, template)
+        assert result is candidates[1]
+
+
+class TestEnableCodexHooksFeature:
+    def test_existing_enabled_config_is_left_unchanged(self, tmp_path: Path):
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir()
+        config_path.write_text("[features]\ncodex_hooks = true\n", encoding="utf-8")
+
+        _enable_codex_hooks_feature(tmp_path)
+
+        assert config_path.read_text(encoding="utf-8") == (
+            "[features]\ncodex_hooks = true\n"
+        )
+
+    def test_replaces_disabled_feature_flag(self, tmp_path: Path):
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir()
+        config_path.write_text(
+            "[features]\ncodex_hooks = false # disabled\n",
+            encoding="utf-8",
+        )
+
+        _enable_codex_hooks_feature(tmp_path)
+
+        assert config_path.read_text(encoding="utf-8") == (
+            "[features]\ncodex_hooks = true # disabled\n"
+        )
+
+    def test_adds_feature_flag_to_existing_features_section(self, tmp_path: Path):
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir()
+        config_path.write_text(
+            "[features]\nmodel_requests = true\n[tools]\nweb_search = true\n",
+            encoding="utf-8",
+        )
+
+        _enable_codex_hooks_feature(tmp_path)
+
+        assert config_path.read_text(encoding="utf-8") == (
+            "[features]\ncodex_hooks = true\nmodel_requests = true\n"
+            "[tools]\nweb_search = true\n"
+        )
+
+    def test_appends_features_section_when_missing(self, tmp_path: Path):
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir()
+        config_path.write_text('model = "gpt-5.4"\n', encoding="utf-8")
+
+        _enable_codex_hooks_feature(tmp_path)
+
+        assert config_path.read_text(encoding="utf-8") == (
+            'model = "gpt-5.4"\n' "\n" "[features]\n" "codex_hooks = true\n"
+        )
 
 
 class TestInstallHooks:
