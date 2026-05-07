@@ -50,7 +50,7 @@ _OOB_CODE_VISIBLE_PREFIX = 4
 
 
 def _mask_code(code: str) -> str:
-    """Return ``code`` with all but the first 4 characters replaced by ``*``."""
+    """Return ``code`` with all but the first 4 characters replaced by ``*`` (fully masked if ≤ 4 chars)."""
     if len(code) <= _OOB_CODE_VISIBLE_PREFIX:
         return "*" * len(code)
     return code[:_OOB_CODE_VISIBLE_PREFIX] + "*" * (
@@ -193,9 +193,9 @@ class OAuthClient:
 
         try:
             self._claim_token(authorization_code)
+            token_data = self._validate_access_token()
         except OAuthError as error:
             raise UnexpectedError(error.message)
-        token_data = self._validate_access_token()
         self._save_token(token_data)
 
     def process_callback(self, callback_url: str) -> None:

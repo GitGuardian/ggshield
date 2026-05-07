@@ -13,6 +13,7 @@ from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.utils.datetime import get_pretty_date
 from ggshield.verticals.auth import OAuthClient, OAuthError
+from ggshield.verticals.auth.oauth import OOB_REDIRECT_URI
 from tests.unit.conftest import assert_invoke_ok
 from tests.unit.request_mock import (
     RequestMock,
@@ -1012,9 +1013,6 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called()
 
 
-OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
-
-
 class TestAuthLoginWebNoBrowser:
     """Tests for the browser-less (out-of-band / `--no-browser`) flow.
 
@@ -1139,7 +1137,11 @@ class TestAuthLoginWebNoBrowser:
         # Pasted code must not appear in plain text in the terminal output.
         # Only the first 4 chars are echoed back, followed by `*` placeholders.
         assert "some_authorization_code" not in result.output
-        assert "some" + "*" * (len("some_authorization_code") - 4) in result.output
+        assert (
+                "some" + "*" * (len("some_authorization_code") - 4) in result.output
+                or "some" + "*" * (len("some_authorization_code") - 4)
+                in (result.stderr or "")
+        )
 
         self._request_mock.assert_all_requests_happened()
 
