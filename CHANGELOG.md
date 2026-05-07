@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.50.4'></a>
+
+## 1.50.4 — 2026-05-07
+
+### Fixed
+
+- `ggshield plugin install --allow-unsigned` and `ggshield plugin update --allow-unsigned` now verify plugin signatures using the embedded / cached sigstore trust root instead of refreshing it over the network, so plugins can still be installed when the sigstore TUF endpoints are unreachable.
+
 <a id='changelog-1.50.3'></a>
 
 ## 1.50.3 — 2026-04-30
