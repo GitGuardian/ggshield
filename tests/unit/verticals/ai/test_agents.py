@@ -73,7 +73,7 @@ class TestCursorDiscoverCapabilities:
         """Build a Cursor-style mcps/<server>/ folder layout and return the agent."""
         mangled = project_path.as_posix().replace("/", "-").lstrip("-")
         mcps_root = tmp_path / ".cursor" / "projects" / mangled / "mcps"
-        server_dir = mcps_root / "user-my-server"
+        server_dir = mcps_root / f"user-{server_name}"
         server_dir.mkdir(parents=True, exist_ok=True)
         # SERVER_METADATA.json
         (server_dir / "SERVER_METADATA.json").write_text(
@@ -160,6 +160,228 @@ class TestCursorDiscoverCapabilities:
         cfg = _cfg(name="srv", agent="claude-code", project=Path("/proj"))
         server = MCPServer(name="srv", configurations=[cfg])
         assert cursor.discover_capabilities(server) is False
+
+    def test_extension_prefixed_metadata_matches_short_cfg_name(self, tmp_path: Path):
+        """An extension-provided server (serverName "extension-my-server") must match cfg "my-server"."""
+        project = Path("/home/user/project")
+        mangled = project.as_posix().replace("/", "-").lstrip("-")
+        mcps_root = tmp_path / ".cursor" / "projects" / mangled / "mcps"
+        server_dir = mcps_root / "extension-my-server"
+        server_dir.mkdir(parents=True)
+        (server_dir / "SERVER_METADATA.json").write_text(
+            json.dumps({"serverName": "extension-my-server"})
+        )
+        (server_dir / "tools").mkdir()
+        (server_dir / "tools" / "t1.json").write_text(json.dumps({"name": "find"}))
+
+        cursor = Cursor()
+        cfg = _cfg(name="my-server", agent="cursor", project=project)
+        server = MCPServer(name="server", configurations=[cfg])
+
+        with patch.object(
+            type(cursor),
+            "config_folder",
+            new_callable=lambda: property(lambda self: tmp_path / ".cursor"),
+        ):
+            assert cursor.discover_capabilities(server) is True
+        assert [t.name for t in server.tools] == ["find"]
+
+
+class TestCursorGetPluginMcpConfigurations:
+    def _patch(self, cursor: Cursor, config_folder: Path):
+        return patch.object(
+            type(cursor),
+            "config_folder",
+            new_callable=lambda: property(lambda self: config_folder),
+        )
+
+    def test_marketplace_plugin_with_mcp_json(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        install_dir = (
+            config_folder / "plugins" / "cache" / "cursor-public" / "sentry" / "abc123"
+        )
+        install_dir.mkdir(parents=True)
+        (install_dir / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "sentry": {"type": "http", "url": "https://mcp.sentry.dev/mcp"}
+                    }
+                }
+            )
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_plugin_mcp_configurations())
+
+        assert len(configs) == 1
+        assert configs[0].name == "sentry"
+        assert configs[0].scope == Scope.USER
+        assert configs[0].project is None
+        assert configs[0].transport == Transport.HTTP
+        assert configs[0].url == "https://mcp.sentry.dev/mcp"
+
+    def test_local_plugin_with_dot_mcp_json_bare_layout(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        install_dir = config_folder / "plugins" / "local" / "my-plugin"
+        install_dir.mkdir(parents=True)
+        # Bare layout (no "mcpServers" wrapper)
+        (install_dir / ".mcp.json").write_text(
+            json.dumps({"my-srv": {"command": "node", "args": ["index.js"]}})
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_plugin_mcp_configurations())
+
+        assert len(configs) == 1
+        assert configs[0].name == "my-srv"
+        assert configs[0].transport == Transport.STDIO
+        assert configs[0].command == "node"
+
+    def test_inline_mcp_servers_in_manifest(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        install_dir = config_folder / "plugins" / "cache" / "owner" / "inline" / "v1"
+        install_dir.mkdir(parents=True)
+        (install_dir / ".cursor-plugin").mkdir()
+        (install_dir / ".cursor-plugin" / "plugin.json").write_text(
+            json.dumps(
+                {
+                    "name": "inline",
+                    "mcpServers": {
+                        "inline-srv": {
+                            "url": "https://example.com/mcp",
+                            "transport": "sse",
+                        }
+                    },
+                }
+            )
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_plugin_mcp_configurations())
+
+        assert len(configs) == 1
+        assert configs[0].name == "inline-srv"
+        assert configs[0].transport == Transport.SSE
+        assert configs[0].url == "https://example.com/mcp"
+
+    def test_plugin_without_mcp_servers_yields_nothing(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        install_dir = (
+            config_folder / "plugins" / "cache" / "owner" / "skills-only" / "v1"
+        )
+        install_dir.mkdir(parents=True)
+        (install_dir / ".cursor-plugin").mkdir()
+        (install_dir / ".cursor-plugin" / "plugin.json").write_text(
+            json.dumps({"name": "skills-only"})
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_plugin_mcp_configurations())
+
+        assert configs == []
+
+    def test_missing_plugins_folder_yields_nothing(self, tmp_path: Path):
+        cursor = Cursor()
+        with self._patch(cursor, tmp_path / ".cursor"):
+            configs = list(cursor._get_plugin_mcp_configurations())
+        assert configs == []
+
+
+class TestCursorGetExtensionMcpConfigurations:
+    def _patch(self, cursor: Cursor, config_folder: Path):
+        return patch.object(
+            type(cursor),
+            "config_folder",
+            new_callable=lambda: property(lambda self: config_folder),
+        )
+
+    def _write_registry(self, config_folder: Path, entries: List[Dict[str, Any]]):
+        ext_root = config_folder / "extensions"
+        ext_root.mkdir(parents=True, exist_ok=True)
+        (ext_root / "extensions.json").write_text(json.dumps(entries))
+
+    def test_extension_with_mcp_provider_yields_config(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        ext_dir = config_folder / "extensions" / "eamodio.gitlens-17.12.2-universal"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "package.json").write_text(
+            json.dumps(
+                {
+                    "contributes": {
+                        "mcpServerDefinitionProviders": [
+                            {
+                                "id": "gitlens.gkMcpProvider",
+                                "label": "GitKraken (bundled with GitLens)",
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+        self._write_registry(
+            config_folder,
+            [{"relativeLocation": "eamodio.gitlens-17.12.2-universal"}],
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_extension_mcp_configurations())
+
+        assert len(configs) == 1
+        assert configs[0].name == "GitKraken"
+        assert configs[0].scope == Scope.USER
+        assert configs[0].project is None
+        assert configs[0].transport == Transport.STDIO
+
+    def test_extension_without_mcp_provider_skipped(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        ext_dir = config_folder / "extensions" / "pub.plain-1.0.0"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "package.json").write_text(
+            json.dumps({"contributes": {"commands": [{"command": "foo"}]}})
+        )
+        self._write_registry(config_folder, [{"relativeLocation": "pub.plain-1.0.0"}])
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_extension_mcp_configurations())
+
+        assert configs == []
+
+    def test_multiple_providers_yield_one_each(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        ext_dir = config_folder / "extensions" / "pub.multi-1.0.0"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "package.json").write_text(
+            json.dumps(
+                {
+                    "contributes": {
+                        "mcpServerDefinitionProviders": [
+                            {"id": "p1", "label": "Provider 1"},
+                            {"id": "p2", "label": "Provider 2"},
+                        ]
+                    }
+                }
+            )
+        )
+        self._write_registry(config_folder, [{"relativeLocation": "pub.multi-1.0.0"}])
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_extension_mcp_configurations())
+
+        assert [c.name for c in configs] == ["Provider 1", "Provider 2"]
+
+    def test_missing_registry_yields_nothing(self, tmp_path: Path):
+        cursor = Cursor()
+        with self._patch(cursor, tmp_path / ".cursor"):
+            configs = list(cursor._get_extension_mcp_configurations())
+        assert configs == []
 
 
 class TestCursorDiscoverProjectDirectories:

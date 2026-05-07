@@ -14,7 +14,16 @@ from pygitguardian.models import (
 
 from ggshield.core.dirs import get_user_home_dir
 
-from ..models import Agent, EventType, HookPayload, HookResult, MCPServer
+from ..models import (
+    Agent,
+    EventType,
+    HookPayload,
+    HookResult,
+    MCPConfiguration,
+    MCPServer,
+    Scope,
+    Transport,
+)
 
 
 class Cursor(Agent):
@@ -79,6 +88,92 @@ class Cursor(Agent):
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".cursor" / "mcp.json"
 
+    def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
+        """Yield user-scoped MCP configurations from every known Cursor source."""
+        yield from super()._get_user_mcp_configurations()
+        yield from self._get_plugin_mcp_configurations()
+        yield from self._get_extension_mcp_configurations()
+
+    def _get_plugin_mcp_configurations(self) -> Iterator[MCPConfiguration]:
+        """Yield MCP servers contributed by installed Cursor plugins.
+
+        Cursor stores marketplace plugins in
+        ``~/.cursor/plugins/cache/<owner>/<plugin>/<version>/`` and
+        locally-installed plugins in ``~/.cursor/plugins/local/<plugin>/``.
+        Each plugin can declare MCP servers either in
+        ``<installPath>/mcp.json`` (or ``.mcp.json``) or inline under the
+        ``mcpServers`` key of ``<installPath>/.cursor-plugin/plugin.json``.
+        """
+        plugins_root = self.config_folder / "plugins"
+        # Marketplace plugins: cache/<owner>/<plugin>/<version>/
+        for install_dir in plugins_root.glob("cache/*/*/*"):
+            if install_dir.is_dir():
+                yield from self._parse_cursor_plugin_dir(install_dir)
+        # Local plugins: local/<plugin>/
+        for install_dir in plugins_root.glob("local/*"):
+            if install_dir.is_dir():
+                yield from self._parse_cursor_plugin_dir(install_dir)
+
+    def _parse_cursor_plugin_dir(self, install_dir: Path) -> Iterator[MCPConfiguration]:
+        """Parse a single Cursor plugin install directory and yield any MCP servers."""
+        # Preferred location: mcp.json or .mcp.json at the plugin root. The
+        # file may use either the wrapped {"mcpServers": {...}} layout or the
+        # bare {"name": {...}} layout, so we normalize before parsing.
+        for filename in ("mcp.json", ".mcp.json"):
+            mcp_data = self._load_json_file(install_dir / filename)
+            if mcp_data is not None:
+                if "mcpServers" not in mcp_data and "servers" not in mcp_data:
+                    mcp_data = {"mcpServers": mcp_data}
+                yield from self._parse_servers_block(mcp_data, Scope.USER, None)
+                return
+
+        # Fallback: inline mcpServers in the plugin manifest.
+        manifest = self._load_json_file(install_dir / ".cursor-plugin" / "plugin.json")
+        if not manifest:
+            return
+        inline = manifest.get("mcpServers")
+        if isinstance(inline, dict):
+            yield from self._parse_servers_block(
+                {"mcpServers": inline}, Scope.USER, None
+            )
+
+    def _get_extension_mcp_configurations(self) -> Iterator[MCPConfiguration]:
+        """Yield MCP servers contributed by installed Cursor (VS Code) extensions.
+
+        Extensions can register MCP servers programmatically via the
+        ``contributes.mcpServerDefinitionProviders`` field of their
+        ``package.json``. The server's actual transport/URL/command is set at
+        runtime, so we only emit a placeholder configuration with the
+        provider's id/label as the name and STDIO transport as a sensible
+        default.
+        """
+        packages = self.config_folder.glob("extensions/*/package.json")
+        for package_path in packages:
+            package = self._load_json_file(package_path)
+            if not package:
+                continue
+            providers = package.get("contributes", {}).get(
+                "mcpServerDefinitionProviders", []
+            )
+            if not isinstance(providers, list):
+                continue
+            for provider in providers:
+                if not isinstance(provider, dict):
+                    continue
+                name = provider.get("label") or provider.get("id")
+                if not name:
+                    continue
+                # Cursor seems to truncate the label when parentheses are present.
+                # Could be worth investigating the exact behavior more.
+                name = name.split("(")[0].strip()
+                yield MCPConfiguration(
+                    name=name,
+                    agent=self.name,
+                    scope=Scope.USER,
+                    transport=Transport.STDIO,
+                    project=None,
+                )
+
     def discover_project_directories(self) -> Iterator[Path]:
         # Because Cursor is based on VS Code, we can reuse the same logic than Copilot.
         user_folder = get_user_home_dir() / ".config" / "Cursor" / "User"
@@ -89,31 +184,28 @@ class Cursor(Agent):
                     yield path.resolve()
 
     def discover_capabilities(self, server: MCPServer) -> bool:
-        # General Cursor strategy:
         # For each project where Cursor was used, it created a folder with the project name
         # in its configuration folder. Inside that folder, it stores metadata for every
-        # MCP server available in that project.
-        for configuration in server.configurations:
-            # Look for Cursor configurations
-            if configuration.agent != self.name:
-                continue
-            # We need a folder. Note: this also works for user-level configurations.
-            # as Cursor will have a `home-<username>` "project".
-            if configuration.project is None:
-                continue
+        # MCP server available in that project (one subfolder per server).
+        # General strategy:
+        #  - get all Cursor's configuration names
+        #  - look for a SERVER_METADATA.json file with the expected name.
+        configuration_names = {
+            configuration.name
+            for configuration in server.configurations
+            if configuration.agent == self.name
+        }
 
-            # Lookup where Cursor stores the capabilities for the given project.
-            mangled = (
-                Path(configuration.project).as_posix().replace("/", "-").lstrip("-")
-            )
-            folder = self.config_folder / "projects" / mangled / "mcps"
-            if not folder.exists():
-                continue
-            # Look for a SERVER_METADATA.json file with the expected name.
-            # (each subfolder corresponds to a different MCP server)
-            for file in folder.glob("*/SERVER_METADATA.json"):
+        for configuration_name in configuration_names:
+            # Note: we didn't restrict the project folder,
+            # because some servers (like plugins) won't have them in their configuration.
+            # Fortunately, the name of the folder is derived from the MCP server name,
+            # so we can use it to reduce the number of folders to look at, so it is still fast.
+            for file in self.config_folder.glob(
+                f"projects/*/mcps/*{configuration_name}/SERVER_METADATA.json"
+            ):
                 metadata = self._load_json_file(file)
-                if metadata and metadata.get("serverName") == configuration.name:
+                if self._server_name_matches(metadata, configuration_name):
                     # Found it! Update the folder
                     folder = file.parent
                     break
@@ -172,6 +264,17 @@ class Cursor(Agent):
                 return True
 
         return False
+
+    def _server_name_matches(
+        self, metadata: Optional[Dict[str, Any]], name: str
+    ) -> bool:
+        """Check if the server name matches the metadata."""
+        if metadata is None:
+            return False
+        server_name = metadata.get("serverName", "")
+        # Extension-based servers are prefixed with "extension-"
+        server_name = server_name.removeprefix("extension-")
+        return server_name == name
 
     def parse_mcp_activity(
         self, payload: HookPayload, ai_config: AIDiscovery
