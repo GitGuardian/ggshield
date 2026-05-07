@@ -92,6 +92,70 @@ class TestMissingBundle:
         assert result.status == SignatureStatus.MISSING
 
 
+class TestSignatureVerificationModeWarn:
+    """WARN mode verifies offline so the sigstore TUF refresh is skipped."""
+
+    def test_warn_mode_uses_offline_verifier(self, tmp_path: Path) -> None:
+        wheel = tmp_path / "plugin-1.0.0.whl"
+        wheel.write_bytes(b"fake wheel content")
+        bundle = tmp_path / "plugin-1.0.0.whl.sigstore"
+        bundle.write_bytes(b'{"fake": "bundle"}')
+
+        mock_verifier_cls = MagicMock()
+        mock_bundle_cls = MagicMock()
+        mock_all_of_cls = MagicMock()
+        mock_oidc_issuer_cls = MagicMock()
+        mock_gh_repo_cls = MagicMock()
+
+        mock_verifier_cls.production.return_value.verify_artifact.return_value = None
+        mock_bundle_cls.from_json.return_value = MagicMock()
+
+        with (
+            patch("ggshield.core.plugin.signature.Verifier", mock_verifier_cls),
+            patch("ggshield.core.plugin.signature.Bundle", mock_bundle_cls),
+            patch("ggshield.core.plugin.signature.AllOf", mock_all_of_cls),
+            patch("ggshield.core.plugin.signature.OIDCIssuer", mock_oidc_issuer_cls),
+            patch(
+                "ggshield.core.plugin.signature.GitHubWorkflowRepository",
+                mock_gh_repo_cls,
+            ),
+        ):
+            verify_wheel_signature(wheel, SignatureVerificationMode.WARN)
+
+        # The TUF refresh runs inside Verifier.production() unless offline=True
+        # is passed; --allow-unsigned must opt into offline verification.
+        mock_verifier_cls.production.assert_called_once_with(offline=True)
+
+    def test_strict_mode_uses_online_verifier(self, tmp_path: Path) -> None:
+        wheel = tmp_path / "plugin-1.0.0.whl"
+        wheel.write_bytes(b"fake wheel content")
+        bundle = tmp_path / "plugin-1.0.0.whl.sigstore"
+        bundle.write_bytes(b'{"fake": "bundle"}')
+
+        mock_verifier_cls = MagicMock()
+        mock_bundle_cls = MagicMock()
+        mock_all_of_cls = MagicMock()
+        mock_oidc_issuer_cls = MagicMock()
+        mock_gh_repo_cls = MagicMock()
+
+        mock_verifier_cls.production.return_value.verify_artifact.return_value = None
+        mock_bundle_cls.from_json.return_value = MagicMock()
+
+        with (
+            patch("ggshield.core.plugin.signature.Verifier", mock_verifier_cls),
+            patch("ggshield.core.plugin.signature.Bundle", mock_bundle_cls),
+            patch("ggshield.core.plugin.signature.AllOf", mock_all_of_cls),
+            patch("ggshield.core.plugin.signature.OIDCIssuer", mock_oidc_issuer_cls),
+            patch(
+                "ggshield.core.plugin.signature.GitHubWorkflowRepository",
+                mock_gh_repo_cls,
+            ),
+        ):
+            verify_wheel_signature(wheel, SignatureVerificationMode.STRICT)
+
+        mock_verifier_cls.production.assert_called_once_with(offline=False)
+
+
 class TestBundleVerification:
     """Tests for bundle verification with mocked sigstore."""
 

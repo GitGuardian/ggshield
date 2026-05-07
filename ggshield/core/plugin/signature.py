@@ -7,7 +7,9 @@ of GitHub Actions workflow identities (OIDC).
 
 Verification modes:
 - STRICT: block unsigned or invalid plugins
-- WARN: log a warning but allow loading
+- WARN: log a warning but allow loading. Verification still runs against the
+  embedded / cached sigstore trust root (offline=True) so the TUF metadata
+  refresh, which can fail in restricted networks, is skipped.
 - DISABLED: skip verification entirely
 """
 
@@ -131,10 +133,13 @@ def verify_wheel_signature(
         logger.warning("%s", msg)
         return SignatureInfo(status=SignatureStatus.MISSING, message=msg)
 
-    # Verify bundle
+    # Verify bundle. In WARN mode (--allow-unsigned) we use the embedded /
+    # cached sigstore trust root via offline=True so that the TUF metadata
+    # refresh -- which can fail in restricted networks -- is skipped.
     bundle = Bundle.from_json(bundle_path.read_bytes())
     wheel_bytes = wheel_path.read_bytes()
-    verifier = Verifier.production()
+    offline = mode == SignatureVerificationMode.WARN
+    verifier = Verifier.production(offline=offline)
 
     for trusted in trusted_identities:
         policy = AllOf(
