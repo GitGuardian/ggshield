@@ -46,7 +46,9 @@ def lookup(data: Dict[str, Any], keys: Sequence[str], default: Any = None) -> An
 _FILE_PATH_REGEX = re.compile(
     r'@"((?:[^"\\]|\\.)*)"'  # quoted: @"..."
     r"|"
-    r"(?:\W|^)@([\w/\\.-]+)",  # unquoted: @path
+    r"(?:\W|^)@"  # unquoted: @path
+    r"(?:file:)?"  # some agents add a "file:" prefix
+    r"([\w/\\.-]+)",
     re.MULTILINE,
 )
 
@@ -112,7 +114,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             identifier = content
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
-            identifier = lookup(tool_input, ["file_path", "filePath"], "")
+            identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
 
     elif event_type == EventType.POST_TOOL_USE:
         tool = _parse_tool(data)

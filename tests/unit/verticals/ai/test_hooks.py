@@ -1105,6 +1105,7 @@ class TestFlavorOutputResult:
         ("@filename.txt", {"filename.txt"}),
         ("same @file @file twice", {"file"}),
         ("File can start with a dot: @.env", {".env"}),
+        ("File can contain underscores: @my_file.txt", {"my_file.txt"}),
         (
             "Files simply mentioned without @ prefix are not matched: foo.txt bar.txt.",
             set(),
@@ -1138,6 +1139,8 @@ class TestFlavorOutputResult:
             {"config.json", "big file.txt"},
         ),
         ("Newline before @: line1\n@file.txt", {"file.txt"}),
+        ("VSCode-style path: @file:file.txt", {"file.txt"}),
+        ("VSCode-style path with folder: @file:folder/file.txt", {"folder/file.txt"}),
     ],
 )
 def test_find_filepaths(prompt: str, filepaths: Set[str]):
