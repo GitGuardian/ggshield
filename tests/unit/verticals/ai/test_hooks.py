@@ -9,7 +9,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import MCPActivityResponse
 
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
+from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor, VSCode
 from ggshield.verticals.ai.hooks import AIHookScanner, find_filepaths, parse_hook_input
 from ggshield.verticals.ai.mcp import send_mcp_activity
 from ggshield.verticals.ai.models import EventType, HookPayload, HookResult, Tool
@@ -561,12 +561,12 @@ class TestAIHookScannerParseInput:
         assert payload.tool is None
         assert isinstance(payload.agent, Claude)
 
-    def test_copilot_user_prompt(self):
-        """Test Copilot UserPromptSubmit parsing."""
+    def test_vscode_user_prompt(self):
+        """Test VSCode UserPromptSubmit parsing."""
         data = {
             "timestamp": "2026-02-26T11:28:53.112Z",
-            "hookEventName": "UserPromptSubmit",
-            "sessionId": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
             "transcript_path": (
                 "/home/user1/.config/Code/User/workspaceStorage/"
                 "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
@@ -578,15 +578,15 @@ class TestAIHookScannerParseInput:
         assert payload.event_type == EventType.USER_PROMPT
         assert "hello world" in payload.content
         assert payload.tool is None
-        assert isinstance(payload.agent, Copilot)
+        assert isinstance(payload.agent, VSCode)
 
-    def test_copilot_pre_tool_use_run_in_terminal(self):
-        """Test Copilot PreToolUse with run_in_terminal (shell) parsing."""
+    def test_vscode_pre_tool_use_run_in_terminal(self):
+        """Test VSCode PreToolUse with run_in_terminal (shell) parsing."""
         # From raw_hooks_logs: Copilot PreToolUse run_in_terminal
         data = {
             "timestamp": "2026-02-26T11:29:05.821Z",
-            "hookEventName": "PreToolUse",
-            "sessionId": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "hook_event_name": "PreToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
             "transcript_path": (
                 "/home/user1/.config/Code/User/workspaceStorage/"
                 "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
@@ -606,15 +606,15 @@ class TestAIHookScannerParseInput:
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.BASH
         assert "whoami" in payload.content
-        assert isinstance(payload.agent, Copilot)
+        assert isinstance(payload.agent, VSCode)
 
-    def test_copilot_pre_tool_use_read_file(self, tmp_file: Path):
-        """Test Copilot PreToolUse with read_file parsing."""
-        # From raw_hooks_logs: Copilot PreToolUse read_file (nonexistent path for deterministic test)
+    def test_vscode_pre_tool_use_read_file(self, tmp_file: Path):
+        """Test VSCode PreToolUse with read_file parsing."""
+        # From raw_hooks_logs: VSCode PreToolUse read_file (nonexistent path for deterministic test)
         data = {
             "timestamp": "2026-02-26T11:53:49.593Z",
-            "hookEventName": "PreToolUse",
-            "sessionId": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "hook_event_name": "PreToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
             "transcript_path": (
                 "/home/user1/.config/Code/User/workspaceStorage/"
                 "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
@@ -634,15 +634,15 @@ class TestAIHookScannerParseInput:
         assert payload.identifier == tmp_file.as_posix()
         assert payload.content == ""
         assert payload.scannable.content == "this is the content"
-        assert isinstance(payload.agent, Copilot)
+        assert isinstance(payload.agent, VSCode)
 
-    def test_copilot_post_tool_use_run_in_terminal(self):
-        """Test Copilot PostToolUse with run_in_terminal (simulated cat result)."""
+    def test_vscode_post_tool_use_run_in_terminal(self):
+        """Test VSCode PostToolUse with run_in_terminal (simulated cat result)."""
         # From raw_hooks_logs: Copilot PostToolUse run_in_terminal - tool_response is string
         data = {
             "timestamp": "2026-02-26T11:53:47.392Z",
-            "hookEventName": "PostToolUse",
-            "sessionId": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "hook_event_name": "PostToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
             "transcript_path": (
                 "/home/user1/.config/Code/User/workspaceStorage/"
                 "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
@@ -663,7 +663,99 @@ class TestAIHookScannerParseInput:
         assert payload.event_type == EventType.POST_TOOL_USE
         assert payload.tool == Tool.BASH
         assert "user1" in payload.content
+        assert isinstance(payload.agent, VSCode)
+
+    def test_copilot_user_prompt(self):
+        """Test Copilot UserPromptSubmit parsing."""
+        data = {
+            "timestamp": "2026-02-26T11:28:53.112Z",
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "prompt": "hello world",
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.USER_PROMPT
+        assert "hello world" in payload.content
+        assert payload.tool is None
         assert isinstance(payload.agent, Copilot)
+
+    def test_copilot_pre_tool_use_run_in_terminal(self):
+        """Test Copilot PreToolUse with bash parsing."""
+        data = {
+            "timestamp": "2026-02-26T11:29:05.821Z",
+            "hook_event_name": "PreToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "tool_name": "bash",
+            "tool_input": {
+                "command": "whoami",
+                "description": "whoami to test preToolUse hook",
+                "mode": "sync",
+                "initial_wait": 30,
+            },
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.BASH
+        assert "whoami" in payload.content
+        assert isinstance(payload.agent, Copilot)
+
+    def test_copilot_pre_tool_use_read_file(self, tmp_file: Path):
+        """Test Copilot PreToolUse with read_file parsing."""
+        # From raw_hooks_logs: Copilot PreToolUse read_file (nonexistent path for deterministic test)
+        data = {
+            "timestamp": "2026-02-26T11:53:49.593Z",
+            "hook_event_name": "PreToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "tool_name": "view",
+            "tool_input": {
+                "path": tmp_file.as_posix(),
+            },
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.READ
+        assert payload.identifier == tmp_file.as_posix()
+        assert payload.content == ""
+        assert payload.scannable.content == "this is the content"
+        assert isinstance(payload.agent, Copilot)
+
+    def test_copilot_post_tool_use_run_in_terminal(self):
+        """Test Copilot PostToolUse with bash"""
+        data = {
+            "timestamp": "2026-02-26T11:53:47.392Z",
+            "hook_event_name": "PostToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "tool_name": "run_in_terminal",
+            "tool_input": {
+                "command": "whoami",
+                "explanation": "whoami to test postToolUse hook",
+                "goal": "whoami to test postToolUse hook",
+                "isBackground": False,
+                "timeout": 0,
+            },
+            "tool_result": {
+                "result_type": "success",
+                "text_result_for_llm": "user1\n<exited with exit code 0>",
+            },
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.POST_TOOL_USE
+        assert payload.tool == Tool.BASH
+        assert "user1" in payload.content
+        assert isinstance(payload.agent, Copilot)
+
+    def test_raises_if_no_agent_recognized(self):
+        """Test raises if no agent can be recognized."""
+        data = {
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "hello world",
+        }
+        with pytest.raises(ValueError, match="Unrecognized agent"):
+            parse_hook_input(json.dumps(data))
 
     def test_codex_user_prompt(self):
         """Test Codex UserPromptSubmit parsing."""

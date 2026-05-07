@@ -29,6 +29,7 @@ TOOL_NAME_TO_TOOL = {
     "run_in_terminal": Tool.BASH,  # Copilot
     "read": Tool.READ,  # Claude/Cursor
     "read_file": Tool.READ,  # Copilot
+    "view": Tool.READ,  # Copilot CLI
 }
 
 
@@ -115,8 +116,8 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
 
     elif event_type == EventType.POST_TOOL_USE:
         tool = _parse_tool(data)
-        content = data.get("tool_output", "") or data.get("tool_response", {})
-        # Claude Code returns a dict for the tool output
+        content = lookup(data, ["tool_output", "tool_response", "tool_result"], {})
+        # Some agents return a dict for the tool output. Also support lists just in case.
         if isinstance(content, (dict, list)):
             content = json.dumps(content)
 
