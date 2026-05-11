@@ -10,6 +10,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import APITokensResponse, Detail, TokenScope
 
 from ggshield.core.client import (
+    RetryProfile,
     check_client_api_key,
     create_client_from_config,
     create_session,
@@ -261,12 +262,11 @@ def test_create_session_pool_configuration():
     assert getattr(adapter, "_pool_maxsize", None) == 100
 
 
-def test_create_session_retry_configuration():
+def test_create_session_default_retry_profile():
     """
-    GIVEN create_session is called
+    GIVEN create_session is called without retry_profile
     WHEN the session is created
-    THEN the HTTPAdapter retries transient connection errors and 5xx responses,
-    including for POST requests used by scan endpoints
+    THEN the HTTPAdapter uses the DEFAULT retry profile (~15s budget)
     """
     session = create_session()
 
@@ -274,9 +274,74 @@ def test_create_session_retry_configuration():
     retries = adapter.max_retries
 
     assert retries.total == 5
-    assert retries.backoff_factor == 0.2
+    assert retries.backoff_factor == 0.5
+    assert retries.backoff_max == 8
+    assert retries.backoff_jitter == 0.5
     assert set(retries.status_forcelist) == {502, 503, 504}
     assert "POST" in retries.allowed_methods
+
+
+def test_create_session_pre_receive_retry_profile():
+    """
+    GIVEN create_session is called with PRE_RECEIVE profile
+    WHEN the session is created
+    THEN the HTTPAdapter uses a minimal retry policy that fits inside GitHub
+    Enterprise Server's 5s pre-receive hook timeout: one immediate retry, no
+    backoff
+    """
+    session = create_session(retry_profile=RetryProfile.PRE_RECEIVE)
+
+    adapter = session.get_adapter("https://example.com")
+    retries = adapter.max_retries
+
+    assert retries.total == 1
+    assert retries.backoff_factor == 0
+    assert retries.backoff_jitter == 0
+    assert set(retries.status_forcelist) == {502, 503, 504}
+    assert "POST" in retries.allowed_methods
+
+
+def test_create_client_threads_retry_profile():
+    """
+    GIVEN create_client is called with a retry_profile
+    WHEN the underlying session is created
+    THEN the session's HTTPAdapter uses that profile
+
+    Tests the low-level entry point, which is what create_client_from_config
+    forwards to.
+    """
+    from ggshield.core.client import create_client
+
+    client = create_client(
+        api_key="test-api-key",
+        api_url="https://api.example.com",
+        retry_profile=RetryProfile.PRE_RECEIVE,
+    )
+
+    adapter = client.session.get_adapter("https://example.com")
+    assert adapter.max_retries.total == 1
+    assert adapter.max_retries.backoff_factor == 0
+
+
+def test_create_client_from_config_forwards_retry_profile():
+    """
+    GIVEN create_client_from_config is called with a retry_profile
+    WHEN it delegates to create_client
+    THEN it passes the retry_profile through unchanged
+    """
+    config = Mock(spec=Config)
+    config.api_key = "test-api-key"
+    config.api_url = "https://api.example.com"
+    config.user_config = Mock()
+    config.user_config.insecure = False
+
+    with patch("ggshield.core.client.create_client") as create_client_mock:
+        create_client_from_config(config, retry_profile=RetryProfile.PRE_RECEIVE)
+
+    create_client_mock.assert_called_once()
+    assert (
+        create_client_mock.call_args.kwargs["retry_profile"] is RetryProfile.PRE_RECEIVE
+    )
 
 
 @pytest.mark.parametrize("allow_self_signed", [True, False])

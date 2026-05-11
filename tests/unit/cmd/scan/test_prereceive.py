@@ -6,6 +6,7 @@ from click.testing import CliRunner
 from pygitguardian.models import Detail
 
 from ggshield.__main__ import cli
+from ggshield.core.client import RetryProfile
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import ExitCode
 from ggshield.core.scan import StringScannable
@@ -88,6 +89,39 @@ class TestPreReceive:
         assert_invoke_ok(result)
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 3" in result.output
+
+    @patch("ggshield.cmd.secret.scan.prereceive.create_client_from_config")
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
+    def test_uses_pre_receive_retry_profile(
+        self,
+        scan_commit_range_mock: Mock,
+        create_client_from_config_mock: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN the pre-receive command is invoked
+        WHEN it builds the GGClient
+        THEN it requests the PRE_RECEIVE retry profile so the client stays
+        inside GHES's fixed pre-receive hook timeout
+        """
+        scan_commit_range_mock.return_value = ExitCode.SUCCESS
+
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        shas = [repo.create_commit() for _ in range(3)]
+        with cd(repo.path):
+            cli_fs_runner.invoke(
+                cli,
+                ["-v", "secret", "scan", "pre-receive"],
+                input=f"{old_sha} {shas[-1]} origin/main\n",
+            )
+
+        create_client_from_config_mock.assert_called_once()
+        assert (
+            create_client_from_config_mock.call_args.kwargs["retry_profile"]
+            is RetryProfile.PRE_RECEIVE
+        )
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input_secret(
