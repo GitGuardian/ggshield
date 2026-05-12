@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal, Optional
+from typing import Any, Dict, Iterator, Literal
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -49,66 +49,14 @@ class Codex(Agent):
         click.echo(json.dumps(response))
         return 0
 
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        return (
+            "turn_id" in hook_payload
+            or ".codex" in hook_payload.get("transcript_path", "").lower()
+        )
+
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".codex") / "hooks.json"
-
-    @property
-    def settings_template(self) -> Dict[str, Any]:
-        return {
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": ".*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "<COMMAND>",
-                            }
-                        ],
-                    }
-                ],
-                "PostToolUse": [
-                    {
-                        "matcher": ".*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "<COMMAND>",
-                            }
-                        ],
-                    }
-                ],
-                "UserPromptSubmit": [
-                    {
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "<COMMAND>",
-                            }
-                        ],
-                    }
-                ],
-            }
-        }
-
-    def settings_locate(
-        self, candidates: List[Dict[str, Any]], template: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        if "matcher" in template:
-            for obj in candidates:
-                if obj.get("matcher") == template["matcher"]:
-                    return obj
-            return None
-        for obj in candidates:
-            command = obj.get("command", "")
-            if "ggshield" in command or "<COMMAND>" in command:
-                return obj
-        for obj in candidates:
-            for hook in obj.get("hooks", []):
-                command = hook.get("command", "")
-                if "ggshield" in command or "<COMMAND>" in command:
-                    return obj
-        return None
 
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".codex" / "config.toml"

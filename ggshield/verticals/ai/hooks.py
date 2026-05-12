@@ -12,7 +12,7 @@ from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.ai.mcp import send_mcp_activity
 
-from .agents import Claude, Codex, Copilot, Cursor
+from .agents import AGENTS
 from .models import Agent, EventType, HookPayload, HookResult, Tool
 
 
@@ -147,17 +147,10 @@ def _parse_tool(data: Dict[str, Any]) -> Tool:
 
 def _detect_agent(data: Dict[str, Any]) -> Agent:
     """Detect the AI code assistant."""
-    if "cursor_version" in data:
-        return Cursor()
-    elif "github.copilot-chat" in data.get("transcript_path", "").lower():
-        return Copilot()
-    # no .lower() here to reduce the risk of false positives (this is also why this check is last)
-    elif "session_id" in data and "claude" in data.get("transcript_path", ""):
-        return Claude()
-    elif "turn_id" in data or ".codex" in data.get("transcript_path", "").lower():
-        return Codex()
-    # No other agent is supported yet
-    raise ValueError("Unsupported agent")
+    for agent in AGENTS.values():
+        if agent.is_caller(data):
+            return agent
+    raise ValueError("Unrecognized agent")
 
 
 def _parse_user_prompt(
@@ -207,8 +200,8 @@ class AIHookScanner:
         result = self._scan_payloads(payloads)
         payload = result.payload
 
-        # Special case: in post-tool use, the action is already done: at least notify the user
-        if result.block and payload.event_type == EventType.POST_TOOL_USE:
+        # Sometimes the secret has already leaked to the agent. Notify the user.
+        if result.block and payload.agent.has_secret_already_leaked(payload):
             self._send_secret_notification(
                 result.nbr_secrets,
                 payload.tool or Tool.OTHER,

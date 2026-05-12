@@ -305,36 +305,6 @@ class TestFlavorSettingsProperties:
     def test_codex_settings_template(self):
         assert isinstance(Codex().settings_template, dict)
 
-    def test_codex_settings_locate_finds_nested_ggshield_hook(self):
-        codex = Codex()
-        candidates = [
-            {"hooks": [{"type": "command", "command": "other-tool"}]},
-            {"hooks": [{"type": "command", "command": "ggshield secret scan ai-hook"}]},
-        ]
-        template = {"hooks": [{"type": "command", "command": "<COMMAND>"}]}
-        result = codex.settings_locate(candidates, template)
-        assert result is candidates[1]
-
-    def test_codex_settings_locate_finds_command_hook(self):
-        codex = Codex()
-        candidates = [
-            {"type": "command", "command": "other-tool"},
-            {"type": "command", "command": "ggshield secret scan ai-hook"},
-        ]
-        template = {"type": "command", "command": "<COMMAND>"}
-        result = codex.settings_locate(candidates, template)
-        assert result is candidates[1]
-
-    def test_codex_settings_locate_finds_matching_matcher(self):
-        codex = Codex()
-        candidates = [
-            {"matcher": "Bash", "hooks": []},
-            {"matcher": ".*", "hooks": []},
-        ]
-        template = {"matcher": ".*", "hooks": []}
-        result = codex.settings_locate(candidates, template)
-        assert result is candidates[1]
-
 
 class TestInstallHooks:
     """Unit tests for the install_hooks function."""

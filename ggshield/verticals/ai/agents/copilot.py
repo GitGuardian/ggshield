@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Iterator, Literal, Tuple
+from typing import Any, Dict, Iterator, Literal, Tuple
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -8,10 +8,9 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from ggshield.core.dirs import get_user_home_dir
 
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
-from .claude_code import Claude
 
 
-class Copilot(Claude):
+class Copilot(Agent):
     """Behavior specific to Copilot Chat.
 
     Inherits most of its behavior from Claude Code.
@@ -49,6 +48,9 @@ class Copilot(Claude):
 
         click.echo(json.dumps(response))
         return 0
+
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        return "github.copilot-chat" in hook_payload.get("transcript_path", "").lower()
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return (
