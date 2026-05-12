@@ -43,9 +43,13 @@ jobs:
       tag: ${{ steps.tags.outputs.tag }}
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
 
-    # This is required for `gh release create` to work
+    # `contents: write` is required for `gh release create` to work.
+    # `id-token: write` and `attestations: write` are required by
+    # actions/attest-build-provenance to generate signed SLSA provenance.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -65,6 +69,18 @@ jobs:
           pattern: os-packages-*
           path: packages
           merge-multiple: true
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            packages/ggshield-*.pkg
+            packages/ggshield_*.deb
+            packages/ggshield-*.rpm
+            packages/ggshield-*.zip
+            packages/ggshield.*.nupkg
+            packages/ggshield-*.gz
+            packages/ggshield-*.msi
 
       - name: Create release
         env:
