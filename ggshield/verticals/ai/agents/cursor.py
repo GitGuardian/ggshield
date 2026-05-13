@@ -61,6 +61,9 @@ class Cursor(Agent):
         # We don't use the return 2 convention to make sure our JSON output is read.
         return 0
 
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        return "cursor_version" in hook_payload
+
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".cursor") / "hooks.json"
 

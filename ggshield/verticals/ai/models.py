@@ -117,6 +117,17 @@ class Agent(ABC):
         Returns: the exit code.
         """
 
+    @abstractmethod
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        """Whether the agent is the caller of the hook."""
+
+    def has_secret_already_leaked(self, payload: HookPayload) -> bool:
+        """Whether the secret has already been leaked to the agent.
+
+        By default, this is in PostToolUse hooks, but it can depend on the agent.
+        """
+        return payload.event_type == EventType.POST_TOOL_USE
+
     # Settings
 
     @abstractmethod
@@ -124,14 +135,49 @@ class Agent(ABC):
         """Path to the settings file for this AI coding tool."""
 
     @property
-    @abstractmethod
     def settings_template(self) -> Dict[str, Any]:
         """
         Template for the settings file for this AI coding tool.
         Use the sentinel "<COMMAND>" for the places where the command should be inserted.
         """
+        return {
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": ".*",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "<COMMAND>",
+                            }
+                        ],
+                    }
+                ],
+                "PostToolUse": [
+                    {
+                        "matcher": ".*",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "<COMMAND>",
+                            }
+                        ],
+                    }
+                ],
+                "UserPromptSubmit": [
+                    {
+                        "matcher": ".*",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "<COMMAND>",
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
 
-    @abstractmethod
     def settings_locate(
         self, candidates: List[Dict[str, Any]], template: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
@@ -147,6 +193,17 @@ class Agent(ABC):
 
         Returns: the object to update, or None if no object was found.
         """
+        # We have two kind of lists: at the root of each hook (with a matcher)
+        # and in each hook (with a list of commands).
+        if "matcher" in template:
+            for obj in candidates:
+                if obj.get("matcher") == template["matcher"]:
+                    return obj
+            return None
+        for obj in candidates:
+            command = obj.get("command", "")
+            if "ggshield" in command or "<COMMAND>" in command:
+                return obj
         return None
 
     # Discovery

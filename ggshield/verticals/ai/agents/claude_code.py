@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal, Optional
+from typing import Any, Dict, Iterator, List, Literal
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -63,64 +63,13 @@ class Claude(Agent):
         # We don't use the return 2 convention to make sure our JSON output is read.
         return 0
 
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        return "session_id" in hook_payload and "claude" in hook_payload.get(
+            "transcript_path", ""
+        )
+
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".claude") / "settings.json"
-
-    @property
-    def settings_template(self) -> Dict[str, Any]:
-        return {
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": ".*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "<COMMAND>",
-                            }
-                        ],
-                    }
-                ],
-                "PostToolUse": [
-                    {
-                        "matcher": ".*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "<COMMAND>",
-                            }
-                        ],
-                    }
-                ],
-                "UserPromptSubmit": [
-                    {
-                        "matcher": ".*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "<COMMAND>",
-                            }
-                        ],
-                    }
-                ],
-            }
-        }
-
-    def settings_locate(
-        self, candidates: List[Dict[str, Any]], template: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        # We have two kind of lists: at the root of each hook (with a matcher)
-        # and in each hook (with a list of commands).
-        if "matcher" in template:
-            for obj in candidates:
-                if obj.get("matcher") == template["matcher"]:
-                    return obj
-            return None
-        for obj in candidates:
-            command = obj.get("command", "")
-            if "ggshield" in command or "<COMMAND>" in command:
-                return obj
-        return None
 
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".mcp.json"
