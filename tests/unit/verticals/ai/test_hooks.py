@@ -834,6 +834,25 @@ class TestAIHookScannerParseInput:
         assert payload.content == ""
         assert payload.tool is None
 
+    def test_windows_GetContent_parsing(self):
+        """The Bash/Get-Content tool use in windows is parsed as file reading."""
+        # This case was observed with Codex on Windows.
+        data = {
+            "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+            "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "PreToolUse",
+            "turn_id": "turn_123",
+            "model": "gpt-5.4",
+            "tool_name": "Bash",
+            "tool_input": {"command": "Get-Content README.md"},
+            "tool_use_id": "call_123",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.READ
+        assert payload.identifier == "README.md"
+
 
 class TestFlavorOutputResult:
     """Unit tests for Cursor, Claude, Copilot output_result with Result objects.
