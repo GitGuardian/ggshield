@@ -107,6 +107,8 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
 
     elif event_type == EventType.PRE_TOOL_USE:
         tool = _parse_tool(data)
+        # NOTE: if we ever support agents that use another field than "tool_input.command",
+        # remember to update the line that reads the command to fill the notification message.
         tool_input = data.get("tool_input", {})
         # Select the content based on the tool
         if tool == Tool.BASH:
@@ -231,11 +233,7 @@ class AIHookScanner:
 
         # Sometimes the secret has already leaked to the agent. Notify the user.
         if result.block and payload.agent.has_secret_already_leaked(payload):
-            self._send_secret_notification(
-                result.nbr_secrets,
-                payload.tool or Tool.OTHER,
-                payload.agent.display_name,
-            )
+            self._send_secret_notification(result)
 
         return payload.agent.output_result(result)
 
@@ -356,7 +354,7 @@ class AIHookScanner:
 
     @staticmethod
     def _send_secret_notification(
-        nbr_secrets: int, tool: Tool, agent_name: str
+        result: HookResult,
     ) -> None:
         """
         Send desktop notification when secrets are detected.
@@ -366,16 +364,21 @@ class AIHookScanner:
             tool: Tool used to detect the secrets
             agent_name: Name of the agent that detected the secrets
         """
+        tool = result.payload.tool
         source = "using a tool"
         if tool == Tool.READ:
             source = "reading a file"
         elif tool == Tool.BASH:
-            source = "running a command"
+            # This should always be present, unless agents changed their payload in an update.
+            command = result.payload.raw.get("tool_input", {}).get("command", "")
+            source = (
+                f"running the command `{command}`" if command else "running a command"
+            )
         notification = Notify()
         notification.title = "ggshield - Secrets Detected"
         notification.message = (
-            f"{agent_name} got access to {nbr_secrets}"
-            f" {pluralize('secret', nbr_secrets)} by {source}"
+            f"{result.payload.agent.display_name} got access to {result.nbr_secrets}"
+            f" {pluralize('secret', result.nbr_secrets)} by {source}"
         )
         notification.application_name = "ggshield"
         try:
