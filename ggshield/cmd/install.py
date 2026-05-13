@@ -58,7 +58,7 @@ def install_cmd(
 
     The `install` command installs ggshield as a git pre-commit or pre-push hook, either
     for the current repository (locally) or for all repositories (globally).
-    It can also install ggshield as a Cursor IDE or Claude Code agent hook.
+    It can also install ggshield as an AI coding assistant hook.
     """
 
     if hook_type in AGENTS:

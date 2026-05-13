@@ -12,7 +12,7 @@ from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.ai.mcp import send_mcp_activity
 
-from .agents import Claude, Copilot, Cursor
+from .agents import Claude, Codex, Copilot, Cursor
 from .models import Agent, EventType, HookPayload, HookResult, Tool
 
 
@@ -154,6 +154,8 @@ def _detect_agent(data: Dict[str, Any]) -> Agent:
     # no .lower() here to reduce the risk of false positives (this is also why this check is last)
     elif "session_id" in data and "claude" in data.get("transcript_path", ""):
         return Claude()
+    elif "turn_id" in data or ".codex" in data.get("transcript_path", "").lower():
+        return Codex()
     # No other agent is supported yet
     raise ValueError("Unsupported agent")
 

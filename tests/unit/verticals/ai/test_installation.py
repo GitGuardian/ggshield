@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from ggshield.core.errors import UnexpectedError
-from ggshield.verticals.ai.agents import Claude, Copilot, Cursor
+from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
 from ggshield.verticals.ai.installation import (
     InstallationStats,
     _fill_dict,
@@ -295,6 +295,46 @@ class TestFlavorSettingsProperties:
             == Path(".copilot") / "hooks" / "hooks.json"
         )
 
+    def test_codex_settings_path(self):
+        assert (
+            Codex().settings_path("global")
+            == Codex().settings_path("local")
+            == Path(".codex") / "hooks.json"
+        )
+
+    def test_codex_settings_template(self):
+        assert isinstance(Codex().settings_template, dict)
+
+    def test_codex_settings_locate_finds_nested_ggshield_hook(self):
+        codex = Codex()
+        candidates = [
+            {"hooks": [{"type": "command", "command": "other-tool"}]},
+            {"hooks": [{"type": "command", "command": "ggshield secret scan ai-hook"}]},
+        ]
+        template = {"hooks": [{"type": "command", "command": "<COMMAND>"}]}
+        result = codex.settings_locate(candidates, template)
+        assert result is candidates[1]
+
+    def test_codex_settings_locate_finds_command_hook(self):
+        codex = Codex()
+        candidates = [
+            {"type": "command", "command": "other-tool"},
+            {"type": "command", "command": "ggshield secret scan ai-hook"},
+        ]
+        template = {"type": "command", "command": "<COMMAND>"}
+        result = codex.settings_locate(candidates, template)
+        assert result is candidates[1]
+
+    def test_codex_settings_locate_finds_matching_matcher(self):
+        codex = Codex()
+        candidates = [
+            {"matcher": "Bash", "hooks": []},
+            {"matcher": ".*", "hooks": []},
+        ]
+        template = {"matcher": ".*", "hooks": []}
+        result = codex.settings_locate(candidates, template)
+        assert result is candidates[1]
+
 
 class TestInstallHooks:
     """Unit tests for the install_hooks function."""
@@ -341,6 +381,22 @@ class TestInstallHooks:
 
         settings_path = tmp_path / ".copilot" / "hooks" / "hooks.json"
         assert settings_path.exists()
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    def test_install_codex_global(self, mock_home: Any, tmp_path: Path):
+        """Install Codex hooks globally without touching Codex config.toml."""
+        mock_home.return_value = tmp_path
+        code = install_hooks("codex", mode="global")
+        assert code == 0
+
+        settings_path = tmp_path / ".codex" / "hooks.json"
+        assert settings_path.exists()
+        config = json.loads(settings_path.read_text())
+        for key in ("PreToolUse", "PostToolUse", "UserPromptSubmit"):
+            assert key in config["hooks"]
+
+        codex_config = tmp_path / ".codex" / "config.toml"
+        assert not codex_config.exists()
 
     def test_install_unsupported_agent_raises(self):
         """install_hooks raises ValueError for unsupported agent."""

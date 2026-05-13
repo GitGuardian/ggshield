@@ -8,6 +8,7 @@ from pygitguardian.models import MCPToolInfo, UserInfo
 
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
+from ggshield.verticals.ai.agents.codex import Codex
 from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
 from ggshield.verticals.ai.models import (
@@ -916,6 +917,55 @@ class TestMangleServerName:
     )
     def test_mangle_server_name(self, name: str, expected: str):
         assert _mangle_server_name(name) == expected
+
+
+# ===========================================================================
+# Codex
+# ===========================================================================
+
+
+class TestCodex:
+    def test_config_folder(self, tmp_path: Path):
+        codex = Codex()
+
+        with patch("ggshield.verticals.ai.agents.codex.get_user_home_dir") as mock_home:
+            mock_home.return_value = tmp_path
+            assert codex.config_folder == tmp_path / ".codex"
+
+    def test_project_mcp_file(self):
+        assert Codex().project_mcp_file(Path("/tmp/project")) == (
+            Path("/tmp/project") / ".codex" / "config.toml"
+        )
+
+    def test_discover_project_directories_empty(self):
+        assert list(Codex().discover_project_directories()) == []
+
+    def test_parse_mcp_activity(self):
+        codex = Codex()
+        cfg = _cfg(name="my.server", agent="codex")
+        server = MCPServer(
+            name="my.server", configurations=[cfg], tools=[MCPToolInfo(name="run")]
+        )
+        discovery = _ai_discovery(servers=[server])
+        payload = _payload(
+            codex,
+            raw={
+                "tool_name": "mcp__my_server__run",
+                "cwd": "/tmp/project",
+                "model": "gpt-5.4",
+                "tool_input": {"query": "hello"},
+            },
+        )
+
+        req = codex.parse_mcp_activity(payload, discovery)
+
+        assert req.user == discovery.user
+        assert req.tool == "run"
+        assert req.server == "my.server"
+        assert req.agent == "codex"
+        assert req.model == "gpt-5.4"
+        assert req.cwd == "/tmp/project"
+        assert req.input == {"query": "hello"}
 
 
 # ===========================================================================
