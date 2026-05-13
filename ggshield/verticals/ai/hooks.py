@@ -27,7 +27,6 @@ TOOL_NAME_TO_TOOL = {
     "shell": Tool.BASH,  # Cursor
     "bash": Tool.BASH,  # Claude Code
     "run_in_terminal": Tool.BASH,  # Copilot
-    "apply_patch": Tool.EDIT,  # Codex
     "read": Tool.READ,  # Claude/Cursor
     "read_file": Tool.READ,  # Copilot
 }
@@ -108,9 +107,6 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         tool_input = data.get("tool_input", {})
         # Select the content based on the tool
         if tool == Tool.BASH:
-            content = tool_input.get("command", "")
-            identifier = content
-        elif tool == Tool.EDIT:
             content = tool_input.get("command", "")
             identifier = content
         elif tool == Tool.READ:
@@ -323,11 +319,6 @@ class AIHookScanner:
                     "Please remove the secrets from the command before executing it. "
                     "Consider using environment variables or a secrets manager instead."
                 )
-        elif payload.tool == Tool.EDIT:
-            message = (
-                "Please remove the secrets from the file edit before applying it. "
-                "Consider using environment variables or a secrets manager instead."
-            )
         elif payload.tool == Tool.READ:
             message = f"Please remove the secrets from {payload.identifier} before reading it."
         elif payload.event_type == EventType.USER_PROMPT:
@@ -358,8 +349,6 @@ class AIHookScanner:
             source = "reading a file"
         elif tool == Tool.BASH:
             source = "running a command"
-        elif tool == Tool.EDIT:
-            source = "editing a file"
         notification = Notify()
         notification.title = "ggshield - Secrets Detected"
         notification.message = (

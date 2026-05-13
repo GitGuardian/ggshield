@@ -282,20 +282,6 @@ class TestMessageFromSecrets:
         message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
         assert "remove the secrets from" in message
 
-    def test_message_for_edit_tool(self):
-        """Message for EDIT tool mentions file edits."""
-        payload = HookPayload(
-            event_type=EventType.PRE_TOOL_USE,
-            tool=Tool.EDIT,
-            content="*** Begin Patch\n+sk-xxx\n*** End Patch\n",
-            identifier="patch",
-            agent=Codex(),
-            raw={},
-        )
-        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
-        assert "remove the secrets from the file edit" in message
-        assert "environment variables" in message
-
     def test_message_for_other_tool(self):
         """Message for OTHER tool uses generic message."""
         payload = HookPayload(
@@ -354,15 +340,6 @@ class TestSendSecretNotification:
         AIHookScanner._send_secret_notification(1, Tool.OTHER, "Copilot")
         instance = mock_notify_cls.return_value
         assert "using a tool" in instance.message
-        instance.send.assert_called_once()
-
-    @patch("ggshield.verticals.ai.hooks.Notify")
-    def test_notification_for_edit_tool(self, mock_notify_cls: MagicMock):
-        """Notification for EDIT tool says 'editing a file'."""
-        AIHookScanner._send_secret_notification(1, Tool.EDIT, "Codex")
-        instance = mock_notify_cls.return_value
-        assert "editing a file" in instance.message
-        assert "Codex" in instance.message
         instance.send.assert_called_once()
 
 
@@ -724,26 +701,6 @@ class TestAIHookScannerParseInput:
         assert payload.content == "whoami"
         assert isinstance(payload.agent, Codex)
 
-    def test_codex_pre_tool_use_apply_patch(self):
-        """Test Codex PreToolUse with apply_patch parsing."""
-        patch = "*** Begin Patch\n*** Add File: secret.txt\n+token\n*** End Patch\n"
-        data = {
-            "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
-            "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
-            "cwd": "/home/user/project",
-            "hook_event_name": "PreToolUse",
-            "turn_id": "turn_123",
-            "model": "gpt-5.4",
-            "tool_name": "apply_patch",
-            "tool_input": {"command": patch},
-            "tool_use_id": "call_123",
-        }
-        payload = parse_hook_input(json.dumps(data))[0]
-        assert payload.event_type == EventType.PRE_TOOL_USE
-        assert payload.tool == Tool.EDIT
-        assert payload.content == patch
-        assert isinstance(payload.agent, Codex)
-
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""
         content = json.dumps(
@@ -990,6 +947,7 @@ class TestFlavorOutputResult:
         args, kwargs = mock_echo.call_args
         assert kwargs.get("err", False) is False
         out = json.loads(args[0])
+        assert out["systemMessage"] == "Secrets detected in command"
         assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
         assert (
             out["hookSpecificOutput"]["permissionDecisionReason"]
@@ -1009,8 +967,26 @@ class TestFlavorOutputResult:
         assert code == 0
         args, _ = mock_echo.call_args
         out = json.loads(args[0])
+        assert out["systemMessage"] == "Secrets detected in prompt"
         assert out["decision"] == "block"
         assert out["reason"] == "Secrets detected in prompt"
+
+    @patch("ggshield.verticals.ai.agents.codex.click.echo")
+    def test_codex_output_result_post_tool_use_block(self, mock_echo: MagicMock):
+        """Codex POST_TOOL_USE with block=True: block decision JSON, return 0."""
+        result = HookResult(
+            block=True,
+            message="Secrets detected in tool output",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.POST_TOOL_USE),
+        )
+        code = Codex().output_result(result)
+        assert code == 0
+        args, _ = mock_echo.call_args
+        out = json.loads(args[0])
+        assert out["systemMessage"] == "Secrets detected in tool output"
+        assert out["decision"] == "block"
+        assert out["reason"] == "Secrets detected in tool output"
 
     @patch("ggshield.verticals.ai.agents.codex.click.echo")
     def test_codex_output_result_other_block(self, mock_echo: MagicMock):

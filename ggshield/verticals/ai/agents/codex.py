@@ -29,6 +29,7 @@ class Codex(Agent):
     def output_result(self, result: HookResult) -> int:
         response: Dict[str, Any] = {}
         if result.block:
+            response["systemMessage"] = result.message
             if result.payload.event_type == EventType.PRE_TOOL_USE:
                 response["hookSpecificOutput"] = {
                     "hookEventName": "PreToolUse",

@@ -9,7 +9,6 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
 from ggshield.verticals.ai.installation import (
     InstallationStats,
-    _enable_codex_hooks_feature,
     _fill_dict,
     install_hooks,
 )
@@ -337,59 +336,6 @@ class TestFlavorSettingsProperties:
         assert result is candidates[1]
 
 
-class TestEnableCodexHooksFeature:
-    def test_existing_enabled_config_is_left_unchanged(self, tmp_path: Path):
-        config_path = tmp_path / ".codex" / "config.toml"
-        config_path.parent.mkdir()
-        config_path.write_text("[features]\ncodex_hooks = true\n", encoding="utf-8")
-
-        _enable_codex_hooks_feature(tmp_path)
-
-        assert config_path.read_text(encoding="utf-8") == (
-            "[features]\ncodex_hooks = true\n"
-        )
-
-    def test_replaces_disabled_feature_flag(self, tmp_path: Path):
-        config_path = tmp_path / ".codex" / "config.toml"
-        config_path.parent.mkdir()
-        config_path.write_text(
-            "[features]\ncodex_hooks = false # disabled\n",
-            encoding="utf-8",
-        )
-
-        _enable_codex_hooks_feature(tmp_path)
-
-        assert config_path.read_text(encoding="utf-8") == (
-            "[features]\ncodex_hooks = true # disabled\n"
-        )
-
-    def test_adds_feature_flag_to_existing_features_section(self, tmp_path: Path):
-        config_path = tmp_path / ".codex" / "config.toml"
-        config_path.parent.mkdir()
-        config_path.write_text(
-            "[features]\nmodel_requests = true\n[tools]\nweb_search = true\n",
-            encoding="utf-8",
-        )
-
-        _enable_codex_hooks_feature(tmp_path)
-
-        assert config_path.read_text(encoding="utf-8") == (
-            "[features]\ncodex_hooks = true\nmodel_requests = true\n"
-            "[tools]\nweb_search = true\n"
-        )
-
-    def test_appends_features_section_when_missing(self, tmp_path: Path):
-        config_path = tmp_path / ".codex" / "config.toml"
-        config_path.parent.mkdir()
-        config_path.write_text('model = "gpt-5.4"\n', encoding="utf-8")
-
-        _enable_codex_hooks_feature(tmp_path)
-
-        assert config_path.read_text(encoding="utf-8") == (
-            'model = "gpt-5.4"\n' "\n" "[features]\n" "codex_hooks = true\n"
-        )
-
-
 class TestInstallHooks:
     """Unit tests for the install_hooks function."""
 
@@ -438,7 +384,7 @@ class TestInstallHooks:
 
     @patch("ggshield.verticals.ai.installation.get_user_home_dir")
     def test_install_codex_global(self, mock_home: Any, tmp_path: Path):
-        """Install Codex hooks globally and enable the hook feature flag."""
+        """Install Codex hooks globally without touching Codex config.toml."""
         mock_home.return_value = tmp_path
         code = install_hooks("codex", mode="global")
         assert code == 0
@@ -450,7 +396,7 @@ class TestInstallHooks:
             assert key in config["hooks"]
 
         codex_config = tmp_path / ".codex" / "config.toml"
-        assert "codex_hooks = true" in codex_config.read_text()
+        assert not codex_config.exists()
 
     def test_install_unsupported_agent_raises(self):
         """install_hooks raises ValueError for unsupported agent."""
