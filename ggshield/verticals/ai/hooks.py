@@ -112,6 +112,8 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         if tool == Tool.BASH:
             content = tool_input.get("command", "")
             identifier = content
+            # Try to detect a command that could be used to read a file.
+            payloads.extend(_parse_command(content, event_type, agent))
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
             identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
@@ -172,6 +174,30 @@ def _parse_user_prompt(
                 tool=Tool.READ,
                 content="",
                 identifier=match,
+                agent=agent,
+                raw={},
+            )
+        )
+    return payloads
+
+
+def _parse_command(
+    content: str, event_type: EventType, agent: Agent
+) -> List[HookPayload]:
+    """Parse the command for additional payloads that we may miss."""
+    # In Windows, some agents (at least Codex) use the Get-Content command to read a file.
+    # We might as well try to detect other commands like "cat".
+    payloads = []
+
+    if content.startswith(("Get-Content ", "cat ")):
+        # Extract the filename (remove the command)
+        identifier = content.partition(" ")[2].strip()
+        payloads.append(
+            HookPayload(
+                event_type=event_type,
+                tool=Tool.READ,
+                content="",
+                identifier=identifier,
                 agent=agent,
                 raw={},
             )
