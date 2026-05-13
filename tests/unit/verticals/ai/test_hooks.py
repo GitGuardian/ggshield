@@ -9,7 +9,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import MCPActivityResponse
 
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor, VSCode
+from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
 from ggshield.verticals.ai.hooks import AIHookScanner, find_filepaths, parse_hook_input
 from ggshield.verticals.ai.mcp import send_mcp_activity
 from ggshield.verticals.ai.models import EventType, HookPayload, HookResult, Tool
@@ -161,9 +161,9 @@ class TestAIHookScannerScan:
         code = scanner.scan(json.dumps(data))
         assert code == 0
         mock_notify.assert_called_once()
-        args = mock_notify.call_args[0]
-        assert args[0] == 1  # nbr_secrets
-        assert args[1] == Tool.BASH  # tool
+        result = mock_notify.call_args[0][0]
+        assert result.nbr_secrets == 1  # nbr_secrets
+        assert result.payload.tool == Tool.BASH  # tool
 
     def test_scan_pre_tool_use_with_secrets_blocks(self):
         """scan() on PRE_TOOL_USE with secrets returns block result."""
@@ -316,19 +316,43 @@ class TestMessageFromSecrets:
 class TestSendSecretNotification:
     """Unit tests for AIHookScanner._send_secret_notification."""
 
+    def _result(
+        self,
+        nbr_secrets: int,
+        tool: Tool,
+        agent: Agent,
+        input_command: str = "",
+    ) -> HookResult:
+        return HookResult(
+            block=True,
+            message="",
+            nbr_secrets=nbr_secrets,
+            payload=HookPayload(
+                event_type=EventType.PRE_TOOL_USE,
+                tool=tool,
+                content="",
+                identifier="",
+                agent=agent,
+                raw={"tool_input": {"command": input_command}},
+            ),
+        )
+
     @patch("ggshield.verticals.ai.hooks.Notify")
     def test_notification_for_bash_tool(self, mock_notify_cls: MagicMock):
-        """Notification for BASH tool says 'running a command'."""
-        AIHookScanner._send_secret_notification(1, Tool.BASH, "Claude Code")
+        """Notification for BASH tool says 'running the command'
+        and contains the command run."""
+        AIHookScanner._send_secret_notification(
+            self._result(1, Tool.BASH, Claude(), input_command="ls -la")
+        )
         instance = mock_notify_cls.return_value
-        assert "running a command" in instance.message
+        assert "running the command `ls -la`" in instance.message
         assert "Claude Code" in instance.message
         instance.send.assert_called_once()
 
     @patch("ggshield.verticals.ai.hooks.Notify")
     def test_notification_for_read_tool(self, mock_notify_cls: MagicMock):
         """Notification for READ tool says 'reading a file'."""
-        AIHookScanner._send_secret_notification(2, Tool.READ, "Cursor")
+        AIHookScanner._send_secret_notification(self._result(2, Tool.READ, Cursor()))
         instance = mock_notify_cls.return_value
         assert "reading a file" in instance.message
         assert "2" in instance.message
@@ -337,7 +361,7 @@ class TestSendSecretNotification:
     @patch("ggshield.verticals.ai.hooks.Notify")
     def test_notification_for_other_tool(self, mock_notify_cls: MagicMock):
         """Notification for OTHER tool says 'using a tool'."""
-        AIHookScanner._send_secret_notification(1, Tool.OTHER, "Copilot")
+        AIHookScanner._send_secret_notification(self._result(1, Tool.OTHER, Copilot()))
         instance = mock_notify_cls.return_value
         assert "using a tool" in instance.message
         instance.send.assert_called_once()
