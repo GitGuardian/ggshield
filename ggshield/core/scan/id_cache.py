@@ -3,6 +3,8 @@ import logging
 from pathlib import Path
 from typing import Set
 
+from ggshield.utils.files import atomic_write_text
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +36,7 @@ class IDCache:
         self._ids = set(ids)
 
     def _save(self) -> None:
-        text = json.dumps(list(self._ids))
         try:
-            self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.cache_path.with_suffix(".tmp")
-            tmp.write_text(text)
-            tmp.replace(self.cache_path)
+            atomic_write_text(self.cache_path, json.dumps(list(self._ids)))
         except Exception as exc:
             logger.warning("Failed to save cache to %s: %s", self.cache_path, exc)

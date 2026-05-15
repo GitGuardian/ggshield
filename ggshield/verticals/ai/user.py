@@ -19,6 +19,7 @@ from typing import Optional
 from pygitguardian.models import UserInfo
 
 from ggshield.core.dirs import get_user_home_dir
+from ggshield.utils.files import atomic_write_text
 
 
 logger = logging.getLogger(__name__)
@@ -195,8 +196,7 @@ def _get_machine_id() -> str:
     # Store it so that satori can use it.
     new_id = str(uuid.uuid4())
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(new_id + "\n")
+        atomic_write_text(path, new_id + "\n")
     except OSError:
         pass
 

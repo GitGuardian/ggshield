@@ -1,5 +1,8 @@
+import json
 import re
+import sys
 import tarfile
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Set, Union
@@ -9,6 +12,8 @@ import pytest
 from ggshield.core.tar_utils import get_empty_tar
 from ggshield.utils.files import (
     ListFilesMode,
+    atomic_write_bytes,
+    atomic_write_text,
     is_path_excluded,
     list_files,
     url_for_path,
@@ -160,3 +165,86 @@ def test_get_gitignored_files(tmp_path):
     )
 
     assert file_paths == set()
+
+
+class TestAtomicWrite:
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        target = tmp_path / "nested" / "dir" / "out.txt"
+
+        atomic_write_text(target, "hello")
+
+        assert target.read_text() == "hello"
+
+    def test_overwrites_existing_file(self, tmp_path: Path) -> None:
+        target = tmp_path / "out.txt"
+        target.write_text("old content")
+
+        atomic_write_text(target, "new content")
+
+        assert target.read_text() == "new content"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX permission bits are not enforced on Windows",
+    )
+    def test_sets_requested_mode(self, tmp_path: Path) -> None:
+        target = tmp_path / "secret.yaml"
+
+        atomic_write_text(target, "x: 1", mode=0o600)
+
+        # Compare lowest 9 perm bits
+        assert (target.stat().st_mode & 0o777) == 0o600
+
+    def test_leaves_no_tmp_file_on_success(self, tmp_path: Path) -> None:
+        target = tmp_path / "out.txt"
+
+        atomic_write_text(target, "ok")
+
+        leftovers = [p for p in tmp_path.iterdir() if p != target]
+        assert leftovers == []
+
+    def test_leaves_no_tmp_file_on_write_failure(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = tmp_path / "out.txt"
+
+        def boom(*args: object, **kwargs: object) -> None:
+            raise RuntimeError("disk full")
+
+        monkeypatch.setattr("os.replace", boom)
+
+        with pytest.raises(RuntimeError, match="disk full"):
+            atomic_write_text(target, "data")
+
+        # Target must not exist (replace failed) and no .tmp leftover either.
+        assert not target.exists()
+        assert list(tmp_path.iterdir()) == []
+
+    def test_bytes_round_trip(self, tmp_path: Path) -> None:
+        target = tmp_path / "blob.bin"
+        payload = b"\x00\x01\x02\xff"
+
+        atomic_write_bytes(target, payload)
+
+        assert target.read_bytes() == payload
+
+    def test_concurrent_writers_produce_valid_file(self, tmp_path: Path) -> None:
+        """No torn writes: under N parallel writers the final file is one of
+        the inputs, never a partial mix. This is the core guarantee that
+        prevents readers (and mmap-backed native code) from observing a
+        truncated/corrupt cache."""
+        target = tmp_path / "cache.json"
+        payloads = [json.dumps({"writer": i, "data": "x" * 4096}) for i in range(32)]
+
+        with ThreadPoolExecutor(max_workers=16) as ex:
+            list(ex.map(lambda p: atomic_write_text(target, p), payloads))
+
+        # File must exist, must parse, and must equal one of the inputs.
+        assert target.exists()
+        content = target.read_text()
+        assert content in payloads
+        json.loads(content)  # well-formed
+
+        # No leftover .tmp files in the directory.
+        leftovers = [p for p in tmp_path.iterdir() if p != target]
+        assert leftovers == [], f"unexpected files: {leftovers}"

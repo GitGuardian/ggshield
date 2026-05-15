@@ -12,6 +12,7 @@ from ggshield.core.constants import (
 )
 from ggshield.core.dirs import get_config_dir, get_project_root_dir, get_user_home_dir
 from ggshield.core.errors import UnexpectedError
+from ggshield.utils.files import atomic_write_text
 from ggshield.utils.git_shell import GitExecutableNotFound
 
 
@@ -63,18 +64,11 @@ def save_yaml_dict(
     data: Dict[str, Any], path: Union[str, Path], restricted: bool = False
 ) -> None:
     p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("w") as f:
-        try:
-            if restricted:
-                # Restrict file permissions: read and write for owner only (600)
-                p.chmod(0o600)
-
-            stream = yaml.dump(data, indent=2, default_flow_style=False)
-            f.write(stream)
-
-        except Exception as e:
-            raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
+    try:
+        stream = yaml.dump(data, indent=2, default_flow_style=False)
+        atomic_write_text(p, stream, mode=0o600 if restricted else 0o644)
+    except Exception as e:
+        raise UnexpectedError(f"Failed to save config to {path}:\n{str(e)}") from e
 
 
 def get_auth_config_filepath() -> Path:

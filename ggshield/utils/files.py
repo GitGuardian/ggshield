@@ -1,3 +1,5 @@
+import os
+import time
 from enum import Enum, auto
 from pathlib import Path, PurePath, PurePosixPath
 from typing import List, Pattern, Set, Tuple, Union
@@ -145,3 +147,98 @@ def url_for_path(path: PurePath) -> str:
     else:
         # This happens for Windows paths: `path_str` is something like "c:/foo/bar"
         return f"file:///{path_str}"
+
+
+def _open_new_sibling(path: Path, mode: int) -> Tuple[int, Path]:
+    """Create a unique sibling of *path* with ``O_CREAT | O_EXCL`` and return
+    its open fd and path. Used as the staging file for atomic writes — it is
+    the new version of *path*, not a tempfile."""
+    while True:
+        suffix = os.urandom(8).hex()
+        new_path = path.with_name(f".{path.name}.{suffix}.new")
+        try:
+            fd = os.open(
+                new_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                mode,
+            )
+            return fd, new_path
+        except FileExistsError:
+            # Astronomically unlikely with 64 bits of entropy; retry rather
+            # than swallow.
+            continue
+
+
+def _replace_with_retry(src: Path, dst: Path) -> None:
+    """``os.replace`` with Windows-friendly retries.
+
+    On POSIX, ``rename`` succeeds even when other processes hold the
+    destination open. On Windows, the rename fails with ``PermissionError``
+    while any handle to the destination is open. Under concurrent writers,
+    those handles are brief, so a short retry-with-backoff converges. POSIX
+    almost always succeeds on the first try, so the loop has no overhead
+    there.
+    """
+    delay = 0.005
+    attempts = 10
+    for attempt in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 0.1)
+
+
+def atomic_write_text(
+    path: Path,
+    text: str,
+    *,
+    mode: int = 0o644,
+    encoding: str = "utf-8",
+) -> None:
+    """Atomically write *text* to *path*.
+
+    Writes a unique sibling file then ``os.replace()``s it onto *path*. POSIX
+    guarantees the rename leaves *path* pointing at either the previous
+    content or the new content, never a partial write — which prevents
+    readers (especially native code that mmaps) from observing a torn file
+    during concurrent writes.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, new_path = _open_new_sibling(path, mode)
+    try:
+        # O_CREAT mode is umask-masked; force the requested mode exactly.
+        # Path-based chmod (not fchmod) so this works under pyfakefs in tests.
+        os.chmod(new_path, mode)
+        with os.fdopen(fd, "w", encoding=encoding) as f:
+            f.write(text)
+        _replace_with_retry(new_path, path)
+    except BaseException:
+        try:
+            os.unlink(new_path)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_write_bytes(path: Path, data: bytes, *, mode: int = 0o644) -> None:
+    """Atomically write *data* to *path*. See :func:`atomic_write_text`."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, new_path = _open_new_sibling(path, mode)
+    try:
+        # See atomic_write_text: path-based chmod for pyfakefs / Windows compat.
+        os.chmod(new_path, mode)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        _replace_with_retry(new_path, path)
+    except BaseException:
+        try:
+            os.unlink(new_path)
+        except OSError:
+            pass
+        raise
