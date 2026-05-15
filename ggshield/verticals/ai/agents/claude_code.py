@@ -1,7 +1,8 @@
 import json
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal
+from typing import Any, Dict, Iterator, Literal, Optional
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -229,14 +230,7 @@ class Claude(Agent):
         # Remove the optional "claude_ai_" prefix
         server_cfg_name = server_cfg_name.removeprefix("claude_ai_")
 
-        # Lookup the server name based on its configuration name
-        # Fallback to the server name if not found
-        server_name = server_cfg_name
-        for server in ai_config.servers:
-            for configuration in server.configurations:
-                if _mangle_server_name(configuration.name) == server_cfg_name:
-                    server_name = server.name
-                    break
+        server_name = self._resolve_server_name(server_cfg_name, ai_config)
 
         return MCPActivityRequest(
             user=ai_config.user,
@@ -247,6 +241,79 @@ class Claude(Agent):
             cwd=payload.raw.get("cwd", ""),
             input=payload.raw.get("tool_input", {}),
         )
+
+    def iter_history_events(
+        self, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        """Walk every Claude session transcript and yield its MCP tool_use events."""
+        for path in self._history_files():
+            for entry in self._load_jsonl_file(path):
+                yield from self._parse_history_entry(entry, ai_config)
+
+    def _history_files(self) -> Iterator[Path]:
+        """Yield every Claude Code session transcript file we know about."""
+        yield from sorted(self.config_folder.glob("projects/*/*.jsonl"))
+
+    def _parse_history_entry(
+        self,
+        entry: Dict[str, Any],
+        ai_config: Optional[AIDiscovery],
+    ) -> Iterator[MCPActivityRequest]:
+        """Turn one parsed transcript entry into zero-or-more MCPActivityRequest events.
+
+        Returns nothing for non-MCP tool uses or sidechain entries.
+        Server names are resolved against ai_config when available.
+        """
+        if not isinstance(entry, dict) or entry.get("isSidechain"):
+            return
+
+        message = entry.get("message") or {}
+        content = message.get("content") or []
+        if not isinstance(content, list):
+            return
+
+        try:
+            ts = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+        except (KeyError, AttributeError, ValueError):
+            return
+
+        cwd = entry.get("cwd", "")
+        model = message.get("model", "")
+
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") != "tool_use":
+                continue
+            raw_name = block.get("name", "")
+            if not raw_name.startswith("mcp__"):
+                continue
+            parts = raw_name.split("__")
+            tool = parts[-1]
+            server_cfg_name = "__".join(parts[1:-1]).removeprefix("claude_ai_")
+            server_name = self._resolve_server_name(server_cfg_name, ai_config)
+            yield MCPActivityRequest(
+                user=self._user_or_default(ai_config),
+                tool=tool,
+                server=server_name,
+                agent=self.name,
+                model=model,
+                cwd=cwd,
+                input=block.get("input") or {},
+                timestamp=ts,
+            )
+
+    def _resolve_server_name(
+        self, cfg_name: str, ai_config: Optional[AIDiscovery]
+    ) -> str:
+        """Look up the canonical server name; fall back to the configuration name."""
+        if ai_config is None:
+            return cfg_name
+        for server in ai_config.servers:
+            for configuration in server.configurations:
+                if _mangle_server_name(configuration.name) == cfg_name:
+                    return server.name
+        return cfg_name
 
 
 MANGLING_PATTERN = re.compile(r"[^A-Za-z0-9-]")
