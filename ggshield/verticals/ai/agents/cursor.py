@@ -1,4 +1,7 @@
 import json
+import logging
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, Optional
 
@@ -23,6 +26,18 @@ from ..models import (
     MCPServer,
     Scope,
     Transport,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# Cursor tags every tool call in cursorDiskKV bubbles with a numeric "tool" kind
+# under $.toolFormerData.tool. 19 is the MCP kind. Brittle — bump if Cursor
+# renumbers tool kinds in a future release.
+MCP_TOOL_KIND = 19
+
+CHAT_DB_RELATIVE_PATH = (
+    Path(".config") / "Cursor" / "User" / "globalStorage" / "state.vscdb"
 )
 
 
@@ -310,6 +325,183 @@ class Cursor(Agent):
             cwd=payload.raw.get("workspace_roots", [""])[0],
             input=payload.raw.get("tool_input", {}),
         )
+
+    def iter_history_events(
+        self, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        """Read past MCP tool calls from Cursor's chat database.
+
+        Each chat message is a row keyed ``bubbleId:<composerId>:<bubbleId>`` in
+        ``cursorDiskKV``.
+        """
+        db_path = get_user_home_dir() / CHAT_DB_RELATIVE_PATH
+        if not db_path.is_file():
+            return
+        try:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        except sqlite3.Error as exc:
+            logger.warning("Cursor: could not open chat database %s: %s", db_path, exc)
+            return
+        try:
+            cwd_by_composer = self._load_composer_cwd_map(conn)
+            model_by_composer: Dict[str, str] = {}
+            rows = conn.execute(
+                "SELECT substr(key, 10, 36) AS composer_id, value "
+                "FROM cursorDiskKV "
+                "WHERE key LIKE 'bubbleId:%' "
+                "AND json_extract(value, '$.toolFormerData.tool') = ?",
+                (MCP_TOOL_KIND,),
+            )
+            for composer_id, raw in rows:
+                if composer_id not in cwd_by_composer:
+                    cwd_by_composer[composer_id] = self._lookup_composer_cwd(
+                        conn, composer_id
+                    )
+                if composer_id not in model_by_composer:
+                    model_by_composer[composer_id] = self._lookup_composer_model(
+                        conn, composer_id
+                    )
+                event = self._parse_bubble(
+                    raw,
+                    ai_config,
+                    cwd_by_composer[composer_id],
+                    model_by_composer[composer_id],
+                )
+                if event is not None:
+                    yield event
+        except sqlite3.Error as exc:
+            logger.warning("Cursor: read failed on %s: %s", db_path, exc)
+        finally:
+            conn.close()
+
+    def _parse_bubble(
+        self,
+        raw: str,
+        ai_config: Optional[AIDiscovery],
+        cwd: str,
+        model: str,
+    ) -> Optional[MCPActivityRequest]:
+        """Turn a cursorDiskKV bubble row into an MCPActivityRequest, or None."""
+        try:
+            bubble = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return None
+        if not isinstance(bubble, dict):
+            return None
+
+        tfd = bubble.get("toolFormerData") or {}
+        if not isinstance(tfd, dict):
+            return None
+
+        # params is a stringified JSON object — the only field that reliably
+        # carries the server name across the 3 toolFormerData.name conventions.
+        try:
+            params = json.loads(tfd.get("params") or "{}")
+        except (json.JSONDecodeError, TypeError):
+            return None
+        tools = params.get("tools") if isinstance(params, dict) else None
+        if not (isinstance(tools, list) and tools and isinstance(tools[0], dict)):
+            return None
+        tool_name = tools[0].get("name") or ""
+        server_cfg_name = tools[0].get("serverName") or ""
+        if not tool_name or not server_cfg_name:
+            return None
+
+        try:
+            envelope = json.loads(tfd.get("rawArgs") or "{}")
+        except (json.JSONDecodeError, TypeError):
+            envelope = {}
+        args = envelope.get("args") if isinstance(envelope, dict) else None
+        tool_input = args if isinstance(args, dict) else {}
+
+        try:
+            ts = datetime.fromisoformat(
+                str(bubble.get("createdAt", "")).replace("Z", "+00:00")
+            )
+        except ValueError:
+            return None
+
+        return MCPActivityRequest(
+            user=self._user_or_default(ai_config),
+            tool=tool_name,
+            server=self._resolve_server_name(server_cfg_name, ai_config),
+            agent=self.name,
+            model=model,
+            cwd=cwd,
+            input=tool_input,
+            timestamp=ts,
+        )
+
+    def _resolve_server_name(
+        self, cfg_name: str, ai_config: Optional[AIDiscovery]
+    ) -> str:
+        """Look up the canonical server name; fall back to the configuration name."""
+        if ai_config is None:
+            return cfg_name
+        for server in ai_config.servers:
+            for configuration in server.configurations:
+                if configuration.name == cfg_name:
+                    return server.name
+        return cfg_name
+
+    def _load_composer_cwd_map(self, conn: sqlite3.Connection) -> Dict[str, str]:
+        """Read ``composer.composerHeaders`` once and map composerId → workspace path."""
+        try:
+            row = conn.execute(
+                "SELECT value FROM ItemTable WHERE key = 'composer.composerHeaders'"
+            ).fetchone()
+        except sqlite3.Error:
+            return {}
+        if not row or not row[0]:
+            return {}
+        try:
+            headers = json.loads(row[0])
+        except (json.JSONDecodeError, TypeError):
+            return {}
+        composers = headers.get("allComposers") if isinstance(headers, dict) else None
+        if not isinstance(composers, list):
+            return {}
+        result: Dict[str, str] = {}
+        for header in composers:
+            if not isinstance(header, dict):
+                continue
+            composer_id = header.get("composerId")
+            if not isinstance(composer_id, str):
+                continue
+            uri = (header.get("workspaceIdentifier") or {}).get("uri") or {}
+            path = uri.get("path") if isinstance(uri, dict) else None
+            if isinstance(path, str) and path:
+                result[composer_id] = path
+        return result
+
+    def _lookup_composer_cwd(self, conn: sqlite3.Connection, composer_id: str) -> str:
+        """Fallback: pull the workspace path from any user bubble in this composer."""
+        row = conn.execute(
+            "SELECT json_extract(value, '$.workspaceUris') FROM cursorDiskKV "
+            "WHERE key LIKE ? "
+            "AND json_extract(value, '$.type') = 1 "
+            "AND json_extract(value, '$.workspaceUris') != '[]' "
+            "LIMIT 1",
+            (f"bubbleId:{composer_id}:%",),
+        ).fetchone()
+        if not row or not row[0]:
+            return ""
+        try:
+            uris = json.loads(row[0])
+        except (json.JSONDecodeError, TypeError):
+            return ""
+        if isinstance(uris, list) and uris and isinstance(uris[0], str):
+            return uris[0].removeprefix("file://")
+        return ""
+
+    def _lookup_composer_model(self, conn: sqlite3.Connection, composer_id: str) -> str:
+        """Return ``modelConfig.modelName`` for the composer (e.g. ``composer-2``)."""
+        row = conn.execute(
+            "SELECT json_extract(value, '$.modelConfig.modelName') "
+            "FROM cursorDiskKV WHERE key = ?",
+            (f"composerData:{composer_id}",),
+        ).fetchone()
+        return row[0] if row and isinstance(row[0], str) else ""
 
 
 def _parse_tool_arguments(
