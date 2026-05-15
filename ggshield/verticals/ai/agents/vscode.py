@@ -1,7 +1,9 @@
 import json
+import logging
 import re
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Tuple
+from typing import Any, Dict, Iterator, Literal, Optional, Tuple
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -9,6 +11,9 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from ggshield.core.dirs import get_user_home_dir
 
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
+
+
+logger = logging.getLogger(__name__)
 
 
 class VSCode(Agent):
@@ -111,7 +116,7 @@ class VSCode(Agent):
         )
 
     def _lookup_server_name(
-        self, raw_tool_name: str, ai_config: AIDiscovery
+        self, raw_tool_name: str, ai_config: Optional[AIDiscovery]
     ) -> Tuple[str, str]:
         # VSCode's hook tool name is "mcp_{server}_{tool}"
         # which is unfortunate because a lot of tools have a "_" in their name.
@@ -122,11 +127,15 @@ class VSCode(Agent):
         # we look for the longest chain of parts separated by "_" that is a valid server configuration name.
 
         # Build a map of mangled server configuration names to server names.
-        mangled_to_server: Dict[str, str] = {
-            _mangle_name(configuration.name): server.name
-            for server in ai_config.servers
-            for configuration in server.configurations
-        }
+        mangled_to_server: Dict[str, str] = (
+            {
+                _mangle_name(configuration.name): server.name
+                for server in ai_config.servers
+                for configuration in server.configurations
+            }
+            if ai_config is not None
+            else {}
+        )
 
         # This get rid of the "mcp_" prefix.
         _, *parts = raw_tool_name.split("_")
@@ -139,6 +148,133 @@ class VSCode(Agent):
 
         # If no match is found, fallback to use the first part as the server name.
         return parts[0], "_".join(parts[1:])
+
+    def iter_history_events(
+        self, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        """Walk every Copilot Chat session and yield MCP tool calls.
+
+        Sessions live under
+        ``/workspaceStorage/<hash>/chatSessions/<id>.jsonl``.
+        Iterating per-workspace lets us read each ``workspace.json`` once.
+        """
+        for workspace_dir in sorted(self.config_folder.glob("workspaceStorage/*")):
+            cwd = self._workspace_cwd(workspace_dir)
+            for session in sorted(workspace_dir.glob("chatSessions/*.jsonl")):
+                try:
+                    yield from self._parse_session_file(session, cwd, ai_config)
+                except OSError as exc:
+                    logger.warning("VSCode: skipping %s: %s", session, exc)
+
+    def _workspace_cwd(self, workspace_dir: Path) -> str:
+        """Return the project folder backing a ``workspaceStorage/<hash>`` directory."""
+        data = self._load_file(workspace_dir / "workspace.json")
+        folder = (data or {}).get("folder", "") if data else ""
+        return folder.removeprefix("file://") if isinstance(folder, str) else ""
+
+    def _parse_session_file(
+        self, path: Path, cwd: str, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        """Yield deduped MCP events from a single Copilot Chat session file."""
+        seen: set = set()
+        last_ts: Optional[datetime] = None
+        with path.open("r", encoding="utf-8", errors="ignore") as history_file:
+            for raw in history_file:
+                try:
+                    line = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                content = line.get("v") if isinstance(line, dict) else None
+                # toolInvocation lines have no timestamp, try finding one around them
+                line_max = max(_iter_timestamps(content), default=None)
+                if line_max is not None:
+                    try:
+                        candidate = datetime.fromtimestamp(
+                            line_max / 1000, tz=timezone.utc
+                        )
+                    except (ValueError, OSError, OverflowError):
+                        candidate = None
+                    if candidate is not None and (
+                        last_ts is None or candidate > last_ts
+                    ):
+                        last_ts = candidate
+                for inv in _find_mcp_invocations(content):
+                    tool_call_id = inv.get("toolCallId")
+                    if not tool_call_id or tool_call_id in seen:
+                        continue
+                    event = self._build_activity(inv, cwd, last_ts, ai_config)
+                    if event is None:
+                        continue
+                    seen.add(tool_call_id)
+                    yield event
+
+    def _build_activity(
+        self,
+        invocation: Dict[str, Any],
+        cwd: str,
+        timestamp: Optional[datetime],
+        ai_config: Optional[AIDiscovery],
+    ) -> Optional[MCPActivityRequest]:
+        if timestamp is None:
+            return None
+        source = invocation.get("source") or {}
+        server_cfg_name = source.get("label") or ""
+        tool_id = invocation.get("toolId") or ""
+        if not server_cfg_name or not tool_id:
+            return None
+        tool_input = (invocation.get("toolSpecificData") or {}).get("rawInput") or {}
+        if not isinstance(tool_input, dict):
+            tool_input = {}
+        _, tool_name = self._lookup_server_name(tool_id, ai_config)
+        return MCPActivityRequest(
+            user=self._user_or_default(ai_config),
+            tool=tool_name,
+            server=self._resolve_server_name(server_cfg_name, ai_config),
+            agent=self.name,
+            model="",
+            cwd=cwd,
+            input=tool_input,
+            timestamp=timestamp,
+        )
+
+    def _resolve_server_name(
+        self, cfg_name: str, ai_config: Optional[AIDiscovery]
+    ) -> str:
+        """Resolve a bubble's ``source.label`` to the canonical server name."""
+        if ai_config is None or not cfg_name:
+            return cfg_name
+        for server in ai_config.servers:
+            for configuration in server.configurations:
+                if configuration.name == cfg_name:
+                    return server.name
+        return cfg_name
+
+
+def _iter_timestamps(obj: Any) -> Iterator[int]:
+    """Yield every numeric ``timestamp`` (unix ms) nested anywhere in ``obj``."""
+    if isinstance(obj, dict):
+        ts = obj.get("timestamp")
+        if isinstance(ts, (int, float)) and not isinstance(ts, bool):
+            yield int(ts)
+        for value in obj.values():
+            yield from _iter_timestamps(value)
+    elif isinstance(obj, list):
+        for value in obj:
+            yield from _iter_timestamps(value)
+
+
+def _find_mcp_invocations(obj: Any) -> Iterator[Dict[str, Any]]:
+    """Yield every ``toolInvocationSerialized`` dict with ``source.type == "mcp"``."""
+    if isinstance(obj, dict):
+        if obj.get("kind") == "toolInvocationSerialized":
+            source = obj.get("source") or {}
+            if isinstance(source, dict) and source.get("type") == "mcp":
+                yield obj
+        for value in obj.values():
+            yield from _find_mcp_invocations(value)
+    elif isinstance(obj, list):
+        for value in obj:
+            yield from _find_mcp_invocations(value)
 
 
 MANGLING_PATTERN = re.compile(r"[^A-Za-z0-9-]+")

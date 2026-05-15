@@ -1,12 +1,14 @@
+import logging
 import re
 from pathlib import Path
-from typing import Dict, Iterator, Tuple
+from typing import Dict, Iterator, Optional, Tuple
 
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.models import (
     AIDiscovery,
     EventType,
     HookPayload,
+    MCPActivityRequest,
     MCPConfiguration,
     Scope,
     Tool,
@@ -14,6 +16,8 @@ from ggshield.verticals.ai.models import (
 )
 
 from .vscode import VSCode
+
+logger = logging.getLogger(__name__)
 
 
 class Copilot(VSCode):
@@ -87,7 +91,7 @@ class Copilot(VSCode):
                 payload.tool = Tool.MCP
 
     def _lookup_server_name(
-        self, raw_tool_name: str, ai_config: AIDiscovery
+        self, raw_tool_name: str, ai_config: Optional[AIDiscovery]
     ) -> Tuple[str, str]:
         # Copilot's hook tool name is "{server}-{tool}"
         # which is unfortunate because server names can contain "-" in their name.
@@ -97,12 +101,16 @@ class Copilot(VSCode):
         # We look for the longest chain of parts separated by "-" that is a valid server configuration name.
 
         # Build a map of mangled server configuration names to server names.
-        mangled_to_server: Dict[str, str] = {
-            _mangle_name(configuration.name): server.name
-            for server in ai_config.servers
-            for configuration in server.configurations
-            if configuration.agent == self.name
-        }
+        mangled_to_server: Dict[str, str] = (
+            {
+                _mangle_name(configuration.name): server.name
+                for server in ai_config.servers
+                for configuration in server.configurations
+                if configuration.agent == self.name
+            }
+            if ai_config is not None
+            else {}
+        )
 
         parts = raw_tool_name.split("-")
 
@@ -115,6 +123,11 @@ class Copilot(VSCode):
 
         # If no match is found, fallback to use the last part as the tool name.
         return "-".join(parts[:-1]), parts[-1]
+
+    def iter_history_events(
+        self, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        return iter(())
 
 
 def _mangle_name(name: str) -> str:
