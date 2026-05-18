@@ -61,7 +61,7 @@ def repo_cmd(
 
     if REGEX_GIT_URL.match(repository):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            git(["clone", "--mirror", repository, tmpdirname])
+            git(["clone", "--mirror", "--end-of-options", repository, tmpdirname])
             scan_context.target_path = Path(tmpdirname)
             return scan_repo_path(
                 client=ctx_obj.client,
