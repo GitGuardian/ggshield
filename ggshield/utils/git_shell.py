@@ -299,7 +299,7 @@ def is_valid_git_commit_ref(ref: str, wd: Optional[Union[str, Path]] = None) -> 
         wd = Path.cwd()
 
     ref += "^{commit}"
-    cmd = ["cat-file", "-e", ref]
+    cmd = ["cat-file", "-e", "--end-of-options", ref]
 
     try:
         git(cmd, cwd=wd)
@@ -428,7 +428,8 @@ def get_filepaths_from_ref(
     check_git_ref(ref, wd)
 
     filepaths = git(
-        ["ls-tree", "--name-only", "--full-name", "-r", ref], cwd=wd
+        ["ls-tree", "--name-only", "--full-name", "-r", "--end-of-options", ref],
+        cwd=wd,
     ).splitlines()
     return [Path(path_str) for path_str in filepaths]
 
@@ -448,7 +449,7 @@ def get_staged_filepaths(wd: Optional[Union[str, Path]] = None) -> List[Path]:
 @lru_cache(None)
 def read_git_file(ref: str, path: Path, wd: Optional[Union[str, Path]] = None) -> str:
     # Use as_posix to handle git and Windows
-    return git(["show", f"{ref}:{path.as_posix()}"], cwd=wd)
+    return git(["show", "--end-of-options", f"{ref}:{path.as_posix()}"], cwd=wd)
 
 
 def get_remotes(wd: Optional[Union[str, Path]] = None) -> List[str]:
@@ -477,7 +478,9 @@ def get_default_branch(wd: Optional[Union[str, Path]] = None) -> str:
 
     default_branch = None
     if remote is not None:
-        for line in git(["remote", "show", remote], cwd=wd).splitlines():
+        for line in git(
+            ["remote", "show", "--end-of-options", remote], cwd=wd
+        ).splitlines():
             line = line.strip()
             if line.startswith("HEAD branch: "):
                 default_branch = remote + "/" + line[len("HEAD branch: ") :]
