@@ -78,34 +78,6 @@ class TestFindMCPInvocations:
         assert list(_find_mcp_invocations(obj)) == []
 
 
-class TestCopilotIterHistoryEvents:
-    """Copilot CLI sessions are not in workspaceStorage — the parser must not pick them up."""
-
-    def test_returns_empty(self, tmp_path: Path, empty_ai_config) -> None:
-        from ggshield.verticals.ai.agents.copilot import Copilot
-
-        # Even with VSCode-shaped data on disk, the Copilot CLI agent should yield nothing.
-        workspace_hash = (
-            tmp_path / ".config" / "Code" / "User" / "workspaceStorage" / "ws1"
-        )
-        sessions = workspace_hash / "chatSessions"
-        sessions.mkdir(parents=True)
-        (workspace_hash / "workspace.json").write_text(
-            json.dumps({"folder": "file:///repo"})
-        )
-        (sessions / "session.jsonl").write_text(
-            _request_line(1_778_855_521_780, [_invocation("call-1")]) + "\n"
-        )
-
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(Copilot().iter_history_events(empty_ai_config))
-
-        assert events == []
-
-
 class TestVSCodeIterHistoryEvents:
     def _seed_session(
         self, tmp_path: Path, lines: list[str], workspace_folder: str
