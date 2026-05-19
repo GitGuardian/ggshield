@@ -9,8 +9,8 @@ from pygitguardian.models import MCPToolInfo, UserInfo
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
 from ggshield.verticals.ai.agents.codex import Codex
-from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
+from ggshield.verticals.ai.agents.vscode import VSCode
 from ggshield.verticals.ai.models import (
     Agent,
     AIDiscovery,
@@ -969,55 +969,89 @@ class TestCodex:
 
 
 # ===========================================================================
-# Copilot
+# VSCode
 # ===========================================================================
 
 
-class TestCopilotParseMcpActivity:
-    def test_simple_server_tool_split(self):
-        copilot = Copilot()
-        cfg = _cfg(name="myserver", agent="copilot")
-        server = MCPServer(name="othername", configurations=[cfg])
+class TestVSCodeParseMcpActivity:
+    @pytest.mark.parametrize(
+        "tool_name, config_name, expected_tool",
+        [
+            pytest.param("mcp_myserver_mytool", "myserver", "mytool", id="simple"),
+            pytest.param(
+                "mcp_server_tool_name_extra",
+                "server",
+                "tool_name_extra",
+                id="multiple_underscores_in_tool",
+            ),
+            pytest.param(
+                "mcp_server_name_tool_name",
+                "server_name",
+                "tool_name",
+                id="multiple_underscores_in_tool_and_config",
+            ),
+            pytest.param(
+                "mcp_foo_b_r__tool_name",
+                "Foo (Bâr)",
+                "tool_name",
+                id="special_chars_in_config_name",
+            ),
+            pytest.param(
+                "mcp_verylongserve_tool_name",
+                "VeryLongServerName",
+                "tool_name",
+                id="long_server_name",
+            ),
+        ],
+    )
+    def test_identify_server_tool_split(
+        self, tool_name: str, config_name: str, expected_tool: str
+    ):
+        """Test that the server and tool names are split correctly."""
+        vscode = VSCode()
+        cfg = _cfg(name=config_name, agent="vscode")
+        server = MCPServer(name="identified", configurations=[cfg])
         discovery = _ai_discovery(servers=[server])
         payload = _payload(
-            copilot,
-            raw={"tool_name": "mcp_myserver_mytool", "cwd": "/tmp", "tool_input": {}},
+            vscode,
+            raw={"tool_name": tool_name, "cwd": "/tmp", "tool_input": {}},
         )
 
-        req = copilot.parse_mcp_activity(payload, discovery)
+        req = vscode.parse_mcp_activity(payload, discovery)
 
-        assert req.tool == "mytool"
-        assert req.server == "othername"
+        assert req.tool == expected_tool
+        assert req.server == "identified"
 
-    def test_multiple_underscores(self):
-        """Tools with underscores in their name are supported."""
-        copilot = Copilot()
-        discovery = _ai_discovery(servers=[])
+    def test_identify_from_multiple_servers(self):
+        """Test that the server and tool names are split correctly."""
+        vscode = VSCode()
+        cfg1 = _cfg(name="foo", agent="vscode")
+        cfg2 = _cfg(name="foo_bar", agent="cursor")
+        server = MCPServer(name="server1", configurations=[cfg1])
+        server2 = MCPServer(name="server2", configurations=[cfg2])
+        discovery = _ai_discovery(servers=[server, server2])
         payload = _payload(
-            copilot,
-            raw={
-                "tool_name": "mcp_server_tool_name_extra",
-                "cwd": "/tmp",
-                "tool_input": {},
-            },
+            vscode,
+            raw={"tool_name": "mcp_foo_bar_tool_name", "cwd": "/tmp", "tool_input": {}},
         )
 
-        req = copilot.parse_mcp_activity(payload, discovery)
-        assert req.server == "server"
-        assert req.tool == "tool_name_extra"
+        req = vscode.parse_mcp_activity(payload, discovery)
+
+        assert req.tool == "tool_name"
+        assert req.server == "server2"
 
     def test_unknown_server_falls_back_to_cfg_name(self):
-        copilot = Copilot()
+        vscode = VSCode()
         discovery = _ai_discovery(servers=[])
         payload = _payload(
-            copilot,
-            raw={"tool_name": "mcp_unknown_tool", "cwd": "/tmp", "tool_input": {}},
+            vscode,
+            raw={"tool_name": "mcp_unknown_tool_name", "cwd": "/tmp", "tool_input": {}},
         )
 
-        req = copilot.parse_mcp_activity(payload, discovery)
+        req = vscode.parse_mcp_activity(payload, discovery)
 
         assert req.server == "unknown"
-        assert req.tool == "tool"
+        assert req.tool == "tool_name"
 
 
 # ===========================================================================

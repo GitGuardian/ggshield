@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterator, Literal, Tuple
 
@@ -7,7 +8,7 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
-from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
+from ..models import Agent, EventType, HookPayload, HookResult
 
 
 class VSCode(Agent):
@@ -65,16 +66,13 @@ class VSCode(Agent):
                 if path.is_dir():
                     yield path.resolve()
 
-    def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
-        yield from Agent._get_user_mcp_configurations(self)
-
     def parse_mcp_activity(
         self, payload: HookPayload, ai_config: AIDiscovery
     ) -> MCPActivityRequest:
         """Parse the MCP activity from an MCP hook payload."""
 
         raw_tool_name: str = payload.raw.get("tool_name", "")
-        server_name, tool_name = _lookup_server_name(raw_tool_name, ai_config)
+        server_name, tool_name = self._lookup_server_name(raw_tool_name, ai_config)
 
         return MCPActivityRequest(
             user=ai_config.user,
@@ -86,20 +84,40 @@ class VSCode(Agent):
             input=payload.raw.get("tool_input", {}),
         )
 
+    def _lookup_server_name(
+        self, raw_tool_name: str, ai_config: AIDiscovery
+    ) -> Tuple[str, str]:
+        # VSCode's hook tool name is "mcp_{server}_{tool}"
+        # which is unfortunate because a lot of tools have a "_" in their name.
+        # It also mangles the config name (lowercase, groups of non-alphanumeric
+        # characters are replaced by a single "_", and only the first 13 characters are kept).
+        # We may not have the list of tools available and VSCode can use MCP servers
+        # from other agents (like Claude Code), so for now as a best effort attempt,
+        # we look for the longest chain of parts separated by "_" that is a valid server configuration name.
 
-def _lookup_server_name(raw_tool_name: str, ai_config: AIDiscovery) -> Tuple[str, str]:
-    # Copilot's hook tool name is "mcp_{server}_{tool}"
-    # which is unfortunate because a lot of tools have a "_" in their name.
-    # For now we hope there won't be "_" in the server configuration name
-    # (this is less likely than in the tool name but very brittle).
-    # TODO: test this more thoroughly and implement a better lookup.
-    _, server_cfg_name, *tool_parts = raw_tool_name.split("_")
-    tool = "_".join(tool_parts)
+        # Build a map of mangled server configuration names to server names.
+        mangled_to_server: Dict[str, str] = {
+            _mangle_name(configuration.name): server.name
+            for server in ai_config.servers
+            for configuration in server.configurations
+        }
 
-    # Lookup the server name based on its configuration name
-    # Fallback to the configuration name if not found
-    for server in ai_config.servers:
-        for configuration in server.configurations:
-            if configuration.name == server_cfg_name:
-                return server.name, tool
-    return server_cfg_name, tool
+        # This get rid of the "mcp_" prefix.
+        _, *parts = raw_tool_name.split("_")
+
+        # At each separation point (starting from the biggest name possible), check if the mangled name is in the map.
+        for i in range(len(parts)):
+            mangled_name = "_".join(parts[:-i])
+            if mangled_name in mangled_to_server:
+                return mangled_to_server[mangled_name], "_".join(parts[-i:])
+
+        # If no match is found, fallback to use the first part as the server name.
+        return parts[0], "_".join(parts[1:])
+
+
+MANGLING_PATTERN = re.compile(r"[^A-Za-z0-9-]+")
+
+
+def _mangle_name(name: str) -> str:
+    """Mangle a name in the same way VSCode does."""
+    return MANGLING_PATTERN.sub("_", name).lower()[:13]
