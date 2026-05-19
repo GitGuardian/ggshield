@@ -1,5 +1,6 @@
 import logging
 import os
+from enum import Enum
 from typing import Optional
 
 import requests
@@ -25,7 +26,52 @@ from .ui.client_callbacks import ClientCallbacks
 logger = logging.getLogger(__name__)
 
 
-def create_client_from_config(config: Config) -> GGClient:
+_RETRY_ALLOWED_METHODS = frozenset(
+    {"HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE", "POST"}
+)
+_RETRY_STATUS_FORCELIST = frozenset({502, 503, 504})
+
+
+class RetryProfile(Enum):
+    """HTTP retry policy applied to the requests Session."""
+
+    # ~15s wall-clock budget with jitter. Used by every command except
+    # pre-receive. Sleep schedule before each retry: 0, 1, 2, 4, 8 s, each
+    # (except the first) jittered by up to 0.5 s; the 8 s sleep is capped by
+    # backoff_max.
+    DEFAULT = "default"
+
+    # One immediate retry, no backoff. Used by `ggshield secret scan
+    # pre-receive`: GitHub Enterprise Server enforces a fixed 5 s timeout
+    # shared across all pre-receive hooks, so any retry budget that adds
+    # measurable wall clock risks exceeding it.
+    PRE_RECEIVE = "pre_receive"
+
+
+def _build_retry(profile: RetryProfile) -> urllib3.Retry:
+    if profile is RetryProfile.PRE_RECEIVE:
+        return urllib3.Retry(
+            total=1,
+            backoff_factor=0,
+            backoff_jitter=0,
+            status_forcelist=_RETRY_STATUS_FORCELIST,
+            allowed_methods=_RETRY_ALLOWED_METHODS,
+        )
+    return urllib3.Retry(
+        total=5,
+        backoff_factor=0.5,
+        backoff_max=8,
+        backoff_jitter=0.5,
+        status_forcelist=_RETRY_STATUS_FORCELIST,
+        allowed_methods=_RETRY_ALLOWED_METHODS,
+    )
+
+
+def create_client_from_config(
+    config: Config,
+    *,
+    retry_profile: RetryProfile = RetryProfile.DEFAULT,
+) -> GGClient:
     """
     Create a GGClient using parameters from Config.
     """
@@ -58,6 +104,7 @@ https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
         api_url,
         allow_self_signed=config.user_config.insecure,
         callbacks=callbacks,
+        retry_profile=retry_profile,
     )
 
 
@@ -67,12 +114,16 @@ def create_client(
     *,
     allow_self_signed: bool = False,
     callbacks: Optional[GGClientCallbacks] = None,
+    retry_profile: RetryProfile = RetryProfile.DEFAULT,
 ) -> GGClient:
     """
     Implementation of create_client_from_config(). Exposed as a function for specific
     cases such as needing a GGClient instance while defining the config account.
     """
-    session = create_session(allow_self_signed=allow_self_signed)
+    session = create_session(
+        allow_self_signed=allow_self_signed,
+        retry_profile=retry_profile,
+    )
     try:
         return GGClient(
             api_key=api_key,
@@ -87,7 +138,10 @@ def create_client(
         raise UnexpectedError(f"Failed to create API client. {e}")
 
 
-def create_session(allow_self_signed: bool = False) -> Session:
+def create_session(
+    allow_self_signed: bool = False,
+    retry_profile: RetryProfile = RetryProfile.DEFAULT,
+) -> Session:
     session = Session()
     if allow_self_signed:
         ui.display_warning(
@@ -102,22 +156,11 @@ def create_session(allow_self_signed: bool = False) -> Session:
         )
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         session.verify = False
-    # Retry on transient connection errors (e.g. ConnectionResetError when a
-    # load balancer drops a long-lived connection during a large scan) and on
-    # transient 5xx responses. POST is included because our scan endpoints are
-    # POST-based.
-    retries = urllib3.Retry(
-        total=5,
-        backoff_factor=0.2,
-        status_forcelist=[502, 503, 504],
-        allowed_methods=frozenset(
-            {"HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE", "POST"}
-        ),
-    )
-    # Mount HTTPAdapter with larger pool sizes for better concurrency
+    # Mount HTTPAdapter with larger pool sizes for better concurrency and a
+    # retry policy selected per command. See RetryProfile for the rationale.
     adapter = HTTPAdapter(
         pool_maxsize=100,  # default 10
-        max_retries=retries,
+        max_retries=_build_retry(retry_profile),
     )
     session.mount("http://", adapter)
     session.mount("https://", adapter)
