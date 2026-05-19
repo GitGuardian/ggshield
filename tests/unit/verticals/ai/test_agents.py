@@ -9,6 +9,7 @@ from pygitguardian.models import MCPToolInfo, UserInfo
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
 from ggshield.verticals.ai.agents.codex import Codex
+from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
 from ggshield.verticals.ai.agents.vscode import VSCode
 from ggshield.verticals.ai.models import (
@@ -1051,6 +1052,108 @@ class TestVSCodeParseMcpActivity:
         req = vscode.parse_mcp_activity(payload, discovery)
 
         assert req.server == "unknown"
+        assert req.tool == "tool_name"
+
+
+# ===========================================================================
+# Copilot
+# ===========================================================================
+
+
+class TestCopilotParseMcpActivity:
+    @pytest.mark.parametrize(
+        "tool_name, config_name, expected_tool",
+        [
+            pytest.param("myserver-mytool", "myserver", "mytool", id="simple"),
+            pytest.param(
+                "server-tool_name",
+                "server",
+                "tool_name",
+                id="underscores_in_tool",
+            ),
+            pytest.param(
+                "server-name-tool-name",
+                "server-name",
+                "tool-name",
+                id="multiple_dashes_in_tool_and_config",
+            ),
+            pytest.param(
+                "xn--Foob_ar_s--Prod--twb-tool_name",
+                "Foob_ar_ös (Prod)",
+                "tool_name",
+                id="special_chars_in_config_name",
+            ),
+            pytest.param(
+                "xn--Fo-bar_bz--Spam---Toto-----T-ta------Tutu-42-2vd5e46b-tool_name",
+                "Fôo-bar_bäz (Spam) [Toto]   <Tâ/ta> -  (Tutu 42",
+                "tool_name",
+                id="special_chars_in_config_name_2",
+            ),
+            pytest.param(
+                "FooVeryLong-NameWithCapsInCamelCase-tool_name",
+                "FooVeryLong-NameWithCapsInCamelCase",
+                "tool_name",
+                id="long_server_name",
+            ),
+            pytest.param(
+                "Server-MCP-With-Spaces-tool_name",
+                "Server MCP With Spaces",
+                "tool_name",
+                id="server_name_with_spaces",
+            ),
+        ],
+    )
+    def test_identify_server_tool_split(
+        self, tool_name: str, config_name: str, expected_tool: str
+    ):
+        """Test that the server and tool names are split correctly."""
+        copilot = Copilot()
+        cfg = _cfg(name=config_name, agent="copilot")
+        server = MCPServer(name="identified", configurations=[cfg])
+        discovery = _ai_discovery(servers=[server])
+        payload = _payload(
+            copilot,
+            raw={"tool_name": tool_name, "cwd": "/tmp", "tool_input": {}},
+        )
+
+        req = copilot.parse_mcp_activity(payload, discovery)
+
+        assert req.tool == expected_tool
+        assert req.server == "identified"
+
+    def test_identify_from_multiple_servers(self):
+        """Test that the server and tool names are split correctly."""
+        copilot = Copilot()
+        cfg1 = _cfg(name="foo", agent="copilot")
+        cfg2 = _cfg(name="foo-bar", agent="copilot")
+        server = MCPServer(name="server1", configurations=[cfg1])
+        server2 = MCPServer(name="server2", configurations=[cfg2])
+        discovery = _ai_discovery(servers=[server, server2])
+        payload = _payload(
+            copilot,
+            raw={"tool_name": "foo-bar-tool-name", "cwd": "/tmp", "tool_input": {}},
+        )
+
+        req = copilot.parse_mcp_activity(payload, discovery)
+
+        assert req.tool == "tool-name"
+        assert req.server == "server2"
+
+    def test_unknown_server_falls_back_to_cfg_name(self):
+        copilot = Copilot()
+        discovery = _ai_discovery(servers=[])
+        payload = _payload(
+            copilot,
+            raw={
+                "tool_name": "unknown-server-tool_name",
+                "cwd": "/tmp",
+                "tool_input": {},
+            },
+        )
+
+        req = copilot.parse_mcp_activity(payload, discovery)
+
+        assert req.server == "unknown-server"
         assert req.tool == "tool_name"
 
 
