@@ -10,6 +10,7 @@ from ggshield.verticals.ai.models import (
     MCPConfiguration,
     Scope,
     Tool,
+    Transport,
 )
 
 from .vscode import VSCode
@@ -48,6 +49,15 @@ class Copilot(VSCode):
                 config.scope = Scope.USER
                 config.project = None
                 yield config
+        # Hard-coded Github MCP server
+        yield MCPConfiguration(
+            name="github-mcp-server",
+            agent=self.name,
+            scope=Scope.USER,
+            project=None,
+            transport=Transport.HTTP,
+            url="https://api.individual.githubcopilot.com/mcp/readonly",
+        )
 
     def is_caller(self, hook_payload: dict[str, str]) -> bool:
         # Copilot CLI only emits the default fields in all hooks, which in a way identifies it.
