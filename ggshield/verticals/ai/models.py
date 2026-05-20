@@ -128,6 +128,12 @@ class Agent(ABC):
         """
         return payload.event_type == EventType.POST_TOOL_USE
 
+    def post_process_payload(self, payload: HookPayload):
+        """Post-process the payload.
+
+        This method is called after the payload has been parsed, but before it is scanned.
+        """
+
     # Settings
 
     @abstractmethod

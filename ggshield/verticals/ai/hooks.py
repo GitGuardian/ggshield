@@ -141,6 +141,11 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             raw=data,
         )
     )
+
+    # Allow the agent to post-process the payloads (e.g overriding the tool)
+    for payload in payloads:
+        agent.post_process_payload(payload)
+
     return payloads
 
 

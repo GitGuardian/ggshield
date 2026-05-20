@@ -746,6 +746,23 @@ class TestAIHookScannerParseInput:
         assert payload.scannable.content == "this is the content"
         assert isinstance(payload.agent, Copilot)
 
+    def test_copilot_pre_tool_use_mcp(self):
+        """Test Copilot PreToolUse is correctly overriden to MCP."""
+        data = {
+            "timestamp": "2026-02-26T11:53:49.593Z",
+            "hook_event_name": "PreToolUse",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "tool_name": "server-name-tool-name",
+            "tool_input": {
+                "arg": "value",
+            },
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.MCP
+        assert isinstance(payload.agent, Copilot)
+
     def test_copilot_post_tool_use_run_in_terminal(self):
         """Test Copilot PostToolUse with bash"""
         data = {
