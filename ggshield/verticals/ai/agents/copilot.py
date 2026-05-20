@@ -9,6 +9,7 @@ from ggshield.verticals.ai.models import (
     HookPayload,
     MCPConfiguration,
     Scope,
+    Tool,
 )
 
 from .vscode import VSCode
@@ -61,6 +62,18 @@ class Copilot(VSCode):
         if payload.event_type == EventType.USER_PROMPT and payload.tool is None:
             return True
         return super().has_secret_already_leaked(payload)
+
+    def post_process_payload(self, payload: HookPayload):
+        # Copilot CLI doesn't prefix the MCP tools by any specific string,
+        # so we need to identify them by elimination.
+        if payload.tool == Tool.OTHER:
+            tool_name = payload.raw.get("tool_name", "")
+            # The list of tools provided in the official documentation is not exhaustive,
+            # (they don't list "report_intent" for instance), so I have no confidence in having
+            # a whitelist/blacklist. Instead, we rely on the fact that Copilot separates the server
+            # and tool names by a "-", which is never used in other tool names (they are snake_cased).
+            if "-" in tool_name:
+                payload.tool = Tool.MCP
 
     def _lookup_server_name(
         self, raw_tool_name: str, ai_config: AIDiscovery
