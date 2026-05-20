@@ -69,8 +69,14 @@ def print_default_instance_message(config: Config) -> None:
     "--method",
     required=False,
     default="web",
-    type=click.Choice(["token", "web"]),
-    help="Authentication method.",
+    type=click.Choice(["token", "web", "oob"]),
+    help=(
+        "Authentication method. `web` opens a browser and listens on"
+        " localhost for the OAuth callback. `oob` (out-of-band) prints the"
+        " authorize URL and prompts for the code shown by the dashboard —"
+        " useful on headless machines (SSH sessions, containers, CI"
+        " shells). `token` skips OAuth and reads a pre-existing token."
+    ),
 )
 @click.option(
     "--instance",
@@ -110,17 +116,6 @@ def print_default_instance_message(config: Config) -> None:
     help="Number of days before the token expires. 0 means the token never expires.",
     metavar="DAYS",
 )
-@click.option(
-    "--no-browser",
-    is_flag=True,
-    default=False,
-    help=(
-        "Run the web login flow without opening a browser. ggshield prints the"
-        " authorization URL; open it on any device, sign in, then paste the"
-        " code shown by the dashboard back into the terminal. Useful on"
-        " headless machines (SSH sessions, containers, CI shells)."
-    ),
-)
 @add_common_options()
 @click.pass_context
 def login_cmd(
@@ -131,7 +126,6 @@ def login_cmd(
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
-    no_browser: bool,
     **kwargs: Any,
 ) -> int:
     """
@@ -143,6 +137,10 @@ def login_cmd(
     The default authentication method is `web`.
     ggshield launches a web browser to authenticate you to your GitGuardian instance,
     then automatically generates a token on your behalf.
+
+    On a headless machine (SSH session, container, CI shell), use `--method oob`
+    instead: ggshield prints the authorization URL, you open it on any device,
+    sign in, and paste back the code shown by the dashboard.
 
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
@@ -158,7 +156,7 @@ def login_cmd(
     """
     config = ContextObj.get(ctx).config
 
-    if method != "web":
+    if method == "token":
         if sso_url is not None:
             raise click.BadParameter(
                 "--sso-url is reserved for the web login method.", param_hint="sso-url"
@@ -169,17 +167,10 @@ def login_cmd(
                 "--scopes is reserved for the web login method.", param_hint="scopes"
             )
 
-        if no_browser:
-            raise click.BadParameter(
-                "--no-browser is reserved for the web login method.",
-                param_hint="no-browser",
-            )
-
-    if method == "token":
         token_login(config, instance)
         return 0
 
-    if method == "web":
+    if method in ("web", "oob"):
         extra_scopes = scopes.split(" ") if scopes else None
         web_login(
             config,
@@ -188,7 +179,7 @@ def login_cmd(
             lifetime,
             sso_url,
             extra_scopes,
-            no_browser=no_browser,
+            no_browser=method == "oob",
         )
         return 0
 

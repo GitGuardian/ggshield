@@ -1013,8 +1013,8 @@ class TestAuthLoginWeb:
         self._webbrowser_open_mock.assert_called()
 
 
-class TestAuthLoginWebNoBrowser:
-    """Tests for the browser-less (out-of-band / `--no-browser`) flow.
+class TestAuthLoginOob:
+    """Tests for the browser-less (out-of-band / `--method=oob`) flow.
 
     These mirror TestAuthLoginWeb but check that:
     - the authorize URL uses the OOB sentinel as redirect_uri,
@@ -1061,9 +1061,9 @@ class TestAuthLoginWebNoBrowser:
         self._request_mock.add_GET(TOKEN_ENDPOINT, create_json_response(token_payload))
         return token
 
-    def test_no_browser_happy_path(self, cli_fs_runner, monkeypatch):
+    def test_oob_happy_path(self, cli_fs_runner, monkeypatch):
         """
-        GIVEN --no-browser is passed
+        GIVEN --method=oob is passed
         WHEN the user pastes a valid authorization code
         THEN the authorize URL uses the OOB sentinel,
              the browser is not opened,
@@ -1097,7 +1097,7 @@ class TestAuthLoginWebNoBrowser:
             spy_build,
         )
 
-        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        cmd = ["auth", "login", "--method=oob"]
         result = cli_fs_runner.invoke(
             cli, cmd, color=False, input="some_authorization_code\n"
         )
@@ -1137,17 +1137,17 @@ class TestAuthLoginWebNoBrowser:
         # Pasted code must not appear in plain text in the terminal output.
         # Only the first 4 chars are echoed back, followed by `*` placeholders.
         assert "some_authorization_code" not in result.output
-        assert (
-                "some" + "*" * (len("some_authorization_code") - 4) in result.output
-                or "some" + "*" * (len("some_authorization_code") - 4)
-                in (result.stderr or "")
+        assert "some" + "*" * (
+            len("some_authorization_code") - 4
+        ) in result.output or "some" + "*" * (len("some_authorization_code") - 4) in (
+            result.stderr or ""
         )
 
         self._request_mock.assert_all_requests_happened()
 
-    def test_no_browser_strips_whitespace_around_code(self, cli_fs_runner, monkeypatch):
+    def test_oob_strips_whitespace_around_code(self, cli_fs_runner, monkeypatch):
         """
-        GIVEN --no-browser
+        GIVEN --method=oob
         WHEN the user pastes a code surrounded by whitespace
         THEN the whitespace is stripped before sending the code to the backend.
         """
@@ -1159,18 +1159,18 @@ class TestAuthLoginWebNoBrowser:
 
         self._add_token_endpoints(post_checker)
 
-        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        cmd = ["auth", "login", "--method=oob"]
         result = cli_fs_runner.invoke(cli, cmd, color=False, input="  padded_code  \n")
         assert result.exit_code == ExitCode.SUCCESS, result.output
         assert captured["code"] == "padded_code"
 
-    def test_no_browser_empty_code_errors_out(self, cli_fs_runner, monkeypatch):
+    def test_oob_empty_code_errors_out(self, cli_fs_runner, monkeypatch):
         """
-        GIVEN --no-browser
+        GIVEN --method=oob
         WHEN the user submits an empty code (just whitespace)
         THEN the command fails with a friendly error and no token POST is sent.
         """
-        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        cmd = ["auth", "login", "--method=oob"]
         result = cli_fs_runner.invoke(cli, cmd, color=False, input="   \n")
         assert result.exit_code != 0
         assert "No authorization code was provided." in result.output
@@ -1179,9 +1179,9 @@ class TestAuthLoginWebNoBrowser:
         self._webbrowser_open_mock.assert_not_called()
         self._http_server_mock.assert_not_called()
 
-    def test_no_browser_token_exchange_failure(self, cli_fs_runner, monkeypatch):
+    def test_oob_token_exchange_failure(self, cli_fs_runner, monkeypatch):
         """
-        GIVEN --no-browser
+        GIVEN --method=oob
         WHEN the backend rejects the code at the token endpoint
         THEN the error is surfaced like the localhost flow does.
         """
@@ -1190,7 +1190,7 @@ class TestAuthLoginWebNoBrowser:
             create_json_response({"detail": "kaboom"}, status_code=400),
         )
 
-        cmd = ["auth", "login", "--method=web", "--no-browser"]
+        cmd = ["auth", "login", "--method=oob"]
         result = cli_fs_runner.invoke(
             cli, cmd, color=False, input="some_authorization_code\n"
         )
@@ -1200,13 +1200,13 @@ class TestAuthLoginWebNoBrowser:
         self._http_server_mock.assert_not_called()
         self._request_mock.assert_all_requests_happened()
 
-    def test_no_browser_rejected_for_non_web_method(self, cli_fs_runner):
+    def test_unknown_method_rejected(self, cli_fs_runner):
         """
-        GIVEN --no-browser combined with --method=token
+        GIVEN an unknown --method value
         WHEN running the login command
-        THEN the CLI rejects the combination (the flag is web-only).
+        THEN click rejects it via the Choice type.
         """
-        cmd = ["auth", "login", "--method=token", "--no-browser"]
+        cmd = ["auth", "login", "--method=no-browser"]
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert result.exit_code != 0
-        assert "--no-browser is reserved for the web login method." in result.output
+        assert "'no-browser' is not one of 'token', 'web', 'oob'" in result.output
