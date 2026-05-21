@@ -7,7 +7,7 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
-from ..models import Agent, EventType, HookPayload, HookResult
+from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration, Scope
 from .claude_code import _mangle_server_name
 
 
@@ -61,8 +61,45 @@ class Codex(Agent):
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".codex" / "config.toml"
 
+    @property
+    def user_mcp_file(self) -> Path:
+        return self.config_folder / "config.toml"
+
     def discover_project_directories(self) -> Iterator[Path]:
-        yield from []
+        data = self._load_file(self.config_folder / "config.toml")
+        if not data:
+            return
+        for project in data.get("projects", {}).keys():
+            yield Path(project)
+
+    def _get_project_mcp_configurations(
+        self, directory: Path
+    ) -> Iterator[MCPConfiguration]:
+        # Standard project-level MCP servers
+        yield from super()._get_project_mcp_configurations(directory)
+        # Detect local plugin
+        yield from self._get_codex_plugin_mcp_configurations(
+            directory / ".codex-plugin", Scope.PROJECT
+        )
+
+    def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
+        # Standard user-level MCP servers
+        yield from super()._get_user_mcp_configurations()
+        # Detect plugins
+        # (arborescence is plugins/cache/<marketplace>/<plugin>/<hash>/)
+        for plugin_dir in self.config_folder.glob("plugins/cache/*/*/*"):
+            yield from self._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+
+    def _get_codex_plugin_mcp_configurations(
+        self, plugin_dir: Path, scope: Scope
+    ) -> Iterator[MCPConfiguration]:
+        if not plugin_dir.is_dir():
+            return
+        if not (data := self._load_file(plugin_dir / ".mcp.json")):
+            return
+        yield from self._parse_servers_block(
+            data, scope, None if scope == Scope.USER else plugin_dir
+        )
 
     def parse_mcp_activity(
         self, payload: HookPayload, ai_config: AIDiscovery

@@ -37,12 +37,13 @@ class Copilot(VSCode):
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".mcp.json"
 
+    @property
+    def user_mcp_file(self) -> Path:
+        return self.config_folder / "mcp-config.json"
+
     def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
-        # Load config file
-        filepath = self.config_folder / "mcp-config.json"
-        if not (data := self._load_json_file(filepath)):
-            return
-        yield from self._parse_servers_block(data, Scope.USER, None)
+        # Standard user-level MCP servers
+        yield from super()._get_user_mcp_configurations()
         # Search in installed plugins
         for plugin_folder in self.config_folder.glob("installed-plugins/*/*/"):
             for config in self._get_project_mcp_configurations(plugin_folder):

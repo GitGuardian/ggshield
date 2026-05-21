@@ -180,28 +180,28 @@ class TestParseServersBlock:
 
 
 # ---------------------------------------------------------------------------
-# Agent._load_json_file
+# Agent._load_file
 # ---------------------------------------------------------------------------
 
 
-class TestLoadJsonFile:
+class TestLoadFile:
     def test_returns_dict_for_valid_json(self, tmp_path: Path):
         f = tmp_path / "ok.json"
         f.write_text(json.dumps({"key": "value"}))
-        assert Cursor()._load_json_file(f) == {"key": "value"}
+        assert Cursor()._load_file(f) == {"key": "value"}
 
     def test_returns_none_for_missing_file(self, tmp_path: Path):
-        assert Cursor()._load_json_file(tmp_path / "missing.json") is None
+        assert Cursor()._load_file(tmp_path / "missing.json") is None
 
     def test_returns_none_for_invalid_json(self, tmp_path: Path):
         f = tmp_path / "bad.json"
         f.write_text("{not valid json")
-        assert Cursor()._load_json_file(f) is None
+        assert Cursor()._load_file(f) is None
 
     def test_returns_none_for_non_dict_json(self, tmp_path: Path):
         f = tmp_path / "list.json"
         f.write_text(json.dumps([1, 2, 3]))
-        assert Cursor()._load_json_file(f) is None
+        assert Cursor()._load_file(f) is None
 
 
 # ---------------------------------------------------------------------------

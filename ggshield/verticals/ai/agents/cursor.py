@@ -88,6 +88,10 @@ class Cursor(Agent):
                 return obj
         return None
 
+    @property
+    def user_mcp_file(self) -> Path:
+        return self.config_folder / "mcp.json"
+
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".cursor" / "mcp.json"
 
@@ -123,7 +127,7 @@ class Cursor(Agent):
         # file may use either the wrapped {"mcpServers": {...}} layout or the
         # bare {"name": {...}} layout, so we normalize before parsing.
         for filename in ("mcp.json", ".mcp.json"):
-            mcp_data = self._load_json_file(install_dir / filename)
+            mcp_data = self._load_file(install_dir / filename)
             if mcp_data is not None:
                 if "mcpServers" not in mcp_data and "servers" not in mcp_data:
                     mcp_data = {"mcpServers": mcp_data}
@@ -131,7 +135,7 @@ class Cursor(Agent):
                 return
 
         # Fallback: inline mcpServers in the plugin manifest.
-        manifest = self._load_json_file(install_dir / ".cursor-plugin" / "plugin.json")
+        manifest = self._load_file(install_dir / ".cursor-plugin" / "plugin.json")
         if not manifest:
             return
         inline = manifest.get("mcpServers")
@@ -152,7 +156,7 @@ class Cursor(Agent):
         """
         packages = self.config_folder.glob("extensions/*/package.json")
         for package_path in packages:
-            package = self._load_json_file(package_path)
+            package = self._load_file(package_path)
             if not package:
                 continue
             providers = package.get("contributes", {}).get(
@@ -181,7 +185,7 @@ class Cursor(Agent):
         # Because Cursor is based on VS Code, we can reuse the same logic than Copilot.
         user_folder = get_user_home_dir() / ".config" / "Cursor" / "User"
         for file in user_folder.glob("workspaceStorage/*/workspace.json"):
-            if (data := self._load_json_file(file)) and "folder" in data:
+            if (data := self._load_file(file)) and "folder" in data:
                 path = Path(data["folder"].removeprefix("file://"))
                 if path.is_dir():
                     yield path.resolve()
@@ -207,7 +211,7 @@ class Cursor(Agent):
             for file in self.config_folder.glob(
                 f"projects/*/mcps/*{configuration_name}/SERVER_METADATA.json"
             ):
-                metadata = self._load_json_file(file)
+                metadata = self._load_file(file)
                 if self._server_name_matches(metadata, configuration_name):
                     # Found it! Update the folder
                     folder = file.parent
@@ -226,7 +230,7 @@ class Cursor(Agent):
             filled = False
             # Tools
             for file in folder.glob("tools/*.json"):
-                tool = self._load_json_file(file)
+                tool = self._load_file(file)
                 if not isinstance(tool, dict) or "name" not in tool:
                     continue
                 server.tools.append(
@@ -239,7 +243,7 @@ class Cursor(Agent):
                 filled = True
             # Resources
             for file in folder.glob("resources/*.json"):
-                resource = self._load_json_file(file)
+                resource = self._load_file(file)
                 if not isinstance(resource, dict) or "uri" not in resource:
                     continue
                 server.resources.append(
@@ -253,7 +257,7 @@ class Cursor(Agent):
                 filled = True
             # Prompts
             for file in folder.glob("prompts/*.json"):
-                prompt = self._load_json_file(file)
+                prompt = self._load_file(file)
                 if not isinstance(prompt, dict) or "name" not in prompt:
                     continue
                 server.prompts.append(

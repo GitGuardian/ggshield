@@ -71,6 +71,10 @@ class Claude(Agent):
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".claude") / "settings.json"
 
+    @property
+    def user_mcp_file(self) -> Path:
+        return get_user_home_dir() / ".claude.json"
+
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".mcp.json"
 
@@ -83,8 +87,8 @@ class Claude(Agent):
     def _get_dot_claude_json_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         """Look into ~/.claude.json for both user-level and project-level MCP server entries."""
         # Load config file
-        filepath = get_user_home_dir() / ".claude.json"
-        if not (data := self._load_json_file(filepath)):
+        data = self._load_file(self.user_mcp_file)
+        if not data:
             return
 
         # User-level mcpServers
@@ -110,7 +114,7 @@ class Claude(Agent):
         ``<installPath>/.claude-plugin/plugin.json``.
         """
         installed_path = self.config_folder / "plugins" / "installed_plugins.json"
-        if not (data := self._load_json_file(installed_path)):
+        if not (data := self._load_file(installed_path)):
             return
 
         plugins = data.get("plugins", {})
@@ -148,7 +152,7 @@ class Claude(Agent):
         # Preferred location: .mcp.json at the plugin root. The file may use
         # either the wrapped {"mcpServers": {...}} layout or the bare
         # {"name": {...}} layout, so we normalize before parsing.
-        mcp_data = self._load_json_file(install_dir / ".mcp.json")
+        mcp_data = self._load_file(install_dir / ".mcp.json")
         if mcp_data is not None:
             if "mcpServers" not in mcp_data and "servers" not in mcp_data:
                 mcp_data = {"mcpServers": mcp_data}
@@ -156,7 +160,7 @@ class Claude(Agent):
             return
 
         # Fallback: inline mcpServers in the plugin manifest.
-        manifest = self._load_json_file(install_dir / ".claude-plugin" / "plugin.json")
+        manifest = self._load_file(install_dir / ".claude-plugin" / "plugin.json")
         if not manifest:
             return
         inline = manifest.get("mcpServers")
@@ -183,14 +187,12 @@ class Claude(Agent):
             seen.add(name)
             names.append(name)
 
-        claude_json = self._load_json_file(get_user_home_dir() / ".claude.json")
+        claude_json = self._load_file(get_user_home_dir() / ".claude.json")
         if claude_json:
             for name in claude_json.get("claudeAiMcpEverConnected", []) or []:
                 _add(name)
 
-        auth_cache = self._load_json_file(
-            self.config_folder / "mcp-needs-auth-cache.json"
-        )
+        auth_cache = self._load_file(self.config_folder / "mcp-needs-auth-cache.json")
         if auth_cache:
             for name in auth_cache.keys():
                 _add(name)

@@ -938,9 +938,6 @@ class TestCodex:
             Path("/tmp/project") / ".codex" / "config.toml"
         )
 
-    def test_discover_project_directories_empty(self):
-        assert list(Codex().discover_project_directories()) == []
-
     def test_parse_mcp_activity(self):
         codex = Codex()
         cfg = _cfg(name="my.server", agent="codex")
@@ -967,6 +964,248 @@ class TestCodex:
         assert req.model == "gpt-5.4"
         assert req.cwd == "/tmp/project"
         assert req.input == {"query": "hello"}
+
+
+class TestCodexDiscoverProjectDirectories:
+    def _patch(self, codex: Codex, config_folder: Path):
+        return patch.object(
+            type(codex),
+            "config_folder",
+            new_callable=lambda: property(lambda self: config_folder),
+        )
+
+    def test_yields_project_keys_from_config_toml(self, tmp_path: Path):
+        config_folder = tmp_path / ".codex"
+        config_folder.mkdir()
+        (config_folder / "config.toml").write_text(
+            "[projects]\n"
+            '"/home/user/project-a" = {}\n'
+            '"/home/user/project-b" = {}\n'
+        )
+
+        codex = Codex()
+        with self._patch(codex, config_folder):
+            dirs = list(codex.discover_project_directories())
+
+        assert Path("/home/user/project-a") in dirs
+        assert Path("/home/user/project-b") in dirs
+
+    def test_missing_config_toml_yields_nothing(self, tmp_path: Path):
+        config_folder = tmp_path / ".codex"
+        config_folder.mkdir()
+
+        codex = Codex()
+        with self._patch(codex, config_folder):
+            dirs = list(codex.discover_project_directories())
+
+        assert dirs == []
+
+    def test_config_toml_without_projects_key_yields_nothing(self, tmp_path: Path):
+        config_folder = tmp_path / ".codex"
+        config_folder.mkdir()
+        (config_folder / "config.toml").write_text('model = "gpt-5"\n')
+
+        codex = Codex()
+        with self._patch(codex, config_folder):
+            dirs = list(codex.discover_project_directories())
+
+        assert dirs == []
+
+
+class TestCodexGetProjectMcpConfigurations:
+    def _patch(self, codex: Codex, config_folder: Path):
+        return patch.object(
+            type(codex),
+            "config_folder",
+            new_callable=lambda: property(lambda self: config_folder),
+        )
+
+    def test_includes_standard_project_config(self, tmp_path: Path):
+        """The parent's project-level config (.codex/config.toml) is included."""
+        project = tmp_path / "myproject"
+        project.mkdir()
+        codex_dir = project / ".codex"
+        codex_dir.mkdir()
+        (codex_dir / "config.toml").write_text(
+            "[mcpServers.proj-srv]\n" 'command = "node"\n' 'args = ["index.js"]\n'
+        )
+
+        codex = Codex()
+        configs = list(codex._get_project_mcp_configurations(project))
+
+        assert len(configs) == 1
+        assert configs[0].name == "proj-srv"
+        assert configs[0].scope == Scope.PROJECT
+
+    def test_includes_local_codex_plugin(self, tmp_path: Path):
+        """A .codex-plugin directory with .mcp.json at project root is discovered."""
+        project = tmp_path / "myproject"
+        plugin_dir = project / ".codex-plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / ".mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "plugin-srv": {"command": "npx", "args": ["-y", "srv"]}
+                    }
+                }
+            )
+        )
+
+        codex = Codex()
+        configs = list(codex._get_project_mcp_configurations(project))
+
+        plugin_configs = [c for c in configs if c.name == "plugin-srv"]
+        assert len(plugin_configs) == 1
+        assert plugin_configs[0].scope == Scope.PROJECT
+        assert plugin_configs[0].project == str(plugin_dir)
+        assert plugin_configs[0].transport == Transport.STDIO
+        assert plugin_configs[0].command == "npx"
+
+    def test_no_plugin_dir_yields_only_standard(self, tmp_path: Path):
+        """When .codex-plugin doesn't exist, only standard config is considered."""
+        project = tmp_path / "myproject"
+        project.mkdir()
+
+        codex = Codex()
+        configs = list(codex._get_project_mcp_configurations(project))
+
+        assert configs == []
+
+
+class TestCodexGetUserMcpConfigurations:
+    def _patch(self, codex: Codex, config_folder: Path):
+        return patch.object(
+            type(codex),
+            "config_folder",
+            new_callable=lambda: property(lambda self: config_folder),
+        )
+
+    def test_includes_standard_user_config(self, tmp_path: Path):
+        config_folder = tmp_path / ".codex"
+        config_folder.mkdir()
+        (config_folder / "config.toml").write_text(
+            "[mcpServers.global-srv]\n" 'command = "npx"\n' 'args = ["-y", "mcp"]\n'
+        )
+
+        codex = Codex()
+        with self._patch(codex, config_folder):
+            configs = list(codex._get_user_mcp_configurations())
+
+        assert any(c.name == "global-srv" for c in configs)
+
+    def test_includes_marketplace_plugins(self, tmp_path: Path):
+        config_folder = tmp_path / ".codex"
+        install_dir = (
+            config_folder / "plugins" / "cache" / "codex-public" / "sentry" / "abc123"
+        )
+        install_dir.mkdir(parents=True)
+        (install_dir / ".mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "sentry": {"type": "http", "url": "https://mcp.sentry.dev/mcp"}
+                    }
+                }
+            )
+        )
+
+        codex = Codex()
+        with self._patch(codex, config_folder):
+            configs = list(codex._get_user_mcp_configurations())
+
+        plugin_configs = [c for c in configs if c.name == "sentry"]
+        assert len(plugin_configs) == 1
+        assert plugin_configs[0].scope == Scope.USER
+        assert plugin_configs[0].project is None
+        assert plugin_configs[0].transport == Transport.HTTP
+        assert plugin_configs[0].url == "https://mcp.sentry.dev/mcp"
+
+    def test_missing_plugins_folder_yields_only_standard(self, tmp_path: Path):
+        config_folder = tmp_path / ".codex"
+        config_folder.mkdir()
+
+        codex = Codex()
+        with self._patch(codex, config_folder):
+            configs = list(codex._get_user_mcp_configurations())
+
+        assert configs == []
+
+
+class TestCodexGetCodexPluginMcpConfigurations:
+    def test_missing_dir_yields_nothing(self, tmp_path: Path):
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(
+                tmp_path / "nonexistent", Scope.USER
+            )
+        )
+        assert configs == []
+
+    def test_dir_without_mcp_json_yields_nothing(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        plugin_dir.mkdir()
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+        assert configs == []
+
+    def test_user_scope_sets_no_project(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        plugin_dir.mkdir()
+        (plugin_dir / ".mcp.json").write_text(
+            json.dumps(
+                {"mcpServers": {"my-srv": {"command": "node", "args": ["s.js"]}}}
+            )
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "my-srv"
+        assert configs[0].scope == Scope.USER
+        assert configs[0].project is None
+        assert configs[0].transport == Transport.STDIO
+
+    def test_project_scope_sets_project_to_plugin_dir(self, tmp_path: Path):
+        plugin_dir = tmp_path / "myproject" / ".codex-plugin"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / ".mcp.json").write_text(
+            json.dumps(
+                {"mcpServers": {"local-srv": {"command": "python", "args": ["srv.py"]}}}
+            )
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.PROJECT)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "local-srv"
+        assert configs[0].scope == Scope.PROJECT
+        assert configs[0].project == str(plugin_dir)
+
+    def test_http_transport_detected(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        plugin_dir.mkdir()
+        (plugin_dir / ".mcp.json").write_text(
+            json.dumps({"mcpServers": {"remote": {"url": "https://example.com/mcp"}}})
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].transport == Transport.HTTP
+        assert configs[0].url == "https://example.com/mcp"
 
 
 # ===========================================================================

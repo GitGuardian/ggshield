@@ -6,6 +6,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
+import tomli
 from pygitguardian.models import (
     AIDiscovery,
     MCPActivityRequest,
@@ -218,6 +219,11 @@ class Agent(ABC):
     def project_mcp_file(self, directory: Path) -> Path:
         """The file where MCP servers are configured at the project level."""
 
+    @property
+    @abstractmethod
+    def user_mcp_file(self) -> Path:
+        """The file where MCP servers are configured at the user level."""
+
     @abstractmethod
     def discover_project_directories(self) -> Iterator[Path]:
         """Discover project directories by scraping config or history files."""
@@ -233,7 +239,9 @@ class Agent(ABC):
         The format is standard across all assistants.
         """
         # Lookup the two usual conventions
-        servers = data.get("mcpServers", data.get("servers", {}))
+        servers = data.get(
+            "mcpServers", data.get("servers", data.get("mcp_servers", {}))
+        )
         for name, entry in servers.items():
             if "url" in entry:
                 if entry.get("transport") == "sse":
@@ -259,11 +267,10 @@ class Agent(ABC):
     def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         """Return the MCP server entries for user-level (global) config files.
 
-        Default implementation looks in the config folder for a file named "mcp.json".
+        Default implementation loads the user's config file.
         """
         # Load config file
-        filepath = self.config_folder / "mcp.json"
-        if not (data := self._load_json_file(filepath)):
+        if not (data := self._load_file(self.user_mcp_file)):
             return
         yield from self._parse_servers_block(data, Scope.USER, None)
 
@@ -271,7 +278,7 @@ class Agent(ABC):
         self, directory: Path
     ) -> Iterator[MCPConfiguration]:
         """Return the MCP server entries for project-level config files."""
-        if data := self._load_json_file(self.project_mcp_file(directory)):
+        if data := self._load_file(self.project_mcp_file(directory)):
             yield from self._parse_servers_block(data, Scope.PROJECT, directory)
 
     def discover_mcp_configurations(
@@ -311,17 +318,22 @@ class Agent(ABC):
 
     # Helper methods
 
-    def _load_json_file(self, path: Path) -> Optional[Dict[str, Any]]:
-        """Load a JSON file and return the data, or None if the file doesn't exist (or is not a JSON object)."""
+    def _load_file(self, path: Path) -> Optional[Dict[str, Any]]:
+        """Load a file and return the data, or None if the file doesn't exist."""
         if not path.is_file():
             return None
         try:
-            data = json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError):
+            raw = path.read_text()
+            # Fallback to JSON
+            if path.suffix == ".toml":
+                data = tomli.loads(raw)
+            else:
+                data = json.loads(raw)
+            if not isinstance(data, dict):
+                return None
+            return data
+        except (OSError, ValueError):
             return None
-        if not isinstance(data, dict):
-            return None
-        return data
 
     def _load_jsonl_file(self, path: Path) -> Iterator[Dict[str, Any]]:
         """Load a JSONL file and return the data line by line,
