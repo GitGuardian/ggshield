@@ -9,7 +9,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-26T09:37:06.118565Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
@@ -870,6 +870,7 @@ dependencies = [
     { name = "rich" },
     { name = "sigstore", version = "4.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "sigstore", version = "4.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "tomli" },
     { name = "truststore", marker = "python_full_version >= '3.10'" },
     { name = "typing-extensions" },
     { name = "urllib3" },
@@ -938,6 +939,7 @@ requires-dist = [
     { name = "requests", specifier = "~=2.32.0" },
     { name = "rich", specifier = "~=13.0" },
     { name = "sigstore", specifier = ">=4.0.0,<5" },
+    { name = "tomli", specifier = ">=2.4.0" },
     { name = "truststore", marker = "python_full_version >= '3.10'", specifier = ">=0.10.1" },
     { name = "typing-extensions", specifier = "~=4.14" },
     { name = "urllib3", specifier = ">=2.2.2,<3" },
