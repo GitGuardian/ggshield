@@ -2,24 +2,133 @@
 Plugin API client - fetches available plugins from GitGuardian API.
 """
 
-from dataclasses import dataclass, field
+import logging
+import re
+from contextlib import contextmanager
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, Iterator, List, Optional, Tuple
+from urllib.parse import ParseResult, urlparse
 
 import requests
 from pygitguardian import GGClient
 
+from ggshield.core.plugin.http_security import (
+    assert_all_https,
+    is_insecure_loopback_allowed,
+    is_loopback,
+)
 from ggshield.core.plugin.platform import PlatformInfo, get_platform_info
+from ggshield.core.plugin.wheel_utils import InvalidWheelError, sanitize_wheel_filename
+
+
+logger = logging.getLogger(__name__)
+
+
+HTTP_TIMEOUT_SECONDS = 30
+MAX_WHEEL_SIZE_BYTES = 256 * 1024 * 1024
+MAX_BUNDLE_SIZE_BYTES = 1 * 1024 * 1024
+
+
+def _iter_with_size_cap(
+    chunks: Iterator[bytes], max_bytes: int
+) -> Generator[bytes, None, None]:
+    """Yield chunks from ``chunks`` until ``max_bytes`` is exceeded."""
+    written = 0
+    for chunk in chunks:
+        written += len(chunk)
+        if written > max_bytes:
+            raise PluginAPIError(
+                f"Response body exceeded maximum size of {max_bytes} bytes"
+            )
+        yield chunk
+
+
+def _parse_content_length(response: "requests.Response", *, what: str) -> int:
+    """Parse ``Content-Length`` and surface malformed values as PluginAPIError.
+
+    ``int(response.headers.get("Content-Length", 0))`` raises a raw
+    ``TypeError``/``ValueError`` on a malformed header — those don't match
+    the ``except requests.RequestException`` arms in the download methods
+    and leak past the typed-error contract that callers depend on.
+    """
+    # Missing header defaults to "0" and passes the size cap silently,
+    # because the streaming reader (``_iter_with_size_cap``) enforces the
+    # real bound while bytes flow in. Do not "harden" this default to
+    # raise — well-behaved upstreams that omit the header on small
+    # responses would then fail for no reason.
+    raw = response.headers.get("Content-Length", "0")
+    try:
+        return int(raw)
+    except (TypeError, ValueError) as exc:
+        raise PluginAPIError(
+            f"Malformed Content-Length header for {what}: {raw!r}"
+        ) from exc
+
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _origin(parsed: ParseResult) -> Tuple[Optional[str], Optional[str], Optional[int]]:
+    """Normalise a parsed URL to a comparable (scheme, host, port) triple.
+
+    ``urlparse`` reports an implicit port as ``None`` and an explicit
+    default port (``:443`` for https, ``:80`` for http) as the integer
+    — so ``https://api.example.com`` and ``https://api.example.com:443``
+    have different ``.port`` values even though the origins are
+    semantically identical. Without normalisation, the same-origin
+    check in ``download_signature_bundle`` rejects bundles whose URL
+    came back from the backend with an explicit default port (or vice
+    versa from a config edit).
+    """
+    port = parsed.port
+    if port is None:
+        port = _DEFAULT_PORTS.get(parsed.scheme)
+    return (parsed.scheme, parsed.hostname, port)
+
+
+def _assert_base_url_https(base_url: str) -> None:
+    """Refuse to send authenticated traffic to an http:// base URL.
+
+    The instance URL is normally validated by ``validate_instance_url`` at
+    ``auth login`` time, which already rejects non-HTTPS schemes outside
+    of loopback. This guard catches the residual cases — a manually
+    edited config or a non-loopback http base that slipped through — so
+    the API token can't be sent in cleartext before the response-side
+    redirect check has anything to inspect.
+
+    The same ``GITGUARDIAN_ALLOW_INSECURE_LOOPBACK=1`` bypass used by
+    ``assert_all_https`` applies here, so local dev against
+    ``http://localhost:3000`` keeps working.
+    """
+    if base_url.startswith("https://"):
+        return
+    if is_insecure_loopback_allowed() and is_loopback(base_url):
+        return
+    raise PluginAPIError(
+        f"Refusing to send authenticated request to non-HTTPS base URL {base_url!r}"
+    )
 
 
 class PluginSourceType(Enum):
     """Types of plugin sources."""
 
-    GITGUARDIAN_API = "gitguardian_api"
+    PLATFORM = "platform"
     LOCAL_FILE = "local_file"
     URL = "url"
     GITHUB_RELEASE = "github_release"
     GITHUB_ARTIFACT = "github_artifact"
+    # Legacy alias kept so attribute-access uses (``PluginSourceType.GITGUARDIAN_API``)
+    # in older code paths and tests still resolve to the same enum member as
+    # ``PLATFORM``. Pairs with ``_missing_`` below for value-based lookup.
+    GITGUARDIAN_API = "platform"
+
+    @classmethod
+    def _missing_(cls, value: object) -> Optional["PluginSourceType"]:
+        """Accept legacy manifest value written by the PoC (< v1.50)."""
+        if value == "gitguardian_api":
+            return cls.PLATFORM
+        return None
 
 
 @dataclass
@@ -66,37 +175,27 @@ class PluginInfo:
     description: str
     available: bool
     latest_version: Optional[str]
-    supported_platforms: List[str] = field(default_factory=list)
     reason: Optional[str] = None
-
-    def is_platform_supported(self, platform: str, arch: str) -> bool:
-        """Check if this plugin supports the given platform/arch."""
-        if not self.supported_platforms:
-            return True
-        return (
-            f"{platform}-{arch}" in self.supported_platforms
-            or "any-any" in self.supported_platforms
-        )
 
 
 @dataclass
 class PluginCatalog:
     """Catalog of available plugins for the account."""
 
-    plan: str
-    features: Dict[str, bool]
     plugins: List[PluginInfo]
 
 
 @dataclass
 class PluginDownloadInfo:
-    """Information needed to download a plugin."""
+    """Metadata about a plugin wheel received from the platform download endpoint."""
 
-    download_url: str
-    filename: str
-    sha256: str
-    version: str
-    expires_at: str
+    filename: str  # from Content-Disposition header
+    sha256: str  # from X-Plugin-SHA256 header
+    version: str  # from X-Plugin-Version header
+    size_bytes: int  # from Content-Length header
+    # Absolute URL of the sigstore bundle, from the X-Plugin-Signature-URL
+    # response header. None when the platform has no bundle for this
+    # artifact — STRICT verification then fails fast (as it should).
     signature_url: Optional[str] = None
 
 
@@ -118,6 +217,30 @@ class PluginNotAvailableError(Exception):
         super().__init__(message)
 
 
+class PluginsNotEnabledError(Exception):
+    """Plugin system is not enabled on this workspace (feature-flag OFF)."""
+
+    pass
+
+
+def _extract_server_detail(response: "requests.Response") -> Optional[str]:
+    """Return the server's ``detail`` field when available, else None.
+
+    Falls back to None on empty bodies, non-JSON responses, or JSON
+    shapes without a ``detail`` field — so callers can use their own
+    default message in those cases.
+    """
+    try:
+        body = response.json()
+    except (ValueError, requests.RequestException):
+        return None
+    if isinstance(body, dict):
+        detail = body.get("detail")
+        if isinstance(detail, str) and detail:
+            return detail
+    return None
+
+
 class PluginAPIClient:
     """Client for GitGuardian plugin API."""
 
@@ -129,122 +252,209 @@ class PluginAPIClient:
 
     def get_available_plugins(self) -> PluginCatalog:
         """Fetch available plugins for the authenticated account."""
+        _assert_base_url_https(self.base_url)
         platform_info = get_platform_info()
 
         try:
             response = self.client.session.get(
-                f"{self.base_url}/{self.API_VERSION}/plugins",
+                f"{self.base_url}/{self.API_VERSION}/endpoints/plugins",
                 params={
                     "platform": platform_info.os,
                     "arch": platform_info.arch,
                 },
-                headers=self._get_headers(),
+                timeout=HTTP_TIMEOUT_SECONDS,
             )
+            assert_all_https(response, exc_factory=PluginAPIError)
+            if response.status_code == 404:
+                raise PluginsNotEnabledError()
             response.raise_for_status()
         except requests.RequestException as e:
             raise PluginAPIError(f"Failed to fetch plugins: {e}") from e
 
-        data = response.json()
-
-        account_data = data.get("account", {})
-        current_platform = f"{platform_info.os}-{platform_info.arch}"
-
-        return PluginCatalog(
-            plan=account_data.get("plan", data.get("plan", "unknown")),
-            features=account_data.get("features", data.get("features", {})),
-            plugins=[
+        # Treat any structural mismatch (missing `reference`, non-list body,
+        # non-JSON payload) as a `PluginAPIError`. The bare `p["reference"]`
+        # would otherwise raise `KeyError` straight to the user — the
+        # `except RequestException` above doesn't catch it.
+        try:
+            plugins_data = response.json()
+            plugins = [
                 PluginInfo(
-                    name=p.get("name", "unknown"),
-                    display_name=p.get("display_name", p.get("name", "Unknown")),
+                    name=p["reference"],
+                    display_name=p.get("display_name", p["reference"]),
                     description=p.get("description", ""),
-                    available=self._is_plugin_available(p, current_platform),
-                    latest_version=p.get("latest_version"),
-                    supported_platforms=p.get("supported_platforms", []),
-                    reason=self._get_unavailable_reason(p, current_platform),
+                    available=p.get("available", False),
+                    latest_version=(
+                        p["releases"][0]["version"] if p.get("releases") else None
+                    ),
+                    reason=p.get("reason"),
                 )
-                for p in data.get("plugins", [])
-            ],
-        )
+                for p in plugins_data
+            ]
+        except (KeyError, TypeError, ValueError) as e:
+            raise PluginAPIError(f"Malformed plugin catalog response: {e}") from e
 
-    def get_download_info(
+        return PluginCatalog(plugins=plugins)
+
+    @contextmanager
+    def download_plugin(
         self,
-        plugin_name: str,
-        version: Optional[str] = None,
+        reference: str,
         platform_info: Optional[PlatformInfo] = None,
-    ) -> PluginDownloadInfo:
-        """Get download URL for a plugin wheel."""
-        resolved_platform_info: PlatformInfo
-        if platform_info is None:
-            resolved_platform_info = get_platform_info()
-        else:
-            resolved_platform_info = platform_info
+        version: Optional[str] = None,
+    ) -> Generator[Tuple[PluginDownloadInfo, Iterator[bytes]], None, None]:
+        """Stream a plugin wheel from the platform.
 
+        Usage::
+
+            with client.download_plugin("tokenscanner") as (info, chunks):
+                downloader.download_and_install(info, chunks, "tokenscanner")
+        """
+        resolved = platform_info if platform_info is not None else get_platform_info()
         params: Dict[str, str] = {
-            "platform": resolved_platform_info.os,
-            "arch": resolved_platform_info.arch,
-            "python_abi": resolved_platform_info.python_abi,
+            "platform": resolved.os,
+            "arch": resolved.arch,
+            "python_abi": resolved.python_abi,
         }
         if version:
             params["version"] = version
 
+        _assert_base_url_https(self.base_url)
+        response = None
         try:
             response = self.client.session.get(
-                f"{self.base_url}/{self.API_VERSION}/plugins/{plugin_name}/download",
+                f"{self.base_url}/{self.API_VERSION}/endpoints/plugins/{reference}/download",
                 params=params,
-                headers=self._get_headers(),
+                stream=True,
+                timeout=HTTP_TIMEOUT_SECONDS,
             )
-
-            if response.status_code == 403:
-                raise PluginNotAvailableError(plugin_name)
-            elif response.status_code == 404:
-                raise PluginNotAvailableError(
-                    plugin_name, "Plugin or version not found"
-                )
-
+            assert_all_https(response, exc_factory=PluginAPIError)
+            if response.status_code in (403, 404):
+                detail = _extract_server_detail(response)
+                if not detail and response.status_code == 404:
+                    detail = "Plugin or version not found"
+                raise PluginNotAvailableError(reference, detail)
             response.raise_for_status()
 
-        except PluginNotAvailableError:
-            raise
+            content_disposition = response.headers.get("Content-Disposition", "")
+            match = re.search(r'filename="([^"]+)"', content_disposition)
+            raw_filename = match.group(1) if match else f"{reference}.whl"
+            try:
+                filename = sanitize_wheel_filename(raw_filename)
+            except InvalidWheelError as exc:
+                raise PluginAPIError(str(exc)) from exc
+
+            sha256 = response.headers.get("X-Plugin-SHA256")
+            if not sha256:
+                raise PluginAPIError(
+                    f"Server response missing X-Plugin-SHA256 header for {reference}"
+                )
+            resolved_version = response.headers.get("X-Plugin-Version")
+            if not resolved_version:
+                raise PluginAPIError(
+                    f"Server response missing X-Plugin-Version header for {reference}"
+                )
+
+            size_bytes = _parse_content_length(response, what="plugin wheel")
+            if size_bytes > MAX_WHEEL_SIZE_BYTES:
+                raise PluginAPIError(
+                    f"Plugin wheel size {size_bytes} exceeds maximum "
+                    f"of {MAX_WHEEL_SIZE_BYTES} bytes"
+                )
+
+            info = PluginDownloadInfo(
+                filename=filename,
+                sha256=sha256,
+                version=resolved_version,
+                size_bytes=size_bytes,
+                signature_url=response.headers.get("X-Plugin-Signature-URL") or None,
+            )
+            yield info, _iter_with_size_cap(
+                response.iter_content(chunk_size=65536), MAX_WHEEL_SIZE_BYTES
+            )
         except requests.RequestException as e:
-            raise PluginAPIError(f"Failed to get download info: {e}") from e
+            raise PluginAPIError(f"Failed to download plugin: {e}") from e
+        finally:
+            if response is not None:
+                response.close()
 
-        data = response.json()
+    def download_signature_bundle(self, signature_url: str) -> bytes:
+        """Fetch a sigstore bundle using the authenticated session.
 
-        return PluginDownloadInfo(
-            download_url=data["download_url"],
-            filename=data["filename"],
-            sha256=data["sha256"],
-            version=data["version"],
-            expires_at=data["expires_at"],
-            signature_url=data.get("signature_url"),
-        )
+        The platform's ``X-Plugin-Signature-URL`` header points at our own
+        ``/download/signature`` proxy (the upstream mirror URL is kept
+        server-side), and that proxy requires the same Token auth as
+        ``/download`` — hence using ``self.client.session`` rather than a
+        bare ``requests.get``. We require the URL to share the platform's
+        origin so a compromised or misconfigured backend can't coerce us
+        into sending our Token to a third-party host.
+        """
+        _assert_base_url_https(self.base_url)
+        base = urlparse(self.base_url)
+        target = urlparse(signature_url)
+        if _origin(target) != _origin(base):
+            raise PluginAPIError(
+                f"Refusing to fetch signature bundle from foreign origin "
+                f"{target.scheme}://{target.hostname}"
+            )
 
-    def _is_plugin_available(
-        self, plugin_data: Dict[str, Any], current_platform: str
-    ) -> bool:
-        if not plugin_data.get("available", True):
-            return False
-        supported = plugin_data.get("supported_platforms", [])
-        if not supported:
-            return True
-        return current_platform in supported or "any-any" in supported
+        try:
+            with self.client.session.get(
+                signature_url, timeout=HTTP_TIMEOUT_SECONDS, stream=True
+            ) as response:
+                assert_all_https(response, exc_factory=PluginAPIError)
+                response.raise_for_status()
 
-    def _get_unavailable_reason(
-        self, plugin_data: Dict[str, Any], current_platform: str
-    ) -> Optional[str]:
-        if plugin_data.get("reason"):
-            return plugin_data["reason"]
-        supported = plugin_data.get("supported_platforms", [])
-        if (
-            supported
-            and current_platform not in supported
-            and "any-any" not in supported
-        ):
-            return f"Not available for {current_platform}. Supported: {', '.join(supported)}"
-        return None
+                size_bytes = _parse_content_length(response, what="signature bundle")
+                if size_bytes > MAX_BUNDLE_SIZE_BYTES:
+                    raise PluginAPIError(
+                        f"Signature bundle size {size_bytes} exceeds maximum "
+                        f"of {MAX_BUNDLE_SIZE_BYTES} bytes"
+                    )
 
-    def _get_headers(self) -> Dict[str, str]:
-        return {
-            "Authorization": f"Token {self.client.api_key}",
-            "Content-Type": "application/json",
-        }
+                buffer = bytearray()
+                for chunk in _iter_with_size_cap(
+                    response.iter_content(chunk_size=65536), MAX_BUNDLE_SIZE_BYTES
+                ):
+                    buffer.extend(chunk)
+                return bytes(buffer)
+        except requests.RequestException as e:
+            raise PluginAPIError(
+                f"Failed to download signature bundle from {signature_url}: {e}"
+            ) from e
+
+    def report_installation(
+        self, reference: str, version: str, platform: str, arch: str
+    ) -> None:
+        """Report a successful plugin installation for analytics (best-effort).
+
+        Never raises — a failure here must not fail the install. The
+        explicit ``timeout`` matters because ``update.py`` historically
+        called this between the wheel install and the config save, so a
+        stalled ``/installed`` endpoint would leave the wheel on disk
+        with the version still pointing at the previous release. The
+        timeout (and the ``Exception`` catch below) keeps the call from
+        blocking the user's terminal even when the backend is degraded.
+        """
+        try:
+            # The pre-flight HTTPS check, the network call itself, and the
+            # response-side redirect check all live inside the broad catch
+            # below. The bare ``except Exception`` is load-bearing for the
+            # "never raises" contract; ``exc_info=True`` preserves the
+            # underlying cause (PluginAPIError from base-URL guard, requests
+            # error from the network, etc.) in the log so it's still
+            # diagnosable when someone reports a missing analytics record.
+            _assert_base_url_https(self.base_url)
+            response = self.client.session.post(
+                f"{self.base_url}/{self.API_VERSION}/endpoints/plugins/{reference}/installed",
+                json={"version": version, "platform": platform, "arch": arch},
+                timeout=HTTP_TIMEOUT_SECONDS,
+            )
+            assert_all_https(response, exc_factory=PluginAPIError)
+            response.raise_for_status()
+        except Exception:
+            logger.warning(
+                "Failed to report plugin installation for %s v%s",
+                reference,
+                version,
+                exc_info=True,
+            )

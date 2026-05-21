@@ -12,7 +12,11 @@ from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.errors import ExitCode
-from ggshield.core.plugin.client import PluginAPIClient, PluginAPIError
+from ggshield.core.plugin.client import (
+    PluginAPIClient,
+    PluginAPIError,
+    PluginsNotEnabledError,
+)
 from ggshield.core.plugin.downloader import PluginDownloader
 
 
@@ -23,7 +27,7 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> None:
     """
     Show available plugins for your GitGuardian account.
 
-    Displays your account's plan, available plugins, and feature flags.
+    Displays available plugins and their status for your workspace.
     Requires authentication with GitGuardian.
     """
     ctx_obj = ContextObj.get(ctx)
@@ -33,6 +37,12 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> None:
         client = create_client_from_config(config)
         plugin_api_client = PluginAPIClient(client)
         catalog = plugin_api_client.get_available_plugins()
+    except PluginsNotEnabledError:
+        ui.display_error(
+            "Plugin system is not available on this workspace. "
+            "Contact your administrator."
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except PluginAPIError as e:
         ui.display_error(str(e))
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
@@ -43,18 +53,6 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> None:
     # Load local config for installed plugins info
     enterprise_config = EnterpriseConfig.load()
     downloader = PluginDownloader()
-
-    # Display plan
-    ui.display_heading("Account Status")
-    ui.display_info(f"Plan: {catalog.plan}")
-
-    # Display features
-    if catalog.features:
-        ui.display_heading("Features")
-        for feature, enabled in sorted(catalog.features.items()):
-            status = "enabled" if enabled else "disabled"
-            icon = "+" if enabled else "-"
-            ui.display_info(f"  [{icon}] {feature}: {status}")
 
     # Display available plugins
     ui.display_heading("Available Plugins")
@@ -70,7 +68,6 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> None:
                     status_parts.append("enabled")
                 else:
                     status_parts.append("disabled")
-                # Check for updates
                 if plugin.latest_version and installed_version != plugin.latest_version:
                     status_parts.append(f"update available: v{plugin.latest_version}")
             else:

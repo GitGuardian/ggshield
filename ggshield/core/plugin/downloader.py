@@ -11,7 +11,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 import requests
 
@@ -21,18 +21,83 @@ from ggshield.core.plugin.client import (
     PluginSource,
     PluginSourceType,
 )
+from ggshield.core.plugin.http_security import assert_all_https
 from ggshield.core.plugin.signature import (
     SignatureInfo,
     SignatureStatus,
-    SignatureVerificationError,
     SignatureVerificationMode,
     verify_wheel_signature,
 )
-from ggshield.core.plugin.trust import PluginTrustStore
-from ggshield.core.plugin.wheel_utils import WheelError, extract_wheel_metadata
+from ggshield.core.plugin.trust import PluginTrustStore, compute_file_sha256
+from ggshield.core.plugin.wheel_utils import (
+    InvalidWheelError,
+    WheelError,
+    extract_wheel_metadata,
+    sanitize_wheel_filename,
+)
 
 
 logger = logging.getLogger(__name__)
+
+
+def _wheel_distribution_name(filename: str) -> str:
+    """Return the PEP 503-normalised distribution name from a wheel filename.
+
+    PEP 427 wheel filenames are
+    ``{distribution}-{version}(-{build})?-{python}-{abi}-{platform}.whl``.
+    The distribution segment uses ``_`` in place of ``-`` from the
+    canonical name, so the inverse normalisation
+    (``lower()`` + ``_ -> -``) recovers the PEP 503 form. We only need
+    the distribution segment, so a simple split on ``-`` is enough.
+    """
+    if not filename.endswith(".whl"):
+        raise DownloadError(f"Not a wheel filename: {filename!r}")
+    stem = filename.removesuffix(".whl")
+    parts = stem.split("-", 1)
+    if len(parts) < 2 or not parts[0]:
+        raise DownloadError(f"Invalid wheel filename: {filename!r}")
+    return parts[0].lower().replace("_", "-")
+
+
+HTTP_TIMEOUT_SECONDS = 30
+MAX_WHEEL_SIZE_BYTES = 256 * 1024 * 1024
+MAX_BUNDLE_SIZE_BYTES = 1 * 1024 * 1024
+
+
+def _stream_to_file(
+    response: "requests.Response",
+    dest: Path,
+    max_bytes: int,
+    *,
+    hash_bytes: bool = False,
+) -> Optional[str]:
+    """Stream an HTTP response body to ``dest`` with a hard size cap.
+
+    When ``hash_bytes`` is True, also computes SHA256 in a single pass and
+    returns the hex digest; otherwise returns None. Raises ``DownloadError``
+    if the response body exceeds ``max_bytes``; the partial file is then
+    removed before the exception propagates.
+    """
+    sha256_hash = hashlib.sha256() if hash_bytes else None
+    written = 0
+    try:
+        with open(dest, "wb") as f:
+            for chunk in response.iter_content(chunk_size=65536):
+                if not chunk:
+                    continue
+                written += len(chunk)
+                if written > max_bytes:
+                    raise DownloadError(
+                        f"Response body exceeded maximum size of {max_bytes} bytes"
+                    )
+                f.write(chunk)
+                if sha256_hash is not None:
+                    sha256_hash.update(chunk)
+    except BaseException:
+        if dest.exists():
+            dest.unlink()
+        raise
+    return sha256_hash.hexdigest() if sha256_hash is not None else None
 
 
 def get_signature_label(
@@ -100,27 +165,77 @@ class PluginDownloader:
     def download_and_install(
         self,
         download_info: PluginDownloadInfo,
+        chunks: Iterator[bytes],
         plugin_name: str,
         source: Optional[PluginSource] = None,
         signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
+        bundle_bytes: Optional[bytes] = None,
     ) -> Path:
-        """Download a plugin wheel and install it locally."""
+        """Install a plugin wheel from a byte stream.
+
+        The on-disk plugin directory is named after the wheel's
+        distribution name (PEP 427 → PEP 503), same as
+        :meth:`install_from_wheel`. ``plugin_name`` is the catalog
+        reference used for the API call and stored in the manifest;
+        when it differs from the wheel's distribution name (e.g. the
+        catalog references ``machine_scan`` while the wheel ships
+        as ``satori-python``), a subsequent local-wheel install of
+        the same package overwrites this install in place rather than
+        creating a side-by-side directory.
+
+        Args:
+            download_info: Filename, SHA256, version from the platform response headers.
+            chunks: Iterator of raw bytes (from streaming HTTP response or test fixture).
+            plugin_name: Catalog reference used for the API call and stored in the manifest.
+            source: Manifest source record. Defaults to PluginSourceType.PLATFORM.
+            signature_mode: Sigstore verification mode.
+            bundle_bytes: Optional sigstore bundle bytes fetched by the
+                caller (typically via ``PluginAPIClient.download_signature_bundle``
+                using the ``X-Plugin-Signature-URL`` header). Written next
+                to the wheel before verification runs, so STRICT mode
+                succeeds when the platform exposes a signature.
+
+        Returns:
+            Path to the installed wheel file. The parent directory's name
+            is the wheel's distribution name and matches what
+            :meth:`install_from_wheel` would use for the same wheel.
+
+        Raises:
+            ChecksumMismatchError: SHA256 of received bytes does not match download_info.sha256.
+            DownloadError: File system error during installation.
+            SignatureVerificationError: In STRICT mode when signature is invalid.
+        """
         self._validate_plugin_name(plugin_name)
 
-        plugin_dir = self.plugins_dir / plugin_name
-        plugin_dir.mkdir(parents=True, exist_ok=True)
+        # The on-disk plugin directory comes from the wheel's
+        # distribution name (PEP 427 → PEP 503), not from the catalog
+        # reference, so the catalog install converges with a previous
+        # ``install_from_wheel`` of the same wheel rather than creating
+        # a side-by-side directory. ``download_info.filename`` was
+        # validated by the API client (``sanitize_wheel_filename``) and
+        # came from the trusted catalog response.
+        install_dir_name = _wheel_distribution_name(download_info.filename)
+        self._validate_plugin_name(install_dir_name)
 
+        plugin_dir = self.plugins_dir / install_dir_name
+        plugin_dir.mkdir(parents=True, exist_ok=True)
         wheel_path = plugin_dir / download_info.filename
         temp_path = plugin_dir / f"{download_info.filename}.tmp"
 
-        try:
-            logger.info("Downloading %s...", download_info.filename)
-            response = requests.get(download_info.download_url, stream=True)
-            response.raise_for_status()
+        # Drop the new bundle next to the TEMP wheel so verification can
+        # happen before we touch the previous install. ``temp_bundle_path``
+        # is cleaned up alongside ``temp_path`` in the finally block.
+        temp_bundle_path = (
+            temp_path.parent / (temp_path.name + ".sigstore")
+            if bundle_bytes is not None
+            else None
+        )
 
+        try:
+            logger.info("Installing %s...", download_info.filename)
             sha256_hash = hashlib.sha256()
             with open(temp_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in chunks:
                     f.write(chunk)
                     sha256_hash.update(chunk)
 
@@ -128,28 +243,35 @@ class PluginDownloader:
             if computed_hash.lower() != download_info.sha256.lower():
                 raise ChecksumMismatchError(download_info.sha256, computed_hash)
 
-            # Remove any stale bundle sidecars for this wheel name before
-            # writing the new wheel/bundle pair.
+            if temp_bundle_path is not None:
+                temp_bundle_path.write_bytes(bundle_bytes)  # type: ignore[arg-type]
+
+            # Verify on the temp wheel BEFORE we touch the existing
+            # install. ``verify_wheel_signature`` looks for the bundle
+            # next to the wheel; we placed it next to ``temp_path`` for
+            # exactly that. A STRICT failure here leaves the previous
+            # working wheel + manifest intact.
+            sig_info = verify_wheel_signature(temp_path, signature_mode)
+
+            # Verification passed: now safe to swap. Remove the stale
+            # bundle sidecars, move the new wheel into place, then drop
+            # the fresh bundle next to it.
             self._remove_bundle_files(wheel_path)
+            temp_path.replace(wheel_path)
+            if temp_bundle_path is not None:
+                final_bundle_path = wheel_path.parent / (wheel_path.name + ".sigstore")
+                temp_bundle_path.replace(final_bundle_path)
 
-            # Download signature bundle if available
-            temp_path.rename(wheel_path)
-            self._download_bundle(download_info, plugin_dir)
-
-            # Verify signature
-            sig_info = verify_wheel_signature(wheel_path, signature_mode)
-
-            # Use GitGuardian API as default source if not provided
             if source is None:
-                source = PluginSource(type=PluginSourceType.GITGUARDIAN_API)
+                source = PluginSource(type=PluginSourceType.PLATFORM)
 
             # Sync trust record before writing the manifest so a trust failure
             # cannot leave an orphaned manifest pointing at a wheel we remove
             # during cleanup.
-            self._sync_trust_record(plugin_name, download_info.sha256, sig_info)
+            self._sync_trust_record(install_dir_name, download_info.sha256, sig_info)
             self._write_manifest(
                 plugin_dir=plugin_dir,
-                plugin_name=plugin_name,
+                plugin_name=install_dir_name,
                 version=download_info.version,
                 wheel_filename=download_info.filename,
                 sha256=download_info.sha256,
@@ -157,22 +279,37 @@ class PluginDownloader:
                 signature_info=sig_info,
             )
 
-            logger.info("Installed %s v%s", plugin_name, download_info.version)
+            # Sweep older wheels left behind by previous installs of
+            # the same plugin under a different version-stamped name.
+            self._remove_stale_wheels(plugin_dir, keep_filename=download_info.filename)
 
+            # Migrate a legacy install that lived under the catalog
+            # reference instead of the wheel distribution name (older
+            # ggshield versions named the dir after ``plugin_name``).
+            # If a directory at ``plugins_dir/<plugin_name>`` exists,
+            # is distinct from the new install dir, and looks like a
+            # plugin (manifest present), remove it. Otherwise
+            # ``_resolve_plugin_dir(plugin_name)`` would keep returning
+            # the stale directory and ``status``/``update`` would read
+            # the pre-upgrade version.
+            self._cleanup_legacy_install_dir(
+                catalog_reference=plugin_name,
+                current_dir=plugin_dir,
+            )
+
+            logger.info("Installed %s v%s", install_dir_name, download_info.version)
             return wheel_path
 
-        except requests.RequestException as e:
-            self._cleanup_failed_install(wheel_path)
-            raise DownloadError(f"Failed to download plugin: {e}") from e
-        except SignatureVerificationError:
-            self._cleanup_failed_install(wheel_path)
-            raise
-        except Exception:
-            self._cleanup_failed_install(wheel_path)
-            raise
         finally:
+            # No except: pre-swap errors leave the existing install
+            # intact and only need temp cleanup (below); post-swap
+            # errors leave a verified wheel at ``wheel_path`` that we
+            # must not delete, or the user is left with neither the
+            # old nor the new wheel. A retry rewrites manifest/trust.
             if temp_path.exists():
                 temp_path.unlink()
+            if temp_bundle_path is not None and temp_bundle_path.exists():
+                temp_bundle_path.unlink()
 
     def install_from_wheel(
         self,
@@ -194,37 +331,40 @@ class PluginDownloader:
             DownloadError: If installation fails.
             SignatureVerificationError: In STRICT mode when signature is invalid.
         """
-        # Extract metadata from wheel
         try:
             metadata = extract_wheel_metadata(wheel_path)
         except WheelError as e:
             raise DownloadError(f"Invalid wheel file: {e}") from e
 
-        plugin_name = metadata.name
+        # Canonicalise via the wheel filename so the install dir matches
+        # what ``download_and_install`` writes for the same package
+        # (PEP 503: lower + ``_ -> -``). Without this, a wheel whose
+        # METADATA Name is ``Foo_Bar`` lands under ``plugins_dir/Foo_Bar/``
+        # while the platform install of the same package lands under
+        # ``plugins_dir/foo-bar/``, breaking convergence.
+        plugin_name = _wheel_distribution_name(wheel_path.name)
         version = metadata.version
         self._validate_plugin_name(plugin_name)
 
-        # Create plugin directory
+        # Verify on the caller-provided wheel path — the bundle (if any)
+        # lives alongside the source wheel. Copying first would leave a
+        # rejected wheel under plugins/<name>/ on STRICT failure.
+        sig_info = verify_wheel_signature(wheel_path, signature_mode)
+
+        sha256 = compute_file_sha256(wheel_path)
+
         plugin_dir = self.plugins_dir / plugin_name
         plugin_dir.mkdir(parents=True, exist_ok=True)
 
-        # Copy wheel to plugin directory
         dest_wheel_path = plugin_dir / wheel_path.name
         self._remove_bundle_files(dest_wheel_path)
         shutil.copy2(wheel_path, dest_wheel_path)
 
-        # Copy bundle if it exists alongside the wheel
         from ggshield.core.plugin.signature import get_bundle_path
 
         bundle_path = get_bundle_path(wheel_path)
         if bundle_path is not None:
             shutil.copy2(bundle_path, plugin_dir / bundle_path.name)
-
-        # Verify signature
-        sig_info = verify_wheel_signature(dest_wheel_path, signature_mode)
-
-        # Compute SHA256
-        sha256 = self._compute_sha256(dest_wheel_path)
 
         # Create source tracking
         source = PluginSource(
@@ -243,6 +383,7 @@ class PluginDownloader:
             source=source,
             signature_info=sig_info,
         )
+        self._remove_stale_wheels(plugin_dir, keep_filename=wheel_path.name)
 
         logger.info("Installed %s v%s from local wheel", plugin_name, version)
 
@@ -280,36 +421,35 @@ class PluginDownloader:
         if not url.startswith("https://"):
             raise DownloadError(f"Invalid URL scheme: {url}")
 
-        # Download to temp file
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Extract filename from URL
-            filename = url.split("/")[-1].split("?")[0]
-            if not filename.endswith(".whl"):
+            raw_filename = url.split("/")[-1].split("?")[0]
+            try:
+                filename = sanitize_wheel_filename(raw_filename)
+            except InvalidWheelError:
+                # Fallback for URLs whose tail isn't a recognisable wheel
+                # filename. The actual wheel name is irrelevant on disk —
+                # only the bytes matter for verification.
                 filename = "plugin.whl"
 
             temp_wheel_path = Path(temp_dir) / filename
 
             try:
                 logger.info("Downloading from %s...", url)
-                response = requests.get(url, stream=True)
+                response = requests.get(url, stream=True, timeout=HTTP_TIMEOUT_SECONDS)
+                assert_all_https(response, exc_factory=InsecureSourceError)
                 response.raise_for_status()
 
-                sha256_hash = hashlib.sha256()
-                with open(temp_wheel_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                        sha256_hash.update(chunk)
+                computed_hash = _stream_to_file(
+                    response, temp_wheel_path, MAX_WHEEL_SIZE_BYTES, hash_bytes=True
+                )
+                assert computed_hash is not None
 
-                computed_hash = sha256_hash.hexdigest()
-
-                # Verify checksum if provided
                 if sha256 and computed_hash.lower() != sha256.lower():
                     raise ChecksumMismatchError(sha256, computed_hash)
 
             except requests.RequestException as e:
                 raise DownloadError(f"Failed to download from URL: {e}") from e
 
-            # Extract metadata
             try:
                 metadata = extract_wheel_metadata(temp_wheel_path)
             except WheelError as e:
@@ -319,7 +459,15 @@ class PluginDownloader:
             version = metadata.version
             self._validate_plugin_name(plugin_name)
 
-            # Create plugin directory and copy wheel
+            # Fetch sigstore bundle alongside the wheel in the temp dir so
+            # verification runs before we touch the final plugin directory.
+            self._download_url_bundle(url, temp_wheel_path)
+
+            # Verify before we place anything in the final destination so a
+            # STRICT-mode signature failure can't leave a rejected wheel on
+            # disk under plugins/<name>/.
+            sig_info = verify_wheel_signature(temp_wheel_path, signature_mode)
+
             plugin_dir = self.plugins_dir / plugin_name
             plugin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -327,13 +475,13 @@ class PluginDownloader:
             self._remove_bundle_files(dest_wheel_path)
             shutil.copy2(temp_wheel_path, dest_wheel_path)
 
-        # Try downloading the signature bundle alongside the wheel
-        self._download_url_bundle(url, dest_wheel_path)
+            # Copy the bundle too if one was fetched.
+            for ext in (".sigstore", ".sigstore.json"):
+                bundle_src = temp_wheel_path.parent / (temp_wheel_path.name + ext)
+                if bundle_src.exists():
+                    shutil.copy2(bundle_src, plugin_dir / bundle_src.name)
+                    break
 
-        # Verify signature
-        sig_info = verify_wheel_signature(dest_wheel_path, signature_mode)
-
-        # Create source tracking
         source = PluginSource(
             type=PluginSourceType.URL,
             url=url,
@@ -350,6 +498,7 @@ class PluginDownloader:
             source=source,
             signature_info=sig_info,
         )
+        self._remove_stale_wheels(plugin_dir, keep_filename=dest_wheel_path.name)
 
         logger.info("Installed %s v%s from URL", plugin_name, version)
 
@@ -372,26 +521,31 @@ class PluginDownloader:
         Returns:
             Tuple of (plugin_name, version, installed_wheel_path).
         """
-        # Extract repo info from URL for source tracking
         github_repo = self._extract_github_repo(url)
 
-        # Download using standard URL method
         plugin_name, version, wheel_path = self.download_from_url(
             url, sha256, signature_mode=signature_mode
         )
 
-        # Update source to track GitHub release
+        # Upgrade the provenance record from "url" to "github_release". Use
+        # the same tmp+replace path as _write_manifest so a crash mid-write
+        # can't corrupt the manifest.
         manifest_path = self.plugins_dir / plugin_name / "manifest.json"
         manifest = json.loads(manifest_path.read_text())
-
-        source = PluginSource(
+        manifest["source"] = PluginSource(
             type=PluginSourceType.GITHUB_RELEASE,
             url=url,
             github_repo=github_repo,
             sha256=manifest.get("sha256"),
-        )
-        manifest["source"] = source.to_dict()
-        manifest_path.write_text(json.dumps(manifest, indent=2))
+        ).to_dict()
+
+        tmp_path = manifest_path.with_suffix(".json.tmp")
+        try:
+            tmp_path.write_text(json.dumps(manifest, indent=2))
+            tmp_path.replace(manifest_path)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink()
 
         return plugin_name, version, wheel_path
 
@@ -456,12 +610,12 @@ class PluginDownloader:
                         "X-GitHub-Api-Version": "2022-11-28",
                     },
                     stream=True,
+                    timeout=HTTP_TIMEOUT_SECONDS,
                 )
+                assert_all_https(response, exc_factory=InsecureSourceError)
                 response.raise_for_status()
 
-                with open(artifact_zip_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+                _stream_to_file(response, artifact_zip_path, MAX_WHEEL_SIZE_BYTES)
 
             except requests.RequestException as e:
                 raise GitHubArtifactError(f"Failed to download artifact: {e}") from e
@@ -476,20 +630,26 @@ class PluginDownloader:
             except Exception as e:
                 raise GitHubArtifactError(f"Failed to extract artifact: {e}") from e
 
-            # Find wheel file in extracted contents
-            wheel_files = list(extract_dir.glob("**/*.whl"))
+            # Sort so multi-wheel artifacts pick deterministically. Without
+            # this, selection depends on filesystem traversal order, which
+            # would let a tampered wheel slipped into a multi-wheel artifact
+            # win against the legitimate one on some hosts but not others.
+            # We can't fully defend against an attacker who has supplanted
+            # the upstream artifact, but adding ordering non-determinism
+            # on top of it would be strictly worse.
+            wheel_files = sorted(extract_dir.glob("**/*.whl"))
             if not wheel_files:
                 raise GitHubArtifactError("No wheel file found in artifact")
 
             if len(wheel_files) > 1:
                 logger.warning(
-                    "Multiple wheel files found in artifact, using first: %s",
+                    "Multiple wheel files found in artifact, using first "
+                    "(alphabetical): %s",
                     wheel_files[0].name,
                 )
 
             temp_wheel_path = wheel_files[0]
 
-            # Extract metadata
             try:
                 metadata = extract_wheel_metadata(temp_wheel_path)
             except WheelError as e:
@@ -499,7 +659,12 @@ class PluginDownloader:
             version = metadata.version
             self._validate_plugin_name(plugin_name)
 
-            # Create plugin directory and copy wheel
+            # Verify on the temp path before we touch plugin_dir — a STRICT
+            # signature failure must not leave a rejected wheel on disk.
+            sig_info = verify_wheel_signature(temp_wheel_path, signature_mode)
+
+            sha256 = compute_file_sha256(temp_wheel_path)
+
             plugin_dir = self.plugins_dir / plugin_name
             plugin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -507,20 +672,12 @@ class PluginDownloader:
             self._remove_bundle_files(dest_wheel_path)
             shutil.copy2(temp_wheel_path, dest_wheel_path)
 
-            # Copy bundle alongside the wheel if present in the artifact
             for ext in (".sigstore", ".sigstore.json"):
                 bundle_src = temp_wheel_path.parent / (temp_wheel_path.name + ext)
                 if bundle_src.exists():
                     shutil.copy2(bundle_src, plugin_dir / bundle_src.name)
                     break
 
-            # Compute SHA256
-            sha256 = self._compute_sha256(dest_wheel_path)
-
-        # Verify signature
-        sig_info = verify_wheel_signature(dest_wheel_path, signature_mode)
-
-        # Create source tracking
         source = PluginSource(
             type=PluginSourceType.GITHUB_ARTIFACT,
             url=url,
@@ -538,6 +695,7 @@ class PluginDownloader:
             source=source,
             signature_info=sig_info,
         )
+        self._remove_stale_wheels(plugin_dir, keep_filename=dest_wheel_path.name)
 
         logger.info("Installed %s v%s from GitHub artifact", plugin_name, version)
 
@@ -571,9 +729,18 @@ class PluginDownloader:
         return self.get_installed_version(plugin_name) is not None
 
     def _resolve_plugin_dir(self, plugin_name: str) -> Optional[Path]:
-        """Resolve a plugin directory from a package or entry point name."""
+        """Resolve a plugin directory from a package or entry point name.
+
+        Prefer the direct path only when it actually looks like a plugin
+        install (``manifest.json`` present). A bare ``plugins_dir/<name>/``
+        without a manifest is treated as residue — typically a stale dir
+        left behind by an aborted install or hand-created by the user —
+        and falls through to the entry-point scan so the real install
+        (which may live under the wheel's distribution-name directory)
+        still resolves.
+        """
         plugin_dir = self.plugins_dir / plugin_name
-        if plugin_dir.exists():
+        if plugin_dir.is_dir() and (plugin_dir / "manifest.json").exists():
             return plugin_dir
         return self._find_plugin_dir_by_entry_point(plugin_name)
 
@@ -664,11 +831,20 @@ class PluginDownloader:
 
         trusted_unsigned = False
         wheel_path = self.get_wheel_path(plugin_name)
-        if wheel_path is not None:
-            trusted_unsigned = self.trust_store.is_trusted(
-                wheel_path.parent.name,
-                self._compute_sha256(wheel_path),
-            )
+        plugin_dir = self._resolve_plugin_dir(plugin_name)
+        # Hash the on-disk wheel, not manifest["sha256"]: feeding the
+        # manifest value back into is_trusted is a tautology (trust
+        # record + manifest were written from the same digest), so a
+        # post-install wheel tamper would still render as "trusted".
+        if wheel_path is not None and plugin_dir is not None:
+            try:
+                disk_sha256 = compute_file_sha256(wheel_path)
+            except OSError:
+                disk_sha256 = None
+            if disk_sha256 is not None:
+                trusted_unsigned = self.trust_store.is_trusted(
+                    plugin_dir.name, disk_sha256
+                )
 
         return get_signature_label(manifest, trusted_unsigned=trusted_unsigned)
 
@@ -681,7 +857,7 @@ class PluginDownloader:
         source_data = manifest.get("source")
         if not source_data:
             # Legacy manifest without source tracking - assume GitGuardian API
-            return PluginSource(type=PluginSourceType.GITGUARDIAN_API)
+            return PluginSource(type=PluginSourceType.PLATFORM)
 
         try:
             return PluginSource.from_dict(source_data)
@@ -763,40 +939,6 @@ class PluginDownloader:
             signature_info.status.value,
         )
 
-    def _download_bundle(
-        self,
-        download_info: PluginDownloadInfo,
-        plugin_dir: Path,
-    ) -> Optional[Path]:
-        """Download the sigstore bundle for a wheel if a signature URL is available."""
-        if not download_info.signature_url:
-            return None
-
-        bundle_filename = download_info.filename + ".sigstore"
-        bundle_path = plugin_dir / bundle_filename
-
-        try:
-            logger.info("Downloading signature bundle...")
-            response = requests.get(
-                download_info.signature_url, stream=True, timeout=30
-            )
-            response.raise_for_status()
-
-            try:
-                with open(bundle_path, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-            except BaseException:
-                # Remove any partial bundle left behind by a mid-stream error.
-                if bundle_path.exists():
-                    bundle_path.unlink()
-                raise
-
-            return bundle_path
-        except requests.RequestException as e:
-            logger.warning("Failed to download signature bundle: %s", e)
-            return None
-
     def _download_url_bundle(
         self, wheel_url: str, dest_wheel_path: Path
     ) -> Optional[Path]:
@@ -808,21 +950,17 @@ class PluginDownloader:
             bundle_url = wheel_url + ext
             bundle_path = dest_wheel_path.parent / (dest_wheel_path.name + ext)
             try:
-                response = requests.get(bundle_url, stream=True, timeout=30)
+                response = requests.get(
+                    bundle_url, stream=True, timeout=HTTP_TIMEOUT_SECONDS
+                )
+                assert_all_https(response, exc_factory=InsecureSourceError)
                 response.raise_for_status()
 
-                try:
-                    with open(bundle_path, "wb") as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                except BaseException:
-                    if bundle_path.exists():
-                        bundle_path.unlink()
-                    raise
+                _stream_to_file(response, bundle_path, MAX_BUNDLE_SIZE_BYTES)
 
                 logger.info("Downloaded signature bundle from %s", bundle_url)
                 return bundle_path
-            except requests.RequestException:
+            except (requests.RequestException, InsecureSourceError, DownloadError):
                 continue
 
         logger.debug("No signature bundle found at URL conventions for %s", wheel_url)
@@ -835,6 +973,39 @@ class PluginDownloader:
             if bundle.exists():
                 bundle.unlink()
 
+    def _remove_stale_wheels(self, plugin_dir: Path, keep_filename: str) -> None:
+        """Remove old wheels left over from a previous install.
+
+        Upgrades from ``foo-1.0-py3-none-any.whl`` to
+        ``foo-2.0-py3-none-any.whl`` write the new wheel under a new
+        name and update the manifest to point at it — but they don't
+        remove the old wheel file. Without this sweep, the plugin
+        directory accumulates one stale wheel + sidecar per upgrade.
+        The manifest still routes loading to the right wheel, but the
+        stale files inflate disk usage and complicate any future
+        audit ("which of these three wheels is the one ggshield is
+        actually running?").
+
+        Only ``*.whl`` files whose name differs from ``keep_filename``
+        are touched, along with their ``.sigstore`` / ``.sigstore.json``
+        sidecars. Anything else in ``plugin_dir`` (manifest.json,
+        user-dropped fixtures, the kept wheel + its sidecars) is left
+        in place.
+        """
+        if not plugin_dir.is_dir():
+            return
+        for entry in plugin_dir.iterdir():
+            if not entry.is_file():
+                continue
+            if entry.suffix != ".whl" or entry.name == keep_filename:
+                continue
+            try:
+                entry.unlink()
+            except OSError as exc:
+                logger.warning("Failed to remove stale wheel %s: %s", entry, exc)
+                continue
+            self._remove_bundle_files(entry)
+
     def _cleanup_failed_install(self, wheel_path: Path) -> None:
         """Remove wheel and bundle files after a failed install."""
         if wheel_path.exists():
@@ -842,21 +1013,112 @@ class PluginDownloader:
 
         self._remove_bundle_files(wheel_path)
 
-    def _compute_sha256(self, file_path: Path) -> str:
-        """Compute SHA256 hash of a file."""
-        sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
-                sha256_hash.update(chunk)
-        return sha256_hash.hexdigest()
+    # Manifest ``source.type`` values that signal "this directory was
+    # written by a previous platform install of the same plugin and is
+    # safe to migrate away from in place". Anything else — ``local_file``,
+    # ``url``, ``github_release``, ``github_artifact``, or a manifest we
+    # can't parse — is a legitimate user-managed install that must not
+    # be deleted just because its directory name happens to collide with
+    # the current catalog reference.
+    _LEGACY_PLATFORM_SOURCE_TYPES = frozenset(
+        {
+            PluginSourceType.PLATFORM.value,
+            # Manifests written by ggshield < 1.50 used the old enum value.
+            "gitguardian_api",
+        }
+    )
+
+    def _cleanup_legacy_install_dir(
+        self, catalog_reference: str, current_dir: Path
+    ) -> None:
+        """Remove a stale install dir named after the catalog reference.
+
+        Older ggshield builds named the on-disk plugin directory after
+        the catalog reference (``plugin_name``) regardless of the
+        wheel's distribution name. The current install dir comes from
+        the wheel distribution name, so a user upgrading from one of
+        those builds can end up with two directories: a stale legacy
+        one keyed on ``catalog_reference`` and the current one keyed
+        on the wheel name. Without cleanup the entry-point fallback in
+        :meth:`_resolve_plugin_dir` would still find the new install,
+        but ``status`` / ``update`` queries that hit the catalog
+        reference first would keep reading the pre-upgrade manifest.
+
+        We only remove the legacy dir when ALL of the following hold:
+        - it's distinct from ``current_dir`` (the new install we just
+          finished writing),
+        - it has a ``manifest.json`` we can parse, and
+        - that manifest's ``source.type`` says the directory was
+          previously written by a platform install (``platform`` or
+          the legacy ``gitguardian_api`` value).
+
+        The last condition is the safety net: if the catalog reference
+        collides with the directory name of a real ``local_file`` /
+        ``url`` / ``github_release`` install (e.g. the user grabbed a
+        wheel called ``tokenscanner`` from disk and the new catalog
+        reference is also ``tokenscanner`` while the platform wheel's
+        distribution is ``ggshield-tokenscanner``), we leave the
+        user-managed install untouched.
+        """
+        if not self._is_valid_plugin_name(catalog_reference):
+            return
+        legacy_dir = self.plugins_dir / catalog_reference
+        if not legacy_dir.exists() or legacy_dir.resolve() == current_dir.resolve():
+            return
+        manifest_path = legacy_dir / "manifest.json"
+        if not manifest_path.exists():
+            return
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            # Unreadable / malformed manifest is ambiguous evidence —
+            # could be a half-written platform install but could also
+            # be a user-owned directory. Leave it alone and let the
+            # entry-point fallback in ``_resolve_plugin_dir`` route
+            # callers to the new install instead.
+            logger.warning(
+                "Refusing to remove %s: cannot parse manifest (%s)", legacy_dir, exc
+            )
+            return
+        legacy_source = (manifest.get("source") or {}).get("type")
+        if legacy_source not in self._LEGACY_PLATFORM_SOURCE_TYPES:
+            logger.info(
+                "Leaving %s in place: manifest source.type=%r is user-managed",
+                legacy_dir,
+                legacy_source,
+            )
+            return
+        try:
+            shutil.rmtree(legacy_dir)
+        except OSError as exc:
+            logger.warning("Failed to remove stale plugin dir %s: %s", legacy_dir, exc)
+            return
+        # Drop the trust record for the legacy entry so a future install
+        # under the catalog reference doesn't inherit a stale SHA from
+        # the now-removed wheel.
+        try:
+            self.trust_store.revoke_plugin(catalog_reference)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "Failed to revoke trust record for %s: %s", catalog_reference, exc
+            )
+        logger.info("Removed legacy plugin dir %s", legacy_dir)
 
     def _extract_github_repo(self, url: str) -> Optional[str]:
         """Extract owner/repo from a GitHub URL."""
-        # Pattern: github.com/{owner}/{repo}/...
         match = re.match(r"https://github\.com/([^/]+)/([^/]+)", url)
-        if match:
-            return f"{match.group(1)}/{match.group(2)}"
-        return None
+        if not match:
+            return None
+        owner, repo = match.group(1), match.group(2)
+        if repo.endswith(".git"):
+            repo = repo[: -len(".git")]
+        # Reject path-traversal-like segments; the repo value is later
+        # interpolated into api.github.com URLs and stored in manifests.
+        if owner in {"", ".", ".."} or repo in {"", ".", ".."}:
+            return None
+        if "/" in owner or "/" in repo or "\\" in owner or "\\" in repo:
+            return None
+        return f"{owner}/{repo}"
 
     def _parse_github_artifact_url(self, url: str) -> Optional[Tuple[str, str, str]]:
         """

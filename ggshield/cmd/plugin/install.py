@@ -17,16 +17,17 @@ from ggshield.core.errors import ExitCode
 from ggshield.core.plugin.client import (
     PluginAPIClient,
     PluginAPIError,
-    PluginNotAvailableError,
+    PluginsNotEnabledError,
     PluginSourceType,
 )
 from ggshield.core.plugin.downloader import (
     ChecksumMismatchError,
-    DownloadError,
     GitHubArtifactError,
     InsecureSourceError,
     PluginDownloader,
 )
+from ggshield.core.plugin.loader import resolve_config_key
+from ggshield.core.plugin.platform import get_platform_info
 from ggshield.core.plugin.signature import (
     SignatureVerificationError,
     SignatureVerificationMode,
@@ -65,7 +66,7 @@ def detect_source_type(plugin_source: str) -> PluginSourceType:
         return PluginSourceType.LOCAL_FILE
 
     # Default: assume it's a plugin name for GitGuardian API
-    return PluginSourceType.GITGUARDIAN_API
+    return PluginSourceType.PLATFORM
 
 
 @click.command()
@@ -153,15 +154,20 @@ def _install_from_gitguardian(
     version: Optional[str],
     signature_mode: SignatureVerificationMode = SignatureVerificationMode.STRICT,
 ) -> None:
-    """Install a plugin from GitGuardian API."""
+    """Install a plugin from the GitGuardian platform."""
     ctx_obj = ContextObj.get(ctx)
     config = ctx_obj.config
 
-    # Fetch available plugins
     try:
         client = create_client_from_config(config)
         plugin_api_client = PluginAPIClient(client)
         catalog = plugin_api_client.get_available_plugins()
+    except PluginsNotEnabledError:
+        ui.display_error(
+            "Plugin system is not available on this workspace. "
+            "Contact your administrator."
+        )
+        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except PluginAPIError as e:
         ui.display_error(str(e))
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
@@ -169,11 +175,9 @@ def _install_from_gitguardian(
         ui.display_error(f"Failed to connect to GitGuardian: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
 
-    # Check if plugin is available
     available_plugins = {p.name: p for p in catalog.plugins if p.available}
 
     if plugin_name not in available_plugins:
-        # Check if plugin exists but is not available
         unavailable = next((p for p in catalog.plugins if p.name == plugin_name), None)
         if unavailable:
             ui.display_error(
@@ -186,30 +190,49 @@ def _install_from_gitguardian(
             ui.display_info("Use 'ggshield plugin status' to see available plugins")
         ctx.exit(ExitCode.USAGE_ERROR)
 
-    # Install the plugin
     downloader = PluginDownloader()
     enterprise_config = EnterpriseConfig.load()
+    platform_info = get_platform_info()
 
     ui.display_info(f"Installing {plugin_name}...")
 
     try:
-        # Get download info
-        download_info = plugin_api_client.get_download_info(
-            plugin_name, version=version
-        )
+        with plugin_api_client.download_plugin(
+            plugin_name, platform_info=platform_info, version=version
+        ) as (info, chunks):
+            bundle_bytes: Optional[bytes] = None
+            if info.signature_url:
+                try:
+                    bundle_bytes = plugin_api_client.download_signature_bundle(
+                        info.signature_url
+                    )
+                except PluginAPIError as bundle_err:
+                    # In STRICT mode, an unreachable bundle is a hard
+                    # failure — the user expects signature verification.
+                    # In WARN mode they have opted into accepting
+                    # unsigned plugins, so a bundle the proxy couldn't
+                    # serve is equivalent to "no signature available"
+                    # rather than a reason to abort an otherwise valid
+                    # wheel download.
+                    if signature_mode == SignatureVerificationMode.STRICT:
+                        raise
+                    ui.display_warning(
+                        f"Could not fetch signature bundle for {plugin_name}: "
+                        f"{bundle_err}. Continuing without verification "
+                        f"(--allow-unsigned)."
+                    )
+            wheel_path = downloader.download_and_install(
+                info,
+                chunks,
+                plugin_name,
+                signature_mode=signature_mode,
+                bundle_bytes=bundle_bytes,
+            )
 
-        # Download and install
-        downloader.download_and_install(
-            download_info, plugin_name, signature_mode=signature_mode
-        )
-
-        # Enable in config
-        enterprise_config.enable_plugin(plugin_name, version=download_info.version)
-
-        # Save config
+        config_key = resolve_config_key(wheel_path, fallback=plugin_name)
+        enterprise_config.enable_plugin(config_key, version=info.version)
         enterprise_config.save()
-
-        ui.display_info(f"Installed {plugin_name} v{download_info.version}")
+        ui.display_info(f"Installed {plugin_name} v{info.version}")
 
     except SignatureVerificationError as e:
         ui.display_error(f"Signature verification failed for {plugin_name}: {e}")
@@ -219,15 +242,13 @@ def _install_from_gitguardian(
             "pass --allow-unsigned."
         )
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
-    except PluginNotAvailableError as e:
-        ui.display_error(f"Failed to install {plugin_name}: {e}")
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
-    except DownloadError as e:
-        ui.display_error(f"Failed to install {plugin_name}: {e}")
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except Exception as e:
         ui.display_error(f"Failed to install {plugin_name}: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
+
+    plugin_api_client.report_installation(
+        plugin_name, info.version, platform_info.os, platform_info.arch
+    )
 
 
 def _install_from_local_wheel(
@@ -248,12 +269,12 @@ def _install_from_local_wheel(
     ui.display_info(f"Installing from {wheel_path.name}...")
 
     try:
-        plugin_name, version, _ = downloader.install_from_wheel(
+        plugin_name, version, installed_wheel = downloader.install_from_wheel(
             wheel_path, signature_mode=signature_mode
         )
 
-        # Enable in config
-        enterprise_config.enable_plugin(plugin_name, version=version)
+        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
+        enterprise_config.enable_plugin(config_key, version=version)
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -265,9 +286,6 @@ def _install_from_local_wheel(
             "If you trust its origin and still want to install it, "
             "pass --allow-unsigned."
         )
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
-    except DownloadError as e:
-        ui.display_error(f"Failed to install from wheel: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except Exception as e:
         ui.display_error(f"Failed to install from wheel: {e}")
@@ -287,12 +305,12 @@ def _install_from_url(
     ui.display_info("Installing from URL...")
 
     try:
-        plugin_name, version, _ = downloader.download_from_url(
+        plugin_name, version, installed_wheel = downloader.download_from_url(
             url, sha256, signature_mode=signature_mode
         )
 
-        # Enable in config
-        enterprise_config.enable_plugin(plugin_name, version=version)
+        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
+        enterprise_config.enable_plugin(config_key, version=version)
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -310,9 +328,6 @@ def _install_from_url(
         ctx.exit(ExitCode.USAGE_ERROR)
     except ChecksumMismatchError as e:
         ui.display_error(f"Checksum verification failed: {e}")
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
-    except DownloadError as e:
-        ui.display_error(f"Failed to install from URL: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except Exception as e:
         ui.display_error(f"Failed to install from URL: {e}")
@@ -332,12 +347,12 @@ def _install_from_github_release(
     ui.display_info("Installing from GitHub release...")
 
     try:
-        plugin_name, version, _ = downloader.download_from_github_release(
+        plugin_name, version, installed_wheel = downloader.download_from_github_release(
             url, sha256, signature_mode=signature_mode
         )
 
-        # Enable in config
-        enterprise_config.enable_plugin(plugin_name, version=version)
+        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
+        enterprise_config.enable_plugin(config_key, version=version)
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -355,9 +370,6 @@ def _install_from_github_release(
         ctx.exit(ExitCode.USAGE_ERROR)
     except ChecksumMismatchError as e:
         ui.display_error(f"Checksum verification failed: {e}")
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
-    except DownloadError as e:
-        ui.display_error(f"Failed to install from GitHub release: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except Exception as e:
         ui.display_error(f"Failed to install from GitHub release: {e}")
@@ -378,12 +390,12 @@ def _install_from_github_artifact(
     ui.display_info("Installing from GitHub artifact...")
 
     try:
-        plugin_name, version, _ = downloader.download_from_github_artifact(
-            url, signature_mode=signature_mode
+        plugin_name, version, installed_wheel = (
+            downloader.download_from_github_artifact(url, signature_mode=signature_mode)
         )
 
-        # Enable in config
-        enterprise_config.enable_plugin(plugin_name, version=version)
+        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
+        enterprise_config.enable_plugin(config_key, version=version)
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -398,9 +410,6 @@ def _install_from_github_artifact(
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except GitHubArtifactError as e:
         ui.display_error(str(e))
-        ctx.exit(ExitCode.UNEXPECTED_ERROR)
-    except DownloadError as e:
-        ui.display_error(f"Failed to install from GitHub artifact: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
     except Exception as e:
         ui.display_error(f"Failed to install from GitHub artifact: {e}")
