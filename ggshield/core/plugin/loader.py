@@ -73,6 +73,39 @@ def read_entry_point_from_wheel(wheel_path: Path) -> Optional[Tuple[str, str]]:
     return None
 
 
+def resolve_config_key(wheel_path: Path, fallback: str) -> str:
+    """Return the key to use when calling ``EnterpriseConfig.enable_plugin``.
+
+    ``PluginLoader.discover_plugins`` keys wheel-installed plugins by
+    their ``ggshield.plugins`` entry-point name when present, and only
+    falls back to the wheel's distribution name when no entry point is
+    declared. Enablement is checked against that same key. If install
+    (or update) writes the config under the distribution name while
+    discovery looks it up under the entry-point name, the plugin ends
+    up silently disabled: install reports success but ``plugin list``
+    shows it off and the plugin never loads.
+
+    Reading the entry point from the wheel on the write side makes the
+    two layers agree, regardless of whether the upstream package picked
+    matching or divergent names. The fallback covers wheels that
+    declare no entry point and wheels that error during decoding
+    (``read_entry_point_from_wheel`` returns ``None`` in both cases —
+    indistinguishable here, and the next step after ``enable_plugin``
+    is the loader itself which will surface a real diagnostic).
+
+    ``wheel_path`` is the installed wheel returned by the downloader
+    and exists on every success path; the ``.exists()`` guard is
+    defensive against future refactors that might pass a path before
+    the wheel is on disk.
+    """
+    if not wheel_path.exists():
+        return fallback
+    entry_point = read_entry_point_from_wheel(wheel_path)
+    if entry_point is None:
+        return fallback
+    return entry_point[0]
+
+
 @dataclass
 class DiscoveredPlugin:
     """Information about a discovered plugin."""

@@ -47,21 +47,23 @@ def list_cmd(ctx: click.Context, **kwargs: Any) -> None:
     for plugin in discovered:
         status_parts = []
 
-        # Version
         if plugin.version:
             status_parts.append(f"v{plugin.version}")
 
-        # Enabled/disabled
         if plugin.is_enabled:
             status_parts.append("enabled")
         else:
             status_parts.append("disabled")
 
-        # Source
-        if plugin.wheel_path:
-            status_parts.append("local")
+        source = (
+            downloader.get_plugin_source(plugin.name) if plugin.wheel_path else None
+        )
+        if source is not None:
+            status_parts.append(source.type.value.replace("_", " "))
         elif plugin.entry_point:
             status_parts.append("pip")
+        elif plugin.wheel_path:
+            status_parts.append("on-disk")
 
         sig_label = downloader.get_installed_signature_label(plugin.name)
         if sig_label:

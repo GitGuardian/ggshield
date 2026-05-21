@@ -12,104 +12,13 @@ from ggshield.core.plugin.client import PluginCatalog, PluginInfo
 class TestPluginStatus:
     """Tests for 'ggshield plugin status' command."""
 
-    def test_status_shows_plan(self, cli_fs_runner):
-        """
-        GIVEN a user with an account
-        WHEN running 'ggshield plugin status'
-        THEN it shows the plan information
-        """
-        mock_catalog = PluginCatalog(
-            plan="Enterprise",
-            plugins=[],
-            features={},
-        )
-
-        with (
-            mock.patch(
-                "ggshield.cmd.plugin.status.create_client_from_config"
-            ) as mock_create_client,
-            mock.patch(
-                "ggshield.cmd.plugin.status.PluginAPIClient"
-            ) as mock_plugin_api_client_class,
-            mock.patch(
-                "ggshield.cmd.plugin.status.EnterpriseConfig"
-            ) as mock_config_class,
-        ):
-            mock_client = mock.MagicMock()
-            mock_create_client.return_value = mock_client
-
-            mock_plugin_api_client = mock.MagicMock()
-            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
-            mock_plugin_api_client_class.return_value = mock_plugin_api_client
-
-            mock_config = mock.MagicMock()
-            mock_config.is_plugin_enabled.return_value = False
-            mock_config_class.load.return_value = mock_config
-
-            result = cli_fs_runner.invoke(
-                cli, ["plugin", "status"], catch_exceptions=False
-            )
-
-        assert result.exit_code == ExitCode.SUCCESS
-        assert "Account Status" in result.output
-        assert "Plan: Enterprise" in result.output
-
-    def test_status_shows_features(self, cli_fs_runner):
-        """
-        GIVEN a user with features enabled
-        WHEN running 'ggshield plugin status'
-        THEN it shows the features
-        """
-        mock_catalog = PluginCatalog(
-            plan="Business",
-            plugins=[],
-            features={
-                "local_scanning": True,
-                "advanced_detection": False,
-            },
-        )
-
-        with (
-            mock.patch(
-                "ggshield.cmd.plugin.status.create_client_from_config"
-            ) as mock_create_client,
-            mock.patch(
-                "ggshield.cmd.plugin.status.PluginAPIClient"
-            ) as mock_plugin_api_client_class,
-            mock.patch(
-                "ggshield.cmd.plugin.status.EnterpriseConfig"
-            ) as mock_config_class,
-        ):
-            mock_client = mock.MagicMock()
-            mock_create_client.return_value = mock_client
-
-            mock_plugin_api_client = mock.MagicMock()
-            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
-            mock_plugin_api_client_class.return_value = mock_plugin_api_client
-
-            mock_config = mock.MagicMock()
-            mock_config.is_plugin_enabled.return_value = False
-            mock_config_class.load.return_value = mock_config
-
-            result = cli_fs_runner.invoke(
-                cli, ["plugin", "status"], catch_exceptions=False
-            )
-
-        assert result.exit_code == ExitCode.SUCCESS
-        assert "Features" in result.output
-        assert "local_scanning" in result.output
-        assert "enabled" in result.output
-        assert "advanced_detection" in result.output
-        assert "disabled" in result.output
-
     def test_status_shows_available_plugins(self, cli_fs_runner):
         """
-        GIVEN plugins are available
+        GIVEN plugins are available in the catalog
         WHEN running 'ggshield plugin status'
-        THEN it shows the available plugins
+        THEN it shows the 'Available Plugins' section without plan or features
         """
         mock_catalog = PluginCatalog(
-            plan="Enterprise",
             plugins=[
                 PluginInfo(
                     name="tokenscanner",
@@ -119,16 +28,7 @@ class TestPluginStatus:
                     latest_version="1.0.0",
                     reason=None,
                 ),
-                PluginInfo(
-                    name="premium",
-                    display_name="Premium Plugin",
-                    description="Premium features",
-                    available=False,
-                    latest_version="2.0.0",
-                    reason="Requires Enterprise Plus plan",
-                ),
             ],
-            features={},
         )
 
         with (
@@ -145,8 +45,7 @@ class TestPluginStatus:
                 "ggshield.cmd.plugin.status.PluginDownloader"
             ) as mock_downloader_class,
         ):
-            mock_client = mock.MagicMock()
-            mock_create_client.return_value = mock_client
+            mock_create_client.return_value = mock.MagicMock()
 
             mock_plugin_api_client = mock.MagicMock()
             mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
@@ -167,11 +66,40 @@ class TestPluginStatus:
         assert result.exit_code == ExitCode.SUCCESS
         assert "Available Plugins" in result.output
         assert "Token Scanner" in result.output
-        assert "tokenscanner" in result.output
-        assert "Local secret scanning" in result.output
-        assert "Premium Plugin" in result.output
-        assert "not available" in result.output
-        assert "Requires Enterprise Plus plan" in result.output
+        # No plan or features section
+        assert "Account Status" not in result.output
+        assert "Plan:" not in result.output
+        assert "Features" not in result.output
+
+    def test_status_plugins_not_enabled(self, cli_fs_runner):
+        """
+        GIVEN the platform has plugins disabled
+        WHEN running 'ggshield plugin status'
+        THEN it shows a clean error message
+        """
+        from ggshield.core.plugin.client import PluginsNotEnabledError
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.status.create_client_from_config"
+            ) as mock_create_client,
+            mock.patch(
+                "ggshield.cmd.plugin.status.PluginAPIClient"
+            ) as mock_plugin_api_client_class,
+        ):
+            mock_create_client.return_value = mock.MagicMock()
+
+            mock_plugin_api_client = mock.MagicMock()
+            mock_plugin_api_client.get_available_plugins.side_effect = (
+                PluginsNotEnabledError()
+            )
+            mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            result = cli_fs_runner.invoke(cli, ["plugin", "status"])
+
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "not available" in result.output.lower()
+        assert "administrator" in result.output.lower()
 
     def test_status_shows_installed_plugins(self, cli_fs_runner):
         """
@@ -180,7 +108,6 @@ class TestPluginStatus:
         THEN it shows the installed version
         """
         mock_catalog = PluginCatalog(
-            plan="Enterprise",
             plugins=[
                 PluginInfo(
                     name="tokenscanner",
@@ -191,7 +118,6 @@ class TestPluginStatus:
                     reason=None,
                 ),
             ],
-            features={},
         )
 
         with (
@@ -239,7 +165,6 @@ class TestPluginStatus:
         THEN it shows the human-readable signature label.
         """
         mock_catalog = PluginCatalog(
-            plan="Enterprise",
             plugins=[
                 PluginInfo(
                     name="tokenscanner",
@@ -250,7 +175,6 @@ class TestPluginStatus:
                     reason=None,
                 ),
             ],
-            features={},
         )
 
         with (
@@ -357,7 +281,6 @@ class TestPluginStatus:
         THEN it shows the plugin as disabled
         """
         mock_catalog = PluginCatalog(
-            plan="Enterprise",
             plugins=[
                 PluginInfo(
                     name="tokenscanner",
@@ -368,7 +291,6 @@ class TestPluginStatus:
                     reason=None,
                 ),
             ],
-            features={},
         )
 
         with (
@@ -416,7 +338,6 @@ class TestPluginStatus:
         THEN it shows the plugin as not available
         """
         mock_catalog = PluginCatalog(
-            plan="Free",
             plugins=[
                 PluginInfo(
                     name="premium",
@@ -427,7 +348,6 @@ class TestPluginStatus:
                     reason=None,
                 ),
             ],
-            features={},
         )
 
         with (
