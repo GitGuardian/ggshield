@@ -5,6 +5,7 @@ Plugin loader - discovers and loads plugins from entry points and local wheels.
 import importlib
 import importlib.metadata
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,7 @@ from packaging import version as packaging_version
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.config.enterprise_config import EnterpriseConfig
-from ggshield.core.dirs import get_plugins_dir
+from ggshield.core.dirs import get_cache_dir, get_plugins_dir
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.registry import PluginRegistry
 from ggshield.core.plugin.signature import (
@@ -147,17 +148,25 @@ class PluginLoader:
             wheel_version: str = wheel_info["version"]
             entry_point_name: Optional[str] = wheel_info["entry_point_name"]
 
-            # Use entry point name as key if available, otherwise package name
+            # Use entry point name as key if available, otherwise package name.
+            # Older installs may have enabled the wheel distribution/package name
+            # before ggshield learned the entry-point key. Treat that package name
+            # as an alias so an installed+enabled plugin does not silently miss its
+            # top-level commands.
             key = entry_point_name if entry_point_name else plugin_name
             if entry_point_name:
                 local_entry_point_names.add(entry_point_name)
+
+            is_enabled = self._is_enabled(key)
+            if key not in self.enterprise_config.plugins and plugin_name != key:
+                is_enabled = self._is_enabled(plugin_name)
 
             discovered[key] = DiscoveredPlugin(
                 name=key,
                 entry_point=None,
                 wheel_path=wheel_path,
                 is_installed=True,
-                is_enabled=self._is_enabled(key),
+                is_enabled=is_enabled,
                 version=wheel_version,
             )
 
@@ -272,8 +281,11 @@ class PluginLoader:
                 )
                 return None
 
-        # Extract wheel to a directory alongside the wheel file
-        extract_dir = wheel_path.parent / f".{wheel_path.stem}_extracted"
+        # Extract wheel to a per-user cache directory instead of next to the
+        # installed wheel. This keeps loading working when a wheel is installed
+        # in a shared/root-owned data directory but the current user can still
+        # read it.
+        extract_dir = self._get_extract_dir(wheel_path)
 
         try:
             # In STRICT mode, always re-extract after verification so imports
@@ -286,6 +298,7 @@ class PluginLoader:
 
                 if extract_dir.exists():
                     shutil.rmtree(extract_dir)
+                extract_dir.parent.mkdir(parents=True, exist_ok=True)
 
                 from ggshield.utils.archive import safe_unpack
 
@@ -308,6 +321,42 @@ class PluginLoader:
         except Exception as e:
             logger.warning("Failed to load wheel %s: %s", wheel_path, e)
             return None
+
+    def _get_extract_cache_dir(self) -> Path:
+        """Return the cache dir used for extracted plugin wheels.
+
+        `sudo -E` on Unix can preserve a non-root HOME, which makes platformdirs
+        point root at the invoking user's cache dir. Do not create root-owned
+        extraction trees there: use root's own cache unless GG_CACHE_DIR was set
+        explicitly.
+        """
+        if os.environ.get("GG_CACHE_DIR"):
+            return get_cache_dir()
+
+        if sys.platform != "win32" and hasattr(os, "geteuid") and os.geteuid() == 0:
+            home = os.environ.get("HOME")
+            try:
+                if home and Path(home).exists() and Path(home).stat().st_uid != 0:
+                    import pwd
+
+                    root_home = Path(pwd.getpwuid(0).pw_dir)
+                    if sys.platform == "darwin":
+                        return root_home / "Library" / "Caches" / "ggshield"
+                    return root_home / ".cache" / "ggshield"
+            except (KeyError, OSError):
+                pass
+
+        return get_cache_dir()
+
+    def _get_extract_dir(self, wheel_path: Path) -> Path:
+        """Return the per-user extraction directory for an installed wheel."""
+        wheel_hash = compute_file_sha256(wheel_path)[:16]
+        return (
+            self._get_extract_cache_dir()
+            / "plugins"
+            / wheel_path.parent.name
+            / f"{wheel_path.stem}-{wheel_hash}_extracted"
+        )
 
     def _is_trusted_unsigned_plugin(self, wheel_path: Path) -> bool:
         """Return True when the current wheel hash matches a persisted trust record."""
