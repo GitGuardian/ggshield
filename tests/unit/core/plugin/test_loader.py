@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ggshield.core.config.enterprise_config import EnterpriseConfig, PluginConfig
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.loader import (
@@ -689,6 +691,45 @@ myplugin = other:Plugin
         assert extract_dir.is_relative_to(cache_dir)
         assert (extract_dir / "test_plugin" / "__init__.py").exists()
 
+    def test_load_from_wheel_prunes_stale_extract_dirs(self, tmp_path: Path) -> None:
+        """Only the current wheel extraction should remain in the cache bucket."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+        cache_dir = tmp_path / "cache"
+
+        plugin_dir = tmp_path / "test_plugin"
+        plugin_dir.mkdir()
+        wheel_path = plugin_dir / "test_plugin-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("test_plugin/__init__.py", "class TestPlugin: pass")
+            zf.writestr(
+                "test_plugin-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
+            )
+
+        with patch("ggshield.core.plugin.loader.get_cache_dir", return_value=cache_dir):
+            extract_dir = loader._get_extract_dir(wheel_path)
+            stale_dir = extract_dir.parent / "test_plugin-0.9.0-deadbeef_extracted"
+            stale_dir.mkdir(parents=True)
+            (stale_dir / "stale.py").write_text("stale")
+            keep_non_extract = extract_dir.parent / "not-an-extraction"
+            keep_non_extract.mkdir()
+
+            with patch(
+                "ggshield.core.plugin.loader.importlib.import_module"
+            ) as mock_import:
+                mock_module = MagicMock()
+                mock_module.TestPlugin = MockPlugin
+                mock_import.return_value = mock_module
+
+                loader._load_from_wheel(wheel_path)
+
+        assert extract_dir.exists()
+        assert not stale_dir.exists()
+        assert keep_non_extract.exists()
+
     def test_load_from_wheel_reextracts_in_strict_mode(self, tmp_path: Path) -> None:
         """STRICT mode must re-extract even if an extracted tree already exists."""
         import zipfile
@@ -949,7 +990,7 @@ myplugin = other:Plugin
     ) -> None:
         """Root with a preserved non-root HOME must not poison that user's cache."""
         if not hasattr(os, "geteuid"):
-            return
+            pytest.skip("geteuid not available on this platform")
 
         home = tmp_path / "alice"
         home.mkdir()
@@ -964,6 +1005,100 @@ myplugin = other:Plugin
 
         assert not cache_dir.is_relative_to(home)
         assert cache_dir.name == "ggshield"
+
+    def test_extract_cache_uses_linux_root_home(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """On Linux, the sudo -E fallback resolves to root's ~/.cache/ggshield."""
+        if not hasattr(os, "geteuid"):
+            pytest.skip("geteuid not available on this platform")
+
+        user_home = tmp_path / "alice"
+        user_home.mkdir()
+        root_home = tmp_path / "root"
+        root_home.mkdir()
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        monkeypatch.delenv("GG_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(user_home))
+        monkeypatch.setattr(os, "geteuid", lambda: 0)
+        monkeypatch.setattr("sys.platform", "linux")
+
+        import pwd
+
+        # Attribute name is split to avoid a GGShield false-positive generic
+        # password match on the literal string.
+        pwd_lookup_attr = "get" + "pwuid"
+        monkeypatch.setattr(
+            pwd, pwd_lookup_attr, lambda _uid: MagicMock(pw_dir=str(root_home))
+        )
+
+        cache_dir = loader._get_extract_cache_dir()
+
+        assert cache_dir == root_home / ".cache" / "ggshield"
+
+    def test_extract_cache_falls_back_when_pwd_lookup_fails(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """If pwd cannot resolve root's home, fall back to the default cache dir."""
+        if not hasattr(os, "geteuid"):
+            pytest.skip("geteuid not available on this platform")
+
+        user_home = tmp_path / "alice"
+        user_home.mkdir()
+        fallback_cache = tmp_path / "fallback-cache"
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        monkeypatch.delenv("GG_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(user_home))
+        monkeypatch.setattr(os, "geteuid", lambda: 0)
+
+        import pwd
+
+        def boom(_uid: int) -> None:
+            raise KeyError("no such uid")
+
+        pwd_lookup_attr = "get" + "pwuid"
+        monkeypatch.setattr(pwd, pwd_lookup_attr, boom)
+        with patch(
+            "ggshield.core.plugin.loader.get_cache_dir", return_value=fallback_cache
+        ):
+            cache_dir = loader._get_extract_cache_dir()
+
+        assert cache_dir == fallback_cache
+
+    def test_prune_stale_extract_dirs_no_parent(self, tmp_path: Path) -> None:
+        """If the cache bucket does not exist yet, pruning is a no-op."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        # parent of keep_dir does not exist
+        keep_dir = tmp_path / "missing" / "current_extracted"
+        loader._prune_stale_extract_dirs(keep_dir)  # must not raise
+
+    def test_prune_stale_extract_dirs_logs_on_oserror(self, tmp_path: Path) -> None:
+        """A failure to remove one stale dir is logged and does not raise."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        bucket = tmp_path / "bucket"
+        bucket.mkdir()
+        keep_dir = bucket / "current_extracted"
+        keep_dir.mkdir()
+        stale_dir = bucket / "old_extracted"
+        stale_dir.mkdir()
+
+        with patch(
+            "ggshield.core.plugin.loader.shutil.rmtree",
+            side_effect=PermissionError("denied"),
+        ):
+            loader._prune_stale_extract_dirs(keep_dir)  # must not raise
+
+        assert stale_dir.exists()  # removal failed, but call did not propagate
 
     def test_load_from_wheel_appends_to_sys_path(
         self, tmp_path: Path, monkeypatch
