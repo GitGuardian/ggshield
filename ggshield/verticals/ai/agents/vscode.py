@@ -58,10 +58,14 @@ class VSCode(Agent):
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".vscode" / "mcp.json"
 
+    @property
+    def user_mcp_file(self) -> Path:
+        return self.config_folder / "mcp.json"
+
     def discover_project_directories(self) -> Iterator[Path]:
         # Try to parse workspaces settings.
         for file in self.config_folder.glob("workspaceStorage/*/workspace.json"):
-            if (data := self._load_json_file(file)) and "folder" in data:
+            if (data := self._load_file(file)) and "folder" in data:
                 path = Path(data["folder"].removeprefix("file://"))
                 if path.is_dir():
                     yield path.resolve()

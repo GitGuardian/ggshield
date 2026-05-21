@@ -61,6 +61,10 @@ class Codex(Agent):
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".codex" / "config.toml"
 
+    @property
+    def user_mcp_file(self) -> Path:
+        return self.config_folder / "config.toml"
+
     def discover_project_directories(self) -> Iterator[Path]:
         yield from []
 
