@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -7,6 +6,7 @@ from ggshield.core import ui
 from ggshield.core.constants import CACHE_PATH
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.types import IgnoredMatch
+from ggshield.utils.files import atomic_write_text
 from ggshield.utils.git_shell import gitignore, is_gitignored
 
 
@@ -61,20 +61,16 @@ class Cache:
             # if there are no found secrets, don't modify the cache file
             return
         try:
-            fd = os.open(
-                str(self.cache_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+            text = json.dumps(self.to_dict())
+        except Exception as e:
+            raise UnexpectedError(
+                f"Failed to save cache in {self.cache_path}:\n{str(e)}"
             )
-            f = os.fdopen(fd, "w")
+        try:
+            atomic_write_text(self.cache_path, text, mode=0o600)
         except OSError:
             # Hotfix: for the time being we skip cache handling if permission denied
             return
-        with f:
-            try:
-                json.dump(self.to_dict(), f)
-            except Exception as e:
-                raise UnexpectedError(
-                    f"Failed to save cache in {self.cache_path}:\n{str(e)}"
-                )
 
     def purge(self) -> None:
         self.last_found_secrets = []

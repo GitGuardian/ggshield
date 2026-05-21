@@ -1642,13 +1642,17 @@ class TestWriteManifestWithSignature:
         assert "signature" not in manifest
 
     def test_tmp_file_is_cleaned_up_on_rename_failure(self, tmp_path: Path) -> None:
-        """If replace() fails, the .tmp file is removed and no manifest is left."""
+        """If the atomic rename fails, the temp file is removed and no
+        manifest is left behind."""
         with patch(
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
         ):
             downloader = PluginDownloader()
 
-        with patch("pathlib.Path.replace", side_effect=OSError("cross-device rename")):
+        with patch(
+            "ggshield.utils.files.os.replace",
+            side_effect=OSError("cross-device rename"),
+        ):
             with pytest.raises(OSError):
                 downloader._write_manifest(
                     plugin_dir=tmp_path,
@@ -1660,7 +1664,9 @@ class TestWriteManifestWithSignature:
                 )
 
         assert not (tmp_path / "manifest.json").exists()
-        assert not (tmp_path / "manifest.json.tmp").exists()
+        # No leftover temp file (atomic_write_text uses a unique
+        # tempfile.mkstemp name and cleans it up on failure).
+        assert list(tmp_path.iterdir()) == []
 
 
 def _create_artifact_zip(content: bytes, filename: str) -> bytes:

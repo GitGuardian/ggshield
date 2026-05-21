@@ -5,6 +5,7 @@ from marshmallow.exceptions import ValidationError
 from pygitguardian.models import AIDiscovery
 
 from ggshield.core.dirs import get_cache_dir
+from ggshield.utils.files import atomic_write_text
 
 from .models import MCPConfiguration, MCPServer, Scope
 
@@ -18,8 +19,7 @@ def save_discovery_cache(config: AIDiscovery) -> None:
     """
     cache_path = get_cache_dir() / AI_DISCOVERY_CACHE_FILENAME
     try:
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps(config.to_dict(), indent=4))
+        atomic_write_text(cache_path, json.dumps(config.to_dict(), indent=4))
     except OSError:
         pass
 

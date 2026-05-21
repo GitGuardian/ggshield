@@ -30,6 +30,7 @@ from ggshield.core.plugin.signature import (
 )
 from ggshield.core.plugin.trust import PluginTrustStore
 from ggshield.core.plugin.wheel_utils import WheelError, extract_wheel_metadata
+from ggshield.utils.files import atomic_write_text
 
 
 logger = logging.getLogger(__name__)
@@ -732,13 +733,7 @@ class PluginDownloader:
             manifest["signature"] = sig_data
 
         manifest_path = plugin_dir / "manifest.json"
-        tmp_path = manifest_path.with_suffix(".json.tmp")
-        try:
-            tmp_path.write_text(json.dumps(manifest, indent=2))
-            tmp_path.replace(manifest_path)
-        finally:
-            if tmp_path.exists():
-                tmp_path.unlink()
+        atomic_write_text(manifest_path, json.dumps(manifest, indent=2))
 
     def _sync_trust_record(
         self,
