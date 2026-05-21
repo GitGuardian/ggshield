@@ -204,3 +204,56 @@ class TestWheelMetadata:
         assert metadata.summary is None
         assert metadata.author is None
         assert metadata.license is None
+
+
+class TestSanitizeWheelFilename:
+    """Tests for sanitize_wheel_filename."""
+
+    def test_accepts_normal_wheel(self) -> None:
+        from ggshield.core.plugin.wheel_utils import sanitize_wheel_filename
+
+        assert (
+            sanitize_wheel_filename("foo-1.0.0-py3-none-any.whl")
+            == "foo-1.0.0-py3-none-any.whl"
+        )
+
+    def test_strips_path_components(self) -> None:
+        """Server may include path components; we keep only the basename."""
+        from ggshield.core.plugin.wheel_utils import sanitize_wheel_filename
+
+        assert (
+            sanitize_wheel_filename("evil/path/foo-1.0.0-py3-none-any.whl")
+            == "foo-1.0.0-py3-none-any.whl"
+        )
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "",
+            ".",
+            "..",
+            "foo\x00.whl",
+            "foo\\bar.whl",  # backslash forbidden
+            "D:evil-1.0-py3-none-any.whl",  # Windows drive prefix
+            "\\\\?\\C:\\evil-1.0.whl",  # Windows extended-length prefix
+            "\\\\share\\evil-1.0.whl",  # Windows UNC path
+        ],
+    )
+    def test_rejects_unsafe(self, raw: str) -> None:
+        from ggshield.core.plugin.wheel_utils import sanitize_wheel_filename
+
+        with pytest.raises(InvalidWheelError):
+            sanitize_wheel_filename(raw)
+
+    def test_rejects_missing_whl_suffix(self) -> None:
+        from ggshield.core.plugin.wheel_utils import sanitize_wheel_filename
+
+        with pytest.raises(InvalidWheelError, match=r"\.whl"):
+            sanitize_wheel_filename("foo-1.0.0-py3-none-any.tar.gz")
+
+    def test_rejects_traversal_to_empty_basename(self) -> None:
+        """``../`` resolves to ``""`` after PurePosixPath(...).name."""
+        from ggshield.core.plugin.wheel_utils import sanitize_wheel_filename
+
+        with pytest.raises(InvalidWheelError):
+            sanitize_wheel_filename("../")
