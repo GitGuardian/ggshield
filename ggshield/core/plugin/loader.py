@@ -6,6 +6,7 @@ import importlib
 import importlib.metadata
 import logging
 import os
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -294,8 +295,6 @@ class PluginLoader:
                 not extract_dir.exists()
                 or wheel_path.stat().st_mtime > extract_dir.stat().st_mtime
             ):
-                import shutil
-
                 if extract_dir.exists():
                     shutil.rmtree(extract_dir)
                 extract_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -303,6 +302,8 @@ class PluginLoader:
                 from ggshield.utils.archive import safe_unpack
 
                 safe_unpack(wheel_path, extract_dir)
+
+            self._prune_stale_extract_dirs(extract_dir)
 
             # Add extracted directory to sys.path
             extract_str = str(extract_dir)
@@ -321,6 +322,24 @@ class PluginLoader:
         except Exception as e:
             logger.warning("Failed to load wheel %s: %s", wheel_path, e)
             return None
+
+    def _prune_stale_extract_dirs(self, keep_dir: Path) -> None:
+        """Remove stale extraction dirs for the same plugin cache bucket."""
+        parent = keep_dir.parent
+        if not parent.exists():
+            return
+
+        for path in parent.iterdir():
+            if path == keep_dir or not path.is_dir():
+                continue
+            if not path.name.endswith("_extracted"):
+                continue
+            try:
+                shutil.rmtree(path)
+            except OSError as exc:
+                logger.debug(
+                    "Failed to remove stale plugin extraction dir %s: %s", path, exc
+                )
 
     def _get_extract_cache_dir(self) -> Path:
         """Return the cache dir used for extracted plugin wheels.

@@ -157,8 +157,15 @@ def _enable_installed_plugin(
     """Enable the canonical plugin key and remove stale package-name config."""
     config_key = resolve_config_key(wheel_path, fallback=plugin_name)
     if config_key != plugin_name:
+        legacy = enterprise_config.plugins.get(plugin_name)
         enterprise_config.remove_plugin(plugin_name)
-    enterprise_config.enable_plugin(config_key, version=version)
+        enterprise_config.enable_plugin(config_key, version=version)
+        if legacy is not None:
+            # Carry over user-tuned fields from the legacy package-name entry so
+            # an existing `auto_update: false` is not silently reset on upgrade.
+            enterprise_config.plugins[config_key].auto_update = legacy.auto_update
+    else:
+        enterprise_config.enable_plugin(config_key, version=version)
     return config_key
 
 

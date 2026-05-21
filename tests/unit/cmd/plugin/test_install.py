@@ -1006,6 +1006,98 @@ class TestInstallFromLocalWheel:
         mock_config.remove_plugin.assert_called_once_with("package-name")
         mock_config.enable_plugin.assert_called_once_with("my_plugin", version="1.0.0")
 
+    def test_install_local_wheel_entry_point_matches_package_name(
+        self, cli_fs_runner, tmp_path: Path
+    ) -> None:
+        """When the entry-point name matches the package name, do not remove the config."""
+        wheel_path = tmp_path / "myplugin-1.0.0.whl"
+        wheel_path.touch()
+        installed_wheel_path = tmp_path / "plugins" / "myplugin" / wheel_path.name
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.detect_source_type",
+                return_value=PluginSourceType.LOCAL_FILE,
+            ),
+            mock.patch(
+                "ggshield.core.plugin.loader.read_entry_point_from_wheel",
+                return_value=("myplugin", "myplugin.plugin:Plugin"),
+            ),
+        ):
+            mock_downloader = mock.MagicMock()
+            mock_downloader.install_from_wheel.return_value = (
+                "myplugin",
+                "1.0.0",
+                installed_wheel_path,
+            )
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "install", str(wheel_path)],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        assert "Installed myplugin v1.0.0" in result.output
+        mock_config.remove_plugin.assert_not_called()
+        mock_config.enable_plugin.assert_called_once_with("myplugin", version="1.0.0")
+
+    def test_install_local_wheel_without_entry_point_falls_back_to_package_name(
+        self, cli_fs_runner, tmp_path: Path
+    ) -> None:
+        """If the wheel has no ggshield.plugins entry point, use the package name."""
+        wheel_path = tmp_path / "myplugin-1.0.0.whl"
+        wheel_path.touch()
+        installed_wheel_path = tmp_path / "plugins" / "myplugin" / wheel_path.name
+
+        with (
+            mock.patch(
+                "ggshield.cmd.plugin.install.PluginDownloader"
+            ) as mock_downloader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch(
+                "ggshield.cmd.plugin.install.detect_source_type",
+                return_value=PluginSourceType.LOCAL_FILE,
+            ),
+            mock.patch(
+                "ggshield.core.plugin.loader.read_entry_point_from_wheel",
+                return_value=None,
+            ),
+        ):
+            mock_downloader = mock.MagicMock()
+            mock_downloader.install_from_wheel.return_value = (
+                "myplugin",
+                "1.0.0",
+                installed_wheel_path,
+            )
+            mock_downloader_class.return_value = mock_downloader
+
+            mock_config = mock.MagicMock()
+            mock_config_class.load.return_value = mock_config
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "install", str(wheel_path)],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        assert "Installed myplugin v1.0.0" in result.output
+        mock_config.remove_plugin.assert_not_called()
+        mock_config.enable_plugin.assert_called_once_with("myplugin", version="1.0.0")
+
 
 class TestInstallFromUrl:
     """Tests for installing from URLs."""

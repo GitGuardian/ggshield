@@ -15,7 +15,7 @@ from typing import Any, Dict, Iterator, Optional, Tuple
 
 import requests
 
-from ggshield.core.dirs import get_plugins_dir
+from ggshield.core.dirs import get_cache_dir, get_plugins_dir
 from ggshield.core.plugin.client import (
     PluginDownloadInfo,
     PluginSource,
@@ -713,9 +713,22 @@ class PluginDownloader:
 
         self.trust_store.revoke_plugin(plugin_dir.name)
         shutil.rmtree(plugin_dir)
+        self._remove_extract_cache(plugin_dir.name)
 
         logger.info("Uninstalled plugin: %s", plugin_name)
         return True
+
+    def _remove_extract_cache(self, plugin_dir_name: str) -> None:
+        """Best-effort removal of extracted wheel cache for an uninstalled plugin."""
+        cache_dir = get_cache_dir() / "plugins" / plugin_dir_name
+        try:
+            shutil.rmtree(cache_dir)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            logger.debug(
+                "Failed to remove plugin extraction cache %s: %s", cache_dir, exc
+            )
 
     def get_installed_version(self, plugin_name: str) -> Optional[str]:
         """Get the installed version of a plugin (by package name or entry point name)."""
