@@ -965,12 +965,21 @@ class TestInstallFromLocalWheel:
         """The config key must match the ggshield.plugins entry point name."""
         import zipfile
 
-        wheel_path = tmp_path / "package_name-1.0.0-py3-none-any.whl"
-        with zipfile.ZipFile(wheel_path, "w") as zf:
+        # Mirror the production layout: ``install_from_wheel`` writes the
+        # installed wheel under ``plugins_dir/<distribution-name>/`` and
+        # returns that path. ``enable_installed_plugin`` reads the
+        # distribution name from ``wheel_path.parent.name`` to clean up
+        # any legacy alias, so the test wheel must live under a directory
+        # named after the distribution.
+        source_wheel = tmp_path / "package_name-1.0.0-py3-none-any.whl"
+        with zipfile.ZipFile(source_wheel, "w") as zf:
             zf.writestr(
                 "package_name-1.0.0.dist-info/entry_points.txt",
                 "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
             )
+        installed_wheel = tmp_path / "plugins" / "package-name" / source_wheel.name
+        installed_wheel.parent.mkdir(parents=True, exist_ok=True)
+        installed_wheel.write_bytes(source_wheel.read_bytes())
 
         with (
             mock.patch(
@@ -988,7 +997,7 @@ class TestInstallFromLocalWheel:
             mock_downloader.install_from_wheel.return_value = (
                 "package-name",
                 "1.0.0",
-                wheel_path,
+                installed_wheel,
             )
             mock_downloader_class.return_value = mock_downloader
 
@@ -997,7 +1006,7 @@ class TestInstallFromLocalWheel:
 
             result = cli_fs_runner.invoke(
                 cli,
-                ["plugin", "install", str(wheel_path)],
+                ["plugin", "install", str(source_wheel)],
                 catch_exceptions=False,
             )
 

@@ -108,6 +108,57 @@ def resolve_config_key(wheel_path: Path, fallback: str) -> str:
     return entry_point[0]
 
 
+def enable_installed_plugin(
+    enterprise_config: EnterpriseConfig,
+    plugin_name: str,
+    version: str,
+    wheel_path: Path,
+) -> str:
+    """Enable the canonical plugin key and migrate any stale aliases.
+
+    Older ggshield versions wrote the enable row under the wheel's
+    distribution name; the loader now keys discovery on the
+    ``ggshield.plugins`` entry-point name. After a fresh install or
+    update we therefore need to:
+
+    1. Write the canonical row under the entry-point name (so
+       ``discover_plugins`` finds it enabled).
+    2. Remove any pre-existing row under a known alias (the caller's
+       ``plugin_name`` — catalog reference or distribution name — and
+       the wheel's distribution name as encoded in
+       ``wheel_path.parent.name``).
+    3. Carry over the user's ``auto_update`` choice from any removed
+       alias so an explicit ``auto_update: false`` survives the
+       migration. When more than one alias exists, the strictest
+       (``False``) wins so user intent is never silently relaxed.
+
+    Update.py passes the loader's discovered canonical name as
+    ``plugin_name`` (already the entry-point name), so the legacy
+    alias only becomes visible via ``wheel_path.parent.name``. Install
+    paths pass either the catalog reference or the distribution name,
+    both of which become aliases here.
+    """
+    config_key = resolve_config_key(wheel_path, fallback=plugin_name)
+
+    legacy_keys = {plugin_name, wheel_path.parent.name}
+    legacy_keys.discard(config_key)
+
+    carried_auto_update: Optional[bool] = None
+    for legacy_key in legacy_keys:
+        legacy = enterprise_config.plugins.get(legacy_key)
+        if legacy is None:
+            continue
+        # Honor the strictest setting found across aliases.
+        if carried_auto_update is None or not legacy.auto_update:
+            carried_auto_update = legacy.auto_update
+        enterprise_config.remove_plugin(legacy_key)
+
+    enterprise_config.enable_plugin(config_key, version=version)
+    if carried_auto_update is not None:
+        enterprise_config.plugins[config_key].auto_update = carried_auto_update
+    return config_key
+
+
 @dataclass
 class DiscoveredPlugin:
     """Information about a discovered plugin."""
