@@ -26,7 +26,7 @@ from ggshield.core.plugin.downloader import (
     InsecureSourceError,
     PluginDownloader,
 )
-from ggshield.core.plugin.loader import resolve_config_key
+from ggshield.core.plugin.loader import enable_installed_plugin
 from ggshield.core.plugin.platform import get_platform_info
 from ggshield.core.plugin.signature import (
     SignatureVerificationError,
@@ -148,27 +148,6 @@ def install_cmd(
         _install_from_gitguardian(ctx, plugin_source, version, signature_mode)
 
 
-def _enable_installed_plugin(
-    enterprise_config: EnterpriseConfig,
-    plugin_name: str,
-    version: str,
-    wheel_path: Path,
-) -> str:
-    """Enable the canonical plugin key and remove stale package-name config."""
-    config_key = resolve_config_key(wheel_path, fallback=plugin_name)
-    if config_key != plugin_name:
-        legacy = enterprise_config.plugins.get(plugin_name)
-        enterprise_config.remove_plugin(plugin_name)
-        enterprise_config.enable_plugin(config_key, version=version)
-        if legacy is not None:
-            # Carry over user-tuned fields from the legacy package-name entry so
-            # an existing `auto_update: false` is not silently reset on upgrade.
-            enterprise_config.plugins[config_key].auto_update = legacy.auto_update
-    else:
-        enterprise_config.enable_plugin(config_key, version=version)
-    return config_key
-
-
 def _install_from_gitguardian(
     ctx: click.Context,
     plugin_name: str,
@@ -250,7 +229,7 @@ def _install_from_gitguardian(
                 bundle_bytes=bundle_bytes,
             )
 
-        installed_name = _enable_installed_plugin(
+        installed_name = enable_installed_plugin(
             enterprise_config, plugin_name, info.version, wheel_path
         )
         enterprise_config.save()
@@ -295,7 +274,7 @@ def _install_from_local_wheel(
             wheel_path, signature_mode=signature_mode
         )
 
-        plugin_name = _enable_installed_plugin(
+        plugin_name = enable_installed_plugin(
             enterprise_config, plugin_name, version, installed_wheel
         )
         enterprise_config.save()
@@ -332,7 +311,7 @@ def _install_from_url(
             url, sha256, signature_mode=signature_mode
         )
 
-        plugin_name = _enable_installed_plugin(
+        plugin_name = enable_installed_plugin(
             enterprise_config, plugin_name, version, installed_wheel
         )
         enterprise_config.save()
@@ -375,7 +354,7 @@ def _install_from_github_release(
             url, sha256, signature_mode=signature_mode
         )
 
-        plugin_name = _enable_installed_plugin(
+        plugin_name = enable_installed_plugin(
             enterprise_config, plugin_name, version, installed_wheel
         )
         enterprise_config.save()
@@ -419,7 +398,7 @@ def _install_from_github_artifact(
             downloader.download_from_github_artifact(url, signature_mode=signature_mode)
         )
 
-        plugin_name = _enable_installed_plugin(
+        plugin_name = enable_installed_plugin(
             enterprise_config, plugin_name, version, installed_wheel
         )
         enterprise_config.save()
