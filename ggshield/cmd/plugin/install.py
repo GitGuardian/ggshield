@@ -26,7 +26,7 @@ from ggshield.core.plugin.downloader import (
     InsecureSourceError,
     PluginDownloader,
 )
-from ggshield.core.plugin.loader import resolve_config_key
+from ggshield.core.plugin.loader import enable_installed_plugin
 from ggshield.core.plugin.platform import get_platform_info
 from ggshield.core.plugin.signature import (
     SignatureVerificationError,
@@ -229,10 +229,11 @@ def _install_from_gitguardian(
                 bundle_bytes=bundle_bytes,
             )
 
-        config_key = resolve_config_key(wheel_path, fallback=plugin_name)
-        enterprise_config.enable_plugin(config_key, version=info.version)
+        installed_name = enable_installed_plugin(
+            enterprise_config, plugin_name, info.version, wheel_path
+        )
         enterprise_config.save()
-        ui.display_info(f"Installed {plugin_name} v{info.version}")
+        ui.display_info(f"Installed {installed_name} v{info.version}")
 
     except SignatureVerificationError as e:
         ui.display_error(f"Signature verification failed for {plugin_name}: {e}")
@@ -273,8 +274,9 @@ def _install_from_local_wheel(
             wheel_path, signature_mode=signature_mode
         )
 
-        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
-        enterprise_config.enable_plugin(config_key, version=version)
+        plugin_name = enable_installed_plugin(
+            enterprise_config, plugin_name, version, installed_wheel
+        )
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -309,8 +311,9 @@ def _install_from_url(
             url, sha256, signature_mode=signature_mode
         )
 
-        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
-        enterprise_config.enable_plugin(config_key, version=version)
+        plugin_name = enable_installed_plugin(
+            enterprise_config, plugin_name, version, installed_wheel
+        )
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -351,8 +354,9 @@ def _install_from_github_release(
             url, sha256, signature_mode=signature_mode
         )
 
-        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
-        enterprise_config.enable_plugin(config_key, version=version)
+        plugin_name = enable_installed_plugin(
+            enterprise_config, plugin_name, version, installed_wheel
+        )
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")
@@ -394,8 +398,9 @@ def _install_from_github_artifact(
             downloader.download_from_github_artifact(url, signature_mode=signature_mode)
         )
 
-        config_key = resolve_config_key(installed_wheel, fallback=plugin_name)
-        enterprise_config.enable_plugin(config_key, version=version)
+        plugin_name = enable_installed_plugin(
+            enterprise_config, plugin_name, version, installed_wheel
+        )
         enterprise_config.save()
 
         ui.display_info(f"Installed {plugin_name} v{version}")

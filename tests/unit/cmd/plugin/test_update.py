@@ -1634,6 +1634,140 @@ class TestUpdateUsesEntryPointConfigKey:
             "new_entry_point", version="2.0.0"
         )
 
+    def test_platform_update_migrates_legacy_alias_and_keeps_auto_update_false(
+        self, cli_fs_runner, tmp_path: Path
+    ) -> None:
+        """
+        GIVEN a plugin previously installed under the wheel's distribution
+            name (``satori-python``) before ggshield learned to enable on
+            the entry-point name (``machine_scan``), with the user having
+            explicitly set ``auto_update: false`` on the legacy entry
+        WHEN ``plugin update`` rolls the wheel forward
+        THEN the stale ``satori-python`` row is removed, the canonical
+            ``machine_scan`` row is written, and the user's
+            ``auto_update: false`` choice is preserved on the new row —
+            otherwise upgrades silently re-enable auto-update.
+        """
+        import zipfile
+
+        from ggshield.core.config.enterprise_config import (
+            EnterpriseConfig,
+            PluginConfig,
+        )
+
+        # Place the wheel under a directory named after the wheel's PEP 503
+        # distribution name, mirroring the on-disk layout
+        # ``download_and_install`` creates. ``enable_installed_plugin``
+        # reads ``wheel_path.parent.name`` to find the legacy alias.
+        installed_wheel = (
+            tmp_path
+            / "plugins"
+            / "satori-python"
+            / "satori_python-2.0.0-py3-none-any.whl"
+        )
+        installed_wheel.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(installed_wheel, "w") as zf:
+            zf.writestr(
+                "satori_python-2.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmachine_scan = satori_python.plugin:Plugin\n",
+            )
+
+        # Use a real EnterpriseConfig instance (not a MagicMock) so the
+        # migration logic operates on real ``PluginConfig`` records and we
+        # can assert on the final state instead of mock call shapes.
+        enterprise_config = EnterpriseConfig(
+            plugins={
+                "satori-python": PluginConfig(
+                    enabled=True,
+                    version="1.0.0",
+                    auto_update=False,
+                ),
+            }
+        )
+
+        mock_catalog = PluginCatalog(
+            plugins=[
+                PluginInfo(
+                    name="machine_scan",
+                    display_name="Machine Scan",
+                    description="",
+                    available=True,
+                    latest_version="2.0.0",
+                    reason=None,
+                ),
+            ],
+        )
+        # ``discover_plugins`` returns the canonical entry-point name as
+        # the key because the loader treats the legacy distribution name
+        # as an alias; this is the state the user lands in after the
+        # ``5225dca`` discovery fix.
+        mock_discovered = [
+            DiscoveredPlugin(
+                name="machine_scan",
+                entry_point=None,
+                wheel_path=installed_wheel,
+                is_installed=True,
+                is_enabled=True,
+                version="1.0.0",
+            ),
+        ]
+        mock_info = PluginDownloadInfo(
+            filename="satori_python-2.0.0-py3-none-any.whl",
+            sha256="a" * 64,
+            version="2.0.0",
+            size_bytes=10,
+        )
+
+        @contextmanager
+        def fake_download_plugin(*args, **kwargs):
+            yield mock_info, iter([b""])
+
+        with (
+            mock.patch("ggshield.cmd.plugin.update.create_client_from_config"),
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginAPIClient"
+            ) as mock_plugin_api_client_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.EnterpriseConfig"
+            ) as mock_config_class,
+            mock.patch("ggshield.cmd.plugin.update.PluginLoader") as mock_loader_class,
+            mock.patch(
+                "ggshield.cmd.plugin.update.PluginDownloader"
+            ) as mock_downloader_class,
+        ):
+            mock_plugin_api_client = mock.MagicMock()
+            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
+            mock_plugin_api_client.download_plugin = fake_download_plugin
+            mock_plugin_api_client_class.return_value = mock_plugin_api_client
+
+            mock_config_class.load.return_value = enterprise_config
+
+            mock_loader = mock.MagicMock()
+            mock_loader.discover_plugins.return_value = mock_discovered
+            mock_loader_class.return_value = mock_loader
+
+            mock_downloader = mock.MagicMock()
+            mock_downloader.get_plugin_source.return_value = None
+            mock_downloader.download_and_install.return_value = installed_wheel
+            mock_downloader_class.return_value = mock_downloader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "update", "machine_scan"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        # Legacy alias is gone, canonical row is enabled at the new
+        # version, and ``auto_update: false`` carried over so the user's
+        # opt-out survives the upgrade.
+        assert "satori-python" not in enterprise_config.plugins
+        assert "machine_scan" in enterprise_config.plugins
+        new_entry = enterprise_config.plugins["machine_scan"]
+        assert new_entry.enabled is True
+        assert new_entry.version == "2.0.0"
+        assert new_entry.auto_update is False
+
 
 class TestUpdateCheckSkippedPlatform:
     """Regression for: when the catalog fetch fails and we degrade to

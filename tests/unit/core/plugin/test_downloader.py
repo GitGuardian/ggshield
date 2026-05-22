@@ -2,9 +2,10 @@
 
 import hashlib
 import json
+import shutil
 import zipfile
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -157,6 +158,74 @@ class TestPluginDownloader:
 
         assert downloader.uninstall("testplugin") is True
         assert not plugin_dir.exists()
+
+    def test_uninstall_removes_extraction_cache(self, tmp_path: Path) -> None:
+        """Test uninstall also removes extracted wheel cache for the plugin."""
+        plugins_dir = tmp_path / "plugins"
+        cache_dir = tmp_path / "cache"
+        plugin_dir = plugins_dir / "testplugin"
+        extract_cache = cache_dir / "plugins" / "testplugin"
+        plugin_dir.mkdir(parents=True)
+        extract_cache.mkdir(parents=True)
+        (plugin_dir / "manifest.json").write_text("{}")
+        (plugin_dir / "testplugin.whl").touch()
+        (extract_cache / "testplugin-1.0.0-deadbeef_extracted").mkdir()
+
+        with (
+            patch(
+                "ggshield.core.plugin.downloader.get_plugins_dir",
+                return_value=plugins_dir,
+            ),
+            patch(
+                "ggshield.core.plugin.downloader.get_cache_dir",
+                return_value=cache_dir,
+            ),
+        ):
+            downloader = PluginDownloader()
+
+        assert downloader.uninstall("testplugin") is True
+        assert not plugin_dir.exists()
+        assert not extract_cache.exists()
+
+    def test_uninstall_extraction_cache_oserror_is_swallowed(
+        self, tmp_path: Path
+    ) -> None:
+        """A non-FileNotFound OSError on cache removal must not break uninstall."""
+        plugins_dir = tmp_path / "plugins"
+        cache_dir = tmp_path / "cache"
+        plugin_dir = plugins_dir / "testplugin"
+        extract_cache = cache_dir / "plugins" / "testplugin"
+        plugin_dir.mkdir(parents=True)
+        extract_cache.mkdir(parents=True)
+        (plugin_dir / "manifest.json").write_text("{}")
+        (plugin_dir / "testplugin.whl").touch()
+
+        original_rmtree = shutil.rmtree
+
+        def fail_on_extract_cache(path: Any, *args: Any, **kwargs: Any) -> None:
+            if Path(path) == extract_cache:
+                raise PermissionError("denied")
+            original_rmtree(path, *args, **kwargs)
+
+        with (
+            patch(
+                "ggshield.core.plugin.downloader.get_plugins_dir",
+                return_value=plugins_dir,
+            ),
+            patch(
+                "ggshield.core.plugin.downloader.get_cache_dir",
+                return_value=cache_dir,
+            ),
+        ):
+            downloader = PluginDownloader()
+            with patch(
+                "ggshield.core.plugin.downloader.shutil.rmtree",
+                side_effect=fail_on_extract_cache,
+            ):
+                assert downloader.uninstall("testplugin") is True
+
+        assert not plugin_dir.exists()
+        assert extract_cache.exists()  # not removed, but uninstall still succeeded
 
     def test_uninstall_removes_trust_record(self, tmp_path: Path) -> None:
         """Test uninstall also removes any persisted trust exception."""

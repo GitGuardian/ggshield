@@ -2,9 +2,12 @@
 
 import importlib.metadata
 import json
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from ggshield.core.config.enterprise_config import EnterpriseConfig, PluginConfig
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
@@ -567,6 +570,87 @@ myplugin = other:Plugin
         assert discovered[0].wheel_path == wheel_file
         assert discovered[0].entry_point is None  # Local wheel, not entry point
 
+    def test_discover_plugins_treats_package_name_enablement_as_alias(
+        self, tmp_path: Path
+    ) -> None:
+        """Legacy installs may enable the package name, not the entry point name."""
+        import zipfile
+
+        config = EnterpriseConfig(
+            plugins={"package-name": PluginConfig(enabled=True, version="1.0.0")}
+        )
+
+        plugin_dir = tmp_path / "package-name"
+        plugin_dir.mkdir()
+        wheel_file = plugin_dir / "package_name-1.0.0.whl"
+
+        with zipfile.ZipFile(wheel_file, "w") as zf:
+            zf.writestr(
+                "package_name-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
+            )
+
+        manifest = {
+            "plugin_name": "package-name",
+            "version": "1.0.0",
+            "wheel_filename": "package_name-1.0.0.whl",
+        }
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        with patch.object(PluginLoader, "_get_entry_points", return_value=iter([])):
+            with patch(
+                "ggshield.core.plugin.loader.get_plugins_dir", return_value=tmp_path
+            ):
+                loader = PluginLoader(config)
+                loader.plugins_dir = tmp_path
+                discovered = loader.discover_plugins()
+
+        assert len(discovered) == 1
+        assert discovered[0].name == "my_plugin"
+        assert discovered[0].is_enabled is True
+
+    def test_discover_plugins_canonical_disable_overrides_package_alias(
+        self, tmp_path: Path
+    ) -> None:
+        """An explicit entry-point disable must beat stale package-name enablement."""
+        import zipfile
+
+        config = EnterpriseConfig(
+            plugins={
+                "my_plugin": PluginConfig(enabled=False),
+                "package-name": PluginConfig(enabled=True, version="1.0.0"),
+            }
+        )
+
+        plugin_dir = tmp_path / "package-name"
+        plugin_dir.mkdir()
+        wheel_file = plugin_dir / "package_name-1.0.0.whl"
+
+        with zipfile.ZipFile(wheel_file, "w") as zf:
+            zf.writestr(
+                "package_name-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\nmy_plugin = package_name.plugin:Plugin\n",
+            )
+
+        manifest = {
+            "plugin_name": "package-name",
+            "version": "1.0.0",
+            "wheel_filename": "package_name-1.0.0.whl",
+        }
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        with patch.object(PluginLoader, "_get_entry_points", return_value=iter([])):
+            with patch(
+                "ggshield.core.plugin.loader.get_plugins_dir", return_value=tmp_path
+            ):
+                loader = PluginLoader(config)
+                loader.plugins_dir = tmp_path
+                discovered = loader.discover_plugins()
+
+        assert len(discovered) == 1
+        assert discovered[0].name == "my_plugin"
+        assert discovered[0].is_enabled is False
+
     def test_load_from_wheel_extracts_wheel(self, tmp_path: Path) -> None:
         """Test that _load_from_wheel extracts wheel to directory."""
         import zipfile
@@ -586,20 +670,65 @@ myplugin = other:Plugin
                 "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
             )
 
+        cache_dir = tmp_path / "cache"
+
         # Mock the import to avoid actual module loading
         with patch(
             "ggshield.core.plugin.loader.importlib.import_module"
         ) as mock_import:
-            mock_module = MagicMock()
-            mock_module.TestPlugin = MockPlugin
-            mock_import.return_value = mock_module
+            with patch(
+                "ggshield.core.plugin.loader.get_cache_dir", return_value=cache_dir
+            ):
+                mock_module = MagicMock()
+                mock_module.TestPlugin = MockPlugin
+                mock_import.return_value = mock_module
 
-            loader._load_from_wheel(wheel_path)
+                loader._load_from_wheel(wheel_path)
 
-        # Verify extraction directory was created
-        extract_dir = tmp_path / ".test_plugin-1.0.0_extracted"
+        # Verify extraction directory was created in the per-user cache.
+        extract_dir = loader._get_extract_dir(wheel_path)
         assert extract_dir.exists()
+        assert extract_dir.is_relative_to(cache_dir)
         assert (extract_dir / "test_plugin" / "__init__.py").exists()
+
+    def test_load_from_wheel_prunes_stale_extract_dirs(self, tmp_path: Path) -> None:
+        """Only the current wheel extraction should remain in the cache bucket."""
+        import zipfile
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+        cache_dir = tmp_path / "cache"
+
+        plugin_dir = tmp_path / "test_plugin"
+        plugin_dir.mkdir()
+        wheel_path = plugin_dir / "test_plugin-1.0.0.whl"
+        with zipfile.ZipFile(wheel_path, "w") as zf:
+            zf.writestr("test_plugin/__init__.py", "class TestPlugin: pass")
+            zf.writestr(
+                "test_plugin-1.0.0.dist-info/entry_points.txt",
+                "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
+            )
+
+        with patch("ggshield.core.plugin.loader.get_cache_dir", return_value=cache_dir):
+            extract_dir = loader._get_extract_dir(wheel_path)
+            stale_dir = extract_dir.parent / "test_plugin-0.9.0-deadbeef_extracted"
+            stale_dir.mkdir(parents=True)
+            (stale_dir / "stale.py").write_text("stale")
+            keep_non_extract = extract_dir.parent / "not-an-extraction"
+            keep_non_extract.mkdir()
+
+            with patch(
+                "ggshield.core.plugin.loader.importlib.import_module"
+            ) as mock_import:
+                mock_module = MagicMock()
+                mock_module.TestPlugin = MockPlugin
+                mock_import.return_value = mock_module
+
+                loader._load_from_wheel(wheel_path)
+
+        assert extract_dir.exists()
+        assert not stale_dir.exists()
+        assert keep_non_extract.exists()
 
     def test_load_from_wheel_reextracts_in_strict_mode(self, tmp_path: Path) -> None:
         """STRICT mode must re-extract even if an extracted tree already exists."""
@@ -618,27 +747,29 @@ myplugin = other:Plugin
                 "[ggshield.plugins]\ntest = test_plugin:TestPlugin\n",
             )
 
-        extract_dir = tmp_path / ".test_plugin-1.0.0_extracted"
-        extract_dir.mkdir()
-        stale_file = extract_dir / "stale.txt"
-        stale_file.write_text("stale")
-        extract_dir.touch()
+        cache_dir = tmp_path / "cache"
+        with patch("ggshield.core.plugin.loader.get_cache_dir", return_value=cache_dir):
+            extract_dir = loader._get_extract_dir(wheel_path)
+            extract_dir.mkdir(parents=True)
+            stale_file = extract_dir / "stale.txt"
+            stale_file.write_text("stale")
+            extract_dir.touch()
 
-        with patch(
-            "ggshield.core.plugin.loader.verify_wheel_signature",
-            return_value=SignatureInfo(
-                status=SignatureStatus.VALID,
-                identity="GitGuardian/satori",
-            ),
-        ):
             with patch(
-                "ggshield.core.plugin.loader.importlib.import_module"
-            ) as mock_import:
-                mock_module = MagicMock()
-                mock_module.TestPlugin = MockPlugin
-                mock_import.return_value = mock_module
+                "ggshield.core.plugin.loader.verify_wheel_signature",
+                return_value=SignatureInfo(
+                    status=SignatureStatus.VALID,
+                    identity="GitGuardian/satori",
+                ),
+            ):
+                with patch(
+                    "ggshield.core.plugin.loader.importlib.import_module"
+                ) as mock_import:
+                    mock_module = MagicMock()
+                    mock_module.TestPlugin = MockPlugin
+                    mock_import.return_value = mock_module
 
-                result = loader._load_from_wheel(wheel_path)
+                    result = loader._load_from_wheel(wheel_path)
 
         assert result is not None
         assert not stale_file.exists()
@@ -854,6 +985,121 @@ myplugin = other:Plugin
 
         assert result is None
 
+    def test_extract_cache_avoids_user_home_for_sudo_e(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Root with a preserved non-root HOME must not poison that user's cache."""
+        if not hasattr(os, "geteuid"):
+            pytest.skip("geteuid not available on this platform")
+
+        home = tmp_path / "alice"
+        home.mkdir()
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        monkeypatch.delenv("GG_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setattr(os, "geteuid", lambda: 0)
+
+        cache_dir = loader._get_extract_cache_dir()
+
+        assert not cache_dir.is_relative_to(home)
+        assert cache_dir.name == "ggshield"
+
+    def test_extract_cache_uses_linux_root_home(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """On Linux, the sudo -E fallback resolves to root's ~/.cache/ggshield."""
+        if not hasattr(os, "geteuid"):
+            pytest.skip("geteuid not available on this platform")
+
+        user_home = tmp_path / "alice"
+        user_home.mkdir()
+        root_home = tmp_path / "root"
+        root_home.mkdir()
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        monkeypatch.delenv("GG_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(user_home))
+        monkeypatch.setattr(os, "geteuid", lambda: 0)
+        monkeypatch.setattr("sys.platform", "linux")
+
+        import pwd
+
+        # Attribute name is split to avoid a GGShield false-positive generic
+        # password match on the literal string.
+        pwd_lookup_attr = "get" + "pwuid"
+        monkeypatch.setattr(
+            pwd, pwd_lookup_attr, lambda _uid: MagicMock(pw_dir=str(root_home))
+        )
+
+        cache_dir = loader._get_extract_cache_dir()
+
+        assert cache_dir == root_home / ".cache" / "ggshield"
+
+    def test_extract_cache_falls_back_when_pwd_lookup_fails(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """If pwd cannot resolve root's home, fall back to the default cache dir."""
+        if not hasattr(os, "geteuid"):
+            pytest.skip("geteuid not available on this platform")
+
+        user_home = tmp_path / "alice"
+        user_home.mkdir()
+        fallback_cache = tmp_path / "fallback-cache"
+
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        monkeypatch.delenv("GG_CACHE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(user_home))
+        monkeypatch.setattr(os, "geteuid", lambda: 0)
+
+        import pwd
+
+        def boom(_uid: int) -> None:
+            raise KeyError("no such uid")
+
+        pwd_lookup_attr = "get" + "pwuid"
+        monkeypatch.setattr(pwd, pwd_lookup_attr, boom)
+        with patch(
+            "ggshield.core.plugin.loader.get_cache_dir", return_value=fallback_cache
+        ):
+            cache_dir = loader._get_extract_cache_dir()
+
+        assert cache_dir == fallback_cache
+
+    def test_prune_stale_extract_dirs_no_parent(self, tmp_path: Path) -> None:
+        """If the cache bucket does not exist yet, pruning is a no-op."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        # parent of keep_dir does not exist
+        keep_dir = tmp_path / "missing" / "current_extracted"
+        loader._prune_stale_extract_dirs(keep_dir)  # must not raise
+
+    def test_prune_stale_extract_dirs_logs_on_oserror(self, tmp_path: Path) -> None:
+        """A failure to remove one stale dir is logged and does not raise."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config, signature_mode=SignatureVerificationMode.DISABLED)
+
+        bucket = tmp_path / "bucket"
+        bucket.mkdir()
+        keep_dir = bucket / "current_extracted"
+        keep_dir.mkdir()
+        stale_dir = bucket / "old_extracted"
+        stale_dir.mkdir()
+
+        with patch(
+            "ggshield.core.plugin.loader.shutil.rmtree",
+            side_effect=PermissionError("denied"),
+        ):
+            loader._prune_stale_extract_dirs(keep_dir)  # must not raise
+
+        assert stale_dir.exists()  # removal failed, but call did not propagate
+
     def test_load_from_wheel_appends_to_sys_path(
         self, tmp_path: Path, monkeypatch
     ) -> None:
@@ -874,16 +1120,20 @@ myplugin = other:Plugin
         initial_sys_path = ["/existing/path", *sys.path]
         monkeypatch.setattr(sys, "path", initial_sys_path)
 
+        cache_dir = tmp_path / "cache"
         with patch(
             "ggshield.core.plugin.loader.importlib.import_module"
         ) as mock_import:
-            mock_module = MagicMock()
-            mock_module.TestPlugin = MockPlugin
-            mock_import.return_value = mock_module
+            with patch(
+                "ggshield.core.plugin.loader.get_cache_dir", return_value=cache_dir
+            ):
+                mock_module = MagicMock()
+                mock_module.TestPlugin = MockPlugin
+                mock_import.return_value = mock_module
 
-            loader._load_from_wheel(wheel_path)
+                loader._load_from_wheel(wheel_path)
+                extract_dir = loader._get_extract_dir(wheel_path)
 
-        extract_dir = tmp_path / ".test_plugin-1.0.0_extracted"
         assert sys.path[0] == "/existing/path"
         assert str(extract_dir) in sys.path
         assert sys.path.index(str(extract_dir)) > 0

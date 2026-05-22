@@ -24,7 +24,7 @@ from ggshield.core.plugin.client import (
     PluginSourceType,
 )
 from ggshield.core.plugin.downloader import DownloadError, PluginDownloader
-from ggshield.core.plugin.loader import PluginLoader, resolve_config_key
+from ggshield.core.plugin.loader import PluginLoader, enable_installed_plugin
 from ggshield.core.plugin.platform import get_platform_info
 from ggshield.core.plugin.signature import SignatureVerificationMode
 from ggshield.core.text_utils import pluralize
@@ -386,12 +386,6 @@ def update_cmd(
                         signature_mode=signature_mode,
                         bundle_bytes=bundle_bytes,
                     )
-                # Mirror install.py: the loader keys enablement by the
-                # wheel's entry-point name (when present), so update
-                # must use the same key — otherwise the row written
-                # below falls out of sync with discover_plugins and
-                # the plugin is silently disabled after the upgrade.
-                config_key = resolve_config_key(wheel_path, fallback=name)
                 installation_reports.append(
                     _InstallationReport(
                         name=name,
@@ -412,12 +406,21 @@ def update_cmd(
                 _, _, wheel_path = downloader.download_from_github_release(
                     download_url, signature_mode=signature_mode
                 )
-                config_key = resolve_config_key(wheel_path, fallback=name)
 
             else:
                 raise DownloadError(f"Unsupported plugin source type: {source_type}")
 
-            enterprise_config.enable_plugin(config_key, version=latest_version)
+            # Mirror install.py: the loader keys enablement by the
+            # wheel's entry-point name (when present), so update must
+            # use the same key — otherwise the row written below falls
+            # out of sync with discover_plugins and the plugin is
+            # silently disabled after the upgrade. ``name`` here is
+            # already the loader's canonical key, but a stale alias
+            # under the wheel's distribution name from a pre-fix
+            # install may still be on disk; ``enable_installed_plugin``
+            # cleans that up and carries any ``auto_update: false``
+            # forward to the canonical row.
+            enable_installed_plugin(enterprise_config, name, latest_version, wheel_path)
 
             ui.display_info(f"  Updated {name} to v{latest_version}")
             success_count += 1

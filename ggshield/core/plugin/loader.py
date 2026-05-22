@@ -5,6 +5,8 @@ Plugin loader - discovers and loads plugins from entry points and local wheels.
 import importlib
 import importlib.metadata
 import logging
+import os
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +17,7 @@ from packaging import version as packaging_version
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.config.enterprise_config import EnterpriseConfig
-from ggshield.core.dirs import get_plugins_dir
+from ggshield.core.dirs import get_cache_dir, get_plugins_dir
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.registry import PluginRegistry
 from ggshield.core.plugin.signature import (
@@ -106,6 +108,57 @@ def resolve_config_key(wheel_path: Path, fallback: str) -> str:
     return entry_point[0]
 
 
+def enable_installed_plugin(
+    enterprise_config: EnterpriseConfig,
+    plugin_name: str,
+    version: str,
+    wheel_path: Path,
+) -> str:
+    """Enable the canonical plugin key and migrate any stale aliases.
+
+    Older ggshield versions wrote the enable row under the wheel's
+    distribution name; the loader now keys discovery on the
+    ``ggshield.plugins`` entry-point name. After a fresh install or
+    update we therefore need to:
+
+    1. Write the canonical row under the entry-point name (so
+       ``discover_plugins`` finds it enabled).
+    2. Remove any pre-existing row under a known alias (the caller's
+       ``plugin_name`` — catalog reference or distribution name — and
+       the wheel's distribution name as encoded in
+       ``wheel_path.parent.name``).
+    3. Carry over the user's ``auto_update`` choice from any removed
+       alias so an explicit ``auto_update: false`` survives the
+       migration. When more than one alias exists, the strictest
+       (``False``) wins so user intent is never silently relaxed.
+
+    Update.py passes the loader's discovered canonical name as
+    ``plugin_name`` (already the entry-point name), so the legacy
+    alias only becomes visible via ``wheel_path.parent.name``. Install
+    paths pass either the catalog reference or the distribution name,
+    both of which become aliases here.
+    """
+    config_key = resolve_config_key(wheel_path, fallback=plugin_name)
+
+    legacy_keys = {plugin_name, wheel_path.parent.name}
+    legacy_keys.discard(config_key)
+
+    carried_auto_update: Optional[bool] = None
+    for legacy_key in legacy_keys:
+        legacy = enterprise_config.plugins.get(legacy_key)
+        if legacy is None:
+            continue
+        # Honor the strictest setting found across aliases.
+        if carried_auto_update is None or not legacy.auto_update:
+            carried_auto_update = legacy.auto_update
+        enterprise_config.remove_plugin(legacy_key)
+
+    enterprise_config.enable_plugin(config_key, version=version)
+    if carried_auto_update is not None:
+        enterprise_config.plugins[config_key].auto_update = carried_auto_update
+    return config_key
+
+
 @dataclass
 class DiscoveredPlugin:
     """Information about a discovered plugin."""
@@ -147,17 +200,25 @@ class PluginLoader:
             wheel_version: str = wheel_info["version"]
             entry_point_name: Optional[str] = wheel_info["entry_point_name"]
 
-            # Use entry point name as key if available, otherwise package name
+            # Use entry point name as key if available, otherwise package name.
+            # Older installs may have enabled the wheel distribution/package name
+            # before ggshield learned the entry-point key. Treat that package name
+            # as an alias so an installed+enabled plugin does not silently miss its
+            # top-level commands.
             key = entry_point_name if entry_point_name else plugin_name
             if entry_point_name:
                 local_entry_point_names.add(entry_point_name)
+
+            is_enabled = self._is_enabled(key)
+            if key not in self.enterprise_config.plugins and plugin_name != key:
+                is_enabled = self._is_enabled(plugin_name)
 
             discovered[key] = DiscoveredPlugin(
                 name=key,
                 entry_point=None,
                 wheel_path=wheel_path,
                 is_installed=True,
-                is_enabled=self._is_enabled(key),
+                is_enabled=is_enabled,
                 version=wheel_version,
             )
 
@@ -272,8 +333,11 @@ class PluginLoader:
                 )
                 return None
 
-        # Extract wheel to a directory alongside the wheel file
-        extract_dir = wheel_path.parent / f".{wheel_path.stem}_extracted"
+        # Extract wheel to a per-user cache directory instead of next to the
+        # installed wheel. This keeps loading working when a wheel is installed
+        # in a shared/root-owned data directory but the current user can still
+        # read it.
+        extract_dir = self._get_extract_dir(wheel_path)
 
         try:
             # In STRICT mode, always re-extract after verification so imports
@@ -282,14 +346,15 @@ class PluginLoader:
                 not extract_dir.exists()
                 or wheel_path.stat().st_mtime > extract_dir.stat().st_mtime
             ):
-                import shutil
-
                 if extract_dir.exists():
                     shutil.rmtree(extract_dir)
+                extract_dir.parent.mkdir(parents=True, exist_ok=True)
 
                 from ggshield.utils.archive import safe_unpack
 
                 safe_unpack(wheel_path, extract_dir)
+
+            self._prune_stale_extract_dirs(extract_dir)
 
             # Add extracted directory to sys.path
             extract_str = str(extract_dir)
@@ -308,6 +373,60 @@ class PluginLoader:
         except Exception as e:
             logger.warning("Failed to load wheel %s: %s", wheel_path, e)
             return None
+
+    def _prune_stale_extract_dirs(self, keep_dir: Path) -> None:
+        """Remove stale extraction dirs for the same plugin cache bucket."""
+        parent = keep_dir.parent
+        if not parent.exists():
+            return
+
+        for path in parent.iterdir():
+            if path == keep_dir or not path.is_dir():
+                continue
+            if not path.name.endswith("_extracted"):
+                continue
+            try:
+                shutil.rmtree(path)
+            except OSError as exc:
+                logger.debug(
+                    "Failed to remove stale plugin extraction dir %s: %s", path, exc
+                )
+
+    def _get_extract_cache_dir(self) -> Path:
+        """Return the cache dir used for extracted plugin wheels.
+
+        `sudo -E` on Unix can preserve a non-root HOME, which makes platformdirs
+        point root at the invoking user's cache dir. Do not create root-owned
+        extraction trees there: use root's own cache unless GG_CACHE_DIR was set
+        explicitly.
+        """
+        if os.environ.get("GG_CACHE_DIR"):
+            return get_cache_dir()
+
+        if sys.platform != "win32" and hasattr(os, "geteuid") and os.geteuid() == 0:
+            home = os.environ.get("HOME")
+            try:
+                if home and Path(home).exists() and Path(home).stat().st_uid != 0:
+                    import pwd
+
+                    root_home = Path(pwd.getpwuid(0).pw_dir)
+                    if sys.platform == "darwin":
+                        return root_home / "Library" / "Caches" / "ggshield"
+                    return root_home / ".cache" / "ggshield"
+            except (KeyError, OSError):
+                pass
+
+        return get_cache_dir()
+
+    def _get_extract_dir(self, wheel_path: Path) -> Path:
+        """Return the per-user extraction directory for an installed wheel."""
+        wheel_hash = compute_file_sha256(wheel_path)[:16]
+        return (
+            self._get_extract_cache_dir()
+            / "plugins"
+            / wheel_path.parent.name
+            / f"{wheel_path.stem}-{wheel_hash}_extracted"
+        )
 
     def _is_trusted_unsigned_plugin(self, wheel_path: Path) -> bool:
         """Return True when the current wheel hash matches a persisted trust record."""
