@@ -48,6 +48,7 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
                     "instance_source": In(x.name for x in ConfigSource),
                     "api_key_source": In(x.name for x in ConfigSource),
                     "token_scopes": ["scan"],
+                    "workspace_id": 1,
                 }
             )
         )
@@ -198,6 +199,24 @@ def test_api_status_shows_token_scopes(cli_fs_runner):
     assert "scan" in result.output
 
 
+def test_api_status_shows_workspace_id(cli_fs_runner):
+    """
+    GIVEN a valid API token
+    WHEN running api-status
+    THEN the workspace id is displayed right below the API URL
+    """
+    with my_vcr.use_cassette("test_health_check"):
+        result = cli_fs_runner.invoke(cli, ["api-status"], color=False)
+    assert_invoke_ok(result)
+    assert "Workspace ID: 1" in result.output
+
+    lines = result.output.splitlines()
+    api_url_index = next(
+        i for i, line in enumerate(lines) if line.startswith("API URL:")
+    )
+    assert lines[api_url_index + 1].startswith("Workspace ID:")
+
+
 @mock.patch(
     "pygitguardian.GGClient.api_tokens",
     return_value=Detail("Unauthorized", 401),
@@ -212,8 +231,10 @@ def test_api_status_scopes_omitted_on_error(
     """
     GIVEN an api_tokens call that returns an error
     WHEN running api-status
-    THEN the command succeeds and token scopes are simply omitted from the output
+    THEN the command succeeds and token scopes and workspace id are simply
+        omitted from the output
     """
     result = cli_fs_runner.invoke(cli, ["api-status"], color=False)
     assert_invoke_ok(result)
     assert "Token scopes:" not in result.output
+    assert "Workspace ID:" not in result.output

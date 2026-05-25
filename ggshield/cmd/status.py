@@ -33,9 +33,11 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
         raise UnexpectedError("Unexpected health check response")
 
     token_scopes: Optional[List[str]] = None
+    workspace_id: Optional[int] = None
     token_response = client.api_tokens()
     if isinstance(token_response, APITokensResponse):
         token_scopes = token_response.scopes
+        workspace_id = token_response.workspace_id
 
     instance, instance_source = ctx_obj.config.get_instance_name_and_source()
     _, api_key_source = ctx_obj.config.get_api_key_and_source()
@@ -46,6 +48,8 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
         json_output["api_key_source"] = api_key_source.name
         if token_scopes is not None:
             json_output["token_scopes"] = token_scopes
+        if workspace_id is not None:
+            json_output["workspace_id"] = workspace_id
         click.echo(json.dumps(json_output))
     else:
         scopes_line = (
@@ -53,9 +57,15 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
             if token_scopes is not None
             else ""
         )
+        workspace_line = (
+            f"{format_text('Workspace ID:', STYLE['key'])} {workspace_id}\n"
+            if workspace_id is not None
+            else ""
+        )
         click.echo(
             f"{format_text('API URL:', STYLE['key'])} {instance}\n"
-            f"{format_text('Status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
+            + workspace_line
+            + f"{format_text('Status:', STYLE['key'])} {format_healthcheck_status(response)}\n"
             f"{format_text('App version:', STYLE['key'])} {response.app_version or 'Unknown'}\n"
             f"{format_text('Secrets engine version:', STYLE['key'])} "
             f"{response.secrets_engine_version or 'Unknown'}\n\n"
