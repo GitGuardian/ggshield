@@ -37,6 +37,10 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "List of scopes granted to the current authentication token"
+    },
+    "account_id": {
+      "type": "integer",
+      "description": "Identifier of the workspace (account) the authentication token belongs to"
     }
   },
   "required": [
