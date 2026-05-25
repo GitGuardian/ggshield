@@ -4,7 +4,7 @@ import pytest
 
 from ggshield.core.config import Config
 from ggshield.verticals.auth import OAuthClient
-from ggshield.verticals.auth.oauth import get_error_param
+from ggshield.verticals.auth.oauth import _mask_code, get_error_param
 
 
 @pytest.mark.parametrize(
@@ -63,3 +63,25 @@ def test_get_error_message(error_code, expected_message):
     oauth_client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
     error_message = oauth_client.get_server_error_message(error_code)
     assert error_message == expected_message
+
+
+@pytest.mark.parametrize(
+    ["code", "expected"],
+    [
+        # Long code: first 4 chars kept, rest masked.
+        ("Mhpf80jek7oP8bL43mEVTrL1wluEvB", "Mhpf" + "*" * 26),
+        # Edge cases where the code is shorter than the visible prefix:
+        # everything is masked so no characters leak.
+        ("abc", "***"),
+        ("abcd", "****"),
+        ("", ""),
+    ],
+)
+def test_mask_code(code, expected):
+    """
+    GIVEN an OOB authorization code
+    WHEN it is masked for terminal display
+    THEN at most the first 4 characters are visible, the rest are `*`,
+    and short codes are fully masked
+    """
+    assert _mask_code(code) == expected

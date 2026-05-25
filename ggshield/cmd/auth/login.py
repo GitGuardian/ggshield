@@ -69,8 +69,14 @@ def print_default_instance_message(config: Config) -> None:
     "--method",
     required=False,
     default="web",
-    type=click.Choice(["token", "web"]),
-    help="Authentication method.",
+    type=click.Choice(["token", "web", "oob"]),
+    help=(
+        "Authentication method. `web` opens a browser and listens on"
+        " localhost for the OAuth callback. `oob` (out-of-band) prints the"
+        " authorize URL and prompts for the code shown by the dashboard —"
+        " useful on headless machines (SSH sessions, containers, CI"
+        " shells). `token` skips OAuth and reads a pre-existing token."
+    ),
 )
 @click.option(
     "--instance",
@@ -132,6 +138,10 @@ def login_cmd(
     ggshield launches a web browser to authenticate you to your GitGuardian instance,
     then automatically generates a token on your behalf.
 
+    On a headless machine (SSH session, container, CI shell), use `--method oob`
+    instead: ggshield prints the authorization URL, you open it on any device,
+    sign in, and paste back the code shown by the dashboard.
+
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
 
@@ -146,7 +156,7 @@ def login_cmd(
     """
     config = ContextObj.get(ctx).config
 
-    if method != "web":
+    if method == "token":
         if sso_url is not None:
             raise click.BadParameter(
                 "--sso-url is reserved for the web login method.", param_hint="sso-url"
@@ -157,13 +167,20 @@ def login_cmd(
                 "--scopes is reserved for the web login method.", param_hint="scopes"
             )
 
-    if method == "token":
         token_login(config, instance)
         return 0
 
-    if method == "web":
+    if method in ("web", "oob"):
         extra_scopes = scopes.split(" ") if scopes else None
-        web_login(config, instance, token_name, lifetime, sso_url, extra_scopes)
+        web_login(
+            config,
+            instance,
+            token_name,
+            lifetime,
+            sso_url,
+            extra_scopes,
+            no_browser=method == "oob",
+        )
         return 0
 
     return 1
@@ -223,6 +240,7 @@ def web_login(
     lifetime: Optional[int],
     sso_url: Optional[str],
     extra_scopes: Optional[List[str]],
+    no_browser: bool = False,
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
     if instance:
@@ -242,5 +260,6 @@ def web_login(
         lifetime=lifetime,
         login_path=login_path,
         extra_scopes=extra_scopes,
+        no_browser=no_browser,
     )
     print_default_instance_message(config)
