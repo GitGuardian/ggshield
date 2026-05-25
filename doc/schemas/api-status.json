@@ -38,9 +38,9 @@
       "items": { "type": "string" },
       "description": "List of scopes granted to the current authentication token"
     },
-    "account_id": {
+    "workspace_id": {
       "type": "integer",
-      "description": "Identifier of the workspace (account) the authentication token belongs to"
+      "description": "Identifier of the workspace the authentication token belongs to"
     }
   },
   "required": [
