@@ -1,5 +1,19 @@
 # Changelog
 
+<a id='changelog-1.50.5'></a>
+
+## 1.50.5 — 2026-05-25
+
+### Added
+
+- `ggshield plugin install` / `update` / `status` now discover and pull plugins from the GitGuardian instance the user is authenticated against, replacing the hard-coded GitHub release URL. Streaming download + sigstore bundle proxying happen via `/v1/endpoints/plugins/<reference>/{download,signature}`. Requires the matching backend feature.
+
+### Fixed
+
+- Plugin installs and updates now enable the canonical `ggshield.plugins` entry point instead of the wheel package name, migrating any pre-existing alias row (and preserving its `auto_update` setting), and local plugin wheels extract into the active runtime cache so mixed root/admin and user executions do not silently lose registered commands.
+
+- ggshield now prunes stale extracted plugin wheel caches during plugin load and removes a plugin's extracted cache on uninstall, preventing old wheel versions from accumulating in the cache directory.
+
 <a id='changelog-1.50.4'></a>
 
 ## 1.50.4 — 2026-05-07
