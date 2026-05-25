@@ -211,7 +211,9 @@ def test_api_status_shows_account_id(cli_fs_runner):
     assert "Account ID: 1" in result.output
 
     lines = result.output.splitlines()
-    api_url_index = next(i for i, line in enumerate(lines) if line.startswith("API URL:"))
+    api_url_index = next(
+        i for i, line in enumerate(lines) if line.startswith("API URL:")
+    )
     assert lines[api_url_index + 1].startswith("Account ID:")
 
 
