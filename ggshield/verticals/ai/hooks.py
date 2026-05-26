@@ -3,8 +3,10 @@ import json
 import re
 from typing import Any, Dict, List, Sequence, Set
 
+import filelock
 from notifypy import Notify
 
+from ggshield.core.dirs import get_cache_dir
 from ggshield.core.filter import censor_match
 from ggshield.core.scan import ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
@@ -31,6 +33,32 @@ TOOL_NAME_TO_TOOL = {
     "read_file": Tool.READ,  # Copilot
     "view": Tool.READ,  # Copilot CLI
 }
+
+
+def has_already_been_seen(content: str) -> bool:
+    """Return True if the payload is identical to the most recent hook call.
+
+    Some agents install hooks from multiple assistants, which can invoke ggshield
+    twice with the same payload.
+    """
+    payload_hash = hashlib.sha256(content.strip().encode()).hexdigest()
+    debounce_path = get_cache_dir() / "latest_ai_hook.txt"
+    try:
+        debounce_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+
+    # Make sure only one process can read/write the debounce file at a time
+    # to avoid having the same payload being processed twice.
+    with filelock.FileLock(debounce_path.with_suffix(".lock")):
+        try:
+            stored = debounce_path.read_text()
+        except FileNotFoundError:
+            stored = ""
+        if payload_hash == stored:
+            return True
+        debounce_path.write_text(payload_hash)
+        return False
 
 
 def lookup(data: Dict[str, Any], keys: Sequence[str], default: Any = None) -> Any:
@@ -231,6 +259,8 @@ class AIHookScanner:
 
     def scan(self, content: str) -> int:
         """Scan the content, print the result and return the exit code."""
+        if content.strip() and has_already_been_seen(content):
+            return 0
 
         payloads = parse_hook_input(content)
         result = self._scan_payloads(payloads)

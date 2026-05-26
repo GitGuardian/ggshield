@@ -10,7 +10,12 @@ from pygitguardian.models import MCPActivityResponse
 
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
-from ggshield.verticals.ai.hooks import AIHookScanner, find_filepaths, parse_hook_input
+from ggshield.verticals.ai.hooks import (
+    AIHookScanner,
+    find_filepaths,
+    has_already_been_seen,
+    parse_hook_input,
+)
 from ggshield.verticals.ai.mcp import send_mcp_activity
 from ggshield.verticals.ai.models import EventType, HookPayload, HookResult, Tool
 from ggshield.verticals.secret import SecretScanner
@@ -121,6 +126,20 @@ class TestAIHookScannerScanContent:
         assert "remove the secrets from your prompt" in result.message
 
 
+class TestHasAlreadyBeenSeen:
+    def test_first_call_is_not_duplicate(self):
+        assert has_already_been_seen('{"hook_event_name": "PreToolUse"}') is False
+
+    def test_second_identical_call_is_duplicate(self):
+        content = '{"hook_event_name": "PreToolUse"}'
+        assert has_already_been_seen(content) is False
+        assert has_already_been_seen(content) is True
+
+    def test_different_payload_is_not_duplicate(self):
+        assert has_already_been_seen('{"prompt": "a"}') is False
+        assert has_already_been_seen('{"prompt": "b"}') is False
+
+
 class TestAIHookScannerScan:
     """Unit tests for the AIHookScanner.scan() method."""
 
@@ -143,6 +162,21 @@ class TestAIHookScannerScan:
         }
         code = scanner.scan(json.dumps(data))
         assert code == 0
+
+    def test_scan_duplicate_payload_skips_processing(self):
+        """scan() with the same payload as the previous call returns early."""
+        mock_scanner = _mock_scanner([])
+        scanner = AIHookScanner(mock_scanner)
+        data = {
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "hello world",
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "cursor_version": "1.2.3",
+        }
+        content = json.dumps(data)
+        assert scanner.scan(content) == 0
+        assert scanner.scan(content) == 0
+        mock_scanner.scan.assert_called_once()
 
     @patch("ggshield.verticals.ai.hooks.AIHookScanner._send_secret_notification")
     def test_scan_post_tool_use_with_secrets_sends_notification(
