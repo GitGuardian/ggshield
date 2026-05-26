@@ -78,9 +78,7 @@ class Codex(Agent):
         # Standard project-level MCP servers
         yield from super()._get_project_mcp_configurations(directory)
         # Detect local plugin
-        yield from self._get_codex_plugin_mcp_configurations(
-            directory / ".codex-plugin", Scope.PROJECT
-        )
+        yield from self._get_codex_plugin_mcp_configurations(directory, Scope.PROJECT)
 
     def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         # Standard user-level MCP servers
@@ -93,12 +91,20 @@ class Codex(Agent):
     def _get_codex_plugin_mcp_configurations(
         self, plugin_dir: Path, scope: Scope
     ) -> Iterator[MCPConfiguration]:
-        if not plugin_dir.is_dir():
+        # Try to read the package.json
+        if package := self._load_file(plugin_dir / ".codex-plugin" / "package.json"):
+            display_name = package.get("interface", {}).get("displayName")
+            mcp_location = package.get("mcpServers", ".mcp.json")
+        else:
+            display_name = None
+            mcp_location = ".mcp.json"
+
+        # Try to read the mcp.json file
+        if not (data := self._load_file(plugin_dir / mcp_location)):
             return
-        if not (data := self._load_file(plugin_dir / ".mcp.json")):
-            return
+
         yield from self._parse_servers_block(
-            data, scope, None if scope == Scope.USER else plugin_dir
+            data, scope, None if scope == Scope.USER else plugin_dir, display_name
         )
 
     def parse_mcp_activity(

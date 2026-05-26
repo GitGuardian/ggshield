@@ -8,12 +8,13 @@ from time import perf_counter
 from typing import Dict, List, Optional
 
 from pygitguardian import GGClient
-from pygitguardian.models import AIDiscovery, Detail, MCPConfiguration, MCPServer
+from pygitguardian.models import AIDiscovery, Detail, MCPServer
 
 from ggshield.core.errors import UnexpectedError
 
 from .agents import AGENTS
 from .cache import has_changed_from, load_discovery_cache, save_discovery_cache
+from .models import MCPConfiguration
 from .user import get_user_info
 
 
@@ -103,6 +104,18 @@ def _merge_mcp_configurations(
         servers[configuration.name].append(configuration)
 
     return [
-        MCPServer(name=name, configurations=configurations)
+        MCPServer(
+            name=name,
+            configurations=configurations,  # type: ignore (we can safely assume covariance)
+            display_name=_get_display_name(configurations),
+        )
         for name, configurations in servers.items()
     ]
+
+
+def _get_display_name(configurations: List[MCPConfiguration]) -> Optional[str]:
+    """Get the first non-empty display name from a list of configurations"""
+    for configuration in configurations:
+        if configuration.display_name:
+            return configuration.display_name
+    return None
