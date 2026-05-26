@@ -138,7 +138,7 @@ md_header_level = "2"
 insert_marker = "# Changelog"
 
 [tool.ty.src]
-include = ["ggshield/"]
+include = ["ggshield/", "scripts/"]
 
 [dependency-groups]
 tests = [
