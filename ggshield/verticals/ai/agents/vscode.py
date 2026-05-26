@@ -8,7 +8,7 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
-from ..models import Agent, EventType, HookPayload, HookResult
+from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
 
 
 class VSCode(Agent):
@@ -69,6 +69,28 @@ class VSCode(Agent):
                 path = Path(data["folder"].removeprefix("file://"))
                 if path.is_dir():
                     yield path.resolve()
+
+    def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
+        confs = list(super()._get_user_mcp_configurations())
+        # We can find display names in the extensions MCP configurations,
+        # update the configurations accordingly
+        display_names = self._get_extensions_names()
+        for config in confs:
+            if config.name in display_names:
+                config.display_name = display_names[config.name]
+        return iter(confs)
+
+    def _get_extensions_names(self) -> Dict[str, str]:
+        """Get the display names of the MCP servers installed from the VS Code MCP gallery."""
+        names: Dict[str, str] = {}
+        for file in self.config_folder.glob("mcp/*/manifest.json"):
+            if not (data := self._load_file(file)):
+                continue
+            name = data.get("name", "")
+            display_name = data.get("displayName")
+            if display_name:
+                names[name] = display_name
+        return names
 
     def parse_mcp_activity(
         self, payload: HookPayload, ai_config: AIDiscovery

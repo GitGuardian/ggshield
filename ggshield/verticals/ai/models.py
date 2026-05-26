@@ -7,15 +7,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import tomli
-from pygitguardian.models import (
-    AIDiscovery,
-    MCPActivityRequest,
-    MCPConfiguration,
-    MCPServer,
-)
+from pygitguardian.models import AIDiscovery, MCPActivityRequest
+from pygitguardian.models import MCPConfiguration as BaseMCPConfiguration
+from pygitguardian.models import MCPServer
 
 from ggshield.core.scan import File, Scannable, StringScannable
 from ggshield.utils.files import is_path_binary
+
+
+@dataclass
+class MCPConfiguration(BaseMCPConfiguration):
+    """MCP configuration that can store a human-readable name for its server."""
+
+    display_name: Optional[str] = None
 
 
 # Small re-exports arount Py-gitguardian models to make our life easier.
@@ -233,6 +237,7 @@ class Agent(ABC):
         data: Dict[str, Dict[str, Any]],
         scope: Scope,
         project: Optional[Path],
+        display_name: Optional[str] = None,
     ) -> Iterator[MCPConfiguration]:
         """Utility function to parse a "mcpServer" block and return the MCP server entries.
 
@@ -262,6 +267,7 @@ class Agent(ABC):
                 env=entry.get("env", {}),
                 url=entry.get("url"),
                 headers=entry.get("headers", {}),
+                display_name=display_name,
             )
 
     def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:

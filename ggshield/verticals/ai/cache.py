@@ -2,11 +2,11 @@ import json
 from typing import Dict, Optional, Tuple
 
 from marshmallow.exceptions import ValidationError
-from pygitguardian.models import AIDiscovery
+from pygitguardian.models import AIDiscovery, MCPConfiguration, MCPServer
 
 from ggshield.core.dirs import get_cache_dir
 
-from .models import MCPConfiguration, MCPServer, Scope
+from .models import Scope
 
 
 AI_DISCOVERY_CACHE_FILENAME = "ai_discovery.json"

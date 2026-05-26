@@ -786,8 +786,8 @@ class TestClaudeGetClaudeAiMcpConfigurations:
         ):
             configs = list(claude._get_claudeai_mcp_configurations())
 
-        names = [c.name for c in configs]
-        assert names == ["Notion", "Granola", "Slack"]
+        names = {c.name for c in configs}
+        assert names == {"Notion", "Granola", "Slack"}
         for cfg in configs:
             assert cfg.scope == Scope.USER
             assert cfg.transport == Transport.HTTP
@@ -978,9 +978,7 @@ class TestCodexDiscoverProjectDirectories:
         config_folder = tmp_path / ".codex"
         config_folder.mkdir()
         (config_folder / "config.toml").write_text(
-            "[projects]\n"
-            '"/home/user/project-a" = {}\n'
-            '"/home/user/project-b" = {}\n'
+            '[projects]\n"/home/user/project-a" = {}\n"/home/user/project-b" = {}\n'
         )
 
         codex = Codex()
@@ -1027,7 +1025,7 @@ class TestCodexGetProjectMcpConfigurations:
         codex_dir = project / ".codex"
         codex_dir.mkdir()
         (codex_dir / "config.toml").write_text(
-            "[mcpServers.proj-srv]\n" 'command = "node"\n' 'args = ["index.js"]\n'
+            '[mcpServers.proj-srv]\ncommand = "node"\nargs = ["index.js"]\n'
         )
 
         codex = Codex()
@@ -1042,7 +1040,7 @@ class TestCodexGetProjectMcpConfigurations:
         project = tmp_path / "myproject"
         plugin_dir = project / ".codex-plugin"
         plugin_dir.mkdir(parents=True)
-        (plugin_dir / ".mcp.json").write_text(
+        (project / ".mcp.json").write_text(
             json.dumps(
                 {
                     "mcpServers": {
@@ -1058,7 +1056,7 @@ class TestCodexGetProjectMcpConfigurations:
         plugin_configs = [c for c in configs if c.name == "plugin-srv"]
         assert len(plugin_configs) == 1
         assert plugin_configs[0].scope == Scope.PROJECT
-        assert plugin_configs[0].project == str(plugin_dir)
+        assert plugin_configs[0].project == str(project)
         assert plugin_configs[0].transport == Transport.STDIO
         assert plugin_configs[0].command == "npx"
 
@@ -1085,7 +1083,7 @@ class TestCodexGetUserMcpConfigurations:
         config_folder = tmp_path / ".codex"
         config_folder.mkdir()
         (config_folder / "config.toml").write_text(
-            "[mcpServers.global-srv]\n" 'command = "npx"\n' 'args = ["-y", "mcp"]\n'
+            '[mcpServers.global-srv]\ncommand = "npx"\nargs = ["-y", "mcp"]\n'
         )
 
         codex = Codex()

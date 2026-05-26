@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal
+from typing import Any, Dict, Iterator, Literal
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -177,15 +177,11 @@ class Claude(Agent):
         - claudeAiMcpEverConnected in ~/.claude.json (historical list)
         - ~/.claude/mcp-needs-auth-cache.json (currently-authorized list)
         """
-        names: List[str] = []
-        seen: set = set()
+        names: set[str] = set()
 
         def _add(name: str) -> None:
             name = name.removeprefix("claude.ai ")
-            if name in seen:
-                return
-            seen.add(name)
-            names.append(name)
+            names.add(name)
 
         claude_json = self._load_file(get_user_home_dir() / ".claude.json")
         if claude_json:
@@ -205,6 +201,7 @@ class Claude(Agent):
                 transport=Transport.HTTP,
                 project=None,
                 url="claude.ai",
+                display_name=name,
             )
 
     def discover_project_directories(self) -> Iterator[Path]:
