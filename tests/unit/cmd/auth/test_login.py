@@ -43,7 +43,12 @@ VALID_TOKEN_RESPONSE = create_json_response(
         "type": "personal_access_token",
         "account_id": 17,
         "name": "key",
-        "scope": ["scan"],
+        "scope": [
+            "scan",
+            "honeytokens:write",
+            "honeytokens:check",
+            "nhi:send-inventory",
+        ],
         "expire_at": None,
     }
 )
@@ -57,6 +62,25 @@ VALID_TOKEN_INVALID_SCOPE_RESPONSE = create_json_response(
 
 INVALID_TOKEN_RESPONSE = create_json_response(
     {"detail": "Invalid GitGuardian API key."}, 401
+)
+
+API_TOKENS_ENDPOINT = "/v1/api_tokens/self"
+
+VALID_API_TOKENS_RESPONSE = create_json_response(
+    {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "name": "key",
+        "workspace_id": 17,
+        "type": "personal_access_token",
+        "status": "active",
+        "created_at": "2021-01-01T00:00:00+00:00",
+        "scopes": [
+            "scan",
+            "honeytokens:write",
+            "honeytokens:check",
+            "nhi:send-inventory",
+        ],
+    }
 )
 
 METADATA_ENDPOINT = "/v1/metadata"
@@ -92,6 +116,7 @@ class TestAuthLoginToken:
 
         if test_case == "valid":
             self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+            self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
         elif test_case == "invalid_scope":
             self._request_mock.add_GET(
                 TOKEN_ENDPOINT, VALID_TOKEN_INVALID_SCOPE_RESPONSE
@@ -119,6 +144,53 @@ class TestAuthLoginToken:
 
         self._request_mock.assert_all_requests_happened()
 
+    def test_auth_login_token_missing_default_scopes(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN an API token that has scan but is missing other default scopes
+        WHEN the auth login command is called with --method=token
+        THEN login succeed with a message listing the missing permissions
+        AND the token is saved (scan still works)
+        AND a warning is displayed
+        """
+        token = "mysupertoken"
+        instance = "https://dashboard.gitguardian.com"
+        cmd = ["auth", "login", "--method=token", f"--instance={instance}"]
+
+        self._request_mock.add_GET(
+            TOKEN_ENDPOINT,
+            create_json_response(
+                {
+                    "type": "personal_access_token",
+                    "account_id": 17,
+                    "name": "key",
+                    "scope": ["scan"],
+                    "expire_at": None,
+                }
+            ),
+        )
+        self._request_mock.add_GET(
+            "/v1/api_tokens/self",
+            create_json_response(
+                {
+                    **VALID_API_TOKENS_RESPONSE.json(),
+                    "scopes": ["scan"],
+                }
+            ),
+        )
+
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
+
+        assert result.exit_code == 0
+        assert "Warning: the following scopes were not granted:" in result.output
+        assert "honeytokens:write" in result.output
+        assert "nhi:send-inventory" in result.output
+        assert "Some features may require additional permissions" in result.output
+
+        config = Config()
+        assert config.auth_config.get_instance(instance).account.token == token
+
+        self._request_mock.assert_all_requests_happened()
+
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
         """
         GIVEN a valid API token
@@ -130,6 +202,7 @@ class TestAuthLoginToken:
         assert len(config.auth_config.instances) == 0
 
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
 
         cmd = ["auth", "login", "--method=token"]
 
@@ -179,6 +252,7 @@ class TestAuthLoginToken:
         token = "mysupertoken"
         cmd = ["auth", "login", "--method=token", f"--instance={cmd_line_instance}"]
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
         result = cli_fs_runner.invoke(cli, cmd, color=False, input=token + "\n")
         config = Config()
         config_instance_urls = [
@@ -208,6 +282,7 @@ class TestAuthLoginToken:
         assert not Config().auth_config.instances
 
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
 
         cmd = ["auth", "login", "--method=token"]
         if instance:
@@ -229,8 +304,11 @@ class TestAuthLoginToken:
         THEN the instance configuration is created if it doesn't exist, or updated otherwise
         """
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
 
         instance = "https://dashboard.gitguardian.com"
         cmd = ["auth", "login", "--method=token", f"--instance={instance}"]
@@ -277,6 +355,7 @@ class TestAuthLoginToken:
         assert len(config.auth_config.instances) == 0
 
         self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
 
         token = "mysupertoken"
 
@@ -619,7 +698,37 @@ class TestAuthLoginWeb:
         assert exit_code == ExitCode.SUCCESS, output
 
         self._webbrowser_open_mock.assert_called_once()
-        self._assert_open_url(scope_set={"scan", "honeytokens:write", "teams:read"})
+        self._assert_open_url(
+            scope_set={
+                "scan",
+                "honeytokens:write",
+                "honeytokens:check",
+                "nhi:send-inventory",
+                "teams:read",
+            }
+        )
+
+    def test_missing_default_scopes_fails_with_warning(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN the backend grants only a subset of the default scopes
+        WHEN the web login flow completes
+        THEN the command succeed and lists the missing permissions
+        AND the token is still saved
+        """
+        self.prepare_mocks(
+            monkeypatch, missing_scopes=["honeytokens:write", "nhi:send-inventory"]
+        )
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS
+        assert "Warning: the following scopes were not granted:" in output
+        assert "honeytokens:write" in output
+        assert "nhi:send-inventory" in output
+        assert "Some features may require additional permissions" in output
+
+        self._assert_config("mysupertoken")
 
     def prepare_mocks(
         self,
@@ -632,6 +741,7 @@ class TestAuthLoginWeb:
         sso_url=None,
         downsized_token: Optional[bool] = False,
         scopes: Optional[str] = None,
+        missing_scopes: Optional[list] = None,
     ):
         """
         Configure self._request_mock to emulate HTTP requests
@@ -707,6 +817,12 @@ class TestAuthLoginWeb:
             if lifetime is not None:
                 expire_at = self._get_expiry_date().isoformat()
                 token_response_payload["expire_at"] = expire_at
+            if missing_scopes:
+                token_response_payload["scope"] = [
+                    s
+                    for s in token_response_payload["scope"]
+                    if s not in missing_scopes
+                ]
 
             # mock api call to exchange the code against a valid access token
             response = create_json_response({"key": token, **token_response_payload})
@@ -728,6 +844,19 @@ class TestAuthLoginWeb:
                 400 if login_result == LoginResult.INVALID_TOKEN else 200,
             ),
         )
+
+        if login_result == LoginResult.SUCCESS:
+            scopes = [
+                s
+                for s in VALID_API_TOKENS_RESPONSE.json()["scopes"]
+                if not missing_scopes or s not in missing_scopes
+            ]
+            self._request_mock.add_GET(
+                "/v1/api_tokens/self",
+                create_json_response(
+                    {**VALID_API_TOKENS_RESPONSE.json(), "scopes": scopes}
+                ),
+            )
 
     def run_cmd(self, cli_fs_runner, method="web"):
         """
@@ -814,7 +943,12 @@ class TestAuthLoginWeb:
         also check if the port of the redirect url is the one expected depending on occupied ports
         """
         if scope_set is None:
-            scope_set = {"scan"}
+            scope_set = {
+                "scan",
+                "honeytokens:write",
+                "honeytokens:check",
+                "nhi:send-inventory",
+            }
 
         (url,), kwargs = self._webbrowser_open_mock.call_args_list[0]
         parsed_url = urlparse.urlparse(url)
@@ -1059,6 +1193,7 @@ class TestAuthLoginOob:
             post_checker,
         )
         self._request_mock.add_GET(TOKEN_ENDPOINT, create_json_response(token_payload))
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
         return token
 
     def test_oob_happy_path(self, cli_fs_runner, monkeypatch):

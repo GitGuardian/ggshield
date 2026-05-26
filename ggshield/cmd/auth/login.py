@@ -3,15 +3,36 @@ from typing import Any, List, Optional, Tuple
 
 import click
 import requests
+from pygitguardian import GGClient
+from pygitguardian.models import APITokensResponse
 
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.core.client import create_client
+from ggshield.core.client import create_client, create_client_from_config
 from ggshield.core.config import Config
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.url_utils import clean_url
-from ggshield.verticals.auth import OAuthClient
+from ggshield.verticals.auth import DEFAULT_SCOPES, OAuthClient
+
+
+def _warn_missing_scopes(client: GGClient) -> None:
+    token_info = client.api_tokens()
+    granted = (
+        token_info.scopes
+        if isinstance(token_info, APITokensResponse) and token_info.scopes
+        else []
+    )
+    missing = [s for s in DEFAULT_SCOPES if s not in granted]
+    if missing:
+        click.echo(
+            "Warning: the following scopes were not granted: "
+            + ", ".join(missing)
+            + ".\n"
+            "Some features may require additional permissions at runtime.\n"
+            "Contact your workspace administrator if you need access.",
+            err=True,
+        )
 
 
 def validate_login_path(
@@ -91,7 +112,7 @@ def print_default_instance_message(config: Config) -> None:
     type=str,
     help=(
         "Space-separated list of extra scopes to request in addition to the default"
-        " `scan` scope."
+        " scopes (scan, honeytokens:write, honeytokens:check, nhi:send-inventory)."
     ),
     metavar="SCOPES",
 )
@@ -145,9 +166,10 @@ def login_cmd(
     Alternatively, you can use `--method token` to authenticate using an already existing token.
     The minimum required scope for the token is `scan`.
 
-    By default, the created token will have the `scan` scope. Use the `--scopes` option
-    to grant the token extra scopes. You can find the list of available scopes in
-    [GitGuardian API documentation][1].
+    By default, the created token will have the `scan`, `honeytokens:write`,
+    `honeytokens:check`, and `nhi:send-inventory` scopes.
+    Use the `--scopes` option to request extra scopes. You can find the list of
+    available scopes in [GitGuardian API documentation][1].
 
     If a valid personal access token is already configured, this command simply displays
     a success message indicating that ggshield is already ready to use.
@@ -232,6 +254,8 @@ def token_login(config: Config, instance: Optional[str]) -> None:
     click.echo("Authentication was successful.")
     print_default_instance_message(config)
 
+    _warn_missing_scopes(client)
+
 
 def web_login(
     config: Config,
@@ -262,4 +286,5 @@ def web_login(
         extra_scopes=extra_scopes,
         no_browser=no_browser,
     )
+    _warn_missing_scopes(create_client_from_config(config))
     print_default_instance_message(config)

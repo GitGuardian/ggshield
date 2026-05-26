@@ -27,6 +27,12 @@ from ggshield.utils.datetime import get_pretty_date
 
 CLIENT_ID = "ggshield_oauth"
 SCAN_SCOPE = "scan"
+DEFAULT_SCOPES = [
+    SCAN_SCOPE,
+    "honeytokens:write",
+    "honeytokens:check",
+    "nhi:send-inventory",
+]
 
 # Sentinel `redirect_uri` value used by the out-of-band (browser-less) OAuth
 # flow. Mirrors gcloud's `--no-launch-browser` and the historical Google
@@ -239,10 +245,11 @@ class OAuthClient:
             "utm_medium": "login",
             "utm_campaign": "ggshield",
         }
+        unique_scopes = list(dict.fromkeys([*DEFAULT_SCOPES, *self._extra_scopes]))
         return self._oauth_client.prepare_request_uri(
             uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,
-            scope=[SCAN_SCOPE, *self._extra_scopes],
+            scope=unique_scopes,
             code_challenge=self.code_challenge,
             code_challenge_method="S256",
             state=self.state,
