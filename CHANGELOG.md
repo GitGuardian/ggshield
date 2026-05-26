@@ -1,5 +1,57 @@
 # Changelog
 
+<a id='changelog-1.51.0'></a>
+
+## 1.51.0 — 2026-05-26
+
+### Added
+
+- `ggshield auth login --method oob` for browser-less environments (SSH sessions, headless servers). Prints the authorization URL, lets you open it on another device, and exchanges the code you paste back into the terminal. Uses the OAuth out-of-band sentinel (`urn:ietf:wg:oauth:2.0:oob`) — requires a server that supports it.
+
+- Detection of MCP servers installed with Claude plugins or Claude.ai
+
+- Add Codex support to `ggshield secret scan ai-hook` and `ggshield install -t codex`. (thanks to trickyfalcon)
+
+- Detect MCP servers installed with Cursor plugins or Cursor extensions.
+
+- Release binaries published to GitHub Releases now ship with [GitHub Artifact Attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds), providing signed SLSA build provenance. Users can verify a downloaded asset with `gh attestation verify <file> --repo GitGuardian/ggshield`, and tool managers such as mise (via the aqua backend) will verify automatically at install time.
+
+- `ggshield plugin install` / `update` / `status` now discover and pull plugins from the GitGuardian instance the user is authenticated against, replacing the hard-coded GitHub release URL. Streaming download + sigstore bundle proxying happen via `/v1/endpoints/plugins/<reference>/{download,signature}`. Requires the matching backend feature.
+
+- New `vscode` alias to "copilot" for hook installation.
+
+- `ggshield api-status` now displays the workspace ID associated with the current token, in both text and JSON output.
+
+### Changed
+
+- Successful API key checks are now cached on disk for 5 minutes.
+
+- `ggshield plugin list` now renders the install source from the manifest verbatim (`platform`, `local file`, `url`, `github release`, `github artifact`) instead of `local`/`pip`. Plugins installed without a manifest still fall back to `pip` (entry-point only) or `on-disk`.
+
+- AI hooks naively try to detect file read by shell commands.
+
+### Fixed
+
+- Fixed plugin signature verification in PyInstaller-based packages by bundling sigstore's embedded TUF trust roots.
+
+- Fixed `uv tool install ggshield` resolution by requiring sigstore 4, avoiding sigstore 3's transitive pre-release dependency on `betterproto`.
+
+- The documentation of the `ai discover` command.
+
+- Skip OS keyring access at startup when `GITGUARDIAN_API_KEY` is set in the environment (or in a `.env` file). This avoids redundant keychain unlock prompts on systems using multiple ggshield intances.
+
+- Scans no longer fail on a single transient network glitch. ggshield retries connection errors (e.g. `ConnectionResetError`) and 502/503/504 responses with bounded exponential backoff (~15 s budget with jitter). `ggshield secret scan pre-receive` uses a minimal retry policy instead so it stays inside GitHub Enterprise Server's fixed 5 s pre-receive hook timeout.
+
+- Fixed AI hooks support for Copilot CLI.
+
+- (AI hooks): the command that leaked a secret is now shown in the notification message.
+
+- MCP configuration parsing improved for VSCode, Copilot CLI and Codex.
+
+- Plugin installs and updates now enable the canonical `ggshield.plugins` entry point instead of the wheel package name, migrating any pre-existing alias row (and preserving its `auto_update` setting), and local plugin wheels extract into the active runtime cache so mixed root/admin and user executions do not silently lose registered commands.
+
+- ggshield now prunes stale extracted plugin wheel caches during plugin load and removes a plugin's extracted cache on uninstall, preventing old wheel versions from accumulating in the cache directory.
+
 <a id='changelog-1.50.4'></a>
 
 ## 1.50.4 — 2026-05-07
