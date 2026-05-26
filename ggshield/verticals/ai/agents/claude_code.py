@@ -240,6 +240,7 @@ class Claude(Agent):
             model="",
             cwd=payload.raw.get("cwd", ""),
             input=payload.raw.get("tool_input", {}),
+            timestamp=payload.timestamp,
         )
 
     def iter_history_events(

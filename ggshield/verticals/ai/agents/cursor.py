@@ -28,6 +28,7 @@ from ..models import (
     Transport,
 )
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -324,6 +325,7 @@ class Cursor(Agent):
             model=payload.raw.get("model", ""),
             cwd=payload.raw.get("workspace_roots", [""])[0],
             input=payload.raw.get("tool_input", {}),
+            timestamp=payload.timestamp,
         )
 
     def iter_history_events(

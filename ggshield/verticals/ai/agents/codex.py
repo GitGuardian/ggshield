@@ -130,4 +130,5 @@ class Codex(Agent):
             model=payload.raw.get("model", ""),
             cwd=payload.raw.get("cwd", ""),
             input=payload.raw.get("tool_input", {}),
+            timestamp=payload.timestamp,
         )

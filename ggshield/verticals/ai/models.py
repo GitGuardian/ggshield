@@ -1,7 +1,8 @@
 import json
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
@@ -70,6 +71,7 @@ class HookPayload:
     identifier: str
     agent: "Agent"
     raw: Dict[str, Any]
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def scannable(self) -> Scannable:
