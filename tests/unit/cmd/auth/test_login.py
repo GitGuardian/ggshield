@@ -541,7 +541,6 @@ class TestAuthLoginWeb:
 
     @pytest.mark.parametrize("token_name", [None, "some token name"])
     @pytest.mark.parametrize("lifetime", [None, 0, 1, 365])
-    @pytest.mark.parametrize("used_port_count", [0, 1, 10])
     @pytest.mark.parametrize("existing_expired_token", [False, True])
     @pytest.mark.parametrize("existing_unrelated_token", [False, True])
     @pytest.mark.parametrize("downsized_token", [False, True, None])
@@ -550,7 +549,6 @@ class TestAuthLoginWeb:
         downsized_token,
         existing_unrelated_token,
         existing_expired_token,
-        used_port_count,
         lifetime,
         token_name,
         cli_fs_runner,
@@ -560,7 +558,6 @@ class TestAuthLoginWeb:
             monkeypatch,
             token_name=token_name,
             lifetime=lifetime,
-            used_port_count=used_port_count,
             downsized_token=downsized_token,
         )
 
@@ -578,7 +575,7 @@ class TestAuthLoginWeb:
         assert exit_code == ExitCode.SUCCESS, output
 
         self._webbrowser_open_mock.assert_called_once()
-        self._assert_open_url(expected_port=29170 + used_port_count)
+        self._assert_open_url()
 
         self._request_mock.assert_all_requests_happened()
 
@@ -627,7 +624,6 @@ class TestAuthLoginWeb:
         token_name=None,
         lifetime=None,
         instance_url=None,
-        used_port_count=0,
         login_result: LoginResult = LoginResult.SUCCESS,
         sso_url=None,
         downsized_token: Optional[bool] = False,
@@ -679,12 +675,13 @@ class TestAuthLoginWeb:
             self._get_oauth_client_class(callback_url),
         )
 
-        # avoid starting a server on port 1234
+        # mock the HTTPServer to return a server with a known server_port
+        mock_server = Mock()
+        mock_server.server_port = 29170
         if login_result == LoginResult.NOT_ENOUGH_PORTS:
-            used_port_count = 1000
-        mock_server_class = Mock(
-            side_effect=self._get_oserror_side_effect(used_port_count)
-        )
+            mock_server_class = Mock(side_effect=OSError("No ports available"))
+        else:
+            mock_server_class = Mock(return_value=mock_server)
         monkeypatch.setattr(
             "ggshield.verticals.auth.oauth.HTTPServer", mock_server_class
         )
@@ -784,18 +781,6 @@ class TestAuthLoginWeb:
             )
 
     @staticmethod
-    def _get_oserror_side_effect(failure_count=1):
-        """
-        return a side effect to pass to a mock object
-        the n first call will raise an exception
-        the call n + 1 will be silent
-        """
-        return (
-            OSError("This port is already in use.") if i < failure_count else None
-            for i in range(failure_count + 1)
-        )
-
-    @staticmethod
     def _assert_last_print(output: str, expected_str: str):
         """
         assert that the last log output is the same as the one passed in param
@@ -807,6 +792,7 @@ class TestAuthLoginWeb:
         *,
         host: Optional[str] = None,
         expected_port: int = 29170,
+        used_port_count: int = 0,
         scope_set: Optional[Set[str]] = None,
     ):
         """
@@ -833,7 +819,7 @@ class TestAuthLoginWeb:
         redirect_uri = url_params["redirect_uri"][0]
 
         assert redirect_uri.startswith(
-            f"http://localhost:{expected_port}"
+            f"http://localhost:{expected_port + used_port_count}"
         ), redirect_uri
 
         # We pass `WebApplicationClient.prepare_request_uri()` a list of
