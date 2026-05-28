@@ -1,13 +1,5 @@
 # Changelog
 
-<a id='changelog-1.52.0'></a>
-
-## 1.52.0 — 2026-05-27
-
-### Fixed
-
-- OAuth local server now uses OS-assigned port (port 0) instead of the hardcoded range 29170-29998, eliminating port conflicts when running multiple ggshield instances or other tools. ([#948](https://github.com/GitGuardian/ggshield/pull/948))
-
 <a id='changelog-1.51.0'></a>
 
 ## 1.51.0 — 2026-05-26
