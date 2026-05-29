@@ -5,7 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
+
+
+if TYPE_CHECKING:
+    from ggshield.verticals.ai.raw_history import HistorySource, RawHistoryEvent
 
 import tomli
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -336,6 +340,26 @@ class Agent(ABC):
         SQLite databases, etc.
         """
         return iter(())
+
+    raw_history_sources: ClassVar[List["HistorySource"]] = []
+    """Subclasses set this to the list of raw-history sources they expose.
+
+    Each entry is a ``HistorySource`` instance (see
+    ``ggshield.verticals.ai.raw_history``). The default implementation of
+    :meth:`iter_raw_history_events` walks every source.
+    """
+
+    def iter_raw_history_events(self) -> Iterator["RawHistoryEvent"]:
+        """Yield every ``RawHistoryEvent`` this agent can recover from disk.
+
+        Default implementation: iterate ``self.raw_history_sources``, passing
+        ``self.config_folder`` as the ``path_root`` so each event's
+        ``source_path`` is recorded relative to the agent's config dir.
+        """
+        for source in self.raw_history_sources:
+            yield from source.iter_events(
+                agent_name=self.name, path_root=self.config_folder
+            )
 
     def _user_or_default(self, ai_config: Optional[AIDiscovery]) -> UserInfo:
         """Return ``ai_config.user`` or a blank ``UserInfo`` if no config is provided."""

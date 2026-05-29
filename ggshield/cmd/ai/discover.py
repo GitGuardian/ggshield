@@ -4,7 +4,7 @@ for tools, resources, and prompts.
 """
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import click
 from pygitguardian.models import AIDiscovery
@@ -23,6 +23,7 @@ from ggshield.verticals.ai.discovery import (
 )
 from ggshield.verticals.ai.history import BackfillReport, backfill_mcp_history
 from ggshield.verticals.ai.models import Scope
+from ggshield.verticals.ai.raw_history import RawHistoryReport, collect_raw_history
 
 
 @click.command(name="discover")
@@ -72,11 +73,13 @@ def discover_cmd(
         return
 
     backfill_report = BackfillReport()
+    raw_report: Optional[RawHistoryReport] = None
     try:
         config = submit_ai_discovery(client, config)
         save_discovery_cache(config)
         if scan_history:
             backfill_report = backfill_mcp_history(client, config)
+            raw_report = collect_raw_history(client)
     except Exception as exc:
         if "missing the following scope:" in str(exc):
             scope = str(exc).split("missing the following scope:")[1].strip()
@@ -86,7 +89,7 @@ def discover_cmd(
         ui.display_warning(f"Could not upload AI discovery to GitGuardian: {reason}")
 
     # Summarize after sending to GIM, so we can benefit from its fixes.
-    summary = _summarize_discovery(config, backfill_report)
+    summary = _summarize_discovery(config, backfill_report, raw_report)
 
     if use_json:
         click.echo(json.dumps(summary, indent=2))
@@ -94,7 +97,11 @@ def discover_cmd(
         print_summary(summary)
 
 
-def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[str, Any]:
+def _summarize_discovery(
+    config: AIDiscovery,
+    report: BackfillReport,
+    raw_report: Optional[RawHistoryReport] = None,
+) -> Dict[str, Any]:
     """Summarize what we want to show of the discovery."""
     agent_names = set()
     servers = []
@@ -120,7 +127,7 @@ def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[st
             }
         )
     servers = sorted(servers, key=lambda x: x["name"])
-    return {
+    summary: Dict[str, Any] = {
         "agents": [AGENTS[name].display_name for name in agent_names],
         "servers": servers,
         "history": {
@@ -130,6 +137,14 @@ def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[st
             "skipped": report.skipped,
         },
     }
+    if raw_report is not None:
+        summary["raw_history"] = {
+            "parsed": raw_report.parsed,
+            "ingested": raw_report.ingested,
+            "duplicates": raw_report.duplicates,
+            "failed_batches": raw_report.failed_batches,
+        }
+    return summary
 
 
 def print_summary(summary: Dict[str, Any]) -> None:
@@ -187,3 +202,16 @@ def print_summary(summary: Dict[str, Any]) -> None:
             f"({history['duplicates']:,} already known, "
             f"{history.get('skipped', 0):,} skipped)"
         )
+
+    raw_history = summary.get("raw_history")
+    if raw_history is not None:
+        click.echo(f"{format_text('Collecting raw agent history…', STYLE['key'])}")
+        click.echo(f"  • Parsed {raw_history['parsed']:,} raw events")
+        click.echo(
+            f"  • Recorded {raw_history['ingested']:,} raw events "
+            f"({raw_history['duplicates']:,} already known)"
+        )
+        if raw_history.get("failed_batches", 0) > 0:
+            click.echo(
+                f"  • {format_text('Failed batches:', STYLE['detector_line_start'])} {raw_history['failed_batches']:,}"
+            )
