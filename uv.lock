@@ -935,7 +935,7 @@ requires-dist = [
     { name = "oauthlib", specifier = "~=3.2.1" },
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
-    { name = "pygitguardian", specifier = "~=1.30.0" },
+    { name = "pygitguardian", git = "https://github.com/GitGuardian/py-gitguardian.git?rev=d3152b7bf33077fd17a8ea692d658dd428c73ac3" },
     { name = "pyjwt", specifier = "~=2.6.0" },
     { name = "python-dotenv", specifier = "~=0.21.0" },
     { name = "pyyaml", specifier = "~=6.0.1" },
@@ -2608,17 +2608,13 @@ wheels = [
 [[package]]
 name = "pygitguardian"
 version = "1.30.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/GitGuardian/py-gitguardian.git?rev=d3152b7bf33077fd17a8ea692d658dd428c73ac3#d3152b7bf33077fd17a8ea692d658dd428c73ac3" }
 dependencies = [
     { name = "marshmallow" },
     { name = "marshmallow-dataclass" },
     { name = "requests" },
     { name = "setuptools" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/52/d9/15e6d313c47c1e8753d7c0a274717b8841f34e9e187ba8a9f5b9598096f4/pygitguardian-1.30.0.tar.gz", hash = "sha256:fd6a43a2650d181c06d3e0a5c38b7a9ed9e4868bdd1997ce4e6c5863c94de9fe", size = 56271, upload-time = "2026-04-28T12:02:32.555Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/3e/aefd6fcc2fcb88dfe5fd1a026a3ca5d5ba87eb7baba3feea70ce4db117c4/pygitguardian-1.30.0-py3-none-any.whl", hash = "sha256:9ff6acb3e6a47ddc96fb4fc7f70dbe058ccb828c5cef67097ab5cef897c88219", size = 23518, upload-time = "2026-04-28T12:02:31.151Z" },
 ]
 
 [[package]]
