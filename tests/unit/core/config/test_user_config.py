@@ -98,6 +98,19 @@ class TestUserConfig:
         with pytest.raises(UnexpectedError):
             UserConfig.load(local_config_path)
 
+    def test_load_missing_version(self, local_config_path, capsys):
+        """
+        GIVEN a non-empty config file with no `version` field
+        WHEN we try to load it
+        THEN the user is warned about the consequences of not setting
+        """
+        write_yaml(local_config_path, {"instance": "https://example.com"})
+
+        UserConfig.load(local_config_path)
+
+        captured = capsys.readouterr()
+        assert "version: 2" in captured.err
+
     def test_save_load_roundtrip(self):
         config_path = "config.yaml"
         config = UserConfig()
