@@ -88,6 +88,62 @@ def test_jsonl_source_ships_line_verbatim_by_default(tmp_path: Path) -> None:
     assert event.content == '{"a": 1, "cmd": "ls -la"}'
 
 
+def test_jsonl_supports_resume_but_json_does_not():
+    # Only append-only sources can be resumed by index.
+    assert JSONLActivitySource.supports_resume is True
+    assert JSONActivitySource.supports_resume is False
+    assert SQLiteActivitySource.supports_resume is False
+
+
+def test_iter_events_resumes_after_high_water(tmp_path: Path) -> None:
+    """resume_for skips records at or below the per-source mark (append-only)."""
+    f = tmp_path / "s.jsonl"
+    f.write_text("".join(f'{{"i": {i}}}\n' for i in range(4)))
+
+    class S(JSONLActivitySource):
+        kind = "demo"
+
+        def discover(self) -> Iterable[Path]:
+            return [f]
+
+    # Already shipped up to index 1 -> only indices 2 and 3 are yielded.
+    events = list(
+        S().iter_events(
+            agent_name="t", path_root=tmp_path, resume_for=lambda kind, sp: 1
+        )
+    )
+    assert [e.record_offset for e in events] == ["2", "3"]
+
+
+def test_iter_events_ignores_resume_for_non_resumable_source(tmp_path: Path) -> None:
+    """A source that does not support resume re-reads everything regardless."""
+    db = tmp_path / "x.db"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE kv (key TEXT, value TEXT)")
+    conn.executemany("INSERT INTO kv VALUES (?, ?)", [("k1", "v1"), ("k2", "v2")])
+    conn.commit()
+    conn.close()
+
+    class S(SQLiteActivitySource):
+        kind = "demo_kv"
+        query = "SELECT key, value FROM kv ORDER BY key"
+        key_columns = ("key",)
+
+        def discover(self) -> Iterable[Path]:
+            return [db]
+
+        def serialize(self, record: object) -> str:  # type: ignore[override]
+            return json.dumps(record)
+
+    # Even with a high mark, every row is still yielded.
+    events = list(
+        S().iter_events(
+            agent_name="t", path_root=tmp_path, resume_for=lambda kind, sp: 99
+        )
+    )
+    assert [e.record_offset for e in events] == ["k1", "k2"]
+
+
 def test_source_path_for_redacts_home_when_outside_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

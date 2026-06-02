@@ -1,8 +1,14 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import requests
 from pygitguardian.models import Detail
 
+from ggshield.verticals.ai.agent_activity.cursors import (
+    NOTHING,
+    CursorStore,
+    scope_for,
+)
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
 from ggshield.verticals.ai.agent_activity.orchestrator import (
     BATCH_SIZE,
@@ -88,6 +94,9 @@ def test_collect_agent_activity_counts_detail_response_as_failed_batch() -> None
 def _make_agent(name: str, events: list[AgentActivityEvent]) -> MagicMock:
     a = MagicMock()
     a.name = name
+    # No resumable sources by default: these tests focus on batching/counts, not
+    # cursor behaviour (covered in test_cursors.py and the resume tests below).
+    a.agent_activity_sources = []
     a.iter_agent_activity_events.return_value = iter(events)
     return a
 
@@ -189,3 +198,190 @@ def test_collect_agent_activity_counts_network_error_as_failed_batch() -> None:
     assert report.parsed == 1
     assert report.ingested == 0
     assert report.failed_batches == 1
+
+
+# --- cursor / resume behaviour -------------------------------------------------
+
+
+def _resumable_agent(
+    name: str, kind: str, events: list[AgentActivityEvent]
+) -> MagicMock:
+    a = MagicMock()
+    a.name = name
+    a.agent_activity_sources = [SimpleNamespace(kind=kind, supports_resume=True)]
+    a.iter_agent_activity_events.return_value = iter(events)
+    return a
+
+
+def _rec(
+    agent_name: str, kind: str, source_path: str, index: int
+) -> AgentActivityEvent:
+    return AgentActivityEvent(
+        agent_name=agent_name,
+        source_kind=kind,
+        source_path=source_path,
+        record_offset=str(index),
+        content="{}",
+    )
+
+
+def test_cursor_advances_on_successful_ingest() -> None:
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=3, duplicates=0
+    )
+    events = [_rec("claude-code", "session_transcript", "p.jsonl", i) for i in range(3)]
+    agent = _resumable_agent("claude-code", "session_transcript", events)
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"a": agent}):
+        collect_agent_activity(client)
+
+    scope = scope_for(client)
+    store = CursorStore.load()
+    assert store.get(scope, "claude-code", "session_transcript", "p.jsonl") == 2
+
+
+def test_cursor_not_advanced_when_batch_fails() -> None:
+    client = MagicMock()
+    client.send_agent_activity.return_value = Detail("boom", status_code=500)
+    events = [_rec("claude-code", "session_transcript", "p.jsonl", i) for i in range(2)]
+    agent = _resumable_agent("claude-code", "session_transcript", events)
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"a": agent}):
+        report = collect_agent_activity(client)
+
+    assert report.failed_batches == 1
+    scope = scope_for(client)
+    store = CursorStore.load()
+    assert store.get(scope, "claude-code", "session_transcript", "p.jsonl") == NOTHING
+
+
+def test_cursor_freeze_does_not_skip_gap_after_failure(monkeypatch) -> None:
+    """With one record per batch: index 0 succeeds, 1 fails, 2 succeeds. The
+    cursor must stay at 0 — never jump past the failed record."""
+    monkeypatch.setattr(
+        "ggshield.verticals.ai.agent_activity.orchestrator.BATCH_SIZE", 1
+    )
+    client = MagicMock()
+    client.send_agent_activity.side_effect = [
+        MagicMock(success=True, ingested=1, duplicates=0),
+        Detail("boom", status_code=500),
+        MagicMock(success=True, ingested=1, duplicates=0),
+    ]
+    events = [_rec("claude-code", "session_transcript", "p.jsonl", i) for i in range(3)]
+    agent = _resumable_agent("claude-code", "session_transcript", events)
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"a": agent}):
+        collect_agent_activity(client)
+
+    scope = scope_for(client)
+    store = CursorStore.load()
+    assert store.get(scope, "claude-code", "session_transcript", "p.jsonl") == 0
+
+
+def test_non_resumable_source_is_not_tracked() -> None:
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=1, duplicates=0
+    )
+    agent = MagicMock()
+    agent.name = "cursor"
+    agent.agent_activity_sources = [
+        SimpleNamespace(kind="composer_bubble", supports_resume=False)
+    ]
+    agent.iter_agent_activity_events.return_value = iter(
+        [_rec("cursor", "composer_bubble", "state.vscdb", 0)]
+    )
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"a": agent}):
+        collect_agent_activity(client)
+
+    scope = scope_for(client)
+    store = CursorStore.load()
+    assert store.get(scope, "cursor", "composer_bubble", "state.vscdb") == NOTHING
+
+
+def test_collect_passes_committed_cursor_as_resume_lookup() -> None:
+    """A pre-seeded cursor is handed to the agent as the resume lookup."""
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=0, duplicates=0
+    )
+    scope = scope_for(client)
+    seed = CursorStore.load()
+    seed.advance(scope, "claude-code", "session_transcript", "p.jsonl", 5)
+    seed.save()
+
+    captured = {}
+
+    def _iter(resume_for=None):
+        captured["mark"] = resume_for("session_transcript", "p.jsonl")
+        return iter([])
+
+    agent = MagicMock()
+    agent.name = "claude-code"
+    agent.agent_activity_sources = [
+        SimpleNamespace(kind="session_transcript", supports_resume=True)
+    ]
+    agent.iter_agent_activity_events.side_effect = _iter
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"a": agent}):
+        collect_agent_activity(client)
+
+    assert captured["mark"] == 5
+
+
+def test_cursor_skips_record_with_non_integer_offset() -> None:
+    """A resumable record whose offset is not an int is excluded from the mark."""
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=1, duplicates=0
+    )
+    bad = AgentActivityEvent(
+        agent_name="claude-code",
+        source_kind="session_transcript",
+        source_path="p.jsonl",
+        record_offset="not-an-int",
+        content="{}",
+    )
+    agent = _resumable_agent("claude-code", "session_transcript", [bad])
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"a": agent}):
+        collect_agent_activity(client)
+
+    scope = scope_for(client)
+    store = CursorStore.load()
+    assert store.get(scope, "claude-code", "session_transcript", "p.jsonl") == NOTHING
+
+
+def test_resume_end_to_end_skips_already_shipped_records(tmp_path) -> None:
+    """Full chain (real Claude source + real cursor): the second run, after one
+    new line is appended, ships only that new line."""
+    from ggshield.verticals.ai.agents.claude_code import Claude
+
+    # GG_USER_HOME_DIR / GG_CACHE_DIR are redirected to tmp_path by an autouse
+    # fixture, so the real source discovers this transcript and the cursor file
+    # lives in the isolated cache dir.
+    proj = tmp_path / "home" / ".claude" / "projects" / "-repo"
+    proj.mkdir(parents=True)
+    (proj / "s.jsonl").write_text('{"i": 0}\n{"i": 1}\n')
+
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=2, duplicates=0
+    )
+
+    with patch("ggshield.verticals.ai.agents.AGENTS", {"claude": Claude()}):
+        first = collect_agent_activity(client)
+        assert first.parsed == 2
+
+        (proj / "s.jsonl").write_text('{"i": 0}\n{"i": 1}\n{"i": 2}\n')
+        client.send_agent_activity.reset_mock()
+        client.send_agent_activity.return_value = MagicMock(
+            success=True, ingested=1, duplicates=0
+        )
+        second = collect_agent_activity(client)
+
+    assert second.parsed == 1  # only the newly-appended line
+    payload = client.send_agent_activity.call_args.args[0]
+    assert [r["record_offset"] for r in payload] == ["2"]
