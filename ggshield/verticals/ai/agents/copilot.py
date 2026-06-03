@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterator, Optional, Tuple
 import click
 
 from ggshield.core.dirs import get_user_home_dir
+from ggshield.verticals.ai.agent_activity.sources import JSONLActivitySource
 from ggshield.verticals.ai.models import (
     AIDiscovery,
     EventType,
@@ -26,11 +27,29 @@ from .vscode import VSCode
 logger = logging.getLogger(__name__)
 
 
+class CopilotActivitySource(JSONLActivitySource):
+    """Every Copilot CLI session line, shipped raw.
+
+    Copilot CLI appends one JSON object per line to
+    ~/.copilot/session-state/<uuid>/events.jsonl. The line is shipped
+    verbatim; GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    kind = "session_events"
+
+    def discover(self) -> Iterator[Path]:
+        root = get_user_home_dir() / ".copilot"
+        return iter(sorted(root.glob("session-state/*/events.jsonl")))
+
+
 class Copilot(VSCode):
     """Behavior specific to Copilot CLI.
 
     Inherits most of its behavior from VSCode.
     """
+
+    # Override VSCode's source: Copilot stores sessions under a different root.
+    agent_activity_sources = [CopilotActivitySource()]
 
     @property
     def name(self) -> str:

@@ -9,6 +9,7 @@ from pygitguardian.models import AIDiscovery, MCPConfiguration, MCPServer, UserI
 from ggshield.__main__ import cli
 from ggshield.cmd.ai.discover import print_summary
 from ggshield.core.errors import APIKeyCheckError
+from ggshield.verticals.ai.agent_activity.orchestrator import AgentActivityReport
 from ggshield.verticals.ai.history import BackfillReport
 from ggshield.verticals.ai.models import Scope, Transport
 
@@ -410,6 +411,92 @@ class TestDiscoverCmd:
             "duplicates": 1,
             "skipped": 1,
         }
+
+    @patch(
+        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        return_value=_discovery(),
+    )
+    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.cmd.ai.discover.submit_ai_discovery")
+    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch(
+        "ggshield.cmd.ai.discover.backfill_mcp_history",
+        return_value=BackfillReport(parsed=3, ingested=3, duplicates=0),
+    )
+    @patch(
+        "ggshield.cmd.ai.discover.collect_agent_activity",
+        return_value=AgentActivityReport(
+            parsed=7, ingested=7, duplicates=0, failed_batches=0
+        ),
+    )
+    def test_history_flag_also_collects_agent_activity(
+        self,
+        mock_collect: MagicMock,
+        mock_backfill: MagicMock,
+        mock_save: MagicMock,
+        mock_submit: MagicMock,
+        mock_client: MagicMock,
+        mock_discover: MagicMock,
+    ):
+        discovery = _discovery(
+            servers=[
+                _server(
+                    "my-mcp",
+                    display_name="My MCP",
+                    configurations=[_config(agent="cursor", scope=Scope.USER)],
+                )
+            ]
+        )
+        mock_submit.return_value = discovery
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["ai", "discover", "--history"])
+        assert result.exit_code == 0, result.output
+        mock_backfill.assert_called_once()
+        mock_collect.assert_called_once()
+        assert "3" in result.output and "7" in result.output
+
+    @patch(
+        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        return_value=_discovery(),
+    )
+    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.cmd.ai.discover.submit_ai_discovery")
+    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch(
+        "ggshield.cmd.ai.discover.backfill_mcp_history",
+        return_value=BackfillReport(parsed=3, ingested=3, duplicates=0),
+    )
+    @patch(
+        "ggshield.cmd.ai.discover.collect_agent_activity",
+        return_value=AgentActivityReport(
+            parsed=10, ingested=8, duplicates=0, failed_batches=2
+        ),
+    )
+    def test_agent_activity_surfaces_failed_batches(
+        self,
+        mock_collect: MagicMock,
+        mock_backfill: MagicMock,
+        mock_save: MagicMock,
+        mock_submit: MagicMock,
+        mock_client: MagicMock,
+        mock_discover: MagicMock,
+    ):
+        discovery = _discovery(
+            servers=[
+                _server(
+                    "my-mcp",
+                    display_name="My MCP",
+                    configurations=[_config(agent="cursor", scope=Scope.USER)],
+                )
+            ]
+        )
+        mock_submit.return_value = discovery
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["ai", "discover", "--history"])
+        assert result.exit_code == 0, result.output
+        assert "Failed batches: 2" in result.output
 
 
 # ---------------------------------------------------------------------------

@@ -1,14 +1,15 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Literal, Optional
 from unittest.mock import patch
 
 import pytest
-from pygitguardian.models import MCPConfiguration
+from pygitguardian.models import AIDiscovery, MCPActivityRequest, MCPConfiguration
 
 from ggshield.core.scan import File, StringScannable
 from ggshield.verticals.ai.agents import Cursor
 from ggshield.verticals.ai.models import (
+    Agent,
     EventType,
     HookPayload,
     HookResult,
@@ -266,3 +267,109 @@ class TestDiscoverMcpConfigurations:
         with patch.object(type(agent), "config_folder", new=tmp_path / "empty"):
             result = agent.discover_mcp_configurations([])
         assert result == []
+
+
+class _FakeAgent(Agent):
+    """Minimal Agent stub satisfying every abstract member of the ABC."""
+
+    @property
+    def display_name(self) -> str:
+        return "Fake"
+
+    @property
+    def name(self) -> str:
+        return "fake"
+
+    @property
+    def config_folder(self) -> Path:
+        return Path("/tmp/fake")
+
+    def output_result(self, result: HookResult) -> int:
+        return 0
+
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        return False
+
+    def settings_path(self, mode: Literal["local", "global"]) -> Path:
+        return Path("/tmp/fake/settings.json")
+
+    def project_mcp_file(self, directory: Path) -> Path:
+        return directory / ".fake" / "mcp.json"
+
+    @property
+    def user_mcp_file(self) -> Path:
+        return Path("/tmp/fake/mcp.json")
+
+    def discover_project_directories(self) -> Iterator[Path]:
+        return iter([])
+
+    def parse_mcp_activity(
+        self, payload: HookPayload, ai_config: AIDiscovery
+    ) -> MCPActivityRequest:
+        raise NotImplementedError
+
+
+def test_agent_default_agent_activity_sources_is_empty() -> None:
+    assert _FakeAgent().agent_activity_sources == []
+
+
+def test_agent_iter_agent_activity_events_loops_each_source(tmp_path: Path) -> None:
+    """Each source is invoked with the agent's config_folder so source_path is relative to it."""
+    from ggshield.verticals.ai.agent_activity import (
+        AgentActivityEvent,
+        JSONLActivitySource,
+    )
+
+    cfg = tmp_path / "cfg"
+    cfg.mkdir()
+    f1 = cfg / "a.jsonl"
+    f2 = cfg / "b.jsonl"
+    f1.write_text('{"x": 1}\n')
+    f2.write_text('{"x": 2}\n')
+
+    class S1(JSONLActivitySource):
+        @property
+        def kind(self):
+            return "k1"
+
+        def discover(self) -> Iterable[Path]:
+            return [f1]
+
+        def serialize(self, record):
+            return record
+
+    class S2(JSONLActivitySource):
+        @property
+        def kind(self):
+            return "k2"
+
+        def discover(self) -> Iterable[Path]:
+            return [f2]
+
+        def serialize(self, record):
+            return record
+
+    class A(_FakeAgent):
+        agent_activity_sources = [S1(), S2()]
+
+        @property
+        def config_folder(self) -> Path:
+            return cfg
+
+    events = list(A().iter_agent_activity_events())
+    assert events == [
+        AgentActivityEvent(
+            agent_name="fake",
+            source_kind="k1",
+            source_path="a.jsonl",
+            record_offset="0",
+            content='{"x": 1}',
+        ),
+        AgentActivityEvent(
+            agent_name="fake",
+            source_kind="k2",
+            source_path="b.jsonl",
+            record_offset="0",
+            content='{"x": 2}',
+        ),
+    ]

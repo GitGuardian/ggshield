@@ -9,6 +9,7 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
+from ..agent_activity.sources import JSONLActivitySource
 from ..models import (
     Agent,
     EventType,
@@ -20,8 +21,26 @@ from ..models import (
 )
 
 
+class ClaudeActivitySource(JSONLActivitySource):
+    """Every Claude Code session transcript line, shipped raw.
+
+    Claude appends one JSON object per line to ~/.claude/projects/*/*.jsonl
+    (prompts, tool calls, tool results, assistant messages). The line is shipped
+    verbatim; GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    kind = "session_transcript"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted((get_user_home_dir() / ".claude").glob("projects/*/*.jsonl"))
+        )
+
+
 class Claude(Agent):
     """Behavior specific to Claude Code."""
+
+    agent_activity_sources = [ClaudeActivitySource()]
 
     @property
     def name(self) -> str:

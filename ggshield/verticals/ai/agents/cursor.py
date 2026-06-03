@@ -17,6 +17,7 @@ from pygitguardian.models import (
 
 from ggshield.core.dirs import get_user_home_dir
 
+from ..agent_activity.sources import SQLiteActivitySource
 from ..models import (
     Agent,
     EventType,
@@ -42,8 +43,31 @@ CHAT_DB_RELATIVE_PATH = (
 )
 
 
+class CursorActivitySource(SQLiteActivitySource):
+    """Every Cursor composer bubble, shipped raw.
+
+    Cursor stores chat bubbles (prompts, assistant turns, tool calls) as JSON
+    blobs in the cursorDiskKV table of its SQLite state.vscdb, keyed
+    bubbleId:<composer>:<bubble>. The database lives outside the agent's config
+    dir, so source_path_for falls back to its absolute path.
+
+    Each row is shipped verbatim ({"key": …, "value": <bubble json>});
+    GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    kind = "composer_bubble"
+    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'"
+    key_columns = ("key",)
+
+    def discover(self) -> Iterator[Path]:
+        db_path = get_user_home_dir() / CHAT_DB_RELATIVE_PATH
+        return iter([db_path] if db_path.is_file() else [])
+
+
 class Cursor(Agent):
     """Behavior specific to Cursor."""
+
+    agent_activity_sources = [CursorActivitySource()]
 
     @property
     def name(self) -> str:

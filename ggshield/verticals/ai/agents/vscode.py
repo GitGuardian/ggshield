@@ -10,14 +10,33 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
+from ..agent_activity.sources import JSONLActivitySource
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
 
 
 logger = logging.getLogger(__name__)
 
 
+class VSCodeActivitySource(JSONLActivitySource):
+    """Every Copilot Chat (VSCode) session line, shipped raw.
+
+    VSCode/Copilot Chat appends one JSON object per line to
+    ~/.config/Code/User/workspaceStorage/<hash>/chatSessions/<id>.jsonl. The
+    line is shipped verbatim; GitGuardian scans and strips secrets server-side
+    before storing it.
+    """
+
+    kind = "chat_session"
+
+    def discover(self) -> Iterator[Path]:
+        root = get_user_home_dir() / ".config" / "Code" / "User"
+        return iter(sorted(root.glob("workspaceStorage/*/chatSessions/*.jsonl")))
+
+
 class VSCode(Agent):
     """Behavior specific to VSCode."""
+
+    agent_activity_sources = [VSCodeActivitySource()]
 
     @property
     def name(self) -> str:
