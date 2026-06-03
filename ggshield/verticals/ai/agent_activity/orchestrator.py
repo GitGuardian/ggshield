@@ -27,7 +27,7 @@ MAX_BATCH_BYTES = 5 * 1024 * 1024
 @dataclass
 class AgentActivityBatchResult:
     ingested: int
-    duplicates: int
+    dropped: int
     success: bool
 
 
@@ -37,22 +37,22 @@ class AgentActivityReport:
     ingested: int = 0
     duplicates: int = 0
     failed_batches: int = 0
+    # Records the server could not scan and dropped (never stored).
+    dropped: int = 0
 
 
 def send_agent_activity_batch(
     client: GGClient, events: List[AgentActivityEvent], user: UserInfo
 ) -> AgentActivityBatchResult:
     """Serialise events and submit them as one batch (with the reporting user)."""
-    if not events:
-        return AgentActivityBatchResult(ingested=0, duplicates=0, success=True)
     payload = [e.to_dict() for e in events]
     response = client.send_agent_activity(payload, user)
     if isinstance(response, Detail):
         logger.warning("agent_activity: API returned an error: %s", response.detail)
-        return AgentActivityBatchResult(ingested=0, duplicates=0, success=False)
+        return AgentActivityBatchResult(ingested=0, dropped=0, success=False)
     return AgentActivityBatchResult(
         ingested=response.ingested,
-        duplicates=response.duplicates,
+        dropped=getattr(response, "dropped", 0),
         success=True,
     )
 
@@ -82,7 +82,7 @@ def collect_agent_activity(
             report.failed_batches += 1
         else:
             report.ingested += result.ingested
-            report.duplicates += result.duplicates
+            report.dropped += result.dropped
             if not result.success:
                 report.failed_batches += 1
         buffer.clear()

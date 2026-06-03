@@ -146,7 +146,7 @@ def _summarize_discovery(
         summary["agent_activity"] = {
             "parsed": activity_report.parsed,
             "ingested": activity_report.ingested,
-            "duplicates": activity_report.duplicates,
+            "dropped": activity_report.dropped,
             "failed_batches": activity_report.failed_batches,
         }
     return summary
@@ -220,3 +220,6 @@ def print_summary(summary: Dict[str, Any]) -> None:
         if agent_activity.get("failed_batches", 0) > 0:
             label = format_text("Failed batches:", STYLE["detector_line_start"])
             click.echo(f"  • {label} {agent_activity['failed_batches']:,}")
+        if agent_activity.get("dropped", 0) > 0:
+            label = format_text("Dropped (unscannable):", STYLE["detector_line_start"])
+            click.echo(f"  • {label} {agent_activity['dropped']:,}")

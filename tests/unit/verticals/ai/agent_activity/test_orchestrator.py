@@ -18,7 +18,7 @@ _USER = UserInfo(hostname="dev-laptop", username="dev", machine_id="machine-001"
 def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
     client = MagicMock()
     client.send_agent_activity.return_value = MagicMock(
-        success=True, ingested=2, duplicates=0
+        success=True, ingested=2, dropped=0
     )
     events = [
         AgentActivityEvent(
@@ -59,13 +59,6 @@ def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
     assert result.ingested == 2
 
 
-def test_send_agent_activity_batch_empty_list_short_circuits() -> None:
-    client = MagicMock()
-    result = send_agent_activity_batch(client, [], _USER)
-    client.send_agent_activity.assert_not_called()
-    assert result.ingested == 0
-
-
 def test_send_agent_activity_batch_treats_detail_as_failure() -> None:
     """An API error (Detail) is reported as a failed batch, not an ingest."""
     client = MagicMock()
@@ -73,7 +66,7 @@ def test_send_agent_activity_batch_treats_detail_as_failure() -> None:
     result = send_agent_activity_batch(client, [_event("a", 1)], _USER)
     assert result.success is False
     assert result.ingested == 0
-    assert result.duplicates == 0
+    assert result.dropped == 0
 
 
 def test_collect_agent_activity_counts_detail_response_as_failed_batch() -> None:
@@ -105,7 +98,7 @@ def _event(agent_name: str, i: int) -> AgentActivityEvent:
 def test_collect_agent_activity_attaches_user_to_each_batch() -> None:
     client = MagicMock()
     client.send_agent_activity.return_value = MagicMock(
-        success=True, ingested=1, duplicates=0
+        success=True, ingested=1, dropped=0
     )
     collect_agent_activity(client, _USER, [_make_agent("a", [_event("a", 1)])])
 
@@ -120,7 +113,7 @@ def test_collect_agent_activity_batches_in_chunks_of_batch_size() -> None:
     agent = _make_agent("a", events)
     client = MagicMock()
     client.send_agent_activity.return_value = MagicMock(
-        success=True, ingested=BATCH_SIZE, duplicates=0
+        success=True, ingested=BATCH_SIZE, dropped=0
     )
 
     report = collect_agent_activity(client, _USER, [agent])
@@ -134,7 +127,7 @@ def test_collect_agent_activity_aggregates_per_agent_counts() -> None:
     events_b = [_event("b", 2)]
     client = MagicMock()
     client.send_agent_activity.return_value = MagicMock(
-        success=True, ingested=2, duplicates=0
+        success=True, ingested=2, dropped=0
     )
 
     report = collect_agent_activity(
@@ -166,7 +159,7 @@ def test_collect_agent_activity_flushes_on_byte_threshold() -> None:
         for i in range(3)
     ]
     client = MagicMock()
-    client.send_agent_activity.return_value = MagicMock(ingested=1, duplicates=0)
+    client.send_agent_activity.return_value = MagicMock(ingested=1, dropped=0)
 
     report = collect_agent_activity(client, _USER, [_make_agent("a", events)])
 
@@ -184,3 +177,14 @@ def test_collect_agent_activity_counts_network_error_as_failed_batch() -> None:
     assert report.parsed == 1
     assert report.ingested == 0
     assert report.failed_batches == 1
+
+
+def test_collect_agent_activity_aggregates_dropped_from_response() -> None:
+    """The server's dropped count (records it could not scan) is surfaced."""
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=0, dropped=3
+    )
+    report = collect_agent_activity(client, _USER, [_make_agent("a", [_event("a", 1)])])
+
+    assert report.dropped == 3
