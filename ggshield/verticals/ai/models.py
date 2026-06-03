@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
 
 if TYPE_CHECKING:
     from ggshield.verticals.ai.agent_activity import ActivitySource, AgentActivityEvent
+    from ggshield.verticals.ai.agent_activity.sources import ResumeLookup
 
 import tomli
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -349,16 +350,23 @@ class Agent(ABC):
     :meth:`iter_agent_activity_events` walks every source.
     """
 
-    def iter_agent_activity_events(self) -> Iterator["AgentActivityEvent"]:
+    def iter_agent_activity_events(
+        self, resume_for: Optional["ResumeLookup"] = None
+    ) -> Iterator["AgentActivityEvent"]:
         """Yield every ``AgentActivityEvent`` this agent can recover from disk.
 
         Default implementation: iterate ``self.agent_activity_sources``, passing
         ``self.config_folder`` as the ``path_root`` so each event's
         ``source_path`` is recorded relative to the agent's config dir.
+
+        ``resume_for`` is forwarded to each source so already-shipped records can
+        be skipped (see :mod:`ggshield.verticals.ai.agent_activity.cursors`).
         """
         for source in self.agent_activity_sources:
             yield from source.iter_events(
-                agent_name=self.name, path_root=self.config_folder
+                agent_name=self.name,
+                path_root=self.config_folder,
+                resume_for=resume_for,
             )
 
     def _user_or_default(self, ai_config: Optional[AIDiscovery]) -> UserInfo:

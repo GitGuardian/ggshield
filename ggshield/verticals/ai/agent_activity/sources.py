@@ -25,7 +25,17 @@ usually only supply ``discover`` (+ optional ``record_offset`` override).
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import ClassVar, Dict, Iterable, Iterator, Optional, Sequence, Tuple, Union
+from typing import (
+    Callable,
+    ClassVar,
+    Dict,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
@@ -33,6 +43,11 @@ from ggshield.verticals.ai.agent_activity.readers import iter_jsonl, iter_sqlite
 
 
 RawRecord = Union[str, Dict[str, object]]
+
+# Given (source_kind, source_path), return the index of the last record already
+# shipped for that source (or a negative value if none) — see
+# :mod:`ggshield.verticals.ai.agent_activity.cursors`.
+ResumeLookup = Callable[[str, str], int]
 
 # Cap a single record's content as a cheap defensive bound on payload size.
 MAX_CONTENT_BYTES = 256 * 1024
@@ -60,6 +75,12 @@ class ActivitySource(ABC):
     """
 
     kind: ClassVar[str] = ""
+
+    # Whether this source's records can be resumed by positional index across
+    # runs. Only true for append-only sources (a record's index never changes
+    # once written). Mutable sources (e.g. an edited-in-place DB row) leave this
+    # False so they are always re-read in full.
+    supports_resume: ClassVar[bool] = False
 
     @abstractmethod
     def discover(self) -> Iterable[Path]:
@@ -119,12 +140,25 @@ class ActivitySource(ABC):
         return str(index)
 
     def iter_events(
-        self, agent_name: str, path_root: Optional[Path] = None
+        self,
+        agent_name: str,
+        path_root: Optional[Path] = None,
+        resume_for: Optional[ResumeLookup] = None,
     ) -> Iterator[AgentActivityEvent]:
-        """Run the full discover → read → serialize pipeline for this source."""
+        """Run the full discover → read → serialize pipeline for this source.
+
+        When ``resume_for`` is given and this source ``supports_resume``, records
+        whose index is at or below the per-source high-water mark it returns are
+        skipped — they were shipped on a previous run.
+        """
         for path in self.discover():
             source_path = self.source_path_for(path, path_root)
+            resume_after = -1
+            if resume_for is not None and self.supports_resume:
+                resume_after = resume_for(self.kind, source_path)
             for index, record in enumerate(self.read(path)):
+                if index <= resume_after:
+                    continue
                 content = _cap_content(self.serialize(record))
                 yield AgentActivityEvent(
                     agent_name=agent_name,
@@ -136,7 +170,13 @@ class ActivitySource(ABC):
 
 
 class JSONLActivitySource(ActivitySource):
-    """Source backed by a JSONL file. Ships one raw line per record."""
+    """Source backed by a JSONL file. Ships one raw line per record.
+
+    JSONL transcripts are append-only (lines are never rewritten), so records
+    can be resumed by index across runs.
+    """
+
+    supports_resume = True
 
     def read(self, path: Path) -> Iterator[str]:
         yield from iter_jsonl(path)
