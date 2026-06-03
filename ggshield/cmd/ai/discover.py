@@ -82,7 +82,9 @@ def discover_cmd(
         save_discovery_cache(config)
         if scan_history:
             backfill_report = backfill_mcp_history(client, config)
-            activity_report = collect_agent_activity(client, AGENTS.values())
+            activity_report = collect_agent_activity(
+                client, config.user, AGENTS.values()
+            )
     except Exception as exc:
         if "missing the following scope:" in str(exc):
             scope = str(exc).split("missing the following scope:")[1].strip()

@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import requests
-from pygitguardian.models import Detail
+from pygitguardian.models import Detail, UserInfo
 
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
 from ggshield.verticals.ai.agent_activity.orchestrator import (
@@ -10,6 +10,9 @@ from ggshield.verticals.ai.agent_activity.orchestrator import (
     collect_agent_activity,
     send_agent_activity_batch,
 )
+
+
+_USER = UserInfo(hostname="dev-laptop", username="dev", machine_id="machine-001")
 
 
 def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
@@ -33,7 +36,7 @@ def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
             content='{"key": "bubbleId:abc:xyz", "value": "{"y": 2}"}',
         ),
     ]
-    result = send_agent_activity_batch(client, events)
+    result = send_agent_activity_batch(client, events, _USER)
     client.send_agent_activity.assert_called_once_with(
         [
             {
@@ -51,13 +54,14 @@ def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
                 "content": '{"key": "bubbleId:abc:xyz", "value": "{"y": 2}"}',
             },
         ],
+        user=_USER.to_dict(),
     )
     assert result.ingested == 2
 
 
 def test_send_agent_activity_batch_empty_list_short_circuits() -> None:
     client = MagicMock()
-    result = send_agent_activity_batch(client, [])
+    result = send_agent_activity_batch(client, [], _USER)
     client.send_agent_activity.assert_not_called()
     assert result.ingested == 0
 
@@ -66,7 +70,7 @@ def test_send_agent_activity_batch_treats_detail_as_failure() -> None:
     """An API error (Detail) is reported as a failed batch, not an ingest."""
     client = MagicMock()
     client.send_agent_activity.return_value = Detail("boom", status_code=500)
-    result = send_agent_activity_batch(client, [_event("a", 1)])
+    result = send_agent_activity_batch(client, [_event("a", 1)], _USER)
     assert result.success is False
     assert result.ingested == 0
     assert result.duplicates == 0
@@ -75,7 +79,7 @@ def test_send_agent_activity_batch_treats_detail_as_failure() -> None:
 def test_collect_agent_activity_counts_detail_response_as_failed_batch() -> None:
     client = MagicMock()
     client.send_agent_activity.return_value = Detail("boom", status_code=500)
-    report = collect_agent_activity(client, [_make_agent("a", [_event("a", 1)])])
+    report = collect_agent_activity(client, _USER, [_make_agent("a", [_event("a", 1)])])
     assert report.parsed == 1
     assert report.ingested == 0
     assert report.failed_batches == 1
@@ -98,6 +102,18 @@ def _event(agent_name: str, i: int) -> AgentActivityEvent:
     )
 
 
+def test_collect_agent_activity_attaches_user_to_each_batch() -> None:
+    client = MagicMock()
+    client.send_agent_activity.return_value = MagicMock(
+        success=True, ingested=1, duplicates=0
+    )
+    collect_agent_activity(client, _USER, [_make_agent("a", [_event("a", 1)])])
+
+    _, kwargs = client.send_agent_activity.call_args
+    assert kwargs["user"] == _USER.to_dict()
+    assert kwargs["user"]["machine_id"] == "machine-001"
+
+
 def test_collect_agent_activity_batches_in_chunks_of_batch_size() -> None:
     """An agent yielding more than BATCH_SIZE events triggers multiple sends."""
     events = [_event("a", i) for i in range(BATCH_SIZE + 3)]
@@ -107,7 +123,7 @@ def test_collect_agent_activity_batches_in_chunks_of_batch_size() -> None:
         success=True, ingested=BATCH_SIZE, duplicates=0
     )
 
-    report = collect_agent_activity(client, [agent])
+    report = collect_agent_activity(client, _USER, [agent])
 
     assert client.send_agent_activity.call_count == 2
     assert report.parsed == BATCH_SIZE + 3
@@ -122,7 +138,7 @@ def test_collect_agent_activity_aggregates_per_agent_counts() -> None:
     )
 
     report = collect_agent_activity(
-        client, [_make_agent("a", events_a), _make_agent("b", events_b)]
+        client, _USER, [_make_agent("a", events_a), _make_agent("b", events_b)]
     )
 
     assert report.parsed == 2
@@ -131,7 +147,7 @@ def test_collect_agent_activity_aggregates_per_agent_counts() -> None:
 
 def test_collect_agent_activity_handles_empty_agents() -> None:
     client = MagicMock()
-    report = collect_agent_activity(client, [_make_agent("a", [])])
+    report = collect_agent_activity(client, _USER, [_make_agent("a", [])])
     client.send_agent_activity.assert_not_called()
     assert report.parsed == 0
 
@@ -152,7 +168,7 @@ def test_collect_agent_activity_flushes_on_byte_threshold() -> None:
     client = MagicMock()
     client.send_agent_activity.return_value = MagicMock(ingested=1, duplicates=0)
 
-    report = collect_agent_activity(client, [_make_agent("a", events)])
+    report = collect_agent_activity(client, _USER, [_make_agent("a", events)])
 
     # 3 oversized events => 3 separate sends, none waiting for the 500 count.
     assert client.send_agent_activity.call_count == 3
@@ -163,7 +179,7 @@ def test_collect_agent_activity_counts_network_error_as_failed_batch() -> None:
     """A network error while sending a batch is counted as a failed batch."""
     client = MagicMock()
     client.send_agent_activity.side_effect = requests.exceptions.ConnectionError("down")
-    report = collect_agent_activity(client, [_make_agent("a", [_event("a", 1)])])
+    report = collect_agent_activity(client, _USER, [_make_agent("a", [_event("a", 1)])])
 
     assert report.parsed == 1
     assert report.ingested == 0

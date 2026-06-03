@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Iterable, List
 
 import requests
 from pygitguardian import GGClient
-from pygitguardian.models import Detail
+from pygitguardian.models import Detail, UserInfo
 
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
 
@@ -40,13 +40,13 @@ class AgentActivityReport:
 
 
 def send_agent_activity_batch(
-    client: GGClient, events: List[AgentActivityEvent]
+    client: GGClient, events: List[AgentActivityEvent], user: UserInfo
 ) -> AgentActivityBatchResult:
-    """Serialise events and submit them as one batch."""
+    """Serialise events and submit them as one batch (with the reporting user)."""
     if not events:
         return AgentActivityBatchResult(ingested=0, duplicates=0, success=True)
     payload = [e.to_dict() for e in events]
-    response = client.send_agent_activity(payload)
+    response = client.send_agent_activity(payload, user)
     if isinstance(response, Detail):
         logger.warning("agent_activity: API returned an error: %s", response.detail)
         return AgentActivityBatchResult(ingested=0, duplicates=0, success=False)
@@ -58,9 +58,13 @@ def send_agent_activity_batch(
 
 
 def collect_agent_activity(
-    client: GGClient, agents: "Iterable[Agent]"
+    client: GGClient, user: UserInfo, agents: "Iterable[Agent]"
 ) -> AgentActivityReport:
-    """Walk each agent's raw sources and ship records in BATCH_SIZE-event batches."""
+    """Walk each agent's raw sources and ship records in BATCH_SIZE-event batches.
+
+    user (the reporting machine/user) is attached to every batch so
+    the server can attribute the activity and correlate it with the machine scan.
+    """
     report = AgentActivityReport()
     buffer: List[AgentActivityEvent] = []
     buffer_bytes = 0
@@ -70,7 +74,7 @@ def collect_agent_activity(
         if not buffer:
             return
         try:
-            result = send_agent_activity_batch(client, list(buffer))
+            result = send_agent_activity_batch(client, list(buffer), user)
         except requests.exceptions.RequestException as exc:
             logger.warning(
                 "agent_activity: batch of %d events failed: %s", len(buffer), exc
