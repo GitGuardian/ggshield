@@ -12,6 +12,7 @@ from ggshield.verticals.ai.agent_activity.sources import (
     JSONActivitySource,
     JSONLActivitySource,
     SQLiteActivitySource,
+    _elide_base64_blobs,
 )
 
 
@@ -103,6 +104,43 @@ def test_source_path_for_is_relative_to_path_root(tmp_path: Path) -> None:
 
     outside = tmp_path.parent / "elsewhere" / "rollout.jsonl"
     assert S().source_path_for(outside, tmp_path) == outside.as_posix()
+
+
+def test_elide_base64_blobs_replaces_long_pure_base64() -> None:
+    blob = "A" * 5000  # pure base64, over the threshold
+    content = '{"type": "image", "media_type": "image/png", "data": "' + blob + '"}'
+    out = _elide_base64_blobs(content)
+    assert blob not in out
+    assert "base64 elided" in out
+    assert '"media_type": "image/png"' in out  # siblings preserved
+    json.loads(out)  # still valid JSON
+
+
+def test_elide_base64_blobs_keeps_short_values() -> None:
+    content = '{"data": "' + "A" * 100 + '"}'  # below the threshold
+    assert _elide_base64_blobs(content) == content
+
+
+def test_elide_base64_blobs_spares_textual_fields() -> None:
+    # A long stdout dump has whitespace/newlines, so it is not a pure base64 run.
+    content = json.dumps({"stdout": "ls -la output line\n" * 500})
+    assert _elide_base64_blobs(content) == content
+
+
+def test_iter_events_elides_base64_in_shipped_content(tmp_path: Path) -> None:
+    blob = "Zm9v" * 1500  # 6000 chars of pure base64
+    f = tmp_path / "s.jsonl"
+    f.write_text('{"type":"image","source":{"data":"' + blob + '"}}\n')
+
+    class S(JSONLActivitySource):
+        kind = "demo"
+
+        def discover(self) -> Iterable[Path]:
+            return [f]
+
+    [event] = list(S().iter_events(agent_name="t", path_root=tmp_path))
+    assert blob not in event.content
+    assert "base64 elided" in event.content
 
 
 def test_iter_events_caps_oversized_content(tmp_path: Path) -> None:

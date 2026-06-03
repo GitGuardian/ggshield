@@ -23,6 +23,7 @@ usually only supply discover (+ optional record_offset override).
 """
 
 import json
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar, Dict, Iterable, Iterator, Optional, Sequence, Tuple, Union
@@ -36,6 +37,29 @@ RawRecord = Union[str, Dict[str, object]]
 # Cap a single record's content as a cheap defensive bound on payload size.
 MAX_CONTENT_BYTES = 256 * 1024
 CONTENT_TRUNCATED_MARKER = "…[ggshield: truncated]"
+
+# A base64 run this long is a binary blob (an embedded image, a thinking-block
+# signature, …) rather than meaningful text. Such blobs carry no analytical
+# value, but they dominate the payload and waste the server-side secret scan, so
+# we replace them with a short placeholder before shipping. Matching the base64
+# character class (no whitespace) leaves textual fields like stdout untouched.
+MIN_BASE64_ELIDE_CHARS = 4096
+_BASE64_BLOB_RE = re.compile(r'"[A-Za-z0-9+/]{%d,}={0,2}"' % MIN_BASE64_ELIDE_CHARS)
+
+
+def _elide_base64_blobs(content: str) -> str:
+    """Replace long pure-base64 string values with a compact placeholder.
+
+    Operates on the serialised record, so every other byte is shipped verbatim —
+    only the oversized binary blob is swapped out, keeping its sibling metadata
+    (media_type, etc.) intact.
+    """
+
+    def _replace(match: "re.Match[str]") -> str:
+        # match includes the surrounding quotes; the blob itself is len - 2.
+        return f'"<ggshield: {len(match.group(0)) - 2} bytes base64 elided>"'
+
+    return _BASE64_BLOB_RE.sub(_replace, content)
 
 
 def _cap_content(content: str) -> str:
@@ -116,7 +140,7 @@ class ActivitySource(ABC):
         for path in self.discover():
             source_path = self.source_path_for(path, path_root)
             for index, record in enumerate(self.read(path)):
-                content = _cap_content(self.serialize(record))
+                content = _cap_content(_elide_base64_blobs(self.serialize(record)))
                 yield AgentActivityEvent(
                     agent_name=agent_name,
                     source_kind=self.kind,
