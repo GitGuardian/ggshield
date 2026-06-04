@@ -101,6 +101,24 @@ def test_transport_error_raises():
         _client(session).list("m", "u")
 
 
+def test_server_error_sets_is_server_flag():
+    session = _FakeSession(create_json_response({"detail": "boom"}, 503))
+    with pytest.raises(EndpointDeploymentsError) as exc_info:
+        _client(session).list("m", "u")
+    assert exc_info.value.is_server is True
+
+
+def test_parse_error_on_unexpected_body():
+    # A 2xx whose body isn't the expected {"deployments": [...]} shape must surface a
+    # clean parse error rather than a raw KeyError.
+    session = _FakeSession(create_json_response({"unexpected": True}, 200))
+    with pytest.raises(EndpointDeploymentsError) as exc_info:
+        _client(session).reconcile(
+            {"machine_id": "m", "username": "u", "hostname": "h"}, "aws"
+        )
+    assert "parse error" in str(exc_info.value)
+
+
 # --- request shaping --------------------------------------------------------------
 
 
@@ -148,3 +166,12 @@ def test_confirm_serializes_status_lowercase():
     assert method == "PATCH"
     assert url.endswith("/v1/honeytokens/endpoint-deployments/dep-1")
     assert kwargs["json"] == {"status": "planted"}
+
+
+@pytest.mark.parametrize("code", [200, 202, 204])
+def test_confirm_accepts_any_2xx(code):
+    # A confirm PATCH may answer 204 No Content (or another 2xx); it must not be treated
+    # as an API error. The body is ignored for confirm, so an empty 204 is fine.
+    session = _FakeSession(create_json_response({}, code))
+    _client(session).confirm("dep-1", ConfirmStatus.REMOVED)  # must not raise
+    assert session.calls[0][0] == "PATCH"

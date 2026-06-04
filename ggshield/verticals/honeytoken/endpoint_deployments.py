@@ -211,7 +211,10 @@ class EndpointDeploymentsClient:
                 f"endpoint-deployments API request error: {exc}"
             )
 
-        if response.status_code in (200, 201):
+        # Accept any 2xx: reconcile/list return 200 with a body, but a confirm PATCH
+        # may legitimately answer 204 No Content — treating that as an error would log
+        # every successful confirm as a failure.
+        if 200 <= response.status_code < 300:
             return response
 
         body = response.text
