@@ -108,9 +108,7 @@ def test_plant_is_idempotent(cli_fs_runner: CliRunner, monkeypatch) -> None:
         ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
     )
 
-    result = cli_fs_runner.invoke(
-        cli, ["honeytoken", "plant", "--user-dir", "home"]
-    )
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
     assert_invoke_ok(result)
     assert "0 written, 1 skipped" in result.output
 
@@ -151,6 +149,98 @@ def test_remove_only_uses_get_and_removes_revoked(
     assert "1 removed" in result.output
 
 
+def test_remove_only_reapplies_ownership_when_file_survives(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # A delete that leaves OTHER profiles rewrites the file (temp + os.replace). As root
+    # that leaves it root-owned 0600, locking the user out — ownership/perms must be
+    # re-applied. Here we record the call to prove the re-apply happens.
+    aws_dir = Path("home/.aws")
+    aws_dir.mkdir(parents=True)
+    parser = configparser.ConfigParser(interpolation=None)
+    parser["prod-backup"] = {
+        "aws_access_key_id": "REVOKED",
+        "aws_secret_access_key": "old",
+    }
+    parser["default"] = {
+        "aws_access_key_id": "USER_OWN",
+        "aws_secret_access_key": "mine",
+    }
+    with open(aws_dir / "credentials", "w") as handle:
+        parser.write(handle)
+
+    reapplied: list = []
+    monkeypatch.setattr(
+        "ggshield.cmd.honeytoken.plant.apply_perms_and_owner",
+        lambda path, target, running_as_root: reapplied.append(Path(path)),
+    )
+
+    mock = _install_mock(monkeypatch)
+    mock.add_GET(
+        ENDPOINT,
+        create_json_response(
+            {"deployments": [_deployment("delete", token=("REVOKED", "old"))]}
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    # The file survived (the foreign 'default' profile remains) and was re-permed.
+    assert (aws_dir / "credentials").exists()
+    assert Path("home/.aws/credentials") in reapplied
+    # The user's own profile is intact.
+    assert (
+        _section(aws_dir / "credentials", "default")["aws_access_key_id"] == "USER_OWN"
+    )
+
+
+def test_remove_only_skips_reapply_when_file_deleted(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # When ours was the only profile, the file is unlinked — there's nothing left to
+    # re-perm, so apply_perms_and_owner must NOT run.
+    aws_dir = Path("home/.aws")
+    aws_dir.mkdir(parents=True)
+    parser = configparser.ConfigParser(interpolation=None)
+    parser["prod-backup"] = {
+        "aws_access_key_id": "REVOKED",
+        "aws_secret_access_key": "old",
+    }
+    with open(aws_dir / "credentials", "w") as handle:
+        parser.write(handle)
+
+    reapplied: list = []
+    monkeypatch.setattr(
+        "ggshield.cmd.honeytoken.plant.apply_perms_and_owner",
+        lambda *a, **k: reapplied.append(a),
+    )
+
+    mock = _install_mock(monkeypatch)
+    mock.add_GET(
+        ENDPOINT,
+        create_json_response(
+            {"deployments": [_deployment("delete", token=("REVOKED", "old"))]}
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    assert not (aws_dir / "credentials").exists()
+    assert reapplied == []
+
+
 def test_malformed_credentials_file_fails_cleanly(
     cli_fs_runner: CliRunner, monkeypatch
 ) -> None:
@@ -171,9 +261,7 @@ def test_malformed_credentials_file_fails_cleanly(
         ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
     )
 
-    result = cli_fs_runner.invoke(
-        cli, ["honeytoken", "plant", "--user-dir", "home"]
-    )
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
 
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     assert result.exception is None or isinstance(result.exception, SystemExit)
@@ -200,9 +288,7 @@ def test_write_entry_missing_credentials_fails(
     mock.add_request(
         ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
     )
-    result = cli_fs_runner.invoke(
-        cli, ["honeytoken", "plant", "--user-dir", "home"]
-    )
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     assert "missing credentials" in result.output
 
@@ -223,9 +309,7 @@ def test_confirm_failure_is_logged_not_fatal(
             "PATCH", f"{ENDPOINT}/dep-1", create_json_response({"detail": "boom"}, 500)
         )
     )
-    result = cli_fs_runner.invoke(
-        cli, ["honeytoken", "plant", "--user-dir", "home"]
-    )
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
     assert_invoke_ok(result)
     assert "could not confirm" in result.output
     assert Path("home/.aws/credentials").exists()
@@ -252,15 +336,100 @@ def test_unexpected_per_target_error_does_not_crash(
     def _boom(*_a, **_k):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(
-        "ggshield.cmd.honeytoken.plant._reconcile_for_user", _boom
-    )
-    result = cli_fs_runner.invoke(
-        cli, ["honeytoken", "plant", "--user-dir", "home"]
-    )
+    monkeypatch.setattr("ggshield.cmd.honeytoken.plant._reconcile_for_user", _boom)
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     assert result.exception is None or isinstance(result.exception, SystemExit)
     assert "unexpected error" in result.output
+
+
+def test_api_auth_error_exits_authentication(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # A 403 from the reconcile POST → AUTHENTICATION_ERROR, reported cleanly, no write.
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(ENDPOINT, create_json_response({"detail": "forbidden"}, 403))
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
+    assert_invoke_exited_with(result, ExitCode.AUTHENTICATION_ERROR)
+    assert not Path("home/.aws/credentials").exists()
+
+
+def test_remove_only_foreign_profile_is_kept(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # The on-disk profile holds a DIFFERENT key than the revoked token → verify-before-
+    # remove leaves it untouched (never clobber a foreign profile).
+    aws_dir = Path("home/.aws")
+    aws_dir.mkdir(parents=True)
+    parser = configparser.ConfigParser(interpolation=None)
+    parser["prod-backup"] = {
+        "aws_access_key_id": "SOMEONE_ELSE",
+        "aws_secret_access_key": "x",
+    }
+    with open(aws_dir / "credentials", "w") as handle:
+        parser.write(handle)
+
+    mock = _install_mock(monkeypatch)
+    mock.add_GET(
+        ENDPOINT,
+        create_json_response(
+            {"deployments": [_deployment("delete", token=("REVOKED", "old"))]}
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    assert "left untouched" in result.output
+    # The foreign profile is preserved verbatim.
+    assert (
+        _section(aws_dir / "credentials", "prod-backup")["aws_access_key_id"]
+        == "SOMEONE_ELSE"
+    )
+
+
+def test_remove_only_delete_failure_is_reported(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # A malformed ~/.aws during the delete pass is reported per-deployment (FAILED), not
+    # a crash; the run exits non-zero with a clean message.
+    aws_dir = Path("home/.aws")
+    aws_dir.mkdir(parents=True)
+    (aws_dir / "credentials").write_text("[\nthis is not a valid ini file")
+
+    mock = _install_mock(monkeypatch)
+    mock.add_GET(
+        ENDPOINT,
+        create_json_response(
+            {"deployments": [_deployment("delete", token=("REVOKED", "old"))]}
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert "could not parse" in result.output
+
+
+def test_unknown_action_is_ignored(cli_fs_runner: CliRunner, monkeypatch) -> None:
+    # A forward-compat action a newer backend introduced is logged, not fatal.
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT, create_json_response({"deployments": [_deployment("freeze")]})
+    )
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
+    assert_invoke_ok(result)
+    assert "ignoring unknown action" in result.output
 
 
 def test_foreign_profile_without_force_fails(
@@ -288,9 +457,7 @@ def test_foreign_profile_without_force_fails(
         ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
     )
 
-    result = cli_fs_runner.invoke(
-        cli, ["honeytoken", "plant", "--user-dir", "home"]
-    )
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
 
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     # The user's own profile is left untouched.

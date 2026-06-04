@@ -219,6 +219,11 @@ def _reconcile_for_user(
                     "different key, left untouched",
                     err=True,
                 )
+            elif result is RemoveOutcome.REMOVED and path.exists():
+                # The removal rewrote the file (other profiles remain). As root that
+                # temp-file+os.replace leaves it root-owned 0600, locking the target
+                # user out of their own ~/.aws — re-assert their ownership/perms.
+                apply_perms_and_owner(path, target, running_as_root)
             _confirm(client, item, ConfirmStatus.REMOVED, target)
             removed += 1
         except Exception as exc:  # noqa: BLE001 - report + continue per deployment
