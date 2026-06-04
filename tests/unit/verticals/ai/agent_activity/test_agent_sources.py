@@ -111,7 +111,11 @@ def test_cursor_agent_ships_raw_bubble_rows(fake_home: Path) -> None:
     conn.commit()
     conn.close()
 
-    [event] = list(Cursor().iter_agent_activity_events())
+    [composer_data, event] = list(Cursor().iter_agent_activity_events())
+
+    assert composer_data.agent_name == "cursor"
+    assert composer_data.source_kind == "composer_data"
+    assert composer_data.record_offset == "composerData:c1"
 
     assert event.agent_name == "cursor"
     assert event.record_offset == "bubbleId:c1:b1"

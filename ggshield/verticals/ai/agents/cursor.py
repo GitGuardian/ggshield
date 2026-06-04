@@ -55,8 +55,6 @@ class CursorActivitySource(SQLiteActivitySource):
     GitGuardian scans and strips secrets server-side before storing it.
     """
 
-    kind = "composer_bubble"
-    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'"
     key_columns = ("key",)
 
     def discover(self) -> Iterator[Path]:
@@ -64,10 +62,21 @@ class CursorActivitySource(SQLiteActivitySource):
         return iter([db_path] if db_path.is_file() else [])
 
 
+class BubbleActivitySource(CursorActivitySource):
+    kind = "composer_bubble"
+    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'"
+
+
+class ComposerActivitySource(CursorActivitySource):
+    kind = "composer_data"
+    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'composerData:%'"
+
+
 class Cursor(Agent):
     """Behavior specific to Cursor."""
 
-    agent_activity_sources = [CursorActivitySource()]
+    # Composer must be first, to have the metadata to populate the bubble session.
+    agent_activity_sources = [ComposerActivitySource(), BubbleActivitySource()]
 
     @property
     def name(self) -> str:
