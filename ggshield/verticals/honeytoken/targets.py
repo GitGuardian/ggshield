@@ -65,7 +65,16 @@ def resolve_targets(user: Optional[str], user_dir: Optional[Path]) -> List[Targe
     """Resolve the set of users to plant for. Raises ``LookupError`` if an explicit
     ``--user`` can't be resolved."""
     if user_dir is not None:
-        return [Target(username=user or _get_username(), home=user_dir, uid=None)]
+        # Resolve the passwd uid when an explicit --user is also given, so a root run
+        # still chowns the decoy to that user. A name absent from passwd (the
+        # testing/edge use of --user-dir) keeps uid=None rather than failing.
+        uid: Optional[int] = None
+        if user is not None:
+            try:
+                _home, uid, _gid = _passwd_for_name(user)
+            except LookupError:
+                uid = None
+        return [Target(username=user or _get_username(), home=user_dir, uid=uid)]
 
     if user is not None:
         home, uid, _gid = _passwd_for_name(user)

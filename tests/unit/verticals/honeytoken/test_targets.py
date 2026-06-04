@@ -29,6 +29,32 @@ def test_user_dir_target_uses_current_username(monkeypatch):
     assert targets[0].uid is None
 
 
+def test_user_dir_with_user_keeps_passwd_uid(monkeypatch):
+    # --user-dir + an existing --user: keep the overridden home but resolve the uid so
+    # a root run still chowns the decoy to that user.
+    monkeypatch.setattr(
+        "pwd.getpwnam",
+        lambda name: SimpleNamespace(pw_dir="/home/bob", pw_uid=1001, pw_gid=1001),
+    )
+    (target,) = resolve_targets(user="bob", user_dir=Path("/tmp/ht"))
+    assert target.username == "bob"
+    assert target.home == Path("/tmp/ht")  # the overridden dir wins over passwd home
+    assert target.uid == 1001
+
+
+def test_user_dir_with_unknown_user_falls_back_to_no_uid(monkeypatch):
+    # --user-dir + a --user absent from passwd (the testing/edge case): no failure,
+    # uid stays None.
+    def _raise(_name):
+        raise KeyError
+
+    monkeypatch.setattr("pwd.getpwnam", _raise)
+    (target,) = resolve_targets(user="ghost", user_dir=Path("/tmp/ht"))
+    assert target.username == "ghost"
+    assert target.home == Path("/tmp/ht")
+    assert target.uid is None
+
+
 def test_user_target_resolves_via_passwd(monkeypatch):
     monkeypatch.setattr(
         "pwd.getpwnam",
