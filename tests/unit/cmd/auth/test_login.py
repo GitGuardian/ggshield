@@ -47,7 +47,7 @@ VALID_TOKEN_RESPONSE = create_json_response(
             "scan",
             "honeytokens:write",
             "honeytokens:check",
-            "nhi:send-inventory",
+            "endpoints:send",
         ],
         "expire_at": None,
     }
@@ -78,7 +78,7 @@ VALID_API_TOKENS_RESPONSE = create_json_response(
             "scan",
             "honeytokens:write",
             "honeytokens:check",
-            "nhi:send-inventory",
+            "endpoints:send",
         ],
     }
 )
@@ -183,7 +183,7 @@ class TestAuthLoginToken:
         assert result.exit_code == 0
         assert "Warning: the following scopes were not granted:" in result.output
         assert "honeytokens:write" in result.output
-        assert "nhi:send-inventory" in result.output
+        assert "endpoints:send" in result.output
         assert "Some features may require additional permissions" in result.output
 
         config = Config()
@@ -703,7 +703,7 @@ class TestAuthLoginWeb:
                 "scan",
                 "honeytokens:write",
                 "honeytokens:check",
-                "nhi:send-inventory",
+                "endpoints:send",
                 "teams:read",
             }
         )
@@ -718,14 +718,14 @@ class TestAuthLoginWeb:
         AND the token is still saved
         """
         self.prepare_mocks(
-            monkeypatch, missing_scopes=["honeytokens:write", "nhi:send-inventory"]
+            monkeypatch, missing_scopes=["honeytokens:write", "endpoints:send"]
         )
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         assert exit_code == ExitCode.SUCCESS
         assert "Warning: the following scopes were not granted:" in output
         assert "honeytokens:write" in output
-        assert "nhi:send-inventory" in output
+        assert "endpoints:send" in output
         assert "Some features may require additional permissions" in output
 
         self._assert_config("mysupertoken")
@@ -947,7 +947,7 @@ class TestAuthLoginWeb:
                 "scan",
                 "honeytokens:write",
                 "honeytokens:check",
-                "nhi:send-inventory",
+                "endpoints:send",
             }
 
         (url,), kwargs = self._webbrowser_open_mock.call_args_list[0]

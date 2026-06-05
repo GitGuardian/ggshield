@@ -112,7 +112,7 @@ def print_default_instance_message(config: Config) -> None:
     type=str,
     help=(
         "Space-separated list of extra scopes to request in addition to the default"
-        " scopes (scan, honeytokens:write, honeytokens:check, nhi:send-inventory)."
+        " scopes (scan, honeytokens:write, honeytokens:check, endpoints:send)."
     ),
     metavar="SCOPES",
 )
@@ -167,7 +167,7 @@ def login_cmd(
     The minimum required scope for the token is `scan`.
 
     By default, the created token will have the `scan`, `honeytokens:write`,
-    `honeytokens:check`, and `nhi:send-inventory` scopes.
+    `honeytokens:check`, and `endpoints:send` scopes.
     Use the `--scopes` option to request extra scopes. You can find the list of
     available scopes in [GitGuardian API documentation][1].
 

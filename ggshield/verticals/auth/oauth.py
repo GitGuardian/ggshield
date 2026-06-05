@@ -31,7 +31,7 @@ DEFAULT_SCOPES = [
     SCAN_SCOPE,
     "honeytokens:write",
     "honeytokens:check",
-    "nhi:send-inventory",
+    "endpoints:send",
 ]
 
 # Sentinel `redirect_uri` value used by the out-of-band (browser-less) OAuth
