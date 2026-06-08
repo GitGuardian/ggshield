@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 500
+BATCH_SIZE = 5000
 
 # Flush a batch once it reaches BATCH_SIZE events OR this many bytes of content,
 # whichever comes first, so a few large records can't produce a huge request.
