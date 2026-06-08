@@ -10,7 +10,7 @@ type = layers
 layers = 
 	ggshield.__main__
 	ggshield.cmd.ai | ggshield.cmd.auth | ggshield.cmd.config | ggshield.cmd.hmsl | ggshield.cmd.honeytoken | ggshield.cmd.install | ggshield.cmd.plugin | ggshield.cmd.quota | ggshield.cmd.secret | ggshield.cmd.status | ggshield.cmd.utils
-	ggshield.verticals.ai | ggshield.verticals.auth | ggshield.verticals.hmsl | ggshield.verticals.secret
+	ggshield.verticals.ai | ggshield.verticals.auth | ggshield.verticals.hmsl | ggshield.verticals.honeytoken | ggshield.verticals.secret
 	ggshield.core
 	click | ggshield.utils | pygitguardian
 ignore_imports = 
@@ -37,6 +37,7 @@ forbidden_modules =
 	ggshield.verticals.ai
 	ggshield.verticals.auth
 	ggshield.verticals.hmsl
+	ggshield.verticals.honeytoken
 	ggshield.verticals.secret
 ignore_imports = 
 	ggshield.cmd.ai.** -> ggshield.verticals.ai
