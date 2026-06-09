@@ -1,7 +1,7 @@
 """Orchestrate agent-activity collection across agents and ship batches to the API."""
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterable, List
 
 import requests
@@ -57,6 +57,26 @@ def send_agent_activity_batch(
     )
 
 
+@dataclass
+class _Batch:
+    """Events accumulated for the next request, with a running content-byte total."""
+
+    events: List[AgentActivityEvent] = field(default_factory=list)
+    nbytes: int = 0
+
+    def add(self, event: AgentActivityEvent) -> None:
+        self.events.append(event)
+        self.nbytes += len(event.content.encode("utf-8"))
+
+    @property
+    def full(self) -> bool:
+        return len(self.events) >= BATCH_SIZE or self.nbytes >= MAX_BATCH_BYTES
+
+    def clear(self) -> None:
+        self.events.clear()
+        self.nbytes = 0
+
+
 def collect_agent_activity(
     client: GGClient, user: UserInfo, agents: "Iterable[Agent]"
 ) -> AgentActivityReport:
@@ -66,18 +86,16 @@ def collect_agent_activity(
     the server can attribute the activity and correlate it with the machine scan.
     """
     report = AgentActivityReport()
-    buffer: List[AgentActivityEvent] = []
-    buffer_bytes = 0
+    batch = _Batch()
 
-    def flush() -> None:
-        nonlocal buffer_bytes
-        if not buffer:
+    def send_batch() -> None:
+        if not batch.events:
             return
         try:
-            result = send_agent_activity_batch(client, list(buffer), user)
+            result = send_agent_activity_batch(client, list(batch.events), user)
         except requests.exceptions.RequestException as exc:
             logger.warning(
-                "agent_activity: batch of %d events failed: %s", len(buffer), exc
+                "agent_activity: batch of %d events failed: %s", len(batch.events), exc
             )
             report.failed_batches += 1
         else:
@@ -85,15 +103,20 @@ def collect_agent_activity(
             report.dropped += result.dropped
             if not result.success:
                 report.failed_batches += 1
-        buffer.clear()
-        buffer_bytes = 0
+        batch.clear()
 
     for agent in agents:
-        for event in agent.iter_agent_activity_events():
-            buffer.append(event)
-            buffer_bytes += len(event.content.encode("utf-8"))
-            report.parsed += 1
-            if len(buffer) >= BATCH_SIZE or buffer_bytes >= MAX_BATCH_BYTES:
-                flush()
-    flush()
+        # Isolate each agent: a failure parsing one agent's history must not
+        # abort collection for the agents that follow.
+        try:
+            for event in agent.iter_agent_activity_events():
+                batch.add(event)
+                report.parsed += 1
+                if batch.full:
+                    send_batch()
+        except Exception as exc:
+            logger.warning(
+                "agent_activity: collection failed for agent %s: %s", agent.name, exc
+            )
+    send_batch()
     return report

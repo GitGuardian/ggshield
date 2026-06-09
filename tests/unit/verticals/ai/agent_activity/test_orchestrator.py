@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock
 
+import pytest
 import requests
 from pygitguardian.models import Detail, UserInfo
 
+from ggshield.verticals.ai.agent_activity import orchestrator
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
 from ggshield.verticals.ai.agent_activity.orchestrator import (
-    BATCH_SIZE,
-    MAX_BATCH_BYTES,
     collect_agent_activity,
     send_agent_activity_batch,
 )
@@ -107,19 +107,22 @@ def test_collect_agent_activity_attaches_user_to_each_batch() -> None:
     assert kwargs["user"]["machine_id"] == "machine-001"
 
 
-def test_collect_agent_activity_batches_in_chunks_of_batch_size() -> None:
+def test_collect_agent_activity_batches_in_chunks_of_batch_size(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """An agent yielding more than BATCH_SIZE events triggers multiple sends."""
-    events = [_event("a", i) for i in range(BATCH_SIZE + 3)]
+    monkeypatch.setattr(orchestrator, "BATCH_SIZE", 5)
+    events = [_event("a", i) for i in range(orchestrator.BATCH_SIZE + 3)]
     agent = _make_agent("a", events)
     client = MagicMock()
     client.send_agent_activity.return_value = MagicMock(
-        success=True, ingested=BATCH_SIZE, dropped=0
+        success=True, ingested=orchestrator.BATCH_SIZE, dropped=0
     )
 
     report = collect_agent_activity(client, _USER, [agent])
 
     assert client.send_agent_activity.call_count == 2
-    assert report.parsed == BATCH_SIZE + 3
+    assert report.parsed == orchestrator.BATCH_SIZE + 3
 
 
 def test_collect_agent_activity_aggregates_per_agent_counts() -> None:
@@ -145,9 +148,14 @@ def test_collect_agent_activity_handles_empty_agents() -> None:
     assert report.parsed == 0
 
 
-def test_collect_agent_activity_flushes_on_byte_threshold() -> None:
+def test_collect_agent_activity_flushes_on_byte_threshold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Large records flush on the byte budget before reaching BATCH_SIZE count."""
-    big = "x" * (MAX_BATCH_BYTES + 1)  # each event alone exceeds the budget
+    monkeypatch.setattr(orchestrator, "MAX_BATCH_BYTES", 1024)
+    big = "x" * (
+        orchestrator.MAX_BATCH_BYTES + 1
+    )  # each event alone exceeds the budget
     events = [
         AgentActivityEvent(
             agent_name="a",
@@ -163,7 +171,7 @@ def test_collect_agent_activity_flushes_on_byte_threshold() -> None:
 
     report = collect_agent_activity(client, _USER, [_make_agent("a", events)])
 
-    # 3 oversized events => 3 separate sends, none waiting for the 500 count.
+    # 3 oversized events => 3 separate sends, none waiting for the count threshold.
     assert client.send_agent_activity.call_count == 3
     assert report.parsed == 3
 

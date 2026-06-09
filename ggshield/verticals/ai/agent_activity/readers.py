@@ -17,8 +17,8 @@ def iter_jsonl(path: Path) -> Iterator[str]:
     if not path.is_file():
         return
     try:
-        with path.open("r", encoding="utf-8", errors="replace") as fp:
-            for line in fp:
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
                 line = line.rstrip("\n").rstrip("\r")
                 if not line.strip():
                     continue
