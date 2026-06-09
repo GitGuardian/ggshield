@@ -63,6 +63,24 @@ def test_claude_agent_ships_subagent_transcripts(fake_home: Path) -> None:
     assert sub.content == sub_line
 
 
+def test_claude_agent_ships_subagent_meta(fake_home: Path) -> None:
+    """The subagent .meta.json (links the run to its parent Task call) is shipped."""
+    from ggshield.verticals.ai.agents.claude_code import Claude
+
+    subagents = fake_home / ".claude" / "projects" / "-repo" / "sess" / "subagents"
+    subagents.mkdir(parents=True)
+    meta = json.dumps(
+        {"agentType": "Explore", "description": "map X", "toolUseId": "toolu_1"}
+    )
+    (subagents / "agent-abc.meta.json").write_text(meta)
+
+    events = list(Claude().iter_agent_activity_events())
+
+    [m] = [e for e in events if e.source_kind == "subagent_meta"]
+    assert m.source_path == "projects/-repo/sess/subagents/agent-abc.meta.json"
+    assert m.content == meta
+
+
 def test_codex_agent_ships_raw_rollout_lines(fake_home: Path) -> None:
     from ggshield.verticals.ai.agents.codex import Codex
 

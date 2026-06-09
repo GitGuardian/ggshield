@@ -9,7 +9,7 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
-from ..agent_activity.sources import JSONLActivitySource
+from ..agent_activity.sources import JSONActivitySource, JSONLActivitySource
 from ..models import (
     Agent,
     EventType,
@@ -57,10 +57,35 @@ class ClaudeSubagentActivitySource(JSONLActivitySource):
         )
 
 
+class ClaudeSubagentMetaActivitySource(JSONActivitySource):
+    """Each Claude Code subagent's metadata file, shipped raw.
+
+    Alongside every subagents/agent-*.jsonl transcript sits an agent-*.meta.json
+    holding the subagent's agentType, description and the parent's toolUseId —
+    the only place that links a subagent run back to the Task call that spawned
+    it. Shipped verbatim; GitGuardian scans and strips secrets server-side.
+    """
+
+    kind = "subagent_meta"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted(
+                (get_user_home_dir() / ".claude").glob(
+                    "projects/*/*/subagents/*.meta.json"
+                )
+            )
+        )
+
+
 class Claude(Agent):
     """Behavior specific to Claude Code."""
 
-    agent_activity_sources = [ClaudeActivitySource(), ClaudeSubagentActivitySource()]
+    agent_activity_sources = [
+        ClaudeActivitySource(),
+        ClaudeSubagentActivitySource(),
+        ClaudeSubagentMetaActivitySource(),
+    ]
 
     @property
     def name(self) -> str:
