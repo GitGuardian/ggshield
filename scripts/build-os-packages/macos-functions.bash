@@ -33,7 +33,7 @@ macos_sign_file() {
 }
 
 macos_list_files_to_sign() {
-    local archive_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
+    local archive_dir="$BUILD_DIR/$ARCHIVE_DIR_NAME"
     echo "$archive_dir/$INSTALL_PREFIX/ggshield"
     find "$archive_dir" -name '*.so' -o -name '*.dylib'
 }
@@ -46,5 +46,5 @@ step_notarize() {
     rcodesign notary-submit \
         --api-key-file "$MACOS_API_KEY_FILE" \
         --staple \
-        "$PACKAGES_DIR/$ARCHIVE_DIR_NAME.pkg"
+        "$DIST_DIR/$ARCHIVE_DIR_NAME.pkg"
 }

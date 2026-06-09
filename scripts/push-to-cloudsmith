@@ -12,7 +12,7 @@ if [ -z "${CLOUDSMITH_API_KEY:-}" ] ; then
     die '$CLOUDSMITH_API_KEY is not set'
 fi
 
-for package in packages/*.{rpm,deb} ; do
+for package in dist/*.{rpm,deb} ; do
     case "$package" in
         *.deb)
             cloudsmith push deb $OWNER_REPO_DISTRO_RELEASE "$package"
