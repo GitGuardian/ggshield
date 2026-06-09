@@ -25,7 +25,7 @@ def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
             agent_name="claude-code",
             source_kind="session_transcript",
             source_path="projects/-p/bc7b2260.jsonl",
-            record_offset="0",
+            record_offset="0000000",
             content='{"x": 1}',
         ),
         AgentActivityEvent(
@@ -43,7 +43,7 @@ def test_send_agent_activity_batch_serialises_and_calls_client() -> None:
                 "agent_name": "claude-code",
                 "source_kind": "session_transcript",
                 "source_path": "projects/-p/bc7b2260.jsonl",
-                "record_offset": "0",
+                "record_offset": "0000000",
                 "content": '{"x": 1}',
             },
             {
@@ -90,7 +90,7 @@ def _event(agent_name: str, i: int) -> AgentActivityEvent:
         agent_name=agent_name,
         source_kind="k",
         source_path="f.jsonl",
-        record_offset=str(i),
+        record_offset=str(i).zfill(7),
         content=f'{{"i": {i}}}',
     )
 
@@ -161,7 +161,7 @@ def test_collect_agent_activity_flushes_on_byte_threshold(
             agent_name="a",
             source_kind="k",
             source_path="f",
-            record_offset=str(i),
+            record_offset=str(i).zfill(7),
             content=big,
         )
         for i in range(3)

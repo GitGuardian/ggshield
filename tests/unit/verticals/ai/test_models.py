@@ -362,14 +362,14 @@ def test_agent_iter_agent_activity_events_loops_each_source(tmp_path: Path) -> N
             agent_name="fake",
             source_kind="k1",
             source_path="a.jsonl",
-            record_offset="0",
+            record_offset="0000000",
             content='{"x": 1}',
         ),
         AgentActivityEvent(
             agent_name="fake",
             source_kind="k2",
             source_path="b.jsonl",
-            record_offset="0",
+            record_offset="0000000",
             content='{"x": 2}',
         ),
     ]

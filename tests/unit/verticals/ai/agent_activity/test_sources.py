@@ -37,14 +37,14 @@ def test_jsonl_source_yields_raw_lines_with_offsets_and_relative_path(
             agent_name="t",
             source_kind="demo",
             source_path="a.jsonl",
-            record_offset="0",
+            record_offset="0000000",
             content='{"i": 1}',
         ),
         AgentActivityEvent(
             agent_name="t",
             source_kind="demo",
             source_path="a.jsonl",
-            record_offset="1",
+            record_offset="0000001",
             content='{"i": 2}',
         ),
     ]
@@ -69,8 +69,8 @@ def test_jsonl_source_serialize_strips_pii_fields(tmp_path: Path) -> None:
 
     events = list(S().iter_events(agent_name="t", path_root=tmp_path))
     assert [(e.record_offset, e.content) for e in events] == [
-        ("0", '{"msg": "hello"}'),
-        ("1", '{"msg": "world"}'),
+        ("0000000", '{"msg": "hello"}'),
+        ("0000001", '{"msg": "world"}'),
     ]
 
 
@@ -184,14 +184,14 @@ def test_json_source_yields_one_record_per_file(tmp_path: Path) -> None:
             agent_name="t",
             source_kind="json_file",
             source_path="a.json",
-            record_offset="0",
+            record_offset="0000000",
             content='{"hello": "world"}',
         ),
         AgentActivityEvent(
             agent_name="t",
             source_kind="json_file",
             source_path="b.json",
-            record_offset="0",
+            record_offset="0000000",
             content="[1, 2, 3]",
         ),
     ]

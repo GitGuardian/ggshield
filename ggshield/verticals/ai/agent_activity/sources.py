@@ -126,12 +126,13 @@ class ActivitySource(ABC):
         SQLite subclasses can inspect dict columns even after serialize
         stringifies the row.
 
-        Default: the positional index serialised as a string ("0", "1", …).
+        Default: the positional index serialised as a string ("00000", "00001", …).
+        Keep leading zeros to avoid lexicographic sorting issues.
         Note that index counts the records read() actually yields (e.g.
         non-blank JSONL lines), not physical line numbers. Override when the
         record carries a natural unique ID.
         """
-        return str(index)
+        return str(index).zfill(7)
 
     def iter_events(
         self, agent_name: str, path_root: Optional[Path] = None
