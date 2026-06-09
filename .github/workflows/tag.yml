@@ -67,20 +67,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: os-packages-*
-          path: packages
+          path: dist
           merge-multiple: true
 
       - name: Generate artifact attestations
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            packages/ggshield-*.pkg
-            packages/ggshield_*.deb
-            packages/ggshield-*.rpm
-            packages/ggshield-*.zip
-            packages/ggshield.*.nupkg
-            packages/ggshield-*.gz
-            packages/ggshield-*.msi
+            dist/ggshield-*.pkg
+            dist/ggshield_*.deb
+            dist/ggshield-*.rpm
+            dist/ggshield-*.zip
+            dist/ggshield.*.nupkg
+            dist/ggshield-*.gz
+            dist/ggshield-*.msi
 
       - name: Create release
         env:
@@ -94,13 +94,13 @@ jobs:
         run: |
           gh release upload \
             ${{ steps.tags.outputs.tag }} \
-            packages/ggshield-*.pkg \
-            packages/ggshield_*.deb \
-            packages/ggshield-*.rpm \
-            packages/ggshield-*.zip \
-            packages/ggshield.*.nupkg \
-            packages/ggshield-*.gz \
-            packages/ggshield-*.msi
+            dist/ggshield-*.pkg \
+            dist/ggshield_*.deb \
+            dist/ggshield-*.rpm \
+            dist/ggshield-*.zip \
+            dist/ggshield.*.nupkg \
+            dist/ggshield-*.gz \
+            dist/ggshield-*.msi
 
   update_vscode_extension:
     needs: release
@@ -165,7 +165,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: os-packages-*
-          path: packages
+          path: dist
           merge-multiple: true
 
       - name: Install Cloudsmith CLI
@@ -190,12 +190,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: os-packages-windows-*
-          path: packages
+          path: dist
           merge-multiple: true
 
       - name: Push to Chocolatey
         shell: bash
         run: |
-          scripts/chocolatey/push packages/ggshield.*.nupkg
+          scripts/chocolatey/push dist/ggshield.*.nupkg
         env:
           CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
