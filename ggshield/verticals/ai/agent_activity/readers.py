@@ -39,7 +39,11 @@ def iter_sqlite_rows(
     if not db_path.is_file():
         return
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        # immutable=1: editors (Cursor, VSCode) keep their SQLite DB open in WAL
+        # mode, and a plain mode=ro connection then fails to open it ("unable to
+        # open database file"). immutable lets us read the file as a static
+        # snapshot regardless of the writer's lock; we never write back.
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro&immutable=1", uri=True)
     except sqlite3.Error as exc:
         logger.warning("iter_sqlite_rows: cannot open %s: %s", db_path, exc)
         return
