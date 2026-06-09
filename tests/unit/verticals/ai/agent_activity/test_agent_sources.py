@@ -38,6 +38,29 @@ def test_claude_agent_ships_raw_transcript_lines(fake_home: Path) -> None:
     assert event.content == line
 
 
+def test_claude_agent_ships_subagent_transcripts(fake_home: Path) -> None:
+    """Subagent transcripts live in a separate file and must be collected too."""
+    from ggshield.verticals.ai.agents.claude_code import Claude
+
+    session = fake_home / ".claude" / "projects" / "-repo" / "sess-uuid"
+    subagents = session / "subagents"
+    subagents.mkdir(parents=True)
+    main_line = json.dumps({"type": "user", "message": {"content": "hi"}})
+    (session.parent / "sess-uuid.jsonl").write_text(main_line + "\n")
+    sub_line = json.dumps(
+        {"type": "user", "isSidechain": True, "message": {"content": "do X"}}
+    )
+    (subagents / "agent-abc.jsonl").write_text(sub_line + "\n")
+
+    events = list(Claude().iter_agent_activity_events())
+
+    kinds = {e.source_kind for e in events}
+    assert kinds == {"session_transcript", "subagent_transcript"}
+    [sub] = [e for e in events if e.source_kind == "subagent_transcript"]
+    assert sub.source_path == "projects/-repo/sess-uuid/subagents/agent-abc.jsonl"
+    assert sub.content == sub_line
+
+
 def test_codex_agent_ships_raw_rollout_lines(fake_home: Path) -> None:
     from ggshield.verticals.ai.agents.codex import Codex
 

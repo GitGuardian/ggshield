@@ -37,10 +37,30 @@ class ClaudeActivitySource(JSONLActivitySource):
         )
 
 
+class ClaudeSubagentActivitySource(JSONLActivitySource):
+    """Every Claude Code subagent transcript line, shipped raw.
+
+    A subagent (spawned via the Task tool) records its own transcript under
+    ~/.claude/projects/*/<session>/subagents/agent-*.jsonl — same JSONL shape as
+    the main session transcript, but kept in a separate file rather than inlined
+    into it, so it is missed entirely unless collected on its own. The line is
+    shipped verbatim; GitGuardian scans and strips secrets server-side.
+    """
+
+    kind = "subagent_transcript"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted(
+                (get_user_home_dir() / ".claude").glob("projects/*/*/subagents/*.jsonl")
+            )
+        )
+
+
 class Claude(Agent):
     """Behavior specific to Claude Code."""
 
-    agent_activity_sources = [ClaudeActivitySource()]
+    agent_activity_sources = [ClaudeActivitySource(), ClaudeSubagentActivitySource()]
 
     @property
     def name(self) -> str:
