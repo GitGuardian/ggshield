@@ -15,7 +15,7 @@ from pygitguardian.models import (
     MCPToolInfo,
 )
 
-from ggshield.core.dirs import get_user_home_dir
+from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
 
 from ..agent_activity.sources import SQLiteActivitySource
 from ..models import (
@@ -60,7 +60,7 @@ class CursorActivitySource(SQLiteActivitySource):
     key_columns = ("key",)
 
     def discover(self) -> Iterator[Path]:
-        db_path = get_user_home_dir() / CHAT_DB_RELATIVE_PATH
+        db_path = get_editor_user_data_dir("Cursor") / "globalStorage" / "state.vscdb"
         return iter([db_path] if db_path.is_file() else [])
 
 

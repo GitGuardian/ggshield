@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from ggshield.core.dirs import get_editor_user_data_dir
+
 
 @pytest.fixture
 def fake_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -78,9 +80,7 @@ def test_codex_agent_ships_raw_rollout_lines(fake_home: Path) -> None:
 def test_cursor_agent_ships_raw_bubble_rows(fake_home: Path) -> None:
     from ggshield.verticals.ai.agents.cursor import Cursor
 
-    db_path = (
-        fake_home / ".config" / "Cursor" / "User" / "globalStorage" / "state.vscdb"
-    )
+    db_path = get_editor_user_data_dir("Cursor") / "globalStorage" / "state.vscdb"
     db_path.parent.mkdir(parents=True)
     conn = sqlite3.connect(db_path)
     conn.execute("CREATE TABLE cursorDiskKV (key TEXT, value TEXT)")
@@ -123,13 +123,7 @@ def test_vscode_agent_ships_raw_chat_session_lines(fake_home: Path) -> None:
     from ggshield.verticals.ai.agents.vscode import VSCode
 
     sessions = (
-        fake_home
-        / ".config"
-        / "Code"
-        / "User"
-        / "workspaceStorage"
-        / "hash"
-        / "chatSessions"
+        get_editor_user_data_dir("Code") / "workspaceStorage" / "hash" / "chatSessions"
     )
     sessions.mkdir(parents=True)
     line = json.dumps({"kind": 2, "v": [{"role": "user", "text": "hi"}]})

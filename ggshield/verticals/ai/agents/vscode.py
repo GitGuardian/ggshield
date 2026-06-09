@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterator, Literal, Optional, Tuple
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
-from ggshield.core.dirs import get_user_home_dir
+from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
 
 from ..agent_activity.sources import JSONLActivitySource
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
@@ -21,16 +21,25 @@ class VSCodeActivitySource(JSONLActivitySource):
     """Every Copilot Chat (VSCode) session line, shipped raw.
 
     VSCode/Copilot Chat appends one JSON object per line to
-    ~/.config/Code/User/workspaceStorage/<hash>/chatSessions/<id>.jsonl. The
-    line is shipped verbatim; GitGuardian scans and strips secrets server-side
-    before storing it.
+    <user-data>/workspaceStorage/<hash>/chatSessions/<id>.jsonl, where
+    <user-data> is the editor's OS-specific User directory. The line is shipped
+    verbatim; GitGuardian scans and strips secrets server-side before storing it.
     """
 
     kind = "chat_session"
 
+    @staticmethod
+    def _user_dir() -> Path:
+        return get_editor_user_data_dir("Code")
+
     def discover(self) -> Iterator[Path]:
-        root = get_user_home_dir() / ".config" / "Code" / "User"
+        root = self._user_dir()
         return iter(sorted(root.glob("workspaceStorage/*/chatSessions/*.jsonl")))
+
+    def source_path_for(self, path: Path, path_root: Optional[Path]) -> str:
+        # Record paths relative to the editor's User dir (not the agent's
+        # config_folder), so the shipped path is the same on every OS.
+        return super().source_path_for(path, self._user_dir())
 
 
 class VSCode(Agent):
