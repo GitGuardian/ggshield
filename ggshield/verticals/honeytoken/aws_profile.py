@@ -15,9 +15,12 @@ from __future__ import annotations
 import configparser
 import enum
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
+
+from configupdater import ConfigUpdater
 
 from ggshield.verticals.honeytoken.endpoint_deployments import (
     DeploymentMethod,
@@ -87,31 +90,62 @@ def resolve_placement(
     raise PlacementError("unsupported deployment method — client may be out of date")
 
 
-def _load(path: Path) -> configparser.ConfigParser:
-    # interpolation=None: AWS secret keys can contain ``%``, which the default
-    # interpolation would choke on.
-    parser = configparser.ConfigParser(interpolation=None)
+def _load(path: Path) -> ConfigUpdater:
+    # configupdater edits in place and keeps comments (configparser wouldn't).
+    parser = ConfigUpdater()
     if path.exists():
         try:
-            parser.read(path, encoding="utf-8")
+            text = path.read_text(encoding="utf-8")
+            # Else configupdater glues our new section onto the last line.
+            if text and not text.endswith("\n"):
+                text += "\n"
+            parser.read_string(text)
         except (configparser.Error, UnicodeDecodeError) as exc:
-            # A malformed/garbage file is an expected condition, not a crash: surface it
-            # as a PlacementError so the caller reports a clean per-deployment failure
-            # and leaves the file untouched.
+            # configupdater parse errors subclass configparser.Error.
             raise PlacementError(
                 f"could not parse {path}: not a valid AWS credentials/INI file ({exc})"
             )
     return parser
 
 
-def _atomic_write(path: Path, parser: configparser.ConfigParser) -> None:
+def _get_value(parser: ConfigUpdater, section: str, key: str) -> Optional[str]:
+    sec = parser[section]
+    if sec.has_option(key):
+        return sec[key].value
+    return None
+
+
+def _reject_symlinked_target(path: Path) -> None:
+    """Refuse a symlinked ``.aws`` dir or credentials file: as root in the fan-out,
+    following it would redirect the write/chmod/chown outside the user's home."""
+    parent = path.parent
+    if parent.is_symlink():
+        raise PlacementError(
+            f"refusing to use {parent}: '.aws' is a symlink "
+            "(possible redirect outside the home directory)"
+        )
+    if path.is_symlink():
+        raise PlacementError(
+            f"refusing to write through symlinked credentials file {path}"
+        )
+
+
+def _atomic_write(path: Path, parser: ConfigUpdater) -> None:
+    _reject_symlinked_target(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Preserve the file's existing mode (new file → 0600).
+    try:
+        mode = stat.S_IMODE(path.stat().st_mode)
+    except FileNotFoundError:
+        mode = 0o600
     fd, tmp = tempfile.mkstemp(prefix=".plant.", suffix=".tmp", dir=str(path.parent))
     try:
-        os.chmod(tmp, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             parser.write(handle)
+        # Swap first (temp stays at mkstemp's 0600 while holding the secret), then
+        # restore the final mode — chmod'ing the temp pre-swap would briefly widen it.
         os.replace(tmp, path)
+        os.chmod(path, mode)
     except BaseException:
         try:
             os.unlink(tmp)
@@ -131,10 +165,11 @@ def write_aws_profile(
       (rotation is handled upstream by processing ``delete`` before ``write``, so this
       only trips on a genuine collision the operator should review)
     """
+    _reject_symlinked_target(path)
     parser = _load(path)
     if parser.has_section(section):
-        existing_id = parser.get(section, _ACCESS_KEY, fallback=None)
-        existing_secret = parser.get(section, _SECRET_KEY, fallback=None)
+        existing_id = _get_value(parser, section, _ACCESS_KEY)
+        existing_secret = _get_value(parser, section, _SECRET_KEY)
         if existing_id == creds.access_token_id and existing_secret == creds.secret_key:
             return WriteOutcome.ALREADY_CURRENT
         if not force:
@@ -142,8 +177,8 @@ def write_aws_profile(
     else:
         parser.add_section(section)
 
-    parser.set(section, _ACCESS_KEY, creds.access_token_id)
-    parser.set(section, _SECRET_KEY, creds.secret_key)
+    parser[section][_ACCESS_KEY] = creds.access_token_id
+    parser[section][_SECRET_KEY] = creds.secret_key
     _atomic_write(path, parser)
     return WriteOutcome.WROTE
 
@@ -151,14 +186,16 @@ def write_aws_profile(
 def remove_aws_profile(
     path: Path, section: str, expected_access_key_id: Optional[str]
 ) -> RemoveOutcome:
-    """Remove the named honeytoken profile, leaving other profiles intact. If ours was
-    the only one, remove the file rather than leave an empty stub.
+    """Remove the named honeytoken profile, leaving other profiles intact. Remove the
+    file only when nothing at all is left (no other profile **and** no comments) rather
+    than leave an empty stub.
 
     When ``expected_access_key_id`` is set, the profile is removed **only if** its
     ``aws_access_key_id`` matches — a profile holding a different key is foreign and is
     left untouched (``FOREIGN_KEPT``). ``None`` removes by name unconditionally (legacy /
     when the server omitted the token).
     """
+    _reject_symlinked_target(path)
     if not path.exists():
         return RemoveOutcome.ALREADY_ABSENT
     parser = _load(path)
@@ -166,15 +203,16 @@ def remove_aws_profile(
         return RemoveOutcome.ALREADY_ABSENT
 
     if expected_access_key_id is not None:
-        on_disk = parser.get(section, _ACCESS_KEY, fallback=None)
+        on_disk = _get_value(parser, section, _ACCESS_KEY)
         if on_disk != expected_access_key_id:
             return RemoveOutcome.FOREIGN_KEPT
 
     parser.remove_section(section)
-    if parser.sections():
+    # Empty `sections()` can still mean a comments-only file (ConfigUpdater keeps them),
+    # so test the rendered content — unlink only when nothing at all is left.
+    if str(parser).strip():
         _atomic_write(path, parser)
     else:
-        # Last section gone — drop the now-empty file rather than leave a stub behind.
         try:
             path.unlink()
         except OSError:

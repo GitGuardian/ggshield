@@ -150,14 +150,17 @@ def test_enumerate_dedups_same_home(monkeypatch, tmp_path):
     assert len(targets) == 1  # same realpath → deduped
 
 
-def test_apply_perms_non_root_sets_mode(tmp_path):
+def test_apply_perms_non_root_keeps_dir_private_and_leaves_file_mode(tmp_path):
     path = tmp_path / ".aws" / "credentials"
     path.parent.mkdir()
     path.write_text("x")
+    os.chmod(path, 0o640)
     apply_perms_and_owner(
         path, Target("alice", tmp_path, uid=None), running_as_root=False
     )
-    assert (path.stat().st_mode & 0o777) == 0o600
+    # The file mode is _atomic_write's responsibility (it preserves the user's bits);
+    # apply_perms_and_owner only keeps the .aws dir private and must leave the file alone.
+    assert (path.stat().st_mode & 0o777) == 0o640
     assert (path.parent.stat().st_mode & 0o777) == 0o700
 
 
@@ -171,6 +174,28 @@ def test_apply_perms_root_chowns(monkeypatch, tmp_path):
     apply_perms_and_owner(path, Target("bob", tmp_path, uid=1001), running_as_root=True)
     assert (str(path), 1001, 2002) in chowns
     assert (str(path.parent), 1001, 2002) in chowns
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks")
+def test_apply_perms_skips_symlinked_aws_dir(monkeypatch, tmp_path):
+    """A symlinked `.aws` must not be chmod'd/chown'd through: as root that would let a
+    user redirect `chmod 0700`/`chown` onto an arbitrary directory."""
+    real = tmp_path / "elsewhere"
+    real.mkdir(mode=0o755)
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".aws").symlink_to(real, target_is_directory=True)
+    path = home / ".aws" / "credentials"
+    path.write_text("x")  # lands in `real` via the link
+
+    chowns = []
+    monkeypatch.setattr(os, "chown", lambda p, u, g: chowns.append(str(p)))
+    monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=2002))
+
+    apply_perms_and_owner(path, Target("bob", home, uid=1001), running_as_root=True)
+
+    assert chowns == []  # nothing chowned through the link
+    assert (real.stat().st_mode & 0o777) == 0o755  # target dir left untouched
 
 
 def test_gid_for_uid_unknown_returns_none(monkeypatch):

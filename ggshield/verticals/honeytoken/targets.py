@@ -87,15 +87,15 @@ def resolve_targets(user: Optional[str], user_dir: Optional[Path]) -> List[Targe
 
 
 def apply_perms_and_owner(path: Path, target: Target, running_as_root: bool) -> None:
-    """Tighten perms (file 0600, dir 0700) and, as root, chown the file + its ``.aws``
-    dir to the target user so they own their decoy. No-op off Unix."""
+    """Keep the ``.aws`` dir private (0700) and, as root, chown the file + dir to the
+    target user. The file mode is left to ``_atomic_write``. No-op off Unix."""
     if os.name != "posix":
         return
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
     parent = path.parent
+    # Don't chmod/chown through a symlink: as root that could redirect onto e.g. /etc
+    # (write/remove already reject symlinks; this closes the chown leg + the TOCTOU).
+    if parent.is_symlink() or path.is_symlink():
+        return
     try:
         os.chmod(parent, 0o700)
     except OSError:

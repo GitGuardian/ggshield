@@ -1,4 +1,6 @@
 import configparser
+import os
+import stat
 import sys
 from pathlib import Path
 
@@ -205,3 +207,207 @@ def test_remove_keeps_foreign_key(tmp_path):
     assert remove_aws_profile(path, "gg", "K1") is RemoveOutcome.FOREIGN_KEPT
     # Section left untouched.
     assert _section(path, "gg")["aws_access_key_id"] == "OTHER"
+
+
+# --- comment / formatting preservation --------------------------------------------
+#
+# Planting only touches our own profile; comments, blank lines and other profiles
+# stay intact.
+
+
+_FILE_WITH_COMMENTS = """\
+# Personal AWS credentials -- DO NOT COMMIT
+[default]
+aws_access_key_id = USER
+aws_secret_access_key = MINE
+
+# work account, see https://wiki.internal/aws
+[work]
+aws_access_key_id = WK
+aws_secret_access_key = WS
+"""
+
+
+def test_write_preserves_existing_comments(tmp_path):
+    path = tmp_path / "credentials"
+    path.write_text(_FILE_WITH_COMMENTS)
+
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    content = path.read_text()
+    assert "# Personal AWS credentials -- DO NOT COMMIT" in content
+    assert "# work account, see https://wiki.internal/aws" in content
+    # And our profile must of course be present.
+    assert _section(path, "gg")["aws_access_key_id"] == "K1"
+
+
+def test_write_leaves_other_sections_byte_for_byte(tmp_path):
+    """Planting our profile must not reformat or reorder the rest of the file: the
+    original content should remain a prefix of the result, with only our section
+    appended."""
+    path = tmp_path / "credentials"
+    path.write_text(_FILE_WITH_COMMENTS)
+
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    content = path.read_text()
+    assert content.startswith(_FILE_WITH_COMMENTS)
+
+
+def test_write_appends_cleanly_to_file_without_trailing_newline(tmp_path):
+    """A source file with no final newline must still get our profile as a real,
+    separate section -- not glued onto the last line (``...= MINE[gg]``), which would
+    silently drop our profile (or raise on a duplicate option)."""
+    path = tmp_path / "credentials"
+    path.write_bytes(
+        b"# kept\n[default]\naws_access_key_id = USER\naws_secret_access_key = MINE"
+    )  # note: no trailing newline
+
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    assert _section(path, "gg")["aws_access_key_id"] == "K1"
+    assert _section(path, "default")["aws_access_key_id"] == "USER"
+    content = path.read_text()
+    assert "# kept" in content
+    assert content.endswith("\n")
+
+
+def test_remove_preserves_comments_on_other_profiles(tmp_path):
+    path = tmp_path / "credentials"
+    path.write_text(_FILE_WITH_COMMENTS)
+    # Plant then remove our profile; the user's commented profiles must survive intact.
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    remove_aws_profile(path, "gg", "K1")
+
+    content = path.read_text()
+    assert "# Personal AWS credentials -- DO NOT COMMIT" in content
+    assert "# work account, see https://wiki.internal/aws" in content
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file mode bits")
+def test_write_preserves_existing_file_mode(tmp_path):
+    """A normal write to an existing file keeps the user's permission bits (here 0640)
+    rather than forcing 0600 -- same 'don't disturb the user's file' spirit as comments.
+    """
+    path = tmp_path / "credentials"
+    path.write_text(
+        "[default]\naws_access_key_id = USER\naws_secret_access_key = MINE\n"
+    )
+    os.chmod(path, 0o640)
+
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    assert (path.stat().st_mode & 0o777) == 0o640
+    assert _section(path, "gg")["aws_access_key_id"] == "K1"
+
+
+def test_write_does_not_mix_newlines_on_crlf_file(tmp_path):
+    """A CRLF (Windows-authored) file must not come back with mixed line endings: the
+    result must use a single consistent convention. (We don't assert which one -- the
+    text-mode write resolves to the platform's newline -- only that it isn't mixed.)"""
+    path = tmp_path / "credentials"
+    path.write_bytes(
+        b"# windows-authored creds\r\n"
+        b"[default]\r\n"
+        b"aws_access_key_id = USER\r\n"
+        b"aws_secret_access_key = MINE\r\n"
+    )
+
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    raw = path.read_bytes()
+    # No lone LF that isn't part of a CRLF (would signal a CRLF/LF mix).
+    assert b"\r\n" not in raw or raw.replace(b"\r\n", b"").count(b"\n") == 0
+    assert b"# windows-authored creds" in raw
+
+
+def test_remove_keeps_comments_only_remainder(tmp_path):
+    """A {comments + only our section} file must survive removal with comments intact:
+    `sections()` is empty after removing ours, but the document isn't — so don't unlink.
+    """
+    path = tmp_path / "credentials"
+    path.write_text("# keep me -- personal note\n")
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    assert remove_aws_profile(path, "gg", "K1") is RemoveOutcome.REMOVED
+    assert path.exists()
+    content = path.read_text()
+    assert "# keep me -- personal note" in content
+    assert "[gg]" not in content
+
+
+# --- symlink hardening (root fan-out privilege-escalation guard) ------------------
+#
+# As root in the fleet fan-out, following a symlinked `.aws` (or credentials file)
+# would let a user redirect the write/chmod/chown outside their home. We reject.
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks")
+def test_write_rejects_symlinked_aws_dir(tmp_path):
+    real = tmp_path / "elsewhere"
+    real.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".aws").symlink_to(real, target_is_directory=True)
+    path = home / ".aws" / "credentials"
+
+    with pytest.raises(PlacementError):
+        write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    # Nothing was written through the link.
+    assert list(real.iterdir()) == []
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks")
+def test_remove_rejects_symlinked_aws_dir(tmp_path):
+    real = tmp_path / "elsewhere"
+    real.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".aws").symlink_to(real, target_is_directory=True)
+    path = home / ".aws" / "credentials"
+
+    with pytest.raises(PlacementError):
+        remove_aws_profile(path, "gg", None)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks")
+def test_write_rejects_symlinked_credentials_file(tmp_path):
+    target = tmp_path / "target-creds"
+    target.write_text(
+        "[default]\naws_access_key_id = USER\naws_secret_access_key = MINE\n"
+    )
+    aws_dir = tmp_path / ".aws"
+    aws_dir.mkdir(mode=0o700)
+    path = aws_dir / "credentials"
+    path.symlink_to(target)
+
+    with pytest.raises(PlacementError):
+        write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    # The link target was not modified through the symlink.
+    assert "gg" not in target.read_text()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file mode bits")
+def test_write_keeps_temp_private_until_swap(tmp_path, monkeypatch):
+    """Even when the existing file is permissive (0644), the temp stays 0600 until the
+    `os.replace` swap — the secret never sits in a group/world-readable temp."""
+    from ggshield.verticals.honeytoken import aws_profile
+
+    path = tmp_path / "credentials"
+    path.write_text(
+        "[default]\naws_access_key_id = USER\naws_secret_access_key = MINE\n"
+    )
+    os.chmod(path, 0o644)
+
+    modes_at_swap = []
+    real_replace = os.replace
+
+    def _spy_replace(src, dst):
+        modes_at_swap.append(stat.S_IMODE(os.stat(src).st_mode))
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(aws_profile.os, "replace", _spy_replace)
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    assert modes_at_swap == [0o600]  # temp private at swap time
+    assert (path.stat().st_mode & 0o777) == 0o644  # final mode preserved
