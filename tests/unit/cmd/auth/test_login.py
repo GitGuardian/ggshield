@@ -45,7 +45,6 @@ VALID_TOKEN_RESPONSE = create_json_response(
         "name": "key",
         "scope": [
             "scan",
-            "honeytokens:write",
             "honeytokens:check",
             "endpoints:send",
         ],
@@ -76,7 +75,6 @@ VALID_API_TOKENS_RESPONSE = create_json_response(
         "created_at": "2021-01-01T00:00:00+00:00",
         "scopes": [
             "scan",
-            "honeytokens:write",
             "honeytokens:check",
             "endpoints:send",
         ],
