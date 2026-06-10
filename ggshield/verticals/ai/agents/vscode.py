@@ -18,23 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 class VSCodeActivitySource(JSONLActivitySource):
-    """Every Copilot Chat (VSCode) session line, shipped raw.
-
-    VSCode/Copilot Chat appends one JSON object per line to
-    <user-data>/workspaceStorage/<hash>/chatSessions/<id>.jsonl, where
-    <user-data> is the editor's OS-specific User directory. The line is shipped
-    verbatim; GitGuardian scans and strips secrets server-side before storing it.
-    """
-
-    kind = "5_chat_session"
+    """Base class for VSCode activity sources."""
 
     @staticmethod
     def _user_dir() -> Path:
         return get_editor_user_data_dir("Code")
-
-    def discover(self) -> Iterator[Path]:
-        root = self._user_dir()
-        return iter(sorted(root.glob("workspaceStorage/*/chatSessions/*.jsonl")))
 
     def source_path_for(self, path: Path, path_root: Optional[Path]) -> str:
         # Record paths relative to the editor's User dir (not the agent's
@@ -42,10 +30,33 @@ class VSCodeActivitySource(JSONLActivitySource):
         return super().source_path_for(path, self._user_dir())
 
 
+class VSCodeChatSessionsActivitySource(VSCodeActivitySource):
+    kind = "5_chat_session"
+
+    def discover(self) -> Iterator[Path]:
+        root = self._user_dir()
+        return iter(sorted(root.glob("workspaceStorage/*/chatSessions/*.jsonl")))
+
+
+class VSCodeTranscriptsActivitySource(VSCodeActivitySource):
+    kind = "6_transcript"
+
+    def discover(self) -> Iterator[Path]:
+        root = self._user_dir()
+        return iter(
+            sorted(
+                root.glob("workspaceStorage/*/GitHub.copilot-chat/transcripts/*.jsonl")
+            )
+        )
+
+
 class VSCode(Agent):
     """Behavior specific to VSCode."""
 
-    agent_activity_sources = [VSCodeActivitySource()]
+    agent_activity_sources = [
+        VSCodeChatSessionsActivitySource(),
+        VSCodeTranscriptsActivitySource(),
+    ]
 
     @property
     def name(self) -> str:
