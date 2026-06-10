@@ -29,7 +29,6 @@ CLIENT_ID = "ggshield_oauth"
 SCAN_SCOPE = "scan"
 DEFAULT_SCOPES = [
     SCAN_SCOPE,
-    "honeytokens:write",
     "honeytokens:check",
     "endpoints:send",
 ]

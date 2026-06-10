@@ -182,7 +182,7 @@ class TestAuthLoginToken:
 
         assert result.exit_code == 0
         assert "Warning: the following scopes were not granted:" in result.output
-        assert "honeytokens:write" in result.output
+        assert "honeytokens:check" in result.output
         assert "endpoints:send" in result.output
         assert "Some features may require additional permissions" in result.output
 
@@ -718,13 +718,13 @@ class TestAuthLoginWeb:
         AND the token is still saved
         """
         self.prepare_mocks(
-            monkeypatch, missing_scopes=["honeytokens:write", "endpoints:send"]
+            monkeypatch, missing_scopes=["honeytokens:check", "endpoints:send"]
         )
         exit_code, output = self.run_cmd(cli_fs_runner)
 
         assert exit_code == ExitCode.SUCCESS
         assert "Warning: the following scopes were not granted:" in output
-        assert "honeytokens:write" in output
+        assert "honeytokens:check" in output
         assert "endpoints:send" in output
         assert "Some features may require additional permissions" in output
 
@@ -945,7 +945,6 @@ class TestAuthLoginWeb:
         if scope_set is None:
             scope_set = {
                 "scan",
-                "honeytokens:write",
                 "honeytokens:check",
                 "endpoints:send",
             }
