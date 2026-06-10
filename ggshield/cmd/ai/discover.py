@@ -21,6 +21,7 @@ from ggshield.verticals.ai.discovery import (
     save_discovery_cache,
     submit_ai_discovery,
 )
+from ggshield.verticals.ai.history import BackfillReport, backfill_mcp_history
 from ggshield.verticals.ai.models import Scope
 
 
@@ -32,11 +33,19 @@ from ggshield.verticals.ai.models import Scope
     default=False,
     help="Output as JSON",
 )
+@click.option(
+    "--history",
+    "scan_history",
+    is_flag=True,
+    default=False,
+    help="Also backfill historical MCP tool calls parsed from agent transcripts.",
+)
 @add_common_options()
 @click.pass_context
 def discover_cmd(
     ctx: click.Context,
     use_json: bool,
+    scan_history: bool,
     **kwargs: Any,
 ) -> None:
     """
@@ -47,6 +56,7 @@ def discover_cmd(
     Examples:
       ggshield ai discover
       ggshield ai discover --json
+      ggshield ai discover --history
     """
 
     config = discover_ai_configuration()
@@ -61,9 +71,12 @@ def discover_cmd(
         )
         return
 
+    backfill_report = BackfillReport()
     try:
         config = submit_ai_discovery(client, config)
         save_discovery_cache(config)
+        if scan_history:
+            backfill_report = backfill_mcp_history(client, config)
     except Exception as exc:
         if "missing the following scope:" in str(exc):
             scope = str(exc).split("missing the following scope:")[1].strip()
@@ -73,7 +86,7 @@ def discover_cmd(
         ui.display_warning(f"Could not upload AI discovery to GitGuardian: {reason}")
 
     # Summarize after sending to GIM, so we can benefit from its fixes.
-    summary = _summarize_discovery(config)
+    summary = _summarize_discovery(config, backfill_report)
 
     if use_json:
         click.echo(json.dumps(summary, indent=2))
@@ -81,7 +94,7 @@ def discover_cmd(
         print_summary(summary)
 
 
-def _summarize_discovery(config: AIDiscovery) -> Dict[str, Any]:
+def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[str, Any]:
     """Summarize what we want to show of the discovery."""
     agent_names = set()
     servers = []
@@ -110,6 +123,12 @@ def _summarize_discovery(config: AIDiscovery) -> Dict[str, Any]:
     return {
         "agents": [AGENTS[name].display_name for name in agent_names],
         "servers": servers,
+        "history": {
+            "parsed": report.parsed,
+            "ingested": report.ingested,
+            "duplicates": report.duplicates,
+            "skipped": report.skipped,
+        },
     }
 
 
@@ -158,3 +177,13 @@ def print_summary(summary: Dict[str, Any]) -> None:
                 click.echo(f"{indent}{connector} {project}")
 
     click.echo()
+
+    history = summary.get("history")
+    if history and history.get("parsed"):
+        click.echo(f"{format_text('Backfilling MCP usage history…', STYLE['key'])}")
+        click.echo(f"  • Parsed {history['parsed']:,} events")
+        click.echo(
+            f"  • Recorded {history['ingested']:,} events "
+            f"({history['duplicates']:,} already known, "
+            f"{history.get('skipped', 0):,} skipped)"
+        )

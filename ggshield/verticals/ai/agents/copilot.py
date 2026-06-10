@@ -1,12 +1,15 @@
+import logging
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.models import (
     AIDiscovery,
     EventType,
     HookPayload,
+    MCPActivityRequest,
     MCPConfiguration,
     Scope,
     Tool,
@@ -14,6 +17,9 @@ from ggshield.verticals.ai.models import (
 )
 
 from .vscode import VSCode
+
+
+logger = logging.getLogger(__name__)
 
 
 class Copilot(VSCode):
@@ -87,7 +93,7 @@ class Copilot(VSCode):
                 payload.tool = Tool.MCP
 
     def _lookup_server_name(
-        self, raw_tool_name: str, ai_config: AIDiscovery
+        self, raw_tool_name: str, ai_config: Optional[AIDiscovery]
     ) -> Tuple[str, str]:
         # Copilot's hook tool name is "{server}-{tool}"
         # which is unfortunate because server names can contain "-" in their name.
@@ -97,12 +103,16 @@ class Copilot(VSCode):
         # We look for the longest chain of parts separated by "-" that is a valid server configuration name.
 
         # Build a map of mangled server configuration names to server names.
-        mangled_to_server: Dict[str, str] = {
-            _mangle_name(configuration.name): server.name
-            for server in ai_config.servers
-            for configuration in server.configurations
-            if configuration.agent == self.name
-        }
+        mangled_to_server: Dict[str, str] = (
+            {
+                _mangle_name(configuration.name): server.name
+                for server in ai_config.servers
+                for configuration in server.configurations
+                if configuration.agent == self.name
+            }
+            if ai_config is not None
+            else {}
+        )
 
         parts = raw_tool_name.split("-")
 
@@ -115,6 +125,79 @@ class Copilot(VSCode):
 
         # If no match is found, fallback to use the last part as the tool name.
         return "-".join(parts[:-1]), parts[-1]
+
+    def iter_history_events(
+        self, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        """Walk every Copilot CLI session and yield MCP tool calls.
+
+        Sessions live under ``~/.copilot/session-state/<uuid>/events.jsonl``.
+        """
+        history_root = self.config_folder / "session-state"
+        for session_dir in sorted(history_root.glob("*")):
+            events_path = session_dir / "events.jsonl"
+            if not events_path.is_file():
+                continue
+            yield from self._parse_events_file(events_path, ai_config)
+
+    def _parse_events_file(
+        self, path: Path, ai_config: Optional[AIDiscovery]
+    ) -> Iterator[MCPActivityRequest]:
+        """Yield MCP events from a single Copilot CLI events file."""
+        cwd = ""
+        for line in self._load_jsonl_file(path):
+            if not isinstance(line, dict):
+                continue
+            event_type = line.get("type")
+            data = line.get("data") or {}
+            if event_type == "session.start":
+                folder = (data.get("context") or {}).get("cwd")
+                if isinstance(folder, str):
+                    cwd = folder
+                continue
+            if event_type != "tool.execution_start":
+                continue
+            event = self._build_event(line, data, cwd, ai_config)
+            if event is not None:
+                yield event
+
+    def _build_event(
+        self,
+        line: Dict[str, Any],
+        data: Dict[str, Any],
+        cwd: str,
+        ai_config: Optional[AIDiscovery],
+    ) -> Optional[MCPActivityRequest]:
+        server_cfg_name = data.get("mcpServerName") or ""
+        tool_name = data.get("mcpToolName") or ""
+        if not server_cfg_name or not tool_name:
+            return None
+        timestamp = _parse_iso_timestamp(line.get("timestamp"))
+        if timestamp is None:
+            return None
+        arguments = data.get("arguments")
+        if not isinstance(arguments, dict):
+            arguments = {}
+        return MCPActivityRequest(
+            user=self._user_or_default(ai_config),
+            tool=tool_name,
+            server=self._resolve_server_name(server_cfg_name, ai_config),
+            agent=self.name,
+            model="",
+            cwd=cwd,
+            input=arguments,
+            timestamp=timestamp,
+        )
+
+
+def _parse_iso_timestamp(raw: Any) -> Optional[datetime]:
+    """Parse an ISO-8601 timestamp string, tolerating a trailing ``Z``."""
+    if not isinstance(raw, str):
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def _mangle_name(name: str) -> str:

@@ -9,6 +9,7 @@ from pygitguardian.models import AIDiscovery, MCPConfiguration, MCPServer, UserI
 from ggshield.__main__ import cli
 from ggshield.cmd.ai.discover import print_summary
 from ggshield.core.errors import APIKeyCheckError
+from ggshield.verticals.ai.history import BackfillReport
 from ggshield.verticals.ai.models import Scope, Transport
 
 
@@ -311,6 +312,104 @@ class TestDiscoverCmd:
         assert len(parsed["servers"]) == 1
         assert parsed["servers"][0]["name"] == "My MCP"
         assert parsed["servers"][0]["installed_globally"] is True
+
+    @patch(
+        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        return_value=_discovery(),
+    )
+    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.cmd.ai.discover.submit_ai_discovery")
+    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch(
+        "ggshield.cmd.ai.discover.backfill_mcp_history",
+        return_value=BackfillReport(parsed=3, ingested=3, duplicates=0),
+    )
+    def test_history_flag_invokes_backfill_and_surfaces_summary(
+        self,
+        mock_backfill: MagicMock,
+        mock_save: MagicMock,
+        mock_submit: MagicMock,
+        mock_client: MagicMock,
+        mock_discover: MagicMock,
+    ):
+        discovery = _discovery(
+            servers=[
+                _server(
+                    "my-mcp",
+                    display_name="My MCP",
+                    configurations=[
+                        _config(agent="cursor", scope=Scope.USER),
+                    ],
+                ),
+            ]
+        )
+        mock_submit.return_value = discovery
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["ai", "discover", "--history"])
+
+        assert result.exit_code == 0
+        mock_backfill.assert_called_once()
+        # Human-readable summary should reflect the parsed count.
+        assert "3" in result.output and "MCP" in result.output
+
+    @patch(
+        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        return_value=_discovery(),
+    )
+    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.cmd.ai.discover.submit_ai_discovery")
+    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.cmd.ai.discover.backfill_mcp_history")
+    def test_history_skipped_without_flag(
+        self,
+        mock_backfill: MagicMock,
+        mock_save: MagicMock,
+        mock_submit: MagicMock,
+        mock_client: MagicMock,
+        mock_discover: MagicMock,
+    ):
+        mock_submit.return_value = _discovery()
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["ai", "discover"])
+
+        assert result.exit_code == 0
+        mock_backfill.assert_not_called()
+
+    @patch(
+        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        return_value=_discovery(),
+    )
+    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch(
+        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        return_value=_discovery(),
+    )
+    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch(
+        "ggshield.cmd.ai.discover.backfill_mcp_history",
+        return_value=BackfillReport(parsed=4, ingested=2, duplicates=1, skipped=1),
+    )
+    def test_json_output_includes_history_block(
+        self,
+        mock_backfill: MagicMock,
+        mock_save: MagicMock,
+        mock_submit: MagicMock,
+        mock_client: MagicMock,
+        mock_discover: MagicMock,
+    ):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["ai", "discover", "--json", "--history"])
+
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["history"] == {
+            "parsed": 4,
+            "ingested": 2,
+            "duplicates": 1,
+            "skipped": 1,
+        }
 
 
 # ---------------------------------------------------------------------------

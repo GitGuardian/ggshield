@@ -200,7 +200,14 @@ def _load_config_dict(
 
     dash_keys = replace_dash_in_keys(dct)
 
-    config_version = dct.pop("version", 1)
+    config_version = dct.pop("version", None)
+    if config_version is None:
+        ui.display_warning(
+            f"{config_path} does not delare a `version` value. "
+            "Add `version: 2` to your config to prevent ggshield "
+            "from falling back to the legacy config format."
+        )
+        config_version = 1
     if config_version == 2:
         if dash_keys:
             _warn_about_dash_keys(config_path, dash_keys)

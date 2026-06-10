@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Sequence, Set
 
 import filelock
@@ -103,6 +104,8 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         but in some cases files mentioned in the prompt will be read but the
         PreToolUse event will not be called. So we need to handle this case ourselves.
     """
+    timestamp = datetime.now(timezone.utc)
+
     # Parse the content as JSON
     if not raw_content.strip():
         raise ValueError("Error: No input received on stdin")
@@ -131,7 +134,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         content = data.get("prompt", "")
         # Look for files mentioned in the prompt that could be read
         # without triggering a PRE_TOOL_USE event.
-        payloads.extend(_parse_user_prompt(content, event_type, agent))
+        payloads.extend(_parse_user_prompt(content, event_type, agent, timestamp))
 
     elif event_type == EventType.PRE_TOOL_USE:
         tool = _parse_tool(data)
@@ -143,7 +146,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             content = tool_input.get("command", "")
             identifier = content
             # Try to detect a command that could be used to read a file.
-            payloads.extend(_parse_command(content, event_type, agent))
+            payloads.extend(_parse_command(content, event_type, agent, timestamp))
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
             identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
@@ -167,6 +170,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             identifier=identifier,
             agent=agent,
             raw=data,
+            timestamp=timestamp,
         )
     )
 
@@ -194,7 +198,7 @@ def _detect_agent(data: Dict[str, Any]) -> Agent:
 
 
 def _parse_user_prompt(
-    content: str, event_type: EventType, agent: Agent
+    content: str, event_type: EventType, agent: Agent, timestamp: datetime
 ) -> List[HookPayload]:
     """Parse the user prompt for additional payloads that we may miss."""
     payloads = []
@@ -211,13 +215,14 @@ def _parse_user_prompt(
                 identifier=match,
                 agent=agent,
                 raw={},
+                timestamp=timestamp,
             )
         )
     return payloads
 
 
 def _parse_command(
-    content: str, event_type: EventType, agent: Agent
+    content: str, event_type: EventType, agent: Agent, timestamp: datetime
 ) -> List[HookPayload]:
     """Parse the command for additional payloads that we may miss."""
     # In Windows, some agents (at least Codex) use the Get-Content command to read a file.
@@ -235,6 +240,7 @@ def _parse_command(
                 identifier=identifier,
                 agent=agent,
                 raw={},
+                timestamp=timestamp,
             )
         )
     return payloads
