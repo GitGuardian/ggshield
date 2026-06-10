@@ -35,7 +35,7 @@ class CopilotActivitySource(JSONLActivitySource):
     verbatim; GitGuardian scans and strips secrets server-side before storing it.
     """
 
-    kind = "session_events"
+    kind = "5_session_events"
 
     def discover(self) -> Iterator[Path]:
         root = get_user_home_dir() / ".copilot"

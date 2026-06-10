@@ -11,7 +11,7 @@ class AgentActivityEvent:
     Fields:
     - agent_name: short agent identifier matching Agent.name (e.g. "claude-code").
     - source_kind: agent-scoped identifier for the file/table the record came from
-      (e.g. "session_transcript", "composer_bubble").
+      (e.g. "5_session_transcript", "6_composer_bubble").
     - source_path: on-disk path relative to the agent's config dir, with variable
       parts (session UUIDs, workspace hashes) preserved.
     - record_offset: stable string identifier of the record within its source file.

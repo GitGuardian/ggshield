@@ -26,7 +26,7 @@ class VSCodeActivitySource(JSONLActivitySource):
     verbatim; GitGuardian scans and strips secrets server-side before storing it.
     """
 
-    kind = "chat_session"
+    kind = "5_chat_session"
 
     @staticmethod
     def _user_dir() -> Path:

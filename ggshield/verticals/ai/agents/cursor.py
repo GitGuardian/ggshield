@@ -63,12 +63,12 @@ class CursorActivitySource(SQLiteActivitySource):
 
 
 class BubbleActivitySource(CursorActivitySource):
-    kind = "composer_bubble"
+    kind = "6_composer_bubble"
     query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'"
 
 
 class ComposerActivitySource(CursorActivitySource):
-    kind = "composer_data"
+    kind = "5_composer_data"
     query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'composerData:%'"
 
 

@@ -29,7 +29,7 @@ class ClaudeActivitySource(JSONLActivitySource):
     verbatim; GitGuardian scans and strips secrets server-side before storing it.
     """
 
-    kind = "session_transcript"
+    kind = "5_session_transcript"
 
     def discover(self) -> Iterator[Path]:
         return iter(
@@ -47,7 +47,7 @@ class ClaudeSubagentActivitySource(JSONLActivitySource):
     shipped verbatim; GitGuardian scans and strips secrets server-side.
     """
 
-    kind = "subagent_transcript"
+    kind = "75_subagent_transcript"
 
     def discover(self) -> Iterator[Path]:
         return iter(
@@ -66,7 +66,7 @@ class ClaudeSubagentMetaActivitySource(JSONActivitySource):
     it. Shipped verbatim; GitGuardian scans and strips secrets server-side.
     """
 
-    kind = "subagent_meta"
+    kind = "72_subagent_meta"
 
     def discover(self) -> Iterator[Path]:
         return iter(
@@ -83,8 +83,8 @@ class Claude(Agent):
 
     agent_activity_sources = [
         ClaudeActivitySource(),
-        ClaudeSubagentActivitySource(),
         ClaudeSubagentMetaActivitySource(),
+        ClaudeSubagentActivitySource(),
     ]
 
     @property

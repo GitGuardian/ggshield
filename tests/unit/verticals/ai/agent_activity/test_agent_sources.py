@@ -34,7 +34,7 @@ def test_claude_agent_ships_raw_transcript_lines(fake_home: Path) -> None:
     [event] = list(Claude().iter_agent_activity_events())
 
     assert event.agent_name == "claude-code"
-    assert event.source_kind == "session_transcript"
+    assert event.source_kind == "5_session_transcript"
     assert event.source_path == "projects/-repo/s.jsonl"
     # Shipped verbatim — server-side scanning happens later, not in the source.
     assert event.content == line
@@ -57,8 +57,8 @@ def test_claude_agent_ships_subagent_transcripts(fake_home: Path) -> None:
     events = list(Claude().iter_agent_activity_events())
 
     kinds = {e.source_kind for e in events}
-    assert kinds == {"session_transcript", "subagent_transcript"}
-    [sub] = [e for e in events if e.source_kind == "subagent_transcript"]
+    assert kinds == {"5_session_transcript", "75_subagent_transcript"}
+    [sub] = [e for e in events if e.source_kind == "75_subagent_transcript"]
     assert sub.source_path == "projects/-repo/sess-uuid/subagents/agent-abc.jsonl"
     assert sub.content == sub_line
 
@@ -76,7 +76,7 @@ def test_claude_agent_ships_subagent_meta(fake_home: Path) -> None:
 
     events = list(Claude().iter_agent_activity_events())
 
-    [m] = [e for e in events if e.source_kind == "subagent_meta"]
+    [m] = [e for e in events if e.source_kind == "72_subagent_meta"]
     assert m.source_path == "projects/-repo/sess/subagents/agent-abc.meta.json"
     assert m.content == meta
 
@@ -114,7 +114,7 @@ def test_cursor_agent_ships_raw_bubble_rows(fake_home: Path) -> None:
     [composer_data, event] = list(Cursor().iter_agent_activity_events())
 
     assert composer_data.agent_name == "cursor"
-    assert composer_data.source_kind == "composer_data"
+    assert composer_data.source_kind == "5_composer_data"
     assert composer_data.record_offset == "composerData:c1"
 
     assert event.agent_name == "cursor"
@@ -136,7 +136,7 @@ def test_copilot_agent_ships_raw_event_lines(fake_home: Path) -> None:
     [event] = list(Copilot().iter_agent_activity_events())
 
     assert event.agent_name == "copilot"
-    assert event.source_kind == "session_events"
+    assert event.source_kind == "5_session_events"
     assert event.source_path == "session-state/uuid-1/events.jsonl"
     assert event.content == line
 
@@ -154,7 +154,7 @@ def test_vscode_agent_ships_raw_chat_session_lines(fake_home: Path) -> None:
     [event] = list(VSCode().iter_agent_activity_events())
 
     assert event.agent_name == "vscode"
-    assert event.source_kind == "chat_session"
+    assert event.source_kind == "5_chat_session"
     assert event.source_path == "workspaceStorage/hash/chatSessions/s1.jsonl"
     assert event.content == line
 

@@ -21,7 +21,7 @@ class CodexActivitySource(JSONLActivitySource):
     verbatim; GitGuardian scans and strips secrets server-side before storing it.
     """
 
-    kind = "session_rollout"
+    kind = "5_session_rollout"
 
     def discover(self) -> Iterator[Path]:
         return iter(
