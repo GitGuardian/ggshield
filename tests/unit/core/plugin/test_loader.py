@@ -2,6 +2,7 @@
 
 import importlib.metadata
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -100,6 +101,53 @@ class TestPluginLoader:
         loader = PluginLoader(config)
 
         assert loader._is_enabled("any-plugin") is False
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="requires os.geteuid")
+    def test_is_foreign_owned_false_for_owned_path(self, tmp_path: Path) -> None:
+        """A path owned by the current user is not foreign."""
+        assert PluginLoader._is_foreign_owned(tmp_path) is False
+
+    def test_is_foreign_owned_false_without_geteuid(
+        self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        """Without os.geteuid (Windows), ownership cannot be judged."""
+        monkeypatch.setattr(os, "geteuid", None, raising=False)
+        assert PluginLoader._is_foreign_owned(tmp_path) is False
+
+    def test_is_foreign_owned_false_on_lstat_error(
+        self, tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        """An unstatable path is treated as not-foreign rather than crashing."""
+
+        def boom(self: Path) -> None:
+            raise OSError("gone")
+
+        monkeypatch.setattr(Path, "lstat", boom)
+        assert PluginLoader._is_foreign_owned(tmp_path / "x") is False
+
+    def test_prune_stale_warns_on_foreign_owned_residue(
+        self, tmp_path: Path, caplog: "pytest.LogCaptureFixture"
+    ) -> None:
+        """A foreign-owned stale extraction dir is surfaced as a warning."""
+        config = EnterpriseConfig()
+        loader = PluginLoader(config)
+
+        keep_dir = tmp_path / "keep_extracted"
+        keep_dir.mkdir()
+        (tmp_path / "old_extracted").mkdir()
+
+        with (
+            patch(
+                "ggshield.core.plugin.loader.shutil.rmtree",
+                side_effect=OSError("denied"),
+            ),
+            patch.object(PluginLoader, "_is_foreign_owned", return_value=True),
+            caplog.at_level(logging.WARNING),
+        ):
+            loader._prune_stale_extract_dirs(keep_dir)
+
+        assert "owned by another user" in caplog.text
+        assert "sudo rm -rf" in caplog.text
 
     def test_is_enabled_explicit_enabled(self) -> None:
         """Test checking explicitly enabled plugin."""

@@ -388,9 +388,31 @@ class PluginLoader:
             try:
                 shutil.rmtree(path)
             except OSError as exc:
-                logger.debug(
-                    "Failed to remove stale plugin extraction dir %s: %s", path, exc
-                )
+                if self._is_foreign_owned(path):
+                    logger.warning(
+                        "Cannot prune stale plugin extraction dir %s: it is "
+                        "owned by another user (sudo install residue?). "
+                        "Remove it manually: sudo rm -rf '%s'",
+                        path,
+                        path,
+                    )
+                else:
+                    logger.debug(
+                        "Failed to remove stale plugin extraction dir %s: %s",
+                        path,
+                        exc,
+                    )
+
+    @staticmethod
+    def _is_foreign_owned(path: Path) -> bool:
+        """True when path belongs to another POSIX user (always False on Windows)."""
+        geteuid = getattr(os, "geteuid", None)
+        if geteuid is None:
+            return False
+        try:
+            return path.lstat().st_uid != geteuid()
+        except OSError:
+            return False
 
     def _get_extract_cache_dir(self) -> Path:
         """Return the cache dir used for extracted plugin wheels.
