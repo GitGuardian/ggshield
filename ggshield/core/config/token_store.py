@@ -1,4 +1,6 @@
 import logging
+import subprocess
+import sys
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -58,22 +60,34 @@ class KeyringTokenStore(TokenStore):
             logger.debug("No keyring entry to delete for instance %s", instance_url)
 
     def is_available(self) -> bool:
-        """Check if keyring is usable by probing with a test key."""
+        """Check if keyring is usable by probing with a test key.
+
+        The probe runs in a subprocess so that a segfault in a native backend
+        (e.g. libsecret or KWallet) doesn't crash the main process.
+        """
+        probe = (
+            "import keyring, keyring.backends.fail;"
+            f"kr = keyring.get_keyring();"
+            f"exit(2) if isinstance(kr, keyring.backends.fail.Keyring) else None;"
+            f"keyring.set_password({KEYRING_SERVICE!r}, '__ggshield_probe__', 'test');"
+            f"val = keyring.get_password({KEYRING_SERVICE!r}, '__ggshield_probe__');"
+            f"(keyring.delete_password({KEYRING_SERVICE!r}, '__ggshield_probe__'));"
+            f"exit(0 if val == 'test' else 3)"
+        )
         try:
-            kr = keyring.get_keyring()
-            if isinstance(kr, keyring.backends.fail.Keyring):
-                return False
-            # Probe the backend to verify it actually works (e.g. a
-            # ChainerBackend may pass the isinstance check but still fail).
-            probe_key = "__ggshield_probe__"
-            keyring.set_password(KEYRING_SERVICE, probe_key, "test")
-            val = keyring.get_password(KEYRING_SERVICE, probe_key)
-            try:
-                keyring.delete_password(KEYRING_SERVICE, probe_key)
-            except Exception:
-                logger.debug("Failed to clean up keyring probe key")
-            return val == "test"
+            result = subprocess.run(
+                [sys.executable, "-c", probe],
+                timeout=10,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                logger.debug(
+                    "Keyring probe subprocess exited with code %d",
+                    result.returncode,
+                )
+            return result.returncode == 0
         except Exception:
+            logger.debug("Keyring probe subprocess failed", exc_info=True)
             return False
 
 
