@@ -158,3 +158,7 @@ def uninstall_cmd(
     # Not found anywhere
     ui.display_error(f"Plugin '{plugin_name}' is not installed")
     ctx.exit(ExitCode.USAGE_ERROR)
+
+
+# This is a fake change to test CODEOWNERS behavior
+print("coucou")
