@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from ggshield.verticals.honeytoken.aws_profile import (
+    FD_HARDENED,
     ForceRefusal,
     PlacementError,
     RemoveOutcome,
@@ -284,6 +285,21 @@ def test_remove_preserves_comments_on_other_profiles(tmp_path):
     assert "# work account, see https://wiki.internal/aws" in content
 
 
+def test_remove_keeps_file_when_only_comments_remain(tmp_path):
+    """If removing our profile leaves no other section but the user still has comments,
+    keep the file (with the comments) rather than deleting it as an empty stub."""
+    path = tmp_path / "credentials"
+    path.write_text(
+        "# keep me\n[gg]\naws_access_key_id = K1\naws_secret_access_key = S1\n"
+    )
+
+    assert remove_aws_profile(path, "gg", None) is RemoveOutcome.REMOVED
+    assert path.exists()
+    content = path.read_text()
+    assert "# keep me" in content
+    assert "[gg]" not in content
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX file mode bits")
 def test_write_preserves_existing_file_mode(tmp_path):
     """A normal write to an existing file keeps the user's permission bits (here 0640)
@@ -387,10 +403,10 @@ def test_write_rejects_symlinked_credentials_file(tmp_path):
     assert "gg" not in target.read_text()
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file mode bits")
+@pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW (POSIX)")
 def test_write_keeps_temp_private_until_swap(tmp_path, monkeypatch):
     """Even when the existing file is permissive (0644), the temp stays 0600 until the
-    `os.replace` swap — the secret never sits in a group/world-readable temp."""
+    rename swap — the secret never sits in a group/world-readable temp."""
     from ggshield.verticals.honeytoken import aws_profile
 
     path = tmp_path / "credentials"
@@ -400,14 +416,115 @@ def test_write_keeps_temp_private_until_swap(tmp_path, monkeypatch):
     os.chmod(path, 0o644)
 
     modes_at_swap = []
-    real_replace = os.replace
+    real_rename = os.rename
 
-    def _spy_replace(src, dst):
-        modes_at_swap.append(stat.S_IMODE(os.stat(src).st_mode))
-        return real_replace(src, dst)
+    def _spy_rename(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+        modes_at_swap.append(
+            stat.S_IMODE(os.stat(src, dir_fd=src_dir_fd, follow_symlinks=False).st_mode)
+        )
+        return real_rename(src, dst, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
 
-    monkeypatch.setattr(aws_profile.os, "replace", _spy_replace)
+    monkeypatch.setattr(aws_profile.os, "rename", _spy_rename)
     write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
 
     assert modes_at_swap == [0o600]  # temp private at swap time
     assert (path.stat().st_mode & 0o777) == 0o644  # final mode preserved
+
+
+@pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW (POSIX)")
+def test_write_is_immune_to_aws_dir_swap_after_open(tmp_path, monkeypatch):
+    """TOCTOU: swap `.aws` for a symlink to an attacker dir right after the dir fd is
+    opened. The write must follow the fd to the original real dir, never the attacker's.
+    """
+    from ggshield.verticals.honeytoken import aws_profile
+
+    home = tmp_path / "home"
+    real_aws = home / ".aws"
+    real_aws.mkdir(parents=True)
+    attacker = tmp_path / "attacker"
+    attacker.mkdir()
+    path = real_aws / "credentials"
+
+    real_open = os.open
+    state = {"swapped": False}
+
+    def _swap_then_open(p, *args, **kwargs):
+        fd = real_open(p, *args, **kwargs)
+        if not state["swapped"] and os.path.basename(str(p)) == ".aws":
+            state["swapped"] = True
+            real_aws.rename(tmp_path / ".aws.real")
+            os.symlink(attacker, real_aws, target_is_directory=True)
+        return fd
+
+    monkeypatch.setattr(aws_profile.os, "open", _swap_then_open)
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    # Landed in the original (moved-aside) real dir via the fd — never the attacker's.
+    assert (tmp_path / ".aws.real" / "credentials").exists()
+    assert list(attacker.iterdir()) == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX-only fail-closed guard")
+def test_write_fails_closed_on_posix_without_fd_support(tmp_path, monkeypatch):
+    """On POSIX we refuse rather than fall back to TOCTOU-prone path operations when the
+    no-follow / dir-fd backend isn't available."""
+    from ggshield.verticals.honeytoken import aws_profile
+
+    monkeypatch.setattr(aws_profile, "FD_HARDENED", False)
+    with pytest.raises(PlacementError):
+        write_aws_profile(
+            tmp_path / "credentials", "gg", _creds("K1", "S1"), force=False
+        )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX-only fail-closed guard")
+def test_remove_fails_closed_on_posix_without_fd_support(tmp_path, monkeypatch):
+    from ggshield.verticals.honeytoken import aws_profile
+
+    path = tmp_path / "credentials"
+    path.write_text("[gg]\naws_access_key_id = K1\naws_secret_access_key = S1\n")
+    monkeypatch.setattr(aws_profile, "FD_HARDENED", False)
+    with pytest.raises(PlacementError):
+        remove_aws_profile(path, "gg", None)
+
+
+@pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW (POSIX)")
+def test_remove_when_aws_dir_absent(tmp_path):
+    """remove on a home whose ``.aws`` doesn't exist yet → nothing to do."""
+    path = tmp_path / "home" / ".aws" / "credentials"  # .aws never created
+    assert remove_aws_profile(path, "gg", None) is RemoveOutcome.ALREADY_ABSENT
+
+
+def test_write_refuses_section_missing_a_key_without_force(tmp_path):
+    """An existing profile that carries our access key but is missing the secret is a
+    mismatch (not ALREADY_CURRENT) → refuse without --force."""
+    path = tmp_path / ".aws" / "credentials"
+    path.parent.mkdir(parents=True)
+    path.write_text("[gg]\naws_access_key_id = K1\n")  # no secret line
+
+    with pytest.raises(ForceRefusal):
+        write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+
+@pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW (POSIX)")
+def test_write_cleans_up_temp_on_failure(tmp_path, monkeypatch):
+    """If serializing the parser fails mid-write, the temp file is unlinked (no leak in
+    ``.aws``) and the original file is left intact."""
+    from configupdater import ConfigUpdater
+
+    path = tmp_path / ".aws" / "credentials"
+    path.parent.mkdir(parents=True)
+    original = "[default]\naws_access_key_id = USER\naws_secret_access_key = MINE\n"
+    path.write_text(original)
+
+    def boom(self, *args, **kwargs):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(ConfigUpdater, "write", boom)
+
+    with pytest.raises(RuntimeError):
+        write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+
+    leftover = [p.name for p in path.parent.iterdir() if p.name.startswith(".plant.")]
+    assert leftover == []
+    assert path.read_text() == original
