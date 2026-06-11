@@ -1,14 +1,18 @@
+import json
 import logging
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
+import click
+
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.verticals.ai.models import (
     AIDiscovery,
     EventType,
     HookPayload,
+    HookResult,
     MCPActivityRequest,
     MCPConfiguration,
     Scope,
@@ -72,13 +76,14 @@ class Copilot(VSCode):
         optional_fields = {"prompt", "tool_name", "tool_input", "tool_result"}
         return set(hook_payload.keys()) - optional_fields == default_fields
 
-    def has_secret_already_leaked(self, payload: HookPayload) -> bool:
-        # Copilot CLI doesn't allow blocking on UserPromptSubmit.
-        # Special case: if we found a secret because we read a file that was "@" in a prompt,
-        # then we did prevent the leak.
-        if payload.event_type == EventType.USER_PROMPT and payload.tool is None:
-            return True
-        return super().has_secret_already_leaked(payload)
+    def output_result(self, result: HookResult) -> int:
+        # Copilot CLI ignores the inherited `{"continue": false}` on the prompt
+        # event, but it does honor `{"decision": "block"}` to cancel a prompt
+        # before it reaches the model (verified against Copilot CLI 1.0.61).
+        if result.block and result.payload.event_type == EventType.USER_PROMPT:
+            click.echo(json.dumps({"decision": "block", "reason": result.message}))
+            return 0
+        return super().output_result(result)
 
     def post_process_payload(self, payload: HookPayload):
         # Copilot CLI doesn't prefix the MCP tools by any specific string,
