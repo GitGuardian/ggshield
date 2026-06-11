@@ -149,6 +149,67 @@ class InsecureSourceError(DownloadError):
     pass
 
 
+class UninstallPermissionError(Exception):
+    """Plugin files could not be removed because of filesystem permissions."""
+
+    def __init__(
+        self,
+        plugin_dir: Path,
+        offending_path: Path,
+        owner_uid: Optional[int] = None,
+    ):
+        self.plugin_dir = plugin_dir
+        self.offending_path = offending_path
+        self.owner_uid = owner_uid
+        detail = f"cannot remove {offending_path}"
+        if owner_uid is not None:
+            detail += f" (owned by uid {owner_uid})"
+        super().__init__(detail)
+
+
+def _chmod_tree_for_removal(root: Path) -> None:
+    """Best-effort chmod so the current user can delete the tree.
+
+    Directories need u+rwx to list and unlink their entries; files get
+    u+w to clear read-only bits (the usual rmtree blocker on Windows).
+    Entries owned by another user cannot be re-moded — failures are
+    ignored here and surfaced by the caller's retry.
+    """
+    for dirpath, _dirnames, filenames in os.walk(root):
+        try:
+            os.chmod(dirpath, 0o700)
+        except OSError:
+            pass
+        for filename in filenames:
+            try:
+                os.chmod(os.path.join(dirpath, filename), 0o600)
+            except OSError:
+                pass
+
+
+def _find_foreign_owned_path(root: Path) -> Optional[Tuple[Path, int]]:
+    """Return the first path under root owned by another user, with its uid.
+
+    Returns None when everything belongs to the current user or on
+    platforms without POSIX ownership (Windows).
+    """
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is None:
+        return None
+    euid = geteuid()
+    candidates = [root]
+    for dirpath, dirnames, filenames in os.walk(root):
+        candidates.extend(Path(dirpath) / name for name in (*dirnames, *filenames))
+    for path in candidates:
+        try:
+            uid = path.lstat().st_uid
+        except OSError:
+            continue
+        if uid != euid:
+            return path, uid
+    return None
+
+
 class GitHubArtifactError(DownloadError):
     """Error downloading GitHub artifact."""
 
@@ -702,7 +763,13 @@ class PluginDownloader:
         return plugin_name, version, dest_wheel_path
 
     def uninstall(self, plugin_name: str) -> bool:
-        """Uninstall a plugin (by package name or entry point name)."""
+        """Uninstall a plugin (by package name or entry point name).
+
+        Raises UninstallPermissionError when the plugin files cannot be
+        removed — typically a tree planted by another user, e.g. a
+        root-owned extraction dir left inside the plugin dir by a
+        legacy `sudo ggshield plugin install`.
+        """
         if not self._is_valid_plugin_name(plugin_name):
             logger.warning("Invalid plugin name: %s", plugin_name)
             return False
@@ -711,12 +778,47 @@ class PluginDownloader:
         if plugin_dir is None:
             return False
 
+        self._remove_plugin_tree(plugin_dir)
+        # Revoke only after the files are gone: revoking first would leave
+        # a failed uninstall installed but untrusted.
         self.trust_store.revoke_plugin(plugin_dir.name)
-        shutil.rmtree(plugin_dir)
         self._remove_extract_cache(plugin_dir.name)
 
         logger.info("Uninstalled plugin: %s", plugin_name)
         return True
+
+    def _remove_plugin_tree(self, plugin_dir: Path) -> None:
+        """Remove the plugin directory, fixing permissions if needed.
+
+        A plain rmtree fails on read-only entries and on foreign-owned
+        trees. Retry once after a chmod pass; if it still fails, report
+        the offending path so the command layer can print a remediation
+        instead of a raw traceback.
+        """
+        try:
+            shutil.rmtree(plugin_dir)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            pass
+
+        _chmod_tree_for_removal(plugin_dir)
+        try:
+            shutil.rmtree(plugin_dir)
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            foreign = _find_foreign_owned_path(plugin_dir)
+            if foreign is not None:
+                offending_path, owner_uid = foreign
+            else:
+                filename = getattr(exc, "filename", None)
+                offending_path = Path(filename) if filename else plugin_dir
+                owner_uid = None
+            raise UninstallPermissionError(
+                plugin_dir, offending_path, owner_uid
+            ) from exc
 
     def _remove_extract_cache(self, plugin_dir_name: str) -> None:
         """Best-effort removal of extracted wheel cache for an uninstalled plugin."""

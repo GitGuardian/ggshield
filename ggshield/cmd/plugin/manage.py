@@ -10,7 +10,7 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core import ui
 from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.errors import ExitCode
-from ggshield.core.plugin.downloader import PluginDownloader
+from ggshield.core.plugin.downloader import PluginDownloader, UninstallPermissionError
 
 
 @click.command()
@@ -114,7 +114,27 @@ def uninstall_cmd(
             )
 
         # Uninstall
-        if downloader.uninstall(plugin_name):
+        try:
+            removed = downloader.uninstall(plugin_name)
+        except UninstallPermissionError as exc:
+            if exc.owner_uid is not None:
+                reason = (
+                    f"'{exc.offending_path}' is owned by another user "
+                    f"(uid {exc.owner_uid}), probably from a sudo install"
+                )
+            else:
+                reason = f"permission denied on '{exc.offending_path}'"
+            ui.display_error(
+                f"Cannot remove plugin files at '{exc.plugin_dir}': {reason}."
+            )
+            ui.display_info(
+                "Re-run with elevated rights "
+                f"(e.g. sudo ggshield plugin uninstall {plugin_name}) "
+                f"or remove the directory manually: sudo rm -rf '{exc.plugin_dir}'"
+            )
+            ctx.exit(ExitCode.UNEXPECTED_ERROR)
+
+        if removed:
             # Remove from config
             enterprise_config = EnterpriseConfig.load()
             enterprise_config.remove_plugin(plugin_name)

@@ -2,7 +2,9 @@
 
 import hashlib
 import json
+import os
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any, Iterator
@@ -11,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
+from ggshield.core.plugin import downloader as downloader_module
 from ggshield.core.plugin.client import (
     PluginDownloadInfo,
     PluginSource,
@@ -22,6 +25,9 @@ from ggshield.core.plugin.downloader import (
     GitHubArtifactError,
     InsecureSourceError,
     PluginDownloader,
+    UninstallPermissionError,
+    _chmod_tree_for_removal,
+    _find_foreign_owned_path,
     get_plugins_dir,
     get_signature_label,
 )
@@ -226,6 +232,194 @@ class TestPluginDownloader:
 
         assert not plugin_dir.exists()
         assert extract_cache.exists()  # not removed, but uninstall still succeeded
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission semantics")
+    def test_uninstall_fixes_unwritable_residue(self, tmp_path: Path) -> None:
+        """
+        GIVEN an installed plugin holding a non-writable legacy extraction dir
+        WHEN uninstalling
+        THEN the chmod-retry pass removes the whole tree
+        """
+        plugin_dir = tmp_path / "testplugin"
+        residue = plugin_dir / ".testplugin-1.0.0_extracted" / "testplugin.dist-info"
+        residue.mkdir(parents=True)
+        (residue / "RECORD").touch()
+        (plugin_dir / "manifest.json").write_text("{}")
+        (plugin_dir / "testplugin.whl").touch()
+        residue.chmod(0o555)
+        residue.parent.chmod(0o555)
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        try:
+            assert downloader.uninstall("testplugin") is True
+        finally:
+            # Re-grant write so pytest can clean tmp_path if removal failed
+            for path in (residue.parent, residue):
+                if path.exists():
+                    path.chmod(0o755)
+
+        assert not plugin_dir.exists()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="requires os.geteuid")
+    def test_uninstall_foreign_owned_tree_raises_remediation_error(
+        self, tmp_path: Path
+    ) -> None:
+        """
+        GIVEN a plugin tree that rmtree cannot delete because another user owns it
+        WHEN uninstalling
+        THEN UninstallPermissionError names the foreign path and the trust
+             record is NOT revoked (the files are still installed)
+        """
+        plugin_dir = tmp_path / "testplugin"
+        plugin_dir.mkdir()
+        (plugin_dir / "manifest.json").write_text("{}")
+        record = plugin_dir / "RECORD"
+        record.touch()
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        real_euid = os.geteuid()
+        with (
+            patch(
+                "ggshield.core.plugin.downloader.shutil.rmtree",
+                side_effect=PermissionError(13, "Permission denied", str(record)),
+            ),
+            patch("os.geteuid", return_value=real_euid + 1),
+            patch.object(downloader.trust_store, "revoke_plugin") as mock_revoke,
+        ):
+            with pytest.raises(UninstallPermissionError) as exc_info:
+                downloader.uninstall("testplugin")
+
+        error = exc_info.value
+        assert error.plugin_dir == plugin_dir
+        assert error.offending_path == plugin_dir
+        assert error.owner_uid == real_euid
+        mock_revoke.assert_not_called()
+        assert plugin_dir.exists()
+
+    def test_remove_plugin_tree_handles_vanished_dir(self, tmp_path: Path) -> None:
+        """A dir that disappears before the first rmtree is a no-op, not an error."""
+        plugin_dir = tmp_path / "testplugin"
+        plugin_dir.mkdir()
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        with patch(
+            "ggshield.core.plugin.downloader.shutil.rmtree",
+            side_effect=FileNotFoundError(),
+        ):
+            downloader._remove_plugin_tree(plugin_dir)  # must not raise
+
+    def test_remove_plugin_tree_retry_hits_vanished_dir(self, tmp_path: Path) -> None:
+        """If the tree vanishes during the chmod-retry, that's success, not an error."""
+        plugin_dir = tmp_path / "testplugin"
+        plugin_dir.mkdir()
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        rmtree = MagicMock(side_effect=[OSError("busy"), FileNotFoundError()])
+        with patch("ggshield.core.plugin.downloader.shutil.rmtree", rmtree):
+            downloader._remove_plugin_tree(plugin_dir)  # must not raise
+        assert rmtree.call_count == 2
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="requires os.geteuid")
+    def test_remove_plugin_tree_owned_but_unremovable_uses_filename(
+        self, tmp_path: Path
+    ) -> None:
+        """
+        A persistently unremovable tree that is NOT foreign-owned still raises,
+        falling back to the OSError's filename and a None owner uid.
+        """
+        plugin_dir = tmp_path / "testplugin"
+        plugin_dir.mkdir()
+        stuck = plugin_dir / "stuck"
+        stuck.touch()
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        err = PermissionError(13, "Permission denied", str(stuck))
+        with patch("ggshield.core.plugin.downloader.shutil.rmtree", side_effect=err):
+            with pytest.raises(UninstallPermissionError) as exc_info:
+                downloader._remove_plugin_tree(plugin_dir)
+
+        assert exc_info.value.owner_uid is None
+        assert exc_info.value.offending_path == stuck
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="requires os.geteuid")
+    def test_remove_plugin_tree_unremovable_no_filename_falls_back_to_dir(
+        self, tmp_path: Path
+    ) -> None:
+        """When the OSError carries no filename, the plugin dir is reported."""
+        plugin_dir = tmp_path / "testplugin"
+        plugin_dir.mkdir()
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ):
+            downloader = PluginDownloader()
+
+        with patch(
+            "ggshield.core.plugin.downloader.shutil.rmtree",
+            side_effect=OSError("denied"),
+        ):
+            with pytest.raises(UninstallPermissionError) as exc_info:
+                downloader._remove_plugin_tree(plugin_dir)
+
+        assert exc_info.value.offending_path == plugin_dir
+        assert exc_info.value.owner_uid is None
+
+    def test_chmod_tree_for_removal_swallows_chmod_errors(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """chmod failures on individual entries must not abort the pass."""
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "file").touch()
+
+        def boom(*args: Any, **kwargs: Any) -> None:
+            raise OSError("cannot chmod")
+
+        monkeypatch.setattr(downloader_module.os, "chmod", boom)
+        _chmod_tree_for_removal(tmp_path)  # must not raise
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="requires os.geteuid")
+    def test_find_foreign_owned_path_all_owned_returns_none(
+        self, tmp_path: Path
+    ) -> None:
+        """A tree fully owned by the current user has no foreign entries."""
+        (tmp_path / "file").touch()
+        assert _find_foreign_owned_path(tmp_path) is None
+
+    def test_find_foreign_owned_path_without_geteuid_returns_none(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """On platforms without os.geteuid (Windows), ownership can't be judged."""
+        monkeypatch.setattr(downloader_module.os, "geteuid", None, raising=False)
+        assert _find_foreign_owned_path(tmp_path) is None
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="requires os.geteuid")
+    def test_find_foreign_owned_path_skips_unstatable_entries(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """Entries whose lstat raises are skipped rather than crashing the walk."""
+        (tmp_path / "file").touch()
+
+        def boom(self: Path) -> None:
+            raise OSError("gone")
+
+        monkeypatch.setattr(Path, "lstat", boom)
+        assert _find_foreign_owned_path(tmp_path) is None
 
     def test_uninstall_removes_trust_record(self, tmp_path: Path) -> None:
         """Test uninstall also removes any persisted trust exception."""

@@ -2,10 +2,12 @@
 Tests for the enterprise plugin management commands (enable/disable/uninstall).
 """
 
+from pathlib import Path
 from unittest import mock
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from ggshield.core.plugin.downloader import UninstallPermissionError
 
 
 class TestPluginEnable:
@@ -233,6 +235,70 @@ class TestPluginUninstall:
 
         assert result.exit_code == ExitCode.SUCCESS
         assert "Uninstalled plugin: testplugin" in result.output
+
+    def test_uninstall_permission_error_shows_remediation(self, cli_fs_runner):
+        """
+        GIVEN an installed plugin whose files are owned by another user (sudo residue)
+        WHEN running 'ggshield plugin uninstall <plugin> -y'
+        THEN a remediation message is displayed instead of a traceback
+        """
+        plugin_dir = Path("/tmp/plugins/testplugin")
+        error = UninstallPermissionError(
+            plugin_dir=plugin_dir,
+            offending_path=plugin_dir / ".old_extracted" / "RECORD",
+            owner_uid=0,
+        )
+        with mock.patch(
+            "ggshield.cmd.plugin.manage.PluginDownloader"
+        ) as mock_downloader_class:
+            mock_downloader = mock.MagicMock()
+            mock_downloader.is_installed.return_value = True
+            mock_downloader.uninstall.side_effect = error
+            mock_downloader_class.return_value = mock_downloader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "uninstall", "testplugin", "-y"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "owned by another user" in result.output
+        assert "sudo rm -rf" in result.output
+        assert "Traceback" not in result.output
+
+    def test_uninstall_permission_error_without_uid_shows_generic_message(
+        self, cli_fs_runner
+    ):
+        """
+        GIVEN uninstall fails on permissions but no owner uid could be resolved
+        WHEN running 'ggshield plugin uninstall <plugin> -y'
+        THEN a generic permission-denied remediation is shown (no uid mention)
+        """
+        plugin_dir = Path("/tmp/plugins/testplugin")
+        error = UninstallPermissionError(
+            plugin_dir=plugin_dir,
+            offending_path=plugin_dir / "RECORD",
+            owner_uid=None,
+        )
+        with mock.patch(
+            "ggshield.cmd.plugin.manage.PluginDownloader"
+        ) as mock_downloader_class:
+            mock_downloader = mock.MagicMock()
+            mock_downloader.is_installed.return_value = True
+            mock_downloader.uninstall.side_effect = error
+            mock_downloader_class.return_value = mock_downloader
+
+            result = cli_fs_runner.invoke(
+                cli,
+                ["plugin", "uninstall", "testplugin", "-y"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == ExitCode.UNEXPECTED_ERROR
+        assert "permission denied on" in result.output
+        assert "owned by another user" not in result.output
+        assert "Traceback" not in result.output
 
     def test_uninstall_not_installed(self, cli_fs_runner):
         """
