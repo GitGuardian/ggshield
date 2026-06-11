@@ -57,10 +57,19 @@ class HookResult:
     message: str
     nbr_secrets: int
     payload: "HookPayload"
+    # Set when the action is allowed but the user must be warned,
+    # typically because the scan could not run at all.
+    warning: str = ""
 
     @classmethod
     def allow(cls, payload: "HookPayload") -> "HookResult":
         return cls(block=False, message="", nbr_secrets=0, payload=payload)
+
+    @classmethod
+    def allow_with_warning(cls, payload: "HookPayload", warning: str) -> "HookResult":
+        return cls(
+            block=False, message="", nbr_secrets=0, payload=payload, warning=warning
+        )
 
 
 @dataclass

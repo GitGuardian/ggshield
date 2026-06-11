@@ -7,7 +7,9 @@ from typing import Any, Dict, List, Sequence, Set
 import filelock
 from notifypy import Notify
 
+from ggshield.core import ui
 from ggshield.core.dirs import get_cache_dir
+from ggshield.core.errors import AuthError
 from ggshield.core.filter import censor_match
 from ggshield.core.scan import ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
@@ -180,6 +182,46 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         agent.post_process_payload(payload)
 
     return payloads
+
+
+def emit_fail_open_response(stdin_content: str, error: Exception) -> int:
+    """Emit an "allow" response carrying a warning instead of crashing.
+
+    A failure to scan (missing or unreadable token, unreachable server...)
+    must never break the agent: agents interpret a non-zero exit or a raw
+    traceback as a block or an error, and the user is never told that
+    scanning is broken. Instead we allow the action and surface a warning
+    through the agent.
+
+    Returns the exit code to use.
+    """
+    warning = _cannot_scan_warning(error)
+    ui.display_warning(warning)
+    try:
+        payload = parse_hook_input(stdin_content)[-1]
+    except ValueError:
+        # We can't even tell which agent is calling us, so we can't emit a
+        # well-formed response. Agents treat exit 1 as a non-blocking error.
+        return 1
+    return payload.agent.output_result(HookResult.allow_with_warning(payload, warning))
+
+
+def _cannot_scan_warning(error: Exception) -> str:
+    if isinstance(error, AuthError):
+        reason = "ggshield could not authenticate to GitGuardian"
+        remediation = (
+            "Run 'ggshield auth login' to authenticate. If you are already "
+            "logged in, run 'ggshield api-status' once in a terminal: your OS "
+            "credentials store may require an interactive approval before "
+            "agent-spawned processes can read the token."
+        )
+    else:
+        # Only keep the first line: error details such as connection errors
+        # can span several lines and don't belong in an agent message.
+        detail = str(error).splitlines()[0] if str(error) else error.__class__.__name__
+        reason = f"ggshield could not scan ({detail})"
+        remediation = "Run 'ggshield api-status' to diagnose."
+    return f"{reason} — this action was NOT scanned for secrets. {remediation}"
 
 
 def _parse_tool(data: Dict[str, Any]) -> Tool:
