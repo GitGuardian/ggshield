@@ -21,6 +21,7 @@ from .models import Agent, EventType, HookPayload, HookResult, Tool
 
 HOOK_NAME_TO_EVENT_TYPE = {
     "userpromptsubmit": EventType.USER_PROMPT,
+    "userpromptsubmitted": EventType.USER_PROMPT,  # Copilot CLI's native event name
     "beforesubmitprompt": EventType.USER_PROMPT,
     "pretooluse": EventType.PRE_TOOL_USE,
     "posttooluse": EventType.POST_TOOL_USE,

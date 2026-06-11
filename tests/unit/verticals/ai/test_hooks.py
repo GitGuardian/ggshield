@@ -738,6 +738,26 @@ class TestAIHookScannerParseInput:
         assert payload.tool is None
         assert isinstance(payload.agent, Copilot)
 
+    def test_copilot_user_prompt_submitted(self):
+        """Test Copilot CLI's own 'userPromptSubmitted' event name parsing.
+
+        Copilot CLI fires the camelCase ``userPromptSubmitted`` event, not the
+        VS Code ``UserPromptSubmit``. If it is not mapped, the prompt content is
+        never scanned and ggshield wrongly returns ``{"continue": true}``.
+        """
+        data = {
+            "timestamp": "2026-02-26T11:28:53.112Z",
+            "hook_event_name": "userPromptSubmitted",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "prompt": "hello world",
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.USER_PROMPT
+        assert "hello world" in payload.content
+        assert payload.tool is None
+        assert isinstance(payload.agent, Copilot)
+
     def test_copilot_pre_tool_use_run_in_terminal(self):
         """Test Copilot PreToolUse with bash parsing."""
         data = {
@@ -1110,6 +1130,29 @@ class TestFlavorOutputResult:
         args, _ = mock_echo.call_args
         out = json.loads(args[0])
         assert not out["continue"]
+
+    @patch("ggshield.verticals.ai.agents.copilot.click.echo")
+    def test_copilot_output_result_user_prompt_block(self, mock_echo: MagicMock):
+        """Copilot USER_PROMPT block: {"decision": "block"} to stdout, return 0.
+
+        Copilot CLI cancels a prompt before it reaches the model when the hook
+        emits ``{"decision": "block"}`` (verified against Copilot CLI 1.0.61).
+        The inherited ``{"continue": false}`` is ignored on the prompt event.
+        """
+        result = HookResult(
+            block=True,
+            message="Remove secrets from prompt",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.USER_PROMPT),
+        )
+        code = Copilot().output_result(result)
+        assert code == 0
+        mock_echo.assert_called_once()
+        args, kwargs = mock_echo.call_args
+        assert kwargs.get("err", False) is False  # stdout (default)
+        out = json.loads(args[0])
+        assert out["decision"] == "block"
+        assert out["reason"] == "Remove secrets from prompt"
 
     @patch("ggshield.verticals.ai.agents.codex.click.echo")
     def test_codex_output_result_allow(self, mock_echo: MagicMock):
