@@ -336,11 +336,12 @@ class TestAuthConfigKeyring:
             for account in instance["accounts"]:
                 assert account["token"] == KEYRING_SENTINEL
 
-    def test_save_fallback_on_keyring_error(self, monkeypatch):
+    def test_save_fallback_on_keyring_error(self, monkeypatch, capsys):
         """
         GIVEN a config with tokens
         WHEN keyring raises an error during save
-        THEN cleartext tokens are preserved in YAML
+        THEN cleartext tokens are preserved in YAML and the user is warned with
+             an actionable fix command (rather than failing silently)
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
@@ -365,6 +366,67 @@ class TestAuthConfigKeyring:
 
         original_token_0 = TEST_AUTH_CONFIG["instances"][0]["accounts"][0]["token"]
         assert saved_data["instances"][0]["accounts"][0]["token"] == original_token_0
+
+        # The failure is surfaced to the user, not just logged
+        err = capsys.readouterr().err
+        assert "Could not store the token" in err
+        assert "cleartext" in err
+        assert "ggshield auth status" in err
+        assert "ggshield auth login" in err
+
+    def test_save_announces_cleartext_migration(self, monkeypatch, capsys):
+        """
+        GIVEN a config whose tokens are cleartext on disk
+        WHEN saving with a working keyring
+        THEN the user is told the tokens were migrated to the credential store
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
+
+        mock_store = KeyringTokenStore()
+        mock_store.store_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store",
+            return_value=mock_store,
+        ):
+            config = Config()
+            config.auth_config.save()
+
+        out = capsys.readouterr().err
+        assert "migrated" in out
+        assert "https://dashboard.gitguardian.com" in out
+
+    def test_save_silent_when_already_in_keyring(self, monkeypatch, capsys):
+        """
+        GIVEN a config already migrated (sentinel on disk, token from keyring)
+        WHEN saving again
+        THEN no migration message is shown (avoid noise on routine re-saves)
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        sentinel_config = deepcopy(TEST_AUTH_CONFIG)
+        for instance in sentinel_config["instances"]:
+            for account in instance["accounts"]:
+                account["token"] = KEYRING_SENTINEL
+        write_yaml(get_auth_config_filepath(), sentinel_config)
+
+        mock_store = KeyringTokenStore()
+        mock_store.store_token = MagicMock()
+        mock_store.get_token = MagicMock(return_value="real-token-from-keyring")
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store",
+            return_value=mock_store,
+        ):
+            config = Config()
+            config.auth_config.save()
+
+        out = capsys.readouterr().err
+        assert "migrated" not in out
 
     def test_load_keyring_get_token_exception(self, monkeypatch):
         """
