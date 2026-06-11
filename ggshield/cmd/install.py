@@ -1,12 +1,18 @@
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Literal, Optional
 
 import click
 from click import UsageError
+from pygitguardian.models import HealthCheckResponse
 
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.context_obj import ContextObj
+from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
+from ggshield.core.config import Config
 from ggshield.core.dirs import get_data_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import check_git_dir, git
@@ -46,7 +52,9 @@ fi
 @click.option("--force", "-f", is_flag=True, help="Overwrite any existing hook script.")
 @click.option("--append", "-a", is_flag=True, help="Append to existing script.")
 @add_common_options()
+@click.pass_context
 def install_cmd(
+    ctx: click.Context,
     mode: Literal["local", "global"],
     hook_type: str,
     force: bool,
@@ -62,7 +70,10 @@ def install_cmd(
     """
 
     if hook_type in AGENTS:
-        return install_hooks(name=hook_type, mode=mode, force=force)
+        returncode = install_hooks(name=hook_type, mode=mode, force=force)
+        if returncode == 0:
+            check_ai_hook_authentication(ContextObj.get(ctx).config)
+        return returncode
 
     return_code = (
         install_global(hook_type=hook_type, force=force, append=append)
@@ -70,6 +81,41 @@ def install_cmd(
         else install_local(hook_type=hook_type, force=force, append=append)
     )
     return return_code
+
+
+def _is_interactive() -> bool:
+    """Whether install is running with a user present at a terminal."""
+    return sys.stdout.isatty()
+
+
+def check_ai_hook_authentication(config: Config) -> None:
+    """Verify the freshly installed AI hook will be able to authenticate.
+
+    The hook runs as an agent-spawned, non-interactive process, where an auth
+    failure would otherwise only show up as a warning on every tool call.
+    Checking now also makes the OS credentials store ask for access (e.g. the
+    macOS Keychain authorization prompt) while the user can still answer it.
+
+    Skip this in non-interactive installs (CI, automated fleet/MDM
+    provisioning): there is no one to answer a credential-store popup or read
+    the result, and triggering the prompt there would be disruptive.
+    """
+    if not _is_interactive():
+        return
+    try:
+        client = create_client_from_config(config)
+        response = client.health_check()
+        if not isinstance(response, HealthCheckResponse) or response.status_code != 200:
+            raise UnexpectedError(str(getattr(response, "detail", response)))
+    except Exception as exc:
+        ui.display_warning(
+            f"The hook is installed but ggshield cannot reach GitGuardian: {exc}\n"
+            "The hook will NOT scan anything until this is fixed. Run "
+            "'ggshield auth login' to authenticate, then 'ggshield api-status' "
+            "to check."
+        )
+    else:
+        click.echo("ggshield successfully authenticated: the hook is ready to scan.")
 
 
 def install_global(hook_type: str, force: bool, append: bool) -> int:

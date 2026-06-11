@@ -4,10 +4,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from pygitguardian.models import HealthCheckResponse
 
 from ggshield.__main__ import cli
-from ggshield.cmd.install import get_default_global_hook_dir_path, install_local
-from ggshield.core.errors import ExitCode
+from ggshield.cmd.install import (
+    _is_interactive,
+    get_default_global_hook_dir_path,
+    install_local,
+)
+from ggshield.core.errors import ExitCode, MissingTokenError
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
@@ -330,3 +335,95 @@ class TestInstallGlobal:
         result = cli_runner.invoke(cli, ["install", "-m", "global", "-f"])
         assert_invoke_ok(result)
         assert f"pre-commit successfully added in {hook_path}" in result.output
+
+
+class TestInstallAIHook:
+    @patch("ggshield.cmd.install._is_interactive", return_value=True)
+    @patch("ggshield.cmd.install.create_client_from_config")
+    def test_install_auth_preflight_success(
+        self, create_client_mock: Mock, interactive_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN a working authentication and an interactive install
+        WHEN installing an AI agent hook
+        THEN the hooks are installed and the preflight reports the hook is ready
+        """
+        create_client_mock.return_value.health_check.return_value = Mock(
+            spec=HealthCheckResponse, status_code=200
+        )
+
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+        assert_invoke_ok(result)
+        assert Path(".claude/settings.json").is_file()
+        assert "the hook is ready to scan" in result.output
+
+    @patch("ggshield.cmd.install._is_interactive", return_value=True)
+    @patch(
+        "ggshield.cmd.install.create_client_from_config",
+        side_effect=MissingTokenError(instance="https://dashboard.gitguardian.com"),
+    )
+    def test_install_auth_preflight_failure_warns(
+        self, create_client_mock: Mock, interactive_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN a broken authentication (no token, unreadable keyring...)
+        WHEN installing an AI agent hook interactively
+        THEN the hooks are still installed but the user is warned the hook
+        cannot scan yet
+        """
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+        assert_invoke_ok(result)
+        assert Path(".claude/settings.json").is_file()
+        assert "will NOT scan anything" in result.output
+        assert "ggshield auth login" in result.output
+
+    @patch("ggshield.cmd.install._is_interactive", return_value=False)
+    @patch("ggshield.cmd.install.create_client_from_config")
+    def test_install_auth_preflight_skipped_when_non_interactive(
+        self, create_client_mock: Mock, interactive_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN a non-interactive install (CI, automated fleet/MDM provisioning)
+        WHEN installing an AI agent hook
+        THEN the hooks are installed but the auth preflight is skipped, so no
+        credential-store access is triggered
+        """
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+        assert_invoke_ok(result)
+        assert Path(".claude/settings.json").is_file()
+        create_client_mock.assert_not_called()
+        assert "ready to scan" not in result.output
+
+    @patch("ggshield.cmd.install._is_interactive", return_value=True)
+    @patch("ggshield.cmd.install.create_client_from_config")
+    def test_install_auth_preflight_unhealthy_warns(
+        self, create_client_mock: Mock, interactive_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN reachable authentication but an unhealthy GitGuardian instance
+        WHEN installing an AI agent hook interactively
+        THEN the user is warned the hook cannot scan yet
+        """
+        create_client_mock.return_value.health_check.return_value = Mock(
+            spec=HealthCheckResponse, status_code=503, detail="service unavailable"
+        )
+
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+        assert_invoke_ok(result)
+        assert "will NOT scan anything" in result.output
+
+    def test_is_interactive_reflects_stdout_tty(self):
+        """_is_interactive mirrors whether stdout is a terminal."""
+        with patch("ggshield.cmd.install.sys.stdout") as stdout:
+            stdout.isatty.return_value = True
+            assert _is_interactive() is True
+            stdout.isatty.return_value = False
+            assert _is_interactive() is False
