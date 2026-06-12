@@ -1,12 +1,6 @@
 """
-Regression test: ignored (NOT_INTRODUCED) secrets must not leak in plaintext
+Regression test: NOT_INTRODUCED secrets must not leak in plaintext
 through context lines of adjacent displayed secrets.
-
-Bug: when two secrets are adjacent in a patch and the first is on a context
-line (DiffKind.CONTEXT → filtered as NOT_INTRODUCED), Result.censor() never
-touches its Line object.  That same Line object appears in the displayed
-secret's lines_before_secret / lines_after_secret, so it is printed in
-plaintext despite show_secrets=False.
 """
 
 import click
