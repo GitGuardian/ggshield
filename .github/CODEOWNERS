@@ -16,3 +16,8 @@ tests/unit/verticals/hmsl/ @GitGuardian/nhi-governance
 scripts/hmsl/ @GitGuardian/nhi-governance
 doc/dev/hmsl/ @GitGuardian/nhi-governance
 tests/unit/cmd/hmsl/ @GitGuardian/nhi-governance
+
+# ai (AI hooks, MCP discovery, AI security)
+ggshield/cmd/ai/ @GitGuardian/nhi-governance
+ggshield/verticals/ai/ @GitGuardian/nhi-governance
+tests/unit/verticals/ai/ @GitGuardian/nhi-governance

@@ -9,7 +9,7 @@ description: |-
   ggshield runs in your local environment or in a CI environment to help you
   detect leaked secrets, as well as other potential security vulnerabilities.
 
-arch: amd64
+arch: ${NFPM_ARCH}
 platform: linux
 version: ${VERSION}
 version_schema: semver
