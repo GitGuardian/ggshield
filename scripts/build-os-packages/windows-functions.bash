@@ -17,7 +17,7 @@ windows_sign() {
         die "$SM_CLIENT_CERT_FILE does not exist"
     fi
 
-    local archive_dir="$PACKAGES_DIR/$ARCHIVE_DIR_NAME"
+    local archive_dir="$BUILD_DIR/$ARCHIVE_DIR_NAME"
     smctl sign \
         --verbose \
         --exit-non-zero-on-fail \
@@ -27,8 +27,9 @@ windows_sign() {
 }
 
 windows_create_archive() {
-    local archive_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.zip"
-    pushd "$PACKAGES_DIR"
+    local archive_path="$DIST_DIR/$ARCHIVE_DIR_NAME.zip"
+    mkdir -p "$DIST_DIR"
+    pushd "$BUILD_DIR"
     7z a "$archive_path" "$ARCHIVE_DIR_NAME"
     popd
     info "Archive created in $archive_path"
@@ -40,16 +41,16 @@ windows_build_chocolatey_package() {
     mkdir choco-package
     mkdir choco-package/tools
 
-    cp -r "$PACKAGES_DIR/$ARCHIVE_DIR_NAME/_internal" choco-package/tools
-    cp "$PACKAGES_DIR/$ARCHIVE_DIR_NAME/ggshield.exe" choco-package/tools
+    cp -r "$BUILD_DIR/$ARCHIVE_DIR_NAME/_internal" choco-package/tools
+    cp "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield.exe" choco-package/tools
     cp "$ROOT_DIR/scripts/chocolatey/ggshield.nuspec" choco-package
     cp "$ROOT_DIR/scripts/chocolatey/VERIFICATION.txt" choco-package/tools
     cp "$ROOT_DIR/LICENSE" choco-package/tools/LICENSE.txt
     sed -i "s/__VERSION__/$VERSION/" choco-package/ggshield.nuspec
 
-    choco pack choco-package/* --version $VERSION --outdir $PACKAGES_DIR
+    choco pack choco-package/* --version $VERSION --outdir $DIST_DIR
 
-    info "Chocolatey package created in $PACKAGES_DIR/ggshield.$VERSION.nupkg"
+    info "Chocolatey package created in $DIST_DIR/ggshield.$VERSION.nupkg"
 
     rm -rf choco-package
 
@@ -57,7 +58,7 @@ windows_build_chocolatey_package() {
 
 # cf https://docs.chocolatey.org/en-us/create/create-packages/#testing-your-package
 test_chocolatey_package() {
-    pushd "$PACKAGES_DIR"
+    pushd "$DIST_DIR"
     choco install ggshield --debug --verbose --source . --noop
     popd
 }
@@ -70,9 +71,9 @@ windows_build_msi_package() {
     wxs_path=$(cygpath -w "$SCRIPT_DIR/ggshield.wxs")
 
     local source_dir
-    source_dir=$(cygpath -w "$PACKAGES_DIR/$ARCHIVE_DIR_NAME")
+    source_dir=$(cygpath -w "$BUILD_DIR/$ARCHIVE_DIR_NAME")
 
-    local msi_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.msi"
+    local msi_path="$DIST_DIR/$ARCHIVE_DIR_NAME.msi"
     local msi_path_win
     msi_path_win=$(cygpath -w "$msi_path")
 
@@ -97,7 +98,7 @@ windows_build_msi_package() {
 }
 
 test_msi_package() {
-    local msi_path="$PACKAGES_DIR/$ARCHIVE_DIR_NAME.msi"
+    local msi_path="$DIST_DIR/$ARCHIVE_DIR_NAME.msi"
     if [ ! -f "$msi_path" ] ; then
         die "MSI package not found: $msi_path"
     fi
