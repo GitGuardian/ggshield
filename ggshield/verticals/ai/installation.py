@@ -1,4 +1,7 @@
 import json
+import os
+import shlex
+import sys
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +19,36 @@ from .agents import AGENTS
 class InstallationStats:
     added: int
     already_present: int
+
+
+def build_hook_command() -> str:
+    """Build the AI hook command line written into the agent's settings.
+
+    Pin the hook to the absolute path of the ggshield that is running
+    ``install``, rather than a bare ``ggshield``. The hook runs as an
+    agent-spawned process whose PATH is neither the user's shell PATH nor stable
+    across launch contexts (a terminal-launched agent and a GUI-launched one can
+    see different PATHs). On a machine with more than one ggshield install (e.g.
+    Homebrew plus an MDM-managed copy on macOS), a bare command can resolve to a
+    *different* binary than the one the user authenticated with, which then fails
+    to read the stored token.
+
+    We trust whatever executable ran ``install`` (``sys.argv[0]``); we only make
+    it absolute and shell-quote it. ``abspath`` does not resolve symlinks, so a
+    package manager's stable launcher (e.g. ``/opt/homebrew/bin/ggshield``) is
+    kept rather than a version-pinned path that would break on upgrade.
+    """
+    executable = os.path.abspath(sys.argv[0])
+    return f"{_quote_executable(executable)} secret scan ai-hook"
+
+
+def _quote_executable(path: str) -> str:
+    """Quote an executable path for use in a shell-run hook command string."""
+    if os.name == "nt":
+        # Agents run the command through a shell; quote only when needed to
+        # avoid disturbing parsers that don't expect quoting.
+        return f'"{path}"' if " " in path else path
+    return shlex.quote(path)
 
 
 def install_hooks(
@@ -39,7 +72,7 @@ def install_hooks(
     base_dir = get_user_home_dir() if mode == "global" else Path(".")
     settings_path = base_dir / agent.settings_path(mode)
 
-    command = "ggshield secret scan ai-hook"
+    command = build_hook_command()
 
     # Load existing config or create new one
     existing_config: dict = {}
