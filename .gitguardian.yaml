@@ -24,6 +24,10 @@ secret:
       name: Test secret mentioned in commit 6282ceb9035c1bfcceec5f6372f69063cdd588f7
     - match: e90eaa00d17c03309b660e1879c70b815509422c2d4cf0980b2e1221dffa0381
       name: Test secret mentioned in commit 6282ceb9035c1bfcceec5f6372f69063cdd588f7
+    - match: 796c064d6cfd48964052633c64979c19bf232e9fe7da667b75f1a0485d62fb8d
+      name: Fake secret in test_ignored_secret_context_leak.py
+    - match: 5af590dc986688e893c7cb22638a4175d8e3b3268a9499c4fb007d5f43cf3b8b
+      name: Fake secret in test_ignored_secret_context_leak.py
 
   ignored_paths:
     - '**/README.md'
