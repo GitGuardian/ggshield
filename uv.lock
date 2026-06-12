@@ -946,7 +946,7 @@ requires-dist = [
     { name = "oauthlib", specifier = "~=3.2.1" },
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
-    { name = "pygitguardian", git = "https://github.com/GitGuardian/py-gitguardian.git?rev=d3152b7bf33077fd17a8ea692d658dd428c73ac3" },
+    { name = "pygitguardian", git = "https://github.com/GitGuardian/py-gitguardian.git?rev=717e4bdaa88d14cbaf6a9af0341c056367f55d00" },
     { name = "pyjwt", specifier = "~=2.6.0" },
     { name = "python-dotenv", specifier = "~=0.21.0" },
     { name = "pyyaml", specifier = "~=6.0.1" },
@@ -2619,7 +2619,7 @@ wheels = [
 [[package]]
 name = "pygitguardian"
 version = "1.30.0"
-source = { git = "https://github.com/GitGuardian/py-gitguardian.git?rev=d3152b7bf33077fd17a8ea692d658dd428c73ac3#d3152b7bf33077fd17a8ea692d658dd428c73ac3" }
+source = { git = "https://github.com/GitGuardian/py-gitguardian.git?rev=717e4bdaa88d14cbaf6a9af0341c056367f55d00#717e4bdaa88d14cbaf6a9af0341c056367f55d00" }
 dependencies = [
     { name = "marshmallow" },
     { name = "marshmallow-dataclass" },

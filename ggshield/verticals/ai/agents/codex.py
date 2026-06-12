@@ -8,12 +8,33 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
+from ..agent_activity.sources import JSONLActivitySource
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration, Scope
 from .claude_code import _mangle_server_name
 
 
+class CodexActivitySource(JSONLActivitySource):
+    """Every Codex session rollout line, shipped raw.
+
+    Codex writes one response_item / metadata object per line to
+    ~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl. The line is shipped
+    verbatim; GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    kind = "5_session_rollout"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted(
+                (get_user_home_dir() / ".codex").glob("sessions/*/*/*/rollout-*.jsonl")
+            )
+        )
+
+
 class Codex(Agent):
     """Behavior specific to OpenAI Codex."""
+
+    agent_activity_sources = [CodexActivitySource()]
 
     @property
     def name(self) -> str:

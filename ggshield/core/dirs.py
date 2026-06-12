@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from platformdirs import user_cache_dir, user_config_dir, user_data_dir
@@ -16,6 +17,25 @@ def get_user_home_dir() -> Path:
         return Path(os.environ["GG_USER_HOME_DIR"])
     except KeyError:
         return Path.home()
+
+
+def get_editor_user_data_dir(app_name: str) -> Path:
+    """Return the per-OS ``User`` data directory of a VSCode-family editor.
+
+    VSCode and its forks (Cursor, …) keep their per-user state under an
+    OS-specific base — ``~/.config`` on Linux, ``~/Library/Application Support``
+    on macOS, ``~/AppData/Roaming`` on Windows — so a hardcoded ``~/.config``
+    path finds nothing off Linux. app_name is the editor's directory name
+    ("Code", "Cursor").
+    """
+    home = get_user_home_dir()
+    if sys.platform == "darwin":
+        base = home / "Library" / "Application Support"
+    elif sys.platform == "win32":
+        base = home / "AppData" / "Roaming"
+    else:
+        base = home / ".config"
+    return base / app_name / "User"
 
 
 def get_config_dir() -> Path:

@@ -15,8 +15,9 @@ from pygitguardian.models import (
     MCPToolInfo,
 )
 
-from ggshield.core.dirs import get_user_home_dir
+from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
 
+from ..agent_activity.sources import SQLiteActivitySource
 from ..models import (
     Agent,
     EventType,
@@ -42,8 +43,40 @@ CHAT_DB_RELATIVE_PATH = (
 )
 
 
+class CursorActivitySource(SQLiteActivitySource):
+    """Every Cursor composer bubble, shipped raw.
+
+    Cursor stores chat bubbles (prompts, assistant turns, tool calls) as JSON
+    blobs in the cursorDiskKV table of its SQLite state.vscdb, keyed
+    bubbleId:<composer>:<bubble>. The database lives outside the agent's config
+    dir, so source_path_for falls back to its absolute path.
+
+    Each row is shipped verbatim ({"key": …, "value": <bubble json>});
+    GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    key_columns = ("key",)
+
+    def discover(self) -> Iterator[Path]:
+        db_path = get_editor_user_data_dir("Cursor") / "globalStorage" / "state.vscdb"
+        return iter([db_path] if db_path.is_file() else [])
+
+
+class BubbleActivitySource(CursorActivitySource):
+    kind = "6_composer_bubble"
+    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'bubbleId:%'"
+
+
+class ComposerActivitySource(CursorActivitySource):
+    kind = "5_composer_data"
+    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'composerData:%'"
+
+
 class Cursor(Agent):
     """Behavior specific to Cursor."""
+
+    # Composer must be first, to have the metadata to populate the bubble session.
+    agent_activity_sources = [ComposerActivitySource(), BubbleActivitySource()]
 
     @property
     def name(self) -> str:
