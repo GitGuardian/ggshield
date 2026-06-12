@@ -11,7 +11,7 @@ from ggshield.cmd.utils.common_options import (
     text_json_format_option,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
-from ggshield.core.config.auth_config import read_stored_tokens
+from ggshield.core.config.auth_config import read_config_tokens
 from ggshield.core.config.token_store import (
     KEYRING_SENTINEL,
     KeyringTokenStore,
@@ -169,7 +169,7 @@ def auth_status_cmd(ctx: click.Context, **kwargs: Any) -> int:
     # The user opted out of the credential store, so we do not probe it at all
     reachable: Optional[bool] = None if disabled else store.is_reachable()
 
-    stored_tokens = read_stored_tokens(get_auth_config_filepath())
+    stored_tokens = read_config_tokens(get_auth_config_filepath())
     reports = [
         _diagnose_instance(
             store,

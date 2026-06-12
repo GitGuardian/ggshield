@@ -44,7 +44,7 @@ def _run(
     with ExitStack() as stack:
         stack.enter_context(
             patch(
-                "ggshield.cmd.auth.status.read_stored_tokens",
+                "ggshield.cmd.auth.status.read_config_tokens",
                 return_value=stored_tokens,
             )
         )
@@ -88,7 +88,7 @@ def test_auth_status_does_not_write_to_keyring(cli_fs_runner, monkeypatch):
     set_password = MagicMock()
     with (
         patch(
-            "ggshield.cmd.auth.status.read_stored_tokens",
+            "ggshield.cmd.auth.status.read_config_tokens",
             return_value={DEFAULT_INSTANCE_URL: "cleartext-token"},
         ),
         patch("keyring.get_keyring", return_value=MagicMock()),
@@ -206,7 +206,7 @@ def test_auth_status_notes_keyring_disabled(cli_fs_runner, monkeypatch):
     get_password = MagicMock()
     with (
         patch(
-            "ggshield.cmd.auth.status.read_stored_tokens",
+            "ggshield.cmd.auth.status.read_config_tokens",
             return_value={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
         ),
         patch("keyring.get_password", get_password),

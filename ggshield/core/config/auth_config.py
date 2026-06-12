@@ -121,7 +121,7 @@ def prepare_auth_config_dict_for_save(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def read_stored_tokens(config_path: Path) -> Dict[str, str]:
+def read_config_tokens(config_path: Path) -> Dict[str, str]:
     """Return the ``{instance_url: token}`` mapping currently written on disk.
 
     The token may be a real cleartext token or the keyring sentinel; this
@@ -216,7 +216,7 @@ class AuthConfig(FromDictMixin, ToDictMixin):
         if store.uses_external_storage:
             # Token as it currently is on disk, used to tell a genuine
             # cleartext -> keyring migration apart from a routine re-save.
-            prior_tokens = read_stored_tokens(config_path)
+            prior_tokens = read_config_tokens(config_path)
             fallback_urls: set[str] = set()
             for inst in self.instances:
                 error = self._persist_to_keyring(store, inst, fallback_urls)
