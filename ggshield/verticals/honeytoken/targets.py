@@ -22,6 +22,11 @@ from typing import Dict, List, Optional
 
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.core.machine_id import _get_hostname, _get_machine_id, _get_username
+from ggshield.verticals.honeytoken.aws_profile import (
+    PlacementError,
+    open_aws_dir_fd,
+    require_safe_backend,
+)
 
 
 # Home roots that look like real human-user spaces (kept even if the shell is nologin,
@@ -87,28 +92,36 @@ def resolve_targets(user: Optional[str], user_dir: Optional[Path]) -> List[Targe
 
 
 def apply_perms_and_owner(path: Path, target: Target, running_as_root: bool) -> None:
-    """Tighten perms (file 0600, dir 0700) and, as root, chown the file + its ``.aws``
-    dir to the target user so they own their decoy. No-op off Unix."""
+    """Keep ``.aws`` private (0700) and, as root, chown the file + dir to the target user
+    (mode left to the write path). No-op off Unix. Anchored to an ``O_NOFOLLOW`` dir fd
+    (``fchmod``/``fchown``/``dir_fd``) so a symlinked ``.aws`` can't redirect the
+    privileged chmod/chown elsewhere."""
     if os.name != "posix":
         return
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    require_safe_backend()  # POSIX without dir fds → refuse (no unsafe path fallback)
     parent = path.parent
-    try:
-        os.chmod(parent, 0o700)
-    except OSError:
-        pass
 
-    if running_as_root and target.uid is not None:
-        gid = _gid_for_uid(target.uid)
-        gid = gid if gid is not None else target.uid
+    try:
+        dir_fd = open_aws_dir_fd(parent, create=False)
+    except (FileNotFoundError, PlacementError):
+        return  # nothing planted there, or .aws is a symlink — leave it alone
+    try:
         try:
-            os.chown(path, target.uid, gid)
-            os.chown(parent, target.uid, gid)
+            os.fchmod(dir_fd, 0o700)
         except OSError:
             pass
+        if running_as_root and target.uid is not None:
+            gid = _gid_for_uid(target.uid)
+            gid = gid if gid is not None else target.uid
+            try:
+                os.fchown(dir_fd, target.uid, gid)
+                os.chown(
+                    path.name, target.uid, gid, dir_fd=dir_fd, follow_symlinks=False
+                )
+            except OSError:
+                pass
+    finally:
+        os.close(dir_fd)
 
 
 def _passwd_for_name(name: str):
