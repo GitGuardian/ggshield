@@ -14,4 +14,35 @@ fi
 choco_nupkg=$1
 
 # push to chocolatey
-choco push $choco_nupkg --source https://push.chocolatey.org/ --api-key $CHOCOLATEY_API_KEY
+set +e
+output=$(choco push "$choco_nupkg" --source https://push.chocolatey.org/ --api-key "$CHOCOLATEY_API_KEY" 2>&1)
+status=$?
+set -e
+
+echo "$output"
+[ "$status" -eq 0 ] && exit 0
+
+# `choco push` returns 409 when the version already exists in Chocolatey's system,
+# including "pending"/"rejected" moderation states that are hidden from the public
+# feed — re-pushing the same version then always fails. See END-315.
+if grep -qiE '409|conflict|already exists' <<<"$output"; then
+    nupkg_name=$(basename "$choco_nupkg")
+    version=${nupkg_name#ggshield.}
+    version=${version%.nupkg}
+    cat >&2 <<EOF
+
+ERROR: Chocolatey rejected the push of ${nupkg_name} with HTTP 409 (Conflict).
+Version ${version} already exists in Chocolatey's system — it was most likely
+submitted earlier and is now pending or rejected in moderation. Such versions are
+hidden from the public feed, so the channel looks stuck on the last approved one.
+
+Re-pushing the same version will always 409; this release was NOT published.
+Action: review the ggshield package in the maintainer view at
+https://community.chocolatey.org (it lists pending/rejected versions). If
+${version} is rejected, the version number is burned — publish a fresh version.
+EOF
+    exit 1
+fi
+
+echo "Chocolatey push of ${choco_nupkg} failed (exit ${status}). See output above." >&2
+exit "$status"
