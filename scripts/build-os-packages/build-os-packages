@@ -80,11 +80,14 @@ init_system_vars() {
     arch=$(uname -m)
 
     case "$arch" in
-    arm64)
+    arm64|aarch64)
         HUMAN_ARCH=ARM-based
+        # Debian-style architecture name, used by nfpm
+        NFPM_ARCH=arm64
         ;;
     x86_64)
         HUMAN_ARCH=Intel-based
+        NFPM_ARCH=amd64
         ;;
     *)
         die "Unsupported architecture '$arch'"
@@ -363,6 +366,7 @@ create_linux_packages() {
 
         PYINSTALLER_OUTPUT_DIR=$PYINSTALLER_OUTPUT_DIR \
         VERSION=$VERSION \
+        NFPM_ARCH=$NFPM_ARCH \
             nfpm package \
                 --packager $format \
                 --config "$SCRIPT_DIR/nfpm.yaml" \
