@@ -3,7 +3,7 @@ import argparse
 import configparser
 import importlib
 import pkgutil
-from typing import Dict, ItemsView, List, Literal, Tuple, Union, cast
+from typing import Any, Dict, ItemsView, List, Literal, Tuple, Union, cast
 
 from typing_extensions import NotRequired, TypedDict
 
@@ -135,9 +135,8 @@ def expand_modules(
 def expand_value(value: ValueType, key: str) -> ValueType:
     """Build the list with items expanded"""
     if isinstance(value, list):
-        typed_value = cast(List[str], value)
         return expand_modules(
-            values=typed_value,
+            values=value,
             ordered=key != "layers",
         )
 
@@ -167,7 +166,9 @@ def compute_contract_id(name: str) -> str:
     return f"importlinter:contract:{slug}"
 
 
-def normalize_contracts(config) -> Dict[str, Dict[str, Union[bool, str]]]:
+def normalize_contracts(
+    config: Dict[str, Any]
+) -> Dict[str, Dict[str, Union[bool, str]]]:
     """Build contracts from template and expand the globs"""
     normalized = {key: value for key, value in config.items() if key != CONTRACTS}
 

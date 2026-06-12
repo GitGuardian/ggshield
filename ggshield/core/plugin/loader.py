@@ -49,7 +49,7 @@ def parse_entry_point_from_content(content: str) -> Optional[Tuple[str, str]]:
     import configparser
 
     parser = configparser.ConfigParser()
-    parser.optionxform = str  # type: ignore[assignment]  # preserve case
+    parser.optionxform = str  # type: ignore # preserve case
     parser.read_string(content)
     if not parser.has_section(PLUGIN_ENTRY_POINT_GROUP):
         return None
