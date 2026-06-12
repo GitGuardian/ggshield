@@ -27,13 +27,15 @@ def _keyring_probe() -> None:
     kr = keyring.get_keyring()
     if isinstance(kr, keyring.backends.fail.Keyring):
         sys.exit(2)
-    keyring.set_password(KEYRING_SERVICE, "__ggshield_probe__", "test")
+
+    PROBE_VALUE = "test"
+    keyring.set_password(KEYRING_SERVICE, "__ggshield_probe__", PROBE_VALUE)
     val = keyring.get_password(KEYRING_SERVICE, "__ggshield_probe__")
     try:
         keyring.delete_password(KEYRING_SERVICE, "__ggshield_probe__")
     except Exception:
         pass
-    sys.exit(0 if val == "test" else 3)
+    sys.exit(0 if val == PROBE_VALUE else 3)
 
 
 class TokenStore(ABC):
