@@ -62,8 +62,11 @@ class TestKeyringTokenStore:
 
     def test_is_available_true(self):
         store = KeyringTokenStore()
-        with patch("multiprocessing.Process", return_value=self._make_process(0)):
+        with patch(
+            "multiprocessing.Process", return_value=self._make_process(0)
+        ) as mock_proc:
             assert store.is_available() is True
+            mock_proc.assert_called_once_with(target=_keyring_probe)
 
     def test_is_available_false_fail_backend(self):
         store = KeyringTokenStore()
