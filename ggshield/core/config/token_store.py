@@ -1,5 +1,5 @@
 import logging
-import subprocess
+import multiprocessing
 import sys
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -15,6 +15,25 @@ logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE = "ggshield"
 KEYRING_SENTINEL = "__KEYRING__"
+
+
+def _keyring_probe() -> None:
+    """Probe run in a child process to test whether keyring actually works.
+
+    Must stay at module level so multiprocessing can pickle it for spawn-based
+    starts (e.g. PyInstaller frozen builds).
+    Exit codes: 0 = ok, 2 = fail backend, 3 = round-trip mismatch.
+    """
+    kr = keyring.get_keyring()
+    if isinstance(kr, keyring.backends.fail.Keyring):
+        sys.exit(2)
+    keyring.set_password(KEYRING_SERVICE, "__ggshield_probe__", "test")
+    val = keyring.get_password(KEYRING_SERVICE, "__ggshield_probe__")
+    try:
+        keyring.delete_password(KEYRING_SERVICE, "__ggshield_probe__")
+    except Exception:
+        pass
+    sys.exit(0 if val == "test" else 3)
 
 
 class TokenStore(ABC):
@@ -62,32 +81,28 @@ class KeyringTokenStore(TokenStore):
     def is_available(self) -> bool:
         """Check if keyring is usable by probing with a test key.
 
-        The probe runs in a subprocess so that a segfault in a native backend
-        (e.g. libsecret or KWallet) doesn't crash the main process.
+        The probe runs in a child process so that a segfault in a native
+        backend (e.g. libsecret or KWallet) doesn't crash the main process.
+        multiprocessing.Process is used instead of subprocess so that frozen
+        (PyInstaller) builds work correctly — sys.executable would be the
+        ggshield binary there, not a Python interpreter.
         """
-        probe = (
-            "import keyring, keyring.backends.fail;"
-            f"kr = keyring.get_keyring();"
-            f"exit(2) if isinstance(kr, keyring.backends.fail.Keyring) else None;"
-            f"keyring.set_password({KEYRING_SERVICE!r}, '__ggshield_probe__', 'test');"
-            f"val = keyring.get_password({KEYRING_SERVICE!r}, '__ggshield_probe__');"
-            f"(keyring.delete_password({KEYRING_SERVICE!r}, '__ggshield_probe__'));"
-            f"exit(0 if val == 'test' else 3)"
-        )
         try:
-            result = subprocess.run(
-                [sys.executable, "-c", probe],
-                timeout=10,
-                capture_output=True,
-            )
-            if result.returncode != 0:
+            process = multiprocessing.Process(target=_keyring_probe)
+            process.start()
+            process.join(timeout=10)
+            if process.is_alive():
+                process.kill()
+                process.join()
+                logger.debug("Keyring probe timed out")
+                return False
+            if process.exitcode != 0:
                 logger.debug(
-                    "Keyring probe subprocess exited with code %d",
-                    result.returncode,
+                    "Keyring probe process exited with code %d", process.exitcode
                 )
-            return result.returncode == 0
+            return process.exitcode == 0
         except Exception:
-            logger.debug("Keyring probe subprocess failed", exc_info=True)
+            logger.debug("Keyring probe failed", exc_info=True)
             return False
 
 

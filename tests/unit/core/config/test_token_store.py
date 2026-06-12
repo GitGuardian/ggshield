@@ -1,5 +1,4 @@
-import subprocess
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -8,6 +7,7 @@ from ggshield.core.config.token_store import (
     KEYRING_SERVICE,
     FileTokenStore,
     KeyringTokenStore,
+    _keyring_probe,
     get_token_store,
     reset_token_store,
 )
@@ -54,37 +54,91 @@ class TestKeyringTokenStore:
             # Should not raise
             store.delete_token(INSTANCE_URL)
 
+    def _make_process(self, exitcode=0, alive=False):
+        p = MagicMock()
+        p.exitcode = exitcode
+        p.is_alive.return_value = alive
+        return p
+
     def test_is_available_true(self):
         store = KeyringTokenStore()
-        ok = subprocess.CompletedProcess(args=[], returncode=0)
-        with patch("subprocess.run", return_value=ok):
+        with patch("multiprocessing.Process", return_value=self._make_process(0)):
             assert store.is_available() is True
 
     def test_is_available_false_fail_backend(self):
         store = KeyringTokenStore()
-        # exit code 2 means the backend is keyring.backends.fail.Keyring
-        fail = subprocess.CompletedProcess(args=[], returncode=2)
-        with patch("subprocess.run", return_value=fail):
+        with patch("multiprocessing.Process", return_value=self._make_process(2)):
             assert store.is_available() is False
 
     def test_is_available_false_probe_fails(self):
         store = KeyringTokenStore()
-        # exit code 3 means probe round-trip returned wrong value
-        bad = subprocess.CompletedProcess(args=[], returncode=3)
-        with patch("subprocess.run", return_value=bad):
+        with patch("multiprocessing.Process", return_value=self._make_process(3)):
             assert store.is_available() is False
 
     def test_is_available_false_on_segfault(self):
         store = KeyringTokenStore()
         # SIGSEGV → exit code -11 / 139
-        crash = subprocess.CompletedProcess(args=[], returncode=139)
-        with patch("subprocess.run", return_value=crash):
+        with patch("multiprocessing.Process", return_value=self._make_process(139)):
+            assert store.is_available() is False
+
+    def test_is_available_false_on_timeout(self):
+        store = KeyringTokenStore()
+        with patch(
+            "multiprocessing.Process", return_value=self._make_process(None, alive=True)
+        ):
             assert store.is_available() is False
 
     def test_is_available_false_on_exception(self):
         store = KeyringTokenStore()
-        with patch("subprocess.run", side_effect=Exception("broken")):
+        with patch("multiprocessing.Process", side_effect=Exception("broken")):
             assert store.is_available() is False
+
+
+class TestKeyringProbe:
+    """Tests for the _keyring_probe function itself (runs in a child process)."""
+
+    def test_probe_succeeds(self):
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.set_password"),
+            patch("keyring.get_password", return_value="test"),
+            patch("keyring.delete_password"),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            _keyring_probe()
+        assert exc_info.value.code == 0
+
+    def test_probe_fail_backend(self):
+        import keyring.backends.fail
+
+        with (
+            patch("keyring.get_keyring", return_value=keyring.backends.fail.Keyring()),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            _keyring_probe()
+        assert exc_info.value.code == 2
+
+    def test_probe_mismatch(self):
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.set_password"),
+            patch("keyring.get_password", return_value="wrong"),
+            patch("keyring.delete_password"),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            _keyring_probe()
+        assert exc_info.value.code == 3
+
+    def test_probe_delete_error_is_ignored(self):
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.set_password"),
+            patch("keyring.get_password", return_value="test"),
+            patch("keyring.delete_password", side_effect=Exception("cleanup failed")),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            _keyring_probe()
+        assert exc_info.value.code == 0
 
 
 class TestFileTokenStore:
@@ -114,15 +168,19 @@ class TestGetTokenStore:
 
     def test_returns_keyring_when_available(self, monkeypatch):
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
-        ok = subprocess.CompletedProcess(args=[], returncode=0)
-        with patch("subprocess.run", return_value=ok):
+        ok = MagicMock()
+        ok.exitcode = 0
+        ok.is_alive.return_value = False
+        with patch("multiprocessing.Process", return_value=ok):
             store = get_token_store()
             assert isinstance(store, KeyringTokenStore)
 
     def test_returns_file_store_when_keyring_unavailable(self, monkeypatch):
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
-        fail = subprocess.CompletedProcess(args=[], returncode=2)
-        with patch("subprocess.run", return_value=fail):
+        fail = MagicMock()
+        fail.exitcode = 2
+        fail.is_alive.return_value = False
+        with patch("multiprocessing.Process", return_value=fail):
             store = get_token_store()
             assert isinstance(store, FileTokenStore)
 
