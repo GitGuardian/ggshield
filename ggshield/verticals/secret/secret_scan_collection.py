@@ -144,6 +144,11 @@ class Result:
     url: str
     secrets: List[Secret]
     ignored_secrets_count_by_kind: Counter[IgnoreKind]
+    # Matches of ignored secrets which are not in `secrets`. Kept so that
+    # `censor()` can censor their lines too: `Line` objects are shared, so an
+    # uncensored ignored secret would leak in the context lines of the
+    # displayed secrets.
+    filtered_out_matches: List[ExtendedMatch] = field(default_factory=list)
 
     @property
     def is_on_patch(self) -> bool:
@@ -153,6 +158,8 @@ class Result:
         for secret in self.secrets:
             for extended_match in secret.matches:
                 cast(ExtendedMatch, extended_match).censor()
+        for extended_match in self.filtered_out_matches:
+            extended_match.censor()
 
     @property
     def has_secrets(self) -> bool:
@@ -168,6 +175,7 @@ class Result:
         """
 
         to_keep: List[Tuple[PolicyBreak, Optional[IgnoreReason]]] = []
+        filtered_out: List[PolicyBreak] = []
         ignored_secrets_count_by_kind = Counter()
         for policy_break in scan_result.policy_breaks:
             ignore_reason = compute_ignore_reason(policy_break, secret_config)
@@ -176,6 +184,7 @@ class Result:
                     to_keep.append((policy_break, ignore_reason))
                 else:
                     ignored_secrets_count_by_kind[ignore_reason.kind] += 1
+                    filtered_out.append(policy_break)
             else:
                 to_keep.append((policy_break, None))
 
@@ -214,6 +223,11 @@ class Result:
         ]
 
         result.secrets = secrets
+        result.filtered_out_matches = [
+            ExtendedMatch.from_match(match, lines, result.is_on_patch)
+            for policy_break in filtered_out
+            for match in policy_break.matches
+        ]
         return result
 
 
