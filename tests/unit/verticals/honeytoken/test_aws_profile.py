@@ -94,6 +94,16 @@ def test_write_creates_when_absent(tmp_path):
     }
 
 
+@pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW (POSIX)")
+def test_write_creates_aws_dir_when_missing(tmp_path):
+    """Planting into a home with no ``~/.aws`` creates it (private) and writes the profile."""
+    path = tmp_path / "home" / ".aws" / "credentials"  # .aws does not exist yet
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    assert _section(path, "gg")["aws_access_key_id"] == "K1"
+    assert path.parent.is_dir()
+    assert (path.parent.stat().st_mode & 0o077) == 0  # no group/other access
+
+
 def test_write_is_idempotent_for_same_key(tmp_path):
     path = tmp_path / "credentials"
     write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
@@ -528,3 +538,70 @@ def test_write_cleans_up_temp_on_failure(tmp_path, monkeypatch):
     leftover = [p.name for p in path.parent.iterdir() if p.name.startswith(".plant.")]
     assert leftover == []
     assert path.read_text() == original
+
+
+# --- concurrency: advisory lock over the read-modify-write window ------------------
+
+
+@pytest.mark.skipif(not FD_HARDENED, reason="POSIX advisory lock")
+def test_open_aws_dir_fd_holds_exclusive_lock(tmp_path):
+    """The dir fd carries an exclusive advisory lock, so a second acquirer is blocked."""
+    import fcntl
+
+    from ggshield.verticals.honeytoken.aws_profile import open_aws_dir_fd
+
+    aws = tmp_path / ".aws"
+    aws.mkdir()
+    dir_fd = open_aws_dir_fd(aws, create=False)
+    try:
+        probe = os.open(aws, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            os.close(probe)
+    finally:
+        os.close(dir_fd)  # releases the lock
+
+
+@pytest.mark.skipif(not FD_HARDENED, reason="POSIX advisory lock")
+def test_concurrent_plants_do_not_lose_a_profile(tmp_path, monkeypatch):
+    """Two plant invocations racing on the same file must not lose an update: the lock
+    serializes their read-modify-write so both profiles survive (a missing lock would
+    let the second rename clobber the first)."""
+    import threading
+    import time
+
+    from ggshield.verticals.honeytoken import aws_profile
+
+    path = tmp_path / ".aws" / "credentials"
+    path.parent.mkdir(parents=True)
+
+    # Widen the RMW window so an unlocked race would reliably drop one update.
+    real_write = aws_profile._atomic_write_via_fd
+
+    def slow_write(*args, **kwargs):
+        time.sleep(0.3)
+        return real_write(*args, **kwargs)
+
+    monkeypatch.setattr(aws_profile, "_atomic_write_via_fd", slow_write)
+
+    start = threading.Barrier(2)
+    errors = []
+
+    def plant(name):
+        try:
+            start.wait()
+            write_aws_profile(path, name, _creds(name, name + "-secret"), force=False)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=plant, args=(n,)) for n in ("gg1", "gg2")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    assert _section(path, "gg1")["aws_access_key_id"] == "gg1"
+    assert _section(path, "gg2")["aws_access_key_id"] == "gg2"
