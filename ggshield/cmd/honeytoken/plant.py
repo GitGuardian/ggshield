@@ -106,10 +106,12 @@ def plant_cmd(
     **kwargs: Any,
 ) -> int:
     """
-    Reconcile this machine's honeytokens against GitGuardian and apply the desired
-    on-disk state: write/refresh the decoy AWS credentials profile for `write` entries,
-    remove it for `delete` (revoked) entries — preserving any other profiles. ggshield
-    never revokes a honeytoken; it only reports placement status.
+    Reconcile and plant this machine's honeytokens against GitGuardian.
+
+    Apply the desired on-disk state: write/refresh the decoy AWS credentials
+    profile for `write` entries, remove it for `delete` (revoked) entries —
+    preserving any other profiles. ggshield never revokes a honeytoken; it only
+    reports placement status.
 
     Authorize with the `honeytokens:write` scope.
     """
