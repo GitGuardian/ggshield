@@ -163,11 +163,19 @@ def _decide_write(
 
 def open_aws_dir_fd(aws_dir: Path, *, create: bool) -> int:
     """Open ``.aws`` ``O_NOFOLLOW|O_DIRECTORY``, returning an fd that pins the real inode
-    (swap-immune). Symlink/non-dir → ``PlacementError``. ``create`` makes a missing dir
-    0700; else ``FileNotFoundError`` propagates (callers treat absent as a no-op)."""
+    (swap-immune) and holds an exclusive advisory lock for the read-modify-write window.
+    Symlink/non-dir → ``PlacementError``. ``create`` makes a missing dir 0700; else
+    ``FileNotFoundError`` propagates (callers treat absent as a no-op)."""
+    import fcntl
+
+    # flock(LOCK_EX) on the fd serializes concurrent `plant` invocations for the whole
+    # read-modify-write window; released when the caller closes the fd (or the process
+    # dies — no stale lock).
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
-        return os.open(aws_dir, flags)
+        fd = os.open(aws_dir, flags)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return fd
     except FileNotFoundError:
         if not create:
             raise
@@ -182,7 +190,9 @@ def open_aws_dir_fd(aws_dir: Path, *, create: bool) -> int:
     except FileExistsError:
         pass
     try:
-        return os.open(aws_dir, flags)
+        fd = os.open(aws_dir, flags)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return fd
     except OSError as exc:
         raise PlacementError(
             f"refusing to use {aws_dir}: not a real directory (symlink?): {exc}"
