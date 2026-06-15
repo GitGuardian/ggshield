@@ -1230,6 +1230,53 @@ class TestFlavorOutputResult:
         assert code == 2
         mock_echo.assert_called_once_with("Unsupported Codex event", err=True)
 
+    @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
+    def test_claude_output_result_allow_with_warning(self, mock_echo: MagicMock):
+        """Claude allow with a warning: continue true plus systemMessage."""
+        result = HookResult.allow_with_warning(
+            _dummy_payload(EventType.PRE_TOOL_USE), "could not scan"
+        )
+        code = Claude().output_result(result)
+        assert code == 0
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out["continue"] is True
+        assert out["systemMessage"] == "could not scan"
+
+    @patch("ggshield.verticals.ai.agents.vscode.click.echo")
+    def test_vscode_output_result_allow_with_warning(self, mock_echo: MagicMock):
+        """VSCode allow with a warning: continue true plus systemMessage."""
+        result = HookResult.allow_with_warning(
+            _dummy_payload(EventType.PRE_TOOL_USE), "could not scan"
+        )
+        code = VSCode().output_result(result)
+        assert code == 0
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out["continue"] is True
+        assert out["systemMessage"] == "could not scan"
+
+    @patch("ggshield.verticals.ai.agents.codex.click.echo")
+    def test_codex_output_result_allow_with_warning(self, mock_echo: MagicMock):
+        """Codex allow with a warning: systemMessage only, no block fields."""
+        result = HookResult.allow_with_warning(
+            _dummy_payload(EventType.PRE_TOOL_USE), "could not scan"
+        )
+        code = Codex().output_result(result)
+        assert code == 0
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out == {"systemMessage": "could not scan"}
+
+    @patch("ggshield.verticals.ai.agents.cursor.click.echo")
+    def test_cursor_output_result_allow_with_warning(self, mock_echo: MagicMock):
+        """Cursor allow with a warning: permission allow plus user_message."""
+        result = HookResult.allow_with_warning(
+            _dummy_payload(EventType.PRE_TOOL_USE), "could not scan"
+        )
+        code = Cursor().output_result(result)
+        assert code == 0
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out["permission"] == "allow"
+        assert out["user_message"] == "could not scan"
+
 
 @pytest.mark.parametrize(
     "prompt, filepaths",

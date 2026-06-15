@@ -59,6 +59,8 @@ class Claude(Agent):
                 }
         else:
             response["continue"] = True
+            if result.warning:
+                response["systemMessage"] = result.warning
 
         click.echo(json.dumps(response))
         # We don't use the return 2 convention to make sure our JSON output is read.

@@ -48,6 +48,8 @@ class VSCode(Agent):
                 response["stopReason"] = result.message
         else:
             response["continue"] = True
+            if result.warning:
+                response["systemMessage"] = result.warning
 
         click.echo(json.dumps(response))
         return 0

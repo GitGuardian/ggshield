@@ -1,4 +1,7 @@
+import contextlib
 import json
+import ntpath
+import posixpath
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
@@ -10,6 +13,7 @@ from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
 from ggshield.verticals.ai.installation import (
     InstallationStats,
     _fill_dict,
+    build_hook_command,
     install_hooks,
 )
 
@@ -428,3 +432,76 @@ class TestInstallHooks:
             code = install_hooks("cursor", mode="local", force=True)
 
         assert code == 0
+
+
+@contextlib.contextmanager
+def _simulate_platform(argv, *, windows):
+    """Run build_hook_command as if on a given OS, regardless of the test host.
+
+    Patches the path primitives the function uses (``os.name`` and
+    ``os.path.abspath``) to the chosen flavor (ntpath or posixpath) so the same
+    assertions hold whether the runner is Linux or Windows.
+    """
+    flavor = ntpath if windows else posixpath
+    mod = "ggshield.verticals.ai.installation"
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch(f"{mod}.sys.argv", argv))
+        stack.enter_context(patch(f"{mod}.os.name", "nt" if windows else "posix"))
+        stack.enter_context(patch(f"{mod}.os.path.abspath", flavor.abspath))
+        yield
+
+
+class TestBuildHookCommand:
+    """Unit tests for build_hook_command (cross-platform).
+
+    The hook is pinned to the absolute path of the ggshield that ran install,
+    so it does not depend on the hook process's PATH (which differs from the
+    user's shell and across launch contexts).
+    """
+
+    def test_absolute_argv0_is_used_verbatim(self):
+        """An absolute argv[0] is used as-is (symlinks NOT resolved, so the
+        stable launcher path survives version upgrades)."""
+        with _simulate_platform(
+            ["/opt/homebrew/bin/ggshield", "install"], windows=False
+        ):
+            assert (
+                build_hook_command() == "/opt/homebrew/bin/ggshield secret scan ai-hook"
+            )
+
+    def test_windows_path_with_spaces_is_quoted(self):
+        """On Windows, a path containing spaces is double-quoted so the shell
+        does not split it (e.g. a username with a space)."""
+        win_path = r"C:\Users\John Doe\AppData\Local\Programs\ggshield\ggshield.exe"
+        with _simulate_platform([win_path, "install"], windows=True):
+            assert build_hook_command() == f'"{win_path}" secret scan ai-hook'
+
+    def test_windows_path_without_spaces_not_quoted(self):
+        """On Windows, a space-free path is left unquoted (some agent parsers
+        do not expect quoting)."""
+        win_path = r"C:\Python312\Scripts\ggshield.exe"
+        with _simulate_platform([win_path, "install"], windows=True):
+            assert build_hook_command() == f"{win_path} secret scan ai-hook"
+
+    def test_posix_path_with_spaces_is_shell_quoted(self):
+        """On POSIX, shlex.quote protects a path containing spaces."""
+        with _simulate_platform(
+            ["/home/jane doe/.local/bin/ggshield", "install"], windows=False
+        ):
+            assert (
+                build_hook_command()
+                == "'/home/jane doe/.local/bin/ggshield' secret scan ai-hook"
+            )
+
+    def test_common_install_invocations_are_used_as_is(self):
+        """Real install invocations yield an absolute argv[0], used as-is. A
+        `uv run`/`uvx` wrapper is consumed by uv before ggshield starts, and a
+        bare `ggshield` is resolved to its absolute path by the shell, so
+        argv[0] is already the resolved executable in every case."""
+        for argv0 in (
+            "/usr/local/bin/ggshield",  # bare `ggshield`, resolved by the shell
+            "/opt/homebrew/bin/ggshield",  # explicit absolute path
+            "/proj/.venv/bin/ggshield",  # `uv run ggshield`
+        ):
+            with _simulate_platform([argv0, "install"], windows=False):
+                assert build_hook_command() == f"{argv0} secret scan ai-hook"

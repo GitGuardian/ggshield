@@ -8,9 +8,20 @@ from pygitguardian.models import AIDiscovery, MCPConfiguration, MCPServer, UserI
 
 from ggshield.__main__ import cli
 from ggshield.cmd.ai.discover import print_summary
-from ggshield.core.errors import APIKeyCheckError
+from ggshield.core.errors import APIKeyCheckError, MissingTokenError
 from ggshield.verticals.ai.history import BackfillReport
 from ggshield.verticals.ai.models import Scope, Transport
+
+
+CLAUDE_PRE_TOOL_USE_PAYLOAD = json.dumps(
+    {
+        "session_id": "abc123",
+        "transcript_path": "/home/user/.claude/projects/p/transcript.jsonl",
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hello"},
+    }
+)
 
 
 def _user():
@@ -120,6 +131,69 @@ class TestAiHookCmd:
         )
 
         assert result.exit_code == 0
+
+    @patch(
+        "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
+        side_effect=MissingTokenError(instance="https://dashboard.gitguardian.com"),
+    )
+    def test_auth_failure_fails_open_with_warning(self, mock_client: MagicMock):
+        """An auth failure must not crash the hook: it allows the action and
+        warns the user through the agent."""
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["secret", "scan", "ai-hook"],
+            input=CLAUDE_PRE_TOOL_USE_PAYLOAD,
+        )
+
+        assert result.exit_code == 0
+        response = json.loads(result.output.strip().splitlines()[-1])
+        assert response["continue"] is True
+        assert "NOT scanned" in response["systemMessage"]
+        assert "ggshield auth login" in response["systemMessage"]
+
+    @patch("ggshield.cmd.secret.scan.ai_hook.AIHookScanner")
+    @patch("ggshield.cmd.secret.scan.ai_hook.SecretScanner")
+    @patch("ggshield.cmd.secret.scan.ai_hook.create_client_from_config")
+    def test_scan_failure_fails_open_with_warning(
+        self,
+        mock_client: MagicMock,
+        mock_scanner_cls: MagicMock,
+        mock_hook_scanner: MagicMock,
+    ):
+        """A scan-time failure (e.g. network error) also fails open."""
+        instance = mock_hook_scanner.return_value
+        instance.scan.side_effect = ConnectionError("server unreachable")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["secret", "scan", "ai-hook"],
+            input=CLAUDE_PRE_TOOL_USE_PAYLOAD,
+        )
+
+        assert result.exit_code == 0
+        response = json.loads(result.output.strip().splitlines()[-1])
+        assert response["continue"] is True
+        assert "NOT scanned" in response["systemMessage"]
+
+    @patch(
+        "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
+        side_effect=MissingTokenError(instance="https://dashboard.gitguardian.com"),
+    )
+    def test_auth_failure_with_unknown_agent_returns_error(
+        self, mock_client: MagicMock
+    ):
+        """If the agent cannot be identified we cannot emit a well-formed
+        response; exit 1 (a non-blocking error for most agents)."""
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["secret", "scan", "ai-hook"],
+            input='{"hook_event_name": "PreToolUse"}',
+        )
+
+        assert result.exit_code == 1
 
 
 # ---------------------------------------------------------------------------

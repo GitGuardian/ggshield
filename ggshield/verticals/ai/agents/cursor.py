@@ -58,14 +58,15 @@ class Cursor(Agent):
         return get_user_home_dir() / ".cursor"
 
     def output_result(self, result: HookResult) -> int:
+        message = result.message or result.warning
         response = {}
         if result.payload.event_type == EventType.USER_PROMPT:
             response["continue"] = not result.block
-            response["user_message"] = result.message
+            response["user_message"] = message
         elif result.payload.event_type == EventType.PRE_TOOL_USE:
             response["permission"] = "deny" if result.block else "allow"
-            response["user_message"] = result.message
-            response["agent_message"] = result.message
+            response["user_message"] = message
+            response["agent_message"] = message
         elif result.payload.event_type == EventType.POST_TOOL_USE:
             pass  # Nothing to do here
         else:

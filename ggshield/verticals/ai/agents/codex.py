@@ -46,6 +46,8 @@ class Codex(Agent):
             else:
                 click.echo(result.message, err=True)
                 return 2
+        elif result.warning:
+            response["systemMessage"] = result.warning
 
         click.echo(json.dumps(response))
         return 0
