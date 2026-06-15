@@ -3,15 +3,19 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
 import marshmallow_dataclass
 from pygitguardian.models_utils import FromDictMixin, ToDictMixin
 
+from ggshield.core import ui
 from ggshield.core.config.token_store import (
     KEYRING_SENTINEL,
     TokenStore,
     get_token_store,
+    humanize_keyring_error,
+    keyring_fix_commands,
 )
 from ggshield.core.config.utils import (
     get_auth_config_filepath,
@@ -117,6 +121,30 @@ def prepare_auth_config_dict_for_save(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+def read_config_tokens(config_path: Path) -> Dict[str, str]:
+    """Return the ``{instance_url: token}`` mapping currently written on disk.
+
+    The token may be a real cleartext token or the keyring sentinel; this
+    reflects where the token is *stored*, before any hydration from the
+    credential store. Returns an empty mapping if the file is missing or
+    cannot be parsed.
+    """
+    try:
+        data = load_yaml_dict(config_path)
+        if not data:
+            return {}
+        data = prepare_auth_config_dict_for_parse(data)
+    except Exception:
+        return {}
+    tokens: Dict[str, str] = {}
+    for instance in data.get("instances", []):
+        url = instance.get("url")
+        account = instance.get("account")
+        if url and account and account.get("token"):
+            tokens[url] = account["token"]
+    return tokens
+
+
 def _replace_tokens_with_sentinel(
     data: Dict[str, Any], fallback_urls: set[str]
 ) -> None:
@@ -186,9 +214,13 @@ class AuthConfig(FromDictMixin, ToDictMixin):
         data = prepare_auth_config_dict_for_save(self.to_dict())
 
         if store.uses_external_storage:
+            # Token as it currently is on disk, used to tell a genuine
+            # cleartext -> keyring migration apart from a routine re-save.
+            prior_tokens = read_config_tokens(config_path)
             fallback_urls: set[str] = set()
             for inst in self.instances:
-                self._persist_to_keyring(store, inst, fallback_urls)
+                error = self._persist_to_keyring(store, inst, fallback_urls)
+                self._report_keyring_outcome(store, inst, prior_tokens, error)
             _replace_tokens_with_sentinel(data, fallback_urls)
 
         save_yaml_dict(data, config_path, restricted=True)
@@ -275,22 +307,67 @@ class AuthConfig(FromDictMixin, ToDictMixin):
         store: TokenStore,
         inst: InstanceConfig,
         fallback_urls: set[str],
-    ) -> None:
+    ) -> Optional[str]:
+        """Store the instance token in the credential store.
+
+        Returns ``None`` on success or when there is nothing to store, or a
+        short error message when the write fails (in which case the URL is
+        added to ``fallback_urls`` so the token stays in the config file).
+        """
         if (
             inst.account is None
             or not inst.account.token
             or inst.account.token == KEYRING_SENTINEL
         ):
-            return
+            return None
         try:
             store.store_token(inst.url, inst.account.token)
-        except Exception:
+        except Exception as exc:
             logger.warning(
                 "Failed to store token in keyring for %s, storing in config file",
                 inst.url,
                 exc_info=True,
             )
             fallback_urls.add(inst.url)
+            return str(exc)
+        return None
+
+    @staticmethod
+    def _report_keyring_outcome(
+        store: TokenStore,
+        inst: InstanceConfig,
+        prior_tokens: Dict[str, str],
+        error: Optional[str],
+    ) -> None:
+        """Surface the result of a keyring write to the user.
+
+        On failure, warn that the token stays in plaintext and how to fix it.
+        On success, only announce a genuine cleartext -> keyring migration; stay
+        silent on routine re-saves and fresh logins to avoid noise.
+        """
+        if inst.account is None or not inst.account.token:
+            return
+
+        if error is not None:
+            fix = "\n".join(
+                f"  {command}" for command in keyring_fix_commands(inst.url)
+            )
+            ui.display_warning(
+                f"Could not store the token for {inst.url} in the "
+                f"{store.backend_name}: {humanize_keyring_error(error)}\n"
+                "The token will be stored in cleartext in the config file "
+                "instead.\n"
+                "Run `ggshield auth status` for details, or fix it now with:\n"
+                f"{fix}"
+            )
+            return
+
+        prior = prior_tokens.get(inst.url)
+        was_cleartext = bool(prior) and prior != KEYRING_SENTINEL
+        if was_cleartext:
+            ui.display_info(
+                f"Token for {inst.url} migrated to the {store.backend_name}."
+            )
 
 
 AuthConfig.SCHEMA = marshmallow_dataclass.class_schema(AuthConfig)()

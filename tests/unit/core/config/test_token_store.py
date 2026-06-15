@@ -8,12 +8,21 @@ from ggshield.core.config.token_store import (
     FileTokenStore,
     KeyringTokenStore,
     get_token_store,
+    humanize_keyring_error,
+    keyring_fix_commands,
     reset_token_store,
 )
 
 
 INSTANCE_URL = "https://dashboard.gitguardian.com"
 TOKEN = "test-token-abc123"
+
+
+def _fake_backend(module: str, name: str = "fake"):
+    """Build a stand-in keyring backend whose class lives in ``module``."""
+    cls = type("FakeKeyring", (), {"name": name})
+    cls.__module__ = module
+    return cls()
 
 
 class TestKeyringTokenStore:
@@ -91,6 +100,102 @@ class TestKeyringTokenStore:
         store = KeyringTokenStore()
         with patch("keyring.get_keyring", side_effect=RuntimeError("broken")):
             assert store.is_available() is False
+
+    def test_is_reachable_true_and_read_only(self):
+        store = KeyringTokenStore()
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", return_value=None) as mock_get,
+            patch("keyring.set_password") as mock_set,
+            patch("keyring.delete_password") as mock_delete,
+        ):
+            assert store.is_reachable() is True
+            # The reachability probe must never write to the store
+            mock_get.assert_called_once()
+            mock_set.assert_not_called()
+            mock_delete.assert_not_called()
+
+    def test_is_reachable_false_fail_backend(self):
+        import keyring.backends.fail
+
+        store = KeyringTokenStore()
+        fail_keyring = keyring.backends.fail.Keyring()
+        with patch("keyring.get_keyring", return_value=fail_keyring):
+            assert store.is_reachable() is False
+
+    def test_is_reachable_false_on_read_error(self):
+        store = KeyringTokenStore()
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", side_effect=RuntimeError("no dbus")),
+        ):
+            assert store.is_reachable() is False
+
+    @pytest.mark.parametrize(
+        ("module", "expected"),
+        (
+            ("keyring.backends.macOS", "macOS Keychain"),
+            ("keyring.backends.Windows", "Windows Credential Locker"),
+            ("keyring.backends.SecretService", "Linux Secret Service"),
+            ("keyring.backends.kwallet", "KWallet"),
+        ),
+    )
+    def test_backend_name_known_backends(self, module, expected):
+        backend = _fake_backend(module)
+        with patch("keyring.get_keyring", return_value=backend):
+            assert KeyringTokenStore().backend_name == expected
+
+    def test_backend_name_unknown_falls_back_to_backend_name(self):
+        backend = _fake_backend("some.third.party", name="Custom Vault")
+        with patch("keyring.get_keyring", return_value=backend):
+            assert KeyringTokenStore().backend_name == "Custom Vault"
+
+    def test_backend_name_generic_fallback_on_error(self):
+        with patch("keyring.get_keyring", side_effect=RuntimeError("boom")):
+            assert KeyringTokenStore().backend_name == "OS credential store"
+
+
+class TestKeyringFixCommands:
+    def test_macos_keychain_uses_security_command(self):
+        backend = _fake_backend("keyring.backends.macOS")
+        with patch("keyring.get_keyring", return_value=backend):
+            commands = keyring_fix_commands(INSTANCE_URL)
+        assert commands == [
+            f"security delete-generic-password -s {KEYRING_SERVICE} "
+            f"-a '{INSTANCE_URL}'",
+            "ggshield auth login",
+        ]
+
+    @pytest.mark.parametrize(
+        "module",
+        (
+            "keyring.backends.Windows",
+            "keyring.backends.SecretService",
+            # A custom backend, even on macOS, must not get Keychain advice
+            "some.third.party",
+        ),
+    )
+    def test_other_backends_only_relogin(self, module):
+        backend = _fake_backend(module)
+        with patch("keyring.get_keyring", return_value=backend):
+            assert keyring_fix_commands(INSTANCE_URL) == ["ggshield auth login"]
+
+    def test_backend_error_only_relogin(self):
+        with patch("keyring.get_keyring", side_effect=RuntimeError("boom")):
+            assert keyring_fix_commands(INSTANCE_URL) == ["ggshield auth login"]
+
+
+class TestHumanizeKeyringError:
+    def test_translates_known_macos_code(self):
+        raw = "Can't store password on keychain: (-25244, 'Unknown Error')"
+        msg = humanize_keyring_error(raw)
+        assert "different ggshield binary" in msg
+        # Raw error is preserved for support
+        assert "-25244" in msg
+
+    def test_passthrough_for_unknown_error(self):
+        raw = "some other backend failure"
+        assert humanize_keyring_error(raw) == raw
 
 
 class TestFileTokenStore:
