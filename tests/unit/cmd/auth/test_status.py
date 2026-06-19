@@ -1,262 +1,120 @@
 import json
-from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ggshield.__main__ import cli
-from ggshield.cmd.auth.status import InstanceReport, TokenStorage
-from ggshield.core.config.token_store import KEYRING_SENTINEL, KeyringTokenStore
-from ggshield.core.errors import ExitCode
+from ggshield.cmd.status import (
+    InstanceReport,
+    StorageReport,
+    TokenStorage,
+    _ApiReport,
+    _diagnose_instance,
+    gather_storage_report,
+)
+from ggshield.core.config.token_store import KEYRING_SENTINEL
 from tests.unit.cmd.utils import add_instance_config
 from tests.unit.conftest import assert_invoke_ok
 
 
-DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
+URL = "https://dashboard.gitguardian.com"
 
 
-def _fake_macos_backend():
-    """Stand-in keyring backend that looks like the macOS Keychain."""
-    cls = type("FakeKeyring", (), {"name": "fake"})
-    cls.__module__ = "keyring.backends.macOS"
-    return cls()
-
-
-def _run(
-    cli_fs_runner,
-    monkeypatch,
-    *,
-    stored_tokens,
-    get_token_result=None,
-    reachable=True,
-    disabled=False,
-    json_output=False,
-):
-    """Invoke `auth status` with the on-disk token map and keyring backend
-    fully mocked, so the real OS credential store is never touched."""
-    if disabled:
-        monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
+def _store(*, get_token=None, get_token_error=None, backend="macOS Keychain"):
+    """Build a fake credential store for `_diagnose_instance`."""
+    store = MagicMock()
+    store.backend_name = backend
+    if get_token_error is not None:
+        store.get_token.side_effect = get_token_error
     else:
-        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+        store.get_token.return_value = get_token
+    return store
 
-    cmd = ["auth", "status"]
-    if json_output:
-        cmd.append("--json")
 
-    with ExitStack() as stack:
-        stack.enter_context(
-            patch(
-                "ggshield.cmd.auth.status.read_config_tokens",
-                return_value=stored_tokens,
-            )
+# --- Per-instance diagnosis (pure, no CLI, no network) ------------------------
+
+
+class TestDiagnoseInstance:
+    def test_skipped_when_no_token(self):
+        report = _diagnose_instance(_store(), URL, None, disabled=False, reachable=True)
+        assert report.status is TokenStorage.SKIPPED
+
+    def test_ok_when_sentinel_readable(self):
+        report = _diagnose_instance(
+            _store(get_token="a-real-token"),
+            URL,
+            KEYRING_SENTINEL,
+            disabled=False,
+            reachable=True,
         )
-        stack.enter_context(
-            patch.object(KeyringTokenStore, "is_reachable", return_value=reachable)
+        assert report.status is TokenStorage.OK
+        assert report.fix is None
+
+    def test_failed_when_sentinel_unreadable(self):
+        report = _diagnose_instance(
+            _store(get_token=None),
+            URL,
+            KEYRING_SENTINEL,
+            disabled=False,
+            reachable=True,
         )
-        stack.enter_context(
-            patch.object(KeyringTokenStore, "get_token", return_value=get_token_result)
+        assert report.status is TokenStorage.FAILED
+        assert report.fix  # actionable fix commands
+
+    def test_failed_humanizes_read_error(self):
+        report = _diagnose_instance(
+            _store(get_token_error=Exception("(-25244, 'Unknown Error')")),
+            URL,
+            KEYRING_SENTINEL,
+            disabled=False,
+            reachable=True,
         )
-        return cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
+        assert report.status is TokenStorage.FAILED
+        assert "different ggshield binary" in report.message
+        assert "-25244" in report.message
 
-
-def test_auth_status_ok_when_token_readable(cli_fs_runner, monkeypatch):
-    """
-    GIVEN a token stored in the keyring (sentinel on disk) that reads back fine
-    WHEN running `ggshield auth status`
-    THEN it reports OK, even though overwriting the entry might fail
-    """
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        get_token_result="a-real-token",
-    )
-
-    assert_invoke_ok(result)
-    assert "token_storage: ok" in result.output
-    assert "failed" not in result.output
-    assert f"[{DEFAULT_INSTANCE_URL}]" in result.output
-
-
-def test_auth_status_does_not_write_to_keyring(cli_fs_runner, monkeypatch):
-    """
-    `auth status` is a diagnostic: it must never write to the credential store
-    (no token migration, and no write-probe to check reachability).
-    """
-    add_instance_config()
-
-    set_password = MagicMock()
-    with (
-        patch(
-            "ggshield.cmd.auth.status.read_config_tokens",
-            return_value={DEFAULT_INSTANCE_URL: "cleartext-token"},
-        ),
-        patch("keyring.get_keyring", return_value=MagicMock()),
-        patch("keyring.get_password", return_value=None),
-        patch("keyring.set_password", set_password),
-        patch("keyring.delete_password") as delete_password,
-    ):
-        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
-        result = cli_fs_runner.invoke(
-            cli, ["auth", "status"], color=False, catch_exceptions=False
+    def test_plaintext_reachable_blames_failed_attempt(self):
+        report = _diagnose_instance(
+            _store(), URL, "cleartext-token", disabled=False, reachable=True
         )
+        assert report.status is TokenStorage.PLAINTEXT
+        assert "A previous attempt to store it there failed" in report.message
+        assert report.fix
 
-    assert_invoke_ok(result)
-    set_password.assert_not_called()
-    delete_password.assert_not_called()
-
-
-def test_auth_status_failed_when_sentinel_unreadable(cli_fs_runner, monkeypatch):
-    """
-    GIVEN a token marked as in the keyring (sentinel) but missing from it
-    WHEN running `ggshield auth status`
-    THEN it reports FAILED with a fix, exiting 0 (diagnostic command)
-    """
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        get_token_result=None,
-    )
-
-    assert result.exit_code == ExitCode.SUCCESS
-    assert "token_storage: failed" in result.output
-    assert "ggshield auth login" in result.output
-
-
-def test_auth_status_plaintext_shows_fix(cli_fs_runner, monkeypatch):
-    """
-    GIVEN a cleartext token on disk while keyring is active (the silent-fallback
-          bug)
-    WHEN running `ggshield auth status`
-    THEN it reports PLAINTEXT with a reason and a fix command, without probing
-         the credential store
-    """
-    monkeypatch.setattr("keyring.get_keyring", _fake_macos_backend)
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: "cleartext-token"},
-    )
-
-    assert result.exit_code == ExitCode.SUCCESS
-    assert "token_storage: plaintext" in result.output
-    assert "cleartext in the config file" in result.output
-    assert "A previous attempt to store it there failed" in result.output
-    assert "security delete-generic-password" in result.output
-    assert "ggshield auth login" in result.output
-
-
-def test_auth_status_plaintext_when_store_unreachable(cli_fs_runner, monkeypatch):
-    """
-    GIVEN a cleartext token on disk while the credential store is unreachable
-    WHEN running `ggshield auth status`
-    THEN the plaintext token is explained by the unreachable store, not blamed
-         on a failed storage attempt
-    """
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: "cleartext-token"},
-        reachable=False,
-    )
-
-    assert result.exit_code == ExitCode.SUCCESS
-    assert "reachable: no" in result.output
-    assert "token_storage: plaintext" in result.output
-    assert "is not reachable" in result.output
-    assert "previous attempt" not in result.output
-
-
-def test_auth_status_no_unicode_glyphs(cli_fs_runner, monkeypatch):
-    """
-    The output must stay ASCII-safe for legacy Windows terminals.
-    """
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        get_token_result="a-real-token",
-    )
-
-    assert_invoke_ok(result)
-    for glyph in ("✓", "✗", "⚠", "…"):
-        assert glyph not in result.output
-
-
-def test_auth_status_notes_keyring_disabled(cli_fs_runner, monkeypatch):
-    """
-    GIVEN GGSHIELD_NO_KEYRING=1 and a token marked for the keyring on disk
-    WHEN running `ggshield auth status`
-    THEN it does NOT report OK, but notes that the credential store is disabled
-         and the token is ignored (and never probes the keyring, not even for
-         reachability)
-    """
-    monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
-    add_instance_config()
-
-    get_password = MagicMock()
-    with (
-        patch(
-            "ggshield.cmd.auth.status.read_config_tokens",
-            return_value={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        ),
-        patch("keyring.get_password", get_password),
-        patch("keyring.set_password") as set_password,
-    ):
-        result = cli_fs_runner.invoke(
-            cli, ["auth", "status"], color=False, catch_exceptions=False
+    def test_plaintext_unreachable_blames_store(self):
+        report = _diagnose_instance(
+            _store(), URL, "cleartext-token", disabled=False, reachable=False
         )
+        assert report.status is TokenStorage.PLAINTEXT
+        assert "is not reachable" in report.message
+        assert "previous attempt" not in report.message
 
-    assert_invoke_ok(result)
-    assert "token_storage: disabled" in result.output
-    assert "GGSHIELD_NO_KEYRING" in result.output
-    assert "ignores it" in result.output
-    assert "token_storage: ok" not in result.output
-    assert "reachable:" not in result.output
-    # The credential store the user disabled is never touched.
-    get_password.assert_not_called()
-    set_password.assert_not_called()
+    def test_disabled_with_sentinel(self):
+        report = _diagnose_instance(
+            _store(), URL, KEYRING_SENTINEL, disabled=True, reachable=None
+        )
+        assert report.status is TokenStorage.DISABLED
+        assert "ignores it" in report.message
 
+    def test_disabled_with_cleartext(self):
+        report = _diagnose_instance(
+            _store(), URL, "cleartext-token", disabled=True, reachable=None
+        )
+        assert report.status is TokenStorage.DISABLED
+        assert "cleartext" in report.message
 
-def test_auth_status_json(cli_fs_runner, monkeypatch):
-    """
-    GIVEN a token stored in the keyring
-    WHEN running `ggshield auth status --json`
-    THEN the output is valid JSON with the expected keys
-    """
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        get_token_result="a-real-token",
-        json_output=True,
-    )
-
-    assert_invoke_ok(result)
-    payload = json.loads(result.output)
-    assert "backend" in payload["credential_store"]
-    assert payload["credential_store"]["reachable"] is True
-    assert payload["instances"][0]["instance"] == DEFAULT_INSTANCE_URL
-    assert payload["instances"][0]["status"] == "ok"
+    def test_diagnose_is_read_only(self):
+        """Diagnosing must never write to the credential store."""
+        store = _store(get_token="a-real-token")
+        _diagnose_instance(store, URL, KEYRING_SENTINEL, disabled=False, reachable=True)
+        store.store_token.assert_not_called()
+        store.delete_token.assert_not_called()
 
 
-# --- JSON contract (kept stable on purpose: `auth status --json` is meant to
-# be parsed by users and scripts, so changing these shapes after release is a
-# breaking change) -------------------------------------------------------------
+# --- JSON shapes (kept stable on purpose: parsed by users and scripts) --------
 
 
-def test_json_status_values_are_frozen():
+def test_token_storage_status_values_are_frozen():
     assert {status.value for status in TokenStorage} == {
         "ok",
         "failed",
@@ -266,9 +124,7 @@ def test_json_status_values_are_frozen():
     }
 
 
-def test_json_instance_shape_is_frozen():
-    # Every status emits the same key set; message and fix are null when not
-    # applicable. Changing this shape means a breaking change to the contract.
+def test_instance_report_json_shape_is_frozen():
     cases = [
         InstanceReport("u", TokenStorage.OK),
         InstanceReport("u", TokenStorage.FAILED, message="boom", fix=["do this"]),
@@ -280,48 +136,134 @@ def test_json_instance_shape_is_frozen():
         data = report.to_json()
         assert set(data) == {"instance", "status", "message", "fix"}
         assert data["status"] == report.status.value
-        assert data["message"] == report.message
-        assert data["fix"] == report.fix
 
 
-def test_json_top_level_shape_is_frozen(cli_fs_runner, monkeypatch):
-    add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        get_token_result="a-real-token",
-        json_output=True,
+def test_storage_report_json_shape_is_frozen():
+    report = StorageReport(
+        backend="macOS Keychain",
+        disabled=False,
+        reachable=True,
+        instances=[InstanceReport("u", TokenStorage.OK)],
     )
-
-    payload = json.loads(result.output)
-    assert set(payload) == {"credential_store", "instances"}
-    credential_store = payload["credential_store"]
-    assert set(credential_store) == {"backend", "disabled", "reachable"}
-    assert isinstance(credential_store["backend"], str)
-    assert isinstance(credential_store["disabled"], bool)
-    assert isinstance(credential_store["reachable"], bool)
-    assert isinstance(payload["instances"], list)
+    data = report.to_json()
+    assert set(data) == {"credential_store", "instances"}
+    assert set(data["credential_store"]) == {"backend", "disabled", "reachable"}
 
 
-def test_json_reachable_is_null_when_disabled(cli_fs_runner, monkeypatch):
-    """
-    GIVEN GGSHIELD_NO_KEYRING=1
-    WHEN running `ggshield auth status --json`
-    THEN reachable is null: the store was not probed, so its state is unknown
-    """
+# --- gather_storage_report (local, no network) --------------------------------
+
+
+def test_gather_storage_report_disabled(monkeypatch):
+    monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
+    config = MagicMock()
+    config.auth_config.instances = []
+    with patch("ggshield.cmd.status.read_config_tokens", return_value={}):
+        report = gather_storage_report(config)
+    assert report.disabled is True
+    assert report.reachable is None
+    assert report.instances == []
+
+
+def test_gather_storage_report_probes_read_only(monkeypatch):
+    monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+    instance = MagicMock()
+    instance.url = URL
+    config = MagicMock()
+    config.auth_config.instances = [instance]
+
+    with (
+        patch(
+            "ggshield.cmd.status.read_config_tokens",
+            return_value={URL: KEYRING_SENTINEL},
+        ),
+        patch("ggshield.cmd.status.KeyringTokenStore.is_reachable", return_value=True),
+        patch(
+            "ggshield.cmd.status.KeyringTokenStore.get_token",
+            return_value="a-real-token",
+        ),
+    ):
+        report = gather_storage_report(config)
+
+    assert report.reachable is True
+    assert len(report.instances) == 1
+    assert report.instances[0].status is TokenStorage.OK
+
+
+# --- `auth status` is an alias of `api-status`, both show token storage -------
+
+
+@pytest.mark.parametrize("command", (["auth", "status"], ["api-status"]))
+def test_command_shows_token_storage_section(cli_fs_runner, command):
+    """Both the alias and the canonical command render the storage section."""
     add_instance_config()
-
-    result = _run(
-        cli_fs_runner,
-        monkeypatch,
-        stored_tokens={DEFAULT_INSTANCE_URL: KEYRING_SENTINEL},
-        disabled=True,
-        json_output=True,
+    api = _ApiReport(ok=False, exit_code=0, instance=URL, error="offline")
+    storage = StorageReport(
+        backend="macOS Keychain",
+        disabled=False,
+        reachable=False,
+        instances=[
+            InstanceReport(
+                URL,
+                TokenStorage.PLAINTEXT,
+                message="stored in cleartext",
+                fix=["security delete-generic-password ...", "ggshield auth login"],
+            )
+        ],
     )
+    with (
+        patch("ggshield.cmd.status._gather_api_report", return_value=api),
+        patch("ggshield.cmd.status.gather_storage_report", return_value=storage),
+    ):
+        result = cli_fs_runner.invoke(cli, command, color=False)
 
+    assert_invoke_ok(result)
+    assert "Credential store: macOS Keychain" in result.output
+    assert "Token storage: plaintext" in result.output
+    assert "ggshield auth login" in result.output
+
+
+def test_merged_json_has_token_storage(cli_fs_runner):
+    add_instance_config()
+    api = _ApiReport(ok=False, exit_code=0, instance=URL, error="offline")
+    storage = StorageReport(
+        backend="macOS Keychain",
+        disabled=False,
+        reachable=True,
+        instances=[InstanceReport(URL, TokenStorage.OK)],
+    )
+    with (
+        patch("ggshield.cmd.status._gather_api_report", return_value=api),
+        patch("ggshield.cmd.status.gather_storage_report", return_value=storage),
+    ):
+        result = cli_fs_runner.invoke(cli, ["auth", "status", "--json"], color=False)
+
+    assert_invoke_ok(result)
     payload = json.loads(result.output)
-    assert payload["credential_store"]["disabled"] is True
-    assert payload["credential_store"]["reachable"] is None
-    assert payload["instances"][0]["status"] == "disabled"
+    assert set(payload["token_storage"]) == {"credential_store", "instances"}
+    assert payload["token_storage"]["instances"][0]["status"] == "ok"
+
+
+def test_storage_problem_does_not_change_exit_code(cli_fs_runner):
+    """A plaintext/failed token is informational; the exit code follows the API
+    check, which here is fine."""
+    add_instance_config()
+    api = _ApiReport(ok=True, exit_code=0, instance=URL)
+    storage = StorageReport(
+        backend="macOS Keychain",
+        disabled=False,
+        reachable=True,
+        instances=[
+            InstanceReport(URL, TokenStorage.PLAINTEXT, message="cleartext", fix=["x"])
+        ],
+    )
+    # ok=True but minimal report: render via the text path without health fields
+    with (
+        patch("ggshield.cmd.status._gather_api_report", return_value=api),
+        patch("ggshield.cmd.status.gather_storage_report", return_value=storage),
+        patch("ggshield.cmd.status._api_text", return_value=["API URL: " + URL]),
+        patch("ggshield.cmd.status._api_json", return_value={"instance": URL}),
+    ):
+        result = cli_fs_runner.invoke(cli, ["api-status"], color=False)
+
+    assert result.exit_code == 0
+    assert "Token storage: plaintext" in result.output

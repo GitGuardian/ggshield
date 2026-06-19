@@ -9,6 +9,7 @@ from voluptuous.validators import All, In, Match
 
 from ggshield.__main__ import cli
 from ggshield.core.config.config import ConfigSource
+from ggshield.core.errors import ExitCode
 from ggshield.utils.os import cd
 from tests.unit.conftest import assert_invoke_ok, my_vcr
 
@@ -49,6 +50,17 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
                     "api_key_source": In(x.name for x in ConfigSource),
                     "token_scopes": ["scan"],
                     "workspace_id": 1,
+                    # Token storage diagnostic, appended to api-status output.
+                    # The keyring is disabled in tests (GGSHIELD_NO_KEYRING), so
+                    # the store is reported as disabled with no probe.
+                    "token_storage": {
+                        "credential_store": {
+                            "backend": str,
+                            "disabled": True,
+                            "reachable": None,
+                        },
+                        "instances": [],
+                    },
                 }
             )
         )
@@ -238,3 +250,18 @@ def test_api_status_scopes_omitted_on_error(
     assert_invoke_ok(result)
     assert "Token scopes:" not in result.output
     assert "Workspace ID:" not in result.output
+
+
+def test_api_status_degrades_without_token(cli_fs_runner, no_api_key):
+    """
+    GIVEN no usable token (so the API check cannot run, and makes no network call)
+    WHEN running api-status
+    THEN the command does not abort: it still prints the token storage section,
+        and preserves the authentication exit code (so scripts keep working)
+    """
+    result = cli_fs_runner.invoke(cli, ["api-status"], color=False)
+
+    # Exit code preserved from the failed API check (missing/invalid token)
+    assert result.exit_code == ExitCode.AUTHENTICATION_ERROR
+    # The local, read-only storage diagnostic is shown regardless
+    assert "Credential store:" in result.output
