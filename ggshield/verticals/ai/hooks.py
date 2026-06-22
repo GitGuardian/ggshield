@@ -16,6 +16,7 @@ from ggshield.core.scan import SecretProtocol as Secret
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.ai.mcp import send_mcp_activity
+from ggshield.verticals.ai.secret_block import send_secret_block
 
 from .agents import AGENTS
 from .models import Agent, EventType, HookPayload, HookResult, Tool
@@ -315,6 +316,15 @@ class AIHookScanner:
         result = self._scan_payloads(payloads)
         payload = result.payload
 
+        # Report number of secrets found and blocked by the hook
+        if result.block and result.nbr_secrets > 0:
+            send_secret_block(
+                self.scanner.client,
+                payload,
+                result.detectors,
+                result.nbr_secrets,
+            )
+
         # Sometimes the secret has already leaked to the agent. Notify the user.
         if result.block and payload.agent.has_secret_already_leaked(payload):
             self._send_secret_notification(result)
@@ -381,6 +391,7 @@ class AIHookScanner:
             message=message,
             nbr_secrets=len(secrets),
             payload=payload,
+            detectors=sorted({secret.detector_display_name for secret in secrets}),
         )
 
     @staticmethod

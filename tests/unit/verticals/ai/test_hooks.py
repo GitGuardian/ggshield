@@ -126,6 +126,45 @@ class TestAIHookScannerScanContent:
         assert "remove the secrets from your prompt" in result.message
 
 
+class TestAIHookScannerSecretBlock:
+    """scan() reports a secret-block event on the block path, best-effort."""
+
+    @patch("ggshield.verticals.ai.hooks.send_secret_block")
+    def test_secret_block_reports_event(self, mock_send: MagicMock):
+        scanner = AIHookScanner(_mock_scanner(["sk-xxx"]))
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "echo sk-xxx"},
+            "cwd": "/home/dev/project",
+            "session_id": "427ae0c5-0862-4e14-aa2c-12fad909c323",
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+        }
+
+        scanner.scan(json.dumps(data))
+
+        mock_send.assert_called_once()
+        _client, payload, detectors, secret_count = mock_send.call_args[0]
+        assert detectors == ["dummy-detector"]
+        assert secret_count == 1
+        assert payload.raw.get("tool_name") == "Bash"
+        assert payload.raw.get("cwd") == "/home/dev/project"
+
+    @patch("ggshield.verticals.ai.hooks.send_secret_block")
+    def test_allow_does_not_report(self, mock_send: MagicMock):
+        scanner = AIHookScanner(_mock_scanner([]))
+        data = {
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "hello world",
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "cursor_version": "1.2.3",
+        }
+
+        scanner.scan(json.dumps(data))
+
+        mock_send.assert_not_called()
+
+
 class TestHasAlreadyBeenSeen:
     def test_first_call_is_not_duplicate(self):
         assert has_already_been_seen('{"hook_event_name": "PreToolUse"}') is False

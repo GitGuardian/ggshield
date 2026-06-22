@@ -60,6 +60,9 @@ class HookResult:
     # Set when the action is allowed but the user must be warned,
     # typically because the scan could not run at all.
     warning: str = ""
+    # Display names of the detectors that matched, when the action was blocked
+    # because it contained secrets.
+    detectors: List[str] = field(default_factory=list)
 
     @classmethod
     def allow(cls, payload: "HookPayload") -> "HookResult":
