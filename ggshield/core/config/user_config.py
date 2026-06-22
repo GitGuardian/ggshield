@@ -85,6 +85,17 @@ class SecretConfig(FilteredConfig):
 
 
 @marshmallow_dataclass.dataclass
+class AuthCmdConfig(FilteredConfig):
+    """
+    Holds user-defined settings for the `auth` commands.
+    """
+
+    # Scopes requested by `auth login`, replacing the built-in defaults.
+    # None means "use the built-in defaults".
+    login_scopes: Optional[List[str]] = None
+
+
+@marshmallow_dataclass.dataclass
 class UserConfig(FilteredConfig):
     """
     Holds all ggshield settings defined by the user in the .gitguardian.yaml files
@@ -97,6 +108,7 @@ class UserConfig(FilteredConfig):
     insecure: bool = False
     max_commits_for_hook: int = 50
     secret: SecretConfig = field(default_factory=SecretConfig)
+    auth: AuthCmdConfig = field(default_factory=AuthCmdConfig)
     debug: bool = False
 
     # If we hit any deprecated syntax when loading a configuration file, we do not

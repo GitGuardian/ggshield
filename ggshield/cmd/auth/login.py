@@ -16,14 +16,18 @@ from ggshield.core.url_utils import clean_url
 from ggshield.verticals.auth import DEFAULT_SCOPES, OAuthClient
 
 
-def _warn_missing_scopes(client: GGClient) -> None:
+def _warn_missing_scopes(
+    client: GGClient, expected_scopes: Optional[List[str]] = None
+) -> None:
+    if expected_scopes is None:
+        expected_scopes = DEFAULT_SCOPES
     token_info = client.api_tokens()
     granted = (
         token_info.scopes
         if isinstance(token_info, APITokensResponse) and token_info.scopes
         else []
     )
-    missing = [s for s in DEFAULT_SCOPES if s not in granted]
+    missing = [s for s in expected_scopes if s not in granted]
     if missing:
         click.echo(
             "Warning: the following scopes were not granted: "
@@ -117,6 +121,20 @@ def print_default_instance_message(config: Config) -> None:
     metavar="SCOPES",
 )
 @click.option(
+    "--only-scopes",
+    "only_scopes",
+    required=False,
+    type=str,
+    help=(
+        "Space-separated list of scopes to request, replacing the defaults entirely"
+        " (unlike --scopes, which appends). Useful on self-hosted instances where a"
+        " default scope such as endpoints:send is not available, e.g."
+        ' --only-scopes "scan nhi:send-inventory". Takes precedence over --scopes and'
+        " over the auth.login_scopes config setting."
+    ),
+    metavar="SCOPES",
+)
+@click.option(
     "--sso-url",
     required=False,
     type=str,
@@ -144,6 +162,7 @@ def login_cmd(
     method: str,
     instance: Optional[str],
     scopes: Optional[str],
+    only_scopes: Optional[str],
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
@@ -168,7 +187,10 @@ def login_cmd(
 
     By default, the created token will have the `scan`, `honeytokens:check`,
     and `endpoints:send` scopes.
-    Use the `--scopes` option to request extra scopes. You can find the list of
+    Use the `--scopes` option to request extra scopes on top of those defaults, or
+    `--only-scopes` to request an exact set instead (useful on self-hosted instances
+    where a default scope such as `endpoints:send` is unavailable). The base set can
+    also be pinned in the config via `auth.login_scopes`. You can find the list of
     available scopes in [GitGuardian API documentation][1].
 
     If a valid personal access token is already configured, this command simply displays
@@ -189,23 +211,55 @@ def login_cmd(
                 "--scopes is reserved for the web login method.", param_hint="scopes"
             )
 
+        if only_scopes is not None:
+            raise click.BadParameter(
+                "--only-scopes is reserved for the web login method.",
+                param_hint="only-scopes",
+            )
+
         token_login(config, instance)
         return 0
 
     if method in ("web", "oob"):
-        extra_scopes = scopes.split(" ") if scopes else None
+        requested_scopes = _resolve_login_scopes(config, scopes, only_scopes)
         web_login(
             config,
             instance,
             token_name,
             lifetime,
             sso_url,
-            extra_scopes,
+            requested_scopes,
             no_browser=method == "oob",
         )
         return 0
 
     return 1
+
+
+def _resolve_login_scopes(
+    config: Config, scopes: Optional[str], only_scopes: Optional[str]
+) -> List[str]:
+    """
+    Resolve the scopes to request, following the precedence:
+      1. --only-scopes (CLI): exactly those, --scopes ignored
+      2. auth.login_scopes (config): base set, --scopes appended
+      3. built-in DEFAULT_SCOPES: base set, --scopes appended
+    """
+    if only_scopes is not None:
+        only = only_scopes.split()
+        if not only:
+            raise click.BadParameter(
+                "Provide at least one scope.", param_hint="only-scopes"
+            )
+        if scopes:
+            click.echo(
+                "Note: --scopes is ignored because --only-scopes is set.", err=True
+            )
+        return list(dict.fromkeys(only))
+
+    base = config.user_config.auth.login_scopes or DEFAULT_SCOPES
+    extras = scopes.split(" ") if scopes else []
+    return list(dict.fromkeys([*base, *extras]))
 
 
 def token_login(config: Config, instance: Optional[str]) -> None:
@@ -263,7 +317,7 @@ def web_login(
     token_name: Optional[str],
     lifetime: Optional[int],
     sso_url: Optional[str],
-    extra_scopes: Optional[List[str]],
+    scopes: List[str],
     no_browser: bool = False,
 ) -> None:
     instance, login_path = validate_login_path(instance=instance, sso_url=sso_url)
@@ -283,8 +337,8 @@ def web_login(
         token_name=token_name,
         lifetime=lifetime,
         login_path=login_path,
-        extra_scopes=extra_scopes,
+        scopes=scopes,
         no_browser=no_browser,
     )
-    _warn_missing_scopes(create_client_from_config(config))
+    _warn_missing_scopes(create_client_from_config(config), scopes)
     print_default_instance_message(config)

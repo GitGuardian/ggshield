@@ -82,7 +82,7 @@ class OAuthClient:
         self._state = ""  # use the `state` property instead
         self._lifetime: Optional[int] = None
         self._login_path = "auth/login"
-        self._extra_scopes = []
+        self._scopes: List[str] = list(DEFAULT_SCOPES)
 
         # Fields updated by RequestHandler
         self._request_finished = False
@@ -107,7 +107,7 @@ class OAuthClient:
         token_name: Optional[str] = None,
         lifetime: Optional[int] = None,
         login_path: Optional[str] = None,
-        extra_scopes: Optional[List[str]] = None,
+        scopes: Optional[List[str]] = None,
         no_browser: bool = False,
     ) -> None:
         """
@@ -135,8 +135,8 @@ class OAuthClient:
             lifetime = self.default_token_lifetime
         self._lifetime = lifetime
 
-        if extra_scopes is not None:
-            self._extra_scopes = extra_scopes
+        if scopes is not None:
+            self._scopes = scopes
 
         self._no_browser = no_browser
 
@@ -238,7 +238,7 @@ class OAuthClient:
             "utm_medium": "login",
             "utm_campaign": "ggshield",
         }
-        unique_scopes = list(dict.fromkeys([*DEFAULT_SCOPES, *self._extra_scopes]))
+        unique_scopes = list(dict.fromkeys(self._scopes))
         return self._oauth_client.prepare_request_uri(
             uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,

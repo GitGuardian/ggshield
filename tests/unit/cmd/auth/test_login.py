@@ -14,7 +14,7 @@ from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.utils.datetime import get_pretty_date
 from ggshield.verticals.auth import OAuthClient, OAuthError
 from ggshield.verticals.auth.oauth import OOB_REDIRECT_URI
-from tests.unit.conftest import assert_invoke_ok
+from tests.unit.conftest import assert_invoke_ok, write_yaml
 from tests.unit.request_mock import (
     RequestMock,
     create_html_response,
@@ -188,6 +188,17 @@ class TestAuthLoginToken:
         assert config.auth_config.get_instance(instance).account.token == token
 
         self._request_mock.assert_all_requests_happened()
+
+    def test_only_scopes_rejected_with_token_method(self, monkeypatch, cli_fs_runner):
+        """
+        GIVEN --method=token
+        WHEN --only-scopes is also passed
+        THEN the command rejects it (token login does not mint scopes)
+        """
+        cmd = ["auth", "login", "--method=token", "--only-scopes=scan"]
+        result = cli_fs_runner.invoke(cli, cmd, color=False, input="tok\n")
+        assert result.exit_code != 0
+        assert "only-scopes" in result.output
 
     def test_auth_login_token_default_instance(self, monkeypatch, cli_fs_runner):
         """
@@ -421,6 +432,7 @@ class TestAuthLoginWeb:
         # This is not a list because the --scopes argument takes a single
         # space-separated string
         self._scopes: Optional[str] = None
+        self._only_scopes: Optional[str] = None
 
         config = Config()
         assert len(config.auth_config.instances) == 0
@@ -725,6 +737,116 @@ class TestAuthLoginWeb:
 
         self._assert_config("mysupertoken")
 
+    def test_only_scopes_replaces_defaults(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN a call to `auth login` with `--only-scopes`
+        WHEN the browser is opened
+        THEN the URI requests exactly those scopes, replacing the defaults
+        """
+        self.prepare_mocks(monkeypatch, only_scopes="scan nhi:send-inventory")
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(scope_set={"scan", "nhi:send-inventory"})
+
+    def test_only_scopes_wins_over_scopes(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN both `--scopes` and `--only-scopes`
+        WHEN the browser is opened
+        THEN `--only-scopes` wins and `--scopes` is ignored (with a note)
+        """
+        self.prepare_mocks(
+            monkeypatch, scopes="teams:read", only_scopes="scan nhi:send-inventory"
+        )
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(scope_set={"scan", "nhi:send-inventory"})
+        assert "--scopes" in output and "ignored" in output
+
+    def test_only_scopes_empty_value_errors(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN `--only-scopes` with an empty value
+        WHEN the command runs
+        THEN it errors out before opening a browser
+        """
+        self.prepare_mocks(monkeypatch, only_scopes="   ")
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code != ExitCode.SUCCESS
+        self._webbrowser_open_mock.assert_not_called()
+        assert "only-scopes" in output
+
+    def test_only_scopes_suppresses_false_missing_warning(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN `--only-scopes scan` and a backend granting exactly `scan`
+        WHEN the web login flow completes
+        THEN no missing-scope warning is shown (the default scopes the user did
+             not request must not be reported as missing)
+        """
+        self.prepare_mocks(
+            monkeypatch,
+            only_scopes="scan",
+            missing_scopes=["honeytokens:check", "endpoints:send"],
+        )
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+        assert "Warning: the following scopes were not granted" not in output
+
+    def test_login_scopes_config_used_as_base(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN `auth.login_scopes` set in the config file
+        WHEN the browser is opened
+        THEN the URI uses the configured scopes as the base instead of the defaults
+        """
+        write_yaml(
+            ".gitguardian.yaml",
+            {"version": 2, "auth": {"login_scopes": ["scan", "nhi:send-inventory"]}},
+        )
+        self.prepare_mocks(monkeypatch)
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(scope_set={"scan", "nhi:send-inventory"})
+
+    def test_scopes_appends_to_config_base(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN `auth.login_scopes` in the config AND `--scopes` on the CLI
+        WHEN the browser is opened
+        THEN `--scopes` extras are appended to the configured base
+        """
+        write_yaml(
+            ".gitguardian.yaml",
+            {"version": 2, "auth": {"login_scopes": ["scan"]}},
+        )
+        self.prepare_mocks(monkeypatch, scopes="teams:read")
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(scope_set={"scan", "teams:read"})
+
+    def test_only_scopes_overrides_config(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN `auth.login_scopes` in the config AND `--only-scopes` on the CLI
+        WHEN the browser is opened
+        THEN the CLI `--only-scopes` wins over the configured base
+        """
+        write_yaml(
+            ".gitguardian.yaml",
+            {"version": 2, "auth": {"login_scopes": ["scan", "nhi:send-inventory"]}},
+        )
+        self.prepare_mocks(monkeypatch, only_scopes="scan")
+        exit_code, output = self.run_cmd(cli_fs_runner)
+        assert exit_code == ExitCode.SUCCESS, output
+
+        self._webbrowser_open_mock.assert_called_once()
+        self._assert_open_url(scope_set={"scan"})
+
     def prepare_mocks(
         self,
         monkeypatch,
@@ -735,6 +857,7 @@ class TestAuthLoginWeb:
         sso_url=None,
         downsized_token: Optional[bool] = False,
         scopes: Optional[str] = None,
+        only_scopes: Optional[str] = None,
         missing_scopes: Optional[list] = None,
     ):
         """
@@ -757,6 +880,7 @@ class TestAuthLoginWeb:
         self._instance_url = instance_url
         self._sso_url = sso_url
         self._scopes = scopes
+        self._only_scopes = only_scopes
 
         # token name generated if passed as None
         self._generated_token_name = (
@@ -873,6 +997,9 @@ class TestAuthLoginWeb:
 
         if self._scopes is not None:
             cmd.append(f"--scopes={self._scopes}")
+
+        if self._only_scopes is not None:
+            cmd.append(f"--only-scopes={self._only_scopes}")
 
         # run cli command
         result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)

@@ -37,6 +37,32 @@ class TestUserConfig:
         assert config.user_config.verbose is True
         assert config.user_config.secret.show_secrets is True
 
+    def test_login_scopes_default_is_none(self):
+        """
+        GIVEN no auth section in the config
+        WHEN the config is loaded
+        THEN auth.login_scopes defaults to None (use the built-in defaults)
+        """
+        config = Config()
+        assert config.user_config.auth.login_scopes is None
+
+    def test_login_scopes_parsed_from_config(self, local_config_path):
+        """
+        GIVEN an `auth.login_scopes` list in the config file
+        WHEN the config is loaded
+        THEN it is exposed on user_config.auth.login_scopes
+        """
+        write_yaml(
+            local_config_path,
+            {
+                "version": CURRENT_CONFIG_VERSION,
+                "auth": {"login_scopes": ["scan", "nhi:send-inventory"]},
+            },
+        )
+
+        config = Config()
+        assert config.user_config.auth.login_scopes == ["scan", "nhi:send-inventory"]
+
     def test_display_options_inheritance(self, local_config_path, global_config_path):
         write_yaml(
             local_config_path,
