@@ -166,7 +166,7 @@ class Agent(ABC):
             "hooks": {
                 "PreToolUse": [
                     {
-                        "matcher": ".*",
+                        "matcher": "*",
                         "hooks": [
                             {
                                 "type": "command",
@@ -177,7 +177,7 @@ class Agent(ABC):
                 ],
                 "PostToolUse": [
                     {
-                        "matcher": ".*",
+                        "matcher": "*",
                         "hooks": [
                             {
                                 "type": "command",
@@ -188,7 +188,7 @@ class Agent(ABC):
                 ],
                 "UserPromptSubmit": [
                     {
-                        "matcher": ".*",
+                        "matcher": "*",
                         "hooks": [
                             {
                                 "type": "command",
@@ -221,6 +221,16 @@ class Agent(ABC):
             for obj in candidates:
                 if obj.get("matcher") == template["matcher"]:
                     return obj
+            # Migration: an earlier ggshield install may have written a
+            # different matcher value (we standardized ".*" -> "*"). Reuse the
+            # block that already holds a ggshield hook instead of appending a
+            # duplicate block with the new matcher.
+            for obj in candidates:
+                for hook in obj.get("hooks", []):
+                    if isinstance(hook, dict) and "ggshield" in str(
+                        hook.get("command", "")
+                    ):
+                        return obj
             return None
         for obj in candidates:
             command = obj.get("command", "")

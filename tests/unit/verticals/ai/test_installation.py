@@ -256,6 +256,35 @@ class TestFlavorSettingsProperties:
         template = {"matcher": ".*"}
         assert claude.settings_locate(candidates, template) is None
 
+    def test_claude_settings_template_uses_catch_all_matcher(self):
+        """The template matcher must be '*' (Claude's match-all), not '.*'."""
+        matchers = [
+            block["matcher"]
+            for hooks in Claude().settings_template["hooks"].values()
+            for block in hooks
+        ]
+        assert matchers, "expected at least one matcher block"
+        assert all(matcher == "*" for matcher in matchers)
+
+    def test_claude_settings_locate_reuses_legacy_matcher_block(self):
+        """A block installed with the old '.*' matcher is reused, not duplicated.
+
+        Existing installs wrote 'matcher': '.*'. When setup re-runs with the new
+        '*' template, the legacy block (holding the ggshield hook) must be found
+        so we update it in place instead of appending a duplicate '*' block.
+        """
+        claude = Claude()
+        legacy_block = {
+            "matcher": ".*",
+            "hooks": [{"type": "command", "command": "ggshield secret scan ai-hook"}],
+        }
+        candidates = [
+            {"matcher": "Bash", "hooks": [{"command": "other"}]},
+            legacy_block,
+        ]
+        template = {"matcher": "*", "hooks": [{"command": "<COMMAND>"}]}
+        assert claude.settings_locate(candidates, template) is legacy_block
+
     def test_claude_settings_locate_no_matcher_no_match_returns_none(self):
         claude = Claude()
         candidates = [
@@ -352,6 +381,41 @@ class TestInstallHooks:
         assert "hooks" in config
         for key in ("PreToolUse", "PostToolUse", "UserPromptSubmit"):
             assert key in config["hooks"]
+            assert config["hooks"][key][0]["matcher"] == "*"
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    def test_install_claude_global_migrates_legacy_matcher(
+        self, mock_home: Any, tmp_path: Path
+    ):
+        """Re-installing over a legacy '.*' config must not duplicate the hook."""
+        mock_home.return_value = tmp_path
+        settings_path = tmp_path / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True)
+        legacy = {
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": ".*",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "ggshield secret scan ai-hook",
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+        settings_path.write_text(json.dumps(legacy))
+
+        assert install_hooks("claude-code", mode="global") == 0
+
+        config = json.loads(settings_path.read_text())
+        # Still exactly one PreToolUse block (the legacy one reused), not two.
+        assert len(config["hooks"]["PreToolUse"]) == 1
+        block = config["hooks"]["PreToolUse"][0]
+        ggshield_hooks = [h for h in block["hooks"] if "ggshield" in h["command"]]
+        assert len(ggshield_hooks) == 1
 
     @patch("ggshield.verticals.ai.installation.get_user_home_dir")
     def test_install_copilot_global(self, mock_home: Any, tmp_path: Path):
