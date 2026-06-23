@@ -41,6 +41,59 @@
     "workspace_id": {
       "type": "integer",
       "description": "Identifier of the workspace the authentication token belongs to"
+    },
+    "token_storage": {
+      "type": "object",
+      "description": "Where each instance's API token is stored (local, read-only diagnostic)",
+      "properties": {
+        "credential_store": {
+          "type": "object",
+          "description": "State of the OS credential store",
+          "properties": {
+            "backend": {
+              "type": "string",
+              "description": "Human-readable name of the credential-store backend"
+            },
+            "disabled": {
+              "type": "boolean",
+              "description": "Whether the credential store is disabled via GGSHIELD_NO_KEYRING"
+            },
+            "reachable": {
+              "type": ["boolean", "null"],
+              "description": "Whether the credential store answered a read probe; null when disabled"
+            }
+          },
+          "required": ["backend", "disabled", "reachable"]
+        },
+        "instances": {
+          "type": "array",
+          "description": "Per-instance token storage diagnosis",
+          "items": {
+            "type": "object",
+            "properties": {
+              "instance": {
+                "type": "string",
+                "description": "URL of the GitGuardian instance"
+              },
+              "status": {
+                "enum": ["ok", "failed", "plaintext", "disabled", "skipped"],
+                "description": "Where the token lives and whether that is healthy"
+              },
+              "message": {
+                "type": ["string", "null"],
+                "description": "Human-readable explanation, null when not applicable"
+              },
+              "fix": {
+                "type": ["array", "null"],
+                "items": { "type": "string" },
+                "description": "Shell commands to fix the problem, null when none"
+              }
+            },
+            "required": ["instance", "status", "message", "fix"]
+          }
+        }
+      },
+      "required": ["credential_store", "instances"]
     }
   },
   "required": [

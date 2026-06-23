@@ -166,6 +166,13 @@ def cli(
     _set_color(ctx)
 
 
+# `ggshield auth status` is an alias of `api-status`: the same command, which
+# also reports where each token is stored. Wired here (the composition root) so
+# that ggshield.cmd.auth does not import ggshield.cmd.status (cmd.* packages are
+# kept independent, see .importlinter).
+auth_group.add_command(status_cmd, name="status")
+
+
 # Register plugin commands with the CLI group.
 # Called from main() to avoid import-time side effects.
 def _register_plugin_commands() -> None:
