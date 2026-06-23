@@ -1094,7 +1094,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
     { name = "pygitguardian", git = "https://github.com/GitGuardian/py-gitguardian.git?rev=2c89d05d6ca1abd4f660bb0cd656216c12c200b1" },
-    { name = "pyjwt", specifier = "~=2.6.0" },
+    { name = "pyjwt", specifier = ">=2.6,<2.14" },
     { name = "python-dotenv", specifier = "~=0.21.0" },
     { name = "pyyaml", specifier = "~=6.0.1" },
     { name = "requests", specifier = "~=2.32.0" },
@@ -2887,11 +2887,14 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.6.0"
+version = "2.13.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/75/65/db64904a7f23e12dbf0565b53de01db04d848a497c6c9b87e102f74c9304/PyJWT-2.6.0.tar.gz", hash = "sha256:69285c7e31fc44f68a1feb309e948e0df53259d579295e6cfe2b1792329f05fd", size = 72984, upload-time = "2022-10-20T01:09:12.296Z" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423", size = 107515, upload-time = "2026-05-21T19:54:36.618Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/46/505f0dd53c14096f01922bf93a7abb4e40e29a06f858abbaa791e6954324/PyJWT-2.6.0-py3-none-any.whl", hash = "sha256:d83c3d892a77bbb74d3e1a2cfa90afaadb60945205d1095d9221f04466f64c14", size = 20316, upload-time = "2022-10-20T01:09:09.802Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728", size = 31274, upload-time = "2026-05-21T19:54:35.362Z" },
 ]
 
 [[package]]
