@@ -1,4 +1,5 @@
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
@@ -297,3 +298,98 @@ class TestHoneytokenPlant:
         """`honeytoken plant` stays a first-class command (not deprecated)."""
         result = cli_fs_runner.invoke(cli, ["honeytoken", "plant"])
         assert "deprecated" not in result.output.lower()
+
+
+class TestServiceAccountAuth:
+    BASE = "ggshield.cmd.machine.setup"
+
+    def test_read_token_from_env(self, monkeypatch):
+        from ggshield.cmd.machine.setup import _read_service_account_token
+
+        monkeypatch.setenv("GGSHIELD_SERVICE_ACCOUNT_TOKEN", "  sa-token  ")
+        assert _read_service_account_token() == "sa-token"
+
+    def test_read_token_none_when_absent_and_tty(self, monkeypatch):
+        from ggshield.cmd.machine.setup import _read_service_account_token
+
+        monkeypatch.delenv("GGSHIELD_SERVICE_ACCOUNT_TOKEN", raising=False)
+        with patch(f"{self.BASE}.click.get_text_stream") as m_stream:
+            m_stream.return_value.isatty.return_value = True
+            assert _read_service_account_token() is None
+
+    def test_read_token_from_stdin(self, monkeypatch):
+        from ggshield.cmd.machine.setup import _read_service_account_token
+
+        monkeypatch.delenv("GGSHIELD_SERVICE_ACCOUNT_TOKEN", raising=False)
+        with patch(f"{self.BASE}.click.get_text_stream") as m_stream:
+            m_stream.return_value.isatty.return_value = False
+            m_stream.return_value.read.return_value = " piped-token \n"
+            assert _read_service_account_token() == "piped-token"
+
+    def _provision(self, *, ok=True, scopes=("scan",), write_exc=None):
+        from ggshield.cmd.machine.setup import _setup_service_account_auth
+
+        response = MagicMock(ok=ok)
+        with patch(
+            f"{self.BASE}._read_service_account_token", return_value="sa-token"
+        ), patch(f"{self.BASE}.ContextObj") as ctx_obj, patch(
+            f"{self.BASE}.create_client"
+        ) as m_client, patch(
+            f"{self.BASE}.safe_response_json", return_value={"scope": list(scopes)}
+        ), patch(
+            f"{self.BASE}.write_system_auth",
+            side_effect=write_exc,
+            return_value=Path("/etc/ggshield/auth.yaml"),
+        ) as m_write:
+            cfg = ctx_obj.get.return_value.config
+            cfg.instance_name = "https://x"
+            cfg.api_url = "https://api.x"
+            cfg.user_config.insecure = False
+            m_client.return_value.get.return_value = response
+            result = _setup_service_account_auth(MagicMock())
+        return result, m_write
+
+    def test_noop_without_token(self):
+        from ggshield.cmd.machine.setup import _setup_service_account_auth
+
+        with patch(
+            f"{self.BASE}._read_service_account_token", return_value=None
+        ), patch(f"{self.BASE}.write_system_auth") as m_write:
+            assert _setup_service_account_auth(MagicMock()) is True
+        m_write.assert_not_called()
+
+    def test_happy_path_validates_and_writes(self):
+        result, m_write = self._provision(ok=True, scopes=("scan", "honeytokens:write"))
+        assert result is True
+        m_write.assert_called_once_with("https://x", "sa-token")
+
+    def test_rejects_bad_token(self):
+        result, m_write = self._provision(ok=False)
+        assert result is False
+        m_write.assert_not_called()
+
+    def test_rejects_missing_scan_scope(self):
+        result, m_write = self._provision(ok=True, scopes=("honeytokens:write",))
+        assert result is False
+        m_write.assert_not_called()
+
+    def test_write_failure_returns_false(self):
+        result, _m_write = self._provision(ok=True, write_exc=OSError("denied"))
+        assert result is False
+
+    def test_instance_flag_sets_cmdline_instance(self, cli_fs_runner: CliRunner):
+        with patch(f"{self.BASE}._setup_ai_hooks", return_value=True), patch(
+            f"{self.BASE}._setup_git_hooks", return_value=True
+        ), patch(f"{self.BASE}._setup_honeytokens", return_value=True), patch(
+            f"{self.BASE}._setup_service_account_auth", return_value=True
+        ), patch(
+            "ggshield.cmd.machine.setup.ContextObj"
+        ) as ctx_obj:
+            result = cli_fs_runner.invoke(
+                cli, ["machine", "setup", "--instance", "https://fleet.example.com"]
+            )
+        assert_invoke_ok(result)
+        assert (
+            ctx_obj.get.return_value.config.cmdline_instance_name
+            == "https://fleet.example.com"
+        )

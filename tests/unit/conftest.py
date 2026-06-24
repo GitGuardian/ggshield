@@ -842,6 +842,16 @@ def _isolate_cache_path(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_system_config_dir(monkeypatch, tmp_path):
+    """Point the machine-wide config dir at an empty tmp_path.
+
+    Without this, config resolution could read a real ``/etc``-style
+    ggshield service-account auth file on the test machine.
+    """
+    monkeypatch.setenv("GG_SYSTEM_CONFIG_DIR", str(tmp_path / "system-config"))
+
+
+@pytest.fixture(autouse=True)
 def _reset_ui_fixture():
     """
     Enabling debug mode has global side effects. Reset it to ensure a test touching the

@@ -8,10 +8,12 @@ from typing import Any, Optional, Set, Tuple
 import click
 
 from ggshield.core.config.auth_config import AuthConfig
+from ggshield.core.config.system_auth import read_system_auth
 from ggshield.core.config.token_store import get_token_store
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
+from ggshield.core.errors import MissingTokenError, UnknownInstanceError
 from ggshield.core.url_utils import (
     api_to_dashboard_url,
     clean_url,
@@ -31,6 +33,7 @@ class ConfigSource(Enum):
     ENV_VAR = "environment variable"
     KEYRING = "keyring"
     USER_CONFIG = "user config"
+    SYSTEM_CONFIG = "system config"
     DEFAULT = "default"
 
 
@@ -137,6 +140,12 @@ class Config:
         if self.user_config.instance:
             return self.user_config.instance, ConfigSource.USER_CONFIG
 
+        # Machine-wide service-account instance (provisioned by `machine setup` for
+        # fleet/MDM) — below env vars and a user's own config, above the default.
+        system_auth = read_system_auth()
+        if system_auth is not None:
+            return system_auth.instance, ConfigSource.SYSTEM_CONFIG
+
         return DEFAULT_INSTANCE_URL, ConfigSource.DEFAULT
 
     @property
@@ -197,7 +206,19 @@ class Config:
                 else ConfigSource.ENV_VAR
             )
         except KeyError:
-            key = self.auth_config.get_instance_token(self.instance_name)
+            try:
+                key = self.auth_config.get_instance_token(self.instance_name)
+            except (MissingTokenError, UnknownInstanceError):
+                # No personal token for this instance — fall back to the machine-wide
+                # service-account token (fleet/MDM), but only if it is for this same
+                # instance, so we never use a token against the wrong instance.
+                system_auth = read_system_auth()
+                if (
+                    system_auth is not None
+                    and system_auth.instance == self.instance_name
+                ):
+                    return system_auth.token, ConfigSource.SYSTEM_CONFIG
+                raise
             store = get_token_store()
             source = (
                 ConfigSource.KEYRING

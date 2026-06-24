@@ -1,7 +1,13 @@
 import os
 from pathlib import Path
 
-from platformdirs import site_data_dir, user_cache_dir, user_config_dir, user_data_dir
+from platformdirs import (
+    site_config_dir,
+    site_data_dir,
+    user_cache_dir,
+    user_config_dir,
+    user_data_dir,
+)
 
 from ggshield.utils.git_shell import NotAGitDirectory, get_git_root
 
@@ -55,6 +61,18 @@ def get_system_data_dir() -> Path:
         return Path(os.environ["GG_SYSTEM_DATA_DIR"])
     except KeyError:
         return Path(site_data_dir(appname=APPNAME, appauthor=APPAUTHOR))
+
+
+def get_system_config_dir() -> Path:
+    """Machine-wide (all users) config dir, e.g. for the service-account token.
+
+    Used when ``machine setup`` provisions a fleet/MDM service-account token that
+    every account on the machine falls back to.
+    """
+    try:
+        return Path(os.environ["GG_SYSTEM_CONFIG_DIR"])
+    except KeyError:
+        return Path(site_config_dir(appname=APPNAME, appauthor=APPAUTHOR))
 
 
 def get_plugins_dir(*, create: bool = False) -> Path:

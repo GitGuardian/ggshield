@@ -1,4 +1,5 @@
-from typing import Any, Tuple
+import os
+from typing import Any, Optional, Tuple
 
 import click
 
@@ -14,6 +15,8 @@ from ggshield.cmd.install import (
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client, safe_response_json
+from ggshield.core.config.system_auth import write_system_auth
 from ggshield.utils.os import is_root
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
@@ -65,6 +68,14 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
     help="Install the git hooks machine-wide (all users) instead of for the "
     "current user. Implied when running as root, e.g. under an MDM.",
 )
+@click.option(
+    "--instance",
+    "instance",
+    metavar="URL",
+    default=None,
+    help="GitGuardian instance to authenticate against (used with a "
+    "service-account token).",
+)
 @add_common_options()
 @click.pass_context
 def setup_cmd(
@@ -75,6 +86,7 @@ def setup_cmd(
     agents: Tuple[str, ...],
     exclude_agents: Tuple[str, ...],
     system: bool,
+    instance: Optional[str],
     **kwargs: Any,
 ) -> int:
     """
@@ -89,11 +101,24 @@ def setup_cmd(
     `--no-git-hooks`, or `--no-honeytokens`. `--agent` / `--exclude-agent`
     narrow which assistants get the AI hook. When run as root (or with
     `--system`), the git hooks are installed machine-wide for every user.
+
+    For fleet/MDM deployment, provide a service-account token via the
+    `GGSHIELD_SERVICE_ACCOUNT_TOKEN` environment variable (or piped on stdin) and
+    `--instance`: setup stores it machine-wide so every account on the machine
+    authenticates with it, without a per-user `ggshield auth login`. Requires root.
     """
     if agents and exclude_agents:
         raise click.UsageError("--agent and --exclude-agent cannot be used together.")
 
+    if instance:
+        ContextObj.get(ctx).config.cmdline_instance_name = instance
+
     failed = False
+
+    # Provision machine-wide auth first (if a service-account token is supplied) so
+    # the steps below authenticate with it.
+    if not _setup_service_account_auth(ctx):
+        failed = True
 
     if not no_ai_hooks:
         if not _setup_ai_hooks(ctx, agents, exclude_agents):
@@ -174,3 +199,64 @@ def _setup_honeytokens(ctx: click.Context) -> bool:
     """Plant a honeytoken on this machine (idempotent reconcile via `plant`)."""
     click.echo(click.style("Honeytoken", bold=True))
     return ctx.invoke(plant_cmd) == 0
+
+
+def _read_service_account_token() -> Optional[str]:
+    """Read the service-account token from the env var or piped stdin (never argv,
+    so it does not leak into `ps` / shell history). None if not provided."""
+    token = os.environ.get("GGSHIELD_SERVICE_ACCOUNT_TOKEN")
+    if token and token.strip():
+        return token.strip()
+    stdin = click.get_text_stream("stdin")
+    if not stdin.isatty():
+        piped = stdin.read().strip()
+        if piped:
+            return piped
+    return None
+
+
+def _setup_service_account_auth(ctx: click.Context) -> bool:
+    """Provision a machine-wide service-account token, if one was supplied.
+
+    No-op (returns True) when no token is provided — `machine setup` keeps working
+    without it. When provided, validates the token (reachable + has the `scan`
+    scope) and writes it to the machine-wide config so every account on the machine
+    authenticates with it. Returns False on a bad token or a failed write.
+    """
+    token = _read_service_account_token()
+    if token is None:
+        return True
+
+    click.echo(click.style("Service-account authentication", bold=True))
+    config = ContextObj.get(ctx).config
+    instance = config.instance_name
+    try:
+        client = create_client(
+            api_key=token,
+            api_url=config.api_url,
+            allow_self_signed=config.user_config.insecure,
+        )
+        response = client.get(endpoint="token")
+    except Exception as exc:  # noqa: BLE001 - report any validation failure as a result
+        ui.display_warning(f"  could not validate the service-account token: {exc}")
+        return False
+
+    if not response.ok:
+        ui.display_warning(f"  the service-account token was rejected by {instance}.")
+        return False
+
+    scopes = safe_response_json(response).get("scope", [])
+    if "scan" not in scopes:
+        ui.display_warning("  the service-account token is missing the `scan` scope.")
+        return False
+
+    try:
+        path = write_system_auth(instance, token)
+    except OSError as exc:
+        ui.display_warning(
+            f"  could not write machine-wide auth (run as root for MDM): {exc}"
+        )
+        return False
+
+    click.echo(f"  service-account token configured machine-wide in {path}")
+    return True
