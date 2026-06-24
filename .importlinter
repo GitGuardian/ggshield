@@ -58,7 +58,9 @@ ignore_imports =
 	ggshield.cmd.install.** -> ggshield.verticals.install
 	ggshield.cmd.install.** -> ggshield.verticals.install.**
 	ggshield.cmd.machine.** -> ggshield.verticals.ai.agents
+	ggshield.cmd.machine.** -> ggshield.verticals.ai.discovery
 	ggshield.cmd.machine.** -> ggshield.verticals.ai.installation
+	ggshield.cmd.machine.** -> ggshield.verticals.honeytoken.posture
 	ggshield.cmd.machine.** -> ggshield.verticals.machine
 	ggshield.cmd.machine.** -> ggshield.verticals.machine.**
 	ggshield.cmd.plugin.** -> ggshield.core.plugin

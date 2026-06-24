@@ -73,6 +73,9 @@ STATIC_CONFIG = {
                 # Machine setup configures AI hooks for all detected agents
                 "ggshield.cmd.machine.** -> ggshield.verticals.ai.installation",
                 "ggshield.cmd.machine.** -> ggshield.verticals.ai.agents",
+                # Machine audit reuses AI discovery and honeytoken posture
+                "ggshield.cmd.machine.** -> ggshield.verticals.ai.discovery",
+                "ggshield.cmd.machine.** -> ggshield.verticals.honeytoken.posture",
                 # AI hook command import logic to scan AI hook payloads
                 "ggshield.cmd.secret.scan.ai_hook -> ggshield.verticals.ai.hooks",
             ],

@@ -236,6 +236,30 @@ def are_hooks_installed_globally(agent_name: str) -> Tuple[bool, Optional[str]]:
 
 
 @dataclass
+class AgentHookStatus:
+    """Whether the ggshield AI hook is installed for one detected assistant."""
+
+    display_name: str
+    installed: bool
+
+
+def ai_hook_posture() -> List[AgentHookStatus]:
+    """Read-only AI-hook posture: for each detected assistant, is the hook installed?
+
+    Drives the posture section of ``ggshield machine audit``. Only assistants present
+    on this machine are reported; it never writes anything.
+    """
+    statuses = []
+    for agent in AGENTS.values():
+        if agent.is_present():
+            installed, _command = are_hooks_installed_globally(agent.name)
+            statuses.append(
+                AgentHookStatus(display_name=agent.display_name, installed=installed)
+            )
+    return statuses
+
+
+@dataclass
 class SetupSummary:
     """Outcome of configuring AI hooks across one or more agents."""
 

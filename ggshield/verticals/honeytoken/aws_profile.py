@@ -285,6 +285,26 @@ def _atomic_write_path(path: Path, parser: ConfigUpdater) -> None:
 # --- public API -------------------------------------------------------------------
 
 
+def profile_present(
+    path: Path, section: str, expected_access_key_id: Optional[str] = None
+) -> bool:
+    """Read-only: whether ``section`` exists on disk (optionally holding our key).
+
+    Used by ``ggshield machine audit`` to report honeytoken posture. Never writes,
+    and never raises — an absent or unparseable file reads as "not present" so the
+    posture report cannot crash on a malformed ``~/.aws`` file.
+    """
+    try:
+        parser = _load_path(path)
+    except (PlacementError, OSError):
+        return False
+    if not parser.has_section(section):
+        return False
+    if expected_access_key_id is None:
+        return True
+    return _get_value(parser, section, _ACCESS_KEY) == expected_access_key_id
+
+
 def require_safe_backend() -> None:
     """Fail closed on POSIX without dir fds: the only alternative is TOCTOU-prone path
     ops, and POSIX is where the root fan-out makes that exploitable. Windows is exempt.

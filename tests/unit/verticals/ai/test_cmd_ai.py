@@ -13,8 +13,8 @@ from pygitguardian.models import (
 )
 
 from ggshield.__main__ import cli
-from ggshield.cmd.ai.discover import print_summary
 from ggshield.core.errors import APIKeyCheckError, MissingTokenError
+from ggshield.verticals.ai.discovery import print_summary
 from ggshield.verticals.ai.history import BackfillReport
 from ggshield.verticals.ai.models import Scope, Transport
 
@@ -217,15 +217,15 @@ class TestAiHookCmd:
 
 class TestDiscoverCmd:
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
     @patch(
-        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        "ggshield.verticals.ai.discovery.submit_ai_discovery",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
     def test_default_output(
         self,
         mock_save: MagicMock,
@@ -240,15 +240,15 @@ class TestDiscoverCmd:
         mock_discover.assert_called_once()
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
     @patch(
-        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        "ggshield.verticals.ai.discovery.submit_ai_discovery",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
     def test_json_flag(
         self,
         mock_save: MagicMock,
@@ -265,11 +265,11 @@ class TestDiscoverCmd:
         assert "servers" in parsed
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
     @patch(
-        "ggshield.cmd.ai.discover.create_client_from_config",
+        "ggshield.verticals.ai.discovery.create_client_from_config",
         side_effect=APIKeyCheckError("https://api.gitguardian.com", "no key"),
     )
     def test_auth_failure_shows_warning(
@@ -282,12 +282,12 @@ class TestDiscoverCmd:
         assert "Skipping upload" in result.output or "warning" in result.output.lower()
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
     @patch(
-        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        "ggshield.verticals.ai.discovery.submit_ai_discovery",
         side_effect=RuntimeError("API error"),
     )
     def test_api_submission_failure_shows_warning(
@@ -300,13 +300,13 @@ class TestDiscoverCmd:
         assert "Could not upload" in result.output or "warning" in result.output.lower()
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
     @patch(
-        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        "ggshield.verticals.ai.discovery.submit_ai_discovery",
     )
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
     def test_text_output_with_servers(
         self,
         mock_save: MagicMock,
@@ -362,13 +362,13 @@ class TestDiscoverCmd:
         assert "/home/user/project-b" in result.output
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
     @patch(
-        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        "ggshield.verticals.ai.discovery.submit_ai_discovery",
     )
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
     def test_json_output_with_servers(
         self,
         mock_save: MagicMock,
@@ -403,14 +403,14 @@ class TestDiscoverCmd:
         assert parsed["servers"][0]["installed_globally"] is True
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
-    @patch("ggshield.cmd.ai.discover.submit_ai_discovery")
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.submit_ai_discovery")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
     @patch(
-        "ggshield.cmd.ai.discover.backfill_mcp_history",
+        "ggshield.verticals.ai.discovery.backfill_mcp_history",
         return_value=BackfillReport(parsed=3, ingested=3, duplicates=0),
     )
     def test_history_flag_invokes_backfill_and_surfaces_summary(
@@ -443,13 +443,13 @@ class TestDiscoverCmd:
         assert "3" in result.output and "MCP" in result.output
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
-    @patch("ggshield.cmd.ai.discover.submit_ai_discovery")
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
-    @patch("ggshield.cmd.ai.discover.backfill_mcp_history")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.submit_ai_discovery")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.backfill_mcp_history")
     def test_history_skipped_without_flag(
         self,
         mock_backfill: MagicMock,
@@ -467,17 +467,17 @@ class TestDiscoverCmd:
         mock_backfill.assert_not_called()
 
     @patch(
-        "ggshield.cmd.ai.discover.discover_ai_configuration",
+        "ggshield.verticals.ai.discovery.discover_ai_configuration",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.create_client_from_config")
+    @patch("ggshield.verticals.ai.discovery.create_client_from_config")
     @patch(
-        "ggshield.cmd.ai.discover.submit_ai_discovery",
+        "ggshield.verticals.ai.discovery.submit_ai_discovery",
         return_value=_discovery(),
     )
-    @patch("ggshield.cmd.ai.discover.save_discovery_cache")
+    @patch("ggshield.verticals.ai.discovery.save_discovery_cache")
     @patch(
-        "ggshield.cmd.ai.discover.backfill_mcp_history",
+        "ggshield.verticals.ai.discovery.backfill_mcp_history",
         return_value=BackfillReport(parsed=4, ingested=2, duplicates=1, skipped=1),
     )
     def test_json_output_includes_history_block(
