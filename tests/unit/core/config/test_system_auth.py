@@ -30,10 +30,14 @@ class TestSystemAuthFile:
     def test_write_then_read_roundtrip(self, system_config_dir):
         write_system_auth("https://fleet.example.com", "sa-token")
         result = read_system_auth()
-        assert result == SystemAuth(instance="https://fleet.example.com", token="sa-token")
+        assert result == SystemAuth(
+            instance="https://fleet.example.com", token="sa-token"
+        )
 
     def test_read_malformed_returns_none(self, system_config_dir):
-        get_system_auth_path().write_text("this: is: not: valid: yaml: [", encoding="utf-8")
+        get_system_auth_path().write_text(
+            "this: is: not: valid: yaml: [", encoding="utf-8"
+        )
         assert read_system_auth() is None
 
     def test_read_missing_keys_returns_none(self, system_config_dir):
@@ -87,3 +91,17 @@ class TestSystemConfigFallback:
             name, source = config.get_instance_name_and_source()
         assert name == "https://fleet.example.com"
         assert source == ConfigSource.SYSTEM_CONFIG
+
+
+class TestSystemConfigDir:
+    def test_env_override(self, tmp_path, monkeypatch):
+        from ggshield.core.dirs import get_system_config_dir
+
+        monkeypatch.setenv("GG_SYSTEM_CONFIG_DIR", str(tmp_path))
+        assert get_system_config_dir() == tmp_path
+
+    def test_default_uses_site_config_dir(self, monkeypatch):
+        from ggshield.core.dirs import get_system_config_dir
+
+        monkeypatch.delenv("GG_SYSTEM_CONFIG_DIR", raising=False)
+        assert get_system_config_dir().name == "ggshield"
