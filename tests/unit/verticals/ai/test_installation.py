@@ -11,8 +11,10 @@ import pytest
 from ggshield.core.errors import UnexpectedError
 from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
 from ggshield.verticals.ai.installation import (
+    AgentHookStatus,
     InstallationStats,
     _fill_dict,
+    ai_hook_posture,
     are_hooks_installed_globally,
     build_hook_command,
     install_hooks,
@@ -556,3 +558,44 @@ class TestBuildHookCommand:
         ):
             with _simulate_platform([argv0, "install"], windows=False):
                 assert build_hook_command() == f"{argv0} secret scan ai-hook"
+
+
+class _FakeAgent:
+    """Minimal stand-in for an Agent for posture tests."""
+
+    def __init__(self, name: str, display_name: str, present: bool):
+        self.name = name
+        self.display_name = display_name
+        self._present = present
+
+    def is_present(self) -> bool:
+        return self._present
+
+
+class TestAiHookPosture:
+    AGENTS_PATH = "ggshield.verticals.ai.installation.AGENTS"
+    HOOKS_PATH = "ggshield.verticals.ai.installation.are_hooks_installed_globally"
+
+    def test_reports_only_present_agents(self):
+        fakes = {
+            "a": _FakeAgent("a", "Agent A", present=True),
+            "b": _FakeAgent("b", "Agent B", present=False),
+        }
+        with patch.dict(self.AGENTS_PATH, fakes, clear=True), patch(
+            self.HOOKS_PATH, return_value=(True, "cmd")
+        ):
+            statuses = ai_hook_posture()
+        assert statuses == [AgentHookStatus(display_name="Agent A", installed=True)]
+
+    def test_reports_installed_flag(self):
+        fakes = {"a": _FakeAgent("a", "Agent A", present=True)}
+        with patch.dict(self.AGENTS_PATH, fakes, clear=True), patch(
+            self.HOOKS_PATH, return_value=(False, None)
+        ):
+            statuses = ai_hook_posture()
+        assert statuses == [AgentHookStatus(display_name="Agent A", installed=False)]
+
+    def test_empty_when_no_agents_present(self):
+        fakes = {"a": _FakeAgent("a", "Agent A", present=False)}
+        with patch.dict(self.AGENTS_PATH, fakes, clear=True), patch(self.HOOKS_PATH):
+            assert ai_hook_posture() == []

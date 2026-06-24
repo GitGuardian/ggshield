@@ -13,6 +13,7 @@ from ggshield.verticals.honeytoken.aws_profile import (
     RemoveOutcome,
     WriteOutcome,
     aws_path,
+    profile_present,
     remove_aws_profile,
     resolve_placement,
     write_aws_profile,
@@ -528,3 +529,35 @@ def test_write_cleans_up_temp_on_failure(tmp_path, monkeypatch):
     leftover = [p.name for p in path.parent.iterdir() if p.name.startswith(".plant.")]
     assert leftover == []
     assert path.read_text() == original
+
+
+# --- profile_present (read-only posture check) -------------------------------------
+
+
+def test_profile_present_true_when_section_exists(tmp_path):
+    path = tmp_path / "credentials"
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    assert profile_present(path, "gg") is True
+
+
+def test_profile_present_false_when_file_absent(tmp_path):
+    assert profile_present(tmp_path / "credentials", "gg") is False
+
+
+def test_profile_present_false_when_section_absent(tmp_path):
+    path = tmp_path / "credentials"
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    assert profile_present(path, "other") is False
+
+
+def test_profile_present_matches_expected_access_key(tmp_path):
+    path = tmp_path / "credentials"
+    write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
+    assert profile_present(path, "gg", expected_access_key_id="K1") is True
+    assert profile_present(path, "gg", expected_access_key_id="OTHER") is False
+
+
+def test_profile_present_false_on_unparseable_file(tmp_path):
+    path = tmp_path / "credentials"
+    path.write_text("this is = not [valid INI [[[")
+    assert profile_present(path, "gg") is False

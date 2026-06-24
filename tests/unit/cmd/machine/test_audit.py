@@ -206,3 +206,38 @@ class TestPostureSections:
     def test_honeytoken_none_configured(self, capsys):
         out = self._honeytoken(capsys, HoneytokenPosture(True, planted=0, missing=0))
         assert "none configured" in out
+
+
+class TestAuditAiSection:
+    def test_prints_summary_when_discovery_returns_one(self):
+        from ggshield.cmd.machine.audit import _audit_ai
+
+        with patch(f"{BASE}.ContextObj"), patch(
+            f"{BASE}.run_discovery", return_value={"agents": []}
+        ) as m_run, patch(f"{BASE}.print_summary") as m_print:
+            _audit_ai(MagicMock(), scan_history=True)
+        m_run.assert_called_once()
+        assert m_run.call_args.kwargs["scan_history"] is True
+        m_print.assert_called_once_with({"agents": []})
+
+    def test_skips_print_when_discovery_returns_none(self):
+        from ggshield.cmd.machine.audit import _audit_ai
+
+        with patch(f"{BASE}.ContextObj"), patch(
+            f"{BASE}.run_discovery", return_value=None
+        ), patch(f"{BASE}.print_summary") as m_print:
+            _audit_ai(MagicMock(), scan_history=False)
+        m_print.assert_not_called()
+
+
+class TestAuditPostureSection:
+    def test_runs_all_three_posture_checks(self):
+        from ggshield.cmd.machine.audit import _audit_posture
+
+        with patch(f"{BASE}._posture_ai_hooks") as m_ai, patch(
+            f"{BASE}._posture_git_hooks"
+        ) as m_git, patch(f"{BASE}._posture_honeytoken") as m_ht:
+            _audit_posture(MagicMock())
+        m_ai.assert_called_once()
+        m_git.assert_called_once()
+        m_ht.assert_called_once()

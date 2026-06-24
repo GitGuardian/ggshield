@@ -14,11 +14,7 @@ from pygitguardian.models import AgentInfo, AIDiscovery, Detail, MCPServer
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
-from ggshield.core.errors import (
-    APIKeyCheckError,
-    UnexpectedError,
-    UnknownInstanceError,
-)
+from ggshield.core.errors import APIKeyCheckError, UnexpectedError, UnknownInstanceError
 from ggshield.core.text_utils import STYLE, format_text, pluralize
 
 from .agents import AGENTS
