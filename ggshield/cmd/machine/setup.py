@@ -27,6 +27,13 @@ from ggshield.verticals.ai.installation import (
 
 _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 
+# Scopes the protections configured by `machine setup` need from the token.
+_SCAN_SCOPE = "scan"  # the AI and git hooks run `ggshield secret scan`
+# The AI hook also reports MCP activity / discovery. Still `nhi:send-inventory`
+# today; will become a dedicated AI scope when the backend ships it.
+_AI_DISCOVERY_SCOPE = "nhi:send-inventory"
+_HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (Business/Enterprise)
+
 
 @click.command()
 @click.option(
@@ -117,7 +124,12 @@ def setup_cmd(
 
     # Provision machine-wide auth first (if a service-account token is supplied) so
     # the steps below authenticate with it.
-    if not _setup_service_account_auth(ctx):
+    if not _setup_service_account_auth(
+        ctx,
+        no_ai_hooks=no_ai_hooks,
+        no_git_hooks=no_git_hooks,
+        no_honeytokens=no_honeytokens,
+    ):
         failed = True
 
     if not no_ai_hooks:
@@ -215,13 +227,24 @@ def _read_service_account_token() -> Optional[str]:
     return None
 
 
-def _setup_service_account_auth(ctx: click.Context) -> bool:
+def _setup_service_account_auth(
+    ctx: click.Context,
+    *,
+    no_ai_hooks: bool,
+    no_git_hooks: bool,
+    no_honeytokens: bool,
+) -> bool:
     """Provision a machine-wide service-account token, if one was supplied.
 
     No-op (returns True) when no token is provided — `machine setup` keeps working
-    without it. When provided, validates the token (reachable + has the `scan`
-    scope) and writes it to the machine-wide config so every account on the machine
-    authenticates with it. Returns False on a bad token or a failed write.
+    without it. When provided, validates the token (reachable + carries the scopes
+    the enabled protections need) and writes it to the machine-wide config so every
+    account on the machine authenticates with it.
+
+    `scan` is the hard requirement: without it the hooks cannot scan, so a missing
+    `scan` scope fails. The other scopes only degrade their own feature, so a missing
+    one is a warning, not a failure — the per-feature steps report their own outcome.
+    Returns False on a bad token, a missing `scan` scope, or a failed write.
     """
     token = _read_service_account_token()
     if token is None:
@@ -245,10 +268,27 @@ def _setup_service_account_auth(ctx: click.Context) -> bool:
         ui.display_warning(f"  the service-account token was rejected by {instance}.")
         return False
 
-    scopes = safe_response_json(response).get("scope", [])
-    if "scan" not in scopes:
-        ui.display_warning("  the service-account token is missing the `scan` scope.")
+    scopes = set(safe_response_json(response).get("scope", []))
+
+    # `scan` is required by the AI and git hooks — the core of setup.
+    if (not no_ai_hooks or not no_git_hooks) and _SCAN_SCOPE not in scopes:
+        ui.display_warning(
+            f"  the service-account token is missing the `{_SCAN_SCOPE}` scope, "
+            "required by the AI and git hooks."
+        )
         return False
+
+    # The remaining scopes only degrade their own feature — warn but still provision.
+    if not no_ai_hooks and _AI_DISCOVERY_SCOPE not in scopes:
+        ui.display_warning(
+            f"  the service-account token is missing the `{_AI_DISCOVERY_SCOPE}` "
+            "scope — the AI hook's MCP/discovery reporting will be skipped."
+        )
+    if not no_honeytokens and _HONEYTOKEN_SCOPE not in scopes:
+        ui.display_warning(
+            f"  the service-account token is missing the `{_HONEYTOKEN_SCOPE}` scope "
+            "— honeytoken planting will fail (Business or Enterprise plans only)."
+        )
 
     try:
         path = write_system_auth(instance, token)

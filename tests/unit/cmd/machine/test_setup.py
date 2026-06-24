@@ -326,7 +326,18 @@ class TestServiceAccountAuth:
             m_stream.return_value.read.return_value = " piped-token \n"
             assert _read_service_account_token() == "piped-token"
 
-    def _provision(self, *, ok=True, scopes=("scan",), write_exc=None):
+    _ALL_SCOPES = ("scan", "nhi:send-inventory", "honeytokens:write")
+
+    def _provision(
+        self,
+        *,
+        ok=True,
+        scopes=_ALL_SCOPES,
+        write_exc=None,
+        no_ai_hooks=False,
+        no_git_hooks=False,
+        no_honeytokens=False,
+    ):
         from ggshield.cmd.machine.setup import _setup_service_account_auth
 
         response = MagicMock(ok=ok)
@@ -346,7 +357,12 @@ class TestServiceAccountAuth:
             cfg.api_url = "https://api.x"
             cfg.user_config.insecure = False
             m_client.return_value.get.return_value = response
-            result = _setup_service_account_auth(MagicMock())
+            result = _setup_service_account_auth(
+                MagicMock(),
+                no_ai_hooks=no_ai_hooks,
+                no_git_hooks=no_git_hooks,
+                no_honeytokens=no_honeytokens,
+            )
         return result, m_write
 
     def test_noop_without_token(self):
@@ -355,11 +371,19 @@ class TestServiceAccountAuth:
         with patch(
             f"{self.BASE}._read_service_account_token", return_value=None
         ), patch(f"{self.BASE}.write_system_auth") as m_write:
-            assert _setup_service_account_auth(MagicMock()) is True
+            assert (
+                _setup_service_account_auth(
+                    MagicMock(),
+                    no_ai_hooks=False,
+                    no_git_hooks=False,
+                    no_honeytokens=False,
+                )
+                is True
+            )
         m_write.assert_not_called()
 
     def test_happy_path_validates_and_writes(self):
-        result, m_write = self._provision(ok=True, scopes=("scan", "honeytokens:write"))
+        result, m_write = self._provision()  # all scopes present
         assert result is True
         m_write.assert_called_once_with("https://x", "sa-token")
 
@@ -369,12 +393,30 @@ class TestServiceAccountAuth:
         m_write.assert_not_called()
 
     def test_rejects_missing_scan_scope(self):
-        result, m_write = self._provision(ok=True, scopes=("honeytokens:write",))
+        result, m_write = self._provision(scopes=("honeytokens:write",))
         assert result is False
         m_write.assert_not_called()
 
+    def test_missing_ai_scope_warns_but_provisions(self):
+        # AI discovery scope only degrades the AI hook's telemetry — warn, still write.
+        result, m_write = self._provision(scopes=("scan", "honeytokens:write"))
+        assert result is True
+        m_write.assert_called_once()
+
+    def test_missing_honeytoken_scope_warns_but_provisions(self):
+        result, m_write = self._provision(scopes=("scan", "nhi:send-inventory"))
+        assert result is True
+        m_write.assert_called_once()
+
+    def test_scan_not_required_when_hooks_disabled(self):
+        result, m_write = self._provision(
+            scopes=(), no_ai_hooks=True, no_git_hooks=True, no_honeytokens=True
+        )
+        assert result is True
+        m_write.assert_called_once()
+
     def test_write_failure_returns_false(self):
-        result, _m_write = self._provision(ok=True, write_exc=OSError("denied"))
+        result, _m_write = self._provision(write_exc=OSError("denied"))
         assert result is False
 
     def test_instance_flag_sets_cmdline_instance(self, cli_fs_runner: CliRunner):
