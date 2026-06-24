@@ -71,7 +71,9 @@ def write_system_auth(instance: str, token: str) -> Path:
     except OSError:
         pass
     path.write_text(
-        yaml.safe_dump({"instance": instance, "token": token}, default_flow_style=False),
+        yaml.safe_dump(
+            {"instance": instance, "token": token}, default_flow_style=False
+        ),
         encoding="utf-8",
     )
     os.chmod(path, 0o644)
