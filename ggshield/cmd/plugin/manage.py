@@ -8,7 +8,7 @@ import click
 
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core import ui
-from ggshield.core.config.enterprise_config import EnterpriseConfig
+from ggshield.core.config.enterprise_config import EnterpriseConfig, PluginConfig
 from ggshield.core.errors import ExitCode
 from ggshield.core.plugin.downloader import PluginDownloader, UninstallPermissionError
 
@@ -66,11 +66,24 @@ def disable_cmd(ctx: click.Context, plugin_name: str, **kwargs: Any) -> None:
     Disabled plugins remain installed but are not loaded when
     ggshield starts. Their features become unavailable.
 
+    Disabling is per-user: it writes your user config. Disabling a plugin
+    an admin enabled machine-wide records a per-user opt-out (the user
+    entry wins over the machine-wide one) rather than touching the shared
+    config.
+
     Example:
 
         ggshield plugin disable tokenscanner
     """
     enterprise_config = EnterpriseConfig.load()
+
+    # ``load()`` returns only the file this user writes (per-user when not
+    # root), so a plugin enabled machine-wide is absent here. Seed a
+    # disabled entry for it so disabling records a per-user opt-out instead
+    # of failing — load_effective() lets that entry win at runtime.
+    if plugin_name not in enterprise_config.plugins:
+        if plugin_name in EnterpriseConfig.load_effective().plugins:
+            enterprise_config.plugins[plugin_name] = PluginConfig(enabled=False)
 
     try:
         enterprise_config.disable_plugin(plugin_name)

@@ -6,6 +6,10 @@ from pathlib import Path
 from unittest import mock
 
 from ggshield.__main__ import cli
+from ggshield.core.config.enterprise_config import (
+    EnterpriseConfig,
+    get_enterprise_config_filepath,
+)
 from ggshield.core.errors import ExitCode
 from ggshield.core.plugin.downloader import UninstallPermissionError
 
@@ -165,6 +169,49 @@ class TestPluginDisable:
         assert result.exit_code == ExitCode.USAGE_ERROR
         assert "not configured" in result.output
         mock_config.save.assert_not_called()
+
+    def test_disable_machine_wide_plugin_writes_user_override(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a plugin enabled only machine-wide (system config), absent from
+            the per-user config
+        WHEN a non-root user runs 'ggshield plugin disable <plugin>'
+        THEN a per-user enabled:false override is written so the plugin ends up
+            effectively disabled, rather than erroring
+        """
+        monkeypatch.setattr(
+            "ggshield.core.config.enterprise_config.is_root", lambda: False
+        )
+        system_path = get_enterprise_config_filepath(system=True)
+        system_path.parent.mkdir(parents=True, exist_ok=True)
+        system_path.write_text("plugins:\n  machine_scan:\n    enabled: true\n")
+
+        result = cli_fs_runner.invoke(
+            cli, ["plugin", "disable", "machine_scan"], catch_exceptions=False
+        )
+
+        assert result.exit_code == ExitCode.SUCCESS
+        assert "Disabled plugin: machine_scan" in result.output
+        # The opt-out lives in the per-user config and wins at runtime.
+        assert EnterpriseConfig.load().is_plugin_enabled("machine_scan") is False
+        assert (
+            EnterpriseConfig.load_effective().is_plugin_enabled("machine_scan") is False
+        )
+
+    def test_disable_truly_unknown_plugin_still_errors(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """A plugin configured nowhere (neither per-user nor machine-wide) is a
+        typo; disabling it errors instead of writing a phantom override."""
+        monkeypatch.setattr(
+            "ggshield.core.config.enterprise_config.is_root", lambda: False
+        )
+
+        result = cli_fs_runner.invoke(cli, ["plugin", "disable", "ghost"])
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "not configured" in result.output
 
 
 class TestPluginUninstall:
