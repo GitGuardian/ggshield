@@ -92,6 +92,17 @@ class SecretScanner:
 
             return self._collect_results(scanner_ui, chunks_for_futures)
 
+    def _document_filename(self, scannable: Scannable) -> str:
+        """
+        Compute the filename sent to the API for `scannable`, truncated to the maximum
+        length the API accepts. When `filename_only` is set, only the basename is sent
+        so incidents don't record the full path.
+        """
+        filename = scannable.filename
+        if self.secret_config.filename_only:
+            filename = os.path.basename(filename) or filename
+        return filename[-_API_PATH_MAX_LENGTH:]
+
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[Scannable]
     ) -> ScanFuture:
@@ -100,7 +111,7 @@ class SecretScanner:
         """
         # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
         documents = [
-            {"document": x.content, "filename": x.filename[-_API_PATH_MAX_LENGTH:]}
+            {"document": x.content, "filename": self._document_filename(x)}
             for x in chunk
         ]
 

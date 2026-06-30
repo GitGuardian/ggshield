@@ -50,6 +50,10 @@ class SecretConfig(FilteredConfig):
     # of blocking git operations when the GitGuardian server is unreachable or
     # returns a 5xx. Defaults to True so upgrades keep blocking behavior.
     fail_on_server_error: bool = True
+    # When True, only the file name (not its full path) is sent to GitGuardian,
+    # so incidents record just the filename (e.g. `config.py` instead of
+    # `src/app/config.py`).
+    filename_only: bool = False
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
         """
@@ -80,6 +84,7 @@ class SecretConfig(FilteredConfig):
                     str(self.source_uuid) if self.source_uuid is not None else None
                 ),
                 "fail_on_server_error": self.fail_on_server_error,
+                "filename_only": self.filename_only,
             }
         )
 

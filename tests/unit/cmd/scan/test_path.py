@@ -558,6 +558,46 @@ class TestScanDirectory:
             for arg in scan_mock.call_args[0]
         )
 
+    @pytest.mark.parametrize("filename_only", (True, False))
+    @patch("pygitguardian.GGClient.multi_content_scan")
+    @my_vcr.use_cassette("test_scan_file")
+    def test_scan_path_filename_only(
+        self,
+        scan_mock: Mock,
+        filename_only,
+        cli_fs_runner: CliRunner,
+    ) -> None:
+        """
+        GIVEN a nested file to scan
+        WHEN executing a scan with or without --filename-only
+        THEN only the basename (resp. the full path) is sent to the API
+        """
+        path = Path("sub", "secret.txt")
+        path.parent.mkdir()
+        write_text(path, "Hello")
+
+        scan_result = MultiScanResult([])
+        scan_result.status_code = 200
+        scan_mock.return_value = scan_result
+
+        extra_args = ["--filename-only"] if filename_only else []
+        result = cli_fs_runner.invoke(
+            cli,
+            ["secret", "scan", "path", *extra_args, str(path)],
+        )
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+
+        scan_mock.assert_called_once()
+        documents = scan_mock.call_args[0][0]
+        assert len(documents) == 1
+        sent_filename = documents[0]["filename"]
+        if filename_only:
+            assert sent_filename == "secret.txt"
+        else:
+            # The full (resolved) path is sent, not just the basename.
+            assert sent_filename != "secret.txt"
+            assert sent_filename.endswith(os.path.join("sub", "secret.txt"))
+
     @patch("pygitguardian.GGClient.multi_content_scan")
     @my_vcr.use_cassette("test_scan_context_repository.yaml")
     def test_scan_path_with_fallback_repository_url(
