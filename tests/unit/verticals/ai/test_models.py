@@ -179,6 +179,28 @@ class TestParseServersBlock:
         assert self._parse({}) == []
         assert self._parse({"mcpServers": {}}) == []
 
+    def test_servers_as_string_path_loads_external_file(self, tmp_path: Path):
+        external = tmp_path / "external.json"
+        external.write_text(json.dumps({"ext-srv": {"command": "node", "args": []}}))
+        configs = self._parse({"mcpServers": str(external)})
+        assert len(configs) == 1
+        assert configs[0].name == "ext-srv"
+        assert configs[0].command == "node"
+
+    def test_servers_as_list_parses_each_block(self):
+        data = {
+            "mcpServers": [
+                {"s1": {"command": "node"}},
+                {"s2": {"command": "python"}},
+            ]
+        }
+        configs = self._parse(data)
+        assert len(configs) == 2
+        assert configs[0].name == "s1"
+        assert configs[0].command == "node"
+        assert configs[1].name == "s2"
+        assert configs[1].command == "python"
+
 
 # ---------------------------------------------------------------------------
 # Agent._load_file

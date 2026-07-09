@@ -249,7 +249,7 @@ class Agent(ABC):
 
     def _parse_servers_block(
         self,
-        data: Dict[str, Dict[str, Any]],
+        data: Dict[str, Any],
         scope: Scope,
         project: Optional[Path],
         display_name: Optional[str] = None,
@@ -262,6 +262,17 @@ class Agent(ABC):
         servers = data.get(
             "mcpServers", data.get("servers", data.get("mcp_servers", {}))
         )
+        # Theoretically, servers can also be a string (path to another file), or a list.
+        if isinstance(servers, str):
+            servers = self._load_file(Path(servers))
+            if servers is None:
+                return
+        elif isinstance(servers, list):
+            for server in servers:
+                yield from self._parse_servers_block(
+                    {"mcpServers": server}, scope, project, display_name
+                )
+            return
         for name, entry in servers.items():
             if "url" in entry:
                 if entry.get("transport") == "sse":
