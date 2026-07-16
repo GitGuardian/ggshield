@@ -289,7 +289,9 @@ class Agent(ABC):
             if not isinstance(entry, dict):
                 continue
             if "url" in entry:
-                if entry.get("transport") == "sse":
+                # The transport key is spelled "transport" or "type" depending
+                # on the assistant.
+                if entry.get("transport", entry.get("type")) == "sse":
                     transport = Transport.SSE
                 else:
                     transport = Transport.HTTP

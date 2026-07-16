@@ -178,6 +178,23 @@ class TestParseServersBlock:
         configs = self._parse(data)
         assert configs[0].transport == Transport.SSE
 
+    def test_url_entry_with_sse_type_key(self):
+        # Cursor spells the transport key "type" ("sse", "streamable-http").
+        data = {
+            "mcpServers": {"remote": {"url": "https://example.com/sse", "type": "sse"}}
+        }
+        configs = self._parse(data)
+        assert configs[0].transport == Transport.SSE
+
+    def test_url_entry_with_streamable_http_type_key(self):
+        data = {
+            "mcpServers": {
+                "remote": {"url": "https://example.com/mcp", "type": "streamable-http"}
+            }
+        }
+        configs = self._parse(data)
+        assert configs[0].transport == Transport.HTTP
+
     def test_empty_block_yields_nothing(self):
         assert self._parse({}) == []
         assert self._parse({"mcpServers": {}}) == []
