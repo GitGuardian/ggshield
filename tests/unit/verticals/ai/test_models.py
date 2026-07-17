@@ -264,6 +264,27 @@ class TestParseServersBlock:
         configs = self._parse(data, base_dir=tmp_path)
         assert [c.name for c in configs] == ["from-file", "inline-srv"]
 
+    def test_servers_as_list_with_wrapped_element(self):
+        data = {"mcpServers": [{"mcpServers": {"srv": {"command": "node"}}}]}
+        configs = self._parse(data)
+        assert [c.name for c in configs] == ["srv"]
+
+    def test_list_inside_referenced_file_not_followed(self, tmp_path: Path):
+        # A list in a referenced file could hold string elements, reopening
+        # file-to-file indirection; it is dropped like any non-map value.
+        external = tmp_path / "external.json"
+        external.write_text(json.dumps({"mcpServers": [{"srv": {"command": "node"}}]}))
+        assert self._parse({"mcpServers": str(external)}) == []
+
+    def test_relative_string_path_without_base_dir_yields_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        (tmp_path / "servers.json").write_text(
+            json.dumps({"mcpServers": {"srv": {"command": "node"}}})
+        )
+        monkeypatch.chdir(tmp_path)
+        assert self._parse({"mcpServers": "./servers.json"}) == []
+
     def test_non_dict_entry_skipped(self):
         data = {"mcpServers": {"weird": "oops", "ok": {"command": "node"}}}
         configs = self._parse(data)

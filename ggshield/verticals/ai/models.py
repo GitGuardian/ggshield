@@ -267,20 +267,32 @@ class Agent(ABC):
         # base_dir), or a list mixing paths and inline blocks.
         if isinstance(servers, str):
             path = Path(servers)
-            if base_dir is not None and not path.is_absolute():
+            if not path.is_absolute():
+                if base_dir is None:
+                    # Without an anchor a relative location would resolve
+                    # against the process cwd; drop it instead.
+                    return
                 path = base_dir / path
             if (loaded := self._load_file(path)) is None:
                 return
             # The referenced file may use the wrapped {"mcpServers": {...}}
-            # layout or the bare {name: entry} layout. A non-dict value below
-            # (e.g. file-to-file indirection) is dropped by the dict check.
+            # layout or the bare {name: entry} layout. Any other value below
+            # (str, or a list whose elements could be strings) is dropped by
+            # the dict check: following it would allow file-to-file
+            # indirection, which no known format uses and could loop.
             servers = loaded.get(
                 "mcpServers", loaded.get("servers", loaded.get("mcp_servers", loaded))
             )
         elif isinstance(servers, list):
             for server in servers:
+                # An element may itself be a wrapped block: don't double-wrap.
+                if not (
+                    isinstance(server, dict)
+                    and server.keys() & {"mcpServers", "servers", "mcp_servers"}
+                ):
+                    server = {"mcpServers": server}
                 yield from self._parse_servers_block(
-                    {"mcpServers": server}, scope, project, display_name, base_dir
+                    server, scope, project, display_name, base_dir
                 )
             return
         if not isinstance(servers, dict):
