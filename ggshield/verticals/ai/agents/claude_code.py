@@ -226,13 +226,16 @@ class Claude(Agent):
             yield from self._parse_servers_block(mcp_data, scope, project)
             return
 
-        # Fallback: inline mcpServers in the plugin manifest.
+        # Fallback: mcpServers in the plugin manifest (inline block, path to a
+        # config file, or a list of either).
         manifest = self._load_file(install_dir / ".claude-plugin" / "plugin.json")
         if not manifest:
             return
         inline = manifest.get("mcpServers")
-        if isinstance(inline, dict):
-            yield from self._parse_servers_block({"mcpServers": inline}, scope, project)
+        if inline is not None:
+            yield from self._parse_servers_block(
+                {"mcpServers": inline}, scope, project, base_dir=install_dir
+            )
 
     def _get_claudeai_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         """Yield MCP servers connected through the user's claude.ai account.

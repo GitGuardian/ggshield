@@ -184,14 +184,15 @@ class Cursor(Agent):
                 yield from self._parse_servers_block(mcp_data, Scope.USER, None)
                 return
 
-        # Fallback: inline mcpServers in the plugin manifest.
+        # Fallback: mcpServers in the plugin manifest (inline block, path to a
+        # config file, or a list of either).
         manifest = self._load_file(install_dir / ".cursor-plugin" / "plugin.json")
         if not manifest:
             return
         inline = manifest.get("mcpServers")
-        if isinstance(inline, dict):
+        if inline is not None:
             yield from self._parse_servers_block(
-                {"mcpServers": inline}, Scope.USER, None
+                {"mcpServers": inline}, Scope.USER, None, base_dir=install_dir
             )
 
     def _get_extension_mcp_configurations(self) -> Iterator[MCPConfiguration]:

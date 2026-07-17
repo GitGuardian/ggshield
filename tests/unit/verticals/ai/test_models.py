@@ -132,8 +132,11 @@ class TestParseServersBlock:
         data: Dict[str, Any],
         scope: Scope = Scope.USER,
         project: Optional[Path] = None,
+        base_dir: Optional[Path] = None,
     ) -> List[MCPConfiguration]:
-        return list(Cursor()._parse_servers_block(data, scope, project))
+        return list(
+            Cursor()._parse_servers_block(data, scope, project, base_dir=base_dir)
+        )
 
     def test_mcp_servers_key_stdio(self):
         data = {
@@ -200,6 +203,57 @@ class TestParseServersBlock:
         assert configs[0].command == "node"
         assert configs[1].name == "s2"
         assert configs[1].command == "python"
+
+    def test_servers_as_relative_string_path_resolved_against_base_dir(
+        self, tmp_path: Path
+    ):
+        sub = tmp_path / "mcp"
+        sub.mkdir()
+        (sub / "servers.json").write_text(
+            json.dumps({"mcpServers": {"rel-srv": {"command": "node"}}})
+        )
+        configs = self._parse({"mcpServers": "./mcp/servers.json"}, base_dir=tmp_path)
+        assert len(configs) == 1
+        assert configs[0].name == "rel-srv"
+
+    def test_servers_as_string_path_with_wrapped_layout(self, tmp_path: Path):
+        external = tmp_path / "external.json"
+        external.write_text(
+            json.dumps({"mcpServers": {"wrapped-srv": {"command": "node"}}})
+        )
+        configs = self._parse({"mcpServers": str(external)})
+        assert len(configs) == 1
+        assert configs[0].name == "wrapped-srv"
+        assert configs[0].command == "node"
+
+    def test_servers_as_string_path_chaining_not_followed(self, tmp_path: Path):
+        # A referenced file must hold a server map; indirection to yet another
+        # file is not part of any known format and must not loop.
+        chained = tmp_path / "chained.json"
+        chained.write_text(json.dumps({"mcpServers": str(chained)}))
+        assert self._parse({"mcpServers": str(chained)}) == []
+
+    def test_servers_as_list_with_string_elements(self, tmp_path: Path):
+        external = tmp_path / "external.json"
+        external.write_text(
+            json.dumps({"mcpServers": {"from-file": {"command": "node"}}})
+        )
+        data = {
+            "mcpServers": [
+                "./external.json",
+                {"inline-srv": {"command": "python"}},
+            ]
+        }
+        configs = self._parse(data, base_dir=tmp_path)
+        assert [c.name for c in configs] == ["from-file", "inline-srv"]
+
+    def test_non_dict_entry_skipped(self):
+        data = {"mcpServers": {"weird": "oops", "ok": {"command": "node"}}}
+        configs = self._parse(data)
+        assert [c.name for c in configs] == ["ok"]
+
+    def test_servers_as_unexpected_type_yields_nothing(self):
+        assert self._parse({"mcpServers": 42}) == []
 
 
 # ---------------------------------------------------------------------------

@@ -253,6 +253,7 @@ class Agent(ABC):
         scope: Scope,
         project: Optional[Path],
         display_name: Optional[str] = None,
+        base_dir: Optional[Path] = None,
     ) -> Iterator[MCPConfiguration]:
         """Utility function to parse a "mcpServer" block and return the MCP server entries.
 
@@ -262,18 +263,31 @@ class Agent(ABC):
         servers = data.get(
             "mcpServers", data.get("servers", data.get("mcp_servers", {}))
         )
-        # Theoretically, servers can also be a string (path to another file), or a list.
+        # Plugin manifests can also hold a path to a config file (relative to
+        # base_dir), or a list mixing paths and inline blocks.
         if isinstance(servers, str):
-            servers = self._load_file(Path(servers))
-            if servers is None:
+            path = Path(servers)
+            if base_dir is not None and not path.is_absolute():
+                path = base_dir / path
+            if (loaded := self._load_file(path)) is None:
                 return
+            # The referenced file may use the wrapped {"mcpServers": {...}}
+            # layout or the bare {name: entry} layout. A non-dict value below
+            # (e.g. file-to-file indirection) is dropped by the dict check.
+            servers = loaded.get(
+                "mcpServers", loaded.get("servers", loaded.get("mcp_servers", loaded))
+            )
         elif isinstance(servers, list):
             for server in servers:
                 yield from self._parse_servers_block(
-                    {"mcpServers": server}, scope, project, display_name
+                    {"mcpServers": server}, scope, project, display_name, base_dir
                 )
             return
+        if not isinstance(servers, dict):
+            return
         for name, entry in servers.items():
+            if not isinstance(entry, dict):
+                continue
             if "url" in entry:
                 if entry.get("transport") == "sse":
                     transport = Transport.SSE
