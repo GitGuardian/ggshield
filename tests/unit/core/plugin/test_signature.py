@@ -118,12 +118,12 @@ class TestVerifierIsPinnedToBundledRoot:
                 "ggshield.core.plugin.signature._bundled_verifier",
                 return_value=mock_verifier,
             ) as mock_bundled,
-            patch("ggshield.core.plugin.signature.Verifier", mock_verifier_cls),
-            patch("ggshield.core.plugin.signature.Bundle", mock_bundle_cls),
-            patch("ggshield.core.plugin.signature.AllOf", MagicMock()),
-            patch("ggshield.core.plugin.signature.OIDCIssuer", MagicMock()),
+            patch("sigstore.verify.Verifier", mock_verifier_cls),
+            patch("sigstore.models.Bundle", mock_bundle_cls),
+            patch("sigstore.verify.policy.AllOf", MagicMock()),
+            patch("sigstore.verify.policy.OIDCIssuer", MagicMock()),
             patch(
-                "ggshield.core.plugin.signature.GitHubWorkflowRepository",
+                "sigstore.verify.policy.GitHubWorkflowRepository",
                 MagicMock(),
             ),
         ):
@@ -165,18 +165,18 @@ class TestBundleVerification:
         """Patch the sigstore seams: the bundled/pinned verifier plus the
         bundle and policy helpers used by the signature module."""
         with (
-            patch("ggshield.core.plugin.signature.Bundle", mock_bundle_cls),
+            patch("sigstore.models.Bundle", mock_bundle_cls),
             patch(
                 "ggshield.core.plugin.signature._bundled_verifier",
                 return_value=mock_verifier,
             ),
-            patch("ggshield.core.plugin.signature.AllOf", mock_all_of_cls),
+            patch("sigstore.verify.policy.AllOf", mock_all_of_cls),
             patch(
-                "ggshield.core.plugin.signature.OIDCIssuer",
+                "sigstore.verify.policy.OIDCIssuer",
                 mock_oidc_issuer_cls,
             ),
             patch(
-                "ggshield.core.plugin.signature.GitHubWorkflowRepository",
+                "sigstore.verify.policy.GitHubWorkflowRepository",
                 mock_gh_repo_cls,
             ),
         ):
@@ -325,7 +325,7 @@ class TestBundledVerifier:
         _bundled_verifier.cache_clear()
         sentinel = MagicMock()
         try:
-            with patch("ggshield.core.plugin.signature.Verifier") as mock_verifier_cls:
+            with patch("sigstore.verify.Verifier") as mock_verifier_cls:
                 mock_verifier_cls.return_value = sentinel
                 result = _bundled_verifier()
         finally:
