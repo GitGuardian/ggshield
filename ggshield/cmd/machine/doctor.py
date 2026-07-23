@@ -30,6 +30,7 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 _SCAN_SCOPE = "scan"  # the AI and git hooks run `ggshield secret scan`
 _HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (granted only to Business)
 _ENDPOINT_SCOPE = "endpoints:send"  # the machine_scan plugin uploads endpoint data
+_AI_DISCOVER_SCOPE = "ai-discover:send"  # `ai discover` uploads AI agent discovery
 
 
 @dataclass
@@ -57,10 +58,10 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     Verifies the AI hooks and git hooks are installed, that no higher-precedence
     `core.hooksPath` override (e.g. Husky or lefthook) shadows ggshield's git hook
     in the current context, that the GitGuardian token is reachable and carries the
-    scopes the configured protections need (including `honeytokens:write`, granted
-    only on Business or Enterprise plans), and — when the `machine_scan` plugin is
-    installed — that the token has the endpoint scope (also Business/Enterprise-only)
-    and the native scanner loads.
+    scopes the configured protections need (including `honeytokens:write` and
+    `ai-discover:send`, granted only on Business or Enterprise plans), and — when
+    the `machine_scan` plugin is installed — that the token has the endpoint scope
+    (also Business/Enterprise-only) and the native scanner loads.
 
     This is read-only: it never installs, scans, or changes anything. Each failed
     check prints how to fix it (hooks via `ggshield machine setup` — except a
@@ -208,6 +209,12 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
             _HONEYTOKEN_SCOPE in scopes,
             "honeytoken protection — Business or Enterprise plans only",
             fix=_scope_fix(_HONEYTOKEN_SCOPE, paid_plan=True),
+        ),
+        Check(
+            f"Scope `{_AI_DISCOVER_SCOPE}`",
+            _AI_DISCOVER_SCOPE in scopes,
+            "AI agent discovery upload — Business or Enterprise plans only",
+            fix=_scope_fix(_AI_DISCOVER_SCOPE, paid_plan=True),
         ),
     ]
     if plugin_installed:
