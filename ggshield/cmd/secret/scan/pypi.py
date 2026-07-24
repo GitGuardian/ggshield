@@ -82,7 +82,12 @@ def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
     archive_path = temp_dir / best_match.link.filename
     try:
         _enforce_deadline(deadline)
-        _download_link(finder, best_match.link, archive_path, deadline)
+        _download_link(
+            finder=finder,
+            link=best_match.link,
+            dest=archive_path,
+            deadline=deadline,
+        )
     except Exception as exc:
         raise UnexpectedError(f'Failed to download "{package_name}": {exc}')
 
