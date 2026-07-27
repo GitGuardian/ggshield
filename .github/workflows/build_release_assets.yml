@@ -281,13 +281,13 @@ jobs:
         with:
           name: os-packages-${{ matrix.os }}
           path: |
-            packages/ggshield-*.gz
-            packages/ggshield-*.pkg
-            packages/ggshield-*.zip
-            packages/ggshield-*.rpm
-            packages/ggshield_*.deb
-            packages/ggshield.*.nupkg
-            packages/ggshield-*.msi
+            dist/ggshield-*.gz
+            dist/ggshield-*.pkg
+            dist/ggshield-*.zip
+            dist/ggshield-*.rpm
+            dist/ggshield_*.deb
+            dist/ggshield.*.nupkg
+            dist/ggshield-*.msi
 
   # Run some basic tests, the goal is to verify the ggshield binary has all the
   # libraries it needs to run
@@ -329,7 +329,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: os-packages-${{ matrix.runner }}
-          path: packages
+          path: dist
           merge-multiple: true
 
       - name: Setup
@@ -337,18 +337,18 @@ jobs:
         run: |
           case "${{ matrix.image }}" in
             debian:*|ubuntu:*)
-              dpkg -i packages/*.deb
+              dpkg -i dist/*.deb
               ;;
             rockylinux*)
-              rpm -i packages/*.rpm
+              rpm -i dist/*.rpm
               ;;
             opensuse*)
-              rpm -i packages/*.rpm
+              rpm -i dist/*.rpm
               ;;
             clearlinux*)
 
               # Unpack ggshield in /usr/local/ggshield
-              pkg_dir=$PWD/packages
+              pkg_dir=$PWD/dist
               mkdir /usr/local/ggshield
               cd /usr/local/ggshield
               tar --strip-components 1 -xf $pkg_dir/*.tar.gz
