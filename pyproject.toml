@@ -58,6 +58,7 @@ dependencies = [
     "keyring>=24.0.0,<26",
     "tomli>=2.4.0",
     "filelock>=3.19.1",
+    "unearth>=0.18.2",
 ]
 
 [project.urls]
