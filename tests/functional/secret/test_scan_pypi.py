@@ -16,11 +16,6 @@ pytestmark = pytest.mark.uses_gitguardian_api
         # tensorflow 2.5.0 requires Python <3.9, which no supported interpreter
         # satisfies. It must still download and scan: this guards #458, where
         # `pip download` refused packages incompatible with the running interpreter.
-        # It also ships a secret the backend flags (a CFTOKEN in
-        # python/training/ftrl.py), so a successful scan returns 1 (leaks found).
-        # A download/resolution failure would instead raise UnexpectedError with a
-        # different exit code, so `1` here proves the package was downloaded and
-        # scanned end-to-end.
         ("tensorflow==2.5.0", 1),
     ),
 )
