@@ -53,6 +53,15 @@ class Tool(Enum):
     OTHER = auto()
 
 
+def markdown_hard_breaks(text: str) -> str:
+    """Turn single newlines into markdown hard breaks (two trailing spaces)."""
+    lines = text.split("\n")
+    return "\n".join(
+        f"{line}  " if line and i + 1 < len(lines) and lines[i + 1] else line
+        for i, line in enumerate(lines)
+    )
+
+
 @dataclass
 class HookResult:
     """Result of a scan: allow or not."""

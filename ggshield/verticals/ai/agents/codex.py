@@ -51,7 +51,8 @@ class Codex(Agent):
     def output_result(self, result: HookResult) -> int:
         response: Dict[str, Any] = {}
         if result.block:
-            response["systemMessage"] = result.message
+            # Do NOT also set "systemMessage" here: Codex shows the decision
+            # reason in the transcript, so the message would appear twice.
             if result.payload.event_type == EventType.PRE_TOOL_USE:
                 response["hookSpecificOutput"] = {
                     "hookEventName": "PreToolUse",
