@@ -194,6 +194,14 @@ class TestCheckScopes:
         assert by_name["Scope `scan`"] is True
         assert by_name["Scope `honeytokens:write`"] is False
 
+    def test_ai_discover_scope_reported(self):
+        checks = _check_scopes(["scan"], plugin_installed=False)
+        by_name = {c.name: c.ok for c in checks}
+        assert by_name["Scope `ai-discover:send`"] is False
+        checks = _check_scopes(["scan", "ai-discover:send"], plugin_installed=False)
+        by_name = {c.name: c.ok for c in checks}
+        assert by_name["Scope `ai-discover:send`"] is True
+
     def test_endpoint_scope_only_with_plugin(self):
         without = _check_scopes(["scan"], plugin_installed=False)
         assert not any("endpoints:send" in c.name for c in without)
