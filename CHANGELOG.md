@@ -1,5 +1,153 @@
 # Changelog
 
+<a id='changelog-1.53.0'></a>
+
+## 1.53.0 — 2026-07-28
+
+### Added
+
+- `ggshield ai discover --activity` now also collects raw AI-agent activity
+  (transcript lines / database rows) from Claude Code, Codex, Cursor, Copilot
+  CLI and VSCode and ships it to GitGuardian, which scans the content and strips
+  secrets server-side. This is an experimental feature.
+
+- ggshield now officially supports Python 3.13: it is covered by the CI test matrix, advertised through the trove classifiers, and `pip install ggshield` works on a Python 3.13 interpreter.
+
+- AI discovery now sends whether hooks are installed globally, per agent.
+
+- `ggshield machine setup` sets up all of this machine's ggshield protections in one idempotent command: the AI hook for every detected AI coding assistant, the global git pre-commit/pre-push hooks, and a honeytoken. Each protection is on by default; drop one with `--no-ai-hooks` / `--no-git-hooks` / `--no-honeytokens`. Narrow which assistants get the AI hook with `--agent` / `--exclude-agent`. Replaces running `ggshield install -t <assistant>` once per agent.
+
+- `ggshield machine setup` now installs git hooks **machine-wide** (for every user) when run as root or with the new `--system` flag, instead of only for the invoking user. This makes MDM/fleet deployments work as expected: a single root-run `machine setup` sets git's system `core.hooksPath`, so every user on the machine is covered. Without root (and without `--system`) it keeps installing per-user as before.
+
+- `ggshield machine doctor` checks that this machine's ggshield protections are correctly set up: the AI hooks and git hooks are installed, the GitGuardian token is reachable and carries the scopes the configured protections need (`scan`, plus `honeytokens:write` and — when the `machine_scan` plugin is installed — `endpoints:send`, both of which require a Business or Enterprise plan), and that the plugin's native scanner loads. It is read-only, prints a specific fix for each failed check, and exits non-zero if any check fails, so it can gate an MDM rollout.
+
+- Scan requests now include `Machine-Id` and `Machine-Username` headers
+
+- AI scan requests now include the agent name in the headers sent to the scan route.
+
+- `ggshield machine doctor` now detects when a higher-precedence git `core.hooksPath` (a repo-local or user-global one, e.g. Husky or lefthook) shadows the ggshield git hook. Git uses only the most-specific `core.hooksPath`, so such an override silently bypasses ggshield's system/global hook — doctor reports it as a failed "Git hook precedence" check (per repo) instead of giving a false sense of coverage.
+- `ggshield machine setup` warns at install time when a `core.hooksPath` override takes precedence in the current context, so its git hook would be shadowed there.
+
+- New `--filename-only` flag for `ggshield secret scan`: when set, only the file name (not its full path) is sent to GitGuardian, so incidents record just the filename (e.g. `config.py` instead of `src/app/config.py`). Recursive scanning still works.
+
+- Plugins can now be installed machine-wide. Running `ggshield plugin install` or `ggshield plugin enable` as root writes to a shared system location so every user on the machine can load the plugin; non-root installs stay per-user as before. A user can still disable an admin-enabled plugin for themselves.
+
+- `install.sh` now offers to add the install dir to your `PATH` itself when it's missing, instead of only printing instructions: it detects bash, zsh, fish, and (independent of `$SHELL`) Nushell and PowerShell on Linux when installed, and updates the matching shell profile. Prompted with a default of yes, silent under `-y`, skippable with the new `--no-modify-path`. `uninstall.sh` reverses the edit.
+
+### Changed
+
+- Documented the install script at the top of the README's Installation section, with the `curl | bash` (Linux/macOS) and `irm | iex` / `curl` (Windows) one-liners and a pointer to `scripts/install/README.md` for the full options and uninstall.
+
+- The documented `curl | bash` install/uninstall one-liners no longer pass the redundant `--proto '=https'` and `--tlsv1.2` flags: the URLs are already `https://` and GitHub serves only TLS 1.2+, so they added nothing (`-sSfL`, including `-f`, is kept).
+
+- The README marks the install script as the recommended install method and shows an example that authenticates against the EU workspace or a self-hosted instance.
+
+- `ggshield auth login` now requests the `ai-discover:send` scope by default, enabling upload of AI discovery data to GitGuardian without requiring `--scopes ai-discover:send` explicitly.
+
+- Documented the Windows MSI installer in the README's Windows installation section, with the release-page download and `msiexec` install command.
+
+- The Linux/macOS install script now prints shell-specific guidance, as a visible warning, when `ggshield` won't be callable yet: either `~/.local/bin` is not on your `PATH`, or an older `ggshield` install shadows the new one. In both cases it gives the exact line to add for your shell (zsh/bash/fish/other) plus a reminder to restart your terminal, shown at the end of the run instead of a generic note buried mid-install.
+
+- The install-scripts README documents `-y`/`--yes` and `bash -s -- --purge -y` for unattended uninstall.
+
+- Relaxed the upper version bounds of several dependencies (`click`, `oauthlib`, `python-dotenv`, `pyyaml`, `requests` and `marshmallow-dataclass`) from the next minor release to the next major. This lets ggshield be installed alongside projects that require newer versions of these packages (for example `click` 8.2+) and lets users pull in dependency security fixes without waiting for a new ggshield release.
+
+- `ggshield machine doctor` now also verifies the token carries the
+  `ai-discover:send` scope, so a passing doctor run guarantees AI agent
+  discovery telemetry can be uploaded.
+
+- AI hook block messages now clearly state whether the secret already reached the agent, and add a "How to remediate" section with numbered steps and a `ggshield secret ignore --last-found` reminder for false positives. Known secrets link back to their GitGuardian incident. The block reason is now chosen from the event (UserPromptSubmit / PreToolUse / PostToolUse) before the tool, so a `PostToolUse` Read or MCP call is correctly reported as an actual leak instead of the "not executed yet" wording used before the tool call.
+
+- Updated `pygitguardian` to 1.33.1, now pulled from PyPI instead of a pinned git commit.
+
+### Deprecated
+
+- `ggshield install -t <assistant>` (installing the AI hook per assistant) is deprecated in favor of `ggshield machine setup`, which configures all detected assistants at once. The command still works but now prints a deprecation notice. `ggshield install` remains the way to install git hooks (`-t pre-commit` / `-t pre-push`).
+
+### Fixed
+
+- Windows uninstaller: the `Remove the standalone ggshield at …?` confirmation now shows the install path. PowerShell treated the `?` in `$ZipDir?` as part of the variable name, so the path (and the `?`) were dropped from the prompt.
+
+- `ggshield auth login` now reports a clear error when the token-exchange step receives a non-JSON HTTP response, instead of crashing with an opaque `AssertionError` and a raw traceback.
+
+- A self-hosted instance deployed under a `gitguardian.com` / `gitguardian.tech` domain is no longer misdetected as SaaS. Its API URL now correctly gets the `/exposed` prefix, so `ggshield auth login` and other API calls reach the backend instead of the static frontend.
+
+- README install and usage commands no longer include the leading `$` shell prompt, so copying them (via the GitHub or IDE copy button) yields a runnable command instead of `$ brew install ggshield`.
+
+- A GitGuardian-hosted (SaaS) instance whose dashboard/API hostname carries a `dashboard-` / `api-` prefix is now correctly detected as SaaS. Its API URL is built by swapping the host instead of getting a spurious `/exposed` prefix, so API calls reach the backend instead of the static frontend.
+
+- `ggshield api-status`, `ggshield auth login` and any command that reads token scopes now report a clear error when the GitGuardian API answers with a non-JSON body, instead of crashing with a raw `JSONDecodeError` traceback. This typically happens when the instance URL is wrong and the dashboard serves its HTML on a `2xx`.
+
+- The install scripts no longer fail when an outdated or unauthenticated `gh` cannot verify the build provenance attestation (the cause of installs aborting with `unsupported tlog public key type: PKIX_ED25519` on a `gh` older than 2.56.0). Build-provenance verification is now opt-in on both `install.sh` and `install.ps1`: the install relies on the mandatory sha256 checksum by default and prints the manual `gh attestation verify` command. Set `GGSHIELD_REQUIRE_ATTESTATION=1` (or `true`/`yes`/`on`) to require it — that runs the check and fails the install if `gh` is missing, older than 2.56.0, unauthenticated, or the provenance does not verify.
+
+- `uninstall.sh` no longer crashes and removes nothing when run with no controlling terminal (CI, cron, MDM/launchd/systemd rollback, containers). The confirmation prompt now detects an unusable `/dev/tty` and exits asking for `-y`, instead of aborting on an unbound variable under `set -u`.
+- The standalone installer no longer silently ignores `--plugin` when combined with `--install-only`; it warns that the plugin was not installed (because `--install-only` skips authentication) and prints the command to run later.
+
+- An enabled plugin that fails to load (for example when a native dependency is missing) is no longer silently ignored. `ggshield` now prints a warning naming the plugin and the reason its commands are unavailable, and `ggshield plugin list` reports the failure status.
+
+- `ggshield config migrate` now reports a clear, actionable error when no configuration file is found (for example when run from the wrong directory), instead of crashing with a raw traceback. The deprecation message pointing to this command now also includes the path to the file and shows how to migrate it from anywhere with `--config-path`.
+
+- ggshield now exits with a clear, actionable message when it is started on a Python interpreter older than 3.9 (for instance the system Python 3.6 shipped on RHEL 8 / CentOS 8), instead of crashing with a cryptic `ModuleNotFoundError` deep in startup.
+
+- Fixed global hook silently skipping the local pre-commit hook in git worktrees. In linked worktrees, `.git` is a file pointer, not a directory, so the previous `[ -f .git/hooks/<hook-type> ]` check always failed. The hook now uses `git rev-parse --git-common-dir` to resolve the correct hooks path.
+
+  **Existing installations must re-run `ggshield install --mode global --force`** to regenerate the hook script with the fix.
+
+- `ggshield secret scan pypi` no longer relies on an external `pip` executable, so it no longer crashes when `pip` is missing or only available as `pip3`, and it can now download and scan packages whose required Python version differs from the one running ggshield.
+
+- The machine identifier now reads and writes the shared `~/.ggshield/machine_id` cache that satori also uses, and the obsolete `~/.satori` fallback was removed. ggshield and satori now report a consistent machine identity, fixing honeytoken and discovery attribution when both tools run on the same machine.
+- Placeholder SMBIOS UUIDs reported by unconfigured or cloned firmware (all-zeros, all-Fs, the AMI default) are no longer used as the machine identifier — machines with such firmware fall back to the shared cache instead of all colliding on one identity.
+- The shared machine-id cache is now written with owner-only permissions and validated on the open file descriptor before being trusted, so the identifier stays stable under restrictive-umask setups and cannot be redirected through symlinks.
+
+- AI hooks no longer crash under Codex. Codex sends `transcript_path` as a
+  present-but-null field, which made agent detection raise a `TypeError` before
+  Codex could be recognized, so every `PreToolUse`/`PostToolUse` hook exited 1.
+  The detectors now treat a null `transcript_path` as absent, and the fail-open
+  safety net catches any detection error so a hook can never break the agent.
+
+- `ggshield ai discover` now finds MCP servers that Cursor, Claude Code and Codex plugins declare through a `mcpServers` manifest field holding an inline block, a path to a config file, or a list of either (e.g. the Datadog Cursor plugin), instead of silently skipping them.
+- `ggshield ai discover` now reports the SSE transport for MCP servers declared with the `"type": "sse"` spelling used by Cursor, instead of HTTP.
+
+- AI hook desktop notifications no longer crash the hook on macOS. The
+  notification is now delivered through native `osascript` on macOS, so it
+  works on Homebrew installs (which strip notifypy's bundled notifier) and on
+  Apple Silicon (notifypy's bundled applet is Intel-only and Apple-deprecated).
+  The whole notification step is also fully guarded, so a notifier failure can
+  never prevent the `PostToolUse` block decision from being emitted.
+
+- `ggshield install` for AI hooks no longer pins the hook to a non-existent
+  binary path. When ggshield was invoked by bare name (`ggshield`, the normal
+  pip/pipx/Homebrew case), `sys.argv[0]` is not rewritten by the shell, so the
+  hook command was resolved against the current directory and pointed nowhere —
+  the installed hooks then silently never ran. The running ggshield is now
+  resolved against the install-time `PATH` (or `sys.executable` for the frozen
+  standalone packages), so the hook command always points at a real binary.
+
+- AI hooks now scan the arguments of MCP and unrecognized tool calls for
+  secrets. Previously a `PreToolUse` event for such tools left the scanned
+  content empty, so a secret passed as a tool argument was sent to the
+  (potentially external) MCP server without being inspected. The serialized
+  tool input is now scanned, so such a secret is blocked like one in a shell
+  command.
+
+- AI hooks no longer lose scans under parallel execution. Each hook reads the
+  GitGuardian token from the OS keyring, and macOS rejects most _concurrent_
+  reads of the login Keychain, so a fan-out of hooks (parallel agents or
+  sub-agents, parallel tool calls) failed most reads with a spurious
+  authentication error and silently skipped scanning. Keyring reads are now
+  serialized with an advisory lock, so concurrent hooks all authenticate. No
+  effect on file-based (non-keyring) setups or on Windows.
+
+### Security
+
+- Updated `urllib3` to 2.7.0 on Python 3.10+ to address CVE-2026-44431 (sensitive headers forwarded across origins on proxied redirects) and CVE-2026-44432 (decompression-bomb safeguards bypassed in the streaming API). Python 3.9 keeps urllib3 2.6.3, its last supported release.
+
+- Bumped `cryptography` (48.0.1 on Python 3.10+, 46.0.7 on 3.9), `sigstore` (4.3.0 on 3.10+) and `pyOpenSSL` (26.2.0) to clear several advisories. cryptography 48.0.1 ships a patched OpenSSL (GHSA-537c-gmf6-5ccf) and fixes CVE-2026-26007, CVE-2026-34073 and CVE-2024-12797; the sigstore bump is required to unlock cryptography ≥ 48 and also resolves CVE-2026-24408; pyOpenSSL 26.2.0 resolves CVE-2026-27459 and CVE-2026-27448.
+
+- Bumped `pyjwt` to 2.13.0 (clears CVE-2026-48526, CVE-2026-32597, CVE-2026-48522 and CVE-2026-48524) and `idna` to 3.18 (clears CVE-2026-45409). Both still support Python 3.9, so the fixes apply on every supported interpreter.
+
+- Bumped `tuf` to 7.0.0 (clears GHSA-qp9x-wp8f-qgjj, platform-dependent delegation path matching). tuf 7 requires Python 3.10+, so installs on EOL Python 3.9 keep 6.0.0.
+
 <a id='changelog-1.52.2'></a>
 
 ## 1.52.2 — 2026-06-17
