@@ -1,5 +1,7 @@
+from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
@@ -217,6 +219,13 @@ class TestMachineSetupOrchestration:
 class TestSetupGitHooks:
     BASE = "ggshield.cmd.machine.setup"
 
+    @pytest.fixture(autouse=True)
+    def _no_shadow(self):
+        # Pin the core.hooksPath shadow check so these tests don't shell out to the
+        # real `git config`. Tests that exercise it override this.
+        with patch(f"{self.BASE}.get_shadowing_hooks_path", return_value=None):
+            yield
+
     # ``is_root`` is pinned False so the per-user branch is deterministic even when
     # the test runs as root (e.g. a CI container).
     @patch(f"{BASE}.is_root", return_value=False)
@@ -289,6 +298,24 @@ class TestSetupGitHooks:
         mock_dir.return_value = tmp_path
         assert _setup_git_hooks(system=False) is True  # root implies system scope
         assert mock_install.call_count == 2
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_warns_when_a_core_hookspath_override_shadows(
+        self, mock_dir, _mock_cfg, _mock_install, _mock_root, tmp_path, capsys
+    ):
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path
+        with patch(
+            f"{self.BASE}.get_shadowing_hooks_path",
+            return_value=Path("/repo/.husky/_"),
+        ):
+            _setup_git_hooks(system=False)
+        captured = capsys.readouterr()
+        assert "core.hooksPath override" in captured.out + captured.err
 
 
 class TestHoneytokenPlant:

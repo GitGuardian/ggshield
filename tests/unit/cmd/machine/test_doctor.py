@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
@@ -9,6 +10,7 @@ from ggshield.cmd.machine.doctor import (
     _check_ai_hooks,
     _check_auth_and_scopes,
     _check_git_hooks,
+    _check_git_hooks_precedence,
     _check_plugin_native,
     _check_scopes,
     _is_plugin_installed,
@@ -34,6 +36,9 @@ class TestDoctorCommand:
             f"{BASE}._check_ai_hooks", return_value=Check("AI hooks", ai_ok)
         ), patch(
             f"{BASE}._check_git_hooks", return_value=Check("Git hooks", git_ok)
+        ), patch(
+            f"{BASE}._check_git_hooks_precedence",
+            return_value=Check("Git hook precedence", True),
         ), patch(
             f"{BASE}._check_scopes", return_value=[Check("Scope", True)]
         ), patch(
@@ -189,6 +194,14 @@ class TestCheckScopes:
         assert by_name["Scope `scan`"] is True
         assert by_name["Scope `honeytokens:write`"] is False
 
+    def test_ai_discover_scope_reported(self):
+        checks = _check_scopes(["scan"], plugin_installed=False)
+        by_name = {c.name: c.ok for c in checks}
+        assert by_name["Scope `ai-discover:send`"] is False
+        checks = _check_scopes(["scan", "ai-discover:send"], plugin_installed=False)
+        by_name = {c.name: c.ok for c in checks}
+        assert by_name["Scope `ai-discover:send`"] is True
+
     def test_endpoint_scope_only_with_plugin(self):
         without = _check_scopes(["scan"], plugin_installed=False)
         assert not any("endpoints:send" in c.name for c in without)
@@ -239,3 +252,17 @@ class TestPluginChecks:
             check = _check_plugin_native()
         assert check.ok is False
         assert "bad arch" in check.detail
+
+
+class TestCheckGitHooksPrecedence:
+    def test_ok_when_no_shadow(self):
+        with patch(f"{BASE}.get_shadowing_hooks_path", return_value=None):
+            assert _check_git_hooks_precedence().ok is True
+
+    def test_fail_when_shadowed(self):
+        shadow = Path("/repo/.husky/_")
+        with patch(f"{BASE}.get_shadowing_hooks_path", return_value=shadow):
+            check = _check_git_hooks_precedence()
+        assert check.ok is False
+        # Use the rendered path (backslashes on Windows) so the assertion is portable.
+        assert str(shadow) in check.detail

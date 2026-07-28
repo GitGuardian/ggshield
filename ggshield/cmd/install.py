@@ -11,7 +11,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.dirs import get_data_dir, get_system_data_dir
 from ggshield.core.errors import UnexpectedError
-from ggshield.utils.git_shell import check_git_dir, git
+from ggshield.utils.git_shell import GitError, check_git_dir, get_git_root, git
 from ggshield.verticals.ai.installation import (
     AGENTS,
     check_ai_hook_authentication,
@@ -25,13 +25,18 @@ from ggshield.verticals.ai.installation import (
 # not make use of any Bash extension, such as double square brackets in
 # `if` statements.
 LOCAL_HOOK_SNIPPET = """
-if [ -f .git/hooks/{hook_type} ]; then
-    if ! .git/hooks/{hook_type} "$@"; then
+_ggshield_local_hook=$(git rev-parse --git-common-dir)/hooks/{hook_type}
+if [ -f "$_ggshield_local_hook" ]; then
+    if ! "$_ggshield_local_hook" "$@"; then
         echo 'Local {hook_type} hook failed, please see output above'
         exit 1
     fi
 fi
 """
+
+# The line `create_hook` writes into every ggshield-managed hook script; its presence
+# is how we recognize a hook (or hooks dir) as ggshield's own.
+GGSHIELD_HOOK_MARKER = "ggshield secret scan"
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -167,6 +172,85 @@ def get_system_hook_dir_path() -> Optional[Path]:
     except subprocess.CalledProcessError:
         return None
     return Path(click.format_filename(out)).expanduser()
+
+
+def get_configured_hook_dir_path() -> Optional[Path]:
+    """Return the ``core.hooksPath`` git would actually use in the current context.
+
+    Resolves git's normal precedence (local repo > global user > system). A relative
+    ``core.hooksPath`` (e.g. Husky's ``.husky/_``) is resolved against the repository
+    root, the way git itself interprets it, so the path is usable regardless of the
+    current working directory. Returns ``None`` when no ``core.hooksPath`` is
+    configured anywhere (git then uses ``.git/hooks``) or when git cannot be queried,
+    so callers — including the gating ``machine doctor`` — never crash on a git error.
+    """
+    try:
+        out = git(["config", "--get", "core.hooksPath"], ignore_git_config=False)
+    except (subprocess.CalledProcessError, GitError, OSError):
+        return None
+    path = Path(click.format_filename(out)).expanduser()
+    if not path.is_absolute():
+        repo_root = _get_repo_root()
+        if repo_root is not None:
+            path = repo_root / path
+    return path
+
+
+def _get_repo_root() -> Optional[Path]:
+    """Return the working tree root, or ``None`` when git cannot resolve it."""
+    try:
+        return get_git_root()
+    except (GitError, OSError):
+        return None
+
+
+def hook_invokes_ggshield(hook_path: Path) -> bool:
+    """Whether ``hook_path`` is an existing hook script that runs ggshield.
+
+    Single source of truth for recognizing a ggshield-managed hook by the marker line
+    ``create_hook`` writes. ``errors="ignore"`` only covers decoding, so an unreadable
+    file (permissions, a race between the ``is_file`` check and the read, a special
+    file) is treated as "not ggshield's" rather than crashing the gating ``doctor``.
+    """
+    try:
+        return hook_path.is_file() and GGSHIELD_HOOK_MARKER in hook_path.read_text(
+            errors="ignore"
+        )
+    except OSError:
+        return False
+
+
+def is_ggshield_hook_dir(hook_dir: Path) -> bool:
+    """Whether ``hook_dir`` holds (or, for Husky, sources) ggshield hook scripts.
+
+    For a Husky ``.husky/_`` directory the runnable hook lives in the parent
+    ``.husky/`` — that is where ``ggshield install --mode local`` writes its content
+    and what Husky's ``_`` wrappers source — so the parent is inspected too.
+    """
+    candidate_dirs = [hook_dir]
+    if is_husky_hooks_path(hook_dir):
+        candidate_dirs.append(hook_dir.parent)
+    return any(
+        hook_invokes_ggshield(directory / hook_type)
+        for directory in candidate_dirs
+        for hook_type in ("pre-commit", "pre-push")
+    )
+
+
+def get_shadowing_hooks_path() -> Optional[Path]:
+    """Return the effective ``core.hooksPath`` if it shadows ggshield's hook.
+
+    Git uses exactly one hooks directory — the most specific ``core.hooksPath`` wins.
+    So a repo-local or user-global ``core.hooksPath`` pointing at a non-ggshield
+    directory (e.g. Husky's ``.husky/_``) takes precedence over ggshield's
+    system/global install, and ggshield's hook never runs in that context. Returns
+    that overriding path, or ``None`` when ggshield's hook is the effective one (or no
+    ``core.hooksPath`` override is configured at all).
+    """
+    effective = get_configured_hook_dir_path()
+    if effective is None or is_ggshield_hook_dir(effective):
+        return None
+    return effective
 
 
 def install_local(hook_type: str, force: bool, append: bool) -> int:

@@ -3,7 +3,8 @@ import argparse
 import configparser
 import importlib
 import pkgutil
-from typing import Dict, ItemsView, List, Literal, Tuple, Union, cast
+import sys
+from typing import Any, Dict, ItemsView, List, Literal, Tuple, Union, cast
 
 from typing_extensions import NotRequired, TypedDict
 
@@ -142,9 +143,8 @@ def expand_modules(
 def expand_value(value: ValueType, key: str) -> ValueType:
     """Build the list with items expanded"""
     if isinstance(value, list):
-        typed_value = cast(List[str], value)
         return expand_modules(
-            values=typed_value,
+            values=value,
             ordered=key != "layers",
         )
 
@@ -174,7 +174,9 @@ def compute_contract_id(name: str) -> str:
     return f"importlinter:contract:{slug}"
 
 
-def normalize_contracts(config) -> Dict[str, Dict[str, Union[bool, str]]]:
+def normalize_contracts(
+    config: Dict[str, Any],
+) -> Dict[str, Dict[str, Union[bool, str]]]:
     """Build contracts from template and expand the globs"""
     normalized = {key: value for key, value in config.items() if key != CONTRACTS}
 
@@ -187,13 +189,19 @@ def normalize_contracts(config) -> Dict[str, Dict[str, Union[bool, str]]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("output", type=argparse.FileType("w"), nargs="?", default="-")
+    parser.add_argument("output", nargs="?", default="-")
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
     config.read_dict(normalize_contracts(STATIC_CONFIG))
-    args.output.write(f"{NOTICE}\n\n")
-    config.write(args.output)
+
+    if args.output == "-":
+        print(f"{NOTICE}\n\n", end="")
+        config.write(sys.stdout)
+    else:
+        with open(args.output, "w") as output:
+            output.write(f"{NOTICE}\n\n")
+            config.write(output)
 
 
 if __name__ == "__main__":

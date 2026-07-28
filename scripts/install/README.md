@@ -41,9 +41,13 @@ The script installs the standalone build (detecting OS/arch, including Rosetta 2
 
 On Linux/macOS, `~/.local/bin` is not on everyone's `PATH` (notably macOS, and
 Debian/Ubuntu add it only when the directory already existed at login). When it
-isn't, the script doesn't fail — it prints, for your shell, the exact line to
-add and reminds you to **restart your terminal** afterwards. Set `GGSHIELD_BIN_DIR`
-to a directory already on your `PATH` to skip that step.
+isn't, the script offers to fix it — detecting your shell (bash, zsh, fish, and,
+independent of `$SHELL`, Nushell and PowerShell on Linux when installed) and
+updating its profile, prompted with a default of yes (silent under `-y`).
+Decline, or pass `--no-modify-path`, and it falls back to printing the exact
+line to add yourself, with a reminder to **restart your terminal** afterwards.
+Set `GGSHIELD_BIN_DIR` to a directory already on your `PATH` to skip this
+entirely. `uninstall.sh` reverses any profile edit it made.
 
 The download is **checksum-verified** against the digest GitHub publishes for
 each asset (the install aborts if it cannot be verified). [Build provenance
@@ -64,6 +68,9 @@ Docker image `gitguardian/ggshield` or `pipx install ggshield`.
     --version X.Y.Z ggshield version to install (default: latest)
     --install-only  install ggshield only, skip auth and plugins
     --plugin NAME   install this ggshield plugin (repeatable)
+    --no-modify-path
+                    don't offer to add the install dir to PATH; only print
+                    instructions
 ```
 
 Pass options through the pipe with `bash -s --`:

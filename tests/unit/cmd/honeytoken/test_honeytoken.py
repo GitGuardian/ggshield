@@ -173,4 +173,4 @@ def test_honeytoken_create_error_403(
     )
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     mock.assert_all_requests_happened()
-    assert expected_stdout in result.stdout
+    assert expected_stdout in result.output

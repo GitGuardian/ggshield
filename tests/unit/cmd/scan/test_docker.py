@@ -191,7 +191,7 @@ secret:
             )
 
             if json_output:
-                output = json.loads(result.output)
+                output = json.loads(result.stdout)
                 if not ignore_secret_file:
                     assert len(output["entities_with_incidents"]) == 1
                 else:

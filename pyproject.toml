@@ -33,19 +33,22 @@ license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
     "platformdirs~=4.2",
+    # NB: kept at a tight bound on purpose — charset-normalizer 3.2+ changed its
+    # encoding detection and mis-decodes some valid UTF-8 content, which would
+    # degrade secret scanning (see _decode_bytes in core/scan/scannable.py).
     "charset-normalizer~=3.1.0",
-    "click~=8.1.0",
+    "click>=8.1.0,<9",
     "configupdater>=3.2,<4",
     "cryptography>=43.0.1,<49",
     "marshmallow>=3.18,<5",
-    "marshmallow-dataclass~=8.7.0",
-    "oauthlib~=3.2.1",
+    "marshmallow-dataclass>=8.7.0,<9",
+    "oauthlib>=3.2.1,<4",
     "packaging>=22.0",
     "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@2c89d05d6ca1abd4f660bb0cd656216c12c200b1",
     "pyjwt>=2.13.0,<3",
-    "python-dotenv~=0.21.0",
-    "pyyaml~=6.0.1",
-    "requests~=2.32.0",
+    "python-dotenv>=0.21.0,<2",
+    "pyyaml>=6.0.1,<7",
+    "requests>=2.32.0,<3",
     "rich~=13.0",
     "sigstore>=4.0.0,<5",
     "typing-extensions~=4.14",
@@ -55,6 +58,7 @@ dependencies = [
     "keyring>=24.0.0,<26",
     "tomli>=2.4.0",
     "filelock>=3.19.1",
+    "unearth>=0.18.2",
 ]
 
 [project.urls]
@@ -139,6 +143,9 @@ format = "md"
 md_header_level = "2"
 insert_marker = "# Changelog"
 
+[tool.ty.src]
+include = ["ggshield/", "scripts/"]
+
 [dependency-groups]
 tests = [
     "pytest-mock",
@@ -167,5 +174,6 @@ dev = [
     "check-wheel-contents",
     "ipython>=8.12.3",
     "ipdb>=0.13.13",
+    "ty>=0.0.32",
 ]
 standalone = ["pyinstaller==6.7.0"]

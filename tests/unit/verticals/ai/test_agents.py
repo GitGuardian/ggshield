@@ -270,6 +270,55 @@ class TestCursorGetPluginMcpConfigurations:
         assert configs[0].transport == Transport.SSE
         assert configs[0].url == "https://example.com/mcp"
 
+    def test_manifest_string_path_with_custom_filename(self, tmp_path: Path):
+        # Real-world case (datadog-labs/cursor-plugin): the manifest points to
+        # a custom-named config file at the plugin root.
+        config_folder = tmp_path / ".cursor"
+        install_dir = config_folder / "plugins" / "cache" / "owner" / "dd" / "v1"
+        install_dir.mkdir(parents=True)
+        (install_dir / ".cursor-plugin").mkdir()
+        (install_dir / ".cursor-plugin" / "plugin.json").write_text(
+            json.dumps({"name": "dd", "mcpServers": "./.dd_cursor_mcp.json"})
+        )
+        (install_dir / ".dd_cursor_mcp.json").write_text(
+            json.dumps({"mcpServers": {"datadog": {"command": "npx"}}})
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_plugin_mcp_configurations())
+
+        assert len(configs) == 1
+        assert configs[0].name == "datadog"
+        assert configs[0].command == "npx"
+
+    def test_manifest_array_of_path_and_inline(self, tmp_path: Path):
+        config_folder = tmp_path / ".cursor"
+        install_dir = config_folder / "plugins" / "local" / "mixed"
+        install_dir.mkdir(parents=True)
+        (install_dir / ".cursor-plugin").mkdir()
+        (install_dir / ".cursor-plugin" / "plugin.json").write_text(
+            json.dumps(
+                {
+                    "name": "mixed",
+                    "mcpServers": [
+                        "./mcp/remote.json",
+                        {"inline-srv": {"command": "npx"}},
+                    ],
+                }
+            )
+        )
+        (install_dir / "mcp").mkdir()
+        (install_dir / "mcp" / "remote.json").write_text(
+            json.dumps({"mcpServers": {"from-file": {"url": "https://e.com/mcp"}}})
+        )
+
+        cursor = Cursor()
+        with self._patch(cursor, config_folder):
+            configs = list(cursor._get_plugin_mcp_configurations())
+
+        assert sorted(c.name for c in configs) == ["from-file", "inline-srv"]
+
     def test_plugin_without_mcp_servers_yields_nothing(self, tmp_path: Path):
         config_folder = tmp_path / ".cursor"
         install_dir = (
@@ -691,6 +740,35 @@ class TestClaudeGetPluginMcpConfigurations:
         assert configs[0].name == "inline-srv"
         assert configs[0].transport == Transport.SSE
         assert configs[0].url == "https://example.com/mcp"
+
+    def test_manifest_string_path_resolved_against_install_dir(self, tmp_path: Path):
+        config_folder = self._setup(tmp_path)
+        install_dir = self._make_plugin(config_folder, "pathy@official")
+        (install_dir / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps({"name": "pathy", "mcpServers": "./custom-mcp.json"})
+        )
+        (install_dir / "custom-mcp.json").write_text(
+            json.dumps({"mcpServers": {"pathy-srv": {"command": "node"}}})
+        )
+        (config_folder / "plugins" / "installed_plugins.json").write_text(
+            json.dumps(
+                {
+                    "plugins": {
+                        "pathy@official": [
+                            {"scope": "user", "installPath": str(install_dir)}
+                        ]
+                    }
+                }
+            )
+        )
+
+        claude = Claude()
+        with self._patch(claude, config_folder):
+            configs = list(claude._get_plugin_mcp_configurations())
+
+        assert len(configs) == 1
+        assert configs[0].name == "pathy-srv"
+        assert configs[0].command == "node"
 
     def test_missing_install_dir_skipped(self, tmp_path: Path):
         config_folder = self._setup(tmp_path)
@@ -1204,6 +1282,140 @@ class TestCodexGetCodexPluginMcpConfigurations:
         assert len(configs) == 1
         assert configs[0].transport == Transport.HTTP
         assert configs[0].url == "https://example.com/mcp"
+
+    def test_bare_layout_in_mcp_json(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        plugin_dir.mkdir()
+        # Bare layout (no "mcpServers" wrapper)
+        (plugin_dir / ".mcp.json").write_text(
+            json.dumps({"my-srv": {"command": "node", "args": ["index.js"]}})
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "my-srv"
+        assert configs[0].transport == Transport.STDIO
+        assert configs[0].command == "node"
+
+    def test_inline_mcp_servers_in_manifest(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        manifest_dir = plugin_dir / ".codex-plugin"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "package.json").write_text(
+            json.dumps(
+                {
+                    "interface": {"displayName": "Inline Plugin"},
+                    "mcpServers": {
+                        "inline-srv": {
+                            "url": "https://example.com/mcp",
+                            "transport": "sse",
+                        }
+                    },
+                }
+            )
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "inline-srv"
+        assert configs[0].transport == Transport.SSE
+        assert configs[0].url == "https://example.com/mcp"
+        assert configs[0].display_name == "Inline Plugin"
+
+    def test_manifest_string_path_with_custom_filename(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        manifest_dir = plugin_dir / ".codex-plugin"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "package.json").write_text(
+            json.dumps({"mcpServers": "./custom_mcp.json"})
+        )
+        (plugin_dir / "custom_mcp.json").write_text(
+            json.dumps({"mcpServers": {"custom": {"command": "npx"}}})
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "custom"
+        assert configs[0].command == "npx"
+
+    def test_manifest_string_path_to_bare_layout_file(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        manifest_dir = plugin_dir / ".codex-plugin"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "package.json").write_text(
+            json.dumps({"mcpServers": "./custom_mcp.json"})
+        )
+        # Bare layout (no "mcpServers" wrapper) in the referenced file
+        (plugin_dir / "custom_mcp.json").write_text(
+            json.dumps({"bare-srv": {"command": "python", "args": ["srv.py"]}})
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "bare-srv"
+        assert configs[0].command == "python"
+
+    def test_manifest_array_of_path_and_inline(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        manifest_dir = plugin_dir / ".codex-plugin"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "package.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": [
+                        "./mcp/remote.json",
+                        {"inline-srv": {"command": "npx"}},
+                    ],
+                }
+            )
+        )
+        (plugin_dir / "mcp").mkdir()
+        (plugin_dir / "mcp" / "remote.json").write_text(
+            json.dumps({"mcpServers": {"from-file": {"url": "https://e.com/mcp"}}})
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert sorted(c.name for c in configs) == ["from-file", "inline-srv"]
+
+    def test_manifest_without_mcp_servers_falls_back_to_mcp_json(self, tmp_path: Path):
+        plugin_dir = tmp_path / "plugin"
+        manifest_dir = plugin_dir / ".codex-plugin"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "package.json").write_text(
+            json.dumps({"interface": {"displayName": "Skills Plugin"}})
+        )
+        (plugin_dir / ".mcp.json").write_text(
+            json.dumps({"mcpServers": {"default-srv": {"command": "node"}}})
+        )
+
+        codex = Codex()
+        configs = list(
+            codex._get_codex_plugin_mcp_configurations(plugin_dir, Scope.USER)
+        )
+
+        assert len(configs) == 1
+        assert configs[0].name == "default-srv"
+        assert configs[0].display_name == "Skills Plugin"
 
 
 # ===========================================================================

@@ -9,7 +9,9 @@ from ggshield.cmd.install import (
     get_default_global_hook_dir_path,
     get_default_system_hook_dir_path,
     get_global_hook_dir_path,
+    get_shadowing_hooks_path,
     get_system_hook_dir_path,
+    hook_invokes_ggshield,
 )
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -28,6 +30,7 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 _SCAN_SCOPE = "scan"  # the AI and git hooks run `ggshield secret scan`
 _HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (granted only to Business)
 _ENDPOINT_SCOPE = "endpoints:send"  # the machine_scan plugin uploads endpoint data
+_AI_DISCOVER_SCOPE = "ai-discover:send"  # `ai discover` uploads AI agent discovery
 
 
 @dataclass
@@ -52,16 +55,20 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Check that this machine's ggshield protections are correctly set up.
 
-    Verifies the AI hooks and git hooks are installed, that the GitGuardian token
-    is reachable and carries the scopes the configured protections need (including
-    `honeytokens:write`, granted only on Business or Enterprise plans), and — when
+    Verifies the AI hooks and git hooks are installed, that no higher-precedence
+    `core.hooksPath` override (e.g. Husky or lefthook) shadows ggshield's git hook
+    in the current context, that the GitGuardian token is reachable and carries the
+    scopes the configured protections need (including `honeytokens:write` and
+    `ai-discover:send`, granted only on Business or Enterprise plans), and — when
     the `machine_scan` plugin is installed — that the token has the endpoint scope
     (also Business/Enterprise-only) and the native scanner loads.
 
     This is read-only: it never installs, scans, or changes anything. Each failed
-    check prints how to fix it (hooks via `ggshield machine setup`, scopes via a
-    token that carries them, the plugin via `ggshield plugin install`). Exits
-    non-zero if any check fails, so it can gate an MDM rollout.
+    check prints how to fix it (hooks via `ggshield machine setup` — except a
+    shadowing `core.hooksPath`, which git precedence means must be integrated into
+    that hook manager or unset; scopes via a token that carries them; the plugin via
+    `ggshield plugin install`). Exits non-zero if any check fails, so it can gate an
+    MDM rollout.
     """
     config = ContextObj.get(ctx).config
 
@@ -71,6 +78,7 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     checks: List[Check] = [auth_check]
     checks.append(_check_ai_hooks())
     checks.append(_check_git_hooks())
+    checks.append(_check_git_hooks_precedence())
     checks.extend(_check_scopes(scopes, plugin_installed))
     if plugin_installed:
         checks.append(_check_plugin_native())
@@ -139,14 +147,32 @@ def _check_git_hooks() -> Check:
     return Check("Git hooks", True, "global/system pre-commit and pre-push configured")
 
 
+def _check_git_hooks_precedence() -> Check:
+    """Catch a `core.hooksPath` override that shadows ggshield's hook.
+
+    Git uses only the most-specific `core.hooksPath`, so a repo-local or user-global
+    one (e.g. Husky) silently bypasses ggshield's system/global hook — installed but
+    never run. This is per-context: run in a repo to check that repo. Note this is the
+    one thing `machine setup` cannot fix (git precedence); the hook must be integrated
+    into the other tool, or the override unset.
+    """
+    shadow = get_shadowing_hooks_path()
+    if shadow is None:
+        return Check(
+            "Git hook precedence", True, "no core.hooksPath override shadows ggshield"
+        )
+    return Check(
+        "Git hook precedence",
+        False,
+        f"core.hooksPath points to {shadow} (e.g. Husky/lefthook) — git uses it "
+        "instead, so ggshield's hook will NOT run in this context",
+        fix="integrate ggshield into that hook manager, or unset the overriding "
+        "core.hooksPath; commits are still scanned server-side by GitGuardian",
+    )
+
+
 def _ggshield_hook_present(hook_dirs: List[Any], hook_type: str) -> bool:
-    for hook_dir in hook_dirs:
-        hook_path = hook_dir / hook_type
-        if hook_path.is_file() and "ggshield secret scan" in hook_path.read_text(
-            errors="ignore"
-        ):
-            return True
-    return False
+    return any(hook_invokes_ggshield(hook_dir / hook_type) for hook_dir in hook_dirs)
 
 
 def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[Check]:
@@ -183,6 +209,12 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
             _HONEYTOKEN_SCOPE in scopes,
             "honeytoken protection — Business or Enterprise plans only",
             fix=_scope_fix(_HONEYTOKEN_SCOPE, paid_plan=True),
+        ),
+        Check(
+            f"Scope `{_AI_DISCOVER_SCOPE}`",
+            _AI_DISCOVER_SCOPE in scopes,
+            "AI agent discovery upload — Business or Enterprise plans only",
+            fix=_scope_fix(_AI_DISCOVER_SCOPE, paid_plan=True),
         ),
     ]
     if plugin_installed:

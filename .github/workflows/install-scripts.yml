@@ -1,0 +1,42 @@
+name: Install scripts
+
+# Only runs against scripts/install: the bats suite sources install.sh /
+# uninstall.sh and drives fish/nu/pwsh with fake stub binaries, so it needs
+# no real shell installed beyond bats itself, and no network.
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/install/**'
+      - '.github/workflows/install-scripts.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/install/**'
+      - '.github/workflows/install-scripts.yml'
+
+jobs:
+  bats:
+    name: bats (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ubuntu 22.04's `bats` apt package is 1.2.1 (2019), missing features
+      # the test suite relies on (bats_require_minimum_version, `run !`).
+      # Install a current bats-core instead of depending on distro packaging.
+      - uses: bats-core/bats-action@4.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Run install-script tests
+        run: bats scripts/install/tests/

@@ -41,6 +41,7 @@ Only metadata such as call time, request size and scan mode is stored from scans
   - [Manual setup](#manual-setup)
 - [Getting started](#getting-started)
   - [Secrets](#secrets)
+  - [Migrating a legacy configuration file](#migrating-a-legacy-configuration-file)
 - [Integrations](#integrations)
   - [AI coding assistants](#ai-coding-assistants)
 - [Learn more](#learn-more)
@@ -207,6 +208,22 @@ You can now use `ggshield` to search for secrets:
 - in Docker images (`docker` command must be available): `ggshield secret scan docker ubuntu:22.04`
 - in Pypi packages (`pip` command must be available): `ggshield secret scan pypi flask`
 - and more, have a look at `ggshield secret scan --help` output for details.
+
+## Migrating a legacy configuration file
+
+If `ggshield` reports that your `.gitguardian.yaml` (or `.gitguardian.yml`) config file uses a deprecated format, migrate it to the latest version with:
+
+```shell
+ggshield config migrate
+```
+
+By default, this looks for the configuration file in the current directory, so run it from the directory containing the file. To run it from anywhere, point `ggshield` to the file explicitly:
+
+```shell
+ggshield --config-path path/to/.gitguardian.yaml config migrate
+```
+
+The previous version of the file is kept as a `.old` backup next to it.
 
 # Integrations
 

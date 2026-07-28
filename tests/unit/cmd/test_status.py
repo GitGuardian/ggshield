@@ -22,7 +22,7 @@ def test_quota(cli_fs_runner, quota_json_schema):
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
 
-    dct = json.loads(result.output)
+    dct = json.loads(result.stdout)
     jsonschema.validate(dct, quota_json_schema)
 
     assert dct["count"] + dct["remaining"] == dct["limit"]
@@ -35,7 +35,7 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert_invoke_ok(result)
 
-    dct = json.loads(result.output)
+    dct = json.loads(result.stdout)
     jsonschema.validate(dct, api_status_json_schema)
 
     assert (
@@ -99,7 +99,7 @@ def test_api_status_sources(_, __, hs_mock, cli_fs_runner, tmp_path, monkeypatch
                 cmd.extend(["--instance", instance])
             result = cli_fs_runner.invoke(cli, cmd, color=False, env=env)
 
-        json_res = json.loads(result.output)
+        json_res = json.loads(result.stdout)
         return json_res["instance_source"], json_res["api_key_source"]
 
     env: dict[str, str | None] = {

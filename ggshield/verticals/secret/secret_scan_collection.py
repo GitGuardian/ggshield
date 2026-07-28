@@ -1,19 +1,10 @@
 import hashlib
 import operator
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import (
-    Counter,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from pygitguardian import GGClient
 from pygitguardian.models import (
@@ -157,7 +148,7 @@ class Result:
     def censor(self) -> None:
         for secret in self.secrets:
             for extended_match in secret.matches:
-                cast(ExtendedMatch, extended_match).censor()
+                extended_match.censor()
         for extended_match in self.filtered_out_matches:
             extended_match.censor()
 

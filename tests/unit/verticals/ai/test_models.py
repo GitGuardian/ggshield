@@ -1,14 +1,15 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Literal, Optional
 from unittest.mock import patch
 
 import pytest
-from pygitguardian.models import MCPConfiguration
+from pygitguardian.models import AIDiscovery, MCPActivityRequest, MCPConfiguration
 
 from ggshield.core.scan import File, StringScannable
 from ggshield.verticals.ai.agents import Cursor
 from ggshield.verticals.ai.models import (
+    Agent,
     EventType,
     HookPayload,
     HookResult,
@@ -131,8 +132,11 @@ class TestParseServersBlock:
         data: Dict[str, Any],
         scope: Scope = Scope.USER,
         project: Optional[Path] = None,
+        base_dir: Optional[Path] = None,
     ) -> List[MCPConfiguration]:
-        return list(Cursor()._parse_servers_block(data, scope, project))
+        return list(
+            Cursor()._parse_servers_block(data, scope, project, base_dir=base_dir)
+        )
 
     def test_mcp_servers_key_stdio(self):
         data = {
@@ -174,9 +178,143 @@ class TestParseServersBlock:
         configs = self._parse(data)
         assert configs[0].transport == Transport.SSE
 
+    def test_url_entry_with_sse_type_key(self):
+        # Cursor spells the transport key "type" ("sse", "streamable-http").
+        data = {
+            "mcpServers": {"remote": {"url": "https://example.com/sse", "type": "sse"}}
+        }
+        configs = self._parse(data)
+        assert configs[0].transport == Transport.SSE
+
+    def test_url_entry_with_streamable_http_type_key(self):
+        data = {
+            "mcpServers": {
+                "remote": {"url": "https://example.com/mcp", "type": "streamable-http"}
+            }
+        }
+        configs = self._parse(data)
+        assert configs[0].transport == Transport.HTTP
+
     def test_empty_block_yields_nothing(self):
         assert self._parse({}) == []
         assert self._parse({"mcpServers": {}}) == []
+
+    def test_servers_as_string_path_loads_external_file(self, tmp_path: Path):
+        external = tmp_path / "external.json"
+        external.write_text(json.dumps({"ext-srv": {"command": "node", "args": []}}))
+        configs = self._parse({"mcpServers": str(external)})
+        assert len(configs) == 1
+        assert configs[0].name == "ext-srv"
+        assert configs[0].command == "node"
+
+    def test_servers_as_list_parses_each_block(self):
+        data = {
+            "mcpServers": [
+                {"s1": {"command": "node"}},
+                {"s2": {"command": "python"}},
+            ]
+        }
+        configs = self._parse(data)
+        assert len(configs) == 2
+        assert configs[0].name == "s1"
+        assert configs[0].command == "node"
+        assert configs[1].name == "s2"
+        assert configs[1].command == "python"
+
+    def test_servers_as_relative_string_path_resolved_against_base_dir(
+        self, tmp_path: Path
+    ):
+        sub = tmp_path / "mcp"
+        sub.mkdir()
+        (sub / "servers.json").write_text(
+            json.dumps({"mcpServers": {"rel-srv": {"command": "node"}}})
+        )
+        configs = self._parse({"mcpServers": "./mcp/servers.json"}, base_dir=tmp_path)
+        assert len(configs) == 1
+        assert configs[0].name == "rel-srv"
+
+    def test_servers_as_string_path_with_wrapped_layout(self, tmp_path: Path):
+        external = tmp_path / "external.json"
+        external.write_text(
+            json.dumps({"mcpServers": {"wrapped-srv": {"command": "node"}}})
+        )
+        configs = self._parse({"mcpServers": str(external)})
+        assert len(configs) == 1
+        assert configs[0].name == "wrapped-srv"
+        assert configs[0].command == "node"
+
+    def test_servers_as_string_path_chaining_not_followed(self, tmp_path: Path):
+        # A referenced file must hold a server map; indirection to yet another
+        # file is not part of any known format and must not loop.
+        chained = tmp_path / "chained.json"
+        chained.write_text(json.dumps({"mcpServers": str(chained)}))
+        assert self._parse({"mcpServers": str(chained)}) == []
+
+    def test_servers_as_list_with_string_elements(self, tmp_path: Path):
+        external = tmp_path / "external.json"
+        external.write_text(
+            json.dumps({"mcpServers": {"from-file": {"command": "node"}}})
+        )
+        data = {
+            "mcpServers": [
+                "./external.json",
+                {"inline-srv": {"command": "python"}},
+            ]
+        }
+        configs = self._parse(data, base_dir=tmp_path)
+        assert [c.name for c in configs] == ["from-file", "inline-srv"]
+
+    def test_servers_as_list_with_wrapped_element(self):
+        data = {"mcpServers": [{"mcpServers": {"srv": {"command": "node"}}}]}
+        configs = self._parse(data)
+        assert [c.name for c in configs] == ["srv"]
+
+    def test_list_inside_referenced_file_not_followed(self, tmp_path: Path):
+        # A list in a referenced file could hold string elements, reopening
+        # file-to-file indirection; it is dropped like any non-map value.
+        external = tmp_path / "external.json"
+        external.write_text(json.dumps({"mcpServers": [{"srv": {"command": "node"}}]}))
+        assert self._parse({"mcpServers": str(external)}) == []
+
+    def test_relative_string_path_without_base_dir_yields_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        (tmp_path / "servers.json").write_text(
+            json.dumps({"mcpServers": {"srv": {"command": "node"}}})
+        )
+        monkeypatch.chdir(tmp_path)
+        assert self._parse({"mcpServers": "./servers.json"}) == []
+
+    def test_non_dict_entry_skipped(self):
+        data = {"mcpServers": {"weird": "oops", "ok": {"command": "node"}}}
+        configs = self._parse(data)
+        assert [c.name for c in configs] == ["ok"]
+
+    def test_servers_as_unexpected_type_yields_nothing(self):
+        assert self._parse({"mcpServers": 42}) == []
+
+    def test_servers_as_unstatable_string_path_yields_nothing(self):
+        # Drop a string path that is too long for the filesystem to stat
+        assert self._parse({"mcpServers": "/" + "x" * 5000}) == []
+
+    def test_list_of_lists_dropped(self):
+        # All documented formats keep the list flat.
+        data = {"mcpServers": [[{"srv": {"command": "node"}}]]}
+        assert self._parse(data) == []
+
+    def test_wrapped_list_inside_list_dropped(self):
+        # A wrapped element reopening a list is nesting too, whatever the
+        # wrapper.
+        data = {"mcpServers": [{"mcpServers": [{"srv": {"command": "node"}}]}]}
+        assert self._parse(data) == []
+
+    def test_deeply_nested_lists_dropped(self):
+        # Avoid crashing in case of a maliciously crafted config file with many levels of nesting.
+        # Already covered since we don't support nested lists, kept in case we change our minds.
+        servers: Any = {"srv": {"command": "node"}}
+        for _ in range(10_000):
+            servers = [servers]
+        assert self._parse({"mcpServers": servers}) == []
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +340,10 @@ class TestLoadFile:
         f = tmp_path / "list.json"
         f.write_text(json.dumps([1, 2, 3]))
         assert Cursor()._load_file(f) is None
+
+    def test_returns_none_when_stat_fails(self, tmp_path: Path):
+        # Avoid crashing on long file names
+        assert Cursor()._load_file(tmp_path / ("x" * 5000)) is None
 
 
 # ---------------------------------------------------------------------------
@@ -266,3 +408,109 @@ class TestDiscoverMcpConfigurations:
         with patch.object(type(agent), "config_folder", new=tmp_path / "empty"):
             result = agent.discover_mcp_configurations([])
         assert result == []
+
+
+class _FakeAgent(Agent):
+    """Minimal Agent stub satisfying every abstract member of the ABC."""
+
+    @property
+    def display_name(self) -> str:
+        return "Fake"
+
+    @property
+    def name(self) -> str:
+        return "fake"
+
+    @property
+    def config_folder(self) -> Path:
+        return Path("/tmp/fake")
+
+    def output_result(self, result: HookResult) -> int:
+        return 0
+
+    def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
+        return False
+
+    def settings_path(self, mode: Literal["local", "global"]) -> Path:
+        return Path("/tmp/fake/settings.json")
+
+    def project_mcp_file(self, directory: Path) -> Path:
+        return directory / ".fake" / "mcp.json"
+
+    @property
+    def user_mcp_file(self) -> Path:
+        return Path("/tmp/fake/mcp.json")
+
+    def discover_project_directories(self) -> Iterator[Path]:
+        return iter([])
+
+    def parse_mcp_activity(
+        self, payload: HookPayload, ai_config: AIDiscovery
+    ) -> MCPActivityRequest:
+        raise NotImplementedError
+
+
+def test_agent_default_agent_activity_sources_is_empty() -> None:
+    assert _FakeAgent().agent_activity_sources == []
+
+
+def test_agent_iter_agent_activity_events_loops_each_source(tmp_path: Path) -> None:
+    """Each source is invoked with the agent's config_folder so source_path is relative to it."""
+    from ggshield.verticals.ai.agent_activity import (
+        AgentActivityEvent,
+        JSONLActivitySource,
+    )
+
+    cfg = tmp_path / "cfg"
+    cfg.mkdir()
+    f1 = cfg / "a.jsonl"
+    f2 = cfg / "b.jsonl"
+    f1.write_text('{"x": 1}\n')
+    f2.write_text('{"x": 2}\n')
+
+    class S1(JSONLActivitySource):
+        @property
+        def kind(self):
+            return "k1"
+
+        def discover(self) -> Iterable[Path]:
+            return [f1]
+
+        def serialize(self, record):
+            return record
+
+    class S2(JSONLActivitySource):
+        @property
+        def kind(self):
+            return "k2"
+
+        def discover(self) -> Iterable[Path]:
+            return [f2]
+
+        def serialize(self, record):
+            return record
+
+    class A(_FakeAgent):
+        agent_activity_sources = [S1(), S2()]
+
+        @property
+        def config_folder(self) -> Path:
+            return cfg
+
+    events = list(A().iter_agent_activity_events())
+    assert events == [
+        AgentActivityEvent(
+            agent_name="fake",
+            source_kind="k1",
+            source_path="a.jsonl",
+            record_offset="0000000",
+            content='{"x": 1}',
+        ),
+        AgentActivityEvent(
+            agent_name="fake",
+            source_kind="k2",
+            source_path="b.jsonl",
+            record_offset="0000000",
+            content='{"x": 2}',
+        ),
+    ]

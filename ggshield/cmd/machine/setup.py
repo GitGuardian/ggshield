@@ -7,7 +7,9 @@ from ggshield.cmd.install import (
     get_default_global_hook_dir_path,
     get_default_system_hook_dir_path,
     get_global_hook_dir_path,
+    get_shadowing_hooks_path,
     get_system_hook_dir_path,
+    hook_invokes_ggshield,
     install_global,
     install_system,
 )
@@ -154,7 +156,7 @@ def _setup_git_hooks(system: bool) -> bool:
     for hook_type in _GIT_HOOK_TYPES:
         hook_path = hook_dir / hook_type
         if hook_path.is_file():
-            if "ggshield secret scan" in hook_path.read_text(errors="ignore"):
+            if hook_invokes_ggshield(hook_path):
                 click.echo(f"  {scope} {hook_type} hook already configured")
             else:
                 ui.display_warning(
@@ -167,6 +169,18 @@ def _setup_git_hooks(system: bool) -> bool:
         except Exception as exc:  # one hook failure must not abort the whole setup
             ui.display_warning(f"  could not install {scope} {hook_type} hook: {exc}")
             ok = False
+
+    # A higher-precedence core.hooksPath (repo-local or user-global, e.g. Husky)
+    # silently shadows what we just installed — git would run it instead. We cannot
+    # out-rank it (git precedence), so surface it rather than give false coverage.
+    shadow = get_shadowing_hooks_path()
+    if shadow is not None:
+        ui.display_warning(
+            f"  a core.hooksPath override ({shadow}) takes precedence here, so "
+            "ggshield's hook will not run in that context. Integrate ggshield into "
+            "that hook manager or unset the override (`ggshield machine doctor` flags "
+            "this per repo)."
+        )
     return ok
 
 

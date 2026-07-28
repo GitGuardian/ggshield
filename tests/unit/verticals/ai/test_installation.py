@@ -2,6 +2,7 @@ import contextlib
 import json
 import ntpath
 import posixpath
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
@@ -491,9 +492,10 @@ class TestAreHooksInstalledGlobally:
 def _simulate_platform(argv, *, windows):
     """Run build_hook_command as if on a given OS, regardless of the test host.
 
-    Patches the path primitives the function uses (``os.name`` and
-    ``os.path.abspath``) to the chosen flavor (ntpath or posixpath) so the same
-    assertions hold whether the runner is Linux or Windows.
+    Patches the path primitives the function uses (``os.name``,
+    ``os.path.abspath`` and ``os.path.dirname``) to the chosen flavor (ntpath or
+    posixpath) so the same assertions hold whether the runner is Linux or
+    Windows.
     """
     flavor = ntpath if windows else posixpath
     mod = "ggshield.verticals.ai.installation"
@@ -501,6 +503,9 @@ def _simulate_platform(argv, *, windows):
         stack.enter_context(patch(f"{mod}.sys.argv", argv))
         stack.enter_context(patch(f"{mod}.os.name", "nt" if windows else "posix"))
         stack.enter_context(patch(f"{mod}.os.path.abspath", flavor.abspath))
+        stack.enter_context(patch(f"{mod}.os.path.dirname", flavor.dirname))
+        # Frozen detection must be off for the argv[0]-based paths.
+        stack.enter_context(patch.object(sys, "frozen", False, create=True))
         yield
 
 
@@ -546,18 +551,50 @@ class TestBuildHookCommand:
                 == "'/home/jane doe/.local/bin/ggshield' secret scan ai-hook"
             )
 
-    def test_common_install_invocations_are_used_as_is(self):
-        """Real install invocations yield an absolute argv[0], used as-is. A
-        `uv run`/`uvx` wrapper is consumed by uv before ggshield starts, and a
-        bare `ggshield` is resolved to its absolute path by the shell, so
-        argv[0] is already the resolved executable in every case."""
+    def test_path_argv0_is_made_absolute(self):
+        """An argv[0] that carries a path separator (explicit path, relative
+        `./ggshield`, or a `uv run` venv path) is absolutized as-is."""
         for argv0 in (
-            "/usr/local/bin/ggshield",  # bare `ggshield`, resolved by the shell
             "/opt/homebrew/bin/ggshield",  # explicit absolute path
             "/proj/.venv/bin/ggshield",  # `uv run ggshield`
         ):
             with _simulate_platform([argv0, "install"], windows=False):
                 assert build_hook_command() == f"{argv0} secret scan ai-hook"
+
+    def test_bare_name_is_resolved_via_path(self):
+        """A bare `ggshield` (the normal pip/pipx/Homebrew shell case) is NOT
+        rewritten to an absolute path by the shell, so abspath would pin it to
+        the CWD (NHI-1842). It must be resolved against the install-time PATH."""
+        with _simulate_platform(["ggshield", "install"], windows=False), patch(
+            "ggshield.verticals.ai.installation.shutil.which",
+            return_value="/opt/homebrew/bin/ggshield",
+        ) as which:
+            assert (
+                build_hook_command() == "/opt/homebrew/bin/ggshield secret scan ai-hook"
+            )
+        which.assert_called_once_with("ggshield")
+
+    def test_bare_name_not_on_path_falls_back_to_abspath(self):
+        """If PATH lookup fails (bare name no longer on PATH), fall back to
+        abspath rather than to sys.executable, which is the Python interpreter,
+        not ggshield."""
+        with _simulate_platform(["ggshield", "install"], windows=False), patch(
+            "ggshield.verticals.ai.installation.shutil.which", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.installation.os.path.abspath",
+            return_value="/tmp/ggshield",
+        ):
+            assert build_hook_command() == "/tmp/ggshield secret scan ai-hook"
+
+    def test_frozen_bundle_uses_sys_executable(self):
+        """In a PyInstaller standalone bundle (.pkg/.deb/.rpm) the frozen binary
+        IS ggshield, so sys.executable is the correct self-path -- and PATH must
+        NOT be consulted, to avoid resolving a different ggshield install."""
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", "/opt/ggshield/ggshield", create=True
+        ), patch("ggshield.verticals.ai.installation.shutil.which") as which:
+            assert build_hook_command() == "/opt/ggshield/ggshield secret scan ai-hook"
+        which.assert_not_called()
 
 
 class _FakeAgent:

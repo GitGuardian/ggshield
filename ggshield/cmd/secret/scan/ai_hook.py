@@ -10,7 +10,11 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
-from ggshield.verticals.ai.hooks import AIHookScanner, emit_fail_open_response
+from ggshield.verticals.ai.hooks import (
+    AIHookScanner,
+    build_agent_headers,
+    emit_fail_open_response,
+)
 from ggshield.verticals.secret import SecretScanner
 
 
@@ -53,6 +57,7 @@ def ai_hook_cmd(
             scan_context=ScanContext(
                 scan_mode=ScanMode.AI_HOOK,
                 command_path=ctx.command_path,
+                extra_headers=build_agent_headers(stdin_content),
             ),
             secret_config=config.user_config.secret,
         )

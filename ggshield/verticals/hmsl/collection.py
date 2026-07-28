@@ -80,7 +80,7 @@ def collect(
             if not should_process_secret(value, key):
                 continue
             # value is guaranteed to be non-None here (checked by should_process_secret)
-            yield SecretWithKey(value=value, key=key)  # type: ignore[arg-type]
+            yield SecretWithKey(value=value, key=key)  # type: ignore
     else:
         for line in input:
             secret = line.strip()

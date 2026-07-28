@@ -1,8 +1,9 @@
 import json
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, TypedDict
 
 import click
 from requests import HTTPError
+from typing_extensions import List
 
 from ggshield.core import ui
 from ggshield.core.text_utils import pluralize
@@ -23,6 +24,18 @@ First location:
 """
 
 TOO_MANY_SECRETS_THRESHOLD = 100
+
+
+class Leak(TypedDict):
+    name: str
+    hash: str
+    count: int
+    url: Optional[str]
+
+
+class Data(TypedDict):
+    leaks_count: int
+    leaks: List[Leak]
 
 
 def write_outputs(result: PreparedSecrets, prefix: str) -> None:
@@ -58,7 +71,7 @@ def show_results(
     elif not error:
         ui.display_heading("All right! No leaked secret has been found.")
 
-    data = {
+    data: Data = {
         "leaks_count": len(secrets),
         "leaks": [
             {
@@ -90,12 +103,12 @@ def show_results(
 
 
 def show_error_during_scan(error: Exception):
-    if isinstance(error, HTTPError) and error.response.status_code == 429:
+    response = error.response if isinstance(error, HTTPError) else None
+    if response is not None and response.status_code == 429:
         error_message = "These are partial results: Quota exceeded"
-        if error.response.headers.get("RateLimit-Query") is not None:
-            error_message += (
-                f" required {error.response.headers.get('RateLimit-Query')} credits."
-            )
+        rate_limit = response.headers.get("RateLimit-Query")
+        if rate_limit is not None:
+            error_message += f" required {rate_limit} credits."
         else:
             error_message += "."
         ui.display_warning(error_message)

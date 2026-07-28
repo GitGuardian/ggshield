@@ -6,7 +6,7 @@ from typing import Any, Dict
 import yaml
 
 from ggshield.__main__ import cli
-from tests.unit.conftest import assert_invoke_ok
+from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
 V1_CONFIG_CONTENT = """
@@ -91,3 +91,37 @@ def test_config_migrate_cmd(cli_fs_runner):
     # Check backup is unchanged
     assert ".gitguardian.yaml.old" in result.stdout
     assert Path(".gitguardian.yaml.old").read_text() == V1_CONFIG_CONTENT
+
+
+def test_config_migrate_cmd_no_config_file(cli_fs_runner):
+    """
+    GIVEN no configuration file in the current directory
+    WHEN `ggshield config migrate` is called
+    THEN it fails with an actionable error message
+    """
+    result = cli_fs_runner.invoke(cli, ["config", "migrate"])
+
+    assert_invoke_exited_with(result, 128)
+    assert "No configuration file found" in result.output
+    assert "--config-path" in result.output
+
+
+def test_config_migrate_cmd_with_config_path(cli_fs_runner):
+    """
+    GIVEN a v1 config file in another directory
+    WHEN `ggshield config migrate` is called with `--config-path`
+    THEN the file is migrated regardless of the current directory
+    """
+    config_path = Path("subdir") / ".gitguardian.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text(V1_CONFIG_CONTENT)
+
+    result = cli_fs_runner.invoke(
+        cli, ["--config-path", str(config_path), "config", "migrate"]
+    )
+    assert_invoke_ok(result)
+
+    with config_path.open() as f:
+        dct = yaml.safe_load(f)
+    assert normalize_config_dict(dct) == normalize_config_dict(V2_CONFIG_DICT)
+    assert Path("subdir/.gitguardian.yaml.old").read_text() == V1_CONFIG_CONTENT

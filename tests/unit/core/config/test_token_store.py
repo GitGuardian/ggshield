@@ -1,3 +1,5 @@
+import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -163,3 +165,41 @@ class TestUsesExternalStorage:
 class TestKeyRingSentinel:
     def test_sentinel_is_not_a_valid_token(self):
         assert KEYRING_SENTINEL == "__KEYRING__"
+
+
+class TestKeyringConcurrency:
+    """macOS securityd fails most concurrent reads of the login Keychain, which
+    made hook fan-outs (parallel agents/sub-agents) lose scans to spurious auth
+    errors. get_token must serialize keychain access across processes/threads."""
+
+    def test_get_token_is_serialized(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("GG_CACHE_DIR", str(tmp_path))
+        store = KeyringTokenStore()
+
+        state = {"active": 0, "max": 0}
+        guard = threading.Lock()
+
+        def fake_get(service, url):
+            with guard:
+                state["active"] += 1
+                state["max"] = max(state["max"], state["active"])
+            time.sleep(0.02)  # widen the window an unserialized read would overlap in
+            with guard:
+                state["active"] -= 1
+            return TOKEN
+
+        results = []
+
+        def worker():
+            results.append(store.get_token(INSTANCE_URL))
+
+        with patch("keyring.get_password", side_effect=fake_get):
+            threads = [threading.Thread(target=worker) for _ in range(20)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        assert results == [TOKEN] * 20
+        # The advisory lock let only one read touch the keychain at a time.
+        assert state["max"] == 1

@@ -9,6 +9,7 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
+from ..agent_activity.sources import JSONActivitySource, JSONLActivitySource
 from ..models import (
     Agent,
     EventType,
@@ -20,8 +21,71 @@ from ..models import (
 )
 
 
+class ClaudeActivitySource(JSONLActivitySource):
+    """Every Claude Code session transcript line, shipped raw.
+
+    Claude appends one JSON object per line to ~/.claude/projects/*/*.jsonl
+    (prompts, tool calls, tool results, assistant messages). The line is shipped
+    verbatim; GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    kind = "5_session_transcript"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted((get_user_home_dir() / ".claude").glob("projects/*/*.jsonl"))
+        )
+
+
+class ClaudeSubagentActivitySource(JSONLActivitySource):
+    """Every Claude Code subagent transcript line, shipped raw.
+
+    A subagent (spawned via the Task tool) records its own transcript under
+    ~/.claude/projects/*/<session>/subagents/agent-*.jsonl — same JSONL shape as
+    the main session transcript, but kept in a separate file rather than inlined
+    into it, so it is missed entirely unless collected on its own. The line is
+    shipped verbatim; GitGuardian scans and strips secrets server-side.
+    """
+
+    kind = "75_subagent_transcript"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted(
+                (get_user_home_dir() / ".claude").glob("projects/*/*/subagents/*.jsonl")
+            )
+        )
+
+
+class ClaudeSubagentMetaActivitySource(JSONActivitySource):
+    """Each Claude Code subagent's metadata file, shipped raw.
+
+    Alongside every subagents/agent-*.jsonl transcript sits an agent-*.meta.json
+    holding the subagent's agentType, description and the parent's toolUseId —
+    the only place that links a subagent run back to the Task call that spawned
+    it. Shipped verbatim; GitGuardian scans and strips secrets server-side.
+    """
+
+    kind = "72_subagent_meta"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted(
+                (get_user_home_dir() / ".claude").glob(
+                    "projects/*/*/subagents/*.meta.json"
+                )
+            )
+        )
+
+
 class Claude(Agent):
     """Behavior specific to Claude Code."""
+
+    agent_activity_sources = [
+        ClaudeActivitySource(),
+        ClaudeSubagentMetaActivitySource(),
+        ClaudeSubagentActivitySource(),
+    ]
 
     @property
     def name(self) -> str:
@@ -67,8 +131,10 @@ class Claude(Agent):
         return 0
 
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
-        return "session_id" in hook_payload and "claude" in hook_payload.get(
-            "transcript_path", ""
+        # transcript_path may be present but null (Codex sends it as a nullable
+        # required field), so `or ""` guards against a None slipping through.
+        return "session_id" in hook_payload and "claude" in (
+            hook_payload.get("transcript_path") or ""
         )
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
@@ -162,13 +228,16 @@ class Claude(Agent):
             yield from self._parse_servers_block(mcp_data, scope, project)
             return
 
-        # Fallback: inline mcpServers in the plugin manifest.
+        # Fallback: mcpServers in the plugin manifest (inline block, path to a
+        # config file, or a list of either).
         manifest = self._load_file(install_dir / ".claude-plugin" / "plugin.json")
         if not manifest:
             return
         inline = manifest.get("mcpServers")
-        if isinstance(inline, dict):
-            yield from self._parse_servers_block({"mcpServers": inline}, scope, project)
+        if inline is not None:
+            yield from self._parse_servers_block(
+                {"mcpServers": inline}, scope, project, base_dir=install_dir
+            )
 
     def _get_claudeai_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         """Yield MCP servers connected through the user's claude.ai account.

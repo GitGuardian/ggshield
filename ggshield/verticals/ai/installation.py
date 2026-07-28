@@ -1,6 +1,7 @@
 import json
 import os
 import shlex
+import shutil
 import sys
 from copy import deepcopy
 from dataclasses import dataclass
@@ -47,12 +48,28 @@ def build_hook_command() -> str:
     *different* binary than the one the user authenticated with, which then fails
     to read the stored token.
 
-    We trust whatever executable ran ``install`` (``sys.argv[0]``); we only make
-    it absolute and shell-quote it. ``abspath`` does not resolve symlinks, so a
-    package manager's stable launcher (e.g. ``/opt/homebrew/bin/ggshield``) is
-    kept rather than a version-pinned path that would break on upgrade.
+    How the path is recovered depends on the launch:
+
+    - Frozen standalone bundle (``.pkg``/``.deb``/``.rpm``): ``sys.executable``.
+    - Bare name (``ggshield``, the pip/pipx/Homebrew case): the shell does not
+      absolutize ``sys.argv[0]``, so resolve it against PATH with
+      ``shutil.which``.
+    - Explicit or relative path (``/opt/homebrew/bin/ggshield``,
+      ``./ggshield``): ``abspath``.
+
+    Symlinks are kept unresolved so a package manager's stable launcher
+    survives upgrades.
     """
-    executable = os.path.abspath(sys.argv[0])
+    if getattr(sys, "frozen", False):
+        executable = sys.executable
+    else:
+        argv0 = sys.argv[0]
+        if os.path.dirname(argv0):
+            executable = os.path.abspath(argv0)
+        else:
+            # On a PATH miss fall back to abspath, never sys.executable
+            # (the Python interpreter, not ggshield).
+            executable = shutil.which(argv0) or os.path.abspath(argv0)
     return f"{_quote_executable(executable)} secret scan ai-hook"
 
 

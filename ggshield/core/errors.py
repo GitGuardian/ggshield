@@ -53,7 +53,10 @@ class _ExitError(click.ClickException):
 
     def __init__(self, exit_code: ExitCode, message: str) -> None:
         super().__init__(message)
-        self.exit_code = exit_code
+        # click 8.2 declares ClickException.exit_code as a ClassVar; assign via setattr
+        # so the per-instance value type-checks on both click 8.1 and 8.2+ (a direct
+        # assignment errors on 8.2+, and a type-ignore is flagged unnecessary on 8.1).
+        setattr(self, "exit_code", exit_code)
 
 
 class UnexpectedError(_ExitError):
@@ -118,7 +121,7 @@ class AuthExpiredError(AuthError):
     def __init__(self, instance: str):
         super().__init__(
             instance,
-            f"Instance '{instance}' authentication expired, please authenticate again.",
+            f"Instance '{instance}' authentication expired, please authenticate again (ggshield auth login).",
         )
 
 

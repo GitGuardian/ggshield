@@ -13,6 +13,10 @@ pytestmark = pytest.mark.uses_gitguardian_api
     (
         ("ggshield==1.14.2", 1),  # ggshield 1.14.2 contains some test secrets
         ("marshmallow", 0),
+        # tensorflow 2.5.0 requires Python <3.9, which no supported interpreter
+        # satisfies. It must still download and scan: this guards #458, where
+        # `pip download` refused packages incompatible with the running interpreter.
+        ("tensorflow==2.5.0", 1),
     ),
 )
 def test_scan_pypi(tmp_path: Path, package: str, expected_code: int) -> None:

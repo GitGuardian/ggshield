@@ -8,12 +8,33 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
+from ..agent_activity.sources import JSONLActivitySource
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration, Scope
 from .claude_code import _mangle_server_name
 
 
+class CodexActivitySource(JSONLActivitySource):
+    """Every Codex session rollout line, shipped raw.
+
+    Codex writes one response_item / metadata object per line to
+    ~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl. The line is shipped
+    verbatim; GitGuardian scans and strips secrets server-side before storing it.
+    """
+
+    kind = "5_session_rollout"
+
+    def discover(self) -> Iterator[Path]:
+        return iter(
+            sorted(
+                (get_user_home_dir() / ".codex").glob("sessions/*/*/*/rollout-*.jsonl")
+            )
+        )
+
+
 class Codex(Agent):
     """Behavior specific to OpenAI Codex."""
+
+    agent_activity_sources = [CodexActivitySource()]
 
     @property
     def name(self) -> str:
@@ -30,7 +51,8 @@ class Codex(Agent):
     def output_result(self, result: HookResult) -> int:
         response: Dict[str, Any] = {}
         if result.block:
-            response["systemMessage"] = result.message
+            # Do NOT also set "systemMessage" here: Codex shows the decision
+            # reason in the transcript, so the message would appear twice.
             if result.payload.event_type == EventType.PRE_TOOL_USE:
                 response["hookSpecificOutput"] = {
                     "hookEventName": "PreToolUse",
@@ -55,7 +77,7 @@ class Codex(Agent):
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
         return (
             "turn_id" in hook_payload
-            or ".codex" in hook_payload.get("transcript_path", "").lower()
+            or ".codex" in (hook_payload.get("transcript_path") or "").lower()
         )
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
@@ -102,12 +124,15 @@ class Codex(Agent):
             display_name = None
             mcp_location = ".mcp.json"
 
-        # Try to read the mcp.json file
-        if not (data := self._load_file(plugin_dir / mcp_location)):
-            return
-
+        # mcp_location may be a path relative to the plugin dir, an inline
+        # servers block, or a list mixing both; _parse_servers_block handles
+        # all of them (including bare {name: entry} referenced files).
         yield from self._parse_servers_block(
-            data, scope, None if scope == Scope.USER else plugin_dir, display_name
+            {"mcpServers": mcp_location},
+            scope,
+            None if scope == Scope.USER else plugin_dir,
+            display_name,
+            base_dir=plugin_dir,
         )
 
     def parse_mcp_activity(

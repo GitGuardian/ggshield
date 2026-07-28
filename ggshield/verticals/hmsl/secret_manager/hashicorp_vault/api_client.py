@@ -93,15 +93,17 @@ class VaultAPIClient:
         try:
             api_res = self._make_request(api_endpoint, method="LIST")
         except requests.HTTPError as exc:
-            if exc.response.status_code == 403:
-                raise VaultForbiddenItemError(
-                    f"cannot access item on mount {mount.name} at path {path}"
-                )
+            response = exc.response
+            if response is not None:
+                if response.status_code == 403:
+                    raise VaultForbiddenItemError(
+                        f"cannot access item on mount {mount.name} at path {path}"
+                    )
 
-            # The API return 404 when trying to list items when the path is a file
-            # and not a directory
-            if exc.response.status_code == 404:
-                raise VaultPathIsNotADirectoryError()
+                # The API return 404 when trying to list items when the path is a file
+                # and not a directory
+                if response.status_code == 404:
+                    raise VaultPathIsNotADirectoryError()
 
             raise exc
 
@@ -123,16 +125,18 @@ class VaultAPIClient:
         try:
             api_res = self._make_request(api_endpoint)
         except requests.HTTPError as exc:
-            if exc.response.status_code == 403:
-                raise VaultForbiddenItemError(
-                    f"cannot access item on mount {mount.name} at path {path}"
-                )
+            response = exc.response
+            if response is not None:
+                if response.status_code == 403:
+                    raise VaultForbiddenItemError(
+                        f"cannot access item on mount {mount.name} at path {path}"
+                    )
 
-            if exc.response.status_code == 404:
-                raise VaultNotFoundItemError(
-                    f"{path} was not found: it's either not a file, "
-                    "was deleted or cannot be accessed with the current token"
-                )
+                if response.status_code == 404:
+                    raise VaultNotFoundItemError(
+                        f"{path} was not found: it's either not a file, "
+                        "was deleted or cannot be accessed with the current token"
+                    )
 
             raise exc
 

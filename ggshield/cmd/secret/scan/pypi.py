@@ -1,11 +1,13 @@
+import os
 import re
-import subprocess
-import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, List, Pattern, Set, Tuple
 
 import click
+from packaging.requirements import InvalidRequirement
+from unearth import Link, PackageFinder
 
 from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
@@ -25,33 +27,69 @@ from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
+DEFAULT_INDEX_URL = "https://pypi.org/simple/"
+
+
+def _get_index_urls() -> List[str]:
+    index_urls = [os.environ.get("PIP_INDEX_URL", DEFAULT_INDEX_URL)]
+    extra_index_url = os.environ.get("PIP_EXTRA_INDEX_URL")
+    if extra_index_url:
+        index_urls.extend(extra_index_url.split())
+    return index_urls
+
+
+def _enforce_deadline(deadline: float) -> None:  # pragma: no cover
+    """Give up once the PYPI_DOWNLOAD_TIMEOUT budget is spent."""
+    if time.monotonic() > deadline:
+        raise TimeoutError(f"timed out after {PYPI_DOWNLOAD_TIMEOUT}s")
+
+
+def _download_link(
+    finder: PackageFinder, link: Link, dest: Path, deadline: float
+) -> None:
+    """Stream the distribution at `link` into `dest`, giving up once `deadline`
+    is reached."""
+    with finder.session.get_stream(link.normalized) as response:
+        response.raise_for_status()
+        with dest.open("wb") as f:
+            for chunk in response.iter_bytes():
+                _enforce_deadline(deadline)
+                f.write(chunk)
 
 
 def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
-    command: List[str] = [
-        "pip",
-        "download",
-        package_name,
-        "--dest",
-        str(temp_dir),
-        "--no-deps",
-    ]
+    ui.display_heading("Downloading package")
+
+    deadline = time.monotonic() + PYPI_DOWNLOAD_TIMEOUT
+
+    finder = PackageFinder(
+        index_urls=_get_index_urls(),
+        ignore_compatibility=True,
+    )
 
     try:
-        ui.display_heading("Downloading package")
-        subprocess.run(
-            command,
-            check=True,
-            stdout=sys.stderr,
-            stderr=sys.stderr,
-            timeout=PYPI_DOWNLOAD_TIMEOUT,
+        best_match = finder.find_best_match(package_name).best
+    except InvalidRequirement as exc:
+        raise UnexpectedError(
+            f'Invalid requirement with package name "{package_name}": {exc}'
         )
+    except Exception as exc:
+        raise UnexpectedError(f'Failed to look up "{package_name}": {exc}')
 
-    except subprocess.CalledProcessError:
-        raise UnexpectedError(f'Failed to download "{package_name}"')
+    if best_match is None:
+        raise UnexpectedError(f'Could not find a package matching "{package_name}".')
 
-    except subprocess.TimeoutExpired:
-        raise UnexpectedError('Command "{}" timed out'.format(" ".join(command)))
+    archive_path = temp_dir / best_match.link.filename
+    try:
+        _enforce_deadline(deadline)
+        _download_link(
+            finder=finder,
+            link=best_match.link,
+            dest=archive_path,
+            deadline=deadline,
+        )
+    except Exception as exc:
+        raise UnexpectedError(f'Failed to download "{package_name}": {exc}')
 
 
 def get_files_from_package(
@@ -88,14 +126,10 @@ def pypi_cmd(
     """
     Scan a pypi package.
 
-    Under the hood this command uses the `pip download` command to download the python
-    package.
-
-    You can use pip environment variables or configuration files to set `pip download`
-    parameters as explained in [pip documentation][1].  For example, you can set pip
-    `--index-url` parameter with the `PIP_INDEX_URL` environment variable.
-
-    [1]: https://pip.pypa.io/en/stable/topics/configuration/
+    Under the hood this command downloads the package from the index without
+    installing or running it. Set the `PIP_INDEX_URL` (and optionally
+    `PIP_EXTRA_INDEX_URL`) environment variable to download from a custom index
+    instead of PyPI.
     """
     ctx_obj = ContextObj.get(ctx)
     ctx_obj.client = create_client_from_config(ctx_obj.config)

@@ -1,11 +1,14 @@
+import contextlib
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Iterator, Optional
 
+import filelock
 import keyring
 import keyring.backends.fail
 import keyring.errors
 
+from ggshield.core.dirs import get_cache_dir
 from ggshield.utils.os import getenv_bool
 
 
@@ -13,6 +16,35 @@ logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE = "ggshield"
 KEYRING_SENTINEL = "__KEYRING__"
+
+# Concurrent reads of the OS credential store can fail (macOS securityd rejects
+# most simultaneous reads of the login Keychain), so fetching the token in
+# parallel loses reads to spurious auth errors. Serialize keyring access with a
+# file lock, held only for the keychain call, never the network scan.
+_KEYRING_LOCK_TIMEOUT = 10.0
+
+
+@contextlib.contextmanager
+def _keyring_lock() -> Iterator[None]:
+    """Serialize keyring access across ggshield processes.
+
+    Proceeds unlocked if the lock can't be acquired within the timeout, so a
+    stuck holder can never hang a caller.
+    """
+    cache_dir = get_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    lock = filelock.FileLock(
+        str(cache_dir / "keyring.lock"), timeout=_KEYRING_LOCK_TIMEOUT
+    )
+    try:
+        lock.acquire()
+    except filelock.Timeout:
+        yield
+        return
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 class TokenStore(ABC):
@@ -46,16 +78,19 @@ class KeyringTokenStore(TokenStore):
         return True
 
     def store_token(self, instance_url: str, token: str) -> None:
-        keyring.set_password(KEYRING_SERVICE, instance_url, token)
+        with _keyring_lock():
+            keyring.set_password(KEYRING_SERVICE, instance_url, token)
 
     def get_token(self, instance_url: str) -> Optional[str]:
-        return keyring.get_password(KEYRING_SERVICE, instance_url)
+        with _keyring_lock():
+            return keyring.get_password(KEYRING_SERVICE, instance_url)
 
     def delete_token(self, instance_url: str) -> None:
-        try:
-            keyring.delete_password(KEYRING_SERVICE, instance_url)
-        except keyring.errors.PasswordDeleteError:
-            logger.debug("No keyring entry to delete for instance %s", instance_url)
+        with _keyring_lock():
+            try:
+                keyring.delete_password(KEYRING_SERVICE, instance_url)
+            except keyring.errors.PasswordDeleteError:
+                logger.debug("No keyring entry to delete for instance %s", instance_url)
 
     def is_available(self) -> bool:
         """Check if keyring is usable by probing with a test key."""
@@ -65,13 +100,16 @@ class KeyringTokenStore(TokenStore):
                 return False
             # Probe the backend to verify it actually works (e.g. a
             # ChainerBackend may pass the isinstance check but still fail).
+            # Hold the lock across the whole probe so it doesn't race the
+            # token reads of concurrent processes.
             probe_key = "__ggshield_probe__"
-            keyring.set_password(KEYRING_SERVICE, probe_key, "test")
-            val = keyring.get_password(KEYRING_SERVICE, probe_key)
-            try:
-                keyring.delete_password(KEYRING_SERVICE, probe_key)
-            except Exception:
-                logger.debug("Failed to clean up keyring probe key")
+            with _keyring_lock():
+                keyring.set_password(KEYRING_SERVICE, probe_key, "test")
+                val = keyring.get_password(KEYRING_SERVICE, probe_key)
+                try:
+                    keyring.delete_password(KEYRING_SERVICE, probe_key)
+                except Exception:
+                    logger.debug("Failed to clean up keyring probe key")
             return val == "test"
         except Exception:
             return False

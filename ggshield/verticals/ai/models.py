@@ -5,7 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
+
+
+if TYPE_CHECKING:
+    from ggshield.verticals.ai.agent_activity import ActivitySource, AgentActivityEvent
 
 import tomli
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -47,6 +51,15 @@ class Tool(Enum):
     MCP = auto()
     # We are not interested in other tools for now
     OTHER = auto()
+
+
+def markdown_hard_breaks(text: str) -> str:
+    """Turn single newlines into markdown hard breaks (two trailing spaces)."""
+    lines = text.split("\n")
+    return "\n".join(
+        f"{line}  " if line and i + 1 < len(lines) and lines[i + 1] else line
+        for i, line in enumerate(lines)
+    )
 
 
 @dataclass
@@ -245,10 +258,12 @@ class Agent(ABC):
 
     def _parse_servers_block(
         self,
-        data: Dict[str, Dict[str, Any]],
+        data: Dict[str, Any],
         scope: Scope,
         project: Optional[Path],
         display_name: Optional[str] = None,
+        base_dir: Optional[Path] = None,
+        _in_list: bool = False,
     ) -> Iterator[MCPConfiguration]:
         """Utility function to parse a "mcpServer" block and return the MCP server entries.
 
@@ -258,9 +273,47 @@ class Agent(ABC):
         servers = data.get(
             "mcpServers", data.get("servers", data.get("mcp_servers", {}))
         )
+        # Handle path to a config file
+        if isinstance(servers, str):
+            path = Path(servers)
+            if not path.is_absolute():
+                if base_dir is None:
+                    # Without an anchor a relative location would resolve
+                    # against the process cwd; drop it instead.
+                    return
+                path = base_dir / path
+            if (loaded := self._load_file(path)) is None:
+                return
+            # The official shape is {"mcpServers": {...}}, but non-wrapped configs are sometimes leniently supported.
+            # Also we expect only the dict shape for referenced config files.
+            # This also prevents a potential infinite loop if the referenced file points back to the original file.
+            servers = loaded.get(
+                "mcpServers", loaded.get("servers", loaded.get("mcp_servers", loaded))
+            )
+        # Handle list of servers. Nested lists are undocumented, so we don't support them.
+        elif isinstance(servers, list):
+            if _in_list:
+                return
+            for server in servers:
+                # An element may itself be a wrapped block: don't double-wrap.
+                if not (
+                    isinstance(server, dict)
+                    and server.keys() & {"mcpServers", "servers", "mcp_servers"}
+                ):
+                    server = {"mcpServers": server}
+                yield from self._parse_servers_block(
+                    server, scope, project, display_name, base_dir, _in_list=True
+                )
+            return
+        if not isinstance(servers, dict):
+            return
         for name, entry in servers.items():
+            if not isinstance(entry, dict):
+                continue
             if "url" in entry:
-                if entry.get("transport") == "sse":
+                # The transport key is spelled "transport" or "type" depending
+                # on the assistant.
+                if entry.get("transport", entry.get("type")) == "sse":
                     transport = Transport.SSE
                 else:
                     transport = Transport.HTTP
@@ -346,6 +399,26 @@ class Agent(ABC):
         """
         return iter(())
 
+    agent_activity_sources: ClassVar[List["ActivitySource"]] = []
+    """Subclasses set this to the list of agent-activity sources they expose.
+
+    Each entry is an ActivitySource instance (see
+    ggshield.verticals.ai.agent_activity). The default implementation of
+    iter_agent_activity_events walks every source.
+    """
+
+    def iter_agent_activity_events(self) -> Iterator["AgentActivityEvent"]:
+        """Yield every AgentActivityEvent this agent can recover from disk.
+
+        Default implementation: iterate self.agent_activity_sources, passing
+        self.config_folder as the path_root so each event's source_path is
+        recorded relative to the agent's config dir.
+        """
+        for source in self.agent_activity_sources:
+            yield from source.iter_events(
+                agent_name=self.name, path_root=self.config_folder
+            )
+
     def _user_or_default(self, ai_config: Optional[AIDiscovery]) -> UserInfo:
         """Return ``ai_config.user`` or a blank ``UserInfo`` if no config is provided."""
         if ai_config is not None:
@@ -356,9 +429,9 @@ class Agent(ABC):
 
     def _load_file(self, path: Path) -> Optional[Dict[str, Any]]:
         """Load a file and return the data, or None if the file doesn't exist."""
-        if not path.is_file():
-            return None
         try:
+            if not path.is_file():
+                return None
             raw = path.read_text()
             # Fallback to JSON
             if path.suffix == ".toml":

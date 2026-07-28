@@ -4,7 +4,7 @@ for tools, resources, and prompts.
 """
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import click
 from pygitguardian.models import AIDiscovery
@@ -15,6 +15,10 @@ from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import APIKeyCheckError, UnknownInstanceError
 from ggshield.core.text_utils import STYLE, format_text, pluralize
+from ggshield.verticals.ai.agent_activity import (
+    AgentActivityReport,
+    collect_agent_activity,
+)
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.discovery import (
     discover_ai_configuration,
@@ -40,12 +44,20 @@ from ggshield.verticals.ai.models import Scope
     default=False,
     help="Also backfill historical MCP tool calls parsed from agent transcripts.",
 )
+@click.option(
+    "--activity",
+    "scan_activity",
+    is_flag=True,
+    default=False,
+    help="[Experimental] Also backfill all agent activity events. Will later be merged with --history.",
+)
 @add_common_options()
 @click.pass_context
 def discover_cmd(
     ctx: click.Context,
     use_json: bool,
     scan_history: bool,
+    scan_activity: bool,
     **kwargs: Any,
 ) -> None:
     """
@@ -72,11 +84,16 @@ def discover_cmd(
         return
 
     backfill_report = BackfillReport()
+    activity_report: Optional[AgentActivityReport] = None
     try:
         config = submit_ai_discovery(client, config)
         save_discovery_cache(config)
         if scan_history:
             backfill_report = backfill_mcp_history(client, config)
+        if scan_activity:
+            activity_report = collect_agent_activity(
+                client, config.user, AGENTS.values()
+            )
     except Exception as exc:
         if "missing the following scope:" in str(exc):
             scope = str(exc).split("missing the following scope:")[1].strip()
@@ -86,7 +103,7 @@ def discover_cmd(
         ui.display_warning(f"Could not upload AI discovery to GitGuardian: {reason}")
 
     # Summarize after sending to GIM, so we can benefit from its fixes.
-    summary = _summarize_discovery(config, backfill_report)
+    summary = _summarize_discovery(config, backfill_report, activity_report)
 
     if use_json:
         click.echo(json.dumps(summary, indent=2))
@@ -94,7 +111,11 @@ def discover_cmd(
         print_summary(summary)
 
 
-def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[str, Any]:
+def _summarize_discovery(
+    config: AIDiscovery,
+    report: BackfillReport,
+    activity_report: Optional[AgentActivityReport] = None,
+) -> Dict[str, Any]:
     """Summarize what we want to show of the discovery."""
     servers = []
     for server in config.servers:
@@ -128,7 +149,7 @@ def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[st
         ),
         key=lambda x: x["name"],
     )
-    return {
+    summary: Dict[str, Any] = {
         "agents": agents,
         "servers": servers,
         "history": {
@@ -137,6 +158,14 @@ def _summarize_discovery(config: AIDiscovery, report: BackfillReport) -> Dict[st
             "skipped": report.skipped,
         },
     }
+    if activity_report is not None:
+        summary["agent_activity"] = {
+            "parsed": activity_report.parsed,
+            "ingested": activity_report.ingested,
+            "dropped": activity_report.dropped,
+            "failed_batches": activity_report.failed_batches,
+        }
+    return summary
 
 
 def print_summary(summary: Dict[str, Any]) -> None:
@@ -198,3 +227,19 @@ def print_summary(summary: Dict[str, Any]) -> None:
             f"  • Recorded {history['ingested']:,} events "
             f"({history.get('skipped', 0):,} skipped)"
         )
+
+    agent_activity = summary.get("agent_activity")
+    # Only surface the agent-activity block when there is something to report;
+    # otherwise every `--history` run prints an all-zeros section.
+    if agent_activity is not None and (
+        agent_activity["parsed"] or agent_activity.get("failed_batches", 0)
+    ):
+        click.echo(f"{format_text('Collecting agent activity…', STYLE['key'])}")
+        click.echo(f"  • Parsed {agent_activity['parsed']:,} activity events")
+        click.echo(f"  • Recorded {agent_activity['ingested']:,} activity events ")
+        if agent_activity.get("failed_batches", 0) > 0:
+            label = format_text("Failed batches:", STYLE["detector_line_start"])
+            click.echo(f"  • {label} {agent_activity['failed_batches']:,}")
+        if agent_activity.get("dropped", 0) > 0:
+            label = format_text("Dropped (unscannable):", STYLE["detector_line_start"])
+            click.echo(f"  • {label} {agent_activity['dropped']:,}")

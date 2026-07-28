@@ -150,6 +150,20 @@ _all_secrets = click.option(
 )
 
 
+_filename_only_option = click.option(
+    "--filename-only",
+    is_flag=True,
+    # The default value **must** be set to None.
+    # Each command or subcommand calls create_config_callback to gather option values.
+    # If the option is placed early in the command line, the value may be overridden
+    # later on with False if no default is defined.
+    default=None,
+    help="Send only the file name (not the full path) to GitGuardian, so incidents "
+    "record just the filename.",
+    callback=create_config_callback("secret", "filename_only"),
+)
+
+
 def _source_uuid_callback(
     ctx: click.Context, param: click.Parameter, value: Optional[str]
 ) -> Optional[str]:
@@ -184,6 +198,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _with_incident_details_option(cmd)
         instance_option(cmd)
         _all_secrets(cmd)
+        _filename_only_option(cmd)
         _source_uuid_option(cmd)
         return cmd
 

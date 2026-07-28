@@ -735,6 +735,10 @@ def cache() -> Cache:
 
 @pytest.fixture()
 def cli_runner():
+    # Some tests set `mix_stderr = False` on this runner to keep stdout/stderr
+    # separate on click < 8.2 (the Python 3.9 leg). click >= 8.2 always separates
+    # them and ignores the attribute, so those assignments — and the `stderr_bytes`
+    # guard in assert_invoke_exited_with — can be dropped once Python 3.9 support is.
     return CliRunner()
 
 
@@ -776,6 +780,8 @@ def write_yaml(filename: Union[str, Path], data: Any):
 
 
 def assert_invoke_exited_with(result: Result, exit_code: int):
+    # `stderr_bytes` is None only on click < 8.2's default merged runner (Python 3.9),
+    # where `result.stderr` would raise; drop this guard once 3.9 support is dropped.
     msg = f"""
     Expected code {exit_code}, got {result.exit_code}.
 

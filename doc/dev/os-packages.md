@@ -15,9 +15,9 @@ Here is a high-level overview of the main steps (square boxes are steps):
 ```mermaid
 flowchart TD
     src[/source code/] --> build --> pyinstaller_dir[/"pyinstaller output
-    (dist/ggshield)"/]
+    (build/ggshield)"/]
     pyinstaller_dir --> copy_files --> archive_dir[/"dir ready to be archived
-    (packages/ggshield-$version-$target)"/]
+    (build/ggshield-$version-$target)"/]
     archive_dir --> test["test (run functional tests on archive dir)"]
     test --> signing{Called with --sign?} -->|yes| sign
     signing -->|no| create_archive

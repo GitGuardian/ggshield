@@ -1,17 +1,20 @@
 import json
+import subprocess
 from collections import Counter
 from pathlib import Path
-from typing import List, Set
+from typing import List, Optional, Set
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pygitguardian import GGClient
 from pygitguardian.models import MCPActivityResponse
 
+from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
+    build_agent_headers,
     find_filepaths,
     has_already_been_seen,
     parse_hook_input,
@@ -63,8 +66,14 @@ def _mock_scanner(matches: List[str]) -> MagicMock:
     return mock
 
 
-def _make_secret(match_str: str = "***"):
-    """Minimal Secret for tests; _message_from_secrets only uses detector_display_name, validity, matches[].match."""
+def _make_secret(
+    match_str: str = "***",
+    known_secret: bool = False,
+    incident_url: Optional[str] = None,
+):
+    """Minimal Secret for tests; _message_from_secrets only uses
+    detector_display_name, validity, matches[].match, known_secret and
+    incident_url."""
     mock_match = MagicMock()
     mock_match.match = match_str
     return Secret(
@@ -73,8 +82,8 @@ def _make_secret(match_str: str = "***"):
         detector_group_name=None,
         documentation_url=None,
         validity="valid",
-        known_secret=False,
-        incident_url=None,
+        known_secret=known_secret,
+        incident_url=incident_url,
         matches=[mock_match],
         ignore_reason=None,
         diff_kind=None,
@@ -123,7 +132,7 @@ class TestAIHookScannerScanContent:
         assert result.nbr_secrets == 1
         assert "dummy-detector" in result.message
         assert "secret" in result.message.lower()
-        assert "remove the secrets from your prompt" in result.message
+        assert "remove the secret from your prompt" in result.message
 
 
 class TestHasAlreadyBeenSeen:
@@ -199,6 +208,29 @@ class TestAIHookScannerScan:
         assert result.nbr_secrets == 1  # nbr_secrets
         assert result.payload.tool == Tool.BASH  # tool
 
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    def test_scan_post_tool_use_notifier_failure_still_emits_block(
+        self, mock_send: MagicMock
+    ):
+        """GIVEN a PostToolUse leak whose desktop notifier backend crashes
+        (e.g. BinaryNotFound on a Homebrew install)
+        WHEN scan() runs
+        THEN the notifier failure is swallowed and scan() still returns the
+        normal block exit code instead of crashing the hook (NHI-1681)."""
+        mock_send.side_effect = Exception("BinaryNotFound")
+        scanner = AIHookScanner(_mock_scanner(["sk-xxx"]))
+        data = {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "echo sk-xxx"},
+            "tool_response": {"stdout": "sk-xxx\n"},
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "session_id": "427ae0c5-0862-4e14-aa2c-12fad909c323",
+        }
+        # Must not raise, and must still reach output_result() (exit 0 for Claude).
+        assert scanner.scan(json.dumps(data)) == 0
+        mock_send.assert_called_once()
+
     def test_scan_pre_tool_use_with_secrets_blocks(self):
         """scan() on PRE_TOOL_USE with secrets returns block result."""
         scanner = AIHookScanner(_mock_scanner(["sk-xxx"]))
@@ -232,6 +264,54 @@ class TestAIHookScannerScan:
         scanner = AIHookScanner(_mock_scanner([]))
         with pytest.raises(ValueError):
             scanner._scan_payloads([])
+
+
+class TestBuildAgentHeaders:
+    """``build_agent_headers`` names the calling AI agent via GGShield-Agent-Name.
+
+    Machine identity (Machine-Id / Machine-Username) is sent on every scan by
+    ``ScanContext.get_http_headers`` — only the agent name is hook-specific.
+    """
+
+    AGENT_HEADER = "GGShield-Agent-Name"
+
+    def test_returns_only_the_agent_name(self):
+        """Just the unprefixed Agent-Name; machine identity is not the hook's job."""
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"command": "echo hello"},
+            "cwd": "/home/alice/project",
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "session_id": "427ae0c5-0862-4e14-aa2c-12fad909c323",
+        }
+        assert build_agent_headers(json.dumps(data)) == {"Agent-Name": "claude-code"}
+
+    def test_agent_name_flows_through_scan_context(self):
+        """Fed into ScanContext, the agent name becomes a prefixed header beside mode."""
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"command": "echo hello"},
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "session_id": "s",
+        }
+        ctx = ScanContext(
+            scan_mode=ScanMode.AI_HOOK,
+            command_path="ggshield secret scan ai-hook",
+            extra_headers=build_agent_headers(json.dumps(data)),
+        )
+        http_headers = ctx.get_http_headers()
+        assert http_headers[self.AGENT_HEADER] == "claude-code"
+        assert http_headers["mode"] == ScanMode.AI_HOOK.value
+
+    def test_unrecognized_agent_degrades_to_empty_dict(self):
+        """An unrecognized agent yields no headers rather than raising (fail-open)."""
+        assert build_agent_headers(json.dumps({"hook_event_name": "PreToolUse"})) == {}
+
+    def test_invalid_json_degrades_to_empty_dict(self):
+        """Malformed input yields no headers rather than raising (fail-open)."""
+        assert build_agent_headers("not json") == {}
 
 
 class TestMCPActivity:
@@ -289,62 +369,212 @@ class TestMCPActivity:
 class TestMessageFromSecrets:
     """Unit tests for AIHookScanner._message_from_secrets with different payload types."""
 
-    def test_message_for_bash_tool(self):
-        """Message for BASH tool mentions environment variables."""
-        payload = HookPayload(
-            event_type=EventType.PRE_TOOL_USE,
-            tool=Tool.BASH,
-            content="echo sk-xxx",
-            identifier="echo sk-xxx",
+    def _payload(
+        self,
+        event_type: EventType = EventType.PRE_TOOL_USE,
+        tool: Optional[Tool] = None,
+        identifier: str = "id",
+    ) -> HookPayload:
+        return HookPayload(
+            event_type=event_type,
+            tool=tool,
+            content="content",
+            identifier=identifier,
             agent=Cursor(),
             raw={},
         )
-        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
-        assert "remove the secrets from the command" in message
-        assert "environment variables" in message
 
-    def test_message_for_read_tool(self):
-        """Message for READ tool mentions file content."""
-        payload = HookPayload(
+    def test_message_for_user_prompt(self):
+        """USER_PROMPT: header/status/remediation talk about the prompt."""
+        payload = self._payload(event_type=EventType.USER_PROMPT, tool=None)
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "in your prompt" in message
+        assert "The prompt was not sent to the agent" in message
+        assert "remove the secret from your prompt" in message
+
+    def test_escape_markdown_adds_hard_breaks(self):
+        """escape_markdown turns single newlines into markdown hard breaks
+        (two trailing spaces) so agents rendering the message as markdown
+        (e.g. Codex) don't collapse them into spaces. Blank-line separations
+        are left untouched."""
+        payload = self._payload(event_type=EventType.PRE_TOOL_USE, tool=Tool.BASH)
+        secrets = [_make_secret("sk-xxx")]
+        plain = AIHookScanner._message_from_secrets(secrets, payload)
+        markdown = AIHookScanner._message_from_secrets(
+            secrets, payload, escape_markdown=True
+        )
+        assert "  \n" not in plain
+        lines = markdown.split("\n")
+        for line, next_line in zip(lines, lines[1:]):
+            if line and next_line:
+                assert line.endswith("  ")
+            else:
+                assert not line.endswith(" ")
+        # Blank-line separations are preserved
+        assert markdown.count("\n\n") == plain.count("\n\n")
+
+    def test_message_for_pre_bash_tool(self):
+        """PRE_TOOL_USE + Bash: header names the command, nothing ran yet,
+        remediation points to a secrets manager."""
+        payload = self._payload(event_type=EventType.PRE_TOOL_USE, tool=Tool.BASH)
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "in the command" in message
+        assert "was not executed" in message
+        assert "secrets manager" in message
+
+    def test_message_for_pre_read_tool(self):
+        """PRE_TOOL_USE + Read: header names the file, remediation says to
+        avoid sharing it."""
+        payload = self._payload(
             event_type=EventType.PRE_TOOL_USE,
             tool=Tool.READ,
-            content="file content with secret",
             identifier="/path/to/file",
-            agent=Cursor(),
-            raw={},
         )
         message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
-        assert "remove the secrets from" in message
+        assert "/path/to/file" in message
+        assert "avoid sharing this file" in message
 
-    def test_message_for_other_tool(self):
-        """Message for OTHER tool uses generic message."""
-        payload = HookPayload(
-            event_type=EventType.PRE_TOOL_USE,
-            tool=Tool.OTHER,
-            content="some content",
-            identifier="id",
-            agent=Cursor(),
-            raw={},
+    @pytest.mark.parametrize("tool", [Tool.MCP, Tool.OTHER, None])
+    def test_message_for_pre_other_tools(self, tool: Optional[Tool]):
+        """PRE_TOOL_USE with MCP, an unrecognized tool, or no tool at all
+        share the same generic "tool input" wording."""
+        payload = self._payload(event_type=EventType.PRE_TOOL_USE, tool=tool)
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "in the tool input" in message
+
+    def test_other_event_type_falls_back_to_pre_generic_wording(self):
+        """An unrecognized event type (EventType.OTHER) falls back to the
+        same wording as PRE_TOOL_USE with a non-Bash/Read tool."""
+        payload = self._payload(event_type=EventType.OTHER, tool=None)
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "in the tool input" in message
+        assert "was not executed" in message
+
+    @pytest.mark.parametrize("tool", [Tool.BASH, Tool.READ, Tool.MCP, Tool.OTHER])
+    def test_message_for_post_tool_use_says_leaked(self, tool: Tool):
+        """POST_TOOL_USE, regardless of tool: the secret already reached the
+        agent, so status says it's compromised and remediation says to revoke
+        it (today it is tool-first, which wrongly gives Read/MCP the
+        pre-leak "not leaked yet" wording on POST_TOOL_USE)."""
+        payload = self._payload(
+            event_type=EventType.POST_TOOL_USE, tool=tool, identifier="/path/to/file"
         )
         message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
-        assert "remove the secrets from the tool input" in message
+        assert "Consider it compromised" in message
+        assert "revoke the secret" in message
+
+    def test_message_for_post_read_names_the_file(self):
+        """POST_TOOL_USE + Read: header names the file, like its PreToolUse
+        counterpart, instead of falling back to "in the tool output"."""
+        payload = self._payload(
+            event_type=EventType.POST_TOOL_USE,
+            tool=Tool.READ,
+            identifier="/path/to/file",
+        )
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "/path/to/file" in message
 
     def test_message_escapes_markdown(self):
-        """When escape_markdown=True, asterisks in matches are replaced with dots."""
-        payload = HookPayload(
-            event_type=EventType.USER_PROMPT,
-            tool=None,
-            content="content",
-            identifier="id",
-            agent=Cursor(),
-            raw={},
-        )
+        """When escape_markdown=True, asterisks in matches are replaced with a bullet."""
+        payload = self._payload(event_type=EventType.USER_PROMPT, tool=None)
         message = AIHookScanner._message_from_secrets(
             [_make_secret("sk-xxx")], payload, escape_markdown=True
         )
         # The message itself should not contain raw asterisks from matches
-        # (the header uses ** for bold which is intentional)
+        # (the header and bolded validity use ** for bold which is intentional)
         assert "Detected" in message
+        assert "•" in message
+
+    def test_message_includes_incident_url_for_known_secret(self):
+        """A known secret with an incident_url gets an "Incident URL" line,
+        and, on POST_TOOL_USE, a step to resolve the incident."""
+        payload = self._payload(event_type=EventType.POST_TOOL_USE, tool=Tool.BASH)
+        secret = _make_secret(
+            "sk-xxx",
+            known_secret=True,
+            incident_url="https://dashboard.gitguardian.com/incidents/1",
+        )
+        message = AIHookScanner._message_from_secrets([secret], payload)
+        assert "Incident URL: https://dashboard.gitguardian.com/incidents/1" in message
+        assert (
+            "resolve the incident linked above in your GitGuardian dashboard."
+            in message
+        )
+
+    def test_message_omits_incident_url_for_unknown_secret(self):
+        """A secret that isn't a known incident never gets an Incident URL line."""
+        payload = self._payload(event_type=EventType.POST_TOOL_USE, tool=Tool.BASH)
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "Incident URL" not in message
+
+    def test_message_omits_resolve_incident_step_before_leak(self):
+        """A known secret with an incident_url still gets its Incident URL
+        line on PRE_TOOL_USE, but no "resolve the incident" step since
+        nothing has leaked yet."""
+        payload = self._payload(event_type=EventType.PRE_TOOL_USE, tool=Tool.BASH)
+        secret = _make_secret(
+            "sk-xxx",
+            known_secret=True,
+            incident_url="https://dashboard.gitguardian.com/incidents/1",
+        )
+        message = AIHookScanner._message_from_secrets([secret], payload)
+        assert "Incident URL: https://dashboard.gitguardian.com/incidents/1" in message
+        assert "resolve the incident" not in message
+
+    def test_resolve_incident_step_is_plural_for_several_known_secrets(self):
+        """When more than one secret is a known incident, the remediation
+        step uses the plural "incidents"."""
+        payload = self._payload(event_type=EventType.POST_TOOL_USE, tool=Tool.BASH)
+        message = AIHookScanner._message_from_secrets(
+            [
+                _make_secret(
+                    "sk-xxx",
+                    known_secret=True,
+                    incident_url="https://dashboard.gitguardian.com/incidents/1",
+                ),
+                _make_secret(
+                    "sk-yyy",
+                    known_secret=True,
+                    incident_url="https://dashboard.gitguardian.com/incidents/2",
+                ),
+            ],
+            payload,
+        )
+        assert (
+            "resolve the incidents linked above in your GitGuardian dashboard."
+            in message
+        )
+
+    @pytest.mark.parametrize(
+        "event_type, tool",
+        [
+            (EventType.USER_PROMPT, None),
+            (EventType.PRE_TOOL_USE, Tool.BASH),
+            (EventType.PRE_TOOL_USE, Tool.READ),
+            (EventType.PRE_TOOL_USE, Tool.OTHER),
+            (EventType.POST_TOOL_USE, Tool.BASH),
+            (EventType.POST_TOOL_USE, Tool.READ),
+            (EventType.POST_TOOL_USE, Tool.OTHER),
+            (EventType.OTHER, None),
+        ],
+    )
+    def test_message_always_ends_with_false_positive_block(
+        self, event_type: EventType, tool: Optional[Tool]
+    ):
+        """Every message ends with the false positive escape hatch."""
+        payload = self._payload(event_type=event_type, tool=tool)
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert message.endswith("    ggshield secret ignore --last-found")
+        assert "> If this is a false positive, run:" in message
+
+    def test_false_positive_block_is_plural_for_several_secrets(self):
+        """The false positive block says "these are false positives" when
+        several secrets were detected."""
+        payload = self._payload(event_type=EventType.USER_PROMPT, tool=None)
+        message = AIHookScanner._message_from_secrets(
+            [_make_secret("sk-xxx"), _make_secret("sk-yyy")], payload
+        )
+        assert "> If these are false positives, run:" in message
 
 
 class TestSendSecretNotification:
@@ -371,33 +601,100 @@ class TestSendSecretNotification:
             ),
         )
 
-    @patch("ggshield.verticals.ai.hooks.Notify")
-    def test_notification_for_bash_tool(self, mock_notify_cls: MagicMock):
-        """Notification for BASH tool says 'running the command'
-        and contains the command run."""
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    def test_notification_for_bash_tool(self, mock_send: MagicMock):
+        """GIVEN a BASH-tool result
+        WHEN a notification is sent
+        THEN the message says 'running the command' with the command run."""
         AIHookScanner._send_secret_notification(
             self._result(1, Tool.BASH, Claude(), input_command="ls -la")
         )
-        instance = mock_notify_cls.return_value
-        assert "running the command `ls -la`" in instance.message
-        assert "Claude Code" in instance.message
-        instance.send.assert_called_once()
+        title, message = mock_send.call_args.args
+        assert title == "ggshield - Secrets Detected"
+        assert "running the command `ls -la`" in message
+        assert "Claude Code" in message
 
-    @patch("ggshield.verticals.ai.hooks.Notify")
-    def test_notification_for_read_tool(self, mock_notify_cls: MagicMock):
-        """Notification for READ tool says 'reading a file'."""
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    def test_notification_for_read_tool(self, mock_send: MagicMock):
+        """GIVEN a READ-tool result
+        WHEN a notification is sent
+        THEN the message says 'reading a file'."""
         AIHookScanner._send_secret_notification(self._result(2, Tool.READ, Cursor()))
-        instance = mock_notify_cls.return_value
-        assert "reading a file" in instance.message
-        assert "2" in instance.message
-        instance.send.assert_called_once()
+        _, message = mock_send.call_args.args
+        assert "reading a file" in message
+        assert "2" in message
+
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    def test_notification_for_other_tool(self, mock_send: MagicMock):
+        """GIVEN an OTHER-tool result
+        WHEN a notification is sent
+        THEN the message says 'using a tool'."""
+        AIHookScanner._send_secret_notification(self._result(1, Tool.OTHER, Copilot()))
+        _, message = mock_send.call_args.args
+        assert "using a tool" in message
+
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    def test_notification_failure_never_propagates(self, mock_send: MagicMock):
+        """GIVEN a notifier backend that raises (e.g. missing binary on brew)
+        WHEN a notification is sent
+        THEN the exception is swallowed so the hook can still emit its block."""
+        mock_send.side_effect = Exception("BinaryNotFound")
+        # Must not raise.
+        AIHookScanner._send_secret_notification(self._result(1, Tool.BASH, Claude()))
+
+
+class TestSendDesktopNotification:
+    """Unit tests for the per-OS desktop notification backends."""
+
+    @patch("ggshield.verticals.ai.hooks.subprocess.run")
+    @patch("ggshield.verticals.ai.hooks.sys")
+    def test_macos_uses_native_osascript(
+        self, mock_sys: MagicMock, mock_run: MagicMock
+    ):
+        """GIVEN a macOS host
+        WHEN a desktop notification is sent
+        THEN it invokes osascript, passing the (attacker-influenced) message
+        and title as run-handler arguments rather than interpolating them into
+        the AppleScript source (injection- and unicode-safe)."""
+        mock_sys.platform = "darwin"
+        from ggshield.verticals.ai.hooks import _send_desktop_notification
+
+        # Message with a quote, an accent, an emoji and a tab: none of these
+        # can be represented in an AppleScript string literal, so they must be
+        # passed as arguments, not baked into the script.
+        message = 'ran `café` ❤\ttell app "Finder"'
+        _send_desktop_notification("ggshield - Secrets Detected", message)
+
+        args = mock_run.call_args.args[0]
+        assert args[0] == "osascript"
+        # Uses a run handler reading from argv; the raw strings are the trailing
+        # argv items, never embedded in any "-e" script fragment.
+        assert "on run argv" in args
+        assert message == args[-2]
+        assert "ggshield - Secrets Detected" == args[-1]
+        script_fragments = [args[i + 1] for i, a in enumerate(args) if a == "-e"]
+        assert not any(message in frag for frag in script_fragments)
+        # A hook must never hang or read stdin from a notifier subprocess.
+        assert mock_run.call_args.kwargs["stdin"] is subprocess.DEVNULL
+        assert mock_run.call_args.kwargs["timeout"] == 10
 
     @patch("ggshield.verticals.ai.hooks.Notify")
-    def test_notification_for_other_tool(self, mock_notify_cls: MagicMock):
-        """Notification for OTHER tool says 'using a tool'."""
-        AIHookScanner._send_secret_notification(self._result(1, Tool.OTHER, Copilot()))
+    @patch("ggshield.verticals.ai.hooks.sys")
+    def test_non_macos_uses_notifypy(
+        self, mock_sys: MagicMock, mock_notify_cls: MagicMock
+    ):
+        """GIVEN a non-macOS host
+        WHEN a desktop notification is sent
+        THEN it uses the notifypy backend."""
+        mock_sys.platform = "linux"
+        from ggshield.verticals.ai.hooks import _send_desktop_notification
+
+        _send_desktop_notification("title", "message")
+
         instance = mock_notify_cls.return_value
-        assert "using a tool" in instance.message
+        assert instance.title == "title"
+        assert instance.message == "message"
+        assert instance.application_name == "ggshield"
         instance.send.assert_called_once()
 
 
@@ -562,6 +859,27 @@ class TestAIHookScannerParseInput:
         assert payload.identifier == tmp_file.as_posix()
         assert payload.content == ""
         assert payload.scannable.content == "this is the content"
+        assert isinstance(payload.agent, Claude)
+
+    def test_claude_pre_tool_use_mcp_scans_tool_input(self):
+        """PreToolUse for an MCP tool scans the serialized tool_input, so a
+        secret in an MCP argument is caught before it reaches the server
+        (NHI-1845)."""
+        data = {
+            "session_id": "3b7ae0c5-0862-4e14-aa2c-12fad909c323",
+            "transcript_path": "/home/user1/.claude/projects/foo/3b7ae0c5.jsonl",
+            "cwd": "/home/user1/foo",
+            "permission_mode": "default",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "mcp__github__create_issue",
+            "tool_input": {"title": "creds", "body": "token=abc123secret"},
+            "tool_use_id": "toolu_01WabtWJpzf1ZJ8GJ3JfQEmq",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.MCP
+        assert not payload.empty
+        assert "token=abc123secret" in payload.scannable.content
         assert isinstance(payload.agent, Claude)
 
     def test_claude_post_tool_use_bash(self):
@@ -815,6 +1133,10 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.MCP
+        # Copilot MCP tools are only identified in post_process_payload, after
+        # content selection, so the catch-all input scan must cover them.
+        assert not payload.empty
+        assert "value" in payload.scannable.content
         assert isinstance(payload.agent, Copilot)
 
     def test_copilot_post_tool_use_run_in_terminal(self):
@@ -888,6 +1210,25 @@ class TestAIHookScannerParseInput:
         assert payload.content == "whoami"
         assert isinstance(payload.agent, Codex)
 
+    def test_codex_pre_tool_use_null_transcript_path(self):
+        """Codex sends transcript_path as a present-but-null field; detection
+        must fall back to turn_id instead of crashing on the None."""
+        data = {
+            "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+            "transcript_path": None,
+            "cwd": "/home/user/project",
+            "hook_event_name": "PreToolUse",
+            "turn_id": "turn_123",
+            "model": "gpt-5.4",
+            "tool_name": "Bash",
+            "tool_input": {"command": "whoami"},
+            "tool_use_id": "call_123",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.BASH
+        assert isinstance(payload.agent, Codex)
+
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""
         content = json.dumps(
@@ -904,8 +1245,25 @@ class TestAIHookScannerParseInput:
         assert payload.identifier == "/nonexistent/path"
         assert payload.content == ""
 
+    def test_post_tool_use_read_extracts_file_path(self):
+        """POST_TOOL_USE with tool_name 'Read' extracts the file path from
+        tool_input into the identifier, mirroring the PRE_TOOL_USE Read
+        branch, so the block message can name the file instead of falling
+        back to a content hash."""
+        data = {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "/nonexistent/path"},
+            "tool_response": {"content": "file content"},
+            "cursor_version": "1.2.3",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.event_type == EventType.POST_TOOL_USE
+        assert payload.tool == Tool.READ
+        assert payload.identifier == "/nonexistent/path"
+
     def test_pre_tool_use_other_tool(self):
-        """PRE_TOOL_USE with unknown tool yields Tool.OTHER and empty content."""
+        """PRE_TOOL_USE with unknown tool yields Tool.OTHER and scans its input."""
         data = {
             "hook_event_name": "PreToolUse",
             "tool_name": "SomeUnknownTool",
@@ -915,7 +1273,20 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.OTHER
-        assert payload.content == ""
+        assert "value" in payload.content
+
+    def test_pre_tool_use_other_tool_empty_input(self):
+        """PRE_TOOL_USE with an unknown tool and no input stays empty, so no
+        scan API call is made."""
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "SomeUnknownTool",
+            "tool_input": {},
+            "cursor_version": "1.2.3",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert payload.tool == Tool.OTHER
+        assert payload.empty
 
     def test_other_event_type(self):
         """Unknown event type yields EventType.OTHER with empty content."""
@@ -1176,7 +1547,9 @@ class TestFlavorOutputResult:
         args, kwargs = mock_echo.call_args
         assert kwargs.get("err", False) is False
         out = json.loads(args[0])
-        assert out["systemMessage"] == "Secrets detected in command"
+        # No systemMessage: Codex already shows the decision reason, setting
+        # both would display the message twice.
+        assert "systemMessage" not in out
         assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
         assert (
             out["hookSpecificOutput"]["permissionDecisionReason"]
@@ -1196,7 +1569,7 @@ class TestFlavorOutputResult:
         assert code == 0
         args, _ = mock_echo.call_args
         out = json.loads(args[0])
-        assert out["systemMessage"] == "Secrets detected in prompt"
+        assert "systemMessage" not in out
         assert out["decision"] == "block"
         assert out["reason"] == "Secrets detected in prompt"
 
@@ -1213,7 +1586,7 @@ class TestFlavorOutputResult:
         assert code == 0
         args, _ = mock_echo.call_args
         out = json.loads(args[0])
-        assert out["systemMessage"] == "Secrets detected in tool output"
+        assert "systemMessage" not in out
         assert out["decision"] == "block"
         assert out["reason"] == "Secrets detected in tool output"
 

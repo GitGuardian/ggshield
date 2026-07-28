@@ -179,7 +179,7 @@ def test_ci_cmd_does_not_work_outside_ci(_, cli_fs_runner: click.testing.CliRunn
     assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
 
     # And the error message explains why
-    assert "only be used in a CI environment" in result.stdout
+    assert "only be used in a CI environment" in result.output
 
 
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")
@@ -196,7 +196,7 @@ def test_ci_cmd_does_not_work_if_ci_env_is_odd(
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
 
     # And the error message explains why
-    assert "Current CI is not detected" in result.stdout
+    assert "Current CI is not detected" in result.output
 
 
 @patch("ggshield.cmd.secret.scan.ci.scan_commit_range")
