@@ -102,9 +102,9 @@ jobs:
             dist/ggshield-*.gz \
             dist/ggshield-*.msi
 
-  update_vscode_extension:
+  update_downstream:
     needs: release
-    uses: ./.github/workflows/update_vscode_extension.yml
+    uses: ./.github/workflows/update-downstream.yml
     secrets: inherit
     with:
       version: ${{ needs.release.outputs.tag }}
