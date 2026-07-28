@@ -10,7 +10,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-07-07T12:36:17.90033997Z"
+exclude-newer = "2026-07-25T11:53:25.237299Z"
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
@@ -49,9 +49,9 @@ resolution-markers = [
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "exceptiongroup" },
-    { name = "idna" },
-    { name = "typing-extensions" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.10'" },
+    { name = "idna", marker = "python_full_version < '3.10'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/f0/5eb65b2bb0d09ac6776f2eb54adee6abe8228ea05b20a5ad0e4945de8aac/anyio-4.12.1.tar.gz", hash = "sha256:41cfcc3a4c85d3f05c932da7c26d0201ac36f72abd4435ba90d0464a3ffed703", size = 228685, upload-time = "2026-01-06T11:45:21.246Z" }
 wheels = [
@@ -68,9 +68,9 @@ resolution-markers = [
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "idna" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "exceptiongroup", marker = "python_full_version == '3.10.*'" },
+    { name = "idna", marker = "python_full_version >= '3.10'" },
+    { name = "typing-extensions", marker = "python_full_version >= '3.10' and python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3b/72/5562aabb8dd7181e8e860622a38bea08d17842b99ecd4c91f84ac95251b0/anyio-4.14.1.tar.gz", hash = "sha256:8d648a3544c1a700e3ff78615cd679e4c5c3f149904287e73687b2596963629e", size = 254831, upload-time = "2026-06-24T20:56:06.017Z" }
 wheels = [
@@ -1159,7 +1159,7 @@ requires-dist = [
     { name = "oauthlib", specifier = ">=3.2.1,<4" },
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
-    { name = "pygitguardian", git = "https://github.com/GitGuardian/py-gitguardian.git?rev=2c89d05d6ca1abd4f660bb0cd656216c12c200b1" },
+    { name = "pygitguardian", specifier = "~=1.33.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3" },
     { name = "python-dotenv", specifier = ">=0.21.0,<2" },
     { name = "pyyaml", specifier = ">=6.0.1,<7" },
@@ -2928,8 +2928,8 @@ wheels = [
 
 [[package]]
 name = "pygitguardian"
-version = "1.32.0"
-source = { git = "https://github.com/GitGuardian/py-gitguardian.git?rev=2c89d05d6ca1abd4f660bb0cd656216c12c200b1#2c89d05d6ca1abd4f660bb0cd656216c12c200b1" }
+version = "1.33.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "marshmallow", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -2938,6 +2938,10 @@ dependencies = [
     { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "setuptools" },
     { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ba/e0/7564c10e60df597972782db7f408dbe818c9bdcc73cfb4baf6ec74c4fdf7/pygitguardian-1.33.0.tar.gz", hash = "sha256:fbf352d64131edd61ba413549c10d23b2e4f4dbd64786357e8d82775e7c8db96", size = 59191, upload-time = "2026-07-28T11:43:03.615Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/70/ec/93cb70f9d199f52cf2593c6ee414e334848ac9bba4b87c5f01ac61821d26/pygitguardian-1.33.0-py3-none-any.whl", hash = "sha256:f0dfe586b76927eb746c0d3f1e1ec20f7dc8841b3a1350e784dfb4b318718f88", size = 24528, upload-time = "2026-07-28T11:43:02.629Z" },
 ]
 
 [[package]]
