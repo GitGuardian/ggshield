@@ -11,11 +11,19 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
+from urllib.parse import urlparse, urlunparse
 
 import requests
 
-from ggshield.core.dirs import get_cache_dir, get_plugins_dir
+from ggshield.core.dirs import (
+    get_cache_dir,
+    get_plugins_dir,
+    get_system_plugins_dir,
+    is_root,
+    make_tree_world_readable,
+    make_world_readable,
+)
 from ggshield.core.plugin.client import (
     PluginDownloadInfo,
     PluginSource,
@@ -208,6 +216,32 @@ def _find_foreign_owned_path(root: Path) -> Optional[Tuple[Path, int]]:
     return None
 
 
+def _redact_url_credentials(url: Optional[str]) -> Optional[str]:
+    """Strip credentials from a URL kept only as provenance in the manifest.
+
+    A machine-wide install's manifest is world-readable, so a source URL
+    with embedded basic-auth (``user:pass@host``) or a query string carrying
+    a presigned token must not be persisted verbatim. Keep scheme, host, and
+    path — enough to show where a plugin came from — and drop userinfo,
+    query, and fragment. The stored URL is never used to re-download
+    (URL/artifact installs are non-updatable; GitHub releases re-resolve via
+    ``github_repo``), so dropping these parts is lossless for behaviour.
+    """
+    if not url:
+        return url
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme:
+            return url
+        netloc = parsed.hostname or ""
+        if parsed.port is not None:
+            netloc = f"{netloc}:{parsed.port}"
+    except ValueError:
+        # Malformed netloc/port: drop the URL rather than risk leaking it.
+        return None
+    return urlunparse((parsed.scheme, netloc, parsed.path, "", "", ""))
+
+
 class GitHubArtifactError(DownloadError):
     """Error downloading GitHub artifact."""
 
@@ -218,8 +252,40 @@ class PluginDownloader:
     """Downloads and installs plugin wheels."""
 
     def __init__(self) -> None:
-        self.plugins_dir = get_plugins_dir(create=True)
+        # A root install is machine-wide: land the wheel in the shared system
+        # dir (world-readable) so every user can load it; a normal user installs
+        # into their own data dir. Privilege decides — no flag.
+        if is_root():
+            self.plugins_dir = get_system_plugins_dir(create=True)
+        else:
+            self.plugins_dir = get_plugins_dir(create=True)
         self.trust_store = PluginTrustStore(plugins_dir=self.plugins_dir)
+
+        # Writes target ``plugins_dir`` (privilege-based), but reads merge both
+        # layers (mirroring EnterpriseConfig.load_effective). The install dir is
+        # searched first so it wins on conflict — a user's own copy over a
+        # machine-wide one for a normal user; the fresh machine-wide install
+        # over a stale pre-machine-wide ``/root`` copy for root — while the
+        # other layer stays visible as a fallback (e.g. a non-root user seeing
+        # a root install, or root still seeing a pre-existing per-user install).
+        self._read_dirs: List[Path] = []
+        for read_dir in (self.plugins_dir, get_plugins_dir(), get_system_plugins_dir()):
+            if read_dir not in self._read_dirs:
+                self._read_dirs.append(read_dir)
+
+    def _publish_machine_wide_install(self, plugin_dir: Path) -> None:
+        """Make a root (machine-wide) install loadable by every user.
+
+        A root install lands in the shared system dir, but root's umask can
+        leave the new dirs/wheel/manifest/trust store owner-only, so non-root
+        users could neither traverse to nor read what root just installed.
+        Widen them — they hold only plugin code and metadata. No-op for a
+        per-user install."""
+        if not is_root():
+            return
+        make_tree_world_readable(plugin_dir)
+        if self.trust_store.path.exists():
+            make_world_readable(self.trust_store.path)
 
     def download_and_install(
         self,
@@ -425,10 +491,13 @@ class PluginDownloader:
         if bundle_path is not None:
             shutil.copy2(bundle_path, plugin_dir / bundle_path.name)
 
-        # Create source tracking
+        # Create source tracking. A machine-wide (root) install's manifest is
+        # world-readable, and the absolute source path can leak usernames,
+        # internal shares, or tokenized filenames; the wheel filename is
+        # already recorded separately, so omit the path for root installs.
         source = PluginSource(
             type=PluginSourceType.LOCAL_FILE,
-            local_path=str(wheel_path.resolve()),
+            local_path=None if is_root() else str(wheel_path.resolve()),
             sha256=sha256,
         )
 
@@ -543,7 +612,7 @@ class PluginDownloader:
 
         source = PluginSource(
             type=PluginSourceType.URL,
-            url=url,
+            url=_redact_url_credentials(url),
             sha256=computed_hash,
         )
 
@@ -593,7 +662,7 @@ class PluginDownloader:
         manifest = json.loads(manifest_path.read_text())
         manifest["source"] = PluginSource(
             type=PluginSourceType.GITHUB_RELEASE,
-            url=url,
+            url=_redact_url_credentials(url),
             github_repo=github_repo,
             sha256=manifest.get("sha256"),
         ).to_dict()
@@ -605,6 +674,10 @@ class PluginDownloader:
         finally:
             if tmp_path.exists():
                 tmp_path.unlink()
+
+        # download_from_url already published; re-publish the manifest we just
+        # rewrote so a root umask cannot leave it owner-only.
+        self._publish_machine_wide_install(self.plugins_dir / plugin_name)
 
         return plugin_name, version, wheel_path
 
@@ -739,7 +812,7 @@ class PluginDownloader:
 
         source = PluginSource(
             type=PluginSourceType.GITHUB_ARTIFACT,
-            url=url,
+            url=_redact_url_credentials(url),
             github_repo=f"{owner}/{repo}",
             sha256=sha256,
         )
@@ -844,18 +917,28 @@ class PluginDownloader:
     def _resolve_plugin_dir(self, plugin_name: str) -> Optional[Path]:
         """Resolve a plugin directory from a package or entry point name.
 
-        Prefer the direct path only when it actually looks like a plugin
-        install (``manifest.json`` present). A bare ``plugins_dir/<name>/``
-        without a manifest is treated as residue — typically a stale dir
-        left behind by an aborted install or hand-created by the user —
-        and falls through to the entry-point scan so the real install
-        (which may live under the wheel's distribution-name directory)
-        still resolves.
+        Searches ``_read_dirs`` in priority order and fully resolves each
+        layer — direct name then entry-point match — before moving to the
+        next, so the layer precedence matches the loader (e.g. a non-root
+        user's own install under its distribution-name dir wins over a
+        machine-wide install of the same entry point, instead of the
+        system direct-name match short-circuiting first).
+
+        Within a layer the direct path is preferred only when it actually
+        looks like a plugin install (``manifest.json`` present). A bare
+        ``<dir>/<name>/`` without a manifest is treated as residue — a stale
+        dir from an aborted install or hand-created — and falls through to
+        the entry-point scan so the real install (which may live under the
+        wheel's distribution-name directory) still resolves.
         """
-        plugin_dir = self.plugins_dir / plugin_name
-        if plugin_dir.is_dir() and (plugin_dir / "manifest.json").exists():
-            return plugin_dir
-        return self._find_plugin_dir_by_entry_point(plugin_name)
+        for base in self._read_dirs:
+            plugin_dir = base / plugin_name
+            if plugin_dir.is_dir() and (plugin_dir / "manifest.json").exists():
+                return plugin_dir
+            found = self._find_entry_point_dir_in(base, plugin_name)
+            if found is not None:
+                return found
+        return None
 
     def _get_manifest_path(self, plugin_name: str) -> Optional[Path]:
         """Return the manifest path for a plugin installed by package or entry point."""
@@ -873,11 +956,25 @@ class PluginDownloader:
         return manifest_path
 
     def _find_plugin_dir_by_entry_point(self, entry_point_name: str) -> Optional[Path]:
-        """Find a plugin directory by its entry point name."""
-        if not self.plugins_dir.exists():
+        """Find a plugin directory by its entry point name.
+
+        Scans the per-user dir then the machine-wide system dir so a
+        root-installed plugin resolves for a normal user too.
+        """
+        for base in self._read_dirs:
+            found = self._find_entry_point_dir_in(base, entry_point_name)
+            if found is not None:
+                return found
+        return None
+
+    def _find_entry_point_dir_in(
+        self, base: Path, entry_point_name: str
+    ) -> Optional[Path]:
+        """Find a plugin dir under a single plugins dir by its entry point name."""
+        if not base.exists():
             return None
 
-        for plugin_dir in self.plugins_dir.iterdir():
+        for plugin_dir in base.iterdir():
             if not plugin_dir.is_dir():
                 continue
 
@@ -955,11 +1052,25 @@ class PluginDownloader:
             except OSError:
                 disk_sha256 = None
             if disk_sha256 is not None:
-                trusted_unsigned = self.trust_store.is_trusted(
+                # Use the trust store that sits next to the resolved plugin
+                # (system store for a machine-wide install, per-user store
+                # otherwise) so status/list match what the loader accepts —
+                # a root --allow-unsigned plugin's record lives system-side.
+                trusted_unsigned = self._trust_store_for(plugin_dir).is_trusted(
                     plugin_dir.name, disk_sha256
                 )
 
         return get_signature_label(manifest, trusted_unsigned=trusted_unsigned)
+
+    def _trust_store_for(self, plugin_dir: Path) -> PluginTrustStore:
+        """Trust store living alongside ``plugin_dir``'s plugins directory.
+
+        A machine-wide plugin's trust record sits next to the system plugins,
+        not in the per-user store this downloader writes to; deriving the
+        store from the plugin's own location keeps reads consistent with where
+        the record was written. Equivalent to ``self.trust_store`` for a
+        plugin under this downloader's own ``plugins_dir``."""
+        return PluginTrustStore(plugins_dir=plugin_dir.parent)
 
     def get_plugin_source(self, plugin_name: str) -> Optional[PluginSource]:
         """Get the source information for an installed plugin."""
@@ -1028,6 +1139,11 @@ class PluginDownloader:
         finally:
             if tmp_path.exists():
                 tmp_path.unlink()
+
+        # The manifest write is the final create step of every install path,
+        # so widen the freshly-written install here once a root install has
+        # the wheel, bundle, manifest, and trust record on disk.
+        self._publish_machine_wide_install(plugin_dir)
 
     def _sync_trust_record(
         self,

@@ -73,7 +73,7 @@ def _load_plugins() -> PluginRegistry:
     global _plugin_registry
     if _plugin_registry is None:
         try:
-            enterprise_config = EnterpriseConfig.load()
+            enterprise_config = EnterpriseConfig.load_effective()
             plugin_loader = PluginLoader(enterprise_config)
             _plugin_registry = plugin_loader.load_enabled_plugins()
         except Exception as e:

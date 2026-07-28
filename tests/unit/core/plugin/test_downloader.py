@@ -1044,6 +1044,31 @@ class TestInstallFromWheel:
         assert manifest["plugin_name"] == "myplugin"
         assert manifest["version"] == "2.0.0"
         assert manifest["source"]["type"] == "local_file"
+        # Per-user install keeps the source path as provenance.
+        assert manifest["source"]["local_path"] == str(wheel_path.resolve())
+
+    def test_install_from_wheel_omits_local_path_for_root(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """A machine-wide (root) install's manifest is world-readable, so it
+        must not record root's absolute source path."""
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        wheel_path = create_test_wheel(source_dir, "myplugin", "2.0.0")
+
+        monkeypatch.setattr("ggshield.core.plugin.downloader.is_root", lambda: True)
+        with patch(
+            "ggshield.core.plugin.downloader.verify_wheel_signature",
+            return_value=MOCK_SIG_INFO,
+        ):
+            downloader = PluginDownloader()
+            downloader.install_from_wheel(wheel_path)
+
+        manifest = json.loads(
+            (downloader.plugins_dir / "myplugin" / "manifest.json").read_text()
+        )
+        assert manifest["source"]["type"] == "local_file"
+        assert "local_path" not in manifest["source"]
 
     def test_install_from_wheel_canonicalises_distribution_name(
         self, tmp_path: Path

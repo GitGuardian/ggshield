@@ -50,8 +50,8 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> None:
         ui.display_error(f"Failed to fetch plugin catalog: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
 
-    # Load local config for installed plugins info
-    enterprise_config = EnterpriseConfig.load()
+    # Effective enablement (machine-wide + per-user) for accurate status.
+    enterprise_config = EnterpriseConfig.load_effective()
     downloader = PluginDownloader()
 
     # Display available plugins

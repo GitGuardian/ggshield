@@ -53,7 +53,7 @@ class TestPluginStatus:
 
             mock_config = mock.MagicMock()
             mock_config.is_plugin_enabled.return_value = False
-            mock_config_class.load.return_value = mock_config
+            mock_config_class.load_effective.return_value = mock_config
 
             mock_downloader = mock.MagicMock()
             mock_downloader.get_installed_version.return_value = None
@@ -143,7 +143,7 @@ class TestPluginStatus:
 
             mock_config = mock.MagicMock()
             mock_config.is_plugin_enabled.return_value = True
-            mock_config_class.load.return_value = mock_config
+            mock_config_class.load_effective.return_value = mock_config
 
             mock_downloader = mock.MagicMock()
             mock_downloader.get_installed_version.return_value = "1.0.0"
@@ -200,7 +200,7 @@ class TestPluginStatus:
 
             mock_config = mock.MagicMock()
             mock_config.is_plugin_enabled.return_value = True
-            mock_config_class.load.return_value = mock_config
+            mock_config_class.load_effective.return_value = mock_config
 
             mock_downloader = mock.MagicMock()
             mock_downloader.get_installed_version.return_value = "1.0.0"
@@ -316,7 +316,7 @@ class TestPluginStatus:
 
             mock_config = mock.MagicMock()
             mock_config.is_plugin_enabled.return_value = False
-            mock_config_class.load.return_value = mock_config
+            mock_config_class.load_effective.return_value = mock_config
 
             mock_downloader = mock.MagicMock()
             mock_downloader.get_installed_version.return_value = "1.0.0"
@@ -373,7 +373,7 @@ class TestPluginStatus:
 
             mock_config = mock.MagicMock()
             mock_config.is_plugin_enabled.return_value = False
-            mock_config_class.load.return_value = mock_config
+            mock_config_class.load_effective.return_value = mock_config
 
             mock_downloader = mock.MagicMock()
             mock_downloader.get_installed_version.return_value = None

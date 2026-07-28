@@ -27,7 +27,7 @@ def list_cmd(ctx: click.Context, **kwargs: Any) -> None:
     Use 'ggshield plugin status' to see available plugins
     that can be installed.
     """
-    enterprise_config = EnterpriseConfig.load()
+    enterprise_config = EnterpriseConfig.load_effective()
     loader = PluginLoader(enterprise_config)
     downloader = PluginDownloader()
 

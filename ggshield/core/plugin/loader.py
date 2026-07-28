@@ -17,7 +17,12 @@ from packaging import version as packaging_version
 
 from ggshield import __version__ as ggshield_version
 from ggshield.core.config.enterprise_config import EnterpriseConfig
-from ggshield.core.dirs import get_cache_dir, get_plugins_dir
+from ggshield.core.dirs import (
+    get_cache_dir,
+    get_plugins_dir,
+    get_system_plugins_dir,
+    is_root,
+)
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.registry import PluginRegistry
 from ggshield.core.plugin.signature import (
@@ -460,15 +465,35 @@ class PluginLoader:
         """Return True when the current wheel hash matches a persisted trust record."""
         plugin_name = wheel_path.parent.name
         wheel_sha256 = compute_file_sha256(wheel_path)
-        if self.trust_store.is_trusted(plugin_name, wheel_sha256):
+        stores = self._trust_stores_for(wheel_path)
+
+        if any(store.is_trusted(plugin_name, wheel_sha256) for store in stores):
             return True
 
-        if self.trust_store.get_record(plugin_name) is not None:
+        if any(store.get_record(plugin_name) is not None for store in stores):
             logger.warning(
                 "Stored trust for %s does not match the current wheel hash, refusing to load it",
                 plugin_name,
             )
         return False
+
+    def _trust_stores_for(self, wheel_path: Path) -> List[PluginTrustStore]:
+        """Trust stores that may hold a record for ``wheel_path``.
+
+        Always the per-user store this loader was built with; plus the
+        system store when the wheel lives under the machine-wide plugins
+        dir. A plugin root installed with ``--allow-unsigned`` records its
+        trust next to the *system* plugins, so without consulting that
+        store strict startup verification would reject the admin-installed
+        wheel for every non-root user."""
+        stores = [self.trust_store]
+        system_plugins_dir = get_system_plugins_dir()
+        if (
+            wheel_path.parent.parent == system_plugins_dir
+            and system_plugins_dir != self.plugins_dir
+        ):
+            stores.append(PluginTrustStore(plugins_dir=system_plugins_dir))
+        return stores
 
     def _read_wheel_entry_point(self, wheel_path: Path) -> Optional[str]:
         """Read the ggshield.plugins entry point value from a wheel's metadata."""
@@ -490,13 +515,34 @@ class PluginLoader:
             yield from all_eps.get(PLUGIN_ENTRY_POINT_GROUP, [])
 
     def _scan_local_wheels(self) -> Iterator[WheelInfo]:
-        """Scan the plugins directory for installed wheels."""
+        """Scan both plugin dirs for installed wheels.
+
+        The winning layer is yielded last (``discover_plugins`` keys by name,
+        last write wins), mirroring :meth:`EnterpriseConfig.load_effective`:
+
+        - Non-root: system then per-user, so a user's own install of a plugin
+          overrides the machine-wide one.
+        - Root: per-user then system, so a fresh machine-wide install wins over
+          a stale pre-machine-wide ``/root`` wheel, while a pre-existing root
+          install under the old per-user dir stays loadable until migrated."""
+        if is_root():
+            scan_dirs: Tuple[Path, ...] = (get_plugins_dir(), get_system_plugins_dir())
+        else:
+            scan_dirs = (get_system_plugins_dir(), self.plugins_dir)
+        seen: list[Path] = []
+        for plugins_dir in scan_dirs:
+            if plugins_dir in seen:
+                continue
+            seen.append(plugins_dir)
+            yield from self._scan_wheels_in(plugins_dir)
+
+    def _scan_wheels_in(self, plugins_dir: Path) -> Iterator[WheelInfo]:
         import json
 
-        if not self.plugins_dir.exists():
+        if not plugins_dir.exists():
             return
 
-        for plugin_dir in self.plugins_dir.iterdir():
+        for plugin_dir in plugins_dir.iterdir():
             if not plugin_dir.is_dir():
                 continue
 
