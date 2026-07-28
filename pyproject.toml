@@ -44,7 +44,7 @@ dependencies = [
     "marshmallow-dataclass>=8.7.0,<9",
     "oauthlib>=3.2.1,<4",
     "packaging>=22.0",
-    "pygitguardian @ git+https://github.com/GitGuardian/py-gitguardian.git@2c89d05d6ca1abd4f660bb0cd656216c12c200b1",
+    "pygitguardian~=1.33.1",
     "pyjwt>=2.13.0,<3",
     "python-dotenv>=0.21.0,<2",
     "pyyaml>=6.0.1,<7",
