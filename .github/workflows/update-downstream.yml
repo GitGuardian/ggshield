@@ -14,6 +14,8 @@ on:
         required: true
         type: string
 
+permissions: {}
+
 jobs:
   update-ggshield-version:
     runs-on: ubuntu-latest
