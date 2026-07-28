@@ -18,20 +18,25 @@ Verification modes (these decide how a result is handled, not how it is computed
 - DISABLED: skip verification entirely
 """
 
+from __future__ import annotations
+
 import enum
 import functools
 import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
-
-from sigstore.errors import VerificationError
-from sigstore.models import Bundle, TrustedRoot
-from sigstore.verify import Verifier
-from sigstore.verify.policy import AllOf, GitHubWorkflowRepository, OIDCIssuer
+from typing import TYPE_CHECKING, List, Optional
 
 from ggshield.core.plugin._sigstore_trusted_root import TRUSTED_ROOT_JSON
+
+
+if TYPE_CHECKING:
+    # Imported lazily at call time (see _bundled_verifier / verify_wheel_signature)
+    # so that merely importing this module -- e.g. for SignatureVerificationMode,
+    # used when constructing PluginLoader on every ggshield invocation -- does not
+    # drag in the whole sigstore/pydantic/rekor stack (~500ms of imports).
+    from sigstore.verify import Verifier
 
 
 logger = logging.getLogger(__name__)
@@ -127,6 +132,9 @@ def _bundled_verifier() -> Verifier:
     ``TrustedRoot.from_file`` is sigstore's only public constructor, so the
     embedded JSON is materialised to a temp file to load it.
     """
+    from sigstore.models import TrustedRoot
+    from sigstore.verify import Verifier
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         trusted_root_path = Path(tmp_dir) / "trusted_root.json"
         trusted_root_path.write_text(TRUSTED_ROOT_JSON)
@@ -170,6 +178,10 @@ def verify_wheel_signature(
             raise SignatureVerificationError(SignatureStatus.MISSING, msg)
         logger.warning("%s", msg)
         return SignatureInfo(status=SignatureStatus.MISSING, message=msg)
+
+    from sigstore.errors import VerificationError
+    from sigstore.models import Bundle
+    from sigstore.verify.policy import AllOf, GitHubWorkflowRepository, OIDCIssuer
 
     bundle = Bundle.from_json(bundle_path.read_bytes())
     wheel_bytes = wheel_path.read_bytes()
