@@ -1,4 +1,5 @@
 import json
+import re
 from unittest import mock
 
 import jsonschema
@@ -6,7 +7,7 @@ import pytest
 import requests.exceptions
 from pygitguardian.models import APITokensResponse, Detail, HealthCheckResponse
 from pytest_voluptuous import S
-from voluptuous.validators import All, In, Match
+from voluptuous.validators import All, Contains, In, Match
 
 from ggshield.__main__ import cli
 from ggshield.core.config.config import ConfigSource
@@ -49,8 +50,12 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
                     "secrets_engine_version": Match(r"\d\.\d{1,3}\.\d"),
                     "instance_source": In(x.name for x in ConfigSource),
                     "api_key_source": In(x.name for x in ConfigSource),
-                    "token_scopes": ["scan"],
-                    "workspace_id": 1,
+                    # Neither is pinned to the recorded value: the release
+                    # process re-records the cassettes, so both depend on the
+                    # releaser's token. Its scopes are a superset of "scan":
+                    # the honeytoken tests need `honeytokens:write` to record.
+                    "token_scopes": All([str], Contains("scan")),
+                    "workspace_id": int,
                 }
             )
         )
@@ -210,7 +215,7 @@ def test_api_status_shows_workspace_id(cli_fs_runner):
     with my_vcr.use_cassette("test_health_check"):
         result = cli_fs_runner.invoke(cli, ["api-status"], color=False)
     assert_invoke_ok(result)
-    assert "Workspace ID: 1" in result.output
+    assert re.search(r"^Workspace ID: \d+$", result.output, re.MULTILINE)
 
     lines = result.output.splitlines()
     api_url_index = next(
