@@ -11,7 +11,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
 if TYPE_CHECKING:
     from ggshield.verticals.ai.agent_activity import ActivitySource, AgentActivityEvent
 
-import tomli
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from pygitguardian.models import MCPConfiguration as BaseMCPConfiguration
 from pygitguardian.models import MCPServer, UserInfo
@@ -435,7 +438,7 @@ class Agent(ABC):
             raw = path.read_text()
             # Fallback to JSON
             if path.suffix == ".toml":
-                data = tomli.loads(raw)
+                data = tomllib.loads(raw)
             else:
                 data = json.loads(raw)
             if not isinstance(data, dict):
