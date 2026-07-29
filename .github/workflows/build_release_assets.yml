@@ -19,7 +19,7 @@ on:
 
 env:
   UV_VERSION: 0.10.8
-  DEFAULT_PYTHON_VERSION: '3.10'
+  DEFAULT_PYTHON_VERSION: '3.12'
 
 jobs:
   build_wheel_sdist:
@@ -59,25 +59,25 @@ jobs:
             arch: x86_64
             nfpm_arch: x86_64
             sha256sum:
-              python: e8d7ed8c6f8c6f85cd083d5051cafd8c6c01d09eca340d1da74d0c00ff1cb897
+              python: 7ceaf4360f4b4ab44f31d8217cfdc70df8e12b61d9561b4900ee7af87176e50d
               nfpm: 9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
           - os: ubuntu-24.04-arm
             container: rockylinux/rockylinux:8
             arch: aarch64
             nfpm_arch: arm64
             sha256sum:
-              python: 5dcd0486c403d07e27a1f2c256810122ac5d153f921433d77116df5c7d09b4c9
+              python: e125d3e75034fe75d49ae8577b53758b0bb7d7817fadde2c020ad2cf7afe64c4
               nfpm: ccfc3a154dec318100c6b6e28deddef0a1ffddf5e258364d74b647a129c72a0e
           - os: windows-2022
           - os: macos-15-intel
             arch: x86_64
             sha256sum:
-              python: 6378dfd22f58bb553ddb02be28304d739cd730c1f95c15c74955c923a1bc3d6a
+              python: e654c21d0ba53e2c671868d4112fac5874deca4c35226d36c5cfe53bc5c9cd71
               rcodesign: bca6e648afaddd48f1c3d5dd25aa516659992cbbd2ba7131ba6add739aa895d3
           - os: macos-14
             arch: aarch64
             sha256sum:
-              python: 5fdc0f6a5b5a90fd3c528e8b1da8e3aac931ea8690126c2fdb4254c84a3ff04a
+              python: 2f18cdef4125ca1440dd1ba00ebcb267526efb532138c0860438f755ea4eebac
               rcodesign: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
     steps:
       - uses: actions/checkout@v4
@@ -85,13 +85,13 @@ jobs:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
 
-      - name: Set up Python 3.10 (Windows 1/2)
+      - name: Set up Python 3.12 (Windows 1/2)
         if: matrix.os == 'windows-2022'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
-      - name: Set up Python 3.10 (Windows 2/2)
+      - name: Set up Python 3.12 (Windows 2/2)
         if: matrix.os == 'windows-2022'
         shell: bash
         run: |
@@ -108,9 +108,9 @@ jobs:
             git-core \
             findutils
 
-          # Install Python 3.10 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
-          PYTHON_VERSION=3.10.16
-          PYTHON_BUILD=20250317
+          # Install Python 3.12 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
+          PYTHON_VERSION=3.12.13
+          PYTHON_BUILD=20260728
           scripts/download \
             https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${{ matrix.arch }}-unknown-linux-gnu-install_only_stripped.tar.gz \
             python.tar.gz \
@@ -143,8 +143,8 @@ jobs:
           # macs it installs the Framework version of Python, and the binaries
           # produced with that version do not pass Apple notarization step.
           # (tested with actions/setup-python@v4 and @v5)
-          PYTHON_VERSION=3.10.13
-          PYTHON_BUILD=20240224
+          PYTHON_VERSION=3.12.13
+          PYTHON_BUILD=20260728
 
           scripts/download \
             https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${{ matrix.arch }}-apple-darwin-install_only.tar.gz \
