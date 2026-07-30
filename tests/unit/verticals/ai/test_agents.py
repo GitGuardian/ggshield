@@ -11,6 +11,7 @@ from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
 from ggshield.verticals.ai.agents.codex import Codex
 from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
+from ggshield.verticals.ai.agents.vibe import Vibe
 from ggshield.verticals.ai.agents.vscode import VSCode
 from ggshield.verticals.ai.models import (
     Agent,
@@ -1042,6 +1043,107 @@ class TestCodex:
         assert req.model == "gpt-5.4"
         assert req.cwd == "/tmp/project"
         assert req.input == {"query": "hello"}
+
+
+# ===========================================================================
+# Vibe
+# ===========================================================================
+
+
+class TestVibe:
+    def test_config_folder_defaults_to_dot_vibe(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            assert Vibe().config_folder == tmp_path / ".vibe"
+
+    def test_config_folder_honors_vibe_home(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv",
+            return_value=str(tmp_path / "custom-vibe"),
+        ):
+            assert Vibe().config_folder == tmp_path / "custom-vibe"
+
+    def test_parse_mcp_activity(self):
+        vibe = Vibe()
+        cfg = _cfg(name="my_server", agent="vibe")
+        server = MCPServer(
+            name="My Server",
+            configurations=[cfg],
+            tools=[MCPToolInfo(name="run_query")],
+        )
+        discovery = _ai_discovery(servers=[server])
+        payload = _payload(
+            vibe,
+            raw={
+                "tool_name": "my_server_run_query",
+                "cwd": "/tmp/project",
+                "tool_input": {"query": "hello"},
+            },
+        )
+
+        req = vibe.parse_mcp_activity(payload, discovery)
+
+        assert req.user == discovery.user
+        assert req.tool == "run_query"
+        assert req.server == "My Server"
+        assert req.agent == "vibe"
+        assert req.model == ""
+        assert req.cwd == "/tmp/project"
+        assert req.input == {"query": "hello"}
+
+    def test_post_process_payload_recognizes_configured_mcp_tool(self, tmp_path: Path):
+        vibe_home = tmp_path / ".vibe"
+        vibe_home.mkdir()
+        (vibe_home / "config.toml").write_text(
+            "[[mcp_servers]]\n"
+            'name = "my_server"\n'
+            'transport = "stdio"\n'
+            'command = "server"\n'
+        )
+        payload = _payload(
+            Vibe(),
+            raw={
+                "tool_name": "my_server_run_query",
+                "cwd": str(tmp_path / "project"),
+                "tool_input": {"query": "hello"},
+            },
+            tool=Tool.OTHER,
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            payload.agent.post_process_payload(payload)
+
+        assert payload.tool == Tool.MCP
+
+    def test_post_process_payload_rejects_unconfigured_mcp_prefix(self, tmp_path: Path):
+        payload = _payload(
+            Vibe(),
+            raw={
+                "tool_name": "mcp_custom_tool",
+                "cwd": str(tmp_path),
+                "tool_input": {},
+            },
+            tool=Tool.MCP,
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            payload.agent.post_process_payload(payload)
+
+        assert payload.tool == Tool.OTHER
 
 
 class TestCodexDiscoverProjectDirectories:

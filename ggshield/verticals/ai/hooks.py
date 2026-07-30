@@ -39,7 +39,9 @@ HOOK_NAME_TO_EVENT_TYPE = {
     "userpromptsubmitted": EventType.USER_PROMPT,  # Copilot CLI's native event name
     "beforesubmitprompt": EventType.USER_PROMPT,
     "pretooluse": EventType.PRE_TOOL_USE,
+    "pre_tool": EventType.PRE_TOOL_USE,
     "posttooluse": EventType.POST_TOOL_USE,
+    "post_tool": EventType.POST_TOOL_USE,
 }
 
 TOOL_NAME_TO_TOOL = {
@@ -205,6 +207,10 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
     elif event_type == EventType.POST_TOOL_USE:
         tool = _parse_tool(data)
         content = lookup(data, ["tool_output", "tool_response", "tool_result"], {})
+        if content is None:
+            # Vibe reports a null structured output on tool failure, while the
+            # text shown to the model remains available in tool_output_text.
+            content = data.get("tool_output_text", "")
         # Some agents return a dict for the tool output. Also support lists just in case.
         if isinstance(content, (dict, list)):
             content = json.dumps(content)

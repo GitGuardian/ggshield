@@ -17,7 +17,15 @@ from pygitguardian.models import ScanResult as ApiScanResult
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
-from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
+from ggshield.verticals.ai.agents import (
+    Agent,
+    Claude,
+    Codex,
+    Copilot,
+    Cursor,
+    Vibe,
+    VSCode,
+)
 from ggshield.verticals.ai.cache import (
     _verdict_cache_path,
     has_clean_verdict,
@@ -1863,6 +1871,74 @@ class TestAIHookScannerParseInput:
         assert payload.tool == Tool.BASH
         assert isinstance(payload.agent, Codex)
 
+    def test_vibe_pre_tool_bash(self):
+        data = {
+            "session_id": "session-123",
+            "parent_session_id": None,
+            "transcript_path": "/home/user/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "pre_tool",
+            "tool_name": "bash",
+            "tool_call_id": "call-123",
+            "tool_input": {"command": "whoami"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.BASH
+        assert payload.content == "whoami"
+        assert isinstance(payload.agent, Vibe)
+
+    def test_vibe_post_tool_read(self):
+        data = {
+            "session_id": "session-123",
+            "parent_session_id": None,
+            "transcript_path": "/home/user/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "post_tool",
+            "tool_name": "read_file",
+            "tool_call_id": "call-123",
+            "tool_input": {"path": "/tmp/secret.txt"},
+            "tool_status": "success",
+            "tool_output": {"content": "file content"},
+            "tool_output_text": "file content",
+            "tool_error": None,
+            "duration_ms": 42.5,
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert payload.event_type == EventType.POST_TOOL_USE
+        assert payload.tool == Tool.READ
+        # Canonicalized against the event's cwd (see _abs_read_path).
+        assert payload.identifier == os.path.abspath("/tmp/secret.txt")
+        assert payload.content == '{"content": "file content"}'
+        assert isinstance(payload.agent, Vibe)
+
+    def test_vibe_failed_post_tool_scans_output_text(self):
+        data = {
+            "session_id": "session-123",
+            "parent_session_id": None,
+            "transcript_path": "/home/user/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "post_tool",
+            "tool_name": "bash",
+            "tool_call_id": "call-123",
+            "tool_input": {"command": "failing-command"},
+            "tool_status": "failure",
+            "tool_output": None,
+            "tool_output_text": "failure output",
+            "tool_error": "failed",
+            "duration_ms": 42.5,
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert payload.event_type == EventType.POST_TOOL_USE
+        assert payload.content == "failure output"
+        assert isinstance(payload.agent, Vibe)
+
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""
         content = json.dumps(
@@ -2321,6 +2397,45 @@ class TestFlavorOutputResult:
         assert code == 0
         out = json.loads(mock_echo.call_args[0][0])
         assert out == {"systemMessage": "could not scan"}
+
+    @patch("ggshield.verticals.ai.agents.vibe.click.echo")
+    def test_vibe_output_result_allow(self, mock_echo: MagicMock):
+        result = HookResult.allow(_dummy_payload(EventType.PRE_TOOL_USE))
+
+        code = Vibe().output_result(result)
+
+        assert code == 0
+        mock_echo.assert_not_called()
+
+    @patch("ggshield.verticals.ai.agents.vibe.click.echo")
+    def test_vibe_output_result_block(self, mock_echo: MagicMock):
+        result = HookResult(
+            block=True,
+            message="Secrets detected in command",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.PRE_TOOL_USE),
+        )
+
+        code = Vibe().output_result(result)
+
+        assert code == 0
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out == {
+            "decision": "deny",
+            "reason": "Secrets detected in command",
+        }
+
+    @patch("ggshield.verticals.ai.agents.vibe.click.echo")
+    def test_vibe_output_result_allow_with_warning(self, mock_echo: MagicMock):
+        result = HookResult.allow_with_warning(
+            _dummy_payload(EventType.PRE_TOOL_USE), "could not scan"
+        )
+
+        code = Vibe().output_result(result)
+
+        assert code == 0
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out == {"system_message": "could not scan"}
 
     @patch("ggshield.verticals.ai.agents.cursor.click.echo")
     def test_cursor_output_result_allow_with_warning(self, mock_echo: MagicMock):

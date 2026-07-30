@@ -5,12 +5,14 @@ from .claude_code import Claude
 from .codex import Codex
 from .copilot import Copilot
 from .cursor import Cursor
+from .vibe import Vibe
 from .vscode import VSCode
 
 
 AGENTS: Dict[str, Agent] = {
-    agent.name: agent for agent in [Claude(), Codex(), Copilot(), Cursor(), VSCode()]
+    agent.name: agent
+    for agent in [Claude(), Codex(), Copilot(), Cursor(), Vibe(), VSCode()]
 }
 
 
-__all__ = ["AGENTS", "Claude", "Codex", "Copilot", "Cursor", "VSCode"]
+__all__ = ["AGENTS", "Claude", "Codex", "Copilot", "Cursor", "Vibe", "VSCode"]

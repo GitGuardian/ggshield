@@ -9,8 +9,14 @@ from unittest.mock import patch
 
 import pytest
 
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
 from ggshield.core.errors import UnexpectedError
-from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
+from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor, Vibe
 from ggshield.verticals.ai.installation import (
     AgentHookStatus,
     InstallationStats,
@@ -335,6 +341,22 @@ class TestFlavorSettingsProperties:
     def test_codex_settings_template(self):
         assert isinstance(Codex().settings_template, dict)
 
+    def test_vibe_settings_path_and_format(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv",
+            return_value=str(tmp_path / "vibe-home"),
+        ):
+            assert (
+                Vibe().settings_path("global") == tmp_path / "vibe-home" / "hooks.toml"
+            )
+            assert Vibe().settings_path("local") == Path(".vibe") / "hooks.toml"
+            assert Vibe().settings_format == "toml"
+
+    def test_vibe_settings_template(self):
+        hooks = Vibe().settings_template["hooks"]
+        assert [hook["type"] for hook in hooks] == ["pre_tool", "post_tool"]
+        assert all(hook["match"] == "*" for hook in hooks)
+
 
 class TestInstallHooks:
     """Unit tests for the install_hooks function."""
@@ -397,6 +419,100 @@ class TestInstallHooks:
 
         codex_config = tmp_path / ".codex" / "config.toml"
         assert not codex_config.exists()
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_global(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+
+        code = install_hooks("vibe", mode="global")
+
+        assert code == 0
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        config = tomllib.loads(settings_path.read_text())
+        assert [hook["name"] for hook in config["hooks"]] == [
+            "ggshield-pre-tool",
+            "ggshield-post-tool",
+        ]
+        assert all("ggshield" in hook["command"] for hook in config["hooks"])
+        assert all(hook["strict"] is False for hook in config["hooks"])
+
+        install_hooks("vibe", mode="global")
+        config = tomllib.loads(settings_path.read_text())
+        assert [hook["name"] for hook in config["hooks"]] == [
+            "ggshield-pre-tool",
+            "ggshield-post-tool",
+        ]
+
+        updated_command = "/opt/ggshield/bin/ggshield secret scan ai-hook"
+        with patch(
+            "ggshield.verticals.ai.installation.build_hook_command",
+            return_value=updated_command,
+        ):
+            install_hooks("vibe", mode="global", force=True)
+        config = tomllib.loads(settings_path.read_text())
+        assert all(hook["command"] == updated_command for hook in config["hooks"])
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_preserves_existing_toml(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text(
+            "# Keep this comment\n"
+            "[[hooks]]\n"
+            'name = "existing"\n'
+            'type = "pre_tool"\n'
+            'match = "bash"\n'
+            'command = "other-tool"\n'
+        )
+
+        install_hooks("vibe", mode="global")
+
+        text = settings_path.read_text()
+        config = tomllib.loads(text)
+        assert "# Keep this comment" in text
+        assert [hook["name"] for hook in config["hooks"]] == [
+            "existing",
+            "ggshield-pre-tool",
+            "ggshield-post-tool",
+        ]
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_with_corrupt_toml_raises(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text("[[hooks]\n")
+
+        with pytest.raises(UnexpectedError, match="Failed to parse"):
+            install_hooks("vibe", mode="global")
 
     def test_install_unsupported_agent_raises(self):
         """install_hooks raises ValueError for unsupported agent."""
