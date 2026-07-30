@@ -1,4 +1,5 @@
 import json
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
@@ -11,9 +12,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
 if TYPE_CHECKING:
     from ggshield.verticals.ai.agent_activity import ActivitySource, AgentActivityEvent
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:
+else:
     import tomli as tomllib
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from pygitguardian.models import MCPConfiguration as BaseMCPConfiguration

@@ -72,12 +72,12 @@ jobs:
           - os: macos-15-intel
             arch: x86_64
             sha256sum:
-              python: e654c21d0ba53e2c671868d4112fac5874deca4c35226d36c5cfe53bc5c9cd71
+              python: 21ea90aa55057e5f1d177f1f5fb2d730704f68124ca8ff40d872a81ffdf0543e
               rcodesign: bca6e648afaddd48f1c3d5dd25aa516659992cbbd2ba7131ba6add739aa895d3
           - os: macos-14
             arch: aarch64
             sha256sum:
-              python: 2f18cdef4125ca1440dd1ba00ebcb267526efb532138c0860438f755ea4eebac
+              python: 12d6700f7e8f222639f0ee5bbd173082c3041aeb65af8f9828e4216bc8047de6
               rcodesign: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
     steps:
       - uses: actions/checkout@v4
