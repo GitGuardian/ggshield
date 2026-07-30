@@ -97,6 +97,27 @@ jobs:
         run: |
           echo PYTHON_CMD=python >> $GITHUB_ENV
 
+      - name: Patch bundled sqlite3.dll (Windows)
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: |
+          # CPython 3.12's official Windows build still ships sqlite3.dll
+          # 3.49.1, vulnerable to CVE-2025-6965 (fixed in 3.50.2) among
+          # others. SQLite's public C API is strictly backward-compatible
+          # (verified: every symbol exported by 3.49.1 is also exported by
+          # 3.53.4), so dropping in the official upstream DLL is a safe fix
+          # without needing a newer CPython/PyInstaller.
+          SQLITE_DLL_VERSION=3530400
+          scripts/download \
+            https://www.sqlite.org/2026/sqlite-dll-win-x64-${SQLITE_DLL_VERSION}.zip \
+            sqlite-dll.zip \
+            8b959b7eff4a81f6a62fc3468f9273e5cfe78d4a927e62215aed231b654fb104
+
+          7z x sqlite-dll.zip sqlite3.dll -y -osqlite-dll
+
+          python_dlls_dir="$(python -c 'import sys; print(sys.prefix)')/DLLs"
+          cp sqlite-dll/sqlite3.dll "$python_dlls_dir/sqlite3.dll"
+
       - name: Install Linux specific dependencies
         if: startsWith(matrix.os, 'ubuntu-')
         run: |
