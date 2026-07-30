@@ -3,6 +3,7 @@ import os
 import platform
 import re
 import subprocess
+import sys
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
@@ -68,9 +69,65 @@ def is_git_available() -> bool:
         return False
 
 
+_MACOS_CLT_GIT = "/Library/Developer/CommandLineTools/usr/bin/git"
+
+
+def _macos_developer_git_exists() -> bool:
+    """Conservatively check whether a real git is installed behind the /usr/bin/git stub.
+
+    xcode-select is safe to run, unlike the stub, but a failure to answer
+    must not render a working git unusable. This means that in very unlikely edge cases
+    a user will be prompted to install git, even if not using git-based ggshield commands.
+    """
+    if Path(_MACOS_CLT_GIT).exists():
+        return True
+    try:
+        result = subprocess.run(
+            ["/usr/bin/xcode-select", "-p"], capture_output=True, timeout=1
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    if result.returncode != 0:
+        return False
+    developer_dir = result.stdout.decode("utf-8", errors="ignore").strip()
+    return bool(developer_dir) and Path(developer_dir, "usr", "bin", "git").exists()
+
+
+def _is_macos_clt_stub(git_path: str) -> bool:
+    """True if git_path is the xcrun stub and no Command Line Tools are behind it.
+
+    Running such a stub opens a GUI prompt asking to install them.
+    """
+    if sys.platform != "darwin" or _macos_developer_git_exists():
+        return False
+    try:
+        with open(git_path, "rb") as f:
+            # try to detect whether libxcselect is linked by searching for the path string in the header
+            return b"libxcselect" in f.read(256 * 1024)
+    except OSError:
+        return False
+
+
 @lru_cache(None)
 def _get_git_path() -> str:
     git_path = which("git")
+
+    if git_path is not None and _is_macos_clt_stub(git_path):
+        # The default git binary is a macOS stub prompting the user to install
+        # Xcode Command Line Tools. Before raising an error, check for other git
+        # binaries on the PATH.
+        stub_dir = os.path.dirname(os.path.abspath(git_path))
+        path = os.pathsep.join(
+            entry
+            for entry in os.environ.get("PATH", "").split(os.pathsep)
+            if entry and os.path.abspath(entry) != stub_dir
+        )
+        git_path = which("git", path=path) if path else None
+        if git_path is None:
+            raise GitExecutableNotFound(
+                "git is the Xcode Command Line Tools stub and the tools are not "
+                "installed. To use all features of ggshield, please install git."
+            )
 
     if git_path is None:
         raise GitExecutableNotFound("unable to find git executable in PATH/PATHEXT")

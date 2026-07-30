@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from ggshield.core.tar_utils import tar_from_ref_and_filepaths
+from ggshield.utils import git_shell
 from ggshield.utils.git_shell import (
     GitExecutableNotFound,
     InvalidGitRefError,
@@ -57,6 +58,89 @@ def _create_repository_with_remote(
 def test_is_git_available(_get_git_path_mock):
     _get_git_path_mock.side_effect = GitExecutableNotFound()
     assert not is_git_available()
+
+
+@pytest.mark.parametrize(
+    ("gits_on_path", "expected"),
+    (
+        (["stub"], None),
+        (["git"], 0),
+        (["stub", "git"], 1),
+        (["unreadable"], 0),
+    ),
+    ids=("stub only", "real git", "stub then real git", "unreadable git"),
+)
+def test_macos_clt_stub(monkeypatch, tmp_path, gits_on_path, expected):
+    """
+    GIVEN macOS with no Command Line Tools installed
+    WHEN resolving the git executable
+    THEN the xcrun stub is never returned, so it is never run and cannot open the
+    install prompt, but any real git on PATH still is
+    """
+    monkeypatch.setattr(git_shell.sys, "platform", "darwin")
+    monkeypatch.setattr(git_shell, "_macos_developer_git_exists", lambda: False)
+
+    gits = []
+    for index, kind in enumerate(gits_on_path):
+        directory = tmp_path / str(index)
+        directory.mkdir()
+        git_path = directory / "git"
+        git_path.write_bytes(b"\0" * 1000 + (b"libxcselect" if kind == "stub" else b""))
+        git_path.chmod(0o111 if kind == "unreadable" else 0o755)
+        gits.append(git_path)
+    monkeypatch.setenv("PATH", os.pathsep.join(str(g.parent) for g in gits))
+
+    if expected is None:
+        assert not is_git_available()
+    else:
+        assert git_shell._get_git_path() == str(gits[expected])
+
+
+@pytest.mark.parametrize(
+    ("clt_git_installed", "xcode_select", "expected"),
+    (
+        (True, None, True),
+        (False, (2, ""), False),
+        (False, (0, "DEVELOPER_DIR"), True),
+        (False, OSError("no xcode-select"), True),
+    ),
+    ids=(
+        "command line tools installed",
+        "no developer directory",
+        "developer directory holding git",
+        "xcode-select unusable",
+    ),
+)
+def test_macos_developer_git_exists(
+    monkeypatch, tmp_path, clt_git_installed, xcode_select, expected
+):
+    """
+    GIVEN a macOS machine whose developer tools may or may not be installed
+    WHEN checking whether a real git sits behind the /usr/bin/git stub
+    THEN it answers yes unless it can prove otherwise, so a working git is never
+    declared unusable
+    """
+    clt_git = tmp_path / "CommandLineTools" / "git"
+    if clt_git_installed:
+        clt_git.parent.mkdir()
+        clt_git.touch()
+    monkeypatch.setattr(git_shell, "_MACOS_CLT_GIT", str(clt_git))
+
+    developer_dir = tmp_path / "developer"
+    (developer_dir / "usr" / "bin").mkdir(parents=True)
+    (developer_dir / "usr" / "bin" / "git").touch()
+
+    def fake_run(*args, **kwargs):
+        if isinstance(xcode_select, Exception):
+            raise xcode_select
+        returncode, stdout = xcode_select
+        if stdout == "DEVELOPER_DIR":
+            stdout = str(developer_dir)
+        return subprocess.CompletedProcess(args, returncode, stdout.encode(), b"")
+
+    monkeypatch.setattr(git_shell.subprocess, "run", fake_run)
+
+    assert git_shell._macos_developer_git_exists() is expected
 
 
 def test_git_shell():
