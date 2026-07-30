@@ -25,6 +25,14 @@ jobs:
           - GitGuardian/ggshield-azure-devops-extension
     name: ${{ matrix.repository }}
     steps:
+      - name: Compute version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Strip the tag's leading 'v'
+          echo "value=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout ${{ matrix.repository }}
         uses: actions/checkout@v4
         with:
