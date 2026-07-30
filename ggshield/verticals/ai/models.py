@@ -264,6 +264,11 @@ class Agent(ABC):
         """Path to the settings file for this AI coding tool."""
 
     @property
+    def settings_format(self) -> Literal["json", "toml"]:
+        """Serialization format used by the assistant's hook settings file."""
+        return "json"
+
+    @property
     def settings_template(self) -> Dict[str, Any]:
         """
         Template for the settings file for this AI coding tool.

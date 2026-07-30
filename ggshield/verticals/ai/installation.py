@@ -3,13 +3,22 @@ import os
 import shlex
 import shutil
 import sys
+from collections.abc import MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import click
+import tomlkit
 from pygitguardian.models import HealthCheckResponse
+from tomlkit.exceptions import ParseError as TOMLParseError
+
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
@@ -32,7 +41,7 @@ class InstallationStats:
 class BuildConfigResult:
     agent: Agent
     settings_path: Path
-    new_config: Dict[str, Any]
+    new_config: MutableMapping[str, Any]
     stats: InstallationStats
 
 
@@ -103,10 +112,13 @@ def install_hooks(
     # Ensure parent directory exists
     settings_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write the updated config
+    # Write the updated config in the assistant's native format.
     with settings_path.open("w", encoding="utf-8") as f:
-        json.dump(new_config, f, indent=2)
-        f.write("\n")
+        if result.agent.settings_format == "toml":
+            f.write(tomlkit.dumps(new_config))
+        else:
+            json.dump(new_config, f, indent=2)
+            f.write("\n")
 
     # Report what happened
     styled_path = click.style(settings_path, fg="yellow", bold=True)
@@ -143,13 +155,24 @@ def build_hook_config(
     command = build_hook_command()
 
     # Load existing config or create new one
-    existing_config: dict = {}
+    existing_config: MutableMapping[str, Any] = (
+        tomlkit.document() if agent.settings_format == "toml" else {}
+    )
 
     if settings_path.exists():
         try:
             with settings_path.open("r", encoding="utf-8") as f:
-                existing_config = json.load(f)
-        except json.JSONDecodeError as e:
+                if agent.settings_format == "toml":
+                    raw_config = f.read()
+                    # tomlkit preserves formatting and comments when writing,
+                    # but its parser intentionally accepts a few malformed
+                    # constructs. Validate strictly before building its editable
+                    # document representation.
+                    tomllib.loads(raw_config)
+                    existing_config = tomlkit.parse(raw_config)
+                else:
+                    existing_config = json.load(f)
+        except (json.JSONDecodeError, tomllib.TOMLDecodeError, TOMLParseError) as e:
             raise UnexpectedError(
                 f"Failed to parse {settings_path}: {e}. "
                 "Please fix or remove the file before installing hooks."
@@ -180,7 +203,7 @@ def build_hook_config(
 
 
 def _fill_dict(
-    config: Dict[str, Any],
+    config: MutableMapping[str, Any],
     template: Dict[str, Any],
     command: str,
     overwrite: bool,
@@ -208,21 +231,32 @@ def _fill_dict(
             _fill_dict(new_config, value, command, overwrite, stats, locator)
         # List: locate the correct object
         elif isinstance(value, list):
-            # but first, make sure we only have one object in the template
-            if len(value) != 1:
-                raise ValueError(f"Expected only one object in template for {key}")
-
             config_list = config.setdefault(key, [])
-            existing_value = locator(config_list, value[0])
-            if existing_value is not None:
-                # Found it. Continue with this object.
-                _fill_dict(existing_value, value[0], command, overwrite, stats, locator)
-            else:
-                # Not found. Add new object.
-                config_list.append(deepcopy(value[0]))
-                _fill_dict(
-                    config_list[-1], value[0], command, overwrite, stats, locator
-                )
+            for template_item in value:
+                if not isinstance(template_item, dict):
+                    raise ValueError(f"Expected objects in template list for {key}")
+                existing_value = locator(config_list, template_item)
+                if existing_value is not None:
+                    # Found it. Continue with this object.
+                    _fill_dict(
+                        existing_value,
+                        template_item,
+                        command,
+                        overwrite,
+                        stats,
+                        locator,
+                    )
+                else:
+                    # Not found. Add a new object.
+                    config_list.append(deepcopy(template_item))
+                    _fill_dict(
+                        config_list[-1],
+                        template_item,
+                        command,
+                        overwrite,
+                        stats,
+                        locator,
+                    )
 
         # Scalar value: if template is the string "<COMMAND>", replace it with the command.
         else:

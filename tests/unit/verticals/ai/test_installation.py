@@ -193,21 +193,37 @@ class TestFillDict:
             added=2, already_present=1, command="ggshield already"
         )
 
-    def test_template_list_must_have_exactly_one_element(self):
-        """Template list value must have exactly one element (raises ValueError otherwise)."""
+    def test_template_list_supports_multiple_elements(self):
         config: Dict[str, Any] = {}
-        template = {"hooks": [{"a": 1}, {"b": 2}]}
+        template = {
+            "hooks": [
+                {"name": "pre", "command": "<COMMAND>"},
+                {"name": "post", "command": "<COMMAND>"},
+            ]
+        }
         stats = InstallationStats(added=0, already_present=0)
-        with pytest.raises(ValueError, match="Expected only one object in template"):
-            stats = _fill_dict(
-                config,
-                template,
-                COMMAND,
-                overwrite=False,
-                stats=stats,
-                locator=_locator,
-            )
-        assert stats == InstallationStats(added=0, already_present=0)
+        stats = _fill_dict(
+            config,
+            template,
+            COMMAND,
+            overwrite=False,
+            stats=stats,
+            locator=lambda candidates, item: next(
+                (
+                    candidate
+                    for candidate in candidates
+                    if candidate.get("name") == item["name"]
+                ),
+                None,
+            ),
+        )
+        assert config == {
+            "hooks": [
+                {"name": "pre", "command": COMMAND},
+                {"name": "post", "command": COMMAND},
+            ]
+        }
+        assert stats == InstallationStats(added=2, already_present=0)
 
 
 class TestFlavorSettingsProperties:
