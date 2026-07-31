@@ -1,4 +1,5 @@
 import json
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
@@ -11,7 +12,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
 if TYPE_CHECKING:
     from ggshield.verticals.ai.agent_activity import ActivitySource, AgentActivityEvent
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from pygitguardian.models import MCPConfiguration as BaseMCPConfiguration
 from pygitguardian.models import MCPServer, UserInfo
@@ -435,7 +439,7 @@ class Agent(ABC):
             raw = path.read_text()
             # Fallback to JSON
             if path.suffix == ".toml":
-                data = tomli.loads(raw)
+                data = tomllib.loads(raw)
             else:
                 data = json.loads(raw)
             if not isinstance(data, dict):
