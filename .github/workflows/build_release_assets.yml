@@ -19,7 +19,7 @@ on:
 
 env:
   UV_VERSION: 0.10.8
-  DEFAULT_PYTHON_VERSION: '3.10'
+  DEFAULT_PYTHON_VERSION: '3.14'
 
 jobs:
   build_wheel_sdist:
@@ -59,25 +59,25 @@ jobs:
             arch: x86_64
             nfpm_arch: x86_64
             sha256sum:
-              python: e8d7ed8c6f8c6f85cd083d5051cafd8c6c01d09eca340d1da74d0c00ff1cb897
+              python: d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb
               nfpm: 9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
           - os: ubuntu-24.04-arm
             container: rockylinux/rockylinux:8
             arch: aarch64
             nfpm_arch: arm64
             sha256sum:
-              python: 5dcd0486c403d07e27a1f2c256810122ac5d153f921433d77116df5c7d09b4c9
+              python: 44f86d58f3bbc1aa6c95ee90f03226e0fdbd22475a98c4410e5a20042b7f40d3
               nfpm: ccfc3a154dec318100c6b6e28deddef0a1ffddf5e258364d74b647a129c72a0e
           - os: windows-2022
           - os: macos-15-intel
             arch: x86_64
             sha256sum:
-              python: 6378dfd22f58bb553ddb02be28304d739cd730c1f95c15c74955c923a1bc3d6a
+              python: 26e384a6000a2c6e7484bca9c6441553c0c9f701c87dcd2e632d994edd000e9c
               rcodesign: bca6e648afaddd48f1c3d5dd25aa516659992cbbd2ba7131ba6add739aa895d3
           - os: macos-14
             arch: aarch64
             sha256sum:
-              python: 5fdc0f6a5b5a90fd3c528e8b1da8e3aac931ea8690126c2fdb4254c84a3ff04a
+              python: 1c7e8db27d1f5c029c232406103b7216baaa8a32a900a64f6dee20f8eaaca1af
               rcodesign: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
     steps:
       - uses: actions/checkout@v4
@@ -85,13 +85,13 @@ jobs:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
 
-      - name: Set up Python 3.10 (Windows 1/2)
+      - name: Set up Python 3.14 (Windows 1/2)
         if: matrix.os == 'windows-2022'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.14'
 
-      - name: Set up Python 3.10 (Windows 2/2)
+      - name: Set up Python 3.14 (Windows 2/2)
         if: matrix.os == 'windows-2022'
         shell: bash
         run: |
@@ -108,9 +108,9 @@ jobs:
             git-core \
             findutils
 
-          # Install Python 3.10 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
-          PYTHON_VERSION=3.10.16
-          PYTHON_BUILD=20250317
+          # Install Python 3.14 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
+          PYTHON_VERSION=3.14.6
+          PYTHON_BUILD=20260728
           scripts/download \
             https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${{ matrix.arch }}-unknown-linux-gnu-install_only_stripped.tar.gz \
             python.tar.gz \
@@ -143,8 +143,8 @@ jobs:
           # macs it installs the Framework version of Python, and the binaries
           # produced with that version do not pass Apple notarization step.
           # (tested with actions/setup-python@v4 and @v5)
-          PYTHON_VERSION=3.10.13
-          PYTHON_BUILD=20240224
+          PYTHON_VERSION=3.14.6
+          PYTHON_BUILD=20260728
 
           scripts/download \
             https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${{ matrix.arch }}-apple-darwin-install_only.tar.gz \
@@ -181,7 +181,7 @@ jobs:
           $PYTHON_CMD -m pip install --upgrade pip
           # Install uv
           $PYTHON_CMD -m pip install uv==$UV_VERSION
-          uv sync --locked --group tests --group standalone
+          uv sync --locked --no-default-groups --group tests --group standalone
 
       - name: Prepare macOS secrets
         if: startsWith(matrix.os, 'macos-') && inputs.release_mode
@@ -253,7 +253,7 @@ jobs:
           fi
           # Run the script with `bash -c` because `uv run` does not
           # automatically do it on Windows
-          uv run bash -c "scripts/build-os-packages/build-os-packages $args"
+          uv run --no-sync bash -c "scripts/build-os-packages/build-os-packages $args"
 
       - name: Override base Docker image used for functional tests on Windows
         if: matrix.os == 'windows-2022'
@@ -268,7 +268,7 @@ jobs:
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
         if: ${{ !github.event.pull_request.head.repo.fork }}
         run: |
-          uv run bash -c "scripts/build-os-packages/build-os-packages functests"
+          uv run --no-sync bash -c "scripts/build-os-packages/build-os-packages functests"
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
           GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
