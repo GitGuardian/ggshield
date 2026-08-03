@@ -10,17 +10,11 @@ on:
   schedule:
     # Every Monday at 07:00 UTC.
     - cron: '0 7 * * 1'
-  # TEMPORARY: push trigger to manually verify this workflow runs correctly
-  # before it lands on main (workflow_dispatch only works for workflows
-  # already present on the default branch). Remove before merging.
-  push:
-    branches:
-      - henrihubert/end-846-add-a-vulnerability-scanner-to-ggshield-ci
   workflow_dispatch:
     inputs:
       release_count:
         description: 'How many of the most recent releases to scan'
-        default: '1' # TEMPORARY: normally '5', set to 1 for this test run
+        default: '5'
       fail_on_severity:
         description: 'Fail the run if the LATEST release has a vulnerability at or above this severity'
         default: 'critical'
@@ -45,7 +39,7 @@ jobs:
         id: build
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_COUNT: ${{ inputs.release_count || '1' }} # TEMPORARY: normally '5'
+          RELEASE_COUNT: ${{ inputs.release_count || '5' }}
         run: |
           set -euo pipefail
 
