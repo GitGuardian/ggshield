@@ -126,6 +126,14 @@ def render_markdown(results: Dict[str, List[Dict[str, Any]]]) -> str:
     return "\n".join(lines)
 
 
+def has_critical(results: Dict[str, List[Dict[str, Any]]]) -> bool:
+    return any(
+        match.get("vulnerability", {}).get("severity") == "Critical"
+        for matches in results.values()
+        for match in matches
+    )
+
+
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -143,6 +151,16 @@ def main(argv: List[str]) -> int:
             results[package.name] = scan(extracted_dir)
 
     print(render_markdown(results))
+
+    if has_critical(results):
+        print(
+            "\n:x: Critical severity vulnerabilities found - see the table "
+            "above. Fix them, or add an ignore rule (with a reason comment) "
+            "to .grype.yaml if this is a false positive or an accepted risk.",
+            file=sys.stderr,
+        )
+        return 1
+
     return 0
 
 
