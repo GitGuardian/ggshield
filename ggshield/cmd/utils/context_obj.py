@@ -84,7 +84,13 @@ class ContextObj:
 
     @property
     def plugin_registry(self) -> "PluginRegistry":
-        assert self._plugin_registry
+        """The plugin registry, loaded on first access rather than on every
+        ggshield invocation (see load_plugin_registry for why that is expensive).
+        """
+        if self._plugin_registry is None:
+            from ggshield.core.plugin.hooks import load_plugin_registry
+
+            self._plugin_registry = load_plugin_registry()
         return self._plugin_registry
 
     @plugin_registry.setter
@@ -92,8 +98,11 @@ class ContextObj:
         self._plugin_registry = value
 
     def has_plugin_registry(self) -> bool:
-        """Check if plugin registry has been set."""
-        return self._plugin_registry is not None
+        """Deprecated, always true: `plugin_registry` loads on demand and falls back
+        to an empty registry, so there is nothing to guard against. Kept only so
+        external plugin code doing `if has_plugin_registry(): ...` does not start
+        skipping; will be removed."""
+        return True
 
     @staticmethod
     def get(ctx: click.Context) -> "ContextObj":

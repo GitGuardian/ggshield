@@ -202,6 +202,13 @@ step_build() {
     local collect_args=(
         --collect-data sigstore
         --hidden-import sigstore._store
+        # ggshield's command groups are declared as "module:attr" strings and
+        # imported on lookup (see ggshield/cmd/utils/lazy_group.py), which
+        # PyInstaller's static analysis cannot follow. Bundle everything under
+        # the package; frozen imports are pay-per-use, so this costs nothing at
+        # runtime. smoke_check_bundle() walks the whole command tree to prove
+        # each one still resolves from the bundle.
+        --collect-submodules ggshield
     )
 
     pyinstaller ggshield/__main__.py --name ggshield --exclude-module pkg_resources --noupx \
@@ -217,14 +224,62 @@ step_build() {
     smoke_check_bundle
 }
 
+# Walk the built bundle's Click command tree, running `--help` on every node.
+# Resolving a name is what triggers its lazy "module:attr" import, so this is
+# what proves the bundle contains every command's module. The tree is read from
+# the binary's own `--help` output, so a command added later is covered without
+# anyone updating a list here. Blind spot: `hidden=True` commands (e.g.
+# `secret scan docker-archive`) are absent from --help, so they are not walked;
+# they are covered by --collect-submodules and by the functional test suite,
+# which runs against this same binary.
+#
+# Expects $bin and $smoke_env to be set by smoke_check_bundle (bash scoping) and
+# counts leaves into the global $SMOKE_LEAF_COUNT (global, not local, because
+# this function recurses). $1 is the command path, empty for the root. Command
+# names never contain spaces or globs, so leaving $1 unquoted is the intended
+# word-splitting.
+smoke_check_command_tree() {
+    local path="$1"
+    local out
+    # shellcheck disable=SC2086
+    if ! out=$(env "${smoke_env[@]}" "$bin" $path --help 2>&1) ; then
+        err "$out"
+        die "Bundle smoke check FAILED for: ggshield $path --help. \
+Likely a PyInstaller bundling gap — command groups are imported lazily from \
+\"module:attr\" strings, so a dropped module only fails when that command is \
+resolved. Check the --collect-submodules argument in step_build."
+    fi
+
+    # Sub-commands are the first word of each entry in the "Commands:" section.
+    local subs
+    subs=$(printf '%s\n' "$out" | awk '
+        /^Commands:/ { in_cmds = 1; next }
+        in_cmds && /^[^ ]/ { in_cmds = 0 }
+        in_cmds && /^  [a-zA-Z][a-zA-Z0-9_-]*([ ]|$)/ { print $1 }
+    ')
+
+    if [ -z "$subs" ] ; then
+        SMOKE_LEAF_COUNT=$((SMOKE_LEAF_COUNT + 1))
+        return
+    fi
+    local sub
+    for sub in $subs ; do
+        smoke_check_command_tree "${path:+$path }$sub"
+    done
+}
+
 # Sanity-check the freshly built bundle. Catches "PyInstaller missed a
 # dynamic import / data file" regressions before they ship to users.
 #
-# Two layers:
-#   1. Run a small set of `ggshield --help` invocations. Any import failure in
-#      the main CLI/plugin-signature path will surface here as a non-zero exit /
-#      ModuleNotFoundError.
-#   2. Structurally assert that known package-data files are present in the
+# Three layers:
+#   1. Resolve every command in the tree from the bundle (see
+#      smoke_check_command_tree). Any import failure surfaces as a non-zero
+#      exit / ModuleNotFoundError.
+#   2. Run the `secret scan ai-hook` command end to end on a canned hook
+#      payload. This is the one command whose failure is silent: agents read a
+#      non-zero exit as "allow", so a broken ai-hook would fail open on every
+#      tool call instead of erroring visibly.
+#   3. Structurally assert that known package-data files are present in the
 #      bundle. PyInstaller does not raise when it silently drops data files,
 #      so a `--help` run can succeed while a runtime code path
 #      (e.g. sigstore's Verifier.production() loading the TUF roots) fails.
@@ -235,13 +290,9 @@ smoke_check_bundle() {
         die "Bundle smoke check: '$bin' not found or not executable"
     fi
 
-    # Layer 1: import smoketest via a minimal set of commands. Keep this list
-    # small: `ggshield --help` exercises the main CLI import graph, while the
-    # plugin commands exercise the sigstore/plugin-signature import path this
-    # check was introduced for.
-    #
-    # Run in an isolated config/data/cache directory and disable keyring so the
-    # smoke test never touches a developer's or CI runner's credential store.
+    # Layers 1 and 2 run in an isolated config/data/cache directory, with
+    # keyring and API key disabled, so the smoke test never touches a
+    # developer's or CI runner's credential store and never hits the network.
     local smoke_env_dir
     smoke_env_dir=$(mktemp -d)
     mkdir -p "$smoke_env_dir/home"
@@ -260,30 +311,56 @@ smoke_check_bundle() {
         "GG_CACHE_DIR=$smoke_env_dir_for_python/cache"
         "GGSHIELD_NO_KEYRING=1"
         "GG_PLAINTEXT_OUTPUT=1"
+        # Empty (not unset): ignore any key in the build environment, so the
+        # ai-hook check below always takes the unauthenticated path.
+        "GITGUARDIAN_API_KEY="
     )
-    local smoke_cmds=(
-        "--version"
-        "--help"
-        "plugin --help"
-        "plugin install --help"
-    )
-    local cmd
-    local -a args
-    for cmd in "${smoke_cmds[@]}" ; do
-        read -r -a args <<< "$cmd"
-        if ! env "${smoke_env[@]}" "$bin" "${args[@]}" > /dev/null 2>&1 ; then
-            err "----- Bundle smoke check FAILED for: ggshield $cmd -----"
-            env "${smoke_env[@]}" "$bin" "${args[@]}" >&2 || true
-            rm -rf "$smoke_env_dir"
-            die "Bundle is broken: 'ggshield $cmd' exited non-zero. \
-Likely a PyInstaller bundling gap — a module or data file referenced via a \
-dynamic import is missing from the bundle. Add a matching collect/hidden-import \
-argument in step_build and re-run."
-        fi
-    done
+
+    if ! env "${smoke_env[@]}" "$bin" --version > /dev/null 2>&1 ; then
+        rm -rf "$smoke_env_dir"
+        die "Bundle is broken: 'ggshield --version' exited non-zero."
+    fi
+
+    SMOKE_LEAF_COUNT=0
+    smoke_check_command_tree ""
+    if [ "$SMOKE_LEAF_COUNT" -lt 20 ] ; then
+        rm -rf "$smoke_env_dir"
+        die "Bundle smoke check: only $SMOKE_LEAF_COUNT leaf commands found, \
+expected at least 20. The command tree walk is probably not parsing \
+'ggshield --help' output any more, so it is not checking anything."
+    fi
+    info "Resolved $SMOKE_LEAF_COUNT leaf commands from the bundle"
+
+    # Layer 2: run the ai-hook end to end. Unauthenticated, so it takes the
+    # fail-open path and emits a "could not authenticate" systemMessage; what
+    # matters is that it exits 0 with parseable JSON on stdout, which is the
+    # contract the coding agent relies on. This covers the unauthenticated
+    # verdict only: a module reachable solely after a successful auth (or
+    # imported inside a command body) is not exercised here.
+    local hook_payload='{"session_id": "smoke-check", '
+    hook_payload+='"transcript_path": "/tmp/claude/transcript.jsonl", '
+    hook_payload+='"hook_event_name": "PreToolUse", "tool_name": "Bash", '
+    hook_payload+='"tool_input": {"command": "echo smoke check"}}'
+    local hook_out
+    if ! hook_out=$(printf '%s' "$hook_payload" \
+            | env "${smoke_env[@]}" "$bin" secret scan ai-hook 2>/dev/null) ; then
+        err "$hook_out"
+        rm -rf "$smoke_env_dir"
+        die "Bundle smoke check: 'ggshield secret scan ai-hook' exited non-zero. \
+Coding agents read a non-zero exit as 'allow', so this would silently disable \
+secret scanning on every AI tool call."
+    fi
+    local py=python
+    command -v "$py" > /dev/null 2>&1 || py=python3
+    if ! printf '%s' "$hook_out" | "$py" -c "import json,sys; json.load(sys.stdin)" ; then
+        err "stdout was: $hook_out"
+        rm -rf "$smoke_env_dir"
+        die "Bundle smoke check: 'ggshield secret scan ai-hook' did not emit \
+valid JSON on stdout. Coding agents cannot parse the verdict."
+    fi
     rm -rf "$smoke_env_dir"
 
-    # Layer 2: structural assertions for known package-data files. Each
+    # Layer 3: structural assertions for known package-data files. Each
     # entry below was added because we caught (or want to prevent) a
     # silent-drop bug. Keep paths in sync with dependency package-data layouts.
     local required_paths=(

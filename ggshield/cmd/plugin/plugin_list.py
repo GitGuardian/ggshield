@@ -10,7 +10,7 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.core import ui
 from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.plugin.downloader import PluginDownloader
-from ggshield.core.plugin.hooks import get_plugin_registry
+from ggshield.core.plugin.hooks import load_plugin_registry
 from ggshield.core.plugin.loader import PluginLoader
 
 
@@ -45,7 +45,7 @@ def list_cmd(ctx: click.Context, **kwargs: Any) -> None:
 
     ui.display_heading("Installed Plugins")
 
-    registry = get_plugin_registry()
+    registry = load_plugin_registry()
     load_failures = registry.get_load_failures() if registry else {}
 
     for plugin in discovered:

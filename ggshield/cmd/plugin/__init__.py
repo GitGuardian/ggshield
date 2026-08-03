@@ -12,9 +12,12 @@ from ggshield.cmd.plugin.plugin_list import list_cmd
 from ggshield.cmd.plugin.status import status_cmd
 from ggshield.cmd.plugin.update import update_cmd
 from ggshield.cmd.utils.common_options import add_common_options
+from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
 
 
 @click.group(
+    cls=PluginAwareLazyGroup,
+    plugin_scope="plugin",
     commands={
         "install": install_cmd,
         "list": list_cmd,
@@ -23,7 +26,7 @@ from ggshield.cmd.utils.common_options import add_common_options
         "disable": disable_cmd,
         "uninstall": uninstall_cmd,
         "update": update_cmd,
-    }
+    },
 )
 @add_common_options()
 def plugin_group(**kwargs: Any) -> None:
