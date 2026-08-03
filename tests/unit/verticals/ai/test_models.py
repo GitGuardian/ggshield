@@ -1,3 +1,4 @@
+import errno
 import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Literal, Optional
@@ -61,6 +62,31 @@ class TestHookPayloadScannable:
             raw={},
         )
         assert isinstance(payload.scannable, StringScannable)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            # Python < 3.13 lets ENAMETOOLONG through Path.is_file().
+            pytest.param(
+                OSError(errno.ENAMETOOLONG, "File name too long"), id="name-too-long"
+            ),
+            pytest.param(ValueError("embedded null byte"), id="embedded-nul"),
+        ],
+    )
+    def test_read_tool_unstatable_identifier_returns_string_scannable(
+        self, error: Exception
+    ):
+        """An identifier we cannot even stat must fall back to the content, not raise."""
+        payload = HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=Tool.READ,
+            content="some content",
+            identifier="not-really-a-path",
+            agent=Cursor(),
+            raw={},
+        )
+        with patch.object(Path, "is_file", side_effect=error):
+            assert isinstance(payload.scannable, StringScannable)
 
     def test_non_read_tool_returns_string_scannable(self):
         payload = HookPayload(
