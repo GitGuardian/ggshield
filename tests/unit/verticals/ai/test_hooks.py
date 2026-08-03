@@ -12,6 +12,11 @@ from pygitguardian.models import MCPActivityResponse
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
+from ggshield.verticals.ai.cache import (
+    _verdict_cache_path,
+    has_clean_verdict,
+    verdict_key,
+)
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
     build_agent_headers,
@@ -22,8 +27,14 @@ from ggshield.verticals.ai.hooks import (
 from ggshield.verticals.ai.mcp import send_mcp_activity
 from ggshield.verticals.ai.models import EventType, HookPayload, HookResult, Tool
 from ggshield.verticals.secret import SecretScanner
+from ggshield.verticals.secret.secret_scan_collection import IgnoreKind
 from ggshield.verticals.secret.secret_scan_collection import Result as ScanResult
 from ggshield.verticals.secret.secret_scan_collection import Results, Secret
+from tests.conftest import skipwindows
+
+
+INSTANCE = "https://api.example.com"
+API_KEY = "some-api-key"
 
 
 def _dummy_payload(event_type: EventType = EventType.OTHER) -> HookPayload:
@@ -49,6 +60,10 @@ def _mock_scanner(matches: List[str]) -> MagicMock:
     """Create a mock SecretScanner that returns the given Results from scan()."""
     mock = MagicMock(spec=SecretScanner)
     mock.client = MagicMock(spec=GGClient)
+    # Annotation-only attributes on GGClient, so spec= does not provide them,
+    # and the verdict cache key needs both.
+    mock.client.base_uri = INSTANCE
+    mock.client.api_key = API_KEY
     scan_result = Results(
         results=[
             ScanResult(
@@ -133,6 +148,133 @@ class TestAIHookScannerScanContent:
         assert "dummy-detector" in result.message
         assert "secret" in result.message.lower()
         assert "remove the secret from your prompt" in result.message
+
+
+class TestVerdictCacheShortCircuit:
+    """The clean-verdict cache must skip the API call, and only when it is safe to."""
+
+    @staticmethod
+    def _payload(
+        content: str = "safe content", identifier: str = "id", **kwargs
+    ) -> HookPayload:
+        return HookPayload(
+            event_type=EventType.USER_PROMPT,
+            tool=None,
+            content=content,
+            identifier=identifier,
+            agent=Cursor(),
+            raw={},
+            **kwargs,
+        )
+
+    @staticmethod
+    def _key(content: str = "safe content") -> str:
+        # A payload with no tool becomes a StringScannable whose filename is the
+        # payload identifier.
+        return verdict_key(INSTANCE, API_KEY, "id", content)
+
+    def test_second_scan_of_identical_content_skips_the_api(self):
+        """GIVEN a clean scan WHEN the same content is scanned again THEN no API call."""
+        mock_scanner = _mock_scanner([])
+        hook_scanner = AIHookScanner(mock_scanner)
+        assert hook_scanner._scan_content(self._payload()).block is False
+        assert hook_scanner._scan_content(self._payload()).block is False
+        mock_scanner.scan.assert_called_once()
+
+    def test_different_content_still_hits_the_api(self):
+        """A cached verdict must not leak onto different content."""
+        mock_scanner = _mock_scanner([])
+        hook_scanner = AIHookScanner(mock_scanner)
+        hook_scanner._scan_content(self._payload("safe content"))
+        hook_scanner._scan_content(self._payload("other content"))
+        assert mock_scanner.scan.call_count == 2
+
+    def test_pre_and_post_tool_use_of_a_read_share_one_api_call(self):
+        """Both Read events resolve to the same file, so the second is served locally."""
+        mock_scanner = _mock_scanner([])
+        hook_scanner = AIHookScanner(mock_scanner)
+        pre = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Read",
+                "tool_input": {"file_path": __file__},
+                "cursor_version": "1.2.3",
+            }
+        )
+        post = json.dumps(
+            {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Read",
+                "tool_input": {"file_path": __file__},
+                "tool_response": {"file": {"filePath": __file__}},
+                "cursor_version": "1.2.3",
+            }
+        )
+        assert hook_scanner.scan(pre) == 0
+        assert hook_scanner.scan(post) == 0
+        mock_scanner.scan.assert_called_once()
+
+    def test_scan_with_secrets_is_not_cached(self):
+        """A blocking verdict is never remembered as clean."""
+        mock_scanner = _mock_scanner(["sk-xxx"])
+        hook_scanner = AIHookScanner(mock_scanner)
+        assert hook_scanner._scan_content(self._payload("content sk-xxx")).block is True
+        assert not has_clean_verdict(self._key("content sk-xxx"))
+
+    def test_degraded_scan_is_not_cached(self):
+        """A scan that returned no Result at all is not a verdict, so it is not cached."""
+        mock_scanner = _mock_scanner([])
+        mock_scanner.scan.return_value = Results(results=[], errors=[])
+        hook_scanner = AIHookScanner(mock_scanner)
+        assert hook_scanner._scan_content(self._payload()).block is False
+        assert not has_clean_verdict(self._key())
+        # ... and the next identical payload is scanned again.
+        hook_scanner._scan_content(self._payload())
+        assert mock_scanner.scan.call_count == 2
+
+    def test_locally_filtered_verdict_is_not_cached(self):
+        """The API reported secrets and the local config dropped them: that "clean"
+        answer belongs to this config only, so it must not be remembered."""
+        mock_scanner = _mock_scanner([])
+        mock_scanner.scan.return_value.results[0].ignored_secrets_count_by_kind = (
+            Counter({IgnoreKind.IGNORED_DETECTOR: 1})
+        )
+        hook_scanner = AIHookScanner(mock_scanner)
+        assert hook_scanner._scan_content(self._payload()).block is False
+        assert not has_clean_verdict(self._key())
+        hook_scanner._scan_content(self._payload())
+        assert mock_scanner.scan.call_count == 2
+
+    def test_another_instance_or_token_does_not_reuse_the_verdict(self):
+        """Custom detectors and dashboard exclusions are per-workspace."""
+        mock_scanner = _mock_scanner([])
+        AIHookScanner(mock_scanner)._scan_content(self._payload())
+        for attribute, value in (
+            ("base_uri", "https://other.example.com"),
+            ("api_key", "other-key"),
+        ):
+            other = _mock_scanner([])
+            setattr(other.client, attribute, value)
+            AIHookScanner(other)._scan_content(self._payload())
+            other.scan.assert_called_once()
+
+    def test_same_content_under_another_filename_is_rescanned(self):
+        """The filename is part of the document we send, so it is part of the key."""
+        mock_scanner = _mock_scanner([])
+        hook_scanner = AIHookScanner(mock_scanner)
+        hook_scanner._scan_content(self._payload())
+        hook_scanner._scan_content(self._payload(identifier="other-id"))
+        assert mock_scanner.scan.call_count == 2
+
+    @skipwindows
+    def test_untrustworthy_cache_falls_back_to_scanning(self):
+        """A world-writable cache is ignored, so the hook scans rather than allows."""
+        mock_scanner = _mock_scanner([])
+        hook_scanner = AIHookScanner(mock_scanner)
+        hook_scanner._scan_content(self._payload())
+        _verdict_cache_path().chmod(0o666)
+        hook_scanner._scan_content(self._payload())
+        assert mock_scanner.scan.call_count == 2
 
 
 class TestHasAlreadyBeenSeen:

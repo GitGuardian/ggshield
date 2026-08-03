@@ -1,3 +1,6 @@
+import json
+import stat
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
@@ -14,12 +17,19 @@ from pygitguardian.models import (
 )
 
 from ggshield.verticals.ai.cache import (
+    VERDICT_CACHE_MAX_ENTRIES,
+    VERDICT_CACHE_TTL_SECONDS,
     _server_has_capabilities_unknown_to,
+    _verdict_cache_path,
     has_changed_from,
+    has_clean_verdict,
     load_discovery_cache,
     save_discovery_cache,
+    store_clean_verdict,
+    verdict_key,
 )
 from ggshield.verticals.ai.models import MCPServer, Scope, Transport
+from tests.conftest import skipwindows
 
 
 def _user(**kwargs: Any) -> UserInfo:
@@ -270,3 +280,164 @@ class TestLoadSaveDiscoveryCache:
             cache_file = tmp_path / "ai_discovery.json"
             cache_file.mkdir()  # directory instead of file triggers OSError
             assert load_discovery_cache() is None
+
+
+class TestVerdictKey:
+    """The key must cover everything the API's answer depends on."""
+
+    ARGS = ("https://api.example.com", "token", "file.py", "content")
+
+    @pytest.mark.parametrize("index", range(len(ARGS)))
+    def test_every_part_changes_the_key(self, index: int):
+        """GIVEN two keys differing in one part only THEN they differ."""
+        other = list(self.ARGS)
+        other[index] += "-x"
+        assert verdict_key(*self.ARGS) != verdict_key(*other)
+
+    def test_parts_cannot_be_shifted_across_the_separator(self):
+        """A longer instance must not be able to impersonate another key."""
+        assert verdict_key("a", "b", "c", "d") != verdict_key("a\0b", "c", "d", "")
+
+    def test_unencodable_content_still_yields_distinct_keys(self):
+        """Lone surrogates (reachable from a JSON payload) must not collide."""
+        assert verdict_key("i", "k", "f", "\ud800") != verdict_key(
+            "i", "k", "f", "\ud801"
+        )
+
+
+class TestVerdictCache:
+    """Unit tests for the AI hook clean-verdict cache. Keys are opaque strings
+    here; what goes into them is TestVerdictKey's business.
+
+    The autouse do_not_use_real_user_dirs fixture already points get_cache_dir()
+    at a per-test temporary directory.
+    """
+
+    def test_store_then_hit(self):
+        """GIVEN a stored clean verdict WHEN the same content is looked up THEN it hits."""
+        store_clean_verdict("some content")
+        assert has_clean_verdict("some content") is True
+
+    def test_miss_on_different_content(self):
+        """GIVEN a stored verdict WHEN other content is looked up THEN it misses."""
+        store_clean_verdict("some content")
+        assert has_clean_verdict("other content") is False
+
+    def test_miss_on_empty_cache(self):
+        """GIVEN no cache file WHEN content is looked up THEN it misses."""
+        assert not _verdict_cache_path().exists()
+        assert has_clean_verdict("some content") is False
+
+    def test_miss_once_expired(self):
+        """GIVEN a verdict older than the TTL WHEN looked up THEN it misses."""
+        store_clean_verdict("some content")
+        with patch(
+            "ggshield.verticals.ai.cache.time.time",
+            return_value=time.time() + VERDICT_CACHE_TTL_SECONDS + 1,
+        ):
+            assert has_clean_verdict("some content") is False
+
+    def test_miss_on_timestamp_in_the_future(self):
+        """A forged far-future timestamp must not become a never-expiring hit."""
+        self._write_cache({"some content": time.time() + 10_000})
+        assert has_clean_verdict("some content") is False
+
+    def test_miss_on_corrupted_json(self):
+        """GIVEN a cache file that is not valid JSON WHEN read THEN it is treated as empty."""
+        self._write_cache_text("{not json")
+        assert has_clean_verdict("some content") is False
+
+    def test_miss_on_json_that_is_not_an_object(self):
+        """A JSON array where a mapping is expected is treated as empty."""
+        self._write_cache_text('["nope"]')
+        assert has_clean_verdict("some content") is False
+
+    @skipwindows
+    def test_poisoned_world_writable_cache_is_ignored(self):
+        """A cache anyone can write is a bypass oracle: refuse to read it."""
+        store_clean_verdict("some content")
+        assert has_clean_verdict("some content") is True
+        _verdict_cache_path().chmod(0o666)
+        assert has_clean_verdict("some content") is False
+
+    @skipwindows
+    def test_group_writable_cache_is_ignored(self):
+        """Same for a group-writable cache."""
+        store_clean_verdict("some content")
+        _verdict_cache_path().chmod(0o660)
+        assert has_clean_verdict("some content") is False
+
+    @skipwindows
+    def test_cache_owned_by_another_user_is_ignored(self):
+        """0600 is only trustworthy if we are the owner: a file somebody else
+        dropped in a writable cache dir must not be believed."""
+        store_clean_verdict("some content")
+        with patch("ggshield.verticals.ai.cache.os.getuid", return_value=-1):
+            assert has_clean_verdict("some content") is False
+
+    @skipwindows
+    def test_stored_cache_file_is_private(self):
+        """The cache file must be created 0600."""
+        store_clean_verdict("some content")
+        assert stat.S_IMODE(_verdict_cache_path().stat().st_mode) == 0o600
+
+    @skipwindows
+    def test_writing_repairs_a_loose_permission_cache_file(self):
+        """A file we refuse to read must not disable the cache for good."""
+        store_clean_verdict("some content")
+        _verdict_cache_path().chmod(0o666)
+        store_clean_verdict("other content")
+        assert stat.S_IMODE(_verdict_cache_path().stat().st_mode) == 0o600
+        assert has_clean_verdict("other content") is True
+        # The verdicts of the untrusted file were dropped, not carried over.
+        assert has_clean_verdict("some content") is False
+
+    @skipwindows
+    def test_symlinked_cache_is_ignored(self):
+        """A symlink at the cache path is not a cache file we wrote."""
+        path = _verdict_cache_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        target = path.parent / "elsewhere.json"
+        target.write_text(json.dumps({"some content": time.time()}))
+        path.symlink_to(target)
+        assert has_clean_verdict("some content") is False
+
+    def test_entry_count_is_bounded(self):
+        """GIVEN more verdicts than the cap WHEN stored THEN only the newest are kept."""
+        for i in range(VERDICT_CACHE_MAX_ENTRIES + 10):
+            store_clean_verdict(f"content {i}")
+        stored = json.loads(_verdict_cache_path().read_text())
+        assert len(stored) == VERDICT_CACHE_MAX_ENTRIES
+        assert has_clean_verdict(f"content {VERDICT_CACHE_MAX_ENTRIES + 9}") is True
+
+    def test_expired_entries_are_dropped_on_write(self):
+        """Storing a verdict purges entries that have expired."""
+        store_clean_verdict("old content")
+        with patch(
+            "ggshield.verticals.ai.cache.time.time",
+            return_value=time.time() + VERDICT_CACHE_TTL_SECONDS + 1,
+        ):
+            store_clean_verdict("new content")
+        assert list(json.loads(_verdict_cache_path().read_text())) == ["new content"]
+
+    def test_store_never_raises_when_the_cache_dir_is_unusable(self):
+        """A cache failure must never propagate: the hook would rather scan."""
+        with patch(
+            "ggshield.verticals.ai.cache.get_cache_dir",
+            return_value=Path(__file__) / "not-a-dir",
+        ):
+            store_clean_verdict("some content")
+            assert has_clean_verdict("some content") is False
+
+    @staticmethod
+    def _write_cache(payload: Dict[str, float]) -> None:
+        TestVerdictCache._write_cache_text(json.dumps(payload))
+
+    @staticmethod
+    def _write_cache_text(text: str) -> None:
+        path = _verdict_cache_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        # Keep the file trustworthy so these tests exercise the content checks
+        # and not the permission check.
+        path.chmod(0o600)
