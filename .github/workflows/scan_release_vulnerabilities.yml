@@ -1,0 +1,154 @@
+name: Scan release assets for vulnerabilities
+
+# Regularly scans the released ggshield binaries for known CVEs (in the
+# bundled Python runtime and any statically-linked/vendored native
+# libraries, e.g. SQLite) using Grype (https://github.com/anchore/grype).
+# Runs on a schedule so we notice regressions like an outdated bundled
+# SQLite even when nothing in the ggshield repo itself changed. See END-846.
+
+on:
+  schedule:
+    # Every Monday at 07:00 UTC.
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      release_count:
+        description: 'How many of the most recent releases to scan'
+        default: '5'
+      fail_on_severity:
+        description: 'Fail the run if the LATEST release has a vulnerability at or above this severity'
+        default: 'critical'
+        type: choice
+        options: ['none', 'low', 'medium', 'high', 'critical']
+
+env:
+  GRYPE_VERSION: 0.116.1
+
+permissions:
+  # Only reading public release metadata/assets from this same repo.
+  contents: read
+
+jobs:
+  discover-targets:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+      latest_tag: ${{ steps.build.outputs.latest_tag }}
+    steps:
+      - name: List recent releases and their scannable assets
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COUNT: ${{ inputs.release_count || '5' }}
+        run: |
+          set -euo pipefail
+
+          tags=$(gh release list --repo "$GITHUB_REPOSITORY" \
+            --exclude-drafts --exclude-pre-releases \
+            --limit "$RELEASE_COUNT" --json tagName --jq '.[].tagName')
+
+          echo "latest_tag=$(head -n1 <<< "$tags")" >> "$GITHUB_OUTPUT"
+
+          # Only the plain tar.gz/zip bundles: they can be scanned by just
+          # extracting them, unlike the .rpm/.deb/.msi/.nupkg assets which
+          # need OS-specific tooling to unpack.
+          include="[]"
+          for tag in $tags; do
+            assets=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+              --json assets --jq '.assets[].name' | grep -E '\.(tar\.gz|zip)$')
+            for asset in $assets; do
+              include=$(jq --arg tag "$tag" --arg asset "$asset" \
+                '. + [{"tag": $tag, "asset": $asset}]' <<< "$include")
+            done
+          done
+          echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Scan ${{ matrix.tag }} / ${{ matrix.asset }}
+    needs: discover-targets
+    if: needs.discover-targets.outputs.matrix != '{"include":[]}'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover-targets.outputs.matrix) }}
+    steps:
+      - name: Download release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ matrix.tag }}" --repo "$GITHUB_REPOSITORY" \
+            --pattern "${{ matrix.asset }}" --dir download
+
+      - name: Extract
+        run: |
+          mkdir extracted
+          asset="download/${{ matrix.asset }}"
+          case "$asset" in
+            *.zip) unzip -q "$asset" -d extracted ;;
+            *.tar.gz) tar xf "$asset" -C extracted ;;
+          esac
+
+      - name: Compute cache date
+        id: date
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Grype vulnerability database
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/grype/db
+          # The DB is refreshed daily upstream; keying on the date avoids every
+          # matrix job (releases x platforms) re-downloading it independently.
+          key: grype-db-${{ steps.date.outputs.date }}
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin "v${GRYPE_VERSION}"
+
+      - name: Scan
+        run: |
+          mkdir -p results
+          grype dir:extracted -o json > results/report.json
+          grype dir:extracted -o table
+
+      - name: Write scan metadata
+        run: |
+          jq -n --arg tag "${{ matrix.tag }}" --arg asset "${{ matrix.asset }}" \
+            '{tag: $tag, asset: $asset}' > results/meta.json
+
+      - name: Sanitize artifact name
+        id: artifact
+        run: |
+          slug=$(printf '%s' "${{ matrix.tag }}-${{ matrix.asset }}" | tr -c 'A-Za-z0-9._-' '-')
+          echo "name=grype-$slug" >> "$GITHUB_OUTPUT"
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: results/
+
+  report:
+    needs: [discover-targets, scan]
+    if: always() && needs.discover-targets.outputs.matrix != '{"include":[]}'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/vulnscan
+
+      - name: Download all scan results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: grype-*
+          path: all-results
+
+      - name: Aggregate and gate on the latest release
+        env:
+          LATEST_TAG: ${{ needs.discover-targets.outputs.latest_tag }}
+          FAIL_ON_SEVERITY: ${{ inputs.fail_on_severity || 'critical' }}
+        run: |
+          python3 scripts/vulnscan/aggregate_scan_results.py all-results \
+            --latest-tag "$LATEST_TAG" --fail-on "$FAIL_ON_SEVERITY" \
+            >> "$GITHUB_STEP_SUMMARY"

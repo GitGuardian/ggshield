@@ -20,6 +20,13 @@ The script aborts if the `VERSION` environment variable is not set. It must be s
 
 The script aborts if the working-tree is not clean (can be bypassed with `--allow-dirty`) or is not on the `main` branch (can be bypassed by defining the `RELEASE_BRANCH` environment variable).
 
+## vulnscan/aggregate_scan_results.py
+
+Used by the `scan_release_vulnerabilities` GitHub workflow. Aggregates Grype
+scan results collected for a batch of released binaries into one Markdown
+summary, and decides whether the run should fail based on vulnerabilities
+found in the most recent release.
+
 ## create-ghe-environment
 
 Creates a GitHub Enterprise Server (GHES) [pre-receive hook environment][ghe] containing GGShield.
