@@ -1,0 +1,3 @@
+# Vulnerability ignore rules for the Grype scan run by build_release_assets.yml.
+# See doc/dev/vulnerability-scanning.md for how to add an entry here.
+ignore: []
