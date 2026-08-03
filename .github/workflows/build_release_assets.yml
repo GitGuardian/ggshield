@@ -401,4 +401,6 @@ jobs:
             | sh -s -- -b /usr/local/bin "v${GRYPE_VERSION}"
 
       - name: Scan and report
-        run: scripts/vulnscan/scan_packages.py packages >> "$GITHUB_STEP_SUMMARY"
+        # tee, not >>: the report is genuinely useful in the plain job log
+        # too (searchable, visible without switching to the Summary tab).
+        run: scripts/vulnscan/scan_packages.py packages | tee -a "$GITHUB_STEP_SUMMARY"

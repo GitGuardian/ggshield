@@ -15,9 +15,8 @@ import sys
 import tarfile
 import tempfile
 import zipfile
-from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 
 SEVERITY_ORDER = ["Unknown", "Negligible", "Low", "Medium", "High", "Critical"]
@@ -62,19 +61,22 @@ def scan(extracted_dir: Path) -> List[Dict[str, Any]]:
     return json.loads(result.stdout).get("matches", [])
 
 
-def summarize(matches: List[Dict[str, Any]]) -> Dict[str, int]:
-    counts: Dict[str, int] = defaultdict(int)
-    for match in matches:
-        severity = match.get("vulnerability", {}).get("severity", "Unknown")
-        counts[severity] += 1
-    return dict(counts)
+def format_vulnerability(vulnerability: Dict[str, Any]) -> str:
+    vuln_id = vulnerability.get("id", "?")
+    data_source = vulnerability.get("dataSource")
+    return f"[{vuln_id}]({data_source})" if data_source else vuln_id
 
 
-def format_counts(counts: Dict[str, int]) -> str:
-    if not counts:
-        return "none"
-    ordered = sorted(counts.items(), key=lambda kv: severity_rank(kv[0]), reverse=True)
-    return ", ".join(f"{severity}: {count}" for severity, count in ordered)
+def format_fix(vulnerability: Dict[str, Any]) -> str:
+    versions = vulnerability.get("fix", {}).get("versions") or []
+    return ", ".join(versions) if versions else "-"
+
+
+def sort_key(row: Tuple[str, Dict[str, Any]]) -> Tuple[str, int, str]:
+    package_name, match = row
+    severity = match.get("vulnerability", {}).get("severity", "Unknown")
+    vuln_id = match.get("vulnerability", {}).get("id", "")
+    return (package_name, -severity_rank(severity), vuln_id)
 
 
 def render_markdown(results: Dict[str, List[Dict[str, Any]]]) -> str:
@@ -83,10 +85,38 @@ def render_markdown(results: Dict[str, List[Dict[str, Any]]]) -> str:
         lines.append("No packages found to scan.")
         return "\n".join(lines)
 
-    lines.append("| Package | Vulnerabilities |")
-    lines.append("|---|---|")
-    for name in sorted(results):
-        lines.append(f"| {name} | {format_counts(summarize(results[name]))} |")
+    # A single vulnerable component (e.g. Python) is often detected via more
+    # than one file in the bundle (Windows ships both python3.dll and
+    # python310.dll) - dedupe those down to one row per (package, component,
+    # CVE), since the file path isn't meaningful to a reader of this report.
+    deduped: Dict[Tuple[str, str, str], Tuple[str, Dict[str, Any]]] = {}
+    for package_name, matches in results.items():
+        for match in matches:
+            key = (
+                package_name,
+                match.get("artifact", {}).get("name", "?"),
+                match.get("vulnerability", {}).get("id", "?"),
+            )
+            deduped.setdefault(key, (package_name, match))
+
+    rows = list(deduped.values())
+    if not rows:
+        lines.append("No vulnerabilities found.")
+        return "\n".join(lines)
+
+    lines.append(
+        "| Package | Component | Installed | Fixed in | Vulnerability | Severity |"
+    )
+    lines.append("|---|---|---|---|---|---|")
+    for package_name, match in sorted(rows, key=sort_key):
+        artifact = match.get("artifact", {})
+        vulnerability = match.get("vulnerability", {})
+        lines.append(
+            f"| {package_name} | {artifact.get('name', '?')} "
+            f"| {artifact.get('version', '?')} | {format_fix(vulnerability)} "
+            f"| {format_vulnerability(vulnerability)} "
+            f"| {vulnerability.get('severity', 'Unknown')} |"
+        )
     lines.append("")
     lines.append(
         "To silence a false positive or an accepted risk, see "
