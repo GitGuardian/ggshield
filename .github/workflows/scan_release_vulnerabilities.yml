@@ -63,7 +63,7 @@ jobs:
             assets=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
               --json assets --jq '.assets[].name' | grep -E '\.(tar\.gz|zip)$')
             for asset in $assets; do
-              include=$(jq --arg tag "$tag" --arg asset "$asset" \
+              include=$(jq -c --arg tag "$tag" --arg asset "$asset" \
                 '. + [{"tag": $tag, "asset": $asset}]' <<< "$include")
             done
           done
