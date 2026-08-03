@@ -34,7 +34,7 @@ jobs:
           echo "value=${VERSION#v}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout ${{ matrix.repository }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ matrix.repository }}
           token: ${{ secrets.PAT_GITHUB }}
