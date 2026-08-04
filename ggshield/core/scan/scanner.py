@@ -39,6 +39,13 @@ class SecretProtocol(Protocol):
 
 class ResultProtocol(Protocol):
     @property
+    def url(self) -> str:
+        """The url of the Scannable this result is about. A scan answers about
+        several documents at once, so this is what matches a result back to the
+        document it was produced for."""
+        ...
+
+    @property
     def secrets(self) -> Sequence[SecretProtocol]: ...
 
     @property
@@ -51,6 +58,14 @@ class ResultProtocol(Protocol):
 class ResultsProtocol(Protocol):
     @property
     def results(self) -> Sequence[ResultProtocol]: ...
+
+    def by_url(self) -> Mapping[str, ResultProtocol]:
+        """The results, keyed by the url of the document each one is about.
+
+        See `Results.by_url()`. A scan answers about several documents at once,
+        so a caller that sent more than one asks here which answer is about
+        which document."""
+        ...
 
 
 class ScannerProtocol(Protocol):

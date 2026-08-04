@@ -5,7 +5,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import filelock
 from notifypy import Notify
@@ -15,7 +15,7 @@ from ggshield.core import ui
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import AuthError
 from ggshield.core.filter import censor_match
-from ggshield.core.scan import ScannerProtocol
+from ggshield.core.scan import Scannable, ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
@@ -566,29 +566,42 @@ class AIHookScanner:
         """
         if not payloads:
             raise ValueError("Error: no payloads to scan")
-        for payload in payloads:
-            if not is_mcp_activity_payload(payload):
-                # No activity to send: keep the plain, single-threaded path.
-                result = self._scan_content(payload)
-                if result.block:
-                    return result
-                continue
+        mcp_indices = [
+            index
+            for index, payload in enumerate(payloads)
+            if is_mcp_activity_payload(payload)
+        ]
+        mcp_results: Dict[int, HookResult] = {}
 
+        if not mcp_indices:
+            # No activity to send: keep the plain, single-threaded path.
+            scan_results = self._scan_contents(payloads)
+        else:
             # Both are blocking HTTP round trips against the same API, so overlap them
             # instead of paying for them one after the other. The activity is now logged
             # even when the scan blocks, which the MCP feature owner wants.
             with ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix="mcp_activity"
             ) as executor:
-                activity = executor.submit(self._send_mcp_activity, payload)
-                scan_result = self._scan_content(payload)
-                mcp_result = activity.result()
+                activities = {
+                    index: executor.submit(self._send_mcp_activity, payloads[index])
+                    for index in mcp_indices
+                }
+                scan_results = self._scan_contents(payloads)
+                mcp_results = {
+                    index: activity.result() for index, activity in activities.items()
+                }
 
-            # The scan verdict keeps precedence, as it did when it short-circuited
-            # the activity call.
+        # All the payloads of an event are scanned in one go, but the verdicts are
+        # still applied one payload at a time, in order: the blocking payload and the
+        # MCP activity calls are exactly the ones a per-payload loop produced. The
+        # scan verdict keeps precedence, as it did when it short-circuited the
+        # activity call.
+        for index, scan_result in enumerate(scan_results):
             if scan_result.block:
                 return scan_result
-            if mcp_result.block:
+            mcp_result = mcp_results.get(index)
+            if mcp_result is not None and mcp_result.block:
                 return mcp_result
         return HookResult.allow(payloads[0])
 
@@ -603,85 +616,131 @@ class AIHookScanner:
             payload=payload,
         )
 
-    def _scan_content(
-        self,
-        payload: HookPayload,
-    ) -> HookResult:
-        """Scan content for secrets using the SecretScanner."""
-        # Short path: if there is no content, no need to do an API call
-        if payload.empty:
-            return HookResult.allow(payload)
+    def _scan_content(self, payload: HookPayload) -> HookResult:
+        """Scan a single payload for secrets."""
+        return self._scan_contents([payload])[0]
 
-        # One Scannable for both the cache key and the scan, so the two can never
-        # disagree about what was scanned.
-        scannable = payload.scannable
-        try:
-            # is_longer_than() answers from the byte size when it can, so an
-            # oversized document is not pulled into memory just to key the cache.
-            content = (
-                ""
-                if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES)
-                else scannable.content
+    def _scan_contents(self, payloads: List[HookPayload]) -> List[HookResult]:
+        """Scan the payloads for secrets, in as few API calls as possible.
+
+        One event routinely carries several payloads (a prompt mentioning files, a
+        `cat` command...), and one API call costs a round trip. So everything that
+        actually needs scanning is handed to the SecretScanner in a single call,
+        which chunks it to the API's per-document and per-batch limits.
+
+        Returns one HookResult per payload, in the same order.
+        """
+        results = [HookResult.allow(payload) for payload in payloads]
+
+        # (index in `payloads`, document to scan, verdict cache key).
+        to_scan: List[Tuple[int, Scannable, Optional[str]]] = []
+        for index, payload in enumerate(payloads):
+            # One Scannable for both the cache key and the scan, so the two can
+            # never disagree about what was scanned.
+            scannable = payload.scannable
+            try:
+                # Short path: if there is no content, no need to do an API call.
+                if payload.empty:
+                    continue
+                # is_longer_than() answers from the byte size when it can, so an
+                # oversized document is not pulled into memory just to key the cache.
+                content = (
+                    ""
+                    if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES)
+                    else scannable.content
+                )
+            except Exception:
+                # Unreadable or undecodable: no cache key, and it still goes to the
+                # scanner, which decides how to skip it and says so.
+                content = ""
+
+            key = (
+                verdict_key(
+                    self.scanner.client.base_uri,
+                    self.scanner.client.api_key,
+                    self.scanner.secret_config,
+                    scannable.filename,
+                    content,
+                )
+                if content
+                else None
             )
-        except Exception:
-            # Unreadable or undecodable: no cache key. Let the scanner decide
-            # how to skip it.
-            content = ""
 
-        key = (
-            verdict_key(
-                self.scanner.client.base_uri,
-                self.scanner.client.api_key,
-                self.scanner.secret_config,
-                scannable.filename,
-                content,
-            )
-            if content
-            else None
-        )
+            # Shortest path: this exact document already came back clean from the
+            # API recently, so it does not even go in the batch. A Read is scanned
+            # twice — PreToolUse and PostToolUse both resolve to File(file_path)
+            # (see HookPayload.scannable), so the second call sends an identical
+            # document and can be answered locally. has_already_been_seen() cannot
+            # catch that pair: it debounces on the raw stdin payload, which differs
+            # between the two events.
+            if key and has_clean_verdict(key):
+                continue
 
-        # Shortest path: this exact document already came back clean from the API
-        # recently. A Read is scanned twice — PreToolUse and PostToolUse both
-        # resolve to File(file_path) (see HookPayload.scannable), so the second
-        # call sends an identical document and can be answered locally.
-        # has_already_been_seen() above cannot catch that pair: it debounces on
-        # the raw stdin payload, which differs between the two events.
-        if key and has_clean_verdict(key):
-            return HookResult.allow(payload)
+            to_scan.append((index, scannable, key))
 
-        with create_message_only_scanner_ui() as scanner_ui:
-            results = self.scanner.scan([scannable], scanner_ui=scanner_ui)
-        # Collect all secrets from results
-        secrets: List[Secret] = []
-        for result in results.results:
-            secrets.extend(result.secrets)
+        if not to_scan:
+            return results
 
-        if not secrets:
-            # Only cache an unambiguous verdict:
-            # - exactly one Result, so the API did answer about our document (a
-            #   degraded or skipped scan yields no Result at all);
-            # - nothing filtered out locally, since an empty `secrets` may also
-            #   mean the API reported policy breaks that the local config
-            #   ignored — a verdict about the config, not about the content.
-            if (
-                key
-                and len(results.results) == 1
-                and not results.results[0].ignored_secrets_count_by_kind
-            ):
-                store_clean_verdict(key)
-            return HookResult.allow(payload)
+        # A batch is looked up by url, which answers once per url: two entries
+        # sharing one would make a document silently inherit another's verdict, and
+        # a wrong verdict here either misses a secret or blocks on the wrong file.
+        # So a round sends at most one entry per url and any repeat waits for the
+        # next round. That holds by construction, without having to prove two
+        # documents are the same. Today's parsers never produce a repeat -- a BASH
+        # identifier is the command text, a READ one is the path, anything else a
+        # sha256 of its own content -- but nothing upstream enforces it.
+        remaining = to_scan
+        while remaining:
+            batch: List[Tuple[int, Scannable, Optional[str]]] = []
+            leftover: List[Tuple[int, Scannable, Optional[str]]] = []
+            batched_urls: Set[str] = set()
+            for entry in remaining:
+                url = entry[1].url
+                if url in batched_urls:
+                    leftover.append(entry)
+                else:
+                    batched_urls.add(url)
+                    batch.append(entry)
 
-        message = self._message_from_secrets(
-            secrets,
-            payload,
-            escape_markdown=True,
-        )
-        return HookResult(
-            block=True,
-            message=message,
-            nbr_secrets=len(secrets),
-            payload=payload,
-        )
+            with create_message_only_scanner_ui() as scanner_ui:
+                scan = self.scanner.scan(
+                    [scannable for _, scannable, _ in batch], scanner_ui=scanner_ui
+                )
+
+            # The scan answers about all of them at once, and not in the order they
+            # were sent, so each document is looked up by the url identifying it.
+            answers = scan.by_url()
+
+            for index, scannable, key in batch:
+                result = answers.get(scannable.url)
+                if result is None:
+                    # The scan said nothing about this document: it was skipped or
+                    # the scan was degraded. Not a verdict, so nothing to cache --
+                    # and nothing to block on, as before.
+                    continue
+                secrets: List[Secret] = list(result.secrets)
+                if not secrets:
+                    # Cacheability stays a per-document decision: this document's own
+                    # result must say nothing was filtered out locally, otherwise "no
+                    # secret" is a verdict about the config, not about the content.
+                    if key and not result.ignored_secrets_count_by_kind:
+                        store_clean_verdict(key)
+                    continue
+                payload = payloads[index]
+                results[index] = HookResult(
+                    block=True,
+                    message=self._message_from_secrets(
+                        secrets,
+                        payload,
+                        escape_markdown=True,
+                    ),
+                    nbr_secrets=len(secrets),
+                    payload=payload,
+                )
+
+            remaining = leftover
+
+        return results
 
     @staticmethod
     def _message_from_secrets(

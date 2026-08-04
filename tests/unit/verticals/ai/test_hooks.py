@@ -4,13 +4,14 @@ import subprocess
 import time
 from collections import Counter
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MAXIMUM_PAYLOAD_SIZE
-from pygitguardian.models import MCPActivityResponse
+from pygitguardian.models import MCPActivityResponse, MultiScanResult
+from pygitguardian.models import ScanResult as ApiScanResult
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
@@ -61,7 +62,9 @@ def tmp_file(tmp_path: Path) -> Path:
 
 
 def _mock_scanner(
-    matches: List[str], secret_config: Optional[SecretConfig] = None
+    matches: List[str],
+    secret_config: Optional[SecretConfig] = None,
+    ignored_secrets_count_by_kind: Optional[Counter] = None,
 ) -> MagicMock:
     """Create a mock SecretScanner that returns the given Results from scan()."""
     mock = MagicMock(spec=SecretScanner)
@@ -72,20 +75,30 @@ def _mock_scanner(
     mock.client.api_key = API_KEY
     # Set in SecretScanner.__init__, so spec= does not provide it either.
     mock.secret_config = secret_config or SecretConfig()
-    scan_result = Results(
-        results=[
-            ScanResult(
-                filename="url",
-                filemode=Filemode.FILE,
-                path=Path("."),
-                url="url",
-                secrets=[_make_secret(match) for match in matches],
-                ignored_secrets_count_by_kind=Counter(),
-            )
-        ],
-        errors=[],
-    )
-    mock.scan.return_value = scan_result
+
+    def scan(scannables, scanner_ui=None, **kwargs):
+        # Like the real scanner, the answer is about the documents that were
+        # sent, so it carries their url -- that is what ties a result back to
+        # its document. This fixture answers about the first one, which is all
+        # a single-payload test sends.
+        first = list(scannables)[0]
+        return Results(
+            results=[
+                ScanResult(
+                    filename=first.filename,
+                    filemode=Filemode.FILE,
+                    path=Path("."),
+                    url=first.url,
+                    secrets=[_make_secret(match) for match in matches],
+                    ignored_secrets_count_by_kind=(
+                        ignored_secrets_count_by_kind or Counter()
+                    ),
+                )
+            ],
+            errors=[],
+        )
+
+    mock.scan.side_effect = scan
     return mock
 
 
@@ -232,7 +245,9 @@ class TestVerdictCacheShortCircuit:
     def test_degraded_scan_is_not_cached(self):
         """A scan that returned no Result at all is not a verdict, so it is not cached."""
         mock_scanner = _mock_scanner([])
-        mock_scanner.scan.return_value = Results(results=[], errors=[])
+        mock_scanner.scan.side_effect = lambda *args, **kwargs: Results(
+            results=[], errors=[]
+        )
         hook_scanner = AIHookScanner(mock_scanner)
         assert hook_scanner._scan_content(self._payload()).block is False
         assert not has_clean_verdict(self._key())
@@ -243,9 +258,9 @@ class TestVerdictCacheShortCircuit:
     def test_locally_filtered_verdict_is_not_cached(self):
         """The API reported secrets and the local config dropped them: that "clean"
         answer belongs to this config only, so it must not be remembered."""
-        mock_scanner = _mock_scanner([])
-        mock_scanner.scan.return_value.results[0].ignored_secrets_count_by_kind = (
-            Counter({IgnoreKind.IGNORED_DETECTOR: 1})
+        mock_scanner = _mock_scanner(
+            [],
+            ignored_secrets_count_by_kind=Counter({IgnoreKind.IGNORED_DETECTOR: 1}),
         )
         hook_scanner = AIHookScanner(mock_scanner)
         assert hook_scanner._scan_content(self._payload()).block is False
@@ -290,6 +305,280 @@ class TestVerdictCacheShortCircuit:
         _verdict_cache_path().chmod(0o666)
         hook_scanner._scan_content(self._payload())
         assert mock_scanner.scan.call_count == 2
+
+
+def _scanner_per_document(
+    secrets_by_url: Optional[Dict[str, List[str]]] = None,
+    skipped_urls: Set[str] = frozenset(),
+    ignored_urls: Set[str] = frozenset(),
+    reverse: bool = False,
+) -> MagicMock:
+    """A scanner answering per document, the way a multi-document scan does:
+    one result per document, identified by its url.
+
+    `skipped_urls` documents get no result at all (the scanner drops what it
+    could not scan) and `reverse` returns the results in another order than the
+    documents were sent (chunks are collected as they complete).
+    """
+    secrets_by_url = secrets_by_url or {}
+    mock = _mock_scanner([])
+
+    def scan(scannables, scanner_ui=None, **kwargs):
+        results = [
+            ScanResult(
+                filename=scannable.filename,
+                filemode=Filemode.FILE,
+                path=Path("."),
+                url=scannable.url,
+                secrets=[
+                    _make_secret(match)
+                    for match in secrets_by_url.get(scannable.url, [])
+                ],
+                ignored_secrets_count_by_kind=(
+                    Counter({IgnoreKind.IGNORED_DETECTOR: 1})
+                    if scannable.url in ignored_urls
+                    else Counter()
+                ),
+            )
+            for scannable in scannables
+            if scannable.url not in skipped_urls
+        ]
+        return Results(
+            results=list(reversed(results)) if reverse else results, errors=[]
+        )
+
+    mock.scan.side_effect = scan
+    return mock
+
+
+def _scanned_urls(mock_scanner: MagicMock, call: int = 0) -> List[str]:
+    """The urls of the documents sent to the API on the `call`-th scan."""
+    return [scannable.url for scannable in mock_scanner.scan.call_args_list[call][0][0]]
+
+
+class TestBatchedPayloadScan:
+    """One event carries several payloads (a prompt mentioning files, a `cat`
+    command...). They must cost one API call, not one each — while blocking on
+    exactly the payload a per-payload loop blocked on.
+    """
+
+    @staticmethod
+    def _payload(identifier: str, content: str = "some content") -> HookPayload:
+        return HookPayload(
+            event_type=EventType.USER_PROMPT,
+            tool=None,
+            content=content,
+            identifier=identifier,
+            agent=Cursor(),
+            raw={},
+        )
+
+    @staticmethod
+    def _read_payload(path: Path) -> HookPayload:
+        return HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=Tool.READ,
+            content="",
+            identifier=str(path),
+            agent=Cursor(),
+            raw={},
+        )
+
+    def test_documents_sharing_a_url_are_never_in_the_same_batch(self):
+        """GIVEN two payloads whose documents share a url
+        WHEN they are scanned
+        THEN every batch holds distinct urls, so no document can inherit another's
+        verdict from the by_url() lookup."""
+        payloads = [self._payload("same-url"), self._payload("same-url")]
+        mock_scanner = _scanner_per_document()
+
+        results = AIHookScanner(mock_scanner)._scan_contents(payloads)
+
+        assert len(results) == len(payloads)
+        assert mock_scanner.scan.call_count == 2
+        for call in mock_scanner.scan.call_args_list:
+            urls = [document.url for document in call.args[0]]
+            assert len(urls) == len(set(urls))
+
+    def test_a_prompt_mentioning_files_makes_a_single_api_call(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """GIVEN a UserPromptSubmit prompt mentioning three files
+        WHEN the hook scans it
+        THEN the four resulting payloads are sent in one call, all of them."""
+        # Mentioned by relative name, from inside tmp_path: an absolute Windows path
+        # (@C:/...) stops the @file regex at the drive-letter colon, and that gap in
+        # find_filepaths is not what this test is about.
+        monkeypatch.chdir(tmp_path)
+        files = []
+        for index in range(3):
+            file = tmp_path / f"file{index}.txt"
+            file.write_text(f"content {index}")
+            files.append(file)
+        mock_scanner = _scanner_per_document()
+        prompt = "look at " + " ".join(f"@{file.name}" for file in files)
+        data = {
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": prompt,
+            "cursor_version": "1.2.3",
+        }
+
+        assert AIHookScanner(mock_scanner).scan(json.dumps(data)) == 0
+
+        mock_scanner.scan.assert_called_once()
+        urls = _scanned_urls(mock_scanner)
+        assert len(urls) == 4  # the three files, plus the prompt itself
+        for file in files:
+            assert any(url.endswith(file.name) for url in urls)
+
+    def test_secret_in_the_second_payload_blocks_with_the_same_message(
+        self, tmp_path: Path
+    ):
+        """GIVEN three payloads, the second one holding a secret
+        WHEN they are scanned together
+        THEN that payload blocks, with the message the per-payload scan gives."""
+        files = []
+        for index in range(3):
+            file = tmp_path / f"file{index}.txt"
+            file.write_text(f"content {index}")
+            files.append(file)
+        payloads = [self._read_payload(file) for file in files]
+        secrets = {payloads[1].scannable.url: ["sk-xxx"]}
+
+        result = AIHookScanner(_scanner_per_document(secrets))._scan_payloads(payloads)
+
+        assert result.block is True
+        assert result.payload is payloads[1]
+        assert result.nbr_secrets == 1
+        # The exact wording of the PreToolUse/Read block, unchanged.
+        assert f"Detected 1 secret in {payloads[1].identifier}" in result.message
+        assert "The file content was not shown to the agent" in result.message
+        # ... and it is the very message a one-payload scan produces.
+        alone = AIHookScanner(_scanner_per_document(secrets))._scan_content(payloads[1])
+        assert result.message == alone.message
+
+    def test_the_secret_is_attributed_to_the_document_it_was_found_in(self):
+        """GIVEN three documents, only the last one holding a secret, and results
+        coming back in another order than they were sent
+        WHEN they are scanned together
+        THEN the block names that document, not one of its siblings."""
+        payloads = [self._payload(f"payload-{index}") for index in range(3)]
+        mock_scanner = _scanner_per_document({"payload-2": ["sk-xxx"]}, reverse=True)
+
+        results = AIHookScanner(mock_scanner)._scan_contents(payloads)
+
+        assert [result.block for result in results] == [False, False, True]
+        assert results[2].payload is payloads[2]
+
+    def test_a_skipped_document_does_not_shift_the_others(self):
+        """GIVEN a document the scanner skipped, so it gets no result at all
+        WHEN a sibling holds a secret
+        THEN the secret is still attributed to the sibling, not to the gap."""
+        payloads = [self._payload(f"payload-{index}") for index in range(3)]
+        mock_scanner = _scanner_per_document(
+            {"payload-2": ["sk-xxx"]}, skipped_urls={"payload-0"}
+        )
+
+        results = AIHookScanner(mock_scanner)._scan_contents(payloads)
+
+        assert [result.block for result in results] == [False, False, True]
+
+    def test_a_cached_document_is_left_out_of_the_batch(self):
+        """GIVEN a document with a clean verdict already cached
+        WHEN it is part of an event with other payloads
+        THEN it is not sent, and the others still are."""
+        mock_scanner = _scanner_per_document()
+        hook_scanner = AIHookScanner(mock_scanner)
+        cached = self._payload("cached")
+        hook_scanner._scan_content(cached)
+
+        hook_scanner._scan_contents([cached, self._payload("fresh")])
+
+        assert mock_scanner.scan.call_count == 2
+        assert _scanned_urls(mock_scanner, call=1) == ["fresh"]
+
+    def test_a_locally_filtered_document_is_not_cached_but_its_sibling_is(self):
+        """GIVEN two documents in one batch, one of them with secrets the local
+        config filtered out
+        WHEN they are scanned
+        THEN only the unambiguous one is remembered as clean."""
+        payloads = [self._payload("clean"), self._payload("filtered")]
+        hook_scanner = AIHookScanner(
+            _scanner_per_document(ignored_urls={"filtered"}, reverse=True)
+        )
+
+        results = hook_scanner._scan_contents(payloads)
+
+        assert [result.block for result in results] == [False, False]
+        key = verdict_key(INSTANCE, API_KEY, SecretConfig(), "clean", "some content")
+        assert has_clean_verdict(key)
+        filtered_key = verdict_key(
+            INSTANCE, API_KEY, SecretConfig(), "filtered", "some content"
+        )
+        assert not has_clean_verdict(filtered_key)
+
+    def test_a_skipped_document_is_not_cached(self):
+        """A document the scan said nothing about has no verdict to remember."""
+        payloads = [self._payload("answered"), self._payload("skipped")]
+        hook_scanner = AIHookScanner(_scanner_per_document(skipped_urls={"skipped"}))
+
+        hook_scanner._scan_contents(payloads)
+
+        assert has_clean_verdict(
+            verdict_key(INSTANCE, API_KEY, SecretConfig(), "answered", "some content")
+        )
+        assert not has_clean_verdict(
+            verdict_key(INSTANCE, API_KEY, SecretConfig(), "skipped", "some content")
+        )
+
+    def test_empty_payloads_never_reach_the_api(self):
+        """An empty payload costs no API call, batched or not."""
+        mock_scanner = _scanner_per_document()
+        payloads = [
+            self._payload("empty", content=""),
+            self._payload("full"),
+            self._payload("also-empty", content=""),
+        ]
+
+        results = AIHookScanner(mock_scanner)._scan_contents(payloads)
+
+        assert [result.block for result in results] == [False, False, False]
+        mock_scanner.scan.assert_called_once()
+        assert _scanned_urls(mock_scanner) == ["full"]
+
+    def test_no_payload_to_scan_makes_no_api_call(self):
+        """All payloads empty means nothing to send at all."""
+        mock_scanner = _scanner_per_document()
+        AIHookScanner(mock_scanner)._scan_contents([self._payload("empty", content="")])
+        mock_scanner.scan.assert_not_called()
+
+    def test_more_than_twenty_payloads_are_all_scanned(self):
+        """GIVEN more payloads than the API accepts in one call
+        WHEN they are scanned
+        THEN the scanner chunks them and not a single one is dropped."""
+        scanner = _real_secret_scanner()
+        scanner.client.base_uri = INSTANCE
+        scanner.client.api_key = API_KEY
+
+        def multi_content_scan(documents, *args, **kwargs):
+            result = MultiScanResult(
+                [
+                    ApiScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+                    for _ in documents
+                ]
+            )
+            result.status_code = 200
+            return result
+
+        scanner.client.multi_content_scan.side_effect = multi_content_scan
+        payloads = [self._payload(f"payload-{index}") for index in range(25)]
+
+        assert AIHookScanner(scanner)._scan_payloads(payloads).block is False
+
+        calls = scanner.client.multi_content_scan.call_args_list
+        assert len(calls) == 2  # 20 + 5, the API's per-call document limit
+        sent = [document["filename"] for call in calls for document in call.args[0]]
+        assert sorted(sent) == sorted(payload.identifier for payload in payloads)
 
 
 class TestHasAlreadyBeenSeen:
@@ -2093,17 +2382,21 @@ def _scanner_finding(needle: str) -> MagicMock:
     mock.secret_config = SecretConfig()
 
     def scan(scannables, scanner_ui=None, **kwargs):
-        leaked = any(needle in scannable.content for scannable in scannables)
+        # One answer per document, carrying that document's url, as the real
+        # scanner does: the url is what ties a result back to its document.
         return Results(
             results=[
                 ScanResult(
-                    filename="url",
+                    filename=scannable.filename,
                     filemode=Filemode.FILE,
                     path=Path("."),
-                    url="url",
-                    secrets=[_make_secret(needle)] if leaked else [],
+                    url=scannable.url,
+                    secrets=(
+                        [_make_secret(needle)] if needle in scannable.content else []
+                    ),
                     ignored_secrets_count_by_kind=Counter(),
                 )
+                for scannable in scannables
             ],
             errors=[],
         )
