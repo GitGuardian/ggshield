@@ -1,3 +1,5 @@
+import os
+import time
 from pathlib import Path
 from typing import Any, List
 from unittest.mock import MagicMock, patch
@@ -302,3 +304,58 @@ class TestRefreshAndMaybeSubmitDiscovery:
 
             _, kwargs = m_discover.call_args
             assert kwargs.get("machine_id") == "cached-id"
+
+
+# ---------------------------------------------------------------------------
+# refresh_and_maybe_submit_discovery, against the real on-disk cache
+# ---------------------------------------------------------------------------
+
+
+class TestRefreshAgainstRealCache:
+    """The tests above mock the cache away, so they cannot see whether a
+    discovery that really went through it still compares equal."""
+
+    @staticmethod
+    def _age_cache(tmp_path: Path) -> None:
+        """Backdate the cache file, so that a freshness short-circuit around the
+        walk cannot be what keeps the submission from happening."""
+        cache_file = tmp_path / "ai_discovery.json"
+        mtime = time.time() - 24 * 3600
+        os.utime(cache_file, (mtime, mtime))
+
+    def test_submits_once_then_stays_quiet(self, tmp_path: Path):
+        discovery = AIDiscovery(
+            user=_user(),
+            servers=_merge_mcp_configurations(
+                [
+                    MCPConfiguration(
+                        name="srv",
+                        agent="cursor",
+                        scope=Scope.USER,
+                        transport=Transport.STDIO,
+                        command="run",
+                        display_name="Pretty Server",
+                    )
+                ]
+            ),
+            discovery_duration=0.1,
+        )
+        with (
+            patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path),
+            patch(
+                "ggshield.verticals.ai.discovery.discover_ai_configuration",
+                return_value=discovery,
+            ),
+            patch(
+                "ggshield.verticals.ai.discovery.submit_ai_discovery",
+                # The API answers with its own, plain pygitguardian objects.
+                side_effect=lambda client, sent: AIDiscovery.from_dict(sent.to_dict()),
+            ) as m_submit,
+        ):
+            refresh_and_maybe_submit_discovery(MagicMock())
+            assert m_submit.call_count == 1, "cold cache must submit"
+
+            for _ in range(2):
+                self._age_cache(tmp_path)
+                refresh_and_maybe_submit_discovery(MagicMock())
+            assert m_submit.call_count == 1, "unchanged configuration must not submit"
