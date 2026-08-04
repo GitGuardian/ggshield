@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set
 
 import filelock
 from notifypy import Notify
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core import ui
 from ggshield.core.dirs import get_cache_dir
@@ -20,6 +21,7 @@ from ggshield.core.text_utils import pluralize, translate_validity
 from ggshield.verticals.ai.mcp import send_mcp_activity
 
 from .agents import AGENTS
+from .cache import has_clean_verdict, store_clean_verdict, verdict_key
 from .models import (
     Agent,
     EventType,
@@ -588,14 +590,63 @@ class AIHookScanner:
         if payload.empty:
             return HookResult.allow(payload)
 
+        # One Scannable for both the cache key and the scan, so the two can never
+        # disagree about what was scanned.
+        scannable = payload.scannable
+        try:
+            # is_longer_than() answers from the byte size when it can, so an
+            # oversized document is not pulled into memory just to key the cache.
+            content = (
+                ""
+                if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES)
+                else scannable.content
+            )
+        except Exception:
+            # Unreadable or undecodable: no cache key. Let the scanner decide
+            # how to skip it.
+            content = ""
+
+        key = (
+            verdict_key(
+                self.scanner.client.base_uri,
+                self.scanner.client.api_key,
+                self.scanner.secret_config,
+                scannable.filename,
+                content,
+            )
+            if content
+            else None
+        )
+
+        # Shortest path: this exact document already came back clean from the API
+        # recently. A Read is scanned twice — PreToolUse and PostToolUse both
+        # resolve to File(file_path) (see HookPayload.scannable), so the second
+        # call sends an identical document and can be answered locally.
+        # has_already_been_seen() above cannot catch that pair: it debounces on
+        # the raw stdin payload, which differs between the two events.
+        if key and has_clean_verdict(key):
+            return HookResult.allow(payload)
+
         with create_message_only_scanner_ui() as scanner_ui:
-            results = self.scanner.scan([payload.scannable], scanner_ui=scanner_ui)
+            results = self.scanner.scan([scannable], scanner_ui=scanner_ui)
         # Collect all secrets from results
         secrets: List[Secret] = []
         for result in results.results:
             secrets.extend(result.secrets)
 
         if not secrets:
+            # Only cache an unambiguous verdict:
+            # - exactly one Result, so the API did answer about our document (a
+            #   degraded or skipped scan yields no Result at all);
+            # - nothing filtered out locally, since an empty `secrets` may also
+            #   mean the API reported policy breaks that the local config
+            #   ignored — a verdict about the config, not about the content.
+            if (
+                key
+                and len(results.results) == 1
+                and not results.results[0].ignored_secrets_count_by_kind
+            ):
+                store_clean_verdict(key)
             return HookResult.allow(payload)
 
         message = self._message_from_secrets(
