@@ -23,12 +23,21 @@ VERDICT_CACHE_FILENAME = "ai_hook_verdicts.json"
 VERDICT_CACHE_TTL_SECONDS = 15 * 60
 VERDICT_CACHE_MAX_ENTRIES = 500
 
+# The walk inventories assistant configuration files, which change on the order of
+# days, but it runs on *every* MCP tool call. One hour keeps staleness well under a
+# coding session while making the walk negligible.
+DISCOVERY_CACHE_TTL_SECONDS = 3600
+
+
+def _discovery_cache_path() -> Path:
+    return get_cache_dir() / AI_DISCOVERY_CACHE_FILENAME
+
 
 def save_discovery_cache(config: AIDiscovery) -> None:
     """
     Save probe results to cache.
     """
-    cache_path = get_cache_dir() / AI_DISCOVERY_CACHE_FILENAME
+    cache_path = _discovery_cache_path()
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(config.to_dict(), indent=4))
@@ -41,7 +50,7 @@ def load_discovery_cache() -> Optional[AIDiscovery]:
 
     Returns None if the cache does not exist.
     """
-    cache_path = get_cache_dir() / AI_DISCOVERY_CACHE_FILENAME
+    cache_path = _discovery_cache_path()
     if not cache_path.exists():
         return None
     try:
@@ -177,6 +186,23 @@ def store_clean_verdict(key: str) -> None:
             if hasattr(os, "fchmod"):
                 os.fchmod(file.fileno(), 0o600)
             json.dump(dict(kept), file)
+    except OSError:
+        pass
+
+
+def is_discovery_cache_fresh() -> bool:
+    """Tell whether the cached discovery was refreshed less than the TTL ago."""
+    try:
+        age = time.time() - _discovery_cache_path().stat().st_mtime
+    except OSError:
+        return False
+    return 0 <= age < DISCOVERY_CACHE_TTL_SECONDS
+
+
+def touch_discovery_cache() -> None:
+    """Reset the TTL of the cache, without rewriting its unchanged content."""
+    try:
+        _discovery_cache_path().touch()
     except OSError:
         pass
 

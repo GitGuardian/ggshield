@@ -1,4 +1,5 @@
 import json
+import os
 import stat
 import time
 from pathlib import Path
@@ -19,15 +20,18 @@ from pygitguardian.models import (
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.verticals.ai.cache import (
+    DISCOVERY_CACHE_TTL_SECONDS,
     VERDICT_CACHE_MAX_ENTRIES,
     VERDICT_CACHE_TTL_SECONDS,
     _server_has_capabilities_unknown_to,
     _verdict_cache_path,
     has_changed_from,
     has_clean_verdict,
+    is_discovery_cache_fresh,
     load_discovery_cache,
     save_discovery_cache,
     store_clean_verdict,
+    touch_discovery_cache,
     verdict_key,
 )
 from ggshield.verticals.ai.discovery import _merge_mcp_configurations
@@ -602,3 +606,40 @@ class TestVerdictCache:
         # Keep the file trustworthy so these tests exercise the content checks
         # and not the permission check.
         path.chmod(0o600)
+
+
+class TestDiscoveryCacheTTL:
+    def _age(self, tmp_path: Path, seconds: float) -> Path:
+        cache_file = tmp_path / "ai_discovery.json"
+        cache_file.write_text("{}")
+        mtime = time.time() - seconds
+        os.utime(cache_file, (mtime, mtime))
+        return cache_file
+
+    def test_not_fresh_when_missing(self, tmp_path: Path):
+        with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+            assert is_discovery_cache_fresh() is False
+
+    def test_fresh_within_ttl(self, tmp_path: Path):
+        self._age(tmp_path, DISCOVERY_CACHE_TTL_SECONDS / 2)
+        with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+            assert is_discovery_cache_fresh() is True
+
+    def test_stale_past_ttl(self, tmp_path: Path):
+        self._age(tmp_path, DISCOVERY_CACHE_TTL_SECONDS + 1)
+        with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+            assert is_discovery_cache_fresh() is False
+
+    def test_stale_when_mtime_is_in_the_future(self, tmp_path: Path):
+        """A clock jump must not pin the cache as fresh forever."""
+        self._age(tmp_path, -DISCOVERY_CACHE_TTL_SECONDS)
+        with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+            assert is_discovery_cache_fresh() is False
+
+    def test_touch_makes_a_stale_cache_fresh_again(self, tmp_path: Path):
+        cache_file = self._age(tmp_path, DISCOVERY_CACHE_TTL_SECONDS + 1)
+        content = cache_file.read_text()
+        with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+            touch_discovery_cache()
+            assert is_discovery_cache_fresh() is True
+        assert cache_file.read_text() == content

@@ -1,6 +1,7 @@
 import errno
 import json
 import subprocess
+import time
 from collections import Counter
 from pathlib import Path
 from typing import List, Optional, Set
@@ -520,6 +521,131 @@ class TestMCPActivity:
         call_payload = mock_send_mcp.call_args[0][1]
         assert call_payload.event_type == EventType.PRE_TOOL_USE
         assert call_payload.tool == Tool.MCP
+
+
+class TestMCPActivityOverlap:
+    """The secret scan and the MCP activity call are two blocking round trips against
+    the same API: for an MCP PreToolUse they must run concurrently."""
+
+    def _payload(
+        self,
+        event_type: EventType = EventType.PRE_TOOL_USE,
+        tool: Optional[Tool] = Tool.MCP,
+    ) -> HookPayload:
+        return HookPayload(
+            event_type=event_type,
+            tool=tool,
+            content="some tool input",
+            identifier="mcp__some_server__some_tool",
+            agent=MagicMock(),
+            raw={},
+        )
+
+    @staticmethod
+    def _timed(intervals: dict, name: str, duration: float, result: object):
+        """Return a callable that sleeps and records the interval it ran over."""
+
+        def _run(*args, **kwargs):
+            start = time.monotonic()
+            time.sleep(duration)
+            intervals[name] = (start, time.monotonic())
+            return result
+
+        return _run
+
+    def test_scan_and_activity_run_concurrently(self):
+        """Their execution intervals must intersect: if a refactor serialises them
+        again, this fails."""
+        intervals: dict = {}
+        scanner = _mock_scanner([])
+        scanner.scan.side_effect = self._timed(
+            intervals, "scan", 0.2, scanner.scan.return_value
+        )
+
+        with patch(
+            "ggshield.verticals.ai.hooks.send_mcp_activity",
+            side_effect=self._timed(
+                intervals, "mcp", 0.2, MCPActivityResponse(allowed=True, reason="")
+            ),
+        ):
+            result = AIHookScanner(scanner)._scan_payloads([self._payload()])
+
+        assert not result.block
+        scan_start, scan_end = intervals["scan"]
+        mcp_start, mcp_end = intervals["mcp"]
+        assert scan_start < mcp_end and mcp_start < scan_end
+
+    def test_scan_block_wins_over_the_mcp_verdict(self):
+        """Same verdict as when the scan short-circuited the activity call."""
+        scanner = _mock_scanner(["sk-secret"])
+        with patch(
+            "ggshield.verticals.ai.hooks.send_mcp_activity",
+            return_value=MCPActivityResponse(allowed=False, reason="blocked by policy"),
+        ) as mock_send:
+            result = AIHookScanner(scanner)._scan_payloads([self._payload()])
+
+        assert result.block
+        assert result.nbr_secrets == 1
+        assert "blocked by policy" not in result.message
+        # Approved behaviour change: the activity is logged even when we block.
+        mock_send.assert_called_once()
+
+    def test_mcp_block_returned_when_the_scan_allows(self):
+        scanner = _mock_scanner([])
+        with patch(
+            "ggshield.verticals.ai.hooks.send_mcp_activity",
+            return_value=MCPActivityResponse(allowed=False, reason="blocked by policy"),
+        ):
+            result = AIHookScanner(scanner)._scan_payloads([self._payload()])
+
+        assert result.block
+        assert result.message == "blocked by policy"
+
+    def test_api_failure_on_the_worker_thread_fails_open(self):
+        """An exception raised while logging the activity must not escape the thread
+        and kill the hook."""
+        scanner = _mock_scanner([])
+        scanner.client.log_mcp_activity.side_effect = RuntimeError("network")
+        with patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery"):
+            result = AIHookScanner(scanner)._scan_payloads([self._payload()])
+
+        assert not result.block
+
+    @pytest.mark.parametrize(
+        ("event_type", "tool"),
+        [
+            (EventType.PRE_TOOL_USE, Tool.BASH),
+            (EventType.PRE_TOOL_USE, None),
+            (EventType.POST_TOOL_USE, Tool.MCP),
+            (EventType.USER_PROMPT, None),
+        ],
+    )
+    def test_non_mcp_payloads_stay_on_the_serial_path(
+        self, event_type: EventType, tool: Optional[Tool]
+    ):
+        """send_mcp_activity would no-op for these, so they must not pay for a thread."""
+        scanner = _mock_scanner([])
+        with patch("ggshield.verticals.ai.hooks.send_mcp_activity") as mock_send:
+            result = AIHookScanner(scanner)._scan_payloads(
+                [self._payload(event_type=event_type, tool=tool)]
+            )
+
+        assert not result.block
+        mock_send.assert_not_called()
+
+    def test_first_blocking_payload_wins_across_payloads(self):
+        """_parse_command can yield several payloads: the first block still wins."""
+        allowed = self._payload(event_type=EventType.PRE_TOOL_USE, tool=Tool.BASH)
+        blocked = self._payload()
+        scanner = _mock_scanner([])
+        with patch(
+            "ggshield.verticals.ai.hooks.send_mcp_activity",
+            return_value=MCPActivityResponse(allowed=False, reason="blocked by policy"),
+        ):
+            result = AIHookScanner(scanner)._scan_payloads([allowed, blocked])
+
+        assert result.block
+        assert result.payload is blocked
 
 
 class TestMessageFromSecrets:
