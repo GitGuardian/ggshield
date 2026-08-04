@@ -17,10 +17,8 @@ from .models import Scope
 AI_DISCOVERY_CACHE_FILENAME = "ai_discovery.json"
 
 VERDICT_CACHE_FILENAME = "ai_hook_verdicts.json"
-# The key covers everything the verdict depends on (see verdict_key), so an
-# entry can never be wrong about what was scanned. It can only go stale if the
-# server's detection, or a secret's known/valid status, changes — hence a short
-# TTL rather than a long one.
+# The key covers what we send (see verdict_key), so an entry can only go stale
+# if the server's answer changes — hence a short TTL.
 VERDICT_CACHE_TTL_SECONDS = 15 * 60
 VERDICT_CACHE_MAX_ENTRIES = 500
 
@@ -54,14 +52,11 @@ def load_discovery_cache() -> Optional[AIDiscovery]:
 def verdict_key(instance: str, api_key: str, filename: str, content: str) -> str:
     """Cache key for one document: everything the API's answer depends on.
 
-    Content and filename because that is exactly what we send. Instance and
-    token because the answer is per-workspace: custom detectors, dashboard
-    exclusions and the engine version all differ between them, so a verdict
-    obtained with one token says nothing about another.
+    The document we send (content and filename), plus the instance and token,
+    because custom detectors and dashboard exclusions are per-workspace.
 
-    NUL separates the parts: it cannot appear in a URL, a token or a path, so
-    the concatenation is unambiguous. `surrogatepass` rather than `replace`:
-    the key of a security control must not be lossy.
+    NUL separates the parts: it cannot appear in a URL, a token or a path.
+    `surrogatepass` rather than `replace`: this key must not be lossy.
     """
     joined = "\0".join((instance, api_key, filename, content))
     return hashlib.sha256(joined.encode("utf-8", "surrogatepass")).hexdigest()
@@ -75,18 +70,13 @@ def _load_verdicts() -> Dict[str, float]:
     """Load the cached clean verdicts, or an empty mapping if the cache can't be trusted.
 
     Every failure path returns an empty mapping, so the caller scans: a broken
-    or suspicious cache must never turn into an "allow".
-
-    Trust here only rules out *other* users. Anyone who can write the file as
-    the current user can seed sha256(secret-bearing content) and have the hook
-    allow it without asking the API — but they could equally replace ggshield
-    itself, so that is not a boundary we can defend from inside the cache.
+    or suspicious cache must never turn into an "allow". This only rules out
+    *other* users; whoever can write as us could replace ggshield itself.
     """
     path = _verdict_cache_path()
     try:
-        # Open once and check the descriptor, not the path: O_NOFOLLOW refuses a
-        # symlink (not a cache file we wrote) and fstat leaves no window in which
-        # the file we validated could be swapped for the file we read.
+        # Check the descriptor, not the path: O_NOFOLLOW refuses a symlink, and
+        # fstat leaves no window for a swap between check and read.
         fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         with os.fdopen(fd, "r", encoding="utf-8") as file:
             info = os.fstat(file.fileno())
@@ -97,15 +87,15 @@ def _load_verdicts() -> Dict[str, float]:
                 info.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
                 or info.st_uid != os.getuid()
             ):
-                # Group/other-writable, or written by somebody else: either way
-                # this is not a file only we could have produced.
+                # Group/other-writable, or somebody else's: not a file only we
+                # could have produced.
                 return {}
             data = json.loads(file.read())
     except (OSError, ValueError):
         return {}
     if not isinstance(data, dict):
         return {}
-    # No bound here on purpose: store_clean_verdict() caps what we write, and
+    # Unbounded on purpose: store_clean_verdict() caps what we write, and
     # truncating before validation would let junk entries evict real ones.
     return {
         key: float(value)
@@ -115,8 +105,7 @@ def _load_verdicts() -> Dict[str, float]:
 
 
 def _is_fresh(stored: float, now: float) -> bool:
-    # A timestamp in the future is not fresh, it is either clock skew or a
-    # forged entry meant to never expire.
+    # A timestamp in the future is clock skew, or a forged never-expiring entry.
     return 0 <= now - stored < VERDICT_CACHE_TTL_SECONDS
 
 
@@ -141,16 +130,15 @@ def store_clean_verdict(key: str) -> None:
     path = _verdict_cache_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        # 0600 on creation, and never through a symlink. No file lock: unlike
-        # the hook debounce, this is advisory — a lost or torn write costs a
-        # cache miss, and a miss simply scans.
+        # 0600 on creation, and never through a symlink. No file lock: a lost or
+        # torn write costs a cache miss, and a miss simply scans.
         fd = os.open(
             path,
             os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0),
             0o600,
         )
         with os.fdopen(fd, "w") as file:
-            # O_CREAT's mode only applies to a file we actually created. Force
+            # O_CREAT's mode only applies to a file we actually created: force
             # it, so a pre-existing loose-permission file — which _load_verdicts
             # refuses to read — doesn't disable the cache for good.
             if hasattr(os, "fchmod"):

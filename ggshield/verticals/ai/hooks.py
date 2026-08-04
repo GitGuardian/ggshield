@@ -595,16 +595,15 @@ class AIHookScanner:
         scannable = payload.scannable
         try:
             # is_longer_than() answers from the byte size when it can, so an
-            # oversized document is not pulled into memory just to key the
-            # cache. The API would reject it, so it is never cached anyway.
+            # oversized document is not pulled into memory just to key the cache.
             content = (
                 ""
                 if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES)
                 else scannable.content
             )
         except Exception:
-            # Unreadable or undecodable: we have no cache key. Hand it to the
-            # scanner, which knows how to skip it, rather than deciding here.
+            # Unreadable or undecodable: no cache key. Let the scanner decide
+            # how to skip it.
             content = ""
 
         key = (
@@ -622,11 +621,8 @@ class AIHookScanner:
         # recently. A Read is scanned twice — PreToolUse and PostToolUse both
         # resolve to File(file_path) (see HookPayload.scannable), so the second
         # call sends an identical document and can be answered locally.
-        # This is a different layer from has_already_been_seen() above, which
-        # debounces on the raw stdin payload and therefore cannot see the Pre/Post
-        # pair: those two payloads differ (event name, and Post carries the tool
-        # response). That one is a single slot keyed on what the agent sent us,
-        # this one is a TTL'd set keyed on what we send the API.
+        # has_already_been_seen() above cannot catch that pair: it debounces on
+        # the raw stdin payload, which differs between the two events.
         if key and has_clean_verdict(key):
             return HookResult.allow(payload)
 
@@ -638,18 +634,12 @@ class AIHookScanner:
             secrets.extend(result.secrets)
 
         if not secrets:
-            # Only cache an unambiguous verdict.
-            # - Exactly one Result: we submitted exactly one document, so that is
-            #   the API answering about it. A degraded scan — chunk error, or a
-            #   scannable the scanner skipped as too large / undecodable /
-            #   missing — yields no Result at all (see
-            #   SecretScanner._collect_results), which is not a verdict.
-            # - Nothing filtered out: an empty `secrets` may also mean the API
-            #   *did* report policy breaks and Result.from_scan_result dropped
-            #   them locally (ignored matches/detectors, known secrets, dashboard
-            #   exclusions). That verdict depends on the config in effect here,
-            #   so caching it would let one project's ignore rule allow the same
-            #   content in a project that does not have it.
+            # Only cache an unambiguous verdict:
+            # - exactly one Result, so the API did answer about our document (a
+            #   degraded or skipped scan yields no Result at all);
+            # - nothing filtered out locally, since an empty `secrets` may also
+            #   mean the API reported policy breaks that the local config
+            #   ignored — a verdict about the config, not about the content.
             if (
                 key
                 and len(results.results) == 1
