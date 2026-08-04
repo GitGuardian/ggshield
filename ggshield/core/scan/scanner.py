@@ -9,6 +9,7 @@ from typing import Any, Iterable, Optional, Protocol
 from pygitguardian import GGClient
 from pygitguardian.models import Match
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scanner_ui import ScannerUI
 
 from . import Scannable
@@ -57,6 +58,9 @@ class ScannerProtocol(Protocol):
 
     @property
     def client(self) -> GGClient: ...
+
+    @property
+    def secret_config(self) -> SecretConfig: ...
 
     def scan(
         self,

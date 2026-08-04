@@ -9,6 +9,7 @@ import pytest
 from pygitguardian import GGClient
 from pygitguardian.models import MCPActivityResponse
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
@@ -56,7 +57,9 @@ def tmp_file(tmp_path: Path) -> Path:
     return file
 
 
-def _mock_scanner(matches: List[str]) -> MagicMock:
+def _mock_scanner(
+    matches: List[str], secret_config: Optional[SecretConfig] = None
+) -> MagicMock:
     """Create a mock SecretScanner that returns the given Results from scan()."""
     mock = MagicMock(spec=SecretScanner)
     mock.client = MagicMock(spec=GGClient)
@@ -64,6 +67,8 @@ def _mock_scanner(matches: List[str]) -> MagicMock:
     # and the verdict cache key needs both.
     mock.client.base_uri = INSTANCE
     mock.client.api_key = API_KEY
+    # Set in SecretScanner.__init__, so spec= does not provide it either.
+    mock.secret_config = secret_config or SecretConfig()
     scan_result = Results(
         results=[
             ScanResult(
@@ -171,7 +176,7 @@ class TestVerdictCacheShortCircuit:
     def _key(content: str = "safe content") -> str:
         # A payload with no tool becomes a StringScannable whose filename is the
         # payload identifier.
-        return verdict_key(INSTANCE, API_KEY, "id", content)
+        return verdict_key(INSTANCE, API_KEY, SecretConfig(), "id", content)
 
     def test_second_scan_of_identical_content_skips_the_api(self):
         """GIVEN a clean scan WHEN the same content is scanned again THEN no API call."""
@@ -257,6 +262,13 @@ class TestVerdictCacheShortCircuit:
             setattr(other.client, attribute, value)
             AIHookScanner(other)._scan_content(self._payload())
             other.scan.assert_called_once()
+
+    def test_another_secret_config_does_not_reuse_the_verdict(self):
+        """filename_only changes the document we send, so the verdict is not reusable."""
+        AIHookScanner(_mock_scanner([]))._scan_content(self._payload())
+        other = _mock_scanner([], SecretConfig(filename_only=True))
+        AIHookScanner(other)._scan_content(self._payload())
+        other.scan.assert_called_once()
 
     def test_same_content_under_another_filename_is_rescanned(self):
         """The filename is part of the document we send, so it is part of the key."""

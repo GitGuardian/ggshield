@@ -610,6 +610,7 @@ class AIHookScanner:
             verdict_key(
                 self.scanner.client.base_uri,
                 self.scanner.client.api_key,
+                self.scanner.secret_config,
                 scannable.filename,
                 content,
             )

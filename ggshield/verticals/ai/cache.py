@@ -9,6 +9,7 @@ from typing import Dict, Optional, Tuple
 from marshmallow.exceptions import ValidationError
 from pygitguardian.models import AIDiscovery, MCPConfiguration, MCPServer
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.dirs import get_cache_dir
 
 from .models import Scope
@@ -49,16 +50,48 @@ def load_discovery_cache() -> Optional[AIDiscovery]:
         return None
 
 
-def verdict_key(instance: str, api_key: str, filename: str, content: str) -> str:
+def config_fingerprint(secret_config: SecretConfig) -> str:
+    """The settings that change what we send or how we read the answer.
+
+    Only these: a setting that merely changes what we print would cost cache
+    misses without preventing a stale verdict.
+
+    - filename_only rewrites the filename we send, and the key holds the local one
+    - all_secrets moves locally-ignored breaks into `secrets` instead of
+      `ignored_secrets_count_by_kind`, which is the guard that decides whether a
+      verdict is cacheable at all
+    - source_uuid switches the endpoint to scan_and_create_incidents
+
+    The ignore settings (ignored_matches, ignored_detectors,
+    ignore_known_secrets) are deliberately absent: a verdict that depended on
+    them is never stored, see AIHookScanner._scan_content.
+    """
+    return (
+        f"all_secrets={int(secret_config.all_secrets)};"
+        f"filename_only={int(secret_config.filename_only)};"
+        f"source_uuid={secret_config.source_uuid or ''}"
+    )
+
+
+def verdict_key(
+    instance: str,
+    api_key: str,
+    secret_config: SecretConfig,
+    filename: str,
+    content: str,
+) -> str:
     """Cache key for one document: everything the API's answer depends on.
 
-    The document we send (content and filename), plus the instance and token,
-    because custom detectors and dashboard exclusions are per-workspace.
+    The document we send (content and filename), the instance and token, because
+    custom detectors and dashboard exclusions are per-workspace, and the config
+    that shapes the request (see config_fingerprint).
 
     NUL separates the parts: it cannot appear in a URL, a token or a path.
     `surrogatepass` rather than `replace`: this key must not be lossy.
     """
-    joined = "\0".join((instance, api_key, filename, content))
+    joined = "\0".join(
+        (instance, api_key, config_fingerprint(secret_config), filename, content)
+    )
     return hashlib.sha256(joined.encode("utf-8", "surrogatepass")).hexdigest()
 
 

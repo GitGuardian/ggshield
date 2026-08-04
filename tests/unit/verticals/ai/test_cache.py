@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from pygitguardian.models import (
@@ -16,6 +17,7 @@ from pygitguardian.models import (
     UserInfo,
 )
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.verticals.ai.cache import (
     VERDICT_CACHE_MAX_ENTRIES,
     VERDICT_CACHE_TTL_SECONDS,
@@ -285,9 +287,20 @@ class TestLoadSaveDiscoveryCache:
 class TestVerdictKey:
     """The key must cover everything the API's answer depends on."""
 
-    ARGS = ("https://api.example.com", "token", "file.py", "content")
+    ARGS = ("https://api.example.com", "token", SecretConfig(), "file.py", "content")
 
-    @pytest.mark.parametrize("index", range(len(ARGS)))
+    @staticmethod
+    def _key(**config_kwargs: Any) -> str:
+        return verdict_key(
+            "https://api.example.com",
+            "token",
+            SecretConfig(**config_kwargs),
+            "file.py",
+            "content",
+        )
+
+    # Index 2 is the config, covered by its own tests below.
+    @pytest.mark.parametrize("index", [0, 1, 3, 4])
     def test_every_part_changes_the_key(self, index: int):
         """GIVEN two keys differing in one part only THEN they differ."""
         other = list(self.ARGS)
@@ -296,13 +309,51 @@ class TestVerdictKey:
 
     def test_parts_cannot_be_shifted_across_the_separator(self):
         """A longer instance must not be able to impersonate another key."""
-        assert verdict_key("a", "b", "c", "d") != verdict_key("a\0b", "c", "d", "")
+        config = SecretConfig()
+        assert verdict_key("a", "b", config, "c", "d") != verdict_key(
+            "a\0b", "c", config, "d", ""
+        )
 
     def test_unencodable_content_still_yields_distinct_keys(self):
         """Lone surrogates (reachable from a JSON payload) must not collide."""
-        assert verdict_key("i", "k", "f", "\ud800") != verdict_key(
-            "i", "k", "f", "\ud801"
+        config = SecretConfig()
+        assert verdict_key("i", "k", config, "f", "\ud800") != verdict_key(
+            "i", "k", config, "f", "\ud801"
         )
+
+    def test_same_config_yields_the_same_key(self):
+        """Two equivalent configs must still hit, otherwise the cache is dead."""
+        assert self._key() == self._key()
+
+    @pytest.mark.parametrize(
+        "config_kwargs",
+        [
+            # Rewrites the filename we send.
+            {"filename_only": True},
+            # Changes which policy breaks land in `secrets`.
+            {"all_secrets": True},
+            # Switches the endpoint to scan_and_create_incidents.
+            {"source_uuid": UUID("11111111-1111-1111-1111-111111111111")},
+        ],
+    )
+    def test_request_shaping_settings_change_the_key(self, config_kwargs: Any):
+        """A setting that changes the request, or how we read the answer, must not
+        serve a verdict recorded under its other value."""
+        assert self._key() != self._key(**config_kwargs)
+
+    @pytest.mark.parametrize(
+        "config_kwargs",
+        [
+            # Presentation only.
+            {"show_secrets": True},
+            # A verdict that depended on it is never stored in the first place,
+            # see AIHookScanner._scan_content.
+            {"ignore_known_secrets": True},
+        ],
+    )
+    def test_unrelated_settings_do_not_change_the_key(self, config_kwargs: Any):
+        """Settings that cannot make a verdict stale must not cost a cache miss."""
+        assert self._key() == self._key(**config_kwargs)
 
 
 class TestVerdictCache:
