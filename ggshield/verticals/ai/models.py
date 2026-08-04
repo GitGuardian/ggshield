@@ -103,9 +103,17 @@ class HookPayload:
     def scannable(self) -> Scannable:
         """Return the appropriate Scannable for the payload."""
         if self.tool == Tool.READ:
-            path = Path(self.identifier)
-            if path.is_file() and not is_path_binary(path):
-                return File(path=self.identifier)
+            # The identifier is not always a real path: it can be a whole shell
+            # command (a heredoc, a pipeline...) that a caller guessed was a
+            # file name. Path.is_file() only swallows "not found" errors, so it
+            # still raises on such identifiers (ENAMETOOLONG, embedded NULs...).
+            # Never let that abort the scan: fall back to scanning the content.
+            try:
+                path = Path(self.identifier)
+                if path.is_file() and not is_path_binary(path):
+                    return File(path=self.identifier)
+            except (OSError, ValueError):
+                pass
         return StringScannable(url=self.identifier, content=self.content)
 
     @property

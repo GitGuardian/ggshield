@@ -1,3 +1,4 @@
+import errno
 import json
 import subprocess
 from collections import Counter
@@ -10,7 +11,7 @@ from pygitguardian import GGClient
 from pygitguardian.models import MCPActivityResponse
 
 from ggshield.core.config.user_config import SecretConfig
-from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import Agent, Claude, Codex, Copilot, Cursor, VSCode
 from ggshield.verticals.ai.cache import (
@@ -1472,6 +1473,55 @@ class TestAIHookScannerParseInput:
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.READ
         assert payload.identifier == "README.md"
+
+    @staticmethod
+    def _bash_hook_input(command: str) -> str:
+        return json.dumps(
+            {
+                "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+                "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+                "cwd": "/home/user/project",
+                "hook_event_name": "PreToolUse",
+                "turn_id": "turn_123",
+                "model": "gpt-5.4",
+                "tool_name": "Bash",
+                "tool_input": {"command": command},
+                "tool_use_id": "call_123",
+            }
+        )
+
+    def test_cat_command_yields_file_scannable(self, tmp_path: Path):
+        """`cat <existing file>` is still parsed as a file read."""
+        target = tmp_path / "code.py"
+        target.write_text("secret = 'abc'")
+        payloads = parse_hook_input(self._bash_hook_input(f"cat {target}"))
+        read = next(p for p in payloads if p.tool == Tool.READ)
+        assert read.identifier == str(target)
+        assert isinstance(read.scannable, File)
+
+    def test_cat_heredoc_command_is_still_scanned_as_string(self):
+        """A `cat > file <<EOF` heredoc must not abort the scan.
+
+        Everything after "cat " used to be treated as a file name, and
+        Path.is_file() raised OSError (ENAMETOOLONG) on it, so the command --
+        which is precisely a secret being written to a file -- was never
+        scanned. Python < 3.13 raises for real here; force the error so the
+        regression is covered on every supported version.
+        """
+        command = "cat > /tmp/script.py <<'EOF'\n" + "x = 1\n" * 2000 + "EOF"
+        error = OSError(errno.ENAMETOOLONG, "File name too long")
+        with patch.object(Path, "is_file", side_effect=error):
+            payloads = parse_hook_input(self._bash_hook_input(command))
+            # The bogus "file" payload must not raise, and must be dropped
+            # before any API call.
+            read = next(p for p in payloads if p.tool == Tool.READ)
+            assert isinstance(read.scannable, StringScannable)
+            assert read.empty
+        bash = payloads[-1]
+        assert bash.tool == Tool.BASH
+        assert isinstance(bash.scannable, StringScannable)
+        assert not bash.empty
+        assert bash.scannable.content == command
 
 
 class TestFlavorOutputResult:
