@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pygitguardian import GGClient
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MAXIMUM_PAYLOAD_SIZE
 from pygitguardian.models import MCPActivityResponse
 
 from ggshield.core.config.user_config import SecretConfig
@@ -1907,3 +1908,308 @@ class TestFlavorOutputResult:
 def test_find_filepaths(prompt: str, filepaths: Set[str]):
     """Test filepath regex."""
     assert find_filepaths(prompt) == filepaths, prompt
+
+
+def _numbered_file(
+    directory: Path, nb_lines: int, name: str = "numbered.txt", newline: str = "\n"
+) -> Path:
+    """A file whose content is `nb_lines` distinguishable lines, "line 1" first.
+
+    Bytes with an explicit terminator, because `write_text` translates "\\n" to
+    os.linesep: the fixture would be CRLF on Windows and LF elsewhere, and the
+    tests would only ever exercise the host's convention.
+    """
+    file = directory / name
+    file.write_bytes(newline.join(f"line {i}" for i in range(1, nb_lines + 1)).encode())
+    return file
+
+
+def _assert_scanned_lines(payload: HookPayload, file: Path, expected: range) -> None:
+    """The scannable holds exactly lines `expected` of `file`, byte for byte.
+
+    Asserted separately so neither can paper over the other: it is a verbatim
+    extract (no newline rewriting, no stripped "\\r" — we scan what the agent
+    reads, not a normalised lookalike), and it is the right window.
+    `splitlines()` here — never in `line_slice`, which must not guess at line
+    boundaries — only makes the second check terminator agnostic.
+    """
+    content = payload.scannable.content
+    assert content in file.read_bytes().decode()
+    assert content.splitlines() == [f"line {i}" for i in expected]
+
+
+def _claude_read(file_path: str, event: str = "PreToolUse", **tool_input: int) -> str:
+    """A Claude Code Read hook payload, optionally carrying a range."""
+    data: dict = {
+        "session_id": "3b7ae0c5",
+        "transcript_path": "/home/user1/.claude/projects/foo/3b7ae0c5.jsonl",
+        "cwd": "/home/user1/foo",
+        "hook_event_name": event,
+        "tool_name": "Read",
+        "tool_input": {"file_path": file_path, **tool_input},
+    }
+    if event == "PostToolUse":
+        # The tool response is not what we scan for a Read: the file on disk is,
+        # so that Pre and Post produce the same document.
+        data["tool_response"] = {"content": "whatever the agent got back"}
+    return json.dumps(data)
+
+
+def _scanner_finding(needle: str) -> MagicMock:
+    """A scanner that reports a secret only if `needle` is in what it is handed."""
+    mock = MagicMock(spec=SecretScanner)
+    mock.client = MagicMock(spec=GGClient)
+    # spec= only provides what the class declares, and the verdict cache key
+    # reads all three: base_uri and api_key are annotation-only on GGClient,
+    # secret_config is set in SecretScanner.__init__.
+    mock.client.base_uri = "https://api.example.com"
+    mock.client.api_key = "some-api-key"
+    mock.secret_config = SecretConfig()
+
+    def scan(scannables, scanner_ui=None, **kwargs):
+        leaked = any(needle in scannable.content for scannable in scannables)
+        return Results(
+            results=[
+                ScanResult(
+                    filename="url",
+                    filemode=Filemode.FILE,
+                    path=Path("."),
+                    url="url",
+                    secrets=[_make_secret(needle)] if leaked else [],
+                    ignored_secrets_count_by_kind=Counter(),
+                )
+            ],
+            errors=[],
+        )
+
+    mock.scan.side_effect = scan
+    return mock
+
+
+def _real_secret_scanner() -> SecretScanner:
+    """A real SecretScanner with a stubbed client, to exercise the size limits."""
+    client = MagicMock()
+    client.maximum_payload_size = MAXIMUM_PAYLOAD_SIZE
+    client.secret_scan_preferences.maximum_document_size = DOCUMENT_SIZE_THRESHOLD_BYTES
+    client.secret_scan_preferences.maximum_documents_per_scan = 20
+    return SecretScanner(
+        client=client,
+        cache=MagicMock(),
+        scan_context=ScanContext(
+            scan_mode=ScanMode.AI_HOOK, command_path="ggshield secret scan ai-hook"
+        ),
+        secret_config=SecretConfig(),
+        check_api_key=False,
+    )
+
+
+class TestReadRange:
+    """A `Tool.READ` must scan the lines the agent is actually reading.
+
+    The part that bites: `SecretScanner._start_scans` silently skips any
+    document over `maximum_document_size` (1 MiB), so over-scanning a large
+    file ends up scanning nothing and allowing the read, where the slice would
+    have scanned fine.
+
+    `line_slice` takes one line of slack on each side, hence the ranges
+    asserted below.
+
+    Tests that assert on sliced bytes run against LF and CRLF on every
+    platform: line numbering must not depend on the terminator, and a CRLF file
+    really does carry "\\r", which the agent's context contains and we must not
+    normalise away.
+    """
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_claude_offset_and_limit_scans_only_that_window(
+        self, tmp_path: Path, newline: str
+    ):
+        """GIVEN a Claude Read of lines 10-14 THEN only that window is scanned."""
+        file = _numbered_file(tmp_path, 1000, newline=newline)
+        payload = parse_hook_input(_claude_read(file.as_posix(), offset=10, limit=5))[0]
+        assert payload.read_range == (10, 14)
+        _assert_scanned_lines(payload, file, range(9, 16))
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_claude_offset_only_reads_to_the_end(self, tmp_path: Path, newline: str):
+        """An open-ended read must scan to the end, not stop at some assumed cap."""
+        file = _numbered_file(tmp_path, 1000, newline=newline)
+        payload = parse_hook_input(_claude_read(file.as_posix(), offset=500))[0]
+        assert payload.read_range == (500, None)
+        _assert_scanned_lines(payload, file, range(499, 1001))
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_claude_limit_only_starts_at_the_top(self, tmp_path: Path, newline: str):
+        """No offset means "from the first line", not "from nowhere"."""
+        file = _numbered_file(tmp_path, 1000, newline=newline)
+        payload = parse_hook_input(_claude_read(file.as_posix(), limit=5))[0]
+        assert payload.read_range == (1, 5)
+        _assert_scanned_lines(payload, file, range(1, 7))
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_no_range_still_scans_the_whole_file(self, tmp_path: Path, newline: str):
+        """Absent range parameters mean everything: the previous behaviour."""
+        file = _numbered_file(tmp_path, 1000, newline=newline)
+        payload = parse_hook_input(_claude_read(file.as_posix()))[0]
+        assert payload.read_range is None
+        assert isinstance(payload.scannable, File)
+        assert payload.scannable.content == file.read_bytes().decode()
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_secret_inside_the_range_still_blocks_at_pre(
+        self, tmp_path: Path, newline: str
+    ):
+        """The whole point of the Pre hook: a secret about to be read is blocked."""
+        file = tmp_path / "conf.txt"
+        file.write_bytes(
+            newline.join(
+                ["padding"] * 20 + ["token=SECRET_IN_RANGE"] + ["padding"] * 500
+            ).encode()
+        )
+        # The secret sits on line 21, the agent reads lines 15 to 25.
+        payload = parse_hook_input(_claude_read(file.as_posix(), offset=15, limit=11))[
+            0
+        ]
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        result = AIHookScanner(_scanner_finding("SECRET_IN_RANGE"))._scan_content(
+            payload
+        )
+        assert result.block is True
+        assert result.nbr_secrets == 1
+        # The PreToolUse wording: nothing has reached the agent yet.
+        assert "was not shown to the agent" in result.message
+
+    def test_secret_outside_the_range_is_not_reported(self, tmp_path: Path):
+        """A secret on a line the agent never reads never enters its context."""
+        file = tmp_path / "conf.txt"
+        file.write_bytes(
+            "\n".join(
+                ["padding"] * 400 + ["token=SECRET_OUT_OF_RANGE"] + ["padding"]
+            ).encode()
+        )
+        payload = parse_hook_input(_claude_read(file.as_posix(), offset=1, limit=10))[0]
+        scanner = _scanner_finding("SECRET_OUT_OF_RANGE")
+        result = AIHookScanner(scanner)._scan_content(payload)
+        assert result.block is False
+        scanned = scanner.scan.call_args[0][0][0].content
+        assert "SECRET_OUT_OF_RANGE" not in scanned
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_pre_and_post_scan_the_same_bytes(self, tmp_path: Path, newline: str):
+        """One read must yield one identical document at both events: the
+        verdict cache is keyed on (filename, content), and Pre is the only event
+        that can block. CRLF included — a terminator handled differently between
+        the two would miss every cache hit, or hide a Pre block behind a Post
+        entry."""
+        file = _numbered_file(tmp_path, 1000, newline=newline)
+        pre = parse_hook_input(_claude_read(file.as_posix(), offset=10, limit=5))[0]
+        post = parse_hook_input(
+            _claude_read(file.as_posix(), "PostToolUse", offset=10, limit=5)
+        )[0]
+        assert pre.event_type == EventType.PRE_TOOL_USE
+        assert post.event_type == EventType.POST_TOOL_USE
+        assert pre.read_range == post.read_range == (10, 14)
+        assert pre.scannable.content == post.scannable.content
+        assert pre.scannable.filename == post.scannable.filename
+
+    def test_the_sliced_scannable_is_built_once(self, tmp_path: Path):
+        """Slicing reads the file, and `_scan_content` asks twice (`empty`, then
+        the scan itself): the second must not re-read it."""
+        file = _numbered_file(tmp_path, 1000)
+        payload = parse_hook_input(_claude_read(file.as_posix(), offset=10, limit=5))[0]
+        assert payload.scannable is payload.scannable
+
+    def test_oversized_file_scans_once_only_a_slice_is_read(self, tmp_path: Path):
+        """The headline case: a file too big to be scanned at all is skipped
+        outright, while the slice the agent actually reads scans fine."""
+        file = _numbered_file(tmp_path, 120_000)
+        assert file.stat().st_size > DOCUMENT_SIZE_THRESHOLD_BYTES
+
+        whole = parse_hook_input(_claude_read(file.as_posix()))[0]
+        sliced = parse_hook_input(_claude_read(file.as_posix(), offset=1, limit=500))[0]
+
+        scanner = _real_secret_scanner()
+
+        whole_ui = MagicMock()
+        assert scanner._start_scans(MagicMock(), [whole.scannable], whole_ui) == {}
+        assert whole_ui.on_skipped.called  # nothing was sent to the API at all
+
+        sliced_ui = MagicMock()
+        assert scanner._start_scans(MagicMock(), [sliced.scannable], sliced_ui) != {}
+        assert not sliced_ui.on_skipped.called
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_vscode_start_and_end_line(self, tmp_path: Path, newline: str):
+        """VS Code's read_file sends startLine/endLine, 1-based and inclusive."""
+        file = _numbered_file(tmp_path, 1000, newline=newline)
+        data = {
+            "session_id": "69cc6a03",
+            "transcript_path": (
+                "/home/user1/.config/Code/User/workspaceStorage/"
+                "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
+            ),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "read_file",
+            "tool_input": {
+                "filePath": file.as_posix(),
+                "startLine": 20,
+                "endLine": 24,
+            },
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert isinstance(payload.agent, VSCode)
+        assert payload.read_range == (20, 24)
+        _assert_scanned_lines(payload, file, range(19, 26))
+
+    def test_cursor_falls_back_to_the_whole_file(self, tmp_path: Path):
+        """Cursor's Read payload mimics Claude's and may carry a range of its
+        own, but we have never seen one: reading Claude's `offset`/`limit` here
+        would be a guess, and a wrong guess under-scans. Whole file, as before.
+        """
+        file = _numbered_file(tmp_path, 1000)
+        data = {
+            "cursor_version": "2.5.25",
+            "hook_event_name": "preToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": file.as_posix(), "offset": 10, "limit": 5},
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert isinstance(payload.agent, Cursor)
+        assert payload.read_range is None
+        assert payload.scannable.content == file.read_bytes().decode()
+
+    def test_copilot_view_falls_back_to_the_whole_file(self, tmp_path: Path):
+        """Every Copilot CLI `view` payload we have carries only `path`, with no
+        range parameter to read: whole file, exactly as before."""
+        file = _numbered_file(tmp_path, 1000)
+        data = {
+            "timestamp": "2026-02-26T11:53:49.593Z",
+            "hook_event_name": "PreToolUse",
+            "session_id": "69cc6a03",
+            "tool_name": "view",
+            "tool_input": {"path": file.as_posix()},
+            "cwd": "/home/user1/foo",
+        }
+        payload = parse_hook_input(json.dumps(data))[0]
+        assert isinstance(payload.agent, Copilot)
+        assert payload.read_range is None
+        assert payload.scannable.content == file.read_bytes().decode()
+
+    def test_codex_command_read_falls_back_to_the_whole_file(self, tmp_path: Path):
+        """The only Codex commands we treat as a read are `cat` and
+        `Get-Content`, which read the whole file. A partial read (`sed -n`,
+        `head`) stays a Bash payload, never a Tool.READ, so there is no range to
+        apply here."""
+        file = _numbered_file(tmp_path, 1000)
+        data = {
+            "turn_id": "t1",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "shell",
+            "tool_input": {"command": f"cat {file.as_posix()}"},
+        }
+        payloads = parse_hook_input(json.dumps(data))
+        read_payload = next(p for p in payloads if p.tool == Tool.READ)
+        assert isinstance(read_payload.agent, Codex)
+        assert read_payload.read_range is None
+        assert read_payload.scannable.content == file.read_bytes().decode()
