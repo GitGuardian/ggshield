@@ -30,6 +30,8 @@ from ggshield.verticals.ai.cache import (
     store_clean_verdict,
     verdict_key,
 )
+from ggshield.verticals.ai.discovery import _merge_mcp_configurations
+from ggshield.verticals.ai.models import MCPConfiguration as LocalMCPConfiguration
 from ggshield.verticals.ai.models import MCPServer, Scope, Transport
 from tests.conftest import skipwindows
 
@@ -243,6 +245,114 @@ class TestAIDiscoveryHasChangedFrom:
             discovery_duration=0.2,
         )
         assert has_changed_from(a, b) is False
+
+
+# ---------------------------------------------------------------------------
+# Change detection against a discovery that really went through the cache
+# ---------------------------------------------------------------------------
+
+
+def _local_cfg(
+    name: str = "srv",
+    agent: str = "cursor",
+    scope: Scope = Scope.USER,
+    project: Optional[str] = None,
+    command: Optional[str] = "run",
+    args: Optional[List[str]] = None,
+    display_name: Optional[str] = "Pretty Server",
+) -> LocalMCPConfiguration:
+    """A configuration exactly as `discover_ai_configuration` builds it."""
+    return LocalMCPConfiguration(
+        name=name,
+        agent=agent,
+        scope=scope,
+        transport=Transport.STDIO,
+        project=project,
+        command=command,
+        args=args or [],
+        display_name=display_name,
+    )
+
+
+def _local_discovery(
+    configurations: List[LocalMCPConfiguration],
+    user: Optional[UserInfo] = None,
+    agents: Optional[List[AgentInfo]] = None,
+) -> AIDiscovery:
+    return AIDiscovery(
+        user=user or _user(),
+        servers=_merge_mcp_configurations(configurations),
+        agents=(
+            agents
+            if agents is not None
+            else [AgentInfo(name="cursor", hooks_installed=True)]
+        ),
+        discovery_duration=0.1,
+    )
+
+
+def _through_cache(discovery: AIDiscovery, tmp_path: Path) -> AIDiscovery:
+    with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+        save_discovery_cache(discovery)
+        loaded = load_discovery_cache()
+    assert loaded is not None
+    return loaded
+
+
+class TestHasChangedFromThroughCache:
+    """A freshly walked discovery holds `ggshield` MCPConfiguration instances, a
+    cached one holds `pygitguardian` ones. Change detection must see through that."""
+
+    def test_same_configuration_is_not_a_change(self, tmp_path: Path):
+        discovery = _local_discovery([_local_cfg()])
+        assert has_changed_from(discovery, _through_cache(discovery, tmp_path)) is False
+
+    def test_added_server_is_a_change(self, tmp_path: Path):
+        cached = _through_cache(_local_discovery([_local_cfg(name="a")]), tmp_path)
+        current = _local_discovery([_local_cfg(name="a"), _local_cfg(name="b")])
+        assert has_changed_from(current, cached) is True
+
+    def test_removed_server_is_a_change(self, tmp_path: Path):
+        cached = _through_cache(
+            _local_discovery([_local_cfg(name="a"), _local_cfg(name="b")]), tmp_path
+        )
+        current = _local_discovery([_local_cfg(name="a")])
+        assert has_changed_from(current, cached) is True
+
+    def test_changed_configuration_content_is_a_change(self, tmp_path: Path):
+        cached = _through_cache(
+            _local_discovery([_local_cfg(command="old", args=["--x"])]), tmp_path
+        )
+        current = _local_discovery([_local_cfg(command="new", args=["--x"])])
+        assert has_changed_from(current, cached) is True
+
+    def test_changed_user_is_a_change(self, tmp_path: Path):
+        cached = _through_cache(
+            _local_discovery([_local_cfg()], user=_user(hostname="old")), tmp_path
+        )
+        current = _local_discovery([_local_cfg()], user=_user(hostname="new"))
+        assert has_changed_from(current, cached) is True
+
+    def test_changed_agents_is_a_change(self, tmp_path: Path):
+        cached = _through_cache(
+            _local_discovery(
+                [_local_cfg()],
+                agents=[AgentInfo(name="cursor", hooks_installed=False)],
+            ),
+            tmp_path,
+        )
+        current = _local_discovery(
+            [_local_cfg()], agents=[AgentInfo(name="cursor", hooks_installed=True)]
+        )
+        assert has_changed_from(current, cached) is True
+
+    def test_display_name_only_change_is_not_a_change(self, tmp_path: Path):
+        """`display_name` is local, so it cannot round trip and must not submit."""
+        cached = _through_cache(
+            _local_discovery([_local_cfg(display_name="Old")]), tmp_path
+        )
+        current = _local_discovery([_local_cfg(display_name="New")])
+        assert has_changed_from(current, cached) is False
 
 
 # ---------------------------------------------------------------------------

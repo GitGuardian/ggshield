@@ -2,7 +2,7 @@ import json
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from enum import Enum, auto
 from pathlib import Path
@@ -29,6 +29,24 @@ class MCPConfiguration(BaseMCPConfiguration):
     """MCP configuration that can store a human-readable name for its server."""
 
     display_name: Optional[str] = None
+
+    def __eq__(self, other: object) -> bool:
+        """Compare on the base fields, across both classes.
+
+        A freshly walked discovery holds these instances, one read back from the
+        cache or the API holds plain `BaseMCPConfiguration`, and the generated
+        __eq__ refuses to compare across classes — which made change detection
+        always answer "changed".
+
+        `display_name` is excluded: it is local, not part of the wire schema, so
+        it can never survive a round trip.
+        """
+        if not isinstance(other, BaseMCPConfiguration):
+            return NotImplemented
+        return all(
+            getattr(self, f.name) == getattr(other, f.name)
+            for f in fields(BaseMCPConfiguration)
+        )
 
 
 # Small re-exports arount Py-gitguardian models to make our life easier.
