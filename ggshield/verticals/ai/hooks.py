@@ -141,6 +141,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
     identifier = ""
     content = ""
     tool = None
+    read_range = None
 
     # Extract the identifier and content based on the event type
     if event_type == EventType.USER_PROMPT:
@@ -163,6 +164,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
             identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
+            read_range = agent.read_range(tool_input)
         elif tool_input:
             # MCP and unrecognized tool arguments can carry secrets bound for
             # potentially external servers. Scan them, like tool_output below.
@@ -177,9 +179,12 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         if isinstance(content, (dict, list)):
             content = json.dumps(content)
         if tool == Tool.READ:
-            identifier = lookup(
-                data.get("tool_input", {}), ["file_path", "filePath", "path"], ""
-            )
+            # Same tool_input as PreToolUse, hence the same range: both events
+            # scan the exact same bytes for one read, which the verdict cache
+            # (keyed on the document) relies on.
+            tool_input = data.get("tool_input", {})
+            identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
+            read_range = agent.read_range(tool_input)
 
     # If identifier was not set, hash the content
     if not identifier:
@@ -194,6 +199,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             agent=agent,
             raw=data,
             timestamp=timestamp,
+            read_range=read_range,
         )
     )
 
