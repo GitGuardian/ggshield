@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Set
 
@@ -18,7 +19,7 @@ from ggshield.core.scan import ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
-from ggshield.verticals.ai.mcp import send_mcp_activity
+from ggshield.verticals.ai.mcp import is_mcp_activity_payload, send_mcp_activity
 
 from .agents import AGENTS
 from .cache import has_clean_verdict, store_clean_verdict, verdict_key
@@ -566,14 +567,29 @@ class AIHookScanner:
         if not payloads:
             raise ValueError("Error: no payloads to scan")
         for payload in payloads:
-            # Scan for secrets first
-            result = self._scan_content(payload)
-            if result.block:
-                return result
-            # We only send the MCP activity if the payload wasn't already blocked.
-            result = self._send_mcp_activity(payload)
-            if result.block:
-                return result
+            if not is_mcp_activity_payload(payload):
+                # No activity to send: keep the plain, single-threaded path.
+                result = self._scan_content(payload)
+                if result.block:
+                    return result
+                continue
+
+            # Both are blocking HTTP round trips against the same API, so overlap them
+            # instead of paying for them one after the other. The activity is now logged
+            # even when the scan blocks, which the MCP feature owner wants.
+            with ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="mcp_activity"
+            ) as executor:
+                activity = executor.submit(self._send_mcp_activity, payload)
+                scan_result = self._scan_content(payload)
+                mcp_result = activity.result()
+
+            # The scan verdict keeps precedence, as it did when it short-circuited
+            # the activity call.
+            if scan_result.block:
+                return scan_result
+            if mcp_result.block:
+                return mcp_result
         return HookResult.allow(payloads[0])
 
     def _send_mcp_activity(self, payload: HookPayload) -> HookResult:

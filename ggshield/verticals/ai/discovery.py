@@ -13,21 +13,34 @@ from pygitguardian.models import AgentInfo, AIDiscovery, Detail, MCPServer
 from ggshield.core.errors import UnexpectedError
 
 from .agents import AGENTS
-from .cache import has_changed_from, load_discovery_cache, save_discovery_cache
+from .cache import (
+    has_changed_from,
+    is_discovery_cache_fresh,
+    load_discovery_cache,
+    save_discovery_cache,
+    touch_discovery_cache,
+)
 from .installation import are_hooks_installed_globally
 from .models import MCPConfiguration
 from .user import get_user_info
 
 
 def refresh_and_maybe_submit_discovery(client: GGClient) -> AIDiscovery:
-    """Always run discovery, compare with cache, submit only if changed."""
+    """Run discovery unless the cache is still fresh, compare with cache, submit only
+    if changed."""
     cached = load_discovery_cache()
+
+    # This runs on every MCP tool call: trust a recent walk rather than redo it.
+    if cached is not None and is_discovery_cache_fresh():
+        return cached
+
     # If we already have a machine id, reuse it.
     machine_id = cached.user.machine_id if cached is not None else None
     discovery = discover_ai_configuration(machine_id=machine_id)
 
     # Nothing changed,
     if cached is not None and not has_changed_from(discovery, cached):
+        touch_discovery_cache()
         return cached
 
     try:
