@@ -26,7 +26,7 @@ jobs:
     name: Lint package
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -40,7 +40,7 @@ jobs:
         run: |
           uv sync --locked --group tests --group dev
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/pre-commit
           key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
@@ -81,7 +81,7 @@ jobs:
         os: [ubuntu-22.04, macos-15-intel, windows-2022]
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
@@ -140,7 +140,7 @@ jobs:
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Scan commits for hardcoded secrets
