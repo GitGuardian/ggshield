@@ -31,6 +31,11 @@ secret:
     - name: credentials
       match: MY_TEST_CREDENTIAL
 
+  # Ignore security incidents whose secret matches one of these regexes, for
+  # instance to skip values which are encrypted at rest
+  ignored_match_patterns: # default: []
+    - '^ENC\[AES256_GCM,data:'
+
   show_secrets: false # default: false
 
   # Detectors to ignore.

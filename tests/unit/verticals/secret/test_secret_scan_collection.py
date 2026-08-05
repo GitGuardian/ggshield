@@ -14,7 +14,13 @@ from ggshield.verticals.secret.secret_scan_collection import (
     Result,
     compute_ignore_reason,
 )
-from tests.factories import PolicyBreakFactory, ScannableFactory, ScanResultFactory
+from tests.factories import (
+    PolicyBreakFactory,
+    ScannableFactory,
+    ScanResultFactory,
+    build_policy_break,
+)
+from tests.factory_constants import SOPS_ENCRYPTED_VALUE, SOPS_PATTERN
 from tests.unit.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH_CONTENT,
     _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT,
@@ -202,6 +208,30 @@ class TestComputeIgnoreReason:
             ignored_detectors=[policy_break.break_type],
         )
         assert compute_ignore_reason(policy_break, config) is not None
+
+    def test_ignore_ignored_match_pattern(self):
+        """
+        GIVEN a policy break whose match is a sops-encrypted value
+        WHEN computing the ignore reason with a matching pattern in config
+        THEN it should be ignored as a match pattern
+        """
+        policy_break = build_policy_break(SOPS_ENCRYPTED_VALUE)
+        config = SecretConfig(ignored_match_patterns={SOPS_PATTERN})
+
+        assert compute_ignore_reason(policy_break, config) == IgnoreReason(
+            IgnoreKind.IGNORED_MATCH_PATTERN
+        )
+
+    def test_non_matching_ignored_match_pattern(self):
+        """
+        GIVEN a policy break whose match is a plaintext secret
+        WHEN computing the ignore reason with a pattern matching nothing
+        THEN it should not be ignored
+        """
+        policy_break = build_policy_break("hunter2")
+        config = SecretConfig(ignored_match_patterns={SOPS_PATTERN})
+
+        assert compute_ignore_reason(policy_break, config) is None
 
     @pytest.mark.parametrize("ignore_known", (True, False))
     def test_known_secret(self, ignore_known):
