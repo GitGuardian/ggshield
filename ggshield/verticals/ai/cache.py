@@ -28,6 +28,12 @@ VERDICT_CACHE_MAX_ENTRIES = 500
 # coding session while making the walk negligible.
 DISCOVERY_CACHE_TTL_SECONDS = 3600
 
+# time.time() and the filesystem mtime do not come from the same clock source, so a
+# just-touched file can read marginally in the future (the Windows system timer has a
+# ~16ms granularity). Tolerate that much skew, while still treating a real clock jump
+# as stale rather than pinning the cache fresh forever.
+MTIME_SKEW_TOLERANCE_SECONDS = 5
+
 
 def _discovery_cache_path() -> Path:
     return get_cache_dir() / AI_DISCOVERY_CACHE_FILENAME
@@ -196,7 +202,7 @@ def is_discovery_cache_fresh() -> bool:
         age = time.time() - _discovery_cache_path().stat().st_mtime
     except OSError:
         return False
-    return 0 <= age < DISCOVERY_CACHE_TTL_SECONDS
+    return -MTIME_SKEW_TOLERANCE_SECONDS <= age < DISCOVERY_CACHE_TTL_SECONDS
 
 
 def touch_discovery_cache() -> None:

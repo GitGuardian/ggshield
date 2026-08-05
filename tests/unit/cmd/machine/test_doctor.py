@@ -214,17 +214,17 @@ class TestPluginChecks:
     def test_is_plugin_installed_true(self):
         registry = MagicMock()
         registry.get_plugin.return_value = MagicMock()
-        with patch(f"{BASE}.get_plugin_registry", return_value=registry):
+        with patch(f"{BASE}.load_plugin_registry", return_value=registry):
             assert _is_plugin_installed() is True
 
     def test_is_plugin_installed_false_no_registry(self):
-        with patch(f"{BASE}.get_plugin_registry", return_value=None):
+        with patch(f"{BASE}.load_plugin_registry", return_value=None):
             assert _is_plugin_installed() is False
 
     def test_is_plugin_installed_false_not_registered(self):
         registry = MagicMock()
         registry.get_plugin.return_value = None
-        with patch(f"{BASE}.get_plugin_registry", return_value=registry):
+        with patch(f"{BASE}.load_plugin_registry", return_value=registry):
             assert _is_plugin_installed() is False
 
     def test_native_loads_ok(self):
@@ -233,7 +233,7 @@ class TestPluginChecks:
             metadata=MagicMock(version="1.2.3")
         )
         native = MagicMock()
-        with patch(f"{BASE}.get_plugin_registry", return_value=registry), patch(
+        with patch(f"{BASE}.load_plugin_registry", return_value=registry), patch(
             f"{BASE}.import_module", return_value=native
         ):
             check = _check_plugin_native()
@@ -246,7 +246,7 @@ class TestPluginChecks:
         registry.get_plugin.return_value = MagicMock(
             metadata=MagicMock(version="1.2.3")
         )
-        with patch(f"{BASE}.get_plugin_registry", return_value=registry), patch(
+        with patch(f"{BASE}.load_plugin_registry", return_value=registry), patch(
             f"{BASE}.import_module", side_effect=ImportError("bad arch")
         ):
             check = _check_plugin_native()
