@@ -22,6 +22,7 @@ from ggshield.verticals.ai.cache import (
     verdict_key,
 )
 from ggshield.verticals.ai.hooks import (
+    MCP_NOT_CHECKED_WARNING,
     AIHookScanner,
     build_agent_headers,
     find_filepaths,
@@ -521,6 +522,43 @@ class TestMCPActivity:
         call_payload = mock_send_mcp.call_args[0][1]
         assert call_payload.event_type == EventType.PRE_TOOL_USE
         assert call_payload.tool == Tool.MCP
+
+    @patch("ggshield.verticals.ai.hooks.send_mcp_activity")
+    def test_no_policy_answer_allows_but_warns(self, mock_send_mcp: MagicMock):
+        """GIVEN the MCP policy endpoint gives no answer (send_mcp_activity -> None)
+        WHEN an MCP PreToolUse is scanned
+        THEN the call is still allowed, but the result carries a warning so the
+        user can tell it was not checked."""
+        mock_send_mcp.return_value = None
+        scanner = AIHookScanner(_mock_scanner([]))
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "mcp__some_server__some_tool",
+            "tool_input": {"arg": "value"},
+            "cursor_version": "2.5.25",
+        }
+
+        result = scanner._scan_payloads(parse_hook_input(json.dumps(data)))
+
+        assert result.block is False
+        assert MCP_NOT_CHECKED_WARNING in result.warning
+
+    @patch("ggshield.verticals.ai.hooks.send_mcp_activity")
+    def test_a_policy_answer_warns_about_nothing(self, mock_send_mcp: MagicMock):
+        """A real allow must stay silent — otherwise every MCP call carries noise."""
+        mock_send_mcp.return_value = MCPActivityResponse(allowed=True, reason="")
+        scanner = AIHookScanner(_mock_scanner([]))
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "mcp__some_server__some_tool",
+            "tool_input": {"arg": "value"},
+            "cursor_version": "2.5.25",
+        }
+
+        result = scanner._scan_payloads(parse_hook_input(json.dumps(data)))
+
+        assert result.block is False
+        assert result.warning == ""
 
 
 class TestMCPActivityOverlap:

@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import requests
 from pygitguardian.models import Detail, MCPActivityResponse, UserInfo
 
 from ggshield.verticals.ai.mcp import send_mcp_activity
@@ -65,7 +66,9 @@ class TestSendMCPActivity:
         assert result.reason == "blocked by policy"
 
     @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
-    def test_fail_open_returns_allowed(self, mock_refresh: MagicMock):
+    def test_an_api_error_is_no_answer_not_an_allow(self, mock_refresh: MagicMock):
+        """A Detail response means the API did not decide. Returning an allow here
+        is what made an unreachable policy endpoint silently permit every call."""
         mock_refresh.return_value = _ai_discovery()
         payload = _payload()
         payload.agent.parse_mcp_activity = MagicMock(
@@ -77,8 +80,51 @@ class TestSendMCPActivity:
             status_code=400, detail="Validation Error"
         )
 
-        result = send_mcp_activity(client, payload)
+        assert send_mcp_activity(client, payload) is None
 
+    @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
+    def test_a_network_error_is_no_answer(self, mock_refresh: MagicMock):
+        mock_refresh.return_value = _ai_discovery()
+        payload = _payload()
+        payload.agent.parse_mcp_activity = MagicMock(
+            return_value=_mcp_activity_request()
+        )
+
+        client = MagicMock()
+        client.log_mcp_activity.side_effect = requests.exceptions.ConnectionError(
+            "offline"
+        )
+
+        assert send_mcp_activity(client, payload) is None
+
+    @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
+    def test_an_unexpected_error_is_no_answer(self, mock_refresh: MagicMock):
+        """A bug must still fail open, and must not masquerade as a policy allow."""
+        mock_refresh.return_value = _ai_discovery()
+        payload = _payload()
+        payload.agent.parse_mcp_activity = MagicMock(
+            side_effect=TypeError("bug in parse_mcp_activity")
+        )
+
+        assert send_mcp_activity(MagicMock(), payload) is None
+
+    @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
+    def test_discovery_failing_is_no_answer(self, mock_refresh: MagicMock):
+        """refresh_and_maybe_submit_discovery used to sit outside the try, so its
+        failures escaped the MCP fail-open and surfaced as 'could not scan'."""
+        mock_refresh.side_effect = OSError("cannot walk the filesystem")
+
+        assert send_mcp_activity(MagicMock(), _payload()) is None
+
+    def test_a_non_mcp_payload_is_a_genuine_allow(self):
+        """Nothing to evaluate is not a failure: it must not warn, or every Read,
+        Bash and Edit call would carry a warning."""
+        payload = _payload()
+        payload.tool = Tool.READ
+
+        result = send_mcp_activity(MagicMock(), payload)
+
+        assert result is not None
         assert result.allowed is True
 
     @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")

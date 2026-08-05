@@ -233,6 +233,14 @@ def emit_fail_open_response(stdin_content: str, error: Exception) -> int:
     return payload.agent.output_result(HookResult.allow_with_warning(payload, warning))
 
 
+# Mirrors _cannot_scan_warning's shape: what did not happen, then what to do.
+MCP_NOT_CHECKED_WARNING = (
+    "ggshield could not reach the GitGuardian MCP policy endpoint — this MCP tool "
+    "call was NOT checked against your organization's policy (it was still scanned "
+    "for secrets). Run 'ggshield api-status' to diagnose."
+)
+
+
 def _cannot_scan_warning(error: Exception) -> str:
     if isinstance(error, AuthError):
         reason = "ggshield could not authenticate to GitGuardian"
@@ -566,6 +574,11 @@ class AIHookScanner:
         """
         if not payloads:
             raise ValueError("Error: no payloads to scan")
+        # A non-blocking MCP result can still carry a warning ("we could not reach
+        # the policy endpoint"). Only a *blocking* result is returned from the loop,
+        # so collect those warnings and hand them to the final allow, or they are
+        # dropped and the fail-open goes silent again.
+        warnings: List[str] = []
         for payload in payloads:
             if not is_mcp_activity_payload(payload):
                 # No activity to send: keep the plain, single-threaded path.
@@ -590,12 +603,22 @@ class AIHookScanner:
                 return scan_result
             if mcp_result.block:
                 return mcp_result
+            if mcp_result.warning and mcp_result.warning not in warnings:
+                warnings.append(mcp_result.warning)
+        if warnings:
+            return HookResult.allow_with_warning(payloads[0], " ".join(warnings))
         return HookResult.allow(payloads[0])
 
     def _send_mcp_activity(self, payload: HookPayload) -> HookResult:
         """Send MCP activity to the GitGuardian API."""
         # This works even if the payload is not an MCP pre-tool use.
         result = send_mcp_activity(self.scanner.client, payload)
+        if result is None:
+            # No policy answer. Fail open -- a broken endpoint must not block a
+            # tool call -- but say so, because silently allowing is how an
+            # unreachable endpoint permits every MCP call without anyone noticing.
+            ui.display_warning(MCP_NOT_CHECKED_WARNING)
+            return HookResult.allow_with_warning(payload, MCP_NOT_CHECKED_WARNING)
         return HookResult(
             block=not result.allowed,
             message=result.reason,
