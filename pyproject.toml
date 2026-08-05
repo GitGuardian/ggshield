@@ -178,5 +178,9 @@ dev = [
     "ipython>=8.12.3",
     "ipdb>=0.13.13",
     "ty>=0.0.32",
+    # ty resolves imports against the dev environment, but targets the minimum
+    # version of `requires-python`. The `tomli` fallback of `tomllib` is therefore
+    # analyzed whatever the interpreter, so devs should install it unconditionally
+    "tomli>=2.4.0",
 ]
 standalone = ["pyinstaller==6.21.0"]

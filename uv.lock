@@ -1123,6 +1123,7 @@ dev = [
     { name = "pyright" },
     { name = "scriv", version = "1.7.0", source = { registry = "https://pypi.org/simple" }, extra = ["toml"], marker = "python_full_version < '3.10'" },
     { name = "scriv", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, extra = ["toml"], marker = "python_full_version >= '3.10'" },
+    { name = "tomli" },
     { name = "ty" },
 ]
 standalone = [
@@ -1190,6 +1191,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pyright", specifier = "==1.1.367" },
     { name = "scriv", extras = ["toml"] },
+    { name = "tomli", specifier = ">=2.4.0" },
     { name = "ty", specifier = ">=0.0.32" },
 ]
 standalone = [{ name = "pyinstaller", specifier = "==6.21.0" }]
