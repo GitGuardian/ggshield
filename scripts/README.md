@@ -20,6 +20,12 @@ The script aborts if the `VERSION` environment variable is not set. It must be s
 
 The script aborts if the working-tree is not clean (can be bypassed with `--allow-dirty`) or is not on the `main` branch (can be bypassed by defining the `RELEASE_BRANCH` environment variable).
 
+## vulnscan/scan_packages.py
+
+Used by `build_release_assets.yml`'s `scan_vulnerabilities` job. Scans the
+packages built by that same workflow with Grype and prints a Markdown
+report. See `doc/dev/vulnerability-scanning.md`.
+
 ## create-ghe-environment
 
 Creates a GitHub Enterprise Server (GHES) [pre-receive hook environment][ghe] containing GGShield.

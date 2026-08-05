@@ -1,0 +1,19 @@
+# Vulnerability ignore rules for the Grype scan run by build_release_assets.yml.
+# See doc/dev/vulnerability-scanning.md for how to add an entry here.
+ignore:
+  # Baseline: vulnerabilities already present in the bundled Python 3.14.6
+  # interpreter and Windows' bundled SQLite 3.50.4.0. None are
+  # ggshield-specific; they should clear naturally on the next
+  # interpreter/SQLite bump. Re-review if any of these linger for long.
+  - vulnerability: CVE-2025-15366
+  - vulnerability: CVE-2025-15367
+  - vulnerability: CVE-2025-70873
+  - vulnerability: CVE-2026-0864
+  - vulnerability: CVE-2026-11822
+  - vulnerability: CVE-2026-11824
+  - vulnerability: CVE-2026-11940
+  - vulnerability: CVE-2026-11972
+  - vulnerability: CVE-2026-12003
+  - vulnerability: CVE-2026-15308
+  - vulnerability: CVE-2026-3087
+  - vulnerability: CVE-2026-4360

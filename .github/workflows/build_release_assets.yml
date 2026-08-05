@@ -20,6 +20,7 @@ on:
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.14'
+  GRYPE_VERSION: 0.116.1
 
 jobs:
   build_wheel_sdist:
@@ -363,3 +364,43 @@ jobs:
         run: |
           ggshield --version
           ggshield --help
+
+  scan_vulnerabilities:
+    name: Scan built packages for vulnerabilities
+    needs: build_os_packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/vulnscan
+            .grype.yaml
+
+      - name: Download built packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: os-packages-*
+          path: packages
+
+      - name: Compute cache date
+        id: date
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Grype vulnerability database
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/grype/db
+          # The DB is refreshed daily upstream; keying on the date avoids
+          # re-downloading it on every run.
+          key: grype-db-${{ steps.date.outputs.date }}
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin "v${GRYPE_VERSION}"
+
+      - name: Scan and report
+        # tee, not >>: the report is genuinely useful in the plain job log
+        # too (searchable, visible without switching to the Summary tab).
+        run: scripts/vulnscan/scan_packages.py packages | tee -a "$GITHUB_STEP_SUMMARY"
