@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -110,6 +111,27 @@ def find_filepaths(prompt: str) -> Set[str]:
     return paths
 
 
+def _abs_read_path(identifier: str, cwd: str) -> str:
+    """Resolve a READ file path to an absolute path against the event's cwd.
+
+    The verdict cache is keyed on the filename, so the same physical file must
+    yield the same identifier whether it came from an @-mention in a prompt
+    (usually relative) or a tool's file_path (usually absolute) -- otherwise the
+    file is scanned twice. os.path.join leaves an already-absolute path alone,
+    and abspath normalizes it; realpath is deliberately avoided so the key stays
+    deterministic and matches how the file is referenced.
+
+    Never break the scan: with no cwd, or if resolution fails, the identifier is
+    returned unchanged (today's behavior).
+    """
+    if not identifier or not cwd:
+        return identifier
+    try:
+        return os.path.abspath(os.path.join(cwd, identifier))
+    except Exception:
+        return identifier
+
+
 def parse_hook_input(raw_content: str) -> list[HookPayload]:
     """Parse the input content. Raises a ValueError if the input is not valid.
 
@@ -144,12 +166,17 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
     tool = None
     read_range = None
 
+    # The event's working directory, used to canonicalize READ file paths to
+    # absolute so a prompt @-mention and a tool read of the same file share one
+    # verdict-cache key (see _abs_read_path). Agent-specific; "" when unknown.
+    cwd = agent.event_cwd(data)
+
     # Extract the identifier and content based on the event type
     if event_type == EventType.USER_PROMPT:
         content = data.get("prompt", "")
         # Look for files mentioned in the prompt that could be read
         # without triggering a PRE_TOOL_USE event.
-        payloads.extend(_parse_user_prompt(content, event_type, agent, timestamp))
+        payloads.extend(_parse_user_prompt(content, event_type, agent, timestamp, cwd))
 
     elif event_type == EventType.PRE_TOOL_USE:
         tool = _parse_tool(data)
@@ -161,10 +188,12 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             content = tool_input.get("command", "")
             identifier = content
             # Try to detect a command that could be used to read a file.
-            payloads.extend(_parse_command(content, event_type, agent, timestamp))
+            payloads.extend(_parse_command(content, event_type, agent, timestamp, cwd))
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
-            identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
+            identifier = _abs_read_path(
+                lookup(tool_input, ["file_path", "filePath", "path"], ""), cwd
+            )
             read_range = agent.read_range(tool_input)
         elif tool_input:
             # MCP and unrecognized tool arguments can carry secrets bound for
@@ -180,11 +209,13 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         if isinstance(content, (dict, list)):
             content = json.dumps(content)
         if tool == Tool.READ:
-            # Same tool_input as PreToolUse, hence the same range: both events
-            # scan the exact same bytes for one read, which the verdict cache
-            # (keyed on the document) relies on.
+            # Same tool_input as PreToolUse, hence the same range and the same
+            # canonicalized path: both events scan the exact same bytes for one
+            # read, which the verdict cache (keyed on the document) relies on.
             tool_input = data.get("tool_input", {})
-            identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
+            identifier = _abs_read_path(
+                lookup(tool_input, ["file_path", "filePath", "path"], ""), cwd
+            )
             read_range = agent.read_range(tool_input)
 
     # If identifier was not set, hash the content
@@ -277,7 +308,11 @@ def build_agent_headers(content: str) -> Dict[str, str]:
 
 
 def _parse_user_prompt(
-    content: str, event_type: EventType, agent: Agent, timestamp: datetime
+    content: str,
+    event_type: EventType,
+    agent: Agent,
+    timestamp: datetime,
+    cwd: str = "",
 ) -> List[HookPayload]:
     """Parse the user prompt for additional payloads that we may miss."""
     payloads = []
@@ -291,7 +326,9 @@ def _parse_user_prompt(
                 event_type=event_type,
                 tool=Tool.READ,
                 content="",
-                identifier=match,
+                # Canonicalize so this matches the PreToolUse Read of the same
+                # file and both share one verdict-cache key (see _abs_read_path).
+                identifier=_abs_read_path(match, cwd),
                 agent=agent,
                 raw={},
                 timestamp=timestamp,
@@ -301,7 +338,11 @@ def _parse_user_prompt(
 
 
 def _parse_command(
-    content: str, event_type: EventType, agent: Agent, timestamp: datetime
+    content: str,
+    event_type: EventType,
+    agent: Agent,
+    timestamp: datetime,
+    cwd: str = "",
 ) -> List[HookPayload]:
     """Parse the command for additional payloads that we may miss."""
     # In Windows, some agents (at least Codex) use the Get-Content command to read a file.
@@ -310,7 +351,7 @@ def _parse_command(
 
     if content.startswith(("Get-Content ", "cat ")):
         # Extract the filename (remove the command)
-        identifier = content.partition(" ")[2].strip()
+        identifier = _abs_read_path(content.partition(" ")[2].strip(), cwd)
         payloads.append(
             HookPayload(
                 event_type=event_type,
@@ -577,9 +618,8 @@ class AIHookScanner:
             # No activity to send: keep the plain, single-threaded path.
             scan_results = self._scan_contents(payloads)
         else:
-            # Both are blocking HTTP round trips against the same API, so overlap them
-            # instead of paying for them one after the other. The activity is now logged
-            # even when the scan blocks, which the MCP feature owner wants.
+            # Both are blocking round trips to the same API, so overlap them. The
+            # activity is logged even when the scan blocks.
             with ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix="mcp_activity"
             ) as executor:
@@ -592,11 +632,9 @@ class AIHookScanner:
                     index: activity.result() for index, activity in activities.items()
                 }
 
-        # All the payloads of an event are scanned in one go, but the verdicts are
-        # still applied one payload at a time, in order: the blocking payload and the
-        # MCP activity calls are exactly the ones a per-payload loop produced. The
-        # scan verdict keeps precedence, as it did when it short-circuited the
-        # activity call.
+        # All of an event's payloads are scanned in one call; verdicts are applied
+        # one payload at a time, in order, and the scan verdict takes precedence over
+        # the MCP activity verdict.
         for index, scan_result in enumerate(scan_results):
             if scan_result.block:
                 return scan_result
@@ -621,14 +659,11 @@ class AIHookScanner:
         return self._scan_contents([payload])[0]
 
     def _scan_contents(self, payloads: List[HookPayload]) -> List[HookResult]:
-        """Scan the payloads for secrets, in as few API calls as possible.
+        """Scan the payloads for secrets in as few API calls as possible.
 
-        One event routinely carries several payloads (a prompt mentioning files, a
-        `cat` command...), and one API call costs a round trip. So everything that
-        actually needs scanning is handed to the SecretScanner in a single call,
-        which chunks it to the API's per-document and per-batch limits.
-
-        Returns one HookResult per payload, in the same order.
+        Everything that needs scanning is handed to the SecretScanner in one call,
+        which chunks it to the API's per-document and per-batch limits. Returns one
+        HookResult per payload, in order.
         """
         results = [HookResult.allow(payload) for payload in payloads]
 
@@ -666,12 +701,11 @@ class AIHookScanner:
                 else None
             )
 
-            # Shortest path: this exact document already came back clean from the
-            # API recently, so it does not even go in the batch. A Read is scanned
-            # twice — PreToolUse and PostToolUse both resolve to File(file_path)
-            # (see HookPayload.scannable), so the second call sends an identical
-            # document and can be answered locally. has_already_been_seen() cannot
-            # catch that pair: it debounces on the raw stdin payload, which differs
+            # Shortest path: this exact document already came back clean recently, so
+            # it never goes in the batch. A Read is scanned twice -- PreToolUse and
+            # PostToolUse both resolve to File(file_path) (see HookPayload.scannable),
+            # so both send an identical document. has_already_been_seen() does not
+            # catch that pair, as it debounces on the raw stdin payload, which differs
             # between the two events.
             if key and has_clean_verdict(key):
                 continue
@@ -681,14 +715,10 @@ class AIHookScanner:
         if not to_scan:
             return results
 
-        # A batch is looked up by url, which answers once per url: two entries
-        # sharing one would make a document silently inherit another's verdict, and
-        # a wrong verdict here either misses a secret or blocks on the wrong file.
-        # So a round sends at most one entry per url and any repeat waits for the
-        # next round. That holds by construction, without having to prove two
-        # documents are the same. Today's parsers never produce a repeat -- a BASH
-        # identifier is the command text, a READ one is the path, anything else a
-        # sha256 of its own content -- but nothing upstream enforces it.
+        # A batch is looked up by url, so each url must appear at most once per round;
+        # a repeat waits for the next round. Today's parsers never repeat a url (BASH:
+        # command text, READ: path, else a content sha256), but nothing upstream
+        # enforces it.
         remaining = to_scan
         while remaining:
             batch: List[Tuple[int, Scannable, Optional[str]]] = []
@@ -707,22 +737,19 @@ class AIHookScanner:
                     [scannable for _, scannable, _ in batch], scanner_ui=scanner_ui
                 )
 
-            # The scan answers about all of them at once, and not in the order they
-            # were sent, so each document is looked up by the url identifying it.
+            # The scan answers out of send order, so each document is looked up by url.
             answers = scan.by_url()
 
             for index, scannable, key in batch:
                 result = answers.get(scannable.url)
                 if result is None:
-                    # The scan said nothing about this document: it was skipped or
-                    # the scan was degraded. Not a verdict, so nothing to cache --
-                    # and nothing to block on, as before.
+                    # Scan said nothing about this document (skipped or degraded): not
+                    # a verdict, so nothing to cache and nothing to block on.
                     continue
                 secrets: List[Secret] = list(result.secrets)
                 if not secrets:
-                    # Cacheability stays a per-document decision: this document's own
-                    # result must say nothing was filtered out locally, otherwise "no
-                    # secret" is a verdict about the config, not about the content.
+                    # Per-document: cache only if nothing was filtered out locally,
+                    # else "no secret" is a verdict about the config, not the content.
                     if key and not result.ignored_secrets_count_by_kind:
                         store_clean_verdict(key)
                     continue
@@ -765,7 +792,10 @@ class AIHookScanner:
         # Dispatch event-first, then tool: what the message should say depends
         # first on *when* the secret was caught (before vs. after it reached
         # the agent), and only then on how the offending tool is named.
-        if payload.event_type == EventType.USER_PROMPT:
+        # Exception: a USER_PROMPT event also carries a Tool.READ payload per file
+        # mentioned in the prompt (see _parse_user_prompt). The secret is in that
+        # file, not the prompt, so it gets the file wording, not the prompt wording.
+        if payload.event_type == EventType.USER_PROMPT and payload.tool != Tool.READ:
             template = _USER_PROMPT_TEMPLATE
         elif payload.event_type == EventType.POST_TOOL_USE:
             template = _POST_TEMPLATES.get(payload.tool, _POST_OTHER_TEMPLATE)

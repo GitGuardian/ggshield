@@ -114,6 +114,12 @@ class Cursor(Agent):
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
         return "cursor_version" in hook_payload
 
+    def event_cwd(self, data: Dict[str, Any]) -> str:
+        # Cursor reports the working directory as a list of workspace roots
+        # rather than a "cwd" field.
+        roots = data.get("workspace_roots") or []
+        return roots[0] if roots else ""
+
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".cursor") / "hooks.json"
 

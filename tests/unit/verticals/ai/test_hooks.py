@@ -1,5 +1,6 @@
 import errno
 import json
+import os
 import subprocess
 import time
 from collections import Counter
@@ -77,10 +78,8 @@ def _mock_scanner(
     mock.secret_config = secret_config or SecretConfig()
 
     def scan(scannables, scanner_ui=None, **kwargs):
-        # Like the real scanner, the answer is about the documents that were
-        # sent, so it carries their url -- that is what ties a result back to
-        # its document. This fixture answers about the first one, which is all
-        # a single-payload test sends.
+        # Answers about the first document sent, carrying its url (all a
+        # single-payload test needs).
         first = list(scannables)[0]
         return Results(
             results=[
@@ -313,12 +312,10 @@ def _scanner_per_document(
     ignored_urls: Set[str] = frozenset(),
     reverse: bool = False,
 ) -> MagicMock:
-    """A scanner answering per document, the way a multi-document scan does:
-    one result per document, identified by its url.
+    """A scanner answering one result per document, keyed by url.
 
-    `skipped_urls` documents get no result at all (the scanner drops what it
-    could not scan) and `reverse` returns the results in another order than the
-    documents were sent (chunks are collected as they complete).
+    `skipped_urls` documents get no result at all; `reverse` returns results in
+    another order than they were sent.
     """
     secrets_by_url = secrets_by_url or {}
     mock = _mock_scanner([])
@@ -357,9 +354,8 @@ def _scanned_urls(mock_scanner: MagicMock, call: int = 0) -> List[str]:
 
 
 class TestBatchedPayloadScan:
-    """One event carries several payloads (a prompt mentioning files, a `cat`
-    command...). They must cost one API call, not one each — while blocking on
-    exactly the payload a per-payload loop blocked on.
+    """Several payloads of one event cost one API call, not one each, and block on
+    the payload that holds a secret.
     """
 
     @staticmethod
@@ -406,9 +402,8 @@ class TestBatchedPayloadScan:
         """GIVEN a UserPromptSubmit prompt mentioning three files
         WHEN the hook scans it
         THEN the four resulting payloads are sent in one call, all of them."""
-        # Mentioned by relative name, from inside tmp_path: an absolute Windows path
-        # (@C:/...) stops the @file regex at the drive-letter colon, and that gap in
-        # find_filepaths is not what this test is about.
+        # Relative name from inside tmp_path: an absolute Windows path (@C:/...) trips
+        # the @file regex on the drive-letter colon, which this test is not about.
         monkeypatch.chdir(tmp_path)
         files = []
         for index in range(3):
@@ -431,6 +426,59 @@ class TestBatchedPayloadScan:
         for file in files:
             assert any(url.endswith(file.name) for url in urls)
 
+    def test_prompt_mention_and_tool_read_of_one_file_scan_it_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """GIVEN a UserPromptSubmit mentioning @secret.txt (a relative path)
+        followed by a PreToolUse Read of the same file by its absolute path,
+        both events reporting the same cwd
+        WHEN the hook scans them
+        THEN the file's path is canonicalized to the same absolute path both
+        times, so it shares one verdict-cache key: it is scanned on the prompt
+        and the Read is served from the cache -- one API call, not two.
+
+        Without the canonicalization the two events key the cache on different
+        filenames (relative vs absolute) and the file is scanned twice.
+        """
+        # The real hook runs in the agent's cwd, which is why the relative
+        # @-mention resolves to a real file; mirror that here.
+        monkeypatch.chdir(tmp_path)
+        file = tmp_path / "secret.txt"
+        file.write_text("clean file content")
+        mock_scanner = _scanner_per_document()
+        hook_scanner = AIHookScanner(mock_scanner)
+
+        # Cursor reports its cwd as workspace_roots (exercises the override).
+        prompt = json.dumps(
+            {
+                "hook_event_name": "beforeSubmitPrompt",
+                "prompt": "please read @secret.txt",
+                "workspace_roots": [str(tmp_path)],
+                "cursor_version": "1.2.3",
+            }
+        )
+        read = json.dumps(
+            {
+                "hook_event_name": "preToolUse",
+                "tool_name": "read",
+                "tool_input": {"file_path": str(file)},
+                "workspace_roots": [str(tmp_path)],
+                "cursor_version": "1.2.3",
+            }
+        )
+
+        assert hook_scanner.scan(prompt) == 0
+        assert hook_scanner.scan(read) == 0
+
+        # The prompt scanned the file (and the prompt text); the Read added no
+        # call because the file's absolute-path key was already cached.
+        mock_scanner.scan.assert_called_once()
+        absolute = os.path.abspath(os.path.join(str(tmp_path), "secret.txt"))
+        key = verdict_key(
+            INSTANCE, API_KEY, SecretConfig(), absolute, "clean file content"
+        )
+        assert has_clean_verdict(key)
+
     def test_secret_in_the_second_payload_blocks_with_the_same_message(
         self, tmp_path: Path
     ):
@@ -450,10 +498,10 @@ class TestBatchedPayloadScan:
         assert result.block is True
         assert result.payload is payloads[1]
         assert result.nbr_secrets == 1
-        # The exact wording of the PreToolUse/Read block, unchanged.
+        # The exact wording of the PreToolUse/Read block.
         assert f"Detected 1 secret in {payloads[1].identifier}" in result.message
         assert "The file content was not shown to the agent" in result.message
-        # ... and it is the very message a one-payload scan produces.
+        # ... and it matches the message a one-payload scan produces.
         alone = AIHookScanner(_scanner_per_document(secrets))._scan_content(payloads[1])
         assert result.message == alone.message
 
@@ -963,6 +1011,19 @@ class TestMessageFromSecrets:
         assert "The prompt was not sent to the agent" in message
         assert "remove the secret from your prompt" in message
 
+    def test_message_for_file_mentioned_in_user_prompt(self):
+        """USER_PROMPT + Read: a file mentioned in the prompt gets the file wording,
+        not the prompt wording, since the secret is in the file."""
+        payload = self._payload(
+            event_type=EventType.USER_PROMPT,
+            tool=Tool.READ,
+            identifier="/tmp/config.py",
+        )
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "in /tmp/config.py" in message
+        assert "in your prompt" not in message
+        assert "remove the secret from your prompt" not in message
+
     def test_escape_markdown_adds_hard_breaks(self):
         """escape_markdown turns single newlines into markdown hard breaks
         (two trailing spaces) so agents rendering the message as markdown
@@ -1347,7 +1408,7 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.READ
-        assert payload.identifier == tmp_file.as_posix()
+        assert payload.identifier == os.path.abspath(tmp_file)
         assert payload.content == ""
         assert payload.scannable.content == "this is the content"
         assert isinstance(payload.agent, Cursor)
@@ -1427,7 +1488,7 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.READ
-        assert payload.identifier == tmp_file.as_posix()
+        assert payload.identifier == os.path.abspath(tmp_file)
         assert payload.content == ""
         assert payload.scannable.content == "this is the content"
         assert isinstance(payload.agent, Claude)
@@ -1498,7 +1559,9 @@ class TestAIHookScannerParseInput:
         payload = payloads[0]
         assert payload.event_type == EventType.USER_PROMPT
         assert payload.tool == Tool.READ
-        assert payload.identifier == "folder/file.txt"
+        # The relative @-mention is canonicalized against the event's cwd so it
+        # shares a verdict-cache key with the tool's (absolute) read of the file.
+        assert payload.identifier == os.path.abspath("/home/user1/foo/folder/file.txt")
         assert payload.content == ""  # empty because inexistent file
         assert isinstance(payload.agent, Claude)
 
@@ -1578,7 +1641,7 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.READ
-        assert payload.identifier == tmp_file.as_posix()
+        assert payload.identifier == os.path.abspath(tmp_file)
         assert payload.content == ""
         assert payload.scannable.content == "this is the content"
         assert isinstance(payload.agent, VSCode)
@@ -1684,7 +1747,7 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.READ
-        assert payload.identifier == tmp_file.as_posix()
+        assert payload.identifier == os.path.abspath(tmp_file)
         assert payload.content == ""
         assert payload.scannable.content == "this is the content"
         assert isinstance(payload.agent, Copilot)
@@ -1888,7 +1951,8 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
         assert payload.event_type == EventType.PRE_TOOL_USE
         assert payload.tool == Tool.READ
-        assert payload.identifier == "README.md"
+        # Canonicalized against the event's cwd (see _abs_read_path).
+        assert payload.identifier == os.path.abspath("/home/user/project/README.md")
 
     @staticmethod
     def _bash_hook_input(command: str) -> str:
@@ -2382,8 +2446,7 @@ def _scanner_finding(needle: str) -> MagicMock:
     mock.secret_config = SecretConfig()
 
     def scan(scannables, scanner_ui=None, **kwargs):
-        # One answer per document, carrying that document's url, as the real
-        # scanner does: the url is what ties a result back to its document.
+        # One answer per document, carrying its url, as the real scanner does.
         return Results(
             results=[
                 ScanResult(
