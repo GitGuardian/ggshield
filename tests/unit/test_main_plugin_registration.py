@@ -213,6 +213,56 @@ def test_load_failures_silent_during_shell_completion(monkeypatch) -> None:
     assert warnings == []
 
 
+def test_broken_plugin_registry_degrades_to_a_warning(monkeypatch) -> None:
+    """A plugin blowing up must not take `--help` or an unknown command down.
+
+    Plugin code is third-party and resolved at runtime, and it now runs inside
+    command resolution, i.e. on every `--help` and every unknown command name.
+    """
+    from ggshield.core import ui
+
+    registry = mock.MagicMock()
+    registry.get_commands.side_effect = RuntimeError("plugin exploded")
+    _patch_registry(monkeypatch, registry)
+
+    warnings: list[str] = []
+    monkeypatch.setattr(ui, "display_warning", warnings.append)
+
+    group = PluginAwareLazyGroup("cli", commands={"auth": click.Command("auth")})
+
+    # Both paths that load plugins keep working.
+    assert group.list_commands(click.Context(group)) == ["auth"]
+    group._plugins_merged = False
+    assert group.get_command(click.Context(group), "missing") is None
+
+    assert any("plugin exploded" in w for w in warnings)
+
+
+def test_plugin_load_error_is_reported(monkeypatch) -> None:
+    """A loader that gave up entirely is surfaced, not just logged.
+
+    load_plugin_registry() swallows the failure to keep the CLI alive, and
+    logging is still disabled while commands are resolved, so without this the
+    user is never told why every plugin command vanished.
+    """
+    from ggshield.core import ui
+    from ggshield.core.plugin.registry import PluginRegistry
+
+    _patch_registry(monkeypatch, PluginRegistry())
+    monkeypatch.setattr(
+        "ggshield.core.plugin.hooks.get_plugin_load_error",
+        lambda: "enterprise config is unreadable",
+    )
+
+    warnings: list[str] = []
+    monkeypatch.setattr(ui, "display_warning", warnings.append)
+
+    group = PluginAwareLazyGroup("cli")
+    group.list_commands(click.Context(group))
+
+    assert any("enterprise config is unreadable" in w for w in warnings)
+
+
 def test_no_warning_when_no_failures(monkeypatch) -> None:
     from ggshield.core import ui
     from ggshield.core.plugin.registry import PluginRegistry
@@ -240,12 +290,6 @@ def test_main_warns_then_click_rejects_unknown_plugin_command(
     _patch_registry(monkeypatch, registry)
     monkeypatch.setattr(main_module, "force_utf8_output", lambda: None)
     monkeypatch.setattr(main_module, "setup_truststore", lambda: None)
-    # The cli group is a module-level singleton: reset plugin-merge memoization
-    monkeypatch.setattr(main_module.cli, "_plugins_merged", False)
-    machine_group = main_module.cli.get_command(
-        click.Context(main_module.cli), "machine"
-    )
-    monkeypatch.setattr(machine_group, "_plugins_merged", False)
 
     with pytest.raises(SystemExit):
         main_module.main(["machine", "scan"])

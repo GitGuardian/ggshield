@@ -11,6 +11,7 @@ from ggshield.core.plugin.registry import PluginRegistry
 logger = logging.getLogger(__name__)
 
 _global_registry: Optional[PluginRegistry] = None
+_load_error: Optional[str] = None
 
 
 def set_plugin_registry(registry: PluginRegistry) -> None:
@@ -52,6 +53,20 @@ def load_plugin_registry() -> PluginRegistry:
             enterprise_config = EnterpriseConfig.load_effective()
             _global_registry = PluginLoader(enterprise_config).load_enabled_plugins()
         except Exception as e:
+            global _load_error
+            _load_error = str(e)
             logger.warning("Failed to load plugins: %s", e)
             _global_registry = PluginRegistry()
     return _global_registry
+
+
+def get_plugin_load_error() -> Optional[str]:
+    """Why the last `load_plugin_registry()` gave up, if it did.
+
+    The failure is swallowed there so a broken plugin install cannot take the
+    CLI down, and logging is still disabled while commands are resolved, so
+    the log line alone never reaches the user. Callers that can display it
+    (and that know whether displaying it is safe -- shell completion parses
+    stdout) ask for it here.
+    """
+    return _load_error

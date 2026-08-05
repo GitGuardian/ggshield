@@ -902,3 +902,35 @@ SECRET_INCIDENT_MOCK = SecretIncident.from_dict(
         "occurrences": [],
     }
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_plugin_state():
+    """Undo plugin side effects that outlive a test.
+
+    The CLI groups are module-level singletons and `PluginAwareLazyGroup`
+    memoizes the merge, so a test that triggers plugin loading leaves every
+    later test with plugins already "merged" (and the loader globals warm).
+    That makes the suite order-dependent, which tests worked around by
+    resetting `_plugins_merged` by hand.
+    """
+    yield
+
+    from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
+    from ggshield.core.plugin import hooks
+
+    hooks._global_registry = None
+    hooks._load_error = None
+
+    def reset(group, seen):
+        if id(group) in seen:
+            return
+        seen.add(id(group))
+        if isinstance(group, PluginAwareLazyGroup):
+            group._plugins_merged = False
+        for sub in getattr(group, "commands", {}).values():
+            reset(sub, seen)
+
+    from ggshield.__main__ import cli
+
+    reset(cli, set())

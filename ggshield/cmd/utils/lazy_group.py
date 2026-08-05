@@ -57,7 +57,12 @@ class LazyGroup(click.Group):
         return cmd
 
     def load_lazy_command(self, name: str) -> click.Command:
-        module_name, attr = self.lazy_commands[name].split(":")
+        spec = self.lazy_commands[name]
+        module_name, _, attr = spec.partition(":")
+        if not module_name or not attr:
+            raise ValueError(
+                f"Invalid lazy command spec for '{name}': {spec!r}, expected 'module:attr'"
+            )
         cmd = getattr(importlib.import_module(module_name), attr)
         # Cache it, so later lookups (and plugin merges) see it in self.commands
         self.add_command(cmd, name)
@@ -156,19 +161,39 @@ class PluginAwareLazyGroup(LazyGroup):
             return
         self._plugins_merged = True
 
-        # Function-local import: keeps the plugin loader (and the enterprise
-        # config it reads) off the fast path.
-        from ggshield.core.plugin.hooks import load_plugin_registry
-
-        registry = load_plugin_registry()
         warnings: List[str] = []
-        for cmd in registry.get_commands():
-            if not cmd.name:
-                warnings.append("Skipping unnamed plugin command")
-            elif self.plugin_scope is None:
-                add_or_merge_plugin_command(self, cmd, warnings)
-            elif cmd.name == self.plugin_scope and isinstance(cmd, click.Group):
-                _merge_subcommands(self, cmd, warnings)
+        load_failures: Dict[str, str] = {}
+        try:
+            # Function-local import: keeps the plugin loader (and the enterprise
+            # config it reads) off the fast path.
+            from ggshield.core.plugin.hooks import (
+                get_plugin_load_error,
+                load_plugin_registry,
+            )
+
+            registry = load_plugin_registry()
+            load_error = get_plugin_load_error()
+            if load_error:
+                warnings.append(
+                    f"Failed to load plugins: {load_error}. Plugin commands are "
+                    "unavailable; run `ggshield plugin list` for status."
+                )
+            for cmd in registry.get_commands():
+                if not cmd.name:
+                    warnings.append("Skipping unnamed plugin command")
+                elif self.plugin_scope is None:
+                    add_or_merge_plugin_command(self, cmd, warnings)
+                elif cmd.name == self.plugin_scope and isinstance(cmd, click.Group):
+                    _merge_subcommands(self, cmd, warnings)
+            load_failures = registry.get_load_failures()
+        except Exception as exc:
+            # Everything above runs third-party code resolved at runtime (plugin
+            # discovery, and importing the built-in a plugin group collides
+            # with). A plugin must never be able to break `--help` or the error
+            # for an unknown command, which is every path that lands here, so a
+            # failure degrades to a warning as it did before commands were
+            # resolved lazily.
+            warnings.append(f"Failed to register plugin commands: {exc}")
 
         # _GGSHIELD_COMPLETE is Click's completion protocol variable
         # (_<PROG_NAME>_COMPLETE). The publisher is the user's shell: the
@@ -182,7 +207,7 @@ class PluginAwareLazyGroup(LazyGroup):
             return
         # A failed load leaves the command unregistered, so Click rejects it as
         # unknown; warn here or the user never learns why it is missing.
-        for name, reason in registry.get_load_failures().items():
+        for name, reason in load_failures.items():
             ui.display_warning(
                 f"Plugin '{name}' is enabled but failed to load: {reason}. Its "
                 "commands are unavailable; run `ggshield plugin list` for status."
