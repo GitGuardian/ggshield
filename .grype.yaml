@@ -2,7 +2,7 @@
 # See doc/dev/vulnerability-scanning.md for how to add an entry here.
 ignore:
   # Baseline: vulnerabilities already present in the bundled Python 3.14.6
-  # interpreter and Windows' bundled SQLite 3.50.4.0 as of END-846. None are
+  # interpreter and Windows' bundled SQLite 3.50.4.0. None are
   # ggshield-specific; they should clear naturally on the next
   # interpreter/SQLite bump. Re-review if any of these linger for long.
   - vulnerability: CVE-2025-15366
