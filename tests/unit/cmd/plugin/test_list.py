@@ -79,7 +79,7 @@ class TestPluginList:
         )
 
         with mock.patch.object(
-            plugin_list_module, "get_plugin_registry", return_value=registry
+            plugin_list_module, "load_plugin_registry", return_value=registry
         ):
             result = _run_list(cli_fs_runner, plugins)
 
