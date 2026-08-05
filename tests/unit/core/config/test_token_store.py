@@ -56,19 +56,32 @@ class TestKeyringTokenStore:
             store.delete_token(INSTANCE_URL)
 
     def test_is_available_true(self):
+        """GIVEN a working backend WHEN probing THEN a read of an unknown key
+        returning None means available"""
         store = KeyringTokenStore()
-        mock_keyring = MagicMock()
         with (
-            patch("keyring.get_keyring", return_value=mock_keyring),
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", return_value=None) as mock_get,
+        ):
+            assert store.is_available() is True
+            mock_get.assert_called_once()
+
+    def test_is_available_never_writes(self):
+        """GIVEN a working backend WHEN probing THEN it must not write.
+
+        Regression guard: probing with set_password pops a blocking modal on
+        macOS when no writable keychain can be resolved.
+        """
+        store = KeyringTokenStore()
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", return_value=None),
             patch("keyring.set_password") as mock_set,
-            patch("keyring.get_password", return_value="test") as mock_get,
             patch("keyring.delete_password") as mock_delete,
         ):
             assert store.is_available() is True
-            # Verify the probe cycle ran
-            mock_set.assert_called_once()
-            mock_get.assert_called_once()
-            mock_delete.assert_called_once()
+            mock_set.assert_not_called()
+            mock_delete.assert_not_called()
 
     def test_is_available_false_fail_backend(self):
         import keyring.backends.fail
@@ -79,15 +92,25 @@ class TestKeyringTokenStore:
             assert store.is_available() is False
 
     def test_is_available_false_probe_fails(self):
+        """GIVEN a backend whose get_password raises THEN it is not available"""
         store = KeyringTokenStore()
-        mock_keyring = MagicMock()
         with (
-            patch("keyring.get_keyring", return_value=mock_keyring),
-            patch("keyring.set_password"),
-            patch("keyring.get_password", return_value="wrong"),
-            patch("keyring.delete_password"),
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", side_effect=RuntimeError("no keychain")),
         ):
             assert store.is_available() is False
+
+    def test_is_available_true_with_stale_probe_entry(self):
+        """GIVEN an old ggshield left a probe entry in the keychain THEN the
+        backend is still reported available (we never delete it: that's a write)"""
+        store = KeyringTokenStore()
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", return_value="test"),
+            patch("keyring.delete_password") as mock_delete,
+        ):
+            assert store.is_available() is True
+            mock_delete.assert_not_called()
 
     def test_is_available_false_on_exception(self):
         store = KeyringTokenStore()
@@ -122,12 +145,13 @@ class TestGetTokenStore:
 
     def test_returns_keyring_when_available(self, monkeypatch):
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
-        mock_keyring = MagicMock()
         with (
-            patch("keyring.get_keyring", return_value=mock_keyring),
-            patch("keyring.set_password"),
-            patch("keyring.get_password", return_value="test"),
-            patch("keyring.delete_password"),
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", return_value=None),
+            patch(
+                "keyring.set_password",
+                side_effect=AssertionError("selection must not write"),
+            ),
         ):
             store = get_token_store()
             assert isinstance(store, KeyringTokenStore)
@@ -138,6 +162,17 @@ class TestGetTokenStore:
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
         fail_keyring = keyring.backends.fail.Keyring()
         with patch("keyring.get_keyring", return_value=fail_keyring):
+            store = get_token_store()
+            assert isinstance(store, FileTokenStore)
+
+    def test_returns_file_store_when_probe_raises(self, monkeypatch):
+        """GIVEN a backend that can't be read WHEN selecting a store THEN we
+        degrade to the file store instead of crashing"""
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+        with (
+            patch("keyring.get_keyring", return_value=MagicMock()),
+            patch("keyring.get_password", side_effect=RuntimeError("no keychain")),
+        ):
             store = get_token_store()
             assert isinstance(store, FileTokenStore)
 

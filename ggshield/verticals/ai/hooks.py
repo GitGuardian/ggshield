@@ -3,11 +3,13 @@ import json
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 import filelock
 from notifypy import Notify
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core import ui
 from ggshield.core.dirs import get_cache_dir
@@ -17,9 +19,10 @@ from ggshield.core.scan import ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
-from ggshield.verticals.ai.mcp import send_mcp_activity
+from ggshield.verticals.ai.mcp import is_mcp_activity_payload, send_mcp_activity
 
 from .agents import AGENTS
+from .cache import has_clean_verdict, store_clean_verdict, verdict_key
 from .models import (
     Agent,
     EventType,
@@ -139,6 +142,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
     identifier = ""
     content = ""
     tool = None
+    read_range = None
 
     # Extract the identifier and content based on the event type
     if event_type == EventType.USER_PROMPT:
@@ -161,6 +165,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         elif tool == Tool.READ:
             # We only need to deal with the identifier, the content will be read by the Scannable
             identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
+            read_range = agent.read_range(tool_input)
         elif tool_input:
             # MCP and unrecognized tool arguments can carry secrets bound for
             # potentially external servers. Scan them, like tool_output below.
@@ -175,9 +180,12 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
         if isinstance(content, (dict, list)):
             content = json.dumps(content)
         if tool == Tool.READ:
-            identifier = lookup(
-                data.get("tool_input", {}), ["file_path", "filePath", "path"], ""
-            )
+            # Same tool_input as PreToolUse, hence the same range: both events
+            # scan the exact same bytes for one read, which the verdict cache
+            # (keyed on the document) relies on.
+            tool_input = data.get("tool_input", {})
+            identifier = lookup(tool_input, ["file_path", "filePath", "path"], "")
+            read_range = agent.read_range(tool_input)
 
     # If identifier was not set, hash the content
     if not identifier:
@@ -192,6 +200,7 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
             agent=agent,
             raw=data,
             timestamp=timestamp,
+            read_range=read_range,
         )
     )
 
@@ -558,14 +567,29 @@ class AIHookScanner:
         if not payloads:
             raise ValueError("Error: no payloads to scan")
         for payload in payloads:
-            # Scan for secrets first
-            result = self._scan_content(payload)
-            if result.block:
-                return result
-            # We only send the MCP activity if the payload wasn't already blocked.
-            result = self._send_mcp_activity(payload)
-            if result.block:
-                return result
+            if not is_mcp_activity_payload(payload):
+                # No activity to send: keep the plain, single-threaded path.
+                result = self._scan_content(payload)
+                if result.block:
+                    return result
+                continue
+
+            # Both are blocking HTTP round trips against the same API, so overlap them
+            # instead of paying for them one after the other. The activity is now logged
+            # even when the scan blocks, which the MCP feature owner wants.
+            with ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="mcp_activity"
+            ) as executor:
+                activity = executor.submit(self._send_mcp_activity, payload)
+                scan_result = self._scan_content(payload)
+                mcp_result = activity.result()
+
+            # The scan verdict keeps precedence, as it did when it short-circuited
+            # the activity call.
+            if scan_result.block:
+                return scan_result
+            if mcp_result.block:
+                return mcp_result
         return HookResult.allow(payloads[0])
 
     def _send_mcp_activity(self, payload: HookPayload) -> HookResult:
@@ -588,14 +612,63 @@ class AIHookScanner:
         if payload.empty:
             return HookResult.allow(payload)
 
+        # One Scannable for both the cache key and the scan, so the two can never
+        # disagree about what was scanned.
+        scannable = payload.scannable
+        try:
+            # is_longer_than() answers from the byte size when it can, so an
+            # oversized document is not pulled into memory just to key the cache.
+            content = (
+                ""
+                if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES)
+                else scannable.content
+            )
+        except Exception:
+            # Unreadable or undecodable: no cache key. Let the scanner decide
+            # how to skip it.
+            content = ""
+
+        key = (
+            verdict_key(
+                self.scanner.client.base_uri,
+                self.scanner.client.api_key,
+                self.scanner.secret_config,
+                scannable.filename,
+                content,
+            )
+            if content
+            else None
+        )
+
+        # Shortest path: this exact document already came back clean from the API
+        # recently. A Read is scanned twice — PreToolUse and PostToolUse both
+        # resolve to File(file_path) (see HookPayload.scannable), so the second
+        # call sends an identical document and can be answered locally.
+        # has_already_been_seen() above cannot catch that pair: it debounces on
+        # the raw stdin payload, which differs between the two events.
+        if key and has_clean_verdict(key):
+            return HookResult.allow(payload)
+
         with create_message_only_scanner_ui() as scanner_ui:
-            results = self.scanner.scan([payload.scannable], scanner_ui=scanner_ui)
+            results = self.scanner.scan([scannable], scanner_ui=scanner_ui)
         # Collect all secrets from results
         secrets: List[Secret] = []
         for result in results.results:
             secrets.extend(result.secrets)
 
         if not secrets:
+            # Only cache an unambiguous verdict:
+            # - exactly one Result, so the API did answer about our document (a
+            #   degraded or skipped scan yields no Result at all);
+            # - nothing filtered out locally, since an empty `secrets` may also
+            #   mean the API reported policy breaks that the local config
+            #   ignored — a verdict about the config, not about the content.
+            if (
+                key
+                and len(results.results) == 1
+                and not results.results[0].ignored_secrets_count_by_kind
+            ):
+                store_clean_verdict(key)
             return HookResult.allow(payload)
 
         message = self._message_from_secrets(

@@ -2,11 +2,12 @@ import json
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from enum import Enum, auto
+from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional, Tuple
 
 
 if TYPE_CHECKING:
@@ -29,6 +30,24 @@ class MCPConfiguration(BaseMCPConfiguration):
     """MCP configuration that can store a human-readable name for its server."""
 
     display_name: Optional[str] = None
+
+    def __eq__(self, other: object) -> bool:
+        """Compare on the base fields, across both classes.
+
+        A freshly walked discovery holds these instances, one read back from the
+        cache or the API holds plain `BaseMCPConfiguration`, and the generated
+        __eq__ refuses to compare across classes — which made change detection
+        always answer "changed".
+
+        `display_name` is excluded: it is local, not part of the wire schema, so
+        it can never survive a round trip.
+        """
+        if not isinstance(other, BaseMCPConfiguration):
+            return NotImplemented
+        return all(
+            getattr(self, f.name) == getattr(other, f.name)
+            for f in fields(BaseMCPConfiguration)
+        )
 
 
 # Small re-exports arount Py-gitguardian models to make our life easier.
@@ -55,6 +74,26 @@ class Tool(Enum):
     MCP = auto()
     # We are not interested in other tools for now
     OTHER = auto()
+
+
+# (first, last), 1-based and inclusive, `last` being None for "to the end".
+ReadRange = Tuple[int, Optional[int]]
+
+
+def line_slice(content: str, first: int, last: Optional[int]) -> str:
+    """Return lines `first` to `last` of `content`, 1-based and inclusive.
+
+    Split on "\\n" only, the way agents number lines: str.splitlines() also
+    breaks on \\v, \\f and U+2028, which would shift every line number past the
+    first such character and move the window off what the agent reads.
+
+    One line of slack on each side, hence the -2/+1: we cannot check every
+    agent's convention against a real agent, and being one line out must not
+    leave content unscanned. An extra line costs nothing, a missing one is a
+    miss.
+    """
+    lines = content.split("\n")
+    return "\n".join(lines[max(0, first - 2) : None if last is None else last + 1])
 
 
 def markdown_hard_breaks(text: str) -> str:
@@ -98,14 +137,44 @@ class HookPayload:
     agent: "Agent"
     raw: Dict[str, Any]
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # Lines a Tool.READ is about to expose; None means the whole file.
+    read_range: Optional[ReadRange] = None
 
-    @property
+    @cached_property
     def scannable(self) -> Scannable:
-        """Return the appropriate Scannable for the payload."""
+        """Return the appropriate Scannable for the payload.
+
+        Cached: a ranged read builds the slice by reading the file, and callers
+        ask for the scannable more than once (`empty`, then the scan itself).
+        """
         if self.tool == Tool.READ:
-            path = Path(self.identifier)
-            if path.is_file() and not is_path_binary(path):
-                return File(path=self.identifier)
+            # The identifier is not always a real path: it can be a whole shell
+            # command (a heredoc, a pipeline...) that a caller guessed was a
+            # file name. Path.is_file() only swallows "not found" errors, so it
+            # still raises on such identifiers (ENAMETOOLONG, embedded NULs...).
+            # Never let that abort the scan: fall back to scanning the content.
+            try:
+                path = Path(self.identifier)
+                if path.is_file() and not is_path_binary(path):
+                    file = File(path=self.identifier)
+                    if self.read_range is not None:
+                        try:
+                            # Scanning the slice rather than the file is also
+                            # the difference between scanning and not scanning
+                            # at all: SecretScanner silently skips any document
+                            # over maximum_document_size, so over-scanning a
+                            # large file ends up allowing an unscanned read.
+                            return StringScannable(
+                                url=self.identifier,
+                                content=line_slice(file.content, *self.read_range),
+                            )
+                        except Exception:
+                            # Unreadable or undecodable: let the scanner skip it
+                            # and say why, rather than deciding here.
+                            pass
+                    return file
+            except (OSError, ValueError):
+                pass
         return StringScannable(url=self.identifier, content=self.content)
 
     @property
@@ -160,6 +229,16 @@ class Agent(ABC):
         By default, this is in PostToolUse hooks, but it can depend on the agent.
         """
         return payload.event_type == EventType.POST_TOOL_USE
+
+    def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:
+        """The lines a read tool call is about to expose, 1-based and inclusive.
+
+        None — the default — means the whole file, and stays the answer for
+        every agent whose range parameters we have not established from a real
+        payload: over-scanning is a scope problem, under-scanning lets content
+        reach the model unscanned. Absent parameters mean everything too.
+        """
+        return None
 
     def post_process_payload(self, payload: HookPayload):
         """Post-process the payload.

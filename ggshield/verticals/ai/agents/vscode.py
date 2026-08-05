@@ -11,7 +11,14 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
 
 from ..agent_activity.sources import JSONLActivitySource
-from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration
+from ..models import (
+    Agent,
+    EventType,
+    HookPayload,
+    HookResult,
+    MCPConfiguration,
+    ReadRange,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -97,6 +104,21 @@ class VSCode(Agent):
         return (
             "github.copilot-chat" in (hook_payload.get("transcript_path") or "").lower()
         )
+
+    def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:
+        """VS Code's read_file takes `startLine` and `endLine`, 1-based and
+        inclusive.
+
+        Copilot CLI inherits this, and its `view` tool likely has a range of its
+        own, but every `view` payload we have carries only `path`. Until one
+        turns up it falls through to the whole file: guessing a parameter name
+        would under-scan without ever saying so.
+        """
+        start = tool_input.get("startLine")
+        end = tool_input.get("endLine")
+        first = start if isinstance(start, int) and start > 0 else 1
+        last = end if isinstance(end, int) and end > 0 else None
+        return None if first == 1 and last is None else (first, last)
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return (

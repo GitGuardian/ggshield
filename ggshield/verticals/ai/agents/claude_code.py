@@ -16,6 +16,7 @@ from ..models import (
     HookPayload,
     HookResult,
     MCPConfiguration,
+    ReadRange,
     Scope,
     Transport,
 )
@@ -136,6 +137,22 @@ class Claude(Agent):
         return "session_id" in hook_payload and "claude" in (
             hook_payload.get("transcript_path") or ""
         )
+
+    def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:
+        """Claude Code's Read takes `offset`, the first line, and `limit`, a
+        number of lines. Either can be absent: no `offset` reads from the top,
+        no `limit` reads to the end.
+
+        Read does cap an open-ended read at a default number of lines, but that
+        cap is an implementation detail we are not told about, so we do not
+        subtract it from what we scan.
+        """
+        offset = tool_input.get("offset")
+        limit = tool_input.get("limit")
+        first = offset if isinstance(offset, int) and offset > 0 else 1
+        if isinstance(limit, int) and limit > 0:
+            return first, first + limit - 1
+        return None if first == 1 else (first, None)
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".claude") / "settings.json"

@@ -93,24 +93,28 @@ class KeyringTokenStore(TokenStore):
                 logger.debug("No keyring entry to delete for instance %s", instance_url)
 
     def is_available(self) -> bool:
-        """Check if keyring is usable by probing with a test key."""
+        """Check if keyring is usable, by probing it with a read.
+
+        The probe must never write: on macOS, set_password() pops a blocking
+        modal ("A keychain cannot be found to store ...") when the Security
+        framework can't resolve a writable keychain, which froze hooks and
+        flooded users with dialogs. Reading a key that was never stored
+        returns None on a working backend and raises on a broken one (e.g. a
+        ChainerBackend that passes the isinstance check above), which is all
+        the signal we need. This also matches what the hot path does: reading
+        a token. Writes are only done by the interactive `auth login`, where a
+        dialog is acceptable and a failure already falls back to the config
+        file.
+        """
         try:
             kr = keyring.get_keyring()
             if isinstance(kr, keyring.backends.fail.Keyring):
                 return False
-            # Probe the backend to verify it actually works (e.g. a
-            # ChainerBackend may pass the isinstance check but still fail).
-            # Hold the lock across the whole probe so it doesn't race the
-            # token reads of concurrent processes.
-            probe_key = "__ggshield_probe__"
+            # Hold the lock across the probe so it doesn't race the token
+            # reads of concurrent processes.
             with _keyring_lock():
-                keyring.set_password(KEYRING_SERVICE, probe_key, "test")
-                val = keyring.get_password(KEYRING_SERVICE, probe_key)
-                try:
-                    keyring.delete_password(KEYRING_SERVICE, probe_key)
-                except Exception:
-                    logger.debug("Failed to clean up keyring probe key")
-            return val == "test"
+                keyring.get_password(KEYRING_SERVICE, "__ggshield_probe__")
+            return True
         except Exception:
             return False
 

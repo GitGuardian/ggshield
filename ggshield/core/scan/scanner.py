@@ -3,12 +3,13 @@ Protocols for SecretScanner and its results,
 so that other verticals can use the scanner if they are provided one.
 """
 
-from collections.abc import Sequence
-from typing import Iterable, Optional, Protocol
+from collections.abc import Mapping, Sequence
+from typing import Any, Iterable, Optional, Protocol
 
 from pygitguardian import GGClient
 from pygitguardian.models import Match
 
+from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scanner_ui import ScannerUI
 
 from . import Scannable
@@ -40,6 +41,12 @@ class ResultProtocol(Protocol):
     @property
     def secrets(self) -> Sequence[SecretProtocol]: ...
 
+    @property
+    def ignored_secrets_count_by_kind(self) -> Mapping[Any, int]:
+        """Secrets the API reported but ggshield filtered out locally. Non-empty
+        means `secrets` reflects the local configuration, not just the API."""
+        ...
+
 
 class ResultsProtocol(Protocol):
     @property
@@ -51,6 +58,9 @@ class ScannerProtocol(Protocol):
 
     @property
     def client(self) -> GGClient: ...
+
+    @property
+    def secret_config(self) -> SecretConfig: ...
 
     def scan(
         self,

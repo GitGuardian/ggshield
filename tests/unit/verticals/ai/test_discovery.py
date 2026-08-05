@@ -1,3 +1,5 @@
+import os
+import time
 from pathlib import Path
 from typing import Any, List
 from unittest.mock import MagicMock, patch
@@ -197,6 +199,23 @@ class TestSubmitAIDiscovery:
 
 
 class TestRefreshAndMaybeSubmitDiscovery:
+    @pytest.fixture(autouse=True)
+    def cache_ttl(self):
+        """Expired TTL by default, so tests exercise the filesystem discovery path.
+
+        Yields the two TTL mocks so a test can make the cache fresh instead.
+        """
+        with (
+            patch(
+                "ggshield.verticals.ai.discovery.is_discovery_cache_fresh",
+                return_value=False,
+            ) as m_fresh,
+            patch(
+                "ggshield.verticals.ai.discovery.touch_discovery_cache",
+            ) as m_touch,
+        ):
+            yield m_fresh, m_touch
+
     def _patch_all(self):
         return (
             patch(
@@ -288,6 +307,94 @@ class TestRefreshAndMaybeSubmitDiscovery:
             assert result == new_disc
             m_save.assert_not_called()
 
+    def test_fresh_cache_skips_the_filesystem_walk(self, cache_ttl):
+        """Within the TTL, the cached discovery is returned without re-walking."""
+        m_fresh, _ = cache_ttl
+        m_fresh.return_value = True
+        cached = _discovery()
+        p_load, p_discover, p_submit, p_save = self._patch_all()
+        with (
+            p_load as m_load,
+            p_discover as m_discover,
+            p_submit as m_submit,
+            p_save as m_save,
+        ):
+            m_load.return_value = cached
+
+            result = refresh_and_maybe_submit_discovery(MagicMock())
+
+            m_discover.assert_not_called()
+            m_submit.assert_not_called()
+            m_save.assert_not_called()
+            assert result == cached
+
+    def test_fresh_but_unreadable_cache_still_walks(self, cache_ttl):
+        """A recent but corrupt cache file must not short-circuit discovery."""
+        m_fresh, _ = cache_ttl
+        m_fresh.return_value = True
+        p_load, p_discover, p_submit, p_save = self._patch_all()
+        with (
+            p_load as m_load,
+            p_discover as m_discover,
+            p_submit as m_submit,
+            p_save as m_save,
+        ):
+            m_load.return_value = None  # unparseable cache
+            m_discover.return_value = _discovery()
+            m_submit.return_value = _discovery()
+
+            refresh_and_maybe_submit_discovery(MagicMock())
+
+            m_discover.assert_called_once()
+            m_submit.assert_called_once()
+            m_save.assert_called_once()
+
+    def test_expired_ttl_walks_again_and_resets_the_ttl(self, cache_ttl):
+        """Past the TTL we re-walk; if nothing changed we reset the TTL instead of
+        re-walking on every subsequent call."""
+        _, m_touch = cache_ttl
+        cached = _discovery()
+        p_load, p_discover, p_submit, p_save = self._patch_all()
+        with (
+            p_load as m_load,
+            p_discover as m_discover,
+            p_submit as m_submit,
+            p_save as m_save,
+        ):
+            m_load.return_value = cached
+            m_discover.return_value = cached
+
+            result = refresh_and_maybe_submit_discovery(MagicMock())
+
+            m_discover.assert_called_once()
+            m_touch.assert_called_once()
+            m_submit.assert_not_called()
+            m_save.assert_not_called()
+            assert result == cached
+
+    def test_expired_ttl_with_changed_configuration_still_submits(self, cache_ttl):
+        """The TTL must not swallow a real configuration change."""
+        _, m_touch = cache_ttl
+        cached = _discovery(user=_user(hostname="old"))
+        new_disc = _discovery(user=_user(hostname="new"))
+        p_load, p_discover, p_submit, p_save = self._patch_all()
+        with (
+            p_load as m_load,
+            p_discover as m_discover,
+            p_submit as m_submit,
+            p_save as m_save,
+        ):
+            m_load.return_value = cached
+            m_discover.return_value = new_disc
+            m_submit.return_value = new_disc
+
+            refresh_and_maybe_submit_discovery(MagicMock())
+
+            m_submit.assert_called_once()
+            m_save.assert_called_once()
+            # save_discovery_cache already refreshes the file mtime.
+            m_touch.assert_not_called()
+
     def test_reuses_machine_id_from_cache(self):
         cached = _discovery(user=_user(machine_id="cached-id"))
         p_load, p_discover = self._patch_all()[:2]
@@ -302,3 +409,58 @@ class TestRefreshAndMaybeSubmitDiscovery:
 
             _, kwargs = m_discover.call_args
             assert kwargs.get("machine_id") == "cached-id"
+
+
+# ---------------------------------------------------------------------------
+# refresh_and_maybe_submit_discovery, against the real on-disk cache
+# ---------------------------------------------------------------------------
+
+
+class TestRefreshAgainstRealCache:
+    """The tests above mock the cache away, so they cannot see whether a
+    discovery that really went through it still compares equal."""
+
+    @staticmethod
+    def _age_cache(tmp_path: Path) -> None:
+        """Backdate the cache file, so that a freshness short-circuit around the
+        walk cannot be what keeps the submission from happening."""
+        cache_file = tmp_path / "ai_discovery.json"
+        mtime = time.time() - 24 * 3600
+        os.utime(cache_file, (mtime, mtime))
+
+    def test_submits_once_then_stays_quiet(self, tmp_path: Path):
+        discovery = AIDiscovery(
+            user=_user(),
+            servers=_merge_mcp_configurations(
+                [
+                    MCPConfiguration(
+                        name="srv",
+                        agent="cursor",
+                        scope=Scope.USER,
+                        transport=Transport.STDIO,
+                        command="run",
+                        display_name="Pretty Server",
+                    )
+                ]
+            ),
+            discovery_duration=0.1,
+        )
+        with (
+            patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path),
+            patch(
+                "ggshield.verticals.ai.discovery.discover_ai_configuration",
+                return_value=discovery,
+            ),
+            patch(
+                "ggshield.verticals.ai.discovery.submit_ai_discovery",
+                # The API answers with its own, plain pygitguardian objects.
+                side_effect=lambda client, sent: AIDiscovery.from_dict(sent.to_dict()),
+            ) as m_submit,
+        ):
+            refresh_and_maybe_submit_discovery(MagicMock())
+            assert m_submit.call_count == 1, "cold cache must submit"
+
+            for _ in range(2):
+                self._age_cache(tmp_path)
+                refresh_and_maybe_submit_discovery(MagicMock())
+            assert m_submit.call_count == 1, "unchanged configuration must not submit"
