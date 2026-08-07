@@ -220,6 +220,8 @@ def handle_api_error(detail: Detail) -> None:
         # The cached metadata/scopes check must not keep masking a revoked
         # or rotated API key within its TTL.
         auth_check_cache.invalidate()
+        if detail.detail == "Invalid API key":
+            raise click.UsageError("Invalid GitGuardian API key")
         raise click.UsageError(detail.detail)
     if detail.status_code is None:
         raise UnexpectedError(f"Scanning failed: {detail.detail}")
