@@ -63,17 +63,17 @@ def build_hook_command() -> str:
 
     How the path is recovered depends on the launch:
 
-    - Frozen standalone bundle (``.pkg``/``.deb``/``.rpm``): the ``ggshield``
-      dispatcher sitting next to ``sys.executable``, when there is one.
-      PyInstaller derives ``sys.executable`` from the OS, so under the Rust
-      dispatcher it names the internal ``ggshield-py`` launcher — correct to run,
-      but it would bypass the dispatcher and pay the Python startup on every
-      call. Older bundles with no dispatcher keep using ``sys.executable``.
+    - Frozen standalone bundle (``.pkg``/``.deb``/``.rpm``): ``sys.executable``.
+      PyInstaller derives it from the OS, so under the Rust dispatcher it names
+      the internal ``ggshield-py`` launcher.
     - Bare name (``ggshield``, the pip/pipx/Homebrew case): the shell does not
       absolutize ``sys.argv[0]``, so resolve it against PATH with
       ``shutil.which``.
     - Explicit or relative path (``/opt/homebrew/bin/ggshield``,
       ``./ggshield``): ``abspath``.
+
+    Whatever comes out, a sibling ``ggshield`` dispatcher wins over it — see
+    :func:`_prefer_dispatcher_sibling`.
 
     Symlinks are left unresolved in the code paths that see them: the
     pip/pipx/Homebrew cases go through ``shutil.which``/``abspath``, which do not
@@ -92,17 +92,9 @@ def build_hook_command() -> str:
 
 def hook_executable() -> str:
     """The ggshield binary the hook should run. See `build_hook_command`."""
-    if getattr(sys, "frozen", False):
+    frozen = getattr(sys, "frozen", False)
+    if frozen:
         executable = sys.executable
-        dispatcher = os.path.join(
-            os.path.dirname(executable),
-            "ggshield" + (".exe" if os.name == "nt" else ""),
-        )
-        if os.path.normpath(dispatcher) != os.path.normpath(executable) and os.access(
-            dispatcher, os.X_OK
-        ):
-            executable = dispatcher
-        executable = _stable_launcher(executable)
     else:
         argv0 = sys.argv[0]
         if os.path.dirname(argv0):
@@ -111,6 +103,35 @@ def hook_executable() -> str:
             # On a PATH miss fall back to abspath, never sys.executable
             # (the Python interpreter, not ggshield).
             executable = shutil.which(argv0) or os.path.abspath(argv0)
+    executable = _prefer_dispatcher_sibling(executable)
+    # The stable launcher points at the dispatcher, so it can only match once
+    # the sibling preference has run. Only the frozen path needs it: elsewhere
+    # the path never went through a symlink resolution.
+    return _stable_launcher(executable) if frozen else executable
+
+
+def _prefer_dispatcher_sibling(executable: str) -> str:
+    """Return the Rust ``ggshield`` dispatcher next to ``executable``, if any.
+
+    Every install that ships the dispatcher puts it next to the Python entry
+    point, under the two names ``ggshield`` and ``ggshield-py``: the standalone
+    bundles (where PyInstaller's ``sys.executable`` is the ``ggshield-py``
+    launcher) and the platform wheels (where ``ggshield`` execs ``ggshield-py``,
+    so by the time Python runs, ``sys.argv[0]`` is ``ggshield-py`` too). Writing
+    that Python path into the hook works, but pays the whole Python startup on
+    every agent tool call — the one cost the dispatcher exists to remove.
+
+    Installs with no dispatcher (pure wheel, older bundles) keep ``executable``:
+    there, it already *is* ``ggshield``.
+    """
+    dispatcher = os.path.join(
+        os.path.dirname(executable),
+        "ggshield" + (".exe" if os.name == "nt" else ""),
+    )
+    if os.path.normpath(dispatcher) != os.path.normpath(executable) and os.access(
+        dispatcher, os.X_OK
+    ):
+        return dispatcher
     return executable
 
 

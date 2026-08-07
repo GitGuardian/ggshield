@@ -915,6 +915,34 @@ class TestBuildHookCommand:
         ):
             assert build_hook_command() == "/tmp/ggshield secret scan ai-hook"
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="asserts POSIX executable-bit / no-.exe-suffix semantics",
+    )
+    def test_wheel_install_prefers_the_dispatcher_sibling(self, tmp_path):
+        """In a platform-wheel install the user runs `ggshield` (the Rust
+        dispatcher), which execs its `ggshield-py` sibling -- so argv[0] names
+        ggshield-py by the time Python builds the hook command. Pin the hook to
+        the dispatcher, or every hook call pays the Python startup the wheel
+        shipped a native binary to avoid."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        dispatcher = tmp_path / "ggshield"
+        dispatcher.write_text("")
+        dispatcher.chmod(0o755)
+        with _simulate_platform([str(launcher), "machine", "setup"], windows=False):
+            assert build_hook_command() == f"{dispatcher} secret scan ai-hook"
+
+    def test_pure_wheel_install_keeps_its_own_path(self):
+        """The pure-Python wheel installs no dispatcher: `ggshield` IS the Python
+        entry point, and the sibling lookup must not turn it into a self-exec."""
+        with _simulate_platform(
+            ["/proj/.venv/bin/ggshield", "machine", "setup"], windows=False
+        ):
+            assert (
+                build_hook_command() == "/proj/.venv/bin/ggshield secret scan ai-hook"
+            )
+
     def test_frozen_bundle_uses_sys_executable(self):
         """In a PyInstaller standalone bundle (.pkg/.deb/.rpm) the frozen binary
         IS ggshield, so sys.executable is the correct self-path -- and PATH must
@@ -986,6 +1014,20 @@ class TestBuildHookCommand:
         THEN the hook is pinned to the launcher, which survives an upgrade."""
         versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
         with _simulate_platform(windows=False, frozen=versioned), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: versioned if path == "/usr/local/bin/ggshield" else path,
+        ):
+            assert build_hook_command() == "/usr/local/bin/ggshield secret scan ai-hook"
+
+    def test_frozen_dispatcher_bundle_prefers_the_stable_launcher(self):
+        """GIVEN a frozen bundle whose hook binary is the sibling dispatcher
+        WHEN /usr/local/bin/ggshield resolves to that dispatcher
+        THEN the launcher wins: the sibling is picked first, so the launcher has
+        the dispatcher to match against and no versioned path is written."""
+        versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
+        with _simulate_platform(windows=False, frozen=f"{versioned}-py"), patch(
+            "ggshield.verticals.ai.installation.os.access", return_value=True
+        ), patch(
             "ggshield.verticals.ai.installation.os.path.realpath",
             lambda path: versioned if path == "/usr/local/bin/ggshield" else path,
         ):

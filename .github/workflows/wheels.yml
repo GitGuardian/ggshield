@@ -1,0 +1,118 @@
+name: wheels
+
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+# Builds the platform wheels carrying the Rust `ggshield` binary, plus the
+# pure-Python fallback wheel and the sdist. Each platform wheel is tagged
+# py3-none-<platform>: a binary but no Python extension module, so it is
+# Python-version-independent.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['**']
+
+jobs:
+  macos:
+    name: wheel macos-universal2
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build wheel
+        env:
+          GGSHIELD_BUILD_RUST: '1'
+        run: |
+          python -m pip install --upgrade build
+          python -m build --wheel --outdir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-macos-universal2
+          path: dist/*.whl
+
+  windows:
+    name: wheel windows-amd64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build wheel
+        shell: bash
+        env:
+          GGSHIELD_BUILD_RUST: '1'
+        run: |
+          python -m pip install --upgrade build
+          python -m build --wheel --outdir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows-amd64
+          path: dist/*.whl
+
+  # glibc (manylinux) and musl (musllinux, e.g. Alpine) wheels, each built in
+  # its pypa image so the binary links that libc, then relabelled from the raw
+  # linux_* tag to the image's platform tag. `docker run` rather than a job
+  # `container:`, because manylinux2014's glibc 2.17 is too old to run the
+  # node-based actions.
+  linux:
+    name: wheel ${{ matrix.tag }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {
+              runs-on: ubuntu-latest,
+              image: 'quay.io/pypa/manylinux2014_x86_64',
+              tag: manylinux2014_x86_64,
+            }
+          - {
+              runs-on: ubuntu-24.04-arm,
+              image: 'quay.io/pypa/manylinux2014_aarch64',
+              tag: manylinux2014_aarch64,
+            }
+          - {
+              runs-on: ubuntu-latest,
+              image: 'quay.io/pypa/musllinux_1_2_x86_64',
+              tag: musllinux_1_2_x86_64,
+            }
+          - {
+              runs-on: ubuntu-24.04-arm,
+              image: 'quay.io/pypa/musllinux_1_2_aarch64',
+              tag: musllinux_1_2_aarch64,
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and relabel wheel in ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD:/io" -w /io -e GGSHIELD_BUILD_RUST=1 \
+            "${{ matrix.image }}" bash -euo pipefail -c '
+              curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+              source "$HOME/.cargo/env"
+              git config --global --add safe.directory "*"
+              PY=/opt/python/cp311-cp311/bin/python
+              "$PY" -m pip install --upgrade build wheel
+              "$PY" -m build --wheel --outdir dist_raw
+              "$PY" -m wheel tags --remove \
+                --platform-tag "${{ matrix.tag }}" dist_raw/*.whl
+              mkdir -p dist && mv dist_raw/*.whl dist/
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.tag }}
+          path: dist/*.whl
+
+  # The universal fallback: pure py3-none-any wheel + sdist, no Rust.
+  pure:
+    name: pure wheel + sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx run build --outdir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pure-and-sdist
+          path: dist/*
