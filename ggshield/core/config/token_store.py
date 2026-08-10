@@ -1,7 +1,9 @@
 import contextlib
 import logging
+import os
+import sys
 from abc import ABC, abstractmethod
-from typing import Iterator, Optional
+from typing import Iterator, List, Optional
 
 import filelock
 import keyring
@@ -47,6 +49,121 @@ def _keyring_lock() -> Iterator[None]:
         lock.release()
 
 
+# Names of the sibling binaries that must be able to read the token without a
+# Keychain prompt: the native dispatcher and the Python entry point.
+_MACOS_TRUSTED_BINARY_NAMES = ("ggshield", "ggshield-py")
+
+
+def _macos_trusted_binaries() -> List[str]:
+    """Existing paths of the ggshield binaries allowed to read the token.
+
+    The writer itself is part of the list: once an item carries a custom
+    SecAccess its creator is no longer trusted implicitly, so leaving it out
+    would make ggshield prompt for the token it just wrote.
+    """
+    roots = [sys.executable]
+    argv0 = sys.argv[0] if sys.argv else ""
+    if os.sep in argv0:
+        roots.append(os.path.abspath(argv0))
+
+    candidates = list(roots)
+    for root in roots:
+        directory = os.path.dirname(root)
+        candidates += [
+            os.path.join(directory, name) for name in _MACOS_TRUSTED_BINARY_NAMES
+        ]
+
+    paths: List[str] = []
+    for candidate in candidates:
+        if not candidate or not os.path.exists(candidate):
+            continue
+        real = os.path.realpath(candidate)
+        if real not in paths:
+            paths.append(real)
+    return paths
+
+
+def _macos_store_token(instance_url: str, token: str) -> None:
+    """Store the token in the Keychain with an ACL trusting every ggshield binary.
+
+    A Keychain item is only readable by the app that created it, and keyring's
+    macOS backend deletes then re-adds the item instead of updating it, so its
+    ACL is rebuilt from scratch on every write. `auth login` runs from Python
+    while the native hook reads the token: macOS prompts, and clicking "Always
+    Allow" is undone by the next login. Creating the item with an explicit
+    SecAccess listing all the binaries fixes it for good.
+
+    SecAccessCreate/SecTrustedApplicationCreateFromPath are deprecated but they
+    remain the only way to set a per-item ACL.
+    """
+    import ctypes
+
+    from keyring.backends.macOS import api
+
+    paths = _macos_trusted_binaries()
+    logger.debug("Storing token with a Keychain ACL trusting %s", paths)
+
+    # These two Security functions are not part of keyring's bindings, so they
+    # carry no argtypes. Without them ctypes passes pointers as 32-bit ints and
+    # a truncated CFStringRef segfaults -- which no `except` can catch.
+    create_app = api._sec.SecTrustedApplicationCreateFromPath
+    create_app.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
+    create_app.restype = ctypes.c_int32
+    create_access = api._sec.SecAccessCreate
+    create_access.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    create_access.restype = ctypes.c_int32
+
+    trusted_apps = (ctypes.c_void_p * len(paths))()
+    for index, path in enumerate(paths):
+        app = ctypes.c_void_p()
+        api.Error.raise_for_status(create_app(path.encode(), ctypes.byref(app)))
+        trusted_apps[index] = app
+
+    # kCFTypeArrayCallBacks is a data symbol, not a function: it has to be read
+    # with in_dll and passed by address. Reaching for it as an attribute yields a
+    # function pointer, which CFArrayCreate dereferences as a callback table --
+    # a segfault, which no `except` can catch.
+    callbacks = ctypes.c_void_p.in_dll(api._found, "kCFTypeArrayCallBacks")
+    create_array = api._found.CFArrayCreate
+    create_array.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_long,
+        ctypes.c_void_p,
+    ]
+    create_array.restype = ctypes.c_void_p
+    cf_apps = create_array(None, trusted_apps, len(paths), ctypes.byref(callbacks))
+    access = ctypes.c_void_p()
+    api.Error.raise_for_status(
+        create_access(
+            api.create_cf(KEYRING_SERVICE),
+            ctypes.c_void_p(cf_apps),
+            ctypes.byref(access),
+        )
+    )
+
+    # Same delete + add as keyring: an existing item cannot be given a new ACL.
+    with contextlib.suppress(api.NotFound):
+        api.delete_generic_password(None, KEYRING_SERVICE, instance_url)
+
+    api.Error.raise_for_status(
+        api.SecItemAdd(
+            api.create_query(
+                kSecClass=api.k_("kSecClassGenericPassword"),
+                kSecAttrService=KEYRING_SERVICE,
+                kSecAttrAccount=instance_url,
+                kSecValueData=token,
+                kSecAttrAccess=access,
+            ),
+            None,
+        )
+    )
+
+
 class TokenStore(ABC):
     """Abstract base class for token storage backends."""
 
@@ -79,6 +196,16 @@ class KeyringTokenStore(TokenStore):
 
     def store_token(self, instance_url: str, token: str) -> None:
         with _keyring_lock():
+            if sys.platform == "darwin":
+                try:
+                    _macos_store_token(instance_url, token)
+                    return
+                except Exception as exc:
+                    logger.debug(
+                        "Could not store the token with a shared Keychain ACL (%s), "
+                        "falling back to the plain keyring write",
+                        exc,
+                    )
             keyring.set_password(KEYRING_SERVICE, instance_url, token)
 
     def get_token(self, instance_url: str) -> Optional[str]:
