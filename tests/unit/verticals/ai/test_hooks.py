@@ -1939,6 +1939,44 @@ class TestAIHookScannerParseInput:
         assert payload.content == "failure output"
         assert isinstance(payload.agent, Vibe)
 
+    @pytest.mark.parametrize("tool_name", ["bash", "git_bash", "powershell"])
+    def test_vibe_shell_tools_are_bash(self, tool_name: str):
+        """Every Vibe shell tool is treated as BASH, so the command is parsed for
+        file reads instead of being scanned as an opaque tool input."""
+        data = {
+            "session_id": "session-123",
+            "transcript_path": "/home/user/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "pre_tool",
+            "tool_name": tool_name,
+            "tool_call_id": "call-123",
+            "tool_input": {"command": "cat /tmp/secret.txt"},
+        }
+
+        payloads = parse_hook_input(json.dumps(data))
+
+        assert payloads[-1].tool == Tool.BASH
+        assert payloads[-1].identifier == "cat /tmp/secret.txt"
+        # The command references a file, so it is also scanned as a read.
+        assert Tool.READ in {payload.tool for payload in payloads}
+
+    def test_vibe_wins_over_claude_when_path_contains_claude(self):
+        """Vibe's event names are unambiguous, so they take precedence over
+        Claude's transcript_path substring heuristic."""
+        data = {
+            "session_id": "session-123",
+            "transcript_path": "/home/claude/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "pre_tool",
+            "tool_name": "bash",
+            "tool_call_id": "call-123",
+            "tool_input": {"command": "whoami"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Vibe)
+
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""
         content = json.dumps(

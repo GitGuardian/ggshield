@@ -1124,6 +1124,44 @@ class TestVibe:
 
         assert payload.tool == Tool.MCP
 
+    def test_parse_mcp_servers_transports_and_argv_command(self, tmp_path: Path):
+        """Vibe has no SSE transport, and `command` may be a full argv list."""
+        vibe_home = tmp_path / ".vibe"
+        vibe_home.mkdir()
+        (vibe_home / "config.toml").write_text(
+            "[[mcp_servers]]\n"
+            'name = "argv"\n'
+            'transport = "stdio"\n'
+            'command = ["npx", "-y", "some-mcp"]\n'
+            'args = ["--flag"]\n'
+            "\n"
+            "[[mcp_servers]]\n"
+            'name = "streamy"\n'
+            'transport = "streamable-http"\n'
+            'url = "https://example.com/mcp"\n'
+            'auth = { headers = { Authorization = "Bearer abc" } }\n'
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            configurations = {
+                configuration.name: configuration
+                for configuration in Vibe()._get_user_mcp_configurations()
+            }
+
+        argv = configurations["argv"]
+        assert argv.transport == Transport.STDIO
+        assert argv.command == "npx"
+        assert argv.args == ["-y", "some-mcp", "--flag"]
+
+        streamy = configurations["streamy"]
+        assert streamy.transport == Transport.HTTP
+        assert streamy.headers == {"Authorization": "Bearer abc"}
+
     def test_post_process_payload_rejects_unconfigured_mcp_prefix(self, tmp_path: Path):
         payload = _payload(
             Vibe(),

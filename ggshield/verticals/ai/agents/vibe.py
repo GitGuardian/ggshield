@@ -65,6 +65,26 @@ class Vibe(Agent):
     def settings_format(self) -> Literal["json", "toml"]:
         return "toml"
 
+    def post_install_warning(self, mode: Literal["local", "global"]) -> Optional[str]:
+        # Vibe only loads a project's .vibe/hooks.toml once the folder is
+        # trusted, so a local install alone silently protects nothing.
+        if mode == "global":
+            return None
+        cwd = Path.cwd().resolve()
+        if any(cwd == trusted or trusted in cwd.parents for trusted in self._trusted()):
+            return None
+        return (
+            f"{self.display_name} only loads project hooks from trusted folders. "
+            f"Run 'vibe' once in {cwd} and accept the trust prompt, otherwise "
+            "these hooks will be ignored."
+        )
+
+    def _trusted(self) -> Iterator[Path]:
+        data = self._load_file(self.config_folder / "trusted_folders.toml") or {}
+        for folder in data.get("trusted", []):
+            if isinstance(folder, str):
+                yield Path(folder).expanduser().resolve()
+
     @property
     def settings_template(self) -> Dict[str, Any]:
         command = "<COMMAND>"
@@ -106,14 +126,9 @@ class Vibe(Agent):
         return self.config_folder / "config.toml"
 
     def discover_project_directories(self) -> Iterator[Path]:
-        data = self._load_file(self.config_folder / "trusted_folders.toml")
-        if not data:
-            return
-        for folder in data.get("trusted", []):
-            if isinstance(folder, str):
-                path = Path(folder).expanduser()
-                if path.is_dir():
-                    yield path.resolve()
+        for path in self._trusted():
+            if path.is_dir():
+                yield path
 
     def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         data = self._load_file(self.user_mcp_file)
@@ -137,10 +152,9 @@ class Vibe(Agent):
             if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
                 continue
 
+            # Vibe has no SSE transport: stdio, http and streamable-http only.
             transport_name = entry.get("transport", "stdio")
-            if transport_name == "sse":
-                transport = Transport.SSE
-            elif "url" in entry:
+            if transport_name in {"http", "streamable-http"} or "url" in entry:
                 transport = Transport.HTTP
             else:
                 transport = Transport.STDIO
@@ -151,14 +165,23 @@ class Vibe(Agent):
             if not isinstance(headers, dict):
                 headers = {}
 
+            # Vibe accepts `command` as either a string or a full argv list.
+            command = entry.get("command")
+            args = entry.get("args", [])
+            if isinstance(command, list):
+                command, args = (command[0] if command else None), [
+                    *command[1:],
+                    *args,
+                ]
+
             yield MCPConfiguration(
                 name=entry["name"],
                 agent=self.name,
                 scope=scope,
                 transport=transport,
                 project=str(project) if project else None,
-                command=entry.get("command"),
-                args=entry.get("args", []),
+                command=command,
+                args=args,
                 env=entry.get("env", {}),
                 url=entry.get("url"),
                 headers=headers,

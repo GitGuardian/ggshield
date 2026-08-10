@@ -9,9 +9,11 @@ from .vibe import Vibe
 from .vscode import VSCode
 
 
+# Order matters: _detect_agent takes the first agent whose is_caller matches, so
+# exact matchers come before Claude's "claude" in transcript_path substring check.
 AGENTS: Dict[str, Agent] = {
     agent.name: agent
-    for agent in [Claude(), Codex(), Copilot(), Cursor(), Vibe(), VSCode()]
+    for agent in [Vibe(), Claude(), Codex(), Copilot(), Cursor(), VSCode()]
 }
 
 

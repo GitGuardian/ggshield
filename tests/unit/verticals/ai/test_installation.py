@@ -199,6 +199,53 @@ class TestFillDict:
             added=2, already_present=1, command="ggshield already"
         )
 
+    def test_non_command_scalar_is_not_an_existing_install(self):
+        """A template scalar other than the command may contain "ggshield" (a hook
+        name, say). It must not be mistaken for an existing installation."""
+        config: Dict[str, Any] = {}
+        template = {"hooks": [{"name": "ggshield-pre-tool", "command": "<COMMAND>"}]}
+        stats = _fill_dict(
+            config,
+            template,
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+
+        assert config == {"hooks": [{"name": "ggshield-pre-tool", "command": COMMAND}]}
+        assert stats == InstallationStats(added=1, already_present=0)
+
+    def test_non_object_entries_are_ignored(self):
+        """Settings files are hand-editable: a stray scalar in a hook list must not
+        crash the merge."""
+        config: Dict[str, Any] = {"hooks": ["stray", {"command": "other"}]}
+        template = {"hooks": [{"command": "<COMMAND>"}]}
+        stats = _fill_dict(
+            config,
+            template,
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+
+        assert config["hooks"][0] == "stray"
+        assert {"command": COMMAND} in config["hooks"]
+        assert stats.added == 1
+
+    def test_unmergeable_shape_raises_value_error(self):
+        """A list key holding something other than a list cannot be merged into."""
+        with pytest.raises(ValueError, match="expected a list of objects"):
+            _fill_dict(
+                {"hooks": "not-a-list"},
+                {"hooks": [{"command": "<COMMAND>"}]},
+                COMMAND,
+                overwrite=False,
+                stats=InstallationStats(added=0, already_present=0),
+                locator=_locator,
+            )
+
     def test_template_list_supports_multiple_elements(self):
         config: Dict[str, Any] = {}
         template = {
@@ -357,6 +404,31 @@ class TestFlavorSettingsProperties:
         assert [hook["type"] for hook in hooks] == ["pre_tool", "post_tool"]
         assert all(hook["match"] == "*" for hook in hooks)
 
+    def test_vibe_post_install_warning_on_untrusted_folder(self, tmp_path: Path):
+        """Vibe ignores project hooks in untrusted folders, so a local install
+        there must say so instead of reporting plain success."""
+        vibe_home = tmp_path / ".vibe"
+        vibe_home.mkdir()
+        project = tmp_path / "project"
+        project.mkdir()
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv",
+            return_value=str(vibe_home),
+        ), patch("ggshield.verticals.ai.agents.vibe.Path.cwd", return_value=project):
+            vibe = Vibe()
+            # No trusted_folders.toml at all: the folder is not trusted.
+            assert "trusted folders" in (vibe.post_install_warning("local") or "")
+            # A global install is unaffected by folder trust.
+            assert vibe.post_install_warning("global") is None
+
+            # A TOML literal string: a Windows path's backslashes must not be
+            # read as escape sequences.
+            (vibe_home / "trusted_folders.toml").write_text(
+                f"trusted = ['{project}']\n"
+            )
+            assert vibe.post_install_warning("local") is None
+
 
 class TestInstallHooks:
     """Unit tests for the install_hooks function."""
@@ -512,6 +584,52 @@ class TestInstallHooks:
         settings_path.write_text("[[hooks]\n")
 
         with pytest.raises(UnexpectedError, match="Failed to parse"):
+            install_hooks("vibe", mode="global")
+
+        # The file is reported, never repaired: tomlkit alone parses "[[hooks]"
+        # as "[[hooks]]" and would write that back over the user's file.
+        assert settings_path.read_text() == "[[hooks]\n"
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_with_duplicate_inline_key_raises(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        """A duplicate key in an inline table raises tomlkit's KeyAlreadyPresent,
+        which is a TOMLKitError but not a ParseError."""
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text("a = { x = 1, x = 2 }\n")
+
+        with pytest.raises(UnexpectedError, match="Failed to parse"):
+            install_hooks("vibe", mode="global")
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_with_unmergeable_toml_raises(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        """Valid TOML of the wrong shape reports the same actionable error as a
+        syntax error, instead of an unhandled traceback."""
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text('hooks = "not-a-list"\n')
+
+        with pytest.raises(UnexpectedError, match="Failed to update"):
             install_hooks("vibe", mode="global")
 
     def test_install_unsupported_agent_raises(self):

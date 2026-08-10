@@ -46,7 +46,9 @@ HOOK_NAME_TO_EVENT_TYPE = {
 
 TOOL_NAME_TO_TOOL = {
     "shell": Tool.BASH,  # Cursor
-    "bash": Tool.BASH,  # Claude Code
+    "bash": Tool.BASH,  # Claude Code, Mistral Vibe
+    "git_bash": Tool.BASH,  # Mistral Vibe
+    "powershell": Tool.BASH,  # Mistral Vibe, on Windows
     "run_in_terminal": Tool.BASH,  # Copilot
     "read": Tool.READ,  # Claude/Cursor
     "read_file": Tool.READ,  # Copilot

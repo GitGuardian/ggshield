@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 import click
 import tomlkit
 from pygitguardian.models import HealthCheckResponse
-from tomlkit.exceptions import ParseError as TOMLParseError
+from tomlkit.exceptions import TOMLKitError
 
 
 if sys.version_info >= (3, 11):
@@ -129,6 +129,9 @@ def install_hooks(
     else:
         click.echo(f"{display_name} hooks successfully added in {styled_path}")
 
+    if warning := result.agent.post_install_warning(mode):
+        ui.display_warning(warning)
+
     return 0
 
 
@@ -164,15 +167,21 @@ def build_hook_config(
             with settings_path.open("r", encoding="utf-8") as f:
                 if agent.settings_format == "toml":
                     raw_config = f.read()
-                    # tomlkit preserves formatting and comments when writing,
-                    # but its parser intentionally accepts a few malformed
-                    # constructs. Validate strictly before building its editable
-                    # document representation.
+                    # Two parsers on purpose, don't drop either one:
+                    # - tomllib validates. tomlkit silently *repairs* some
+                    #   malformed input ("[[hooks]" becomes "[[hooks]]"), so on
+                    #   its own it would rewrite a broken file into a different
+                    #   one instead of telling the user to fix it.
+                    # - tomlkit then builds the editable document, because it is
+                    #   the only one of the two that can write back, and it keeps
+                    #   the comments and formatting of a file the user hand-edits.
                     tomllib.loads(raw_config)
                     existing_config = tomlkit.parse(raw_config)
                 else:
                     existing_config = json.load(f)
-        except (json.JSONDecodeError, tomllib.TOMLDecodeError, TOMLParseError) as e:
+        # TOMLKitError, not just its ParseError subclass: a duplicate key in an
+        # inline table raises KeyAlreadyPresent, which is not a ParseError.
+        except (json.JSONDecodeError, tomllib.TOMLDecodeError, TOMLKitError) as e:
             raise UnexpectedError(
                 f"Failed to parse {settings_path}: {e}. "
                 "Please fix or remove the file before installing hooks."
@@ -185,14 +194,21 @@ def build_hook_config(
         command="",
     )
 
-    stats = _fill_dict(
-        config=existing_config,
-        template=agent.settings_template,
-        command=command,
-        overwrite=force,
-        stats=stats,
-        locator=agent.settings_locate,
-    )
+    try:
+        stats = _fill_dict(
+            config=existing_config,
+            template=agent.settings_template,
+            command=command,
+            overwrite=force,
+            stats=stats,
+            locator=agent.settings_locate,
+        )
+    except ValueError as e:
+        # The file parsed but does not have the shape we can merge into.
+        raise UnexpectedError(
+            f"Failed to update {settings_path}: {e}. "
+            "Please fix or remove the file before installing hooks."
+        )
 
     return BuildConfigResult(
         agent=agent,
@@ -213,9 +229,9 @@ def _fill_dict(
     """
     Recursively fill a dictionary with the template, leaving other keys untouched.
 
-    Inside lists, will look for a match by searching "ggshield" anywhere in the object, otherwise add a new element.
-    This means that the template cannot have multiple hooks in the same list.
-    In case the need arises, the algorithm will need to be adapted.
+    Inside lists, `locator` finds the object to update, otherwise a new element is
+    added. A template list may hold several objects: each is located independently,
+    so an agent can declare more than one hook in the same list.
 
     Args:
         config: The dictionary to fill
@@ -232,10 +248,15 @@ def _fill_dict(
         # List: locate the correct object
         elif isinstance(value, list):
             config_list = config.setdefault(key, [])
+            if not isinstance(config_list, list):
+                raise ValueError(f"expected a list of objects at '{key}'")
+            # Ignore anything that isn't an object: the file is hand-editable and a
+            # stray scalar must not crash the install.
+            candidates = [item for item in config_list if isinstance(item, dict)]
             for template_item in value:
                 if not isinstance(template_item, dict):
                     raise ValueError(f"Expected objects in template list for {key}")
-                existing_value = locator(config_list, template_item)
+                existing_value = locator(candidates, template_item)
                 if existing_value is not None:
                     # Found it. Continue with this object.
                     _fill_dict(
@@ -262,9 +283,11 @@ def _fill_dict(
         else:
             if key not in config:
                 config[key] = value
-            # for stats
+            # For stats: only the command slot tells us whether ggshield is already
+            # installed. Other scalars may legitimately contain "ggshield" — a hook
+            # name, for instance — and must not be counted as an existing install.
             cmd = config.get(key, "")
-            if isinstance(cmd, str) and "ggshield" in cmd:
+            if value == "<COMMAND>" and isinstance(cmd, str) and "ggshield" in cmd:
                 stats.already_present += 1
                 stats.command = cmd
             # Update if needed

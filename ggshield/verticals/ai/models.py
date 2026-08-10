@@ -268,6 +268,11 @@ class Agent(ABC):
         """Serialization format used by the assistant's hook settings file."""
         return "json"
 
+    def post_install_warning(self, mode: Literal["local", "global"]) -> Optional[str]:
+        """Warning to show after a successful install, if the assistant needs
+        one more step before it will actually load the hooks."""
+        return None
+
     @property
     def settings_template(self) -> Dict[str, Any]:
         """
