@@ -1,0 +1,25 @@
+[package]
+name = "ggshield-hook"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Fast native implementation of `ggshield secret scan ai-hook` (Claude Code only)."
+
+[[bin]]
+name = "ggshield-hook"
+path = "src/main.rs"
+
+[dependencies]
+ggshield-common = { workspace = true }
+ggshield-config = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ureq = { workspace = true }
+regex = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

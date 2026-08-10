@@ -1,0 +1,11 @@
+**🚨 Detected {count} {secrets} in the tool output 🚨**  
+{secret_lines}
+
+The {secrets} {were} exposed to the AI agent and may persist in conversation logs. Consider {them} compromised.
+
+> How to remediate
+
+  Since the {secrets} {were} leaked after the tool call was made:  
+{remediation_steps}
+
+{false_positive_instructions}

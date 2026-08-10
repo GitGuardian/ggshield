@@ -1,0 +1,11 @@
+**🚨 Detected {count} {secrets} in the tool input 🚨**  
+{secret_lines}
+
+The tool call was not executed and the {secrets} {were} not leaked.
+
+> How to remediate
+
+  Since the {secrets} {were} detected before the tool call was made:  
+  1. consider moving the {secrets} to a secrets manager.
+
+{false_positive_instructions}

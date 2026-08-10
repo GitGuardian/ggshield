@@ -1,0 +1,3 @@
+  1. revoke the {secrets} and issue {new_ones} with {their_providers}.  
+  2. consider moving the new {secrets} to a secrets manager.  
+  3. resolve the {incidents} linked above in your GitGuardian dashboard.

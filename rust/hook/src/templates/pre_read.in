@@ -1,0 +1,12 @@
+**🚨 Detected {count} {secrets} in {identifier} 🚨**  
+{secret_lines}
+
+The file content was not shown to the agent and the {secrets} {were} not leaked.
+
+> How to remediate
+
+  Since the {secrets} {were} detected before the file was read:  
+  1. avoid sharing this file with the agent.  
+  2. if the agent needs other values from this file, share only the non-sensitive parts.
+
+{false_positive_instructions}
