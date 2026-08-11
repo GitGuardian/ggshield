@@ -12,9 +12,9 @@ from pygitguardian.models import (
     MCPConfiguration,
     MCPServer,
     MultiScanResult,
+    ScanResult,
+    UserInfo,
 )
-from pygitguardian.models import ScanResult as ApiScanResult
-from pygitguardian.models import UserInfo
 
 from ggshield.__main__ import cli
 from ggshield.cmd.ai.discover import print_summary
@@ -51,7 +51,7 @@ def _scanning_client() -> MagicMock:
     def multi_content_scan(documents, *args, **kwargs):
         result = MultiScanResult(
             [
-                ApiScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+                ScanResult(policy_break_count=0, policy_breaks=[], policies=[])
                 for _ in documents
             ]
         )
