@@ -35,11 +35,23 @@ macos_sign_file() {
     # the entitlement goes on the `ggshield` launcher only — the bundled
     # .so/.dylib libraries inherit the process permission and don't need it.
     if [ "$(basename "$file")" = "ggshield" ] ; then
+        # `--binary-identifier` pins the code-signing identifier of the one
+        # binary that reads the login Keychain. Left alone, rcodesign keeps the
+        # identifier the linker's ad-hoc signature left in the Mach-O, which
+        # carries a per-build hash — 1.53.0 shipped as
+        # `ggshield-55554944c60d09a76c903cb78828e61396fa0721`. The identifier is
+        # part of the designated requirement, and the designated requirement is
+        # what a Keychain item's ACL records when the user clicks "Always
+        # Allow", so a per-build identifier means that grant stops matching on
+        # the very next release and every upgrade re-prompts for the token.
+        # Libraries keep their own identifiers; only the launcher is ever the
+        # process asking for the secret.
         rcodesign sign \
             --p12-file "$MACOS_P12_FILE" \
             --p12-password-file "$MACOS_P12_PASSWORD_FILE" \
             --code-signature-flags runtime \
             --entitlements-xml-path "$SCRIPT_DIR/macos-entitlements.plist" \
+            --binary-identifier com.gitguardian.ggshield \
             --for-notarization \
             "$file"
     else
