@@ -1,21 +1,18 @@
-//! The failure modes of `ai_hook_cmd`, kept apart because they behave very
-//! differently and all are security-relevant.
+//! The failure modes of `ai_hook_cmd`, kept apart because they behave differently.
 
-/// `Invalid` mirrors Python's `except ValueError` arm: print the message on
-/// stderr, exit 1, print **nothing** on stdout. Agents treat a non-zero exit
-/// with no JSON as a non-blocking error and surface stderr to the user.
+/// `Invalid` mirrors Python's `except ValueError` arm: the message on stderr, exit
+/// 1, **nothing** on stdout. Agents treat a non-zero exit with no JSON as a
+/// non-blocking error and surface stderr to the user.
 ///
-/// `Fail` mirrors `except Exception`: fail open, i.e. print `{"continue": true}`
-/// plus a `systemMessage` warning and exit 0. Never block the agent on a bug of
-/// ours, and never silently allow without telling the user scanning did not run.
+/// `Fail` mirrors `except Exception`: fail open, i.e. `{"continue": true}` plus a
+/// `systemMessage` warning and exit 0.
 ///
 /// `Fatal` mirrors config loading, which happens in the `cli` group callback in
-/// `__main__.py`, *before* `ai_hook_cmd` runs: a `ParseError` /
-/// `UnexpectedError` raised there never reaches the command's `except Exception`
-/// and never fails open — it prints `Error: <message>` on stderr and exits 128
-/// (`ExitCode.UNEXPECTED_ERROR`).
-/// `Clone` so a memoised failure can be handed to every caller: `Config::token()`
-/// caches the credential-store read, error included, and must not repeat it.
+/// `__main__.py`, *before* `ai_hook_cmd` runs: a `ParseError` / `UnexpectedError`
+/// raised there never reaches the command's `except Exception` and never fails
+/// open — it prints `Error: <message>` on stderr and exits 128.
+///
+/// `Clone` so `Config::token()` can hand its memoised failure to every caller.
 #[derive(Debug, Clone)]
 pub enum Error {
     Invalid(String),
@@ -46,9 +43,7 @@ impl Error {
     }
 
     /// A config-loading failure. See the `Fatal` variant docs: these do not fail
-    /// open, because in Python they happen before the command runs. The upstream
-    /// detail (a YAML parser's message, say) is wrapped rather than printed bare,
-    /// so the user is told what the failure cost them.
+    /// open, because in Python they happen before the command runs.
     pub fn fatal(detail: impl AsRef<str>) -> Self {
         Error::Fatal(format!(
             "ggshield could not load its configuration ({}) — this action was NOT \
@@ -57,9 +52,8 @@ impl Error {
         ))
     }
 
-    /// A capability this binary knowingly does not implement: running with the
-    /// wrong rules is worse than not running. The caller supplies the
-    /// remediation, because "use the Python hook" is not one — `ggshield secret
+    /// A capability this binary knowingly does not implement. The caller supplies
+    /// the remediation, because "use the Python hook" is not one: `ggshield secret
     /// scan ai-hook` is the very argv the dispatcher answers natively.
     pub fn unimplemented(what: impl AsRef<str>, remediation: impl AsRef<str>) -> Self {
         Error::Fail(format!(
@@ -71,9 +65,8 @@ impl Error {
     }
 }
 
-/// Only the first line of an upstream error is shown: connection and parser
-/// errors span several lines, and multi-line noise does not belong in an agent
-/// message.
+/// Only the first line: connection and parser errors span several, and multi-line
+/// noise does not belong in an agent message.
 fn first_line(detail: &str) -> &str {
     detail.lines().next().unwrap_or_default()
 }
@@ -97,8 +90,8 @@ mod tests {
 
     /// GIVEN a config-loading failure and a scan failure
     /// WHEN each is built
-    /// THEN they stay distinct variants, and the config one still tells the user
-    /// the action went unscanned.
+    /// THEN they stay distinct variants, and the config one still says the action
+    /// went unscanned.
     #[test]
     fn fatal_is_distinct_from_fail_open_but_still_says_what_it_cost() {
         let Error::Fatal(msg) = Error::fatal("bad YAML at line 3\nfoo") else {

@@ -1,11 +1,10 @@
 //! Clean-verdict cache.
 //!
 //! Everything here fails *closed*: every error path answers "not cached", which
-//! means "scan". A cache that cannot be trusted must never turn into an allow.
+//! means "scan".
 //!
-//! The on-disk format is the Python one — same filename, same key derivation —
-//! so a machine running both implementations shares one cache instead of
-//! keeping two half-warm ones.
+//! The on-disk format is the Python one (same filename, same key derivation), so
+//! a machine running both implementations shares one cache.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -18,26 +17,18 @@ use ggshield_config::user_config::SecretConfig;
 
 const FILENAME: &str = "ai_hook_verdicts.json";
 /// The key covers everything the verdict depends on (see `key`), so an entry can
-/// only go stale if the server's detection, or a secret's known/valid status,
-/// changes — hence a short TTL.
+/// only go stale if the server's answer changes. Hence the short TTL.
 const TTL_SECONDS: f64 = 15.0 * 60.0;
 const MAX_ENTRIES: usize = 500;
 
-/// The settings that change what we send or how we read the answer.
+/// The settings that change what we send or how we read the answer — a setting
+/// that merely changes what we *print* would cost cache misses without preventing
+/// a stale verdict. `filename_only` rewrites the filename we send while the key
+/// holds the local one; `all_secrets` decides whether a verdict is cacheable.
 ///
-/// Only these: a setting that merely changes what we *print* would cost cache
-/// misses without preventing a stale verdict. `filename_only` rewrites the
-/// filename we send while the key holds the local one; `all_secrets` moves
-/// locally-ignored breaks into the results, which is the guard deciding whether
-/// a verdict is cacheable at all.
-///
-/// The ignore settings are deliberately absent: a verdict that depended on them
-/// is never stored (see `scan_content`).
-///
-/// `source_uuid` is always empty: the hook never creates incidents, so both
-/// implementations clear it. The
-/// field is still emitted, because the string has to match Python's byte for byte
-/// for the two implementations to share one cache.
+/// The ignore settings are deliberately absent: a verdict that depended on them is
+/// never stored (see `scan_content`). `source_uuid` is always empty here, but the
+/// field is still emitted so the string matches Python's byte for byte.
 fn config_fingerprint(secret_config: &SecretConfig) -> String {
     format!(
         "all_secrets={};filename_only={};source_uuid=",
@@ -48,12 +39,9 @@ fn config_fingerprint(secret_config: &SecretConfig) -> String {
 
 /// Cache key for one document: everything the API's answer depends on.
 ///
-/// Instance and token because the answer is per-workspace: custom detectors and
-/// dashboard exclusions differ between them, so a verdict obtained with one
-/// token says nothing about another.
-///
-/// NUL separates the parts: it cannot appear in a URL, a token or a path, so no
-/// part can be shifted across the separator to impersonate another key.
+/// Instance and token because custom detectors and dashboard exclusions are
+/// per-workspace. NUL separates the parts, so no part can be shifted across the
+/// separator to impersonate another key.
 pub fn key(
     instance: &str,
     api_key: &str,
@@ -84,15 +72,13 @@ fn now() -> f64 {
         .unwrap_or(0.0)
 }
 
-/// A timestamp in the future is not fresh: it is either clock skew or a forged
-/// entry meant never to expire.
+/// A future timestamp is clock skew, or an entry forged never to expire.
 fn is_fresh(stored: f64, now: f64) -> bool {
     (0.0..TTL_SECONDS).contains(&(now - stored))
 }
 
-/// The cached clean verdicts, or an empty map if the cache cannot be trusted:
-/// an untrusted file (see [`secure_file::read_if_trusted`]) and a corrupt one both
-/// answer "nothing is cached", which means "scan".
+/// The cached clean verdicts, or an empty map if the cache cannot be trusted
+/// (see [`secure_file::read_if_trusted`]) — which means "scan".
 fn load() -> HashMap<String, f64> {
     let Some(raw) = path().as_deref().and_then(secure_file::read_if_trusted) else {
         return HashMap::new();
@@ -136,8 +122,8 @@ pub fn store_clean_verdict(key: &str) {
     }
 }
 
-/// `GG_CACHE_DIR` is process-wide, so every test that touches the cache — here
-/// and in main.rs — takes this one lock.
+/// `GG_CACHE_DIR` is process-wide, so every test touching the cache — here and in
+/// main.rs — takes this one lock.
 #[cfg(test)]
 static CACHE_ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -156,8 +142,7 @@ mod tests {
 
     /// GIVEN a cache key
     /// WHEN any part of it changes
-    /// THEN the key changes, and no part can be shifted across the NUL separator
-    /// to impersonate another key.
+    /// THEN the key changes, and no part can be shifted across the NUL separator.
     #[test]
     fn every_part_of_the_key_changes_it() {
         let default = SecretConfig::default();
@@ -191,7 +176,6 @@ mod tests {
         ] {
             assert_ne!(reference, key(base.0, base.1, &changed, base.2, base.3));
         }
-        // No part can be shifted across the separator to impersonate another key.
         assert_ne!(
             key("a", "b", &default, "c", "d"),
             key("a\0b", "c", &default, "d", "")
@@ -200,8 +184,7 @@ mod tests {
 
     /// GIVEN a secret config
     /// WHEN its cache fingerprint is rendered
-    /// THEN it is byte for byte Python's, which is what lets both implementations
-    /// share one cache file instead of keeping two half-warm ones.
+    /// THEN it is byte for byte Python's, so both share one cache file.
     #[test]
     fn the_fingerprint_is_byte_for_byte_the_python_one() {
         assert_eq!(
@@ -231,8 +214,7 @@ mod tests {
 
     /// GIVEN entries at various timestamps
     /// WHEN their freshness is tested
-    /// THEN an expired one fails, and so does a future one — that is clock skew or
-    /// an entry forged never to expire.
+    /// THEN an expired one fails, and so does a future one.
     #[test]
     fn expired_and_future_entries_are_not_fresh() {
         let now = now();
@@ -279,8 +261,7 @@ mod tests {
 
     /// GIVEN a cache file another local user could write
     /// WHEN it is queried
-    /// THEN it is refused, and the next write repairs its permissions instead of
-    /// giving up on the cache for good.
+    /// THEN it is refused, and the next write repairs its permissions.
     #[cfg(unix)]
     #[test]
     fn a_group_or_other_writable_cache_is_refused() {
@@ -302,7 +283,7 @@ mod tests {
 
     /// GIVEN a symlink where the cache file should be
     /// WHEN it is queried
-    /// THEN it is never followed: a symlink is not a file we wrote.
+    /// THEN it is never followed.
     #[cfg(unix)]
     #[test]
     fn a_symlinked_cache_is_never_read() {

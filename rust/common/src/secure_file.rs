@@ -1,13 +1,11 @@
 //! Cache files only the current user could have written: no symlink, no other
 //! owner, no group- or other-writable bit, mode 0600.
 //!
-//! Trust here only rules out *other* users: anyone who can write as the current
-//! uid could seed an entry, but they could equally replace the binary, so that is
-//! not a boundary a cache file can defend.
+//! This only rules out *other* users: anyone who can write as the current uid
+//! could equally replace the binary.
 //!
-//! What a failure *means* is the caller's business — the clean-verdict cache
-//! fails closed and scans, the limits cache falls through to the next source — so
-//! nothing here decides anything but "this is not a file we could have written".
+//! What a failure *means* is the caller's business — the clean-verdict cache fails
+//! closed and scans, the limits cache falls through to the next source.
 
 use std::io::{Read, Write};
 use std::path::Path;
@@ -34,8 +32,8 @@ pub fn read_if_trusted(path: &Path) -> Option<String> {
         use std::os::unix::fs::OpenOptionsExt;
         options.custom_flags(libc::O_NOFOLLOW);
     }
-    // Check the open descriptor, not the path: fstat leaves no window in which the
-    // file we validated could be swapped for the file we read.
+    // Check the open descriptor, not the path: no window in which the file we
+    // validated could be swapped for the file we read.
     let mut file = options.open(path).ok()?;
     let meta = file.metadata().ok()?;
     if !meta.is_file() {
@@ -44,9 +42,8 @@ pub fn read_if_trusted(path: &Path) -> Option<String> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        // Group/other-writable, or written by somebody else: either way not a file
-        // only we could have produced. (Windows does not use these bits and reports
-        // them set on every file, so this is unix-only, as in the Python.)
+        // Group/other-writable, or written by somebody else. Unix-only, as in the
+        // Python: Windows reports these bits set on every file.
         // SAFETY: `getuid` is a plain syscall wrapper and cannot fail.
         if meta.mode() & 0o022 != 0 || meta.uid() != unsafe { libc::getuid() } {
             return None;
@@ -57,10 +54,8 @@ pub fn read_if_trusted(path: &Path) -> Option<String> {
     Some(raw)
 }
 
-/// Write `contents` to `path`, readable and writable by us alone.
-///
-/// Truncates in place, so a caller that cannot afford a torn read stages the file
-/// beside its target and renames it.
+/// Write `contents` to `path`, readable and writable by us alone. Truncates in
+/// place, so a caller that cannot afford a torn read stages and renames.
 pub fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create(true).truncate(true);
@@ -72,9 +67,9 @@ pub fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
     let mut file = options.open(path)?;
     #[cfg(unix)]
     {
-        // The creation mode only applies to a file we actually created. Force it,
-        // so a pre-existing loose-permission file — which `read_if_trusted`
-        // refuses to read — does not disable the cache for good.
+        // The creation mode only applies to a file we created. Force it, so a
+        // pre-existing loose-permission file — which `read_if_trusted` refuses —
+        // does not disable the cache for good.
         use std::os::unix::fs::PermissionsExt;
         file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
     }
@@ -104,8 +99,7 @@ mod tests {
 
     /// GIVEN a file another local user could write, or a symlink, or a directory
     /// WHEN it is read
-    /// THEN it is refused, and the next write repairs the permissions instead of
-    /// giving up on the file for good.
+    /// THEN it is refused, and the next write repairs the permissions.
     #[cfg(unix)]
     #[test]
     fn a_widely_writable_or_symlinked_file_is_refused() {

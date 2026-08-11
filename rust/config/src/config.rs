@@ -38,7 +38,6 @@ use windows_sys::Win32::System::IO::OVERLAPPED;
 
 // The service name every keyring backend stores under
 // (`keyring.set_password("ggshield", instance_url, token)`, token_store.py).
-// Unused only on platforms with no credential-store implementation.
 #[cfg_attr(
     not(any(target_os = "macos", target_os = "linux", windows)),
     allow(dead_code)
@@ -57,8 +56,7 @@ const TRACKED_ENV_VARS: [&str; 3] = [
 /// ceiling, and the size past which the ai-hook stops caching a verdict.
 pub const MAXIMUM_DOCUMENT_SIZE: usize = 1_048_576;
 /// pygitguardian's `MULTI_DOCUMENT_LIMIT`. One document past the instance's own
-/// value the API answers `400 {"detail": "Too many documents to scan."}`, and a
-/// failed scan in this hook means failing open.
+/// value the API answers 400, which in this hook means failing open.
 pub const DEFAULT_MAX_DOCUMENTS_PER_SCAN: usize = 20;
 /// `_SIZE_METADATA_OVERHEAD` (secret_scanner.py): request framing that any
 /// advertised payload ceiling has to leave room for.
@@ -67,8 +65,7 @@ pub const SIZE_METADATA_OVERHEAD: usize = 10_240;
 /// one scan may carry, all its documents together.
 pub const MAXIMUM_PAYLOAD_SIZE: usize = 2_621_440 - SIZE_METADATA_OVERHEAD;
 
-/// This instance's scan limits. `Default` is the compiled-in set, used whenever
-/// no more specific value is available.
+/// This instance's scan limits. `Default` is the compiled-in set.
 ///
 /// `maximum_payload_size` is the *net* document budget, i.e. already reduced by
 /// `SIZE_METADATA_OVERHEAD`, not the ceiling the API advertises.
@@ -121,16 +118,9 @@ struct CachedScanPreferences {
     maximum_documents_per_scan: Option<usize>,
 }
 
-/// The limits ggshield recorded the last time it verified this token, or `None`
-/// when there is no usable entry.
-///
-/// `check_client_api_key()` fetches `/v1/metadata` and persists the result here,
-/// keyed on sha256("<instance>\0<token>") with a 5-minute expiry — so whichever
-/// implementation ran last answers for the other and the hot path needs no round
-/// trip of its own. Read-only: this hook never writes the file.
-///
-/// Every failure (no file, unreadable, not YAML, another token, expired) is a
-/// miss, so a corrupt cache costs a fallback and never a wrong limit.
+/// The limits ggshield recorded the last time it verified this token, from
+/// `check_client_api_key()`'s `/v1/metadata` fetch, so whichever implementation
+/// ran last answers for the other. Read-only to us, and every failure is a miss.
 pub fn cached_limits(api_url: &str, token: &str) -> Option<CachedLimits> {
     let raw = std::fs::read_to_string(cache_dir()?.join("auth_check.yaml")).ok()?;
     let cache: AuthCheckCache = serde_yaml_ng::from_str(&raw).ok()?;
@@ -145,25 +135,18 @@ pub fn cached_limits(api_url: &str, token: &str) -> Option<CachedLimits> {
     })
 }
 
-/// The hook's *own* limits cache, next to the verdict cache.
-///
-/// `auth_check.yaml` above is read-only to us on purpose: it also short-circuits
-/// Python's token-scopes check and carries `remediation_messages` and
-/// `secrets_engine_version`, so writing a partial one would quietly degrade
-/// unrelated `ggshield` commands. But on a hook path where only the native
-/// binary runs, nothing ever fills it, and every scanning invocation paid a
-/// `/v1/metadata` round trip. This file is ours to write, so it stays warm.
+/// The hook's *own* limits cache, next to the verdict cache. `auth_check.yaml`
+/// above is read-only to us because it also short-circuits Python's token-scopes
+/// check and carries `remediation_messages` and `secrets_engine_version`; this one
+/// is ours to write, so it stays warm when only the native binary runs.
 const LIMITS_FILENAME: &str = "ai_hook_limits.json";
 
-/// `auth_check.yaml`'s own expiry. Matching it keeps one promise across both
-/// implementations: an instance that lowers a limit sees it applied within five
-/// minutes whichever hook is installed.
+/// `auth_check.yaml`'s own expiry, so an instance that lowers a limit sees it
+/// applied within five minutes whichever hook is installed.
 const LIMITS_TTL_SECONDS: i64 = 300;
 
-/// One (instance, token) pair's limits, as stored.
-///
-/// `stored_at` rather than an absolute expiry: a forged or clock-skewed future
-/// timestamp then reads as *not fresh* instead of as never expiring.
+/// One (instance, token) pair's limits, as stored. `stored_at` rather than an
+/// absolute expiry, so a future timestamp reads as *not fresh*.
 #[derive(Debug, Serialize, Deserialize)]
 struct LimitsCacheEntry {
     key: String,
@@ -172,19 +155,15 @@ struct LimitsCacheEntry {
 }
 
 /// Python's `auth_check.yaml` key derivation: per instance *and* token, so
-/// switching either cannot reuse the other's limits. NUL separates the parts —
-/// it can appear in neither a URL nor a token, so no part can be shifted across
-/// the separator to forge another key.
+/// switching either cannot reuse the other's limits. NUL separates the parts, so
+/// no part can be shifted across the separator to forge another key.
 fn cache_key(api_url: &str, token: &str) -> String {
     sha256_hex(&format!("{api_url}\0{token}"))
 }
 
 /// The limits this hook last fetched for (`api_url`, `token`), or `None` when
-/// there is no entry we can trust.
-///
-/// Every failure — no file, a symlink, another user's file, a truncated or
-/// foreign document, another token, an expired or future timestamp — is a miss,
-/// which costs one `/v1/metadata` fetch and never a wrong limit.
+/// there is no entry we can trust. Every failure is a miss, which costs one
+/// `/v1/metadata` fetch and never a wrong limit.
 pub fn cached_instance_limits(api_url: &str, token: &str) -> Option<Limits> {
     let raw = secure_file::read_if_trusted(&cache_dir()?.join(LIMITS_FILENAME))?;
     let entry: LimitsCacheEntry = serde_json::from_str(&raw).ok()?;
@@ -192,8 +171,7 @@ pub fn cached_instance_limits(api_url: &str, token: &str) -> Option<Limits> {
     if entry.key != cache_key(api_url, token) || !(0..LIMITS_TTL_SECONDS).contains(&age) {
         return None;
     }
-    // A zero would be no limit at all: `max_documents_per_scan` drives the
-    // chunking loop, so refuse the entry rather than divide the batch by nothing.
+    // A zero is not a limit: `max_documents_per_scan` drives the chunking loop.
     let limits = entry.limits;
     [
         limits.maximum_document_size,
@@ -222,9 +200,8 @@ pub fn store_instance_limits(api_url: &str, token: &str, limits: Limits) {
         return;
     };
     // Write beside the target and rename: the hook fires twice per tool call and
-    // the two runs overlap, and rename within one directory is atomic, so a
-    // concurrent reader sees either the old entry or the new one — never half of
-    // either. The pid keeps two overlapping writers off each other's temp file.
+    // the two runs overlap, and rename within one directory is atomic. The pid
+    // keeps two overlapping writers off each other's temp file.
     let temp = dir.join(format!("{LIMITS_FILENAME}.{}.tmp", std::process::id()));
     if secure_file::write_private(&temp, &json).is_err()
         || std::fs::rename(&temp, dir.join(LIMITS_FILENAME)).is_err()
@@ -236,16 +213,14 @@ pub fn store_instance_limits(api_url: &str, token: &str, limits: Limits) {
 #[derive(Debug)]
 pub struct Config {
     pub api_url: String,
-    /// Where the token comes from, decided at resolve time. Everything that can
-    /// be settled without touching the OS credential store already has been.
+    /// Where the token comes from, decided at resolve time.
     token_source: TokenSource,
-    /// The token itself, read from the credential store on first use. The
-    /// *failure* is memoised too — see [`Config::token`].
+    /// Read from the credential store on first use, failure included: see
+    /// [`Config::token`].
     token: OnceCell<Result<String, Error>>,
     pub user: UserConfig,
     /// Instance limits, resolved at most once per run. The hook's `api` module
-    /// owns the resolution order (it has the HTTP client); this is where the
-    /// answer is memoised.
+    /// owns the resolution order; this is where the answer is memoised.
     pub limits: OnceCell<Limits>,
 }
 
@@ -254,28 +229,21 @@ enum TokenSource {
     /// Already in hand: `GITGUARDIAN_API_KEY`, or a plain token in the YAML.
     Plain(String),
     /// The YAML held the sentinel, so the token is in the OS credential store,
-    /// keyed by this instance URL. Reading it is what pops the macOS Keychain
-    /// dialog, so it is deferred until something actually needs the token.
+    /// keyed by this instance URL. Reading it pops the macOS Keychain dialog, so
+    /// it is deferred until something needs the token.
     Keyring(String),
 }
 
 impl Config {
     /// The API token, resolved on first use and memoised for the rest of the
-    /// process.
-    ///
-    /// Lazy because on macOS an unsigned or newly rebuilt binary is not in the
-    /// Keychain item's ACL, so the read prompts — and an invocation that never
-    /// scans must not pay that.
+    /// process, failure included: two call sites need it and re-reading would take
+    /// the keyring lock twice. Lazy because on macOS an unsigned or newly rebuilt
+    /// binary is not in the Keychain item's ACL, so the read prompts.
     ///
     /// One intentional divergence: Python hydrates the keyring while loading the
-    /// config, so an unreadable credential store fails open with a warning even for
-    /// an invocation that would not have scanned anything; here it stays silent.
-    /// Every non-keyring failure is still raised eagerly by `resolve()`.
-    ///
-    /// A failed read is memoised as well: two call sites need the token (the
-    /// verdict-cache key and the limits lookup), and re-reading would take the
-    /// keyring lock twice, so one stuck holder could cost two timeouts instead
-    /// of one. Python hydrates the keyring once per process too.
+    /// config, so an unreadable credential store fails open with a warning even
+    /// for an invocation that would not have scanned anything; here it stays
+    /// silent. Every non-keyring failure is still raised eagerly by `resolve()`.
     pub fn token(&self) -> Result<&str, Error> {
         self.token
             .get_or_init(|| match &self.token_source {
@@ -286,8 +254,8 @@ impl Config {
             .map_err(Clone::clone)
     }
 
-    /// A config with a token already in hand — for tests, and for callers that
-    /// have nothing to do with the credential store.
+    /// A config with a token already in hand, for tests and for callers that
+    /// never touch the credential store.
     pub fn with_token(api_url: String, token: String, user: UserConfig) -> Self {
         Config {
             api_url,
@@ -319,20 +287,15 @@ struct InstanceConfig {
 struct AccountConfig {
     #[serde(default)]
     token: String,
-    /// RFC3339 in practice; only ever compared against "now", so it is kept as
-    /// a string and parsed lazily.
+    /// RFC3339 in practice, parsed lazily by `is_expired`.
     #[serde(default, alias = "expire-at")]
     expire_at: Option<String>,
 }
 
 /// `get_config_dir()`, i.e. platformdirs' `user_config_dir("ggshield",
-/// "GitGuardian")`, which resolves to:
-///   macOS    ~/Library/Application Support/ggshield
-///   Linux    $XDG_CONFIG_HOME/ggshield (~/.config/ggshield)
-///   Windows  %LOCALAPPDATA%\GitGuardian\ggshield
-///
-/// Windows needs its own arm: platformdirs' `user_config_dir` is `user_data_dir`,
-/// which is Local, while `dirs::config_dir()` returns Roaming `%APPDATA%`.
+/// "GitGuardian")`. Windows needs its own arm: platformdirs' `user_config_dir` is
+/// `user_data_dir`, i.e. `%LOCALAPPDATA%\GitGuardian\ggshield`, while
+/// `dirs::config_dir()` returns Roaming `%APPDATA%`.
 pub fn config_dir() -> Option<PathBuf> {
     if let Ok(dir) = std::env::var("GG_CONFIG_DIR") {
         return Some(PathBuf::from(dir));
@@ -345,10 +308,7 @@ pub fn config_dir() -> Option<PathBuf> {
 }
 
 /// `get_cache_dir()`, i.e. platformdirs' `user_cache_dir("ggshield",
-/// "GitGuardian")`:
-///   macOS    ~/Library/Caches/ggshield
-///   Linux    $XDG_CACHE_HOME/ggshield (~/.cache/ggshield)
-///   Windows  %LOCALAPPDATA%\GitGuardian\ggshield\Cache
+/// "GitGuardian")`, whose Windows arm adds a `Cache` component.
 pub fn cache_dir() -> Option<PathBuf> {
     if let Ok(dir) = std::env::var("GG_CACHE_DIR") {
         return Some(PathBuf::from(dir));
@@ -363,12 +323,10 @@ pub fn cache_dir() -> Option<PathBuf> {
 /// The `GITGUARDIAN_*` bindings a `.env` contributes, in file order.
 type DotEnv = Vec<(String, String)>;
 
-/// One variable, `.env` first.
-///
-/// `ggshield` loads the file with `load_dotenv(dot_env_path, override=True)`
-/// (`core/env_utils.py`), so a value in the file replaces the one the process was
-/// started with — not the other way round. Last binding wins within the file,
-/// because the file is collected into a dict there.
+/// One variable, `.env` first: `ggshield` loads the file with
+/// `load_dotenv(dot_env_path, override=True)` (`core/env_utils.py`), so a value in
+/// the file replaces the process environment. Last binding wins within the file,
+/// as the file is collected into a dict there.
 fn env_var(dotenv: &DotEnv, key: &str) -> Option<String> {
     dotenv
         .iter()
@@ -378,29 +336,18 @@ fn env_var(dotenv: &DotEnv, key: &str) -> Option<String> {
         .or_else(|| std::env::var(key).ok())
 }
 
-/// The instance and token settings a `.env` overrides for this run.
-///
-/// It matters that this binary resolves the *same* instance and token the
-/// `ggshield` CLI would: a self-hosted customer's `.env` names their own
-/// instance, so ignoring the file would ship their content to the SaaS API, and
-/// declining outright leaves the action unscanned. So the file is parsed, by
-/// `dotenvy` — whose `*_iter` API yields the bindings *without* exporting them,
-/// which is what this binary wants: it reads three names and changes nothing for
-/// the process it was called from.
-///
-/// Only the three tracked variables are applied. The CLI exports every key in the
-/// file, but nothing else this binary reads from the environment changes what is
-/// scanned or where it goes.
+/// The instance and token settings a `.env` overrides for this run. This binary
+/// has to resolve the *same* instance and token the CLI would: a self-hosted
+/// customer's `.env` names their own instance, so ignoring the file would ship
+/// their content to the SaaS API. `dotenvy`'s `*_iter` API yields the bindings
+/// without exporting them, and only the three tracked variables are applied.
 ///
 /// Searches the two locations the CLI looks at: the cwd, then the git root (or
-/// `GITGUARDIAN_DOTENV_PATH` when set), and `GITGUARDIAN_DONT_LOAD_ENV` disables
-/// the whole thing.
+/// `GITGUARDIAN_DOTENV_PATH` when set); `GITGUARDIAN_DONT_LOAD_ENV` disables it.
 ///
 /// One accepted difference from the CLI's own parser: `dotenvy` expands an
-/// *unbraced* `$VAR`, where the CLI keeps it literal (`KEY=abc$def` is `abc`
-/// here, `abc$def` there; single-quoting it keeps the `$` on both sides, and in
-/// double quotes `dotenvy` rejects the line, so that spelling declines rather
-/// than resolving to something else). Braced `${VAR}` is expanded by both.
+/// *unbraced* `$VAR`, where the CLI keeps it literal. Braced `${VAR}` is expanded
+/// by both.
 fn dotenv_overrides() -> Result<DotEnv, Error> {
     if std::env::var("GITGUARDIAN_DONT_LOAD_ENV")
         .is_ok_and(|v| !matches!(v.to_lowercase().as_str(), "" | "0" | "false" | "no"))
@@ -423,11 +370,10 @@ fn dotenv_overrides() -> Result<DotEnv, Error> {
             continue;
         };
         let mut found = DotEnv::new();
-        // A rejected line does not stop the iterator, and most rejected lines are
-        // none of our business: an oddity in a project's own variables must not
-        // cost a scan. Which line was rejected, though, cannot be read off the
-        // error — `dotenvy` reports the whole line for a malformed name but only
-        // the value text for a bad escape, so neither carries the key reliably.
+        // A rejected line does not stop the iterator, and an oddity in a project's
+        // own variables must not cost a scan. Which line was rejected cannot be
+        // read off the error: `dotenvy` reports the whole line for a malformed
+        // name but only the value text for a bad escape.
         let mut rejected = false;
         for binding in bindings {
             match binding {
@@ -439,12 +385,10 @@ fn dotenv_overrides() -> Result<DotEnv, Error> {
                 Err(_) => rejected = true,
             }
         }
-        // So blame is attributed from the result instead: a file with a rejected
-        // line that appears to bind one of the three more times than `dotenvy`
-        // yielded it has had that binding dropped, and dropping the instance or
-        // the token silently is what selects the wrong server or the wrong
-        // credential. Decline, and name the variable. A file we can no longer
-        // read cannot be shown to bind anything, so it does not decline.
+        // So blame is attributed from the result instead: a file that appears to
+        // bind one of the three more times than `dotenvy` yielded it has had that
+        // binding dropped, which selects the wrong server or credential. Decline,
+        // and name the variable.
         if rejected
             && let Ok(content) = std::fs::read_to_string(&path)
             && let Some(var) = TRACKED_ENV_VARS.into_iter().find(|var| {
@@ -466,11 +410,9 @@ fn dotenv_overrides() -> Result<DotEnv, Error> {
 }
 
 /// How many lines of `content` look like a binding of `key`: the name at the
-/// start of a line, optionally after `export`, then `=`. Deliberately coarse — it
-/// only decides whether a *rejected* line was one of ours, never what a value is,
-/// and a line inside another variable's multi-line value counts here even though
-/// it binds nothing. That direction is the safe one: it can only add a decline on
-/// a file that already has a line `dotenvy` refused.
+/// start of a line, optionally after `export`, then `=`. Deliberately coarse: it
+/// only decides whether a *rejected* line was one of ours, and over-counting can
+/// only add a decline on a file that already has a line `dotenvy` refused.
 fn bindings_of(content: &str, key: &str) -> usize {
     content
         .lines()
@@ -517,10 +459,9 @@ pub fn dashboard_to_api_url(dashboard_url: &str) -> String {
 }
 
 /// `api_to_dashboard_url()`. Not the inverse of `dashboard_to_api_url()` for
-/// self-hosted URLs that lack the `/exposed` suffix: it strips the suffix only
-/// when present, so `https://gg.example.com` maps to itself and then picks the
-/// suffix *up* on the way back. Python does exactly this round trip on
-/// `GITGUARDIAN_API_URL`, so we have to as well or we POST to the wrong path.
+/// self-hosted URLs without the `/exposed` suffix: it strips the suffix only when
+/// present, so `https://gg.example.com` maps to itself and picks the suffix *up*
+/// on the way back. Python does this round trip on `GITGUARDIAN_API_URL` too.
 pub fn api_to_dashboard_url(api_url: &str) -> String {
     let url = api_url.trim_end_matches('/');
     let url = url.strip_suffix("/v1").unwrap_or(url);
@@ -565,8 +506,8 @@ pub fn resolve() -> Result<Config, Error> {
     let instance = instance_name(&user, &dotenv);
     let api_url = dashboard_to_api_url(&instance);
 
-    // Env var wins over everything, and short-circuits keychain access exactly
-    // as `AuthConfig.load()` does.
+    // Env var wins over everything, short-circuiting keychain access as
+    // `AuthConfig.load()` does.
     if let Some(token) = env_var(&dotenv, "GITGUARDIAN_API_KEY")
         && !token.is_empty()
     {
@@ -619,8 +560,7 @@ fn token_source_for_instance(instance: &str) -> Result<TokenSource, Error> {
     if account.token == KEYRING_SENTINEL {
         // `GGSHIELD_NO_KEYRING` makes Python pick the FileTokenStore, which cannot
         // hydrate the sentinel: the blank token fails auth at client creation,
-        // before the debounce, so it is eager here too. It is the escape hatch for
-        // a dev build macOS keeps prompting for, so the store stays untouched.
+        // before the debounce, so it is eager here too.
         if getenv_bool("GGSHIELD_NO_KEYRING") {
             return Err(Error::auth());
         }
@@ -629,10 +569,9 @@ fn token_source_for_instance(instance: &str) -> Result<TokenSource, Error> {
     Ok(TokenSource::Plain(account.token.clone()))
 }
 
-/// `InstanceConfig.expired`. Python stores the expiry as an ISO-8601 timestamp
-/// with an offset and compares it against an aware "now"; anything else raises
-/// there, so an unparseable value is treated as expired here — failing open with
-/// an auth warning rather than shipping content on a token we cannot vouch for.
+/// `InstanceConfig.expired`. Python compares an offset-bearing ISO-8601 timestamp
+/// against an aware "now" and raises on anything else, so an unparseable value is
+/// treated as expired here rather than vouched for.
 fn is_expired(expire_at: Option<&str>) -> bool {
     let Some(raw) = expire_at
         .map(str::trim)
@@ -654,31 +593,25 @@ fn now_unix() -> i64 {
 /// exclude each other and not just their own kind.
 const KEYRING_LOCK_FILENAME: &str = "keyring.lock";
 
-/// `_KEYRING_LOCK_TIMEOUT`. Past it we read unlocked rather than wait: a stuck
-/// holder must never hang the agent this hook runs inside.
+/// `_KEYRING_LOCK_TIMEOUT`. Past it we read unlocked: a stuck holder must never
+/// hang the agent this hook runs inside.
 const KEYRING_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// filelock's default `poll_interval`, so both sides retry at the same cadence.
 const KEYRING_LOCK_POLL: Duration = Duration::from_millis(50);
 
 /// Take `token_store.py`'s keyring lock, held for as long as the returned file
-/// lives, or `None` when it could not be taken within `timeout`.
-///
-/// Why at all: concurrent reads of the OS credential store can fail (macOS
-/// securityd rejects most simultaneous reads of the login Keychain), and this
-/// hook fires on both `PreToolUse` and `PostToolUse` with tool calls running in
-/// parallel, so overlapping reads are the normal case. Unserialised, a spurious
-/// rejection fails the scan open, and a first read prompts once per process
-/// instead of once.
-///
-/// Why *this* primitive: `filelock` locks with `fcntl.flock(fd, LOCK_EX |
-/// LOCK_NB)` on unix and `msvcrt.locking(fd, LK_NBLCK, 1)` on Windows. flock(2)
-/// and POSIX `fcntl(F_SETLK)` record locks ignore each other on Linux, so only
-/// flock(2) excludes Python here; `msvcrt.locking` is an exclusive byte-range
-/// lock on the file's first byte, which is what `LockFileEx` takes below.
-///
-/// Failure to even locate or create the cache dir yields `None`: no lock is a
+/// lives, or `None` when it could not be taken within `timeout` — no lock is a
 /// degraded read, no read is a missed scan.
+///
+/// Concurrent reads of the OS credential store can fail (macOS securityd rejects
+/// most simultaneous reads of the login Keychain), and overlapping reads are the
+/// normal case here: the hook fires on both `PreToolUse` and `PostToolUse`.
+///
+/// The primitive has to match `filelock`'s: `fcntl.flock(fd, LOCK_EX | LOCK_NB)`
+/// on unix — POSIX `fcntl(F_SETLK)` record locks would not exclude it on Linux —
+/// and `msvcrt.locking(fd, LK_NBLCK, 1)`, the first-byte exclusive range
+/// `LockFileEx` takes below, on Windows.
 #[must_use = "the lock is held only while the returned file is alive"]
 fn keyring_lock(timeout: Duration) -> Option<std::fs::File> {
     let dir = cache_dir()?;
@@ -719,9 +652,7 @@ fn try_keyring_lock(path: &Path) -> Option<std::fs::File> {
             return None;
         }
         // filelock unlinks the lock file as it releases it, so the inode we just
-        // locked may already be detached from the path — a lock on it excludes
-        // nobody. Drop it and let the caller retry against whatever the path
-        // names now.
+        // locked may already be detached from the path, where it excludes nobody.
         if file.metadata().ok()?.nlink() == 0 {
             return None;
         }
@@ -751,11 +682,8 @@ fn try_keyring_lock(path: &Path) -> Option<std::fs::File> {
 }
 
 /// The token for `instance_url`, read from the OS credential store under
-/// `token_store.py`'s lock.
-///
-/// The lock covers the credential-store call and nothing else — never the scan
-/// that follows. Closing the file releases it, which happens on every path out,
-/// including the read's error return.
+/// `token_store.py`'s lock. The lock covers the credential-store call and nothing
+/// else; closing the file releases it, on every path out.
 fn keyring_token(instance_url: &str) -> Result<String, Error> {
     // Bound to a name on purpose: `let _ = ` would release the lock before the
     // read it is meant to serialise.
@@ -765,8 +693,7 @@ fn keyring_token(instance_url: &str) -> Result<String, Error> {
 
 #[cfg(target_os = "macos")]
 fn read_credential_store(instance_url: &str) -> Result<String, Error> {
-    // Read only: no write probe, which is what popped blocking Keychain modals in
-    // the Python implementation.
+    // Read only: a write probe is what popped blocking Keychain modals in Python.
     let raw = security_framework::passwords::get_generic_password(KEYRING_SERVICE, instance_url)
         .map_err(|_| Error::auth())?;
     String::from_utf8(raw).map_err(|_| Error::auth())
@@ -774,13 +701,11 @@ fn read_credential_store(instance_url: &str) -> Result<String, Error> {
 
 #[cfg(target_os = "linux")]
 fn read_credential_store(instance_url: &str) -> Result<String, Error> {
-    // Python's `keyring` SecretService backend looks an item up by the attribute
-    // set its SchemeSelectable._query builds — the default scheme, which is
-    // exactly the two attributes `service` and `username` (keyring
-    // backend.py:280-299, SecretService.py:get_password). token_store.py stores
-    // the token with service == KEYRING_SERVICE and username == the instance
-    // URL. Query by the SAME attributes so we read the item keyring wrote and no
-    // other.
+    // keyring's SecretService backend looks an item up by the default scheme's
+    // two attributes, `service` and `username` (backend.py:280-299,
+    // SecretService.py:get_password), and token_store.py stores the token under
+    // service == KEYRING_SERVICE, username == the instance URL. Query the same
+    // attributes so we read the item keyring wrote and no other.
     let service = SecretService::connect(EncryptionType::Dh).map_err(|_| Error::auth())?;
     let attributes = HashMap::from([("service", KEYRING_SERVICE), ("username", instance_url)]);
     let found = service
@@ -801,14 +726,11 @@ fn read_credential_store(instance_url: &str) -> Result<String, Error> {
 
 #[cfg(windows)]
 fn read_credential_store(instance_url: &str) -> Result<String, Error> {
-    // Python's `keyring` WinVaultKeyring stores the token in the Windows
-    // Credential Manager under TargetName == the service (KEYRING_SERVICE), and
-    // only moves it to the compound target (the username, then '@', then the
-    // service) when a second user collides on the same service (Windows.py:
-    // WinVaultKeyring, _compound_name, _resolve_credential). Read it back the
-    // same way: read the service target first, accept it only when its UserName
-    // matches this instance, otherwise read the compound target. The blob is
-    // UTF-16 (DecodingCredential.value).
+    // keyring's WinVaultKeyring stores the token under TargetName == the service,
+    // and only moves it to the compound target (username, '@', service) when a
+    // second user collides on that service (Windows.py: _compound_name,
+    // _resolve_credential). So: the service target first, accepted only when its
+    // UserName matches, else the compound one. The blob is UTF-16.
     let service = KEYRING_SERVICE;
     if let Some((user, token)) = cred_read(service)?
         && user == instance_url
@@ -927,8 +849,8 @@ mod tests {
 
     use std::sync::{Mutex, MutexGuard};
 
-    /// `cargo test` runs tests in parallel threads; the process environment and
-    /// the cwd are per-process, so the tests that touch them must not overlap.
+    /// The environment and the cwd are per-process, so tests touching them must
+    /// not overlap.
     static PROCESS_STATE: Mutex<()> = Mutex::new(());
 
     fn exclusive() -> MutexGuard<'static, ()> {
@@ -960,7 +882,6 @@ mod tests {
             dashboard_to_api_url("https://gg.example.com"),
             "https://gg.example.com/exposed"
         );
-        // A gitguardian domain that is not a dashboard/api host is self-hosted.
         assert_eq!(
             dashboard_to_api_url("https://onprem.gitguardian.com"),
             "https://onprem.gitguardian.com/exposed"
@@ -990,8 +911,7 @@ mod tests {
 
     /// GIVEN a variable set both in the real environment and in a `.env`
     /// WHEN it is resolved
-    /// THEN the `.env` wins: `ggshield` loads the file with `override=True`, so
-    /// the file replaces an already-exported value rather than deferring to it.
+    /// THEN the `.env` wins, as `ggshield` loads the file with `override=True`.
     #[test]
     fn a_dotenv_value_overrides_the_real_environment() {
         let _guard = exclusive();
@@ -1053,12 +973,11 @@ mod tests {
         resolved
     }
 
-    /// GIVEN a `.env` in the working directory, at the repository root, or named
-    /// by `GITGUARDIAN_DOTENV_PATH`
+    /// GIVEN a `.env` in the cwd, at the repository root, or named by
+    /// `GITGUARDIAN_DOTENV_PATH`
     /// WHEN the config is resolved
-    /// THEN the one `ggshield` would read is the one used — the explicit path
-    /// first, else the working directory, else the repository root — and
-    /// `GITGUARDIAN_DONT_LOAD_ENV` skips the file altogether.
+    /// THEN the one `ggshield` would read is used — explicit path, else cwd, else
+    /// repository root — and `GITGUARDIAN_DONT_LOAD_ENV` skips the file.
     #[test]
     fn the_dotenv_is_found_where_the_cli_looks_for_it() {
         let _guard = exclusive();
@@ -1067,16 +986,13 @@ mod tests {
             ("other.env", "GITGUARDIAN_INSTANCE=http://explicit\n"),
         ]);
 
-        // Nothing in the cwd, so the repository root answers.
         assert_eq!(resolved_instance(&[]), Ok("http://gitroot".to_string()));
-        // A `.env` beside the cwd takes precedence over the root's.
         std::fs::write(
             dir.path().join("sub/.env"),
             "GITGUARDIAN_INSTANCE=http://cwd\n",
         )
         .expect("write");
         assert_eq!(resolved_instance(&[]), Ok("http://cwd".to_string()));
-        // An explicit path wins over both.
         assert_eq!(
             resolved_instance(&[(
                 "GITGUARDIAN_DOTENV_PATH",
@@ -1084,7 +1000,6 @@ mod tests {
             )]),
             Ok("http://explicit".to_string())
         );
-        // Disabled: the file is not read at all, so the environment decides.
         assert_eq!(
             resolved_instance(&[
                 ("GITGUARDIAN_DONT_LOAD_ENV", "1"),
@@ -1092,8 +1007,8 @@ mod tests {
             ]),
             Ok("http://env".to_string())
         );
-        // ...and its falsy spellings leave loading enabled, which is also the
-        // override in action: the file beats the exported variable.
+        // Falsy spellings leave loading enabled, so the file beats the exported
+        // variable.
         assert_eq!(
             resolved_instance(&[
                 ("GITGUARDIAN_DONT_LOAD_ENV", "0"),
@@ -1105,30 +1020,24 @@ mod tests {
         std::env::set_current_dir(original).expect("chdir back");
     }
 
-    /// GIVEN a `.env` line that binds a tracked variable and that `dotenvy`
-    /// rejects
+    /// GIVEN a `.env` line binding a tracked variable that `dotenvy` rejects
     /// WHEN the config is resolved
-    /// THEN it declines, naming that variable and the file: the value could be
-    /// the instance or the token, and guessing one means posting the content to
-    /// the wrong server or authenticating with the wrong credential.
+    /// THEN it declines, naming that variable and the file: guessing the instance
+    /// or the token means posting to the wrong server.
     #[test]
     fn an_unparseable_tracked_binding_declines_and_names_the_variable() {
         let _guard = exclusive();
         let (dir, original) = in_a_checkout(&[]);
 
         for (content, var) in [
-            // An escape `dotenvy` does not decode.
             ("GITGUARDIAN_API_KEY=\"a\\tb\"\n", "GITGUARDIAN_API_KEY"),
-            // A quote that never closes.
             ("GITGUARDIAN_API_KEY='unterminated\n", "GITGUARDIAN_API_KEY"),
-            // Trailing junk after the value, which is not a comment.
             (
                 "GITGUARDIAN_INSTANCE=http://x junk\n",
                 "GITGUARDIAN_INSTANCE",
             ),
-            // A second binding of the same variable, rejected: the CLI would
-            // apply it, so resolving the earlier one instead is a wrong answer,
-            // not a partial one.
+            // A rejected *second* binding: the CLI would apply it, so resolving
+            // the earlier one is a wrong answer, not a partial one.
             (
                 "GITGUARDIAN_INSTANCE=http://cwd\nGITGUARDIAN_INSTANCE=\"a\\tb\"\n",
                 "GITGUARDIAN_INSTANCE",
@@ -1145,12 +1054,9 @@ mod tests {
         std::env::set_current_dir(original).expect("chdir back");
     }
 
-    /// GIVEN a `.env` where the rejected line binds some *other* project's
-    /// variable
+    /// GIVEN a `.env` whose rejected line binds some *other* project's variable
     /// WHEN the config is resolved
-    /// THEN it does not decline, and the tracked bindings around it still apply:
-    /// only a value we would have to guess at costs a scan, not any oddity in
-    /// somebody else's variables.
+    /// THEN it does not decline, and the tracked bindings around it still apply.
     #[test]
     fn an_unparseable_untracked_binding_does_not_block() {
         let _guard = exclusive();
@@ -1174,8 +1080,8 @@ mod tests {
 
     /// GIVEN a stored account expiry
     /// WHEN it is compared against now
-    /// THEN an absent or empty value never expires, a past one does, and an
-    /// unparseable one is treated as expired rather than as still valid.
+    /// THEN an absent or empty value never expires, and a past or unparseable one
+    /// does.
     #[test]
     fn expiry_comparison() {
         assert!(!is_expired(None));
@@ -1212,7 +1118,6 @@ mod tests {
         assert_eq!(limits.maximum_documents_per_scan, Some(4));
         assert_eq!(limits.maximum_payload_size, Some(5_242_880));
 
-        // Another token, an expired entry, and a corrupt file are all misses.
         assert!(cached_limits("https://api.example.com", "other").is_none());
         std::fs::write(&path, entry(&hash, now_unix() - 1)).expect("write");
         assert!(cached_limits("https://api.example.com", "token").is_none());
@@ -1257,9 +1162,8 @@ mod tests {
 
     /// GIVEN limits this hook fetched and stored
     /// WHEN they are read back
-    /// THEN the same (instance, token) hits while the entry is fresh, and another
-    /// token, another instance, an expired entry and a future-dated one are all
-    /// misses.
+    /// THEN the same (instance, token) hits while fresh, and another token,
+    /// another instance, an expired entry and a future-dated one are all misses.
     #[test]
     fn the_limits_cache_answers_only_for_this_instance_and_token_while_it_is_fresh() {
         let _guard = exclusive();
@@ -1272,7 +1176,6 @@ mod tests {
         assert_eq!(hit.maximum_documents_per_scan, 7);
         assert_eq!(hit.maximum_payload_size, 1_000_000);
 
-        // Switching either half of the key must not reuse the other's limits.
         assert!(cached_instance_limits("https://api.example.com", "other").is_none());
         assert!(cached_instance_limits("https://api.other.com", "token").is_none());
 
@@ -1290,7 +1193,7 @@ mod tests {
             LIMITS_TTL_SECONDS + 1,
         );
         assert!(cached_instance_limits("https://api.example.com", "token").is_none());
-        // A future timestamp is clock skew or an entry forged never to expire.
+        // Clock skew, or an entry forged never to expire.
         seed_entry(&dir, "https://api.example.com", "token", -60);
         assert!(cached_instance_limits("https://api.example.com", "token").is_none());
 
@@ -1300,8 +1203,7 @@ mod tests {
     /// GIVEN a limits cache file that is corrupt, truncated, foreign or carries a
     /// zero limit
     /// WHEN it is read
-    /// THEN every case is a miss and none of them panics: a miss costs one
-    /// `/v1/metadata` fetch, a trusted zero would divide the batch by nothing.
+    /// THEN every case is a miss and none of them panics.
     #[test]
     fn a_corrupt_or_zeroed_limits_cache_is_a_miss() {
         let _guard = exclusive();
@@ -1326,8 +1228,7 @@ mod tests {
             "[1, 2, 3]".to_string(),
             "{}".to_string(),
             truncated,
-            // Shaped like ours, but the limits are somebody else's idea of a
-            // limits file.
+            // Shaped like ours, with somebody else's idea of a limit.
             format!(r#"{{"key": "{key}", "stored_at": {stored_at}, "limits": "large"}}"#),
             // A zero is not a limit.
             format!(
@@ -1343,7 +1244,6 @@ mod tests {
                 "{content:?} must not be trusted"
             );
         }
-        // ...and so is no file at all.
         std::fs::remove_file(entry_path(&dir)).expect("remove");
         assert!(cached_instance_limits("https://api.example.com", "token").is_none());
 
@@ -1353,8 +1253,7 @@ mod tests {
     /// GIVEN a limits cache file another local user could have written, or a
     /// symlink standing in for one
     /// WHEN it is read
-    /// THEN it is refused, and the next write repairs its permissions to 0600
-    /// instead of disabling the cache for good.
+    /// THEN it is refused, and the next write repairs its permissions to 0600.
     #[cfg(unix)]
     #[test]
     fn a_group_or_other_writable_or_symlinked_limits_cache_is_refused() {
@@ -1381,14 +1280,12 @@ mod tests {
         store_instance_limits("https://api.example.com", "token", SEEDED);
         assert!(cached_instance_limits("https://api.example.com", "token").is_some());
 
-        // A symlink is never followed, wherever it points.
         let elsewhere = dir.path().join("elsewhere.json");
         std::fs::rename(entry_path(&dir), &elsewhere).expect("rename");
         std::os::unix::fs::symlink(&elsewhere, entry_path(&dir)).expect("symlink");
         assert!(cached_instance_limits("https://api.example.com", "token").is_none());
 
-        // The write replaces the symlink rather than writing through it, so the
-        // cache recovers on its own.
+        // The write replaces the symlink rather than writing through it.
         store_instance_limits("https://api.example.com", "token", SEEDED);
         assert!(cached_instance_limits("https://api.example.com", "token").is_some());
         assert!(
@@ -1404,8 +1301,7 @@ mod tests {
     /// GIVEN a stored limits entry
     /// WHEN the write finishes
     /// THEN the cache directory holds only the entry: the temp file it was staged
-    /// in was renamed over the target, so a concurrent hook run — there are two
-    /// per tool call — can never read half of it.
+    /// in was renamed over the target, so a concurrent run cannot read half of it.
     #[test]
     fn the_limits_cache_write_leaves_no_temp_file_behind() {
         let _guard = exclusive();
@@ -1449,8 +1345,7 @@ mod tests {
 
     /// GIVEN an auth_config.yaml holding the keyring sentinel
     /// WHEN the token source is resolved
-    /// THEN it defers to the credential store instead of reading it now: on macOS
-    /// that read is what pops the Keychain dialog.
+    /// THEN it defers to the credential store instead of reading it now.
     #[test]
     fn sentinel_token_defers_to_the_credential_store() {
         let _guard = exclusive();
@@ -1480,7 +1375,6 @@ mod tests {
             };
             assert!(msg.contains("could not authenticate"), "{msg}");
         }
-        // ...and Python's two falsy spellings leave it enabled.
         for value in ["0", "false", "False"] {
             unsafe { std::env::set_var("GGSHIELD_NO_KEYRING", value) };
             let result =
@@ -1513,8 +1407,7 @@ mod tests {
 
     /// GIVEN an auth config whose only account expired in the past
     /// WHEN its token is read
-    /// THEN the expired token is not used: it fails open with a "could not
-    /// authenticate" warning.
+    /// THEN it fails open with a "could not authenticate" warning.
     #[test]
     fn expired_account_fails_open_with_an_auth_warning() {
         let _guard = exclusive();
@@ -1536,14 +1429,12 @@ mod tests {
 
     /// GIVEN an instance with no item in the credential store
     /// WHEN its token is read
-    /// THEN every platform fails open with an auth warning — never a panic, never
-    /// a stray token. This is the branch the cross-OS CI matrix exercises without
-    /// seeding a real secret into the runner's keyring.
+    /// THEN every platform fails open with an auth warning, never a panic. This is
+    /// the branch the cross-OS CI matrix exercises without seeding a real secret.
     #[test]
     fn keyring_read_of_an_absent_item_fails_open() {
         let _guard = exclusive();
-        // Own cache dir: the read takes the keyring lock, and the real one is the
-        // user's.
+        // Own cache dir: the read takes the keyring lock.
         let dir = tempfile::tempdir().expect("tempdir");
         with_cache_dir(&dir);
         let result = keyring_token("https://keyring-absent.invalid");
@@ -1555,8 +1446,7 @@ mod tests {
     }
 
     /// GIVEN a token that lives in the credential store, and no item to find
-    /// WHEN both call sites that need it ask — the verdict-cache key and the
-    /// limits lookup
+    /// WHEN both call sites that need it ask
     /// THEN the store is read once: the failure is memoised too, so a lock
     /// somebody else holds costs one timeout for the process, not one per call.
     #[test]
@@ -1582,11 +1472,10 @@ mod tests {
         unsafe { std::env::remove_var("GG_CACHE_DIR") };
     }
 
-    /// GIVEN two overlapping credential-store reads — the hook fires on both
-    /// `PreToolUse` and `PostToolUse`, and an agent runs tools in parallel
+    /// GIVEN two overlapping credential-store reads
     /// WHEN both take the keyring lock
-    /// THEN their critical sections do not interleave, so securityd never sees
-    /// the simultaneous reads of the login Keychain it rejects.
+    /// THEN their critical sections do not interleave, so securityd never sees the
+    /// simultaneous Keychain reads it rejects.
     #[test]
     fn concurrent_keyring_reads_are_serialised() {
         let _guard = exclusive();
@@ -1598,7 +1487,6 @@ mod tests {
             for _ in 0..2 {
                 scope.spawn(|| {
                     let lock = keyring_lock(Duration::from_secs(5)).expect("lock");
-                    // Timed inside the guard: the span is the critical section.
                     let entered = Instant::now();
                     std::thread::sleep(Duration::from_millis(150));
                     let left = Instant::now();
@@ -1621,7 +1509,7 @@ mod tests {
     /// GIVEN a lock somebody else holds for longer than the timeout
     /// WHEN a read waits for it
     /// THEN the wait ends at the timeout and the read proceeds unlocked: a hook
-    /// that hangs blocks the agent, which is worse than a read that races.
+    /// that hangs blocks the agent.
     #[test]
     fn a_lock_held_past_the_timeout_does_not_hang_the_read() {
         let _guard = exclusive();
@@ -1629,7 +1517,7 @@ mod tests {
         with_cache_dir(&dir);
 
         // flock(2) is per open file description, so a second descriptor contends
-        // with this one even in-process.
+        // even in-process.
         let held = keyring_lock(Duration::ZERO).expect("lock");
         let timeout = Duration::from_millis(300);
         let start = Instant::now();
@@ -1638,7 +1526,6 @@ mod tests {
         assert!(waited >= timeout, "gave up early, after {waited:?}");
         assert!(waited < timeout * 10, "waited past the timeout: {waited:?}");
 
-        // ...and the read itself still happens, unlocked.
         let result = keyring_token("https://keyring-absent.invalid");
         assert!(matches!(result, Err(Error::Fail(_))), "{result:?}");
 
@@ -1691,15 +1578,12 @@ mod tests {
         unsafe { std::env::remove_var("GG_CACHE_DIR") };
     }
 
-    /// GIVEN `filelock` — the primitive `token_store.py` locks with — holding
-    /// `keyring.lock` from another process
+    /// GIVEN `filelock` holding `keyring.lock` from another process
     /// WHEN the Rust side takes the same lock
     /// THEN it waits for Python to release it: the two implementations exclude
     /// each other, not merely their own kind.
     ///
-    /// Skipped when no interpreter with `filelock` is available
-    /// (`$GGSHIELD_VENV_PYTHON`, as the equivalence harness uses, else
-    /// `python3`), which is what makes it safe to keep in the default suite.
+    /// Skipped when no interpreter with `filelock` is available.
     #[test]
     fn a_lock_held_by_python_filelock_blocks_the_rust_read() {
         let _guard = exclusive();
@@ -1713,9 +1597,8 @@ mod tests {
         let child = std::process::Command::new(python)
             .arg("-c")
             .arg(
-                // Written to the binary buffer, not printed: on Windows the text
-                // layer turns "\n" into "\r\n", and the extra byte lands in the
-                // middle of the handshake below.
+                // Written to the binary buffer: on Windows the text layer would
+                // turn "\n" into "\r\n" and desync the handshake below.
                 "import sys, time, filelock\n\
                  with filelock.FileLock(sys.argv[1], timeout=10):\n\
                  \x20   sys.stdout.buffer.write(b'held\\n')\n\
@@ -1731,7 +1614,6 @@ mod tests {
             eprintln!("skipped: no python3");
             return;
         };
-        // Wait for the child to report the lock taken before racing it.
         use std::io::Read;
         let mut ready = [0u8; 5];
         let held_by_python = child
@@ -1754,7 +1636,6 @@ mod tests {
         }
         assert_eq!(&ready, b"held\n");
         assert!(acquired, "the lock was never taken, after {waited:?}");
-        // Some slack for the child's own startup between its print and its sleep.
         assert!(
             waited > hold - Duration::from_millis(300),
             "did not wait for python's lock, only {waited:?}"

@@ -3,21 +3,18 @@
 //! `ggshield/core/config/utils.py`.
 //!
 //! A key that would change behaviour but is NOT implemented makes the hook
-//! decline and fail open with a warning. Declining is not automatically safe: it
-//! scans NOTHING, silently, where scanning with a rule missing scans MORE,
-//! noisily. That is why a v1 config — and a versionless file IS v1 — is converted
-//! rather than refused.
+//! decline and fail open with a warning. Declining scans NOTHING, silently, where
+//! scanning with a rule missing scans MORE, noisily — which is why a v1 config
+//! (and a versionless file IS v1) is converted rather than refused.
 //!
 //! Keys treated as no-ops, because they do not reach this path:
-//!   secret.ignored_paths          only builds `ctx_obj.exclusion_regexes`, which
-//!                                 lists the files to scan. The ai-hook builds
-//!                                 its scannables directly.
-//!   secret.show_secrets           the hook always censors (`censor_match`).
-//!   secret.with_incident_details  only adds a required token scope to the
-//!                                 API-key precheck, which this binary skips.
+//!   secret.ignored_paths          only builds `ctx_obj.exclusion_regexes`; the
+//!                                 ai-hook builds its scannables directly
+//!   secret.show_secrets           the hook always censors (`censor_match`)
+//!   secret.with_incident_details  only adds a token scope to the API-key
+//!                                 precheck, which this binary skips
 //!   secret.prereceive_remediation_message, secret.fail_on_server_error,
-//!   max_commits_for_hook, verbose, debug
-//!                                 other commands only.
+//!   max_commits_for_hook, verbose, debug     other commands only
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -54,15 +51,12 @@ pub struct UserConfig {
 
 /// A `.gitguardian.yaml` as written, before the files are merged.
 ///
-/// Both spellings of every key are accepted through `alias`, which is the one
-/// intentional divergence from Python: Python normalises `-` to `_` up front and,
-/// when a config gives the *same* key in both spellings, keeps the underscored
-/// one (`replace_dash_in_keys`). Here the last spelling in the file wins. That
-/// collision is a corner case, and it cannot change which content is scanned —
-/// only which of two contradictory values applies.
+/// Both spellings of every key are accepted through `alias`, with one intentional
+/// divergence: given the *same* key in both spellings Python keeps the underscored
+/// one (`replace_dash_in_keys`), while here the last spelling in the file wins.
 ///
-/// Scalars are `Option` so that "unset" and "set to the default" stay distinct
-/// across the global/local merge, and so an explicit `null` reads as unset the way
+/// Scalars are `Option` so "unset" and "set to the default" stay distinct across
+/// the global/local merge, and an explicit `null` reads as unset the way
 /// `update_dict_from_other()` treats it.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
@@ -95,20 +89,17 @@ struct RawSecretConfig {
     filename_only: Option<bool>,
 }
 
-/// One `secret.ignored_matches` entry. `name` exists in the schema but is never
-/// compared, so it is not read here; a missing `match` is a config error in Python
-/// too (`IgnoredMatch.match` has no default).
+/// One `secret.ignored_matches` entry. `name` is never compared, so it is not read
+/// here; a missing `match` is a config error in Python too.
 #[derive(Debug, Deserialize)]
 struct IgnoredMatch {
     #[serde(rename = "match")]
     value: String,
 }
 
-/// A v1 (legacy) `.gitguardian.yaml`, i.e. anything without `version: 2`.
-///
-/// The deprecation messages Python appends for `all_policies` and
-/// `ignore_default_excludes` are not reproduced: they go to stderr from a result
-/// callback and change no behaviour.
+/// A v1 (legacy) `.gitguardian.yaml`, i.e. anything without `version: 2`. The
+/// deprecation messages Python prints for `all_policies` and
+/// `ignore_default_excludes` are not reproduced; they change no behaviour.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 struct V1Config {
@@ -239,11 +230,9 @@ pub fn global_config_path() -> Option<PathBuf> {
 }
 
 /// `get_project_root_dir(Path())`: the git worktree root, or the cwd when this is
-/// not a git checkout.
-///
-/// Python shells out to `git rev-parse --show-toplevel`. Walking up to the nearest
-/// `.git` gives the same answer without a subprocess. `.git` is matched as a file
-/// too, which is how linked worktrees mark their root.
+/// not a git checkout. Python shells out to `git rev-parse --show-toplevel`;
+/// walking up to the nearest `.git` (a file too, as linked worktrees mark their
+/// root) gives the same answer without a subprocess.
 pub fn project_root() -> PathBuf {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let cwd = cwd.canonicalize().unwrap_or(cwd);
@@ -276,9 +265,8 @@ where
 fn load_config_file(path: &Path) -> Result<RawUserConfig, Error> {
     let raw = std::fs::read_to_string(path)
         .map_err(|e| Error::fatal(format!("{}: {e}", path.display())))?;
-    // A missing `version` means 1 — Python warns and converts, it does not
-    // reject. That default is why declining on v1 would silently disable scanning
-    // for every config that predates the `version` key.
+    // A missing `version` means 1: Python warns and converts rather than reject,
+    // so declining here would disable scanning for every pre-`version` config.
     let version = parse_yaml::<ConfigVersion>(&raw, path)?
         .version
         .unwrap_or(1);
@@ -336,8 +324,7 @@ mod tests {
         assert!(config.secret.filename_only);
     }
 
-    /// GIVEN keys that do not reach the ai-hook path (`ignored_paths` above all:
-    /// the hook never consults exclusion regexes)
+    /// GIVEN keys that do not reach the ai-hook path (`ignored_paths` above all)
     /// WHEN the config is loaded
     /// THEN they are accepted and ignored rather than rejected.
     #[test]
@@ -369,7 +356,6 @@ mod tests {
                 .secret
                 .ignore_known_secrets
         );
-        // `secret` wins over the root-level value.
         assert!(
             !parse(
                 "version: 2\nignore_known_secrets: true\nsecret:\n  ignore_known_secrets: false\n"
@@ -383,8 +369,7 @@ mod tests {
     /// GIVEN a v1 config, including a versionless one
     /// WHEN it is loaded
     /// THEN it is converted, not rejected: a versionless `.gitguardian.yaml` IS v1
-    /// as far as Python is concerned, so declining would disable scanning for a
-    /// large share of real repositories.
+    /// as far as Python is concerned.
     #[test]
     fn legacy_v1_config_is_converted() {
         let config = parse(
@@ -393,11 +378,9 @@ mod tests {
              show_secrets: true\nexit_zero: true\n",
         )
         .expect("v1 converts");
-        // Both the bare-sha and the {name, match} forms survive.
         assert_eq!(config.secret.ignored_matches, vec!["deadbeef", "cafebabe"]);
         assert!(config.secret.ignored_detectors.contains("AWS Keys"));
         assert!(config.exit_zero);
-        // v1 has no such key, so it must stay at its default.
         assert!(!config.secret.ignore_known_secrets);
 
         let config = parse("matches-ignore:\n  - deadbeef\n").expect("converts");
@@ -468,8 +451,8 @@ mod tests {
 
     /// GIVEN `insecure` (or its v1 spelling) and `source_uuid`
     /// WHEN the config is loaded
-    /// THEN `insecure` is honoured, and `source_uuid` is ignored: the hook never
-    /// creates incidents, matching `ai_hook_cmd` clearing it on the Python side.
+    /// THEN `insecure` is honoured and `source_uuid` is ignored: this hook never
+    /// creates incidents.
     #[test]
     fn insecure_is_honoured_and_source_uuid_is_ignored() {
         for yaml in [
@@ -485,8 +468,8 @@ mod tests {
 
     /// GIVEN a global and a local config
     /// WHEN they are merged
-    /// THEN ignore lists accumulate across both files while scalars take the local
-    /// value, including across a v1/v2 mix.
+    /// THEN ignore lists accumulate while scalars take the local value, including
+    /// across a v1/v2 mix.
     #[test]
     fn merge_appends_lists_and_overwrites_scalars() {
         let of = |yaml: &str| {
@@ -511,10 +494,9 @@ mod tests {
         );
         assert_eq!(config.secret.ignored_matches, vec!["aaa", "bbb"]);
         assert!(config.secret.all_secrets);
-        // The local file wins on a scalar even when it sets the default value.
+        // The local file wins even when it sets the default value.
         assert!(!config.secret.ignore_known_secrets);
 
-        // A v1 global merged with a v2 local: the ignore lists still accumulate.
         let mut merged = of("matches-ignore:\n  - name: fp\n    match: aaa\n");
         merged.merge(of(
             "version: 2\nsecret:\n  ignored_matches:\n  - match: bbb\n",

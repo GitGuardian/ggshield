@@ -3,8 +3,7 @@
 //!
 //! The five schemas disagree about which key blocks, which events can block at
 //! all, whether a warning is carried, and what the exit code means. Getting one
-//! wrong does not produce an error; it produces a verdict the agent silently
-//! ignores. Hence one transcription each, and one test each.
+//! wrong produces a verdict the agent silently ignores, not an error.
 
 use serde_json::{Map, Value};
 
@@ -119,9 +118,8 @@ pub fn emission(result: &HookResult) -> Emission {
             0,
         ),
 
-        // codex.py. Note: no `additionalContext` (Codex shows the decision
-        // reason in the transcript, so it would appear twice), and the
-        // unknown-event branch writes to stderr and exits 2 with no JSON.
+        // codex.py. No `additionalContext` (Codex shows the decision reason in
+        // the transcript), and the unknown-event branch goes to stderr with exit 2.
         Agent::Codex => {
             if result.block {
                 match event {
@@ -257,8 +255,8 @@ mod tests {
 
     /// GIVEN an allow, a fail-open warning and a block on each Claude event
     /// WHEN they are emitted
-    /// THEN the JSON is byte for byte Claude's hook contract, and Claude is the
-    /// only adapter that also repeats the reason as `additionalContext`.
+    /// THEN the JSON is Claude's hook contract, and Claude is the only adapter that
+    /// repeats the reason as `additionalContext`.
     #[test]
     fn claude_contract() {
         assert_eq!(
@@ -290,8 +288,8 @@ mod tests {
 
     /// GIVEN an allow, a warning and a block on each Codex event
     /// WHEN they are emitted
-    /// THEN allowing is a bare `{}`, a block carries no `additionalContext` — Codex
-    /// would show the reason twice — and an unknown event goes to stderr with exit 2.
+    /// THEN allowing is a bare `{}`, a block carries no `additionalContext`, and an
+    /// unknown event goes to stderr with exit 2.
     #[test]
     fn codex_contract() {
         // Allowing emits a bare {}, not {"continue": true}.
@@ -325,9 +323,8 @@ mod tests {
 
     /// GIVEN an allow, a warning and a block on each Cursor event
     /// WHEN they are emitted
-    /// THEN prompts use `continue`/`user_message` and tool calls use `permission`,
-    /// PostToolUse is always a bare `{}` because Cursor cannot block after the fact,
-    /// and the fail-open warning rides in `user_message`.
+    /// THEN prompts use `continue`/`user_message`, tool calls use `permission`,
+    /// PostToolUse is always a bare `{}`, and the warning rides in `user_message`.
     #[test]
     fn cursor_contract() {
         assert_eq!(
@@ -360,8 +357,8 @@ mod tests {
 
     /// GIVEN an allow and a block on each VS Code event
     /// WHEN they are emitted
-    /// THEN tool calls use the deny/block shapes, and a blocked prompt stops the
-    /// run with `stopReason` rather than cancelling the prompt.
+    /// THEN tool calls use the deny/block shapes, and a blocked prompt stops the run
+    /// with `stopReason` rather than cancelling the prompt.
     #[test]
     fn vscode_contract() {
         assert_eq!(
@@ -385,8 +382,7 @@ mod tests {
 
     /// GIVEN the same results emitted for Copilot and for VS Code
     /// WHEN every event is compared
-    /// THEN they agree everywhere except a blocked prompt, which Copilot reports as
-    /// `decision: block` instead of stopping the run.
+    /// THEN they agree everywhere except a blocked prompt.
     #[test]
     fn copilot_differs_from_vscode_only_on_a_blocked_prompt() {
         assert_eq!(

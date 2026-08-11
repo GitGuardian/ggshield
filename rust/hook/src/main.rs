@@ -4,14 +4,8 @@
 //! scan, ask GitGuardian, print the agent's verdict JSON, exit 0. Detection is
 //! server-side, so this is transport and glue — no rules live here.
 //!
-//! The reason it exists is startup: the Python hook fires twice per tool call
-//! and pays ~440 ms of frozen-interpreter boot plus ~135 ms of config/keychain
-//! work each time, before the ~380 ms API round trip that is actually doing the
-//! work. A compiled binary deletes the first two.
-//!
-//! Every verdict here has to mean the same thing as the Python one, so anything
-//! this binary cannot reproduce declines and fails open with a warning instead of
-//! guessing — see `config::dotenv_overrides()` and `user_config`.
+//! Anything this binary cannot reproduce declines and fails open with a warning
+//! rather than guessing — see `config::dotenv_overrides()` and `user_config`.
 
 mod api;
 mod message;
@@ -40,9 +34,8 @@ fn main() {
         .read_to_end(&mut buffer);
     let stdin_content = String::from_utf8_lossy(&buffer).trim().to_string();
 
-    // A panic must not reach the agent as a crash: an agent reads a non-zero
-    // exit with no JSON as "the hook is broken", and the user is never told
-    // scanning silently stopped. Treat it as any other internal failure.
+    // An agent reads a non-zero exit with no JSON as "the hook is broken", so a
+    // panic is treated as any other internal failure.
     let outcome = std::panic::catch_unwind(|| run(&stdin_content))
         .unwrap_or_else(|_| Err(Error::scan("internal error")));
 
@@ -53,7 +46,7 @@ fn main() {
     std::process::exit(code);
 }
 
-/// The three failure modes of `ai_hook_cmd`, which behave very differently.
+/// The three failure modes of `ai_hook_cmd`.
 fn handle_error(stdin_content: &str, err: Error) -> i32 {
     let warning = match err {
         // `except ValueError`: stderr, exit 1, nothing on stdout.
@@ -61,8 +54,8 @@ fn handle_error(stdin_content: &str, err: Error) -> i32 {
             eprintln!("{message}");
             return 1;
         }
-        // Raised while loading config, before the command's try block exists.
-        // ExitCode.UNEXPECTED_ERROR, and no fail-open.
+        // Raised while loading config, before the command's try block exists:
+        // ExitCode.UNEXPECTED_ERROR, no fail-open.
         Error::Fatal(message) => {
             eprintln!("Error: {message}");
             return 128;
@@ -74,8 +67,8 @@ fn handle_error(stdin_content: &str, err: Error) -> i32 {
     // so the user learns the action went unscanned.
     eprintln!("Warning: {warning}");
     match payload::parse(stdin_content) {
-        // We cannot even tell who is calling, so no well-formed response is
-        // possible. Agents treat exit 1 as a non-blocking error.
+        // We cannot tell who is calling, so no well-formed response is possible.
+        // Agents treat exit 1 as a non-blocking error.
         Err(_) => 1,
         Ok(payloads) => match payloads.last() {
             None => 1,
@@ -88,8 +81,8 @@ fn handle_error(stdin_content: &str, err: Error) -> i32 {
 
 fn run(stdin_content: &str) -> Result<i32, Error> {
     // Config before the debounce, as in Python: a broken config must fail open
-    // even for a duplicate payload. The OS credential-store read is the one part
-    // left for later — see `Config::token`.
+    // even for a duplicate payload. The credential-store read is deferred, see
+    // `Config::token`.
     let config = config::resolve()?;
     warn_if_insecure(&config);
     let exit_zero = config.user.exit_zero;
@@ -139,27 +132,22 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<i32, Error> {
         secrets.len(),
     );
     // `has_secret_already_leaked()`: on PostToolUse the secret is already in the
-    // agent's context, so tell the user out-of-band. Best effort, never allowed
-    // to break the verdict.
+    // agent's context, so tell the user out-of-band. Best effort.
     if payload.event_type == EventType::PostToolUse {
         notify(&result);
     }
     Ok(output::output_result(&result))
 }
 
-/// One payload still waiting for an API answer, and the cache key that answer
-/// would be stored under.
-///
-/// `index` is the payload the document came from. It has to travel with the
-/// document, because the batch is not the payload list — empty, over-size and
-/// already-cached payloads are left out of it — so a position in the batch says
-/// nothing about a position in the event.
+/// One payload still waiting for an API answer, and its cache key.
 struct Pending {
+    /// Index of the payload the document came from: the batch is not the payload
+    /// list (empty, over-size and already-cached payloads are left out), so a
+    /// position in the batch says nothing about a position in the event.
     index: usize,
     document: api::Document,
-    /// The verdict-cache key, or `None` for a document that is not cacheable —
-    /// one past the 1 MiB threshold, matching hooks.py, which keys the cache on
-    /// empty content for those.
+    /// The verdict-cache key, or `None` past the 1 MiB threshold, matching
+    /// hooks.py, which keys the cache on empty content for those.
     key: Option<String>,
 }
 
@@ -168,13 +156,10 @@ struct Pending {
 ///
 /// Returns the secrets found and the index of the first payload holding them, or
 /// index 0 with no secrets — the caller only reads that payload for its output
-/// contract. One event routinely carries several payloads (a prompt mentioning N
-/// files produces N+1, a `cat` command 2) and each request costs a round trip.
+/// contract.
 ///
-/// `send_mcp_activity()`, which Python also calls per payload to ask the API
-/// whether an MCP tool call is allowed by policy, is not implemented. No warning
-/// either: it swallows every exception and returns "allowed" (mcp.py), so warning
-/// would be louder than Python is on its own failure path.
+/// `send_mcp_activity()` is not implemented, and not warned about either: it
+/// swallows every exception and returns "allowed" (mcp.py).
 fn scan_payloads(
     config: &config::Config,
     payloads: &mut [Payload],
@@ -189,21 +174,18 @@ fn scan_payloads(
         let Some((content, filename)) = scannable(payload) else {
             continue;
         };
-        // Empty content is no API call at all.
         if content.is_empty() {
             continue;
         }
-        // A document over the instance's ceiling is skipped, exactly as
-        // `_start_scans()` does (`scanner_ui.on_skipped`); sending it anyway
-        // would earn a 400 and fail the whole event open. A skip is not a block.
+        // Over the instance's ceiling: skipped, as `_start_scans()` does.
+        // Sending it anyway would earn a 400 and fail the whole event open.
         if content.len() > api::max_document_size(config) {
             continue;
         }
 
-        // hooks.py keys the verdict cache on empty content past
-        // `DOCUMENT_SIZE_THRESHOLD_BYTES`, i.e. a document over 1 MiB is scanned
-        // but never cached. The instance ceiling above must not change what is
-        // cacheable, so the gate stays the compiled-in threshold.
+        // hooks.py keys the cache on empty content past
+        // `DOCUMENT_SIZE_THRESHOLD_BYTES`, so a document over 1 MiB is scanned but
+        // never cached, and the instance ceiling must not change that.
         let key = if content.len() <= config::MAXIMUM_DOCUMENT_SIZE {
             Some(verdict_cache::key(
                 &config.api_url,
@@ -217,7 +199,7 @@ fn scan_payloads(
         };
         // A Read resolves to the same document at PreToolUse and PostToolUse, so
         // the second event is answered locally. `has_already_been_seen()` cannot:
-        // it debounces on raw stdin, and those two payloads differ.
+        // it debounces on raw stdin, which differs between the two.
         if let Some(key) = &key
             && verdict_cache::has_clean_verdict(key)
         {
@@ -239,16 +221,13 @@ fn scan_payloads(
     let max_payload_size = api::max_payload_size(config);
     for chunk in chunks(&pending, max_documents, max_payload_size) {
         let results = api::multiscan(config, agent, chunk.iter().map(|item| &item.document))?;
-        // /v1/multiscan answers one result per document, in the order they were
-        // sent. Any other count is a degraded answer that cannot be attributed:
-        // zip stops at the shorter side rather than shifting secrets onto their
-        // neighbours.
+        // /v1/multiscan answers one result per document, in order. Any other
+        // count is a degraded answer that cannot be attributed to a document.
         let unambiguous = results.len() == chunk.len();
         for (item, result) in chunk.iter().zip(results) {
-            // `filtered_out` must be 0 as well: an empty `secrets` can also mean
-            // the API reported breaks that this project's ignore rules dropped,
-            // and caching that would let one project's rule allow the same content
-            // in a project without it.
+            // `filtered_out` must be 0 too: an empty `secrets` can also mean the
+            // API reported breaks this project's ignore rules dropped, and caching
+            // that would let one project's rule allow content elsewhere.
             if unambiguous
                 && result.secrets.is_empty()
                 && result.filtered_out == 0
@@ -265,8 +244,7 @@ fn scan_payloads(
 }
 
 /// `_start_scans()`'s chunking: the API caps a scan both in documents and in
-/// bytes. Going over either is a 400 — a failed scan, which here means failing
-/// open — so the batch is split rather than sent whole.
+/// bytes, and going over either is a 400, i.e. a fail-open.
 fn chunks(
     pending: &[Pending],
     max_documents: usize,
@@ -286,8 +264,7 @@ fn chunks(
                 size <= max_payload_size
             })
             .count()
-            // A document that fits in no batch at all would otherwise loop
-            // forever; send it alone and let the API judge it.
+            // A document that fits in no batch would otherwise loop forever.
             .max(1);
         let (chunk, tail) = rest.split_at(take);
         rest = tail;
@@ -298,20 +275,15 @@ fn chunks(
 /// For a Read tool pointing at a real, non-binary file the *file* is scanned,
 /// not the payload text. Everything else scans the payload content under the
 /// identifier as its filename.
-///
-/// The content is moved out of the payload rather than copied: a document can be
-/// a whole MiB, and nothing downstream reads it again.
 fn scannable(payload: &mut Payload) -> Option<(String, String)> {
     if payload.tool == Some(Tool::Read) {
         let path = Path::new(&payload.identifier);
         if path.is_file() && !is_path_binary(path) {
-            // Python skips a file it cannot decode ("can't detect encoding")
-            // rather than scanning mojibake; a skip is not a block.
+            // Python skips a file it cannot decode ("can't detect encoding").
             let content = std::fs::read(path).ok()?;
             let content = String::from_utf8(content).ok()?;
-            // Only the lines the agent asked for reach the model. Sending the
-            // whole file instead can push it over the document ceiling, and a
-            // skipped document is an allowed read.
+            // Only the lines the agent asked for reach the model, and sending
+            // the whole file can push it over the document ceiling.
             let content = match payload.read_range {
                 Some(range) => payload::line_slice(&content, range),
                 None => content,
@@ -335,8 +307,8 @@ fn is_path_binary(path: &Path) -> bool {
 /// `has_already_been_seen()`. Some setups install hooks from several assistants
 /// and invoke us twice with an identical payload.
 ///
-/// No file lock, unlike the Python (which uses `filelock`): losing the race means
-/// two processes both scan the same payload — slower, never less safe.
+/// No file lock, unlike Python's `filelock`: losing the race means both
+/// processes scan the same payload — slower, never less safe.
 fn has_already_been_seen(content: &str) -> bool {
     let hash = payload::sha256_hex(content.trim());
     let Some(dir) = config::cache_dir() else {
@@ -358,8 +330,7 @@ fn has_already_been_seen(content: &str) -> bool {
 /// block decision still gets emitted.
 ///
 /// The message embeds attacker-influenced command text, so the strings are passed
-/// as arguments to the AppleScript run handler rather than interpolated into its
-/// source.
+/// as run-handler arguments rather than interpolated into the AppleScript source.
 #[cfg(target_os = "macos")]
 fn notify(result: &HookResult) {
     let source = match result.payload.tool {
@@ -434,16 +405,14 @@ mod tests {
         }
     }
 
-    /// What the mock recorded: every multiscan batch's filenames, plus how many
-    /// times `/v1/metadata` was fetched (never more than once per run).
+    /// Every multiscan batch's filenames, plus the `/v1/metadata` fetch count.
     struct Recorded {
         batches: Mutex<Vec<Vec<String>>>,
         metadata_hits: AtomicUsize,
     }
 
     /// A localhost stand-in for the API: answers `/v1/metadata` (with the given
-    /// limits) and `/v1/multiscan`, recording what it was sent. Nothing ever
-    /// leaves the machine.
+    /// limits) and `/v1/multiscan`, recording what it was sent.
     fn mock_api(limits: MockLimits) -> (String, Arc<Recorded>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let url = format!("http://{}", listener.local_addr().expect("addr"));
@@ -461,8 +430,7 @@ mod tests {
     }
 
     /// One request: the metadata a client reads before chunking, or a multiscan
-    /// answering — as the real one does — exactly one result per document, in the
-    /// order the documents were sent.
+    /// answering one result per document, in the order they were sent.
     fn serve(mut stream: TcpStream, recorded: &Recorded, limits: MockLimits) {
         let mut reader = BufReader::new(stream.try_clone().expect("clone"));
         let mut request_line = String::new();
@@ -537,8 +505,7 @@ mod tests {
     /// GIVEN one event carrying an empty, a clean, a leaky and another clean payload
     /// WHEN it is scanned
     /// THEN it costs one multiscan request, and the secret is attributed to the
-    /// payload holding it rather than to its position in the batch — the empty
-    /// payload never reaches the API, so the two do not line up.
+    /// payload holding it rather than to its position in the batch.
     #[test]
     fn one_event_is_one_request_and_the_block_lands_on_the_right_payload() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
@@ -557,15 +524,12 @@ mod tests {
         let batches = recorded.batches.lock().expect("lock");
         assert_eq!(batches.len(), 1);
         assert_eq!(batches[0], ["clean.txt", "leaky.txt", "also-clean.txt"]);
-        // The limits are resolved once, not once per document.
         assert_eq!(recorded.metadata_hits.load(Ordering::SeqCst), 1);
     }
 
     /// GIVEN an instance reporting a raised `maximum_documents_per_scan`
     /// WHEN a larger batch is scanned
-    /// THEN it is chunked to what the instance reports, not to the default: one
-    /// document past the instance limit the API answers 400 and the scan fails
-    /// open.
+    /// THEN it is chunked to what the instance reports, not to the default.
     #[test]
     fn a_batch_over_the_limit_is_chunked_to_what_metadata_reports() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
@@ -587,9 +551,7 @@ mod tests {
 
     /// GIVEN an instance whose `maximum_documents_per_scan` is BELOW the default
     /// WHEN a batch larger than it is scanned
-    /// THEN it is still chunked to the instance limit. Assuming the default here
-    /// is the fail-open this closes: the oversized batch earns a 400 and the whole
-    /// event goes unscanned.
+    /// THEN it is still chunked to the instance limit.
     #[test]
     fn a_batch_is_chunked_to_a_sub_default_instance_limit() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
@@ -610,8 +572,7 @@ mod tests {
 
     /// GIVEN an instance whose `maximum_document_size` is raised above 1 MiB
     /// WHEN a ~2 MiB secret-bearing document is scanned
-    /// THEN it reaches the API and blocks, instead of being skipped — a skipped
-    /// document is an allowed action.
+    /// THEN it reaches the API and blocks instead of being skipped.
     #[test]
     fn a_large_document_under_the_raised_instance_limit_is_scanned() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
@@ -619,8 +580,7 @@ mod tests {
             max_document_size: 4 * 1024 * 1024,
             ..MockLimits::default()
         });
-        // ~2 MiB: over the 1 MiB trigger, under the 4 MiB instance limit, with a
-        // secret buried inside.
+        // Over the 1 MiB trigger, under the 4 MiB instance limit.
         let big = format!(
             "{}\n{SECRET}\n{}",
             "x".repeat(1_500_000),
@@ -642,8 +602,7 @@ mod tests {
     /// GIVEN an instance whose `maximum_document_size` is BELOW the compiled-in
     /// 1 MiB default
     /// WHEN a document over the instance limit but under 1 MiB is scanned
-    /// THEN it is skipped rather than sent. Sending it earns a 400, and a failed
-    /// scan here fails the whole event open unscanned.
+    /// THEN it is skipped rather than sent, where a 400 would fail the event open.
     #[test]
     fn a_document_over_a_sub_default_instance_limit_is_skipped() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
@@ -660,8 +619,7 @@ mod tests {
 
         let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
-        // The oversized document never reached the API, and the rest of the event
-        // was still scanned.
+        // The oversized document never reached the API.
         assert_eq!(index, 1);
         assert_eq!(secrets.len(), 1);
         let batches = recorded.batches.lock().expect("lock");
@@ -686,18 +644,17 @@ mod tests {
             })
             .collect();
 
-        // Two documents of the maximum size fit in one request body, three do not.
         let sizes: Vec<usize> = chunks(&pending, 20, config::MAXIMUM_PAYLOAD_SIZE)
             .map(<[Pending]>::len)
             .collect();
         assert_eq!(sizes, [2, 1]);
     }
 
-    /// GIVEN an instance whose token lives in a credential store that has no item
-    /// for it, so any attempt to read it surfaces as an auth `Fail`
+    /// GIVEN an instance whose token lives in a credential store with no item for
+    /// it, so any read surfaces as an auth `Fail`
     /// WHEN an unrecognised agent's payload arrives
-    /// THEN it is rejected as unparseable without the store ever being read. On
-    /// macOS that read is what pops the Keychain dialog, twice per tool call.
+    /// THEN it is rejected without the store ever being read — on macOS that read
+    /// is what pops the Keychain dialog.
     #[test]
     fn an_unrecognised_agent_is_rejected_without_resolving_the_token() {
         let (_guard, dir) = verdict_cache::with_cache_dir();
@@ -712,11 +669,9 @@ mod tests {
         // SAFETY: serialised by the guard above; restored below.
         unsafe {
             std::env::set_var("GG_CONFIG_DIR", dir.path());
-            // Neither the developer's own config nor their real instance.
             std::env::set_var("GG_USER_HOME_DIR", dir.path());
             std::env::set_var("GITGUARDIAN_INSTANCE", "https://keyring-absent.invalid");
             std::env::set_var("GITGUARDIAN_DONT_LOAD_ENV", "1");
-            // An exported key would bypass the credential store entirely.
             std::env::remove_var("GITGUARDIAN_API_KEY");
             std::env::remove_var("GGSHIELD_NO_KEYRING");
         }
@@ -748,7 +703,7 @@ mod tests {
     #[test]
     fn exit_zero_only_rewrites_the_scan_found_problems_code() {
         assert_eq!(apply_exit_zero(1, true), 0);
-        // 128 is a config-load failure, not a scan result.
+        // A config-load failure is not a scan result.
         assert_eq!(apply_exit_zero(128, true), 128);
         assert_eq!(apply_exit_zero(1, false), 1);
         assert_eq!(apply_exit_zero(2, true), 2);
@@ -811,7 +766,7 @@ mod tests {
     /// GIVEN a file over the API's document ceiling
     /// WHEN the agent reads a range of it
     /// THEN the slice is small enough to scan, where the whole file would have
-    /// been skipped and the read allowed.
+    /// been skipped.
     #[test]
     fn a_ranged_read_of_an_oversized_file_still_produces_a_scannable_document() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -840,7 +795,6 @@ mod tests {
             .expect("slice")
             .0;
         assert!(sliced.len() < config::MAXIMUM_DOCUMENT_SIZE);
-        // 10 requested lines plus the one line of slack on the far side.
         assert_eq!(sliced.lines().count(), 11);
     }
 

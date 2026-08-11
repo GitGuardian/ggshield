@@ -1,11 +1,9 @@
-//! The block message shown to the user, and the little text helpers it needs.
-//! Mirrors the templates and `_message_from_secrets()` in `hooks.py`.
+//! The block message shown to the user. Mirrors the templates and
+//! `_message_from_secrets()` in `hooks.py`.
 //!
-//! Every line of prose lives in `templates/`, and a template file *is* the text
-//! it renders: no trailing newline, and the two spaces some lines end with are
+//! Every line of prose lives in `templates/`, and a template file *is* the text it
+//! renders: no trailing newline, and the two spaces some lines end with are
 //! markdown hard breaks (see [`HARD_BREAK`]) that an editor must not strip.
-//! `render()` only substitutes `{placeholders}`; nothing here reformats a
-//! template at runtime.
 
 use crate::api::{Secret, Validity};
 use crate::payload::{EventType, Payload, Tool};
@@ -27,9 +25,8 @@ const REMEDIATION_STEPS_WITH_INCIDENT_TEMPLATE: &str =
 const FALSE_POSITIVE_TEMPLATE: &str = include_str!("templates/false_positive.in");
 
 /// Agents render the message as markdown, where a single newline collapses into a
-/// space. Two trailing spaces keep the break. The templates carry it literally at
-/// the end of a line; the lines of a list are joined with it — never after the
-/// last one, which the templates always follow with a blank line.
+/// space; two trailing spaces keep the break. The lines of a list are joined with
+/// it, never after the last one.
 const HARD_BREAK: &str = "  \n";
 
 /// `pluralize()`. Note that 0 is plural in English.
@@ -69,10 +66,8 @@ pub fn censor_string(text: &str) -> String {
     out
 }
 
-/// One bullet per secret, plus its incident URL when we know one.
-///
-/// The censoring asterisks become bullets: the message is rendered as markdown,
-/// where a pair of them would turn into emphasis.
+/// One bullet per secret, plus its incident URL when we know one. The censoring
+/// asterisks become bullets, which markdown would otherwise read as emphasis.
 fn secret_lines(secrets: &[Secret]) -> String {
     let mut lines: Vec<String> = Vec::new();
     for secret in secrets {
@@ -115,14 +110,13 @@ fn secret_lines(secrets: &[Secret]) -> String {
 /// `_message_from_secrets(escape_markdown=True)`. Dispatches event-first then
 /// tool: what the message says depends first on *when* the secret was caught.
 ///
-/// Called only with at least one secret — `scan()` returns before this otherwise —
-/// which is what lets the templates hard-break into the secret list.
+/// Called only with at least one secret, which is what lets the templates
+/// hard-break into the secret list.
 pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
     let template = match (payload.event_type, payload.tool) {
-        // A UserPrompt event also carries a Tool::Read payload per file
-        // mentioned in the prompt. The secret is in that file, not in the
-        // prompt, so the prompt wording would name the wrong content and its
-        // remediation would tell the user to edit a prompt that is already clean.
+        // A UserPrompt event also carries a Tool::Read payload per file mentioned
+        // in the prompt: the secret is in that file, not in the prompt, so the
+        // prompt wording would name the wrong content.
         (EventType::UserPrompt, Some(Tool::Read)) => PRE_READ_TEMPLATE,
         (EventType::UserPrompt, _) => USER_PROMPT_TEMPLATE,
         (EventType::PostToolUse, Some(Tool::Bash)) => POST_BASH_TEMPLATE,
@@ -139,7 +133,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
         .iter()
         .filter(|s| s.known_secret && s.incident_url.is_some())
         .count();
-    // The words first: the blocks below are rendered from the very same fields.
+    // The words first: the blocks below render from the same fields.
     let mut fields = vec![
         ("count", count.to_string()),
         ("secrets", pluralize("secret", count, None)),
@@ -175,9 +169,9 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
     render(template, &fields)
 }
 
-/// One pass, like `str.format`. Chained `replace` calls would re-scan text just
-/// inserted, letting a server-supplied detector name containing `{were}` reach
-/// into the template.
+/// One pass, like `str.format`. Chained `replace` calls would re-scan inserted
+/// text, letting a server-supplied detector name containing `{were}` reach into
+/// the template.
 fn render(template: &str, fields: &[(&str, String)]) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
@@ -268,9 +262,9 @@ mod tests {
 
     /// GIVEN the templates, which `include_str!` embeds byte for byte
     /// WHEN the checked-out files are read
-    /// THEN none holds a carriage return, so a CRLF checkout cannot put CRLF in
-    /// the messages we print. `.gitattributes` pins them to LF; this catches a
-    /// template that escapes that rule.
+    /// THEN none holds a carriage return, so a CRLF checkout cannot put CRLF in the
+    /// messages we print. `.gitattributes` pins them to LF; this catches a template
+    /// that escapes that rule.
     #[test]
     fn templates_are_free_of_carriage_returns() {
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/templates");
@@ -283,8 +277,7 @@ mod tests {
 
     /// GIVEN a valid secret found in a command about to run
     /// WHEN the block message is built
-    /// THEN it is the PreToolUse/Bash wording, with the match censored into
-    /// markdown-safe bullets.
+    /// THEN it is the PreToolUse/Bash wording, with the match censored into bullets.
     #[test]
     fn pre_tool_bash_message_is_the_python_text() {
         let secrets = vec![secret(
@@ -307,8 +300,7 @@ mod tests {
 
     /// GIVEN two secrets found in a file the agent already read
     /// WHEN the block message is built
-    /// THEN it names the file, says they are compromised, and lists the numbered
-    /// remediation steps.
+    /// THEN it names the file and lists the numbered remediation steps.
     #[test]
     fn post_tool_read_message_names_the_file_and_lists_remediation() {
         let secrets = vec![
@@ -356,8 +348,7 @@ mod tests {
 
     /// GIVEN a prompt mentioning a file, whose derived Read payload holds the secret
     /// WHEN the block message is built
-    /// THEN it names the file rather than telling the user to edit a prompt that is
-    /// already clean.
+    /// THEN it names the file rather than the prompt.
     #[test]
     fn file_mentioned_in_a_prompt_is_named_instead_of_the_prompt() {
         let p = payload(EventType::UserPrompt, Some(Tool::Read), "/tmp/config.py");

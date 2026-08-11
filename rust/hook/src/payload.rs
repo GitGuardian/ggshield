@@ -28,8 +28,7 @@ pub enum Tool {
 }
 
 /// The five assistants ggshield supports, in the registry order of `AGENTS`
-/// (agents/__init__.py). Detection takes the FIRST match, so the order is part of
-/// the contract.
+/// (agents/__init__.py). Detection takes the FIRST match, so the order matters.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Agent {
     Claude,
@@ -72,11 +71,9 @@ impl Agent {
     }
 
     /// `is_caller()`. The shapes overlap enough that a near-miss misroutes a
-    /// payload, and a misrouted payload means emitting a verdict in a schema the
-    /// caller ignores.
+    /// payload, i.e. emits a verdict in a schema the caller ignores.
     fn is_caller(self, data: &Value) -> bool {
-        // `hook_payload.get("transcript_path") or ""`: a null and a missing key
-        // both read as the empty string.
+        // `... or ""`: a null and a missing key both read as the empty string.
         let transcript = data
             .get("transcript_path")
             .and_then(Value::as_str)
@@ -87,8 +84,7 @@ impl Agent {
                 data.get("turn_id").is_some() || transcript.to_lowercase().contains(".codex")
             }
             // Copilot CLI emits only the default fields, which is itself the
-            // signature: an exact key-set match once the optional fields are
-            // removed.
+            // signature: an exact key-set match once the optional ones are gone.
             Agent::Copilot => {
                 const DEFAULT_FIELDS: [&str; 4] =
                     ["hook_event_name", "session_id", "timestamp", "cwd"];
@@ -115,9 +111,9 @@ impl Agent {
         AGENTS.into_iter().find(|agent| agent.is_caller(data))
     }
 
-    /// `Agent.event_cwd()`: the working directory the event happened in. Used
-    /// to resolve a relative Read path to the same absolute identifier a tool
-    /// call would produce, so both share one verdict-cache key. "" when unknown.
+    /// The working directory the event happened in, used to resolve a relative
+    /// Read path to the absolute identifier a tool call would produce, so both
+    /// share one verdict-cache key. "" when unknown.
     fn event_cwd(self, data: &Value) -> String {
         match self {
             // Cursor reports its workspace roots instead of a `cwd`; the first
@@ -134,8 +130,8 @@ impl Agent {
     }
 
     /// `Agent.read_range()`: the lines a read tool call is about to expose.
-    /// `None` means the whole file, which is what an absent or unusable parameter
-    /// must resolve to — reading too little lets content reach the model unscanned.
+    /// `None` (the whole file) is what an absent or unusable parameter resolves
+    /// to: reading too little lets content reach the model unscanned.
     fn read_range(self, tool_input: &Value) -> Option<ReadRange> {
         // `isinstance(x, int) and x > 0`. A float or a string reads as absent.
         let positive = |key: &str| {
@@ -146,8 +142,8 @@ impl Agent {
         };
         match self {
             // `offset` (first line) and `limit` (number of lines), either of
-            // which can be absent. Read caps an open-ended read at a default
-            // number of lines, but the payload does not say what that cap is.
+            // which can be absent. Read's own cap on an open-ended read is not
+            // in the payload, so it is not subtracted here.
             Agent::Claude => {
                 let first = positive("offset").unwrap_or(1);
                 match positive("limit") {
@@ -156,8 +152,7 @@ impl Agent {
                     None => Some((first, None)),
                 }
             }
-            // VS Code's read_file takes `startLine`/`endLine`, 1-based and
-            // inclusive.
+            // VS Code's read_file: `startLine`/`endLine`, 1-based inclusive.
             Agent::VsCode => {
                 let first = positive("startLine").unwrap_or(1);
                 let last = positive("endLine");
@@ -168,31 +163,27 @@ impl Agent {
                 }
             }
             // No range ever seen from these three: Copilot CLI's `view` carries
-            // only `path`, Cursor's Read mimics Claude's without the range keys,
-            // and Codex shells out to `cat`/`Get-Content`.
+            // only `path`, Cursor's Read has no range keys, Codex shells out.
             Agent::Codex | Agent::Copilot | Agent::Cursor => None,
         }
     }
 }
 
-/// A range of lines an agent is about to read: `(first, last)`, 1-based and
-/// inclusive, `last` being `None` for "up to the end of the file".
+/// `(first, last)`, 1-based and inclusive, `None` for "to the end of the file".
 pub type ReadRange = (u64, Option<u64>);
 
 /// `line_slice()`: lines `first` to `last` of `content`, 1-based and inclusive.
 ///
 /// Split on "\n" only, the way agents number lines: `str::lines()` (and Python's
 /// `splitlines()`) also break on vertical tab and friends, which would shift every
-/// line number after the first such character. A CRLF file keeps its "\r" — what
-/// we scan is a verbatim extract of what the agent reads.
+/// line number after the first such character. A CRLF file keeps its "\r".
 ///
 /// One line of slack on each side, because agents document their ranges in their
-/// own conventions: an extra line costs nothing, a missing one lets content reach
-/// the model unscanned.
+/// own conventions and a missing line lets content reach the model unscanned.
 pub fn line_slice(content: &str, (first, last): ReadRange) -> String {
     let lines: Vec<&str> = content.split('\n').collect();
     // Python's `lines[max(0, first - 2) : None if last is None else last + 1]`,
-    // with the same clamping a Python slice does at both ends.
+    // clamped at both ends the way a Python slice is.
     let start = first.saturating_sub(2).min(lines.len() as u64) as usize;
     let end = last
         .map_or(lines.len() as u64, |last| last.saturating_add(1))
@@ -210,8 +201,8 @@ pub struct Payload {
     pub content: String,
     pub identifier: String,
     pub agent: Agent,
-    /// The original hook JSON. Empty object for the synthesised payloads, as in
-    /// Python (`raw={}`). Only read for the desktop notification's command text.
+    /// The original hook JSON, `{}` for synthesised payloads as in Python. Only
+    /// read for the desktop notification's command text.
     pub raw: Value,
     /// The lines a `Tool::Read` is about to expose, see `Agent::read_range()`.
     /// `None` means the whole file.
@@ -231,8 +222,7 @@ fn lookup_str(data: &Value, keys: &[&str]) -> String {
 
 fn event_type_from_name(name: &str) -> EventType {
     match name.to_lowercase().as_str() {
-        // "userpromptsubmitted" is Copilot CLI's spelling, "beforesubmitprompt"
-        // Cursor's.
+        // Copilot CLI's and Cursor's spellings of the prompt event.
         "userpromptsubmit" | "userpromptsubmitted" | "beforesubmitprompt" => EventType::UserPrompt,
         "pretooluse" => EventType::PreToolUse,
         "posttooluse" => EventType::PostToolUse,
@@ -267,8 +257,7 @@ fn is_truthy(value: &Value) -> bool {
 fn file_path_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        // Character-for-character _FILE_PATH_REGEX from hooks.py, with Python's
-        // re.MULTILINE expressed as the inline (?m) flag.
+        // _FILE_PATH_REGEX from hooks.py, with re.MULTILINE as the (?m) flag.
         Regex::new(concat!(
             r#"(?m)@"((?:[^"\\]|\\.)*)""#,
             r"|",
@@ -280,8 +269,8 @@ fn file_path_regex() -> &'static Regex {
     })
 }
 
-/// `find_filepaths()`. Sorted rather than a `set` with Python's arbitrary
-/// iteration order, so which payload blocks first is deterministic.
+/// `find_filepaths()`. Sorted, unlike Python's `set`, so which payload blocks
+/// first is deterministic.
 pub fn find_filepaths(prompt: &str) -> BTreeSet<String> {
     let mut paths = BTreeSet::new();
     for caps in file_path_regex().captures_iter(prompt) {
@@ -298,12 +287,11 @@ pub fn find_filepaths(prompt: &str) -> BTreeSet<String> {
     paths
 }
 
-/// `_abs_read_path()`: resolve a Read identifier against the event's `cwd`, so a
-/// relative @-mention and an absolute tool `file_path` for one file share a single
-/// verdict-cache key.
+/// Resolve a Read identifier against the event's `cwd`, so a relative @-mention
+/// and an absolute tool `file_path` for one file share a single verdict-cache key.
 ///
-/// Lexical and POSIX only, matching `os.path.abspath(os.path.join(cwd,
-/// identifier))`: no filesystem access, no symlink resolution, no drive letters.
+/// Lexical and POSIX only, like `os.path.abspath(os.path.join(cwd, identifier))`:
+/// no filesystem access, no symlink resolution, no drive letters.
 fn abs_read_path(identifier: &str, cwd: &str) -> String {
     if identifier.is_empty() || cwd.is_empty() {
         return identifier.to_string();
@@ -328,8 +316,8 @@ fn normpath(path: &str) -> String {
                 Some(&last) if last != ".." => {
                     out.pop();
                 }
-                // A leading `..` is kept on a relative path but dropped past the
-                // root of an absolute one, as normpath does.
+                // As normpath: a leading `..` is kept on a relative path, and
+                // dropped past the root of an absolute one.
                 _ if !is_absolute => out.push(".."),
                 _ => {}
             },
@@ -358,8 +346,8 @@ fn read_payload(identifier: String, agent: Agent) -> Payload {
     }
 }
 
-/// `parse_hook_input()`. The synthesised payloads come first, exactly as in
-/// Python (`payloads.extend(...)` before `payloads.append(main)`), because
+/// `parse_hook_input()`. The synthesised payloads come first, as in Python
+/// (`payloads.extend(...)` before `payloads.append(main)`), because
 /// `_scan_payloads` returns on the *first* blocking payload.
 pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
     if raw_content.trim().is_empty() {
@@ -375,8 +363,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         .ok_or_else(|| Error::Invalid("Error: couldn't find event type".into()))?;
     let event_type = event_type_from_name(event_name);
 
-    // Resolve Read identifiers against this once, so a relative @-mention and an
-    // absolute tool `file_path` for the same file share one cache key.
+    // Resolved once: see `abs_read_path`.
     let cwd = agent.event_cwd(&data);
 
     let mut payloads = Vec::new();
@@ -388,8 +375,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
     match event_type {
         EventType::UserPrompt => {
             content = lookup_str(&data, &["prompt"]);
-            // Files named in the prompt can be read without ever firing a
-            // PreToolUse event, so they get their own payloads.
+            // Files named in the prompt can be read without a PreToolUse event.
             for path in find_filepaths(&content) {
                 payloads.push(read_payload(abs_read_path(&path, &cwd), agent));
             }
@@ -412,11 +398,9 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
                     );
                     read_range = agent.read_range(tool_input);
                 }
-                _ if is_truthy(tool_input) => {
-                    // MCP and unrecognised tool arguments can carry secrets bound
-                    // for external servers, so they are scanned as text.
-                    content = tool_input.to_string();
-                }
+                // MCP and unrecognised tool arguments can carry secrets bound
+                // for external servers, so they are scanned as text.
+                _ if is_truthy(tool_input) => content = tool_input.to_string(),
                 _ => {}
             }
         }
@@ -427,8 +411,8 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
             let output =
                 lookup(&data, &["tool_output", "tool_response", "tool_result"]).unwrap_or(&empty);
             content = match output {
-                // Note the default: with no tool output at all this is the
-                // *string* "{}", which is non-empty, so Python does scan it.
+                // With no tool output at all this is the *string* "{}", which is
+                // non-empty, so Python does scan it.
                 Value::Object(_) | Value::Array(_) => output.to_string(),
                 Value::String(s) => s.clone(),
                 other => other.to_string(),
@@ -459,9 +443,8 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         read_range,
     });
 
-    // `post_process_payload()`. Only Copilot overrides it: its MCP tools carry
-    // no prefix, so they are identified by elimination — a "-" in the tool
-    // name, which its own tools (snake_case) never contain.
+    // `post_process_payload()`. Only Copilot overrides it: its MCP tools carry no
+    // prefix, so they are identified by the "-" its own snake_case tools lack.
     if agent == Agent::Copilot {
         for payload in &mut payloads {
             if payload.tool == Some(Tool::Other)
@@ -487,8 +470,8 @@ fn parse_command(content: &str, agent: Agent, cwd: &str) -> Vec<Payload> {
         identifier: abs_read_path(identifier.trim(), cwd),
         agent,
         raw: Value::Object(Default::default()),
-        // `cat`/`Get-Content` read the whole file; a partial read (`sed -n`,
-        // `head`) is not treated as a read at all, so there is never a range.
+        // `cat`/`Get-Content` read the whole file, and a partial read (`sed -n`,
+        // `head`) is not treated as a read at all.
         read_range: None,
     }]
 }
@@ -513,8 +496,7 @@ mod tests {
     /// GIVEN one payload per supported agent, plus a null transcript path and a
     /// payload with nothing recognisable
     /// WHEN the agent is detected
-    /// THEN each agent is identified from its own signature and the last two are
-    /// refused rather than guessed at.
+    /// THEN each is identified from its own signature and the last two are refused.
     #[test]
     fn detects_each_agent_from_its_own_signature() {
         let cases: [(&str, Value, Option<Agent>); 8] = [
@@ -562,8 +544,7 @@ mod tests {
         }
     }
 
-    /// GIVEN a Cursor payload, which arrives at a hook configured in Claude Code's
-    /// format
+    /// GIVEN a Cursor payload arriving at a Claude-Code-format hook
     /// WHEN the agent is detected
     /// THEN it is Cursor: detection keys off the payload, never the configuration.
     #[test]
@@ -608,7 +589,7 @@ mod tests {
 
     /// GIVEN a payload whose fields match no agent's signature
     /// WHEN it is parsed
-    /// THEN it is rejected as "Unrecognized agent" instead of being scanned blind.
+    /// THEN it is rejected as "Unrecognized agent".
     #[test]
     fn rejects_a_payload_from_no_known_agent() {
         let raw = json!({"hook_event_name": "somethingElse", "prompt": "hi"}).to_string();
@@ -623,8 +604,6 @@ mod tests {
     /// THEN the hyphenated one becomes an MCP tool and the snake_case one does not.
     #[test]
     fn copilot_promotes_hyphenated_tool_names_to_mcp() {
-        // post_process_payload: Copilot's MCP tools are "<server>-<tool>", and
-        // its own tools are snake_case, so a "-" is the only signal.
         let raw = json!({"hook_event_name": "PreToolUse", "session_id": "s",
                          "timestamp": "t", "cwd": "/tmp",
                          "tool_name": "github-create_issue",
@@ -652,8 +631,7 @@ mod tests {
 
     /// GIVEN a Claude PreToolUse for `Bash`
     /// WHEN it is parsed
-    /// THEN one payload carries the command as its content, and as its identifier —
-    /// for Bash the identifier is the command itself, not a hash.
+    /// THEN one payload carries the command as both content and identifier.
     #[test]
     fn parses_pre_tool_use_bash() {
         let raw = claude(json!({
@@ -668,14 +646,12 @@ mod tests {
         assert_eq!(p.event_type, EventType::PreToolUse);
         assert_eq!(p.tool, Some(Tool::Bash));
         assert_eq!(p.content, "echo hello");
-        // For Bash the identifier is the command itself, not a hash.
         assert_eq!(p.identifier, "echo hello");
     }
 
     /// GIVEN a Bash command that is really a file read (`cat /tmp/secrets.env`)
     /// WHEN it is parsed
-    /// THEN two payloads come out, the synthesised Read for that path first, so the
-    /// file is scanned as a read and not only as a command string.
+    /// THEN two payloads come out, the synthesised Read for that path first.
     #[test]
     fn pre_tool_use_cat_synthesises_a_read_payload_first() {
         let raw = claude(json!({
@@ -693,8 +669,7 @@ mod tests {
 
     /// GIVEN a PreToolUse for `Read`
     /// WHEN it is parsed
-    /// THEN the file path is the identifier and the content is empty: nothing has
-    /// been read yet.
+    /// THEN the file path is the identifier and the content is empty.
     #[test]
     fn pre_tool_use_read_uses_the_path_as_identifier() {
         let raw = claude(json!({
@@ -711,8 +686,8 @@ mod tests {
 
     /// GIVEN a PreToolUse for a tool with no special handling
     /// WHEN it is parsed
-    /// THEN its serialized `tool_input` is what gets scanned, with the agent's own key
-    /// order preserved, and the identifier is that string's sha256.
+    /// THEN its serialized `tool_input` is scanned, with the agent's own key order
+    /// preserved, and the identifier is that string's sha256.
     #[test]
     fn pre_tool_use_other_tool_scans_serialized_tool_input() {
         let raw = claude(json!({
@@ -722,7 +697,6 @@ mod tests {
         }))
         .to_string();
         let payloads = parse(&raw).expect("parses");
-        // The agent's own key order is preserved.
         assert_eq!(payloads[0].content, r#"{"url":"https://x","token":"abc"}"#);
         assert_eq!(payloads[0].identifier, sha256_hex(&payloads[0].content));
     }
@@ -739,15 +713,13 @@ mod tests {
         }))
         .to_string();
         let payloads = parse(&raw).expect("parses");
-        // `lookup(..., {})` then serialising it: the *string* "{}", which is
-        // non-empty, so it is scanned.
         assert_eq!(payloads[0].content, "{}");
     }
 
     /// GIVEN a PostToolUse for `Read` with a response body
     /// WHEN it is parsed
-    /// THEN the identifier is still the file path, and the serialized response is the
-    /// content to scan.
+    /// THEN the identifier is still the file path and the serialized response is
+    /// the content to scan.
     #[test]
     fn post_tool_use_read_keeps_the_file_path_identifier() {
         let raw = claude(json!({
@@ -778,8 +750,8 @@ mod tests {
 
     /// GIVEN a prompt mentioning a bare `@path` and a quoted `@"a b.txt"`
     /// WHEN it is parsed
-    /// THEN each mention becomes its own payload, canonicalized against the event cwd
-    /// so it matches a tool's absolute path, and the prompt payload comes last.
+    /// THEN each mention becomes its own payload, canonicalized against the event
+    /// cwd, and the prompt payload comes last.
     #[test]
     fn user_prompt_extracts_at_paths() {
         let raw = claude(json!({
@@ -789,11 +761,8 @@ mod tests {
         .to_string();
         let payloads = parse(&raw).expect("parses");
         let ids: Vec<_> = payloads.iter().map(|p| p.identifier.as_str()).collect();
-        // Canonicalized against the event cwd ("/tmp"), so a relative @-mention
-        // resolves to the same identifier a tool's absolute path would.
         assert!(ids.contains(&"/tmp/src/main.rs"), "{ids:?}");
         assert!(ids.contains(&"/tmp/a b.txt"), "{ids:?}");
-        // The prompt payload itself is last.
         assert_eq!(
             payloads.last().expect("non-empty").event_type,
             EventType::UserPrompt
@@ -807,8 +776,7 @@ mod tests {
     /// GIVEN a Read payload from each agent
     /// WHEN its read range is resolved
     /// THEN each agent's own convention is honoured, and an absent or unusable
-    /// parameter means the whole file — reading too little lets content reach the
-    /// model unscanned.
+    /// parameter means the whole file.
     #[test]
     fn read_range_per_agent() {
         let claude_read = |extra: Value| {
@@ -847,7 +815,6 @@ mod tests {
             None
         );
 
-        // VS Code: startLine/endLine, 1-based inclusive.
         let vscode = json!({
             "session_id": "s",
             "transcript_path": "/x/GitHub.copilot-chat/sess.jsonl",
@@ -866,7 +833,6 @@ mod tests {
         });
         assert_eq!(read_range_of(&cursor), None);
 
-        // Copilot CLI's `view` carries only `path`.
         let copilot = json!({
             "hook_event_name": "PreToolUse", "session_id": "s",
             "timestamp": "t", "cwd": "/tmp",
@@ -874,7 +840,6 @@ mod tests {
         });
         assert_eq!(read_range_of(&copilot), None);
 
-        // Codex reads by shelling out; `cat` reads the whole file.
         let codex = json!({
             "turn_id": "t1", "hook_event_name": "PreToolUse",
             "tool_name": "shell", "tool_input": {"command": "cat /tmp/a.txt"},
@@ -901,8 +866,8 @@ mod tests {
 
     /// GIVEN a ten line fixture
     /// WHEN a line range is sliced
-    /// THEN one extra line is taken on each side, clamped at both ends exactly as a
-    /// Python slice is, and a range past the end yields nothing.
+    /// THEN one extra line is taken on each side, clamped as a Python slice is,
+    /// and a range past the end yields nothing.
     #[test]
     fn line_slice_takes_one_line_of_slack_on_each_side() {
         let content = (1..=10)
@@ -913,7 +878,6 @@ mod tests {
             line_slice(&content, (3, Some(5))),
             "line 2\nline 3\nline 4\nline 5\nline 6"
         );
-        // Clamped at both ends, exactly as a Python slice is.
         assert_eq!(line_slice(&content, (1, Some(2))), "line 1\nline 2\nline 3");
         assert_eq!(line_slice(&content, (9, None)), "line 8\nline 9\nline 10");
         assert_eq!(line_slice(&content, (99, Some(120))), "");
@@ -941,39 +905,32 @@ mod tests {
 
     /// GIVEN prompts with a `@file:` mention ending in a dot, and an email address
     /// WHEN file paths are extracted
-    /// THEN the prefix and trailing dot are stripped from the path, and the email is
-    /// not mistaken for one — its `@` is not preceded by `\W` or start of string.
+    /// THEN the prefix and trailing dot are stripped, and the email is not
+    /// mistaken for a path.
     #[test]
     fn file_path_regex_matches_the_python_cases() {
         assert_eq!(find_filepaths("no paths here"), BTreeSet::new());
-        // Trailing dot is stripped, "file:" prefix is dropped.
         assert!(find_filepaths("see @file:foo/bar.py.").contains("foo/bar.py"));
-        // An email address is not a path: the @ is not preceded by \W or ^.
         assert!(!find_filepaths("mail me at a@b.com").contains("b.com"));
     }
 
     /// GIVEN absolute, relative and empty identifiers against various cwds
     /// WHEN each read path is resolved
-    /// THEN it matches Python's `abspath(join(...))`: `..` resolved lexically with no
-    /// filesystem access, `.` dropped, repeated `/` squeezed, empties left alone.
+    /// THEN it matches `abspath(join(...))`: `..` resolved lexically, `.` dropped,
+    /// repeated `/` squeezed, empties left alone.
     #[test]
     fn abs_read_path_matches_python_abspath_join() {
-        // Absolute identifier: cwd is dropped, path returned unchanged.
         assert_eq!(abs_read_path("/tmp/a.txt", "/home/user"), "/tmp/a.txt");
-        // Relative identifier: joined onto cwd, absolute.
         assert_eq!(
             abs_read_path("src/creds.env", "/home/user/proj"),
             "/home/user/proj/src/creds.env"
         );
-        // Empty cwd or empty identifier: returned unchanged.
         assert_eq!(abs_read_path("src/a.txt", ""), "src/a.txt");
         assert_eq!(abs_read_path("", "/home/user"), "");
-        // `..` is resolved lexically (no filesystem, no symlinks).
         assert_eq!(
             abs_read_path("../bar/x.txt", "/home/user/foo"),
             "/home/user/bar/x.txt"
         );
-        // `.` segments dropped and repeated `/` squeezed.
         assert_eq!(
             abs_read_path("./a//b/x.txt", "/home/user"),
             "/home/user/a/b/x.txt"
@@ -983,7 +940,7 @@ mod tests {
     /// GIVEN a relative `@`-mention and an absolute tool `file_path` for one file
     /// WHEN both are parsed
     /// THEN they resolve to the same identifier, so one verdict-cache key covers
-    /// both and the file is scanned once.
+    /// both.
     #[test]
     fn prompt_mention_and_tool_read_share_one_identifier() {
         let prompt = claude(json!({
@@ -1020,7 +977,6 @@ mod tests {
             "hook_event_name": "beforeSubmitPrompt",
         });
         assert_eq!(Agent::Cursor.event_cwd(&cursor), "/home/user/foo");
-        // No roots: "" (unknown), so abs_read_path leaves identifiers untouched.
         assert_eq!(Agent::Cursor.event_cwd(&json!({})), "");
     }
 }

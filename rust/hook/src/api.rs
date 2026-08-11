@@ -1,8 +1,7 @@
 //! `POST /v1/multiscan`, and the instance limits that decide how a scan is split.
 //!
 //! Detection is entirely server-side: this module ships bytes and interprets a
-//! verdict. There is no detector, no regex and no rule here, and there must never
-//! be one.
+//! verdict. There is no detector, no regex and no rule here.
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -18,8 +17,7 @@ const TIMEOUT_SECS: u64 = 60;
 
 /// The TLS config to attach when `.gitguardian.yaml` set `insecure` (or v1
 /// `allow_self_signed`): certificate verification off, matching `session.verify
-/// = False` in `core/client.py`. `None` keeps ureq's default verifying config,
-/// which is the only safe default and the only thing the non-insecure path uses.
+/// = False` in `core/client.py`. `None` keeps ureq's verifying default.
 fn insecure_tls(config: &Config) -> Option<ureq::tls::TlsConfig> {
     config.user.insecure.then(|| {
         ureq::tls::TlsConfig::builder()
@@ -33,11 +31,10 @@ pub struct Document {
     pub filename: String,
 }
 
-/// One document's verdict. `Result.from_scan_result()` splits the API's policy
-/// breaks in two, and both halves matter: `secrets` decides the block, while
-/// `filtered_out` says whether the emptiness of `secrets` is the API's answer
-/// or this project's ignore rules — Python's `ignored_secrets_count_by_kind`.
-/// A verdict that depends on local configuration must not be cached.
+/// One document's verdict, as `Result.from_scan_result()` splits it: `secrets`
+/// decides the block, while `filtered_out` (Python's
+/// `ignored_secrets_count_by_kind`) says whether an empty `secrets` is the API's
+/// answer or this project's ignore rules. The latter must not be cached.
 pub struct DocumentResult {
     pub secrets: Vec<Secret>,
     pub filtered_out: usize,
@@ -45,7 +42,7 @@ pub struct DocumentResult {
 
 /// How far the API got in checking whether a secret still works
 /// (`translate_validity()`). An id we do not know is kept as text: the server can
-/// add one, and showing its raw id beats showing "unknown".
+/// add one.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Validity {
@@ -80,8 +77,8 @@ impl Validity {
 /// A `PolicyBreak` reduced to the fields the hook message actually reads.
 #[derive(Debug, Deserialize)]
 pub struct Secret {
-    // The wire field is `type`; `break_type` is only pygitguardian's
-    // internal name for it (PolicyBreakSchema, data_key="type").
+    // The wire field is `type`; `break_type` is pygitguardian's internal name for
+    // it (PolicyBreakSchema, data_key="type").
     #[serde(rename = "type")]
     pub detector_display_name: String,
     #[serde(default)]
@@ -122,8 +119,8 @@ struct ScanResult {
 }
 
 /// `get_ignore_sha()`: sha256 over the policy break's matches rendered as
-/// "<match>,<match_type>" and sorted by match_type only, stably. This is the
-/// value users paste into `ignored_matches`, so it has to hash identically.
+/// "<match>,<match_type>", stably sorted by match_type. Users paste this value
+/// into `ignored_matches`, so it has to hash identically.
 fn ignore_sha(matches: &[Match]) -> String {
     let mut sorted: Vec<&Match> = matches.iter().collect();
     sorted.sort_by(|a, b| a.match_type.cmp(&b.match_type));
@@ -173,23 +170,17 @@ fn keep(pb: &RawPolicyBreak, secret_config: &SecretConfig) -> bool {
 }
 
 /// This instance's scan limits, resolved once per run and memoised on the
-/// `Config`.
+/// `Config`. Sending a document or a batch the instance would reject earns a 400,
+/// i.e. the whole event fails open unscanned. In order:
 ///
-/// Sending a document or a batch the instance would reject earns a 400, which on
-/// this path means the whole event fails open unscanned — so the limits have to
-/// be the instance's, not an assumption. In order:
-///
-/// 1. `GG_MAX_DOC_SIZE` / `GG_MAX_DOCS`, which `_start_scans()` also honours.
-///    Handled by the accessors below, before this is ever called.
-/// 2. This hook's own limits cache, which step 4 fills — the warm path when only
-///    the native binary runs.
-/// 3. ggshield's on-disk auth-check cache, still warm whenever `ggshield` itself
-///    ran recently, and we cannot write that one (see `store_instance_limits`).
+/// 1. `GG_MAX_DOC_SIZE` / `GG_MAX_DOCS`, handled by the accessors below.
+/// 2. This hook's own limits cache, which step 4 fills.
+/// 3. ggshield's auth-check cache, read-only to us (see `store_instance_limits`).
 /// 4. One `/v1/metadata` fetch, whose answer is written back to step 2.
 /// 5. The compiled-in defaults, on any failure.
 ///
-/// Resolution is deferred until a document is actually about to be scanned, so an
-/// invocation that scans nothing reads neither a cache file nor the network.
+/// Deferred until a document is about to be scanned, so an invocation that scans
+/// nothing reads neither a cache file nor the network.
 fn limits(config: &Config) -> Limits {
     *config.limits.get_or_init(|| resolve_limits(config))
 }
@@ -238,8 +229,8 @@ fn resolve_limits(config: &Config) -> Limits {
     limits
 }
 
-/// The advertised ceiling covers the whole request; the budget for document bytes
-/// is what is left once the framing is accounted for, as secret_scanner.py does.
+/// The advertised ceiling covers the whole request; document bytes get what is
+/// left once the framing is accounted for, as secret_scanner.py does.
 fn net_payload_size(advertised: usize) -> usize {
     advertised.saturating_sub(SIZE_METADATA_OVERHEAD)
 }
@@ -273,8 +264,8 @@ fn fetch_metadata(config: &Config) -> Option<Value> {
     response.body_mut().read_json().ok()
 }
 
-/// This instance's per-document ceiling. A document over it is skipped rather
-/// than sent, matching `_start_scans()`.
+/// This instance's per-document ceiling; a document over it is skipped rather
+/// than sent, as `_start_scans()` does.
 pub fn max_document_size(config: &Config) -> usize {
     env_usize("GG_MAX_DOC_SIZE").unwrap_or_else(|| limits(config).maximum_document_size)
 }
@@ -329,8 +320,7 @@ pub fn multiscan<'a>(
         .build()
         .header("Authorization", format!("Token {}", config.token()?))
         .header("Content-Type", "application/json")
-        // Telemetry ggshield sends on every scan; the backend segments on `mode`
-        // and `GGShield-Agent-Name`.
+        // Telemetry ggshield sends on every scan.
         .header("mode", "ai_hook")
         .header("GGShield-Agent-Name", agent.name())
         .header("GGShield-Command-Path", "ggshield secret scan ai-hook")
@@ -395,7 +385,6 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     /// A localhost `/v1/metadata` responder, and the count of requests it served.
-    /// Nothing ever leaves the machine.
     fn metadata_api() -> (String, Arc<AtomicUsize>) {
         const BODY: &str = r#"{"preferences": {"general__maximum_payload_size": 1000000}, "secret_scan_preferences": {"maximum_document_size": 4096, "maximum_documents_per_scan": 5}}"#;
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -406,7 +395,6 @@ mod tests {
             for mut stream in listener.incoming().flatten() {
                 let mut reader = BufReader::new(stream.try_clone().expect("clone"));
                 let mut line = String::new();
-                // Read past the request line and headers; a GET carries no body.
                 while reader.read_line(&mut line).is_ok_and(|n| n > 0) {
                     if line == "\r\n" {
                         break;
@@ -428,9 +416,9 @@ mod tests {
         Config::with_token(api_url, "token".into(), Default::default())
     }
 
-    /// Backdate the entry the hook wrote by `seconds` — ageing it past its TTL is
-    /// the one thing a test cannot wait out. Edited from the outside, so no
-    /// production API exists purely for this.
+    /// Backdate the entry the hook wrote: ageing it past its TTL is the one thing
+    /// a test cannot wait out. Edited from the outside, so no production API
+    /// exists purely for this.
     fn age_stored_entry(seconds: i64) {
         let dir = config::cache_dir().expect("cache dir");
         let path = std::fs::read_dir(&dir)
@@ -443,14 +431,13 @@ mod tests {
             serde_json::from_str(&std::fs::read_to_string(&path).expect("read")).expect("json");
         let stored_at = entry["stored_at"].as_i64().expect("stored_at");
         entry["stored_at"] = (stored_at - seconds).into();
-        // `write` truncates in place, so the file keeps the mode the hook gave it.
         std::fs::write(&path, entry.to_string()).expect("write");
     }
 
     /// GIVEN an instance whose limits this hook has never fetched
     /// WHEN they are resolved, and resolved again from a second process
     /// THEN the first run pays one `/v1/metadata` round trip and writes what it
-    /// learned; the second answers from that file and makes no request at all.
+    /// learned; the second answers from that file.
     #[test]
     fn a_cold_resolution_fetches_once_and_a_warm_one_not_at_all() {
         let (_guard, _dir) = crate::verdict_cache::with_cache_dir();
@@ -465,7 +452,6 @@ mod tests {
         );
         assert_eq!(hits.load(Ordering::SeqCst), 1);
 
-        // A fresh `Config` is a fresh process as far as memoisation goes.
         let warm = limits(&config_for(url));
         assert_eq!(warm.maximum_document_size, 4096);
         assert_eq!(warm.maximum_documents_per_scan, 5);
@@ -474,8 +460,7 @@ mod tests {
 
     /// GIVEN a limits entry this hook wrote longer ago than its TTL
     /// WHEN the limits are resolved
-    /// THEN the instance is asked again and the answer replaces the stale entry,
-    /// so an instance that lowers a limit is honoured within one TTL.
+    /// THEN the instance is asked again and the answer replaces the stale entry.
     #[test]
     fn an_expired_entry_is_refetched_and_rewritten() {
         let (_guard, _dir) = crate::verdict_cache::with_cache_dir();
@@ -488,19 +473,18 @@ mod tests {
         let refetched = limits(&config_for(url.clone()));
         assert_eq!(hits.load(Ordering::SeqCst), 2);
         assert_eq!(refetched.maximum_documents_per_scan, 5);
-        // Rewritten, not merely refetched: the next run is warm again.
         limits(&config_for(url));
         assert_eq!(hits.load(Ordering::SeqCst), 2);
     }
 
     /// GIVEN an instance that cannot be reached
     /// WHEN the limits are resolved
-    /// THEN the compiled-in defaults answer rather than nothing, and no entry is
-    /// cached — a failed fetch must not pin a guess for the next five minutes.
+    /// THEN the compiled-in defaults answer, and no entry is cached: a failed
+    /// fetch must not pin a guess for the next five minutes.
     #[test]
     fn an_unreachable_instance_falls_back_to_the_defaults_without_caching_them() {
         let (_guard, _dir) = crate::verdict_cache::with_cache_dir();
-        // Port 1 is reserved and unbound: connection refused, immediately.
+        // Port 1 is unbound: connection refused, immediately.
         let url = "http://127.0.0.1:1".to_string();
 
         let resolved = limits(&config_for(url.clone()));
@@ -546,7 +530,6 @@ mod tests {
         };
         assert!(parse_with(AWS, &by_value)[0].is_empty());
 
-        // The sha is over both matches, sorted by match_type.
         let sha = ignore_sha(&[
             Match {
                 value: "AKIAsomething".into(),
@@ -683,7 +666,7 @@ mod tests {
 
 /// GIVEN a validity id the API reported
 /// WHEN it is turned into the label the message shows
-/// THEN the known ids get their wording and an unknown one keeps its own text.
+/// THEN known ids get their wording and an unknown one keeps its own text.
 #[test]
 fn validity_labels_cover_the_known_ids_and_keep_unknown_ones() {
     let label = |raw: &str| {
