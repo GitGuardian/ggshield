@@ -209,6 +209,9 @@ step_build() {
         # runtime. smoke_check_bundle() walks the whole command tree to prove
         # each one still resolves from the bundle.
         --collect-submodules ggshield
+        # --collect-submodules only takes modules, so the desktop-notification
+        # icon in ggshield/assets needs its own collect.
+        --collect-data ggshield
     )
 
     pyinstaller ggshield/__main__.py --name ggshield --exclude-module pkg_resources --noupx \
@@ -368,6 +371,10 @@ valid JSON on stdout. Coding agents cannot parse the verdict."
         "_internal/sigstore/_store/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/root.json"
         "_internal/sigstore/_store/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/trusted_root.json"
         "_internal/sigstore/_store/https%3A%2F%2Ftuf-repo-cdn.sigstore.dev/signing_config.v0.2.json"
+        # Desktop-notification icon. Missing it is silent: notifypy raises on an
+        # unknown icon path and the hook swallows that, dropping the whole
+        # notification rather than just its icon.
+        "_internal/ggshield/assets/ggshield.png"
     )
     local rel
     for rel in "${required_paths[@]}" ; do

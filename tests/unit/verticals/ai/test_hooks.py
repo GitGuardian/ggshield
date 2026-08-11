@@ -32,7 +32,9 @@ from ggshield.verticals.ai.cache import (
     verdict_key,
 )
 from ggshield.verticals.ai.hooks import (
+    _NOTIFICATION_ICON,
     AIHookScanner,
+    _send_desktop_notification,
     build_agent_headers,
     find_filepaths,
     has_already_been_seen,
@@ -1335,7 +1337,51 @@ class TestSendDesktopNotification:
         assert instance.title == "title"
         assert instance.message == "message"
         assert instance.application_name == "ggshield"
+        # Left to itself, notifypy ships its own py-logo.png, which would put
+        # the Python logo on a ggshield security alert.
+        assert instance.icon == str(_NOTIFICATION_ICON)
         instance.send.assert_called_once()
+
+    def test_the_notification_icon_ships_with_the_package(self):
+        """GIVEN the installed package
+        WHEN the desktop-notification icon is looked up
+        THEN it is there and is a PNG: notifypy raises on an unknown icon path,
+        and the frozen bundle only carries it because of an explicit
+        --collect-data, so a silent drop is easy."""
+        assert _NOTIFICATION_ICON.exists()
+        assert _NOTIFICATION_ICON.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+    @patch("ggshield.verticals.ai.hooks.sys")
+    def test_a_missing_icon_costs_only_the_icon(self, mock_sys: MagicMock):
+        """GIVEN an install where the icon asset did not ship
+        WHEN a desktop notification is sent
+        THEN the icon is never assigned and the notification still goes out:
+        notifypy raises on an unknown path and _send_secret_notification()
+        swallows it, so assigning blindly would drop the whole notification."""
+        mock_sys.platform = "linux"
+
+        class RejectingNotify:
+            """notifypy raises InvalidIconPath if the icon does not exist."""
+
+            def __init__(self) -> None:
+                self.sent = False
+
+            def __setattr__(self, name: str, value: object) -> None:
+                if name == "icon":
+                    raise ValueError("InvalidIconPath")
+                object.__setattr__(self, name, value)
+
+            def send(self) -> None:
+                object.__setattr__(self, "sent", True)
+
+        stub = RejectingNotify()
+        with patch("ggshield.verticals.ai.hooks.Notify", return_value=stub), patch(
+            "ggshield.verticals.ai.hooks._NOTIFICATION_ICON",
+            Path("/nonexistent/ggshield.png"),
+        ):
+            _send_desktop_notification("title", "message")
+
+        assert stub.sent
 
 
 class TestAIHookScannerParseInput:

@@ -6,6 +6,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import filelock
@@ -374,6 +375,12 @@ def _parse_command(
     return payloads
 
 
+# Package data, so it resolves the same from a wheel and from the PyInstaller
+# bundle (where `__file__` lives under `_MEIPASS`). The build collects it; see
+# the structural assertion in scripts/build-os-packages/build-os-packages.
+_NOTIFICATION_ICON = Path(__file__).resolve().parents[2] / "assets" / "ggshield.png"
+
+
 def _send_desktop_notification(title: str, message: str) -> None:
     """Deliver a desktop notification, dispatching to the right backend per OS.
 
@@ -387,6 +394,9 @@ def _send_desktop_notification(title: str, message: str) -> None:
     string literal can't represent non-ASCII or control characters (accented
     paths, emoji, tabs...). ``stdin`` is detached and a timeout enforced so a
     misbehaving notifier can't stall the hook. Other platforms use notifypy.
+
+    macOS gets no icon: `osascript` posts as Script Editor, and a notification's
+    icon belongs to the bundle that posted it, so it is not ours to set.
     """
     if sys.platform == "darwin":
         subprocess.run(
@@ -412,6 +422,12 @@ def _send_desktop_notification(title: str, message: str) -> None:
         notification.title = title
         notification.message = message
         notification.application_name = "ggshield"
+        # Without this notifypy falls back to its own bundled `py-logo.png`, so
+        # ggshield's secret alerts show the Python logo. Assigning a path that
+        # does not exist raises, and the caller swallows that, which would cost
+        # us the whole notification: only set it once we know the file shipped.
+        if _NOTIFICATION_ICON.exists():
+            notification.icon = str(_NOTIFICATION_ICON)
         notification.send()
 
 
