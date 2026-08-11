@@ -75,7 +75,9 @@ def config_fingerprint(secret_config: SecretConfig) -> str:
     - all_secrets moves locally-ignored breaks into `secrets` instead of
       `ignored_secrets_count_by_kind`, which is the guard that decides whether a
       verdict is cacheable at all
-    - source_uuid switches the endpoint to scan_and_create_incidents
+    - source_uuid switches the endpoint to scan_and_create_incidents; the hook
+      clears it, so it is constant today, but stays in the key so a verdict from
+      an older ggshield is never served here
 
     The ignore settings (ignored_matches, ignored_detectors,
     ignore_known_secrets) are deliberately absent: a verdict that depended on
