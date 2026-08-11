@@ -233,11 +233,10 @@ def emit_fail_open_response(stdin_content: str, error: Exception) -> int:
     return payload.agent.output_result(HookResult.allow_with_warning(payload, warning))
 
 
-# Mirrors _cannot_scan_warning's shape: what did not happen, then what to do.
 MCP_NOT_CHECKED_WARNING = (
-    "ggshield could not reach the GitGuardian MCP policy endpoint — this MCP tool "
-    "call was NOT checked against your organization's policy (it was still scanned "
-    "for secrets). Run 'ggshield api-status' to diagnose."
+    "This MCP tool call was NOT checked against your organization's policy: "
+    "ggshield got no answer from GitGuardian. The call was allowed anyway — run "
+    "'ggshield api-status' to diagnose."
 )
 
 
@@ -574,10 +573,8 @@ class AIHookScanner:
         """
         if not payloads:
             raise ValueError("Error: no payloads to scan")
-        # A non-blocking MCP result can still carry a warning ("we could not reach
-        # the policy endpoint"). Only a *blocking* result is returned from the loop,
-        # so collect those warnings and hand them to the final allow, or they are
-        # dropped and the fail-open goes silent again.
+        # Only a blocking result leaves the loop, so a non-blocking MCP warning has
+        # to be kept for the final allow, or it is dropped.
         warnings: List[str] = []
         for payload in payloads:
             if not is_mcp_activity_payload(payload):
@@ -614,9 +611,8 @@ class AIHookScanner:
         # This works even if the payload is not an MCP pre-tool use.
         result = send_mcp_activity(self.scanner.client, payload)
         if result is None:
-            # No policy answer. Fail open -- a broken endpoint must not block a
-            # tool call -- but say so, because silently allowing is how an
-            # unreachable endpoint permits every MCP call without anyone noticing.
+            # No policy answer: fail open, since a broken endpoint must not block a
+            # tool call, but say so instead of allowing silently.
             ui.display_warning(MCP_NOT_CHECKED_WARNING)
             return HookResult.allow_with_warning(payload, MCP_NOT_CHECKED_WARNING)
         return HookResult(

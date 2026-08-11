@@ -34,35 +34,26 @@ def send_mcp_activity(
 
     Returns:
         The API's policy answer, or ``None`` when no answer could be obtained.
-
-        ``None`` is deliberately *not* an allow. Returning an allow here is how an
-        unreachable policy endpoint silently permits every MCP tool call: the
-        caller cannot tell "the API said yes" from "we never managed to ask". The
-        caller still fails open -- a network blip must never block a tool call --
-        but it warns, the way the secret scan already warns when it could not scan.
+        ``None`` is not an allow: the caller fails open, but warns.
     """
 
-    # Not an MCP pre-tool use: nothing to evaluate, so this is a real allow and
-    # must stay silent. Warning here would fire on every Read, Bash and Edit call.
+    # Nothing to evaluate: a genuine allow, and it must stay silent, or every
+    # Read, Bash and Edit call would carry a warning.
     if not is_mcp_activity_payload(payload):
         return _mcp_activity_allow()
 
     try:
-        # Inside the try on purpose: this walks the filesystem for MCP configs and
-        # talks to the API, so it fails for the same reasons the request below
-        # does. Left outside, its failures skipped the MCP fail-open entirely and
-        # surfaced as the generic "could not scan" warning -- the wrong message,
-        # since the secret scan itself was fine.
+        # Inside the try: discovery walks the filesystem and calls the API, so it
+        # fails for the same reasons the request below does.
         ai_config = refresh_and_maybe_submit_discovery(client)
         request = payload.agent.parse_mcp_activity(payload, ai_config)
         response = client.log_mcp_activity(request)
     except requests.exceptions.RequestException as exc:
-        # Expected and uninteresting: offline, timeout, TLS, DNS.
+        # Expected: offline, timeout, TLS, DNS.
         logger.debug("MCP policy check could not reach the API: %s", exc)
         return None
     except Exception as exc:
-        # Not expected. A bug here used to be indistinguishable from a network
-        # blip; log it louder so it is findable, but still fail open.
+        # Louder, so a bug does not look like a network blip.
         logger.warning("MCP policy check failed unexpectedly: %s", exc)
         return None
 

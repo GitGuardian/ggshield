@@ -67,8 +67,7 @@ class TestSendMCPActivity:
 
     @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
     def test_an_api_error_is_no_answer_not_an_allow(self, mock_refresh: MagicMock):
-        """A Detail response means the API did not decide. Returning an allow here
-        is what made an unreachable policy endpoint silently permit every call."""
+        """A Detail response means the API did not decide, so it is not an allow."""
         mock_refresh.return_value = _ai_discovery()
         payload = _payload()
         payload.agent.parse_mcp_activity = MagicMock(
@@ -110,8 +109,7 @@ class TestSendMCPActivity:
 
     @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
     def test_discovery_failing_is_no_answer(self, mock_refresh: MagicMock):
-        """refresh_and_maybe_submit_discovery used to sit outside the try, so its
-        failures escaped the MCP fail-open and surfaced as 'could not scan'."""
+        """A discovery failure is not a policy answer either."""
         mock_refresh.side_effect = OSError("cannot walk the filesystem")
 
         assert send_mcp_activity(MagicMock(), _payload()) is None
