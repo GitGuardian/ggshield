@@ -266,6 +266,21 @@ mod tests {
         assert_eq!(pluralize("was", 2, Some("were")), "were");
     }
 
+    /// GIVEN the templates, which `include_str!` embeds byte for byte
+    /// WHEN the checked-out files are read
+    /// THEN none holds a carriage return, so a CRLF checkout cannot put CRLF in
+    /// the messages we print. `.gitattributes` pins them to LF; this catches a
+    /// template that escapes that rule.
+    #[test]
+    fn templates_are_free_of_carriage_returns() {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/templates");
+        for entry in std::fs::read_dir(dir).expect("the templates directory") {
+            let path = entry.expect("a directory entry").path();
+            let body = std::fs::read_to_string(&path).expect("a readable template");
+            assert!(!body.contains('\r'), "{} has CRLF endings", path.display());
+        }
+    }
+
     /// GIVEN a valid secret found in a command about to run
     /// WHEN the block message is built
     /// THEN it is the PreToolUse/Bash wording, with the match censored into
