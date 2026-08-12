@@ -20,6 +20,10 @@ Five matrices:
            changes the verdict or the request
   range    ranged reads: the lines an agent reads are the lines that
            reach the API, LF and CRLF, plus the agents that have no range
+  content  what a file's *bytes* do: byte-order marks, a NUL byte, a legacy
+           code page, and a file too large to scan at all
+  mention  relative and absolute `@`-mentions, resolved against the event cwd
+  batch    a prompt mentioning more files than fit in one scan
   cache    the clean-verdict cache: what gets remembered, what does
            not, and that both implementations share one cache file
   dotenv   a `.env` naming GITGUARDIAN_* settings: the instance and token both
@@ -80,6 +84,12 @@ RANGE_FILE = "/tmp/ggshield-hook-equivalence-range.txt"
 # Byte-identical to READ_FILE, under a different name: proves the filename
 # is part of the verdict cache key.
 COPY_FILE = "/tmp/ggshield-hook-equivalence-creds-copy.env"
+# The file the encoding/size matrix rewrites for each of its cases. Its directory
+# is also the `cwd` the @-mention cases resolve against, so a relative mention
+# and an absolute file_path must land on this same path.
+CONTENT_DIR = "/tmp"
+CONTENT_NAME = "ggshield-hook-equivalence-content.env"
+CONTENT_FILE = f"{CONTENT_DIR}/{CONTENT_NAME}"
 
 
 def agent_bases():
@@ -665,6 +675,247 @@ def compare_read_ranges(tmp):
     return failures
 
 
+def content_cases():
+    """What a file's *bytes* do. `(name, bytes, verdict, posts, same_document)`.
+
+    A file this hook cannot turn into text is not "skipped", it is **allowed**:
+    the read goes through with nothing scanned and nothing said. So every one of
+    these has to reach the API, except the oversized one, which Python answers
+    from the file size alone and never reads.
+
+    `same_document` is False for the one case where the two sides legitimately
+    send different text: charset_normalizer guesses a code page for a BOM-less
+    legacy encoding, the native hook decodes lossily. Secrets are ASCII and ASCII
+    survives both, so the verdict still has to match — which is what is asserted.
+    """
+    secret = f"AWS_KEY={CLIENT_ID}\n".encode()
+    text = f"AWS_KEY={CLIENT_ID}\n"
+    return [
+        ("utf8", secret, "block", 1, True),
+        # What Notepad's "Unicode" and PowerShell's `Out-File` write.
+        ("utf16le_bom", b"\xff\xfe" + text.encode("utf-16-le"), "block", 1, True),
+        ("utf16be_bom", b"\xfe\xff" + text.encode("utf-16-be"), "block", 1, True),
+        (
+            "utf32le_bom",
+            b"\xff\xfe\x00\x00" + text.encode("utf-32-le"),
+            "block",
+            1,
+            True,
+        ),
+        ("utf8_bom", b"\xef\xbb\xbf" + secret, "block", 1, True),
+        # The API answers 400 on a raw NUL byte, which used to fail the whole
+        # event open; both sides substitute it before sending.
+        ("nul_byte", secret + b"\x00trailing\n", "block", 1, True),
+        # One byte of a legacy code page in a comment. The two sides render that
+        # byte differently, so only the verdict is compared.
+        ("one_latin1_byte", b"# caf\xe9\n" + secret, "block", 1, False),
+        # Past four times the document ceiling no encoding could bring it under,
+        # so Python never reads the file. Reading it first is how a multi-GB
+        # `@big.log` became an OOM: no JSON, non-zero exit, unscanned read.
+        (
+            "over_four_times_the_ceiling",
+            b"x" * (5 * 1024 * 1024) + secret,
+            "allow",
+            0,
+            True,
+        ),
+    ]
+
+
+def compare_content(tmp):
+    """A file's bytes must reach the API whatever encoded them."""
+    failures = []
+    print("\nFile content: an undecodable or oversized file is an ALLOWED read")
+    log = tmp / "requests-content.jsonl"
+    mock, port = start_mock("secret", log)
+    claude = agent_bases()["claude"]
+    payload = {
+        **claude,
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+        "tool_input": {"file_path": CONTENT_FILE},
+    }
+    try:
+        for name, raw, expected, posts, same_document in content_cases():
+
+            def setup(raw=raw):
+                Path(CONTENT_FILE).write_bytes(raw)
+
+            before = len(read_requests(log))
+            verdict_ok, request_ok, py, rs, bodies = compare_one(
+                tmp, log, port, f"content-{name}", payload, setup=setup
+            )
+            # One side's requests only; `compare_one` ran both.
+            per_side = (len(read_requests(log)) - before) // 2
+            label = f"content/{name}"
+            if same_document:
+                report(failures, label, verdict_ok, request_ok, py, rs)
+            else:
+                print(f"  [{'MATCH' if verdict_ok else 'DIFF '}] {label}  (req=n/a)")
+                if not verdict_ok:
+                    failures.append(label)
+
+            actual = verdict_of(py.stdout)
+            if actual != expected or per_side != posts:
+                failures.append(f"{label} (wanted {expected}/{posts} posts)")
+                print(
+                    f"        ^ wanted {expected} with {posts} post(s), "
+                    f"got {actual} with {per_side}"
+                )
+            # Teeth for the NUL case: the substitute must be what went out.
+            if name == "nul_byte":
+                for side in ("python", "rust"):
+                    document = json.loads(bodies[side][0])[0]["document"]
+                    if "\0" in document or "\x1a" not in document:
+                        failures.append(f"{label} ({side} sent a raw NUL)")
+                        print(f"        ^ {side}: {document!r}")
+    finally:
+        mock.kill()
+        Path(CONTENT_FILE).unlink(missing_ok=True)
+    return failures
+
+
+def mention_cases():
+    """`@`-mentions in a prompt. `(name, prompt, verdict, filename)`.
+
+    A mention is usually relative, and it is resolved against the event's `cwd`;
+    a tool `file_path` for the same file is usually absolute. Both must produce
+    the same identifier, or the file is scanned twice and cached under two keys.
+    """
+    return [
+        ("relative", f"please check @{CONTENT_NAME}", "block", CONTENT_FILE),
+        ("absolute", f"please check @{CONTENT_FILE}", "block", CONTENT_FILE),
+        (
+            "dot_segments",
+            f"please check @./{CONTENT_NAME}",
+            "block",
+            CONTENT_FILE,
+        ),
+        (
+            "parent_segment",
+            f"please check @sub/../{CONTENT_NAME}",
+            "block",
+            CONTENT_FILE,
+        ),
+        # A mention of something that is not a file: the prompt itself is all
+        # there is to scan, and it carries no secret.
+        ("not_a_file", "please check @docs/nope.md", "allow", None),
+    ]
+
+
+def compare_mentions(tmp):
+    """A relative `@`-mention resolves to the same file a tool call would read."""
+    failures = []
+    print("\n@-mentions: a relative mention is the file the agent will read")
+    log = tmp / "requests-mentions.jsonl"
+    mock, port = start_mock("secret", log)
+    claude = {**agent_bases()["claude"], "cwd": CONTENT_DIR}
+    try:
+        for name, prompt, expected, filename in mention_cases():
+            payload = {
+                **claude,
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": prompt,
+            }
+
+            def setup():
+                Path(CONTENT_FILE).write_text(f"AWS_KEY={CLIENT_ID}\n")
+
+            verdict_ok, request_ok, py, rs, bodies = compare_one(
+                tmp, log, port, f"mention-{name}", payload, setup=setup
+            )
+            report(failures, f"mention/{name}", verdict_ok, request_ok, py, rs)
+
+            actual = verdict_of(py.stdout)
+            if actual != expected:
+                failures.append(f"mention/{name} (expected {expected}, got {actual})")
+                print(f"        ^ expected this mention to {expected}")
+            if filename is None:
+                continue
+            # Teeth: the mention resolved to the absolute path, on both sides.
+            for side in ("python", "rust"):
+                names = {
+                    document["filename"]
+                    for body in bodies[side]
+                    for document in json.loads(body)
+                }
+                if filename not in names:
+                    failures.append(f"mention/{name} ({side} resolved it elsewhere)")
+                    print(f"        ^ {side} sent {sorted(names)}")
+    finally:
+        mock.kill()
+        Path(CONTENT_FILE).unlink(missing_ok=True)
+    return failures
+
+
+# One more file than `maximum_documents_per_scan` (20 in mock_api), so the batch
+# has to be split -- and one chunk failing must not discard the others.
+MENTIONED_FILES = 21
+BATCH_DIR = "/tmp/ggshield-hook-equivalence-batch"
+
+
+def compare_batches(tmp):
+    """A prompt mentioning more files than fit one scan.
+
+    `find_filepaths` returns a set on the Python side, so the *order* of the
+    documents is not defined; what must match is which documents were sent and
+    how they were split. The secret sits in the last file by name, so it is only
+    found if every chunk is scanned.
+    """
+    failures = []
+    print(f"\nBatching: one prompt mentioning {MENTIONED_FILES} files")
+    log = tmp / "requests-batch.jsonl"
+    mock, port = start_mock("secret", log)
+    directory = Path(BATCH_DIR)
+    names = [f"file{i:02d}.env" for i in range(MENTIONED_FILES)]
+    claude = {**agent_bases()["claude"], "cwd": BATCH_DIR}
+    payload = {
+        **claude,
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": "review " + " ".join(f"@{name}" for name in names),
+    }
+
+    def setup():
+        shutil.rmtree(directory, ignore_errors=True)
+        directory.mkdir(parents=True)
+        for index, name in enumerate(names):
+            content = f"AWS_KEY={CLIENT_ID}\n" if index == len(names) - 1 else "clean\n"
+            (directory / name).write_text(content)
+
+    try:
+        verdict_ok, _, py, rs, bodies = compare_one(
+            tmp, log, port, "batch-many-mentions", payload, setup=setup
+        )
+        print(f"  [{'MATCH' if verdict_ok else 'DIFF '}] batch/many_mentions")
+        if not verdict_ok:
+            failures.append("batch/many_mentions")
+            print(f"        python exit={py.returncode} stdout={py.stdout[:200]!r}")
+            print(f"          rust exit={rs.returncode} stdout={rs.stdout[:200]!r}")
+        if verdict_of(py.stdout) != "block":
+            failures.append("batch/many_mentions (expected a block)")
+            print("        ^ the secret in the last mentioned file did not block")
+        for side in ("python", "rust"):
+            batches = [json.loads(body) for body in bodies[side]]
+            sent = sorted(
+                document["filename"] for batch in batches for document in batch
+            )
+            # The prompt payload is scanned too, under a sha256 of its text.
+            wanted = sorted(
+                [f"{BATCH_DIR}/{name}" for name in names]
+                + [next(n for n in sent if IS_SHA256.match(n))]
+            )
+            if sent != wanted or sorted(len(b) for b in batches) != [2, 20]:
+                failures.append(f"batch/many_mentions ({side} split it differently)")
+                print(
+                    f"        ^ {side} sent {[len(b) for b in batches]} "
+                    f"document(s) per scan, {len(sent)} in total"
+                )
+    finally:
+        mock.kill()
+        shutil.rmtree(directory, ignore_errors=True)
+    return failures
+
+
 def cached_read_payloads():
     """A Claude Code `Read`, at PreToolUse and then at PostToolUse.
 
@@ -971,6 +1222,15 @@ def compare_one(
     # can agree by luck while the wrong bytes were sent.
     request_ok = same_requests(bodies["python"], bodies["rust"])
     return verdict_ok, request_ok, py, rs, bodies
+
+
+def verdict_of(stdout):
+    """ "block" or "allow", whichever schema the agent's verdict uses.
+
+    A tool event blocks with `permissionDecision: deny`, a prompt event with
+    `decision: block`.
+    """
+    return "block" if b"deny" in stdout or b'"block"' in stdout else "allow"
 
 
 def as_json(raw):
@@ -1330,7 +1590,29 @@ def extra_cases(tmp):
     finally:
         mock.kill()
 
-    # 3. A payload from no known agent: no verdict at all, exit 1.
+    # 3. A cleartext instance. `validate_instance_url` refuses it, so the token
+    #    and the document never leave over plain http; the refusal surfaces as an
+    #    ordinary fail-open, warning text included.
+    print("\nCleartext instance (compared against Python, warning included):")
+    for case, env_extra in (
+        ("http_instance", {"GITGUARDIAN_INSTANCE": "http://gg.example.com"}),
+        ("http_api_url", {"GITGUARDIAN_API_URL": "http://gg.example.com/exposed"}),
+    ):
+        log = tmp / f"requests-{case}.jsonl"
+        mock, port = start_mock("secret", log)
+        try:
+            before = len(read_requests(log))
+            verdict_ok, request_ok, py, rs, _ = compare_one(
+                tmp, log, port, f"cleartext-{case}", payload, env_extra=env_extra
+            )
+            report(failures, f"cleartext/{case}", verdict_ok, request_ok, py, rs)
+            if len(read_requests(log)) != before:
+                failures.append(f"cleartext/{case} (something was posted)")
+                print("        ^ a document was sent over cleartext http")
+        finally:
+            mock.kill()
+
+    # 4. A payload from no known agent: no verdict at all, exit 1.
     print("\nUnrecognized agent (both sides): no stdout, exit 1")
     for side, cmd in (("python", PY_CMD), ("rust", RS_CMD)):
         workdir = make_workdir(tmp, f"unknown-{side}")
@@ -1451,6 +1733,9 @@ def main():
         # READ_FILE — so the ignore sha must be the one for that file.
         failures += compare_configs(tmp, mock_api.ignore_sha(f"AWS_KEY={CLIENT_ID}\n"))
         failures += compare_read_ranges(tmp)
+        failures += compare_content(tmp)
+        failures += compare_mentions(tmp)
+        failures += compare_batches(tmp)
         failures += compare_verdict_cache(tmp)
         failures += compare_dotenv(tmp)
         failures += extra_cases(tmp)
