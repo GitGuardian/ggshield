@@ -1259,7 +1259,9 @@ AI_DISCOVERY = {
         {
             "name": "GitHub",
             "display_name": "GitHub",
-            "tools": [{"name": "delete_repository", "description": None, "arguments": None}],
+            "tools": [
+                {"name": "delete_repository", "description": None, "arguments": None}
+            ],
             "resources": [],
             "prompts": [],
             "configurations": [
@@ -1288,7 +1290,7 @@ AI_DISCOVERY = {
                     "headers": {},
                 },
             ],
-        }
+        },
     ],
 }
 
@@ -1362,7 +1364,11 @@ def compare_mcp(tmp):
     print("\nMCP activity: the call itself is checked, not just its arguments")
     for case, deny, expected in (
         ("permitted", "", "allow"),
-        ("denied", "Deleting repositories is not allowed by your organization.", "block"),
+        (
+            "denied",
+            "Deleting repositories is not allowed by your organization.",
+            "block",
+        ),
     ):
         log = tmp / f"requests-mcp-{case}.jsonl"
         # Clean, so the verdict on show is the policy one and not a secret.
@@ -1393,7 +1399,9 @@ def compare_mcp(tmp):
                 for side, sent in reports.items():
                     if len(sent) != 1:
                         failures.append(f"{name} ({side} sent {len(sent)} reports)")
-                        print(f"        ^ {side} reported {len(sent)} activities, wanted 1")
+                        print(
+                            f"        ^ {side} reported {len(sent)} activities, wanted 1"
+                        )
                         continue
                     # The canonical server name, which is what a policy names.
                     wanted = {
@@ -1409,7 +1417,9 @@ def compare_mcp(tmp):
                 actual = "block" if b"deny" in py.stdout else "allow"
                 if actual != expected:
                     failures.append(f"{name} (expected {expected}, got {actual})")
-                    print(f"        ^ expected the policy to {expected}, but it did not")
+                    print(
+                        f"        ^ expected the policy to {expected}, but it did not"
+                    )
         finally:
             mock.kill()
     return failures
