@@ -633,6 +633,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ggshield-discovery"
+version = "0.1.0"
+dependencies = [
+ "ggshield-common",
+ "ggshield-config",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "ggshield-dispatcher"
 version = "0.1.0"
 dependencies = [
@@ -645,8 +656,10 @@ dependencies = [
 name = "ggshield-hook"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "ggshield-common",
  "ggshield-config",
+ "ggshield-discovery",
  "regex",
  "serde",
  "serde_json",

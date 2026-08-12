@@ -24,6 +24,8 @@ Five matrices:
            code page, and a file too large to scan at all
   mention  relative and absolute `@`-mentions, resolved against the event cwd
   batch    a prompt mentioning more files than fit in one scan
+  mcp      MCP tool calls: the activity report each side sends, the server name
+           it resolves, and the policy verdict it honours
   cache    the clean-verdict cache: what gets remembered, what does
            not, and that both implementations share one cache file
   dotenv   a `.env` naming GITGUARDIAN_* settings: the instance and token both
@@ -1082,15 +1084,237 @@ def compare_verdict_cache(tmp):
     return failures
 
 
+# One MCP server, as `save_discovery_cache()` writes it. Schema-valid on purpose:
+# `AIDiscovery.from_dict` rejects a partial configuration, and a rejected cache
+# sends the Python side off to redo the whole discovery walk — which would probe
+# the developer's real machine and make this matrix meaningless.
+#
+# "git hub" covers Claude Code, Codex and VS Code, "git.hub" is Copilot's (which
+# only looks at its own), and the tool covers Cursor, which reports no server at
+# all. All of them must come back as the canonical "GitHub".
+#
+# "Decoy" comes first and mangles to the same VS Code key ("git_hub") and the same
+# Copilot key ("git-hub") as GitHub's own configurations, which is the interesting
+# case: the two sides have to agree on *which* of the two servers answers, or a
+# policy denying a tool on one is checked against the other. Its own names differ
+# in case, so Claude Code and Codex — which do not lower-case, and where the first
+# match wins on both sides — still resolve to GitHub.
+AI_DISCOVERY = {
+    "user": {
+        "hostname": "equivalence-host",
+        "username": "equivalence-user",
+        "machine_id": "00000000-0000-4000-8000-00000000dead",
+        "user_email": None,
+    },
+    "discovery_duration": 0.125,
+    "agents": [],
+    "servers": [
+        {
+            "name": "Decoy",
+            "display_name": "Decoy",
+            "tools": [],
+            "resources": [],
+            "prompts": [],
+            "configurations": [
+                {
+                    "name": "GIT HUB",
+                    "agent": "claude-code",
+                    "scope": "user",
+                    "transport": "stdio",
+                    "project": None,
+                    "command": "npx",
+                    "args": [],
+                    "env": {},
+                    "url": None,
+                    "headers": {},
+                },
+                {
+                    "name": "GIT.HUB",
+                    "agent": "copilot",
+                    "scope": "user",
+                    "transport": "stdio",
+                    "project": None,
+                    "command": "npx",
+                    "args": [],
+                    "env": {},
+                    "url": None,
+                    "headers": {},
+                },
+            ],
+        },
+        {
+            "name": "GitHub",
+            "display_name": "GitHub",
+            "tools": [{"name": "delete_repository", "description": None, "arguments": None}],
+            "resources": [],
+            "prompts": [],
+            "configurations": [
+                {
+                    "name": "git hub",
+                    "agent": "claude-code",
+                    "scope": "user",
+                    "transport": "stdio",
+                    "project": None,
+                    "command": "npx",
+                    "args": [],
+                    "env": {},
+                    "url": None,
+                    "headers": {},
+                },
+                {
+                    "name": "git.hub",
+                    "agent": "copilot",
+                    "scope": "user",
+                    "transport": "stdio",
+                    "project": None,
+                    "command": "npx",
+                    "args": [],
+                    "env": {},
+                    "url": None,
+                    "headers": {},
+                },
+            ],
+        }
+    ],
+}
+
+# What each agent calls the same tool on the same server. Three of the five cannot
+# be split without the inventory above.
+MCP_TOOL_NAMES = {
+    "claude": "mcp__git_hub__delete_repository",
+    "codex": "mcp__git_hub__delete_repository",
+    # Copilot joins with "-" and its configuration name contains one.
+    "copilot": "git-hub-delete_repository",
+    # Cursor names the tool and nothing else.
+    "cursor": "MCP:delete_repository",
+    # VS Code joins with "_", and so do both halves.
+    "vscode": "mcp_git_hub_delete_repository",
+}
+
+MCP_ARGUMENTS = {"owner": "acme", "repo": "prod", "confirm": True}
+
+
+def mcp_payloads():
+    """One MCP `PreToolUse` per agent, in that agent's own dialect."""
+    bases = agent_bases()
+    return {
+        agent: {
+            **bases[agent],
+            "hook_event_name": "preToolUse" if agent == "cursor" else "PreToolUse",
+            "tool_name": tool_name,
+            "tool_input": MCP_ARGUMENTS,
+        }
+        for agent, tool_name in MCP_TOOL_NAMES.items()
+    }
+
+
+def seed_discovery_cache(workdir):
+    """Install a *fresh* inventory, which is what makes the native path eligible.
+
+    Both sides read this same file: Python trusts a cache younger than its TTL
+    instead of re-walking, and the Rust hook has no walk at all — with a stale or
+    absent file it declines the event to `ggshield-py`.
+    """
+    cache = workdir / "cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    (cache / "ai_discovery.json").write_text(json.dumps(AI_DISCOVERY))
+
+
+def activity_bodies(entries):
+    """Every MCP activity report in `entries`, timestamps dropped.
+
+    Filtered by path rather than compared in order: Python overlaps the activity
+    report with the scan on a thread, so their arrival order is not a property to
+    assert on. `timestamp` is the moment the hook ran, so it can only differ.
+    """
+    bodies = []
+    for entry in entries:
+        if "mcp-activity" not in entry["path"]:
+            continue
+        body = json.loads(entry["body"])
+        body.pop("timestamp", None)
+        bodies.append(body)
+    return bodies
+
+
+def compare_mcp(tmp):
+    """An MCP tool call is two questions, and the hook has to ask both.
+
+    Both sides must report the call, resolve the server to its canonical name, and
+    honour the verdict — an organisation that denies `delete_repository` denies it
+    whether or not the arguments carry a secret.
+    """
+    failures = []
+    print("\nMCP activity: the call itself is checked, not just its arguments")
+    for case, deny, expected in (
+        ("permitted", "", "allow"),
+        ("denied", "Deleting repositories is not allowed by your organization.", "block"),
+    ):
+        log = tmp / f"requests-mcp-{case}.jsonl"
+        # Clean, so the verdict on show is the policy one and not a secret.
+        mock, port = start_mock("clean", log, mcp_deny=deny)
+        try:
+            for agent, payload in mcp_payloads().items():
+                name = f"mcp/{case}/{agent}"
+                results, entries = {}, {}
+                for side, cmd in (("python", PY_CMD), ("rust", RS_CMD)):
+                    workdir = make_workdir(tmp, f"mcp-{case}-{agent}-{side}")
+                    seed_discovery_cache(workdir)
+                    before = len(read_requests(log))
+                    results[side], _ = run(cmd, payload, port, workdir)
+                    entries[side] = read_requests(log)[before:]
+                py, rs = results["python"], results["rust"]
+                reports = {side: activity_bodies(entries[side]) for side in entries}
+
+                verdict_ok = (
+                    same_stdout(py.stdout, rs.stdout) and py.returncode == rs.returncode
+                )
+                request_ok = reports["python"] == reports["rust"]
+                report(failures, name, verdict_ok, request_ok, py, rs)
+                if not request_ok:
+                    print(f"        python sent {reports['python']}")
+                    print(f"          rust sent {reports['rust']}")
+
+                # Teeth. Without these the two could agree by both doing nothing.
+                for side, sent in reports.items():
+                    if len(sent) != 1:
+                        failures.append(f"{name} ({side} sent {len(sent)} reports)")
+                        print(f"        ^ {side} reported {len(sent)} activities, wanted 1")
+                        continue
+                    # The canonical server name, which is what a policy names.
+                    wanted = {
+                        "server": "GitHub",
+                        "tool": "delete_repository",
+                        "input": MCP_ARGUMENTS,
+                    }
+                    got = {key: sent[0].get(key) for key in wanted}
+                    if got != wanted:
+                        failures.append(f"{name} ({side} reported the wrong call)")
+                        print(f"        ^ {side} reported {got}, wanted {wanted}")
+
+                actual = "block" if b"deny" in py.stdout else "allow"
+                if actual != expected:
+                    failures.append(f"{name} (expected {expected}, got {actual})")
+                    print(f"        ^ expected the policy to {expected}, but it did not")
+        finally:
+            mock.kill()
+    return failures
+
+
 def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
 
 
-def start_mock(mode, request_log):
+def start_mock(mode, request_log, mcp_deny=""):
     port = free_port()
-    env = {**os.environ, "MODE": mode, "REQUEST_LOG": str(request_log)}
+    env = {
+        **os.environ,
+        "MODE": mode,
+        "REQUEST_LOG": str(request_log),
+        "MCP_DENY": mcp_deny,
+    }
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "tests" / "mock_api.py"), str(port)],
         env=env,
@@ -1738,6 +1962,7 @@ def main():
         failures += compare_content(tmp)
         failures += compare_mentions(tmp)
         failures += compare_batches(tmp)
+        failures += compare_mcp(tmp)
         failures += compare_verdict_cache(tmp)
         failures += compare_dotenv(tmp)
         failures += extra_cases(tmp)

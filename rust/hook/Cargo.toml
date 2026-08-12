@@ -12,11 +12,14 @@ path = "src/lib.rs"
 [dependencies]
 ggshield-common = { workspace = true }
 ggshield-config = { workspace = true }
+ggshield-discovery = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ureq = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
+# The MCP activity report's `timestamp`, an ISO 8601 instant.
+chrono = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

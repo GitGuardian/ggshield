@@ -9,6 +9,7 @@ use regex::Regex;
 use serde_json::Value;
 
 use ggshield_common::error::Error;
+use ggshield_discovery::Inventory;
 
 pub use ggshield_common::hash::sha256_hex;
 
@@ -112,6 +113,63 @@ impl Agent {
         AGENTS.into_iter().find(|agent| agent.is_caller(data))
     }
 
+    /// `parse_mcp_activity()`, minus the parts that are the same for every agent:
+    /// which MCP server this tool call is going to, which tool, and which model
+    /// asked for it.
+    ///
+    /// Per-agent by necessity: each joins the server configuration name and the
+    /// tool name with its own separator, mangles the configuration name its own
+    /// way, and both halves can contain that separator — so the split is a lookup
+    /// against the inventory, not a `split_once`.
+    ///
+    /// Vibe is absent because the Rust hook has no Vibe adapter yet; that lands
+    /// with the separate Vibe work. A payload already classified as `Tool::Mcp`
+    /// flows through here whatever the agent.
+    pub fn mcp_activity(self, data: &Value, inventory: &Inventory) -> McpActivity {
+        let raw_tool_name = lookup_str(data, &["tool_name"]);
+        let (server, tool) = match self {
+            // "mcp__<server>__<tool>". The server configuration name can be
+            // anything, but no MCP tool has "__" in its name, so the last segment
+            // is the tool and everything between is the configuration.
+            Agent::Claude | Agent::Codex => {
+                let parts: Vec<&str> = raw_tool_name.split("__").collect();
+                let tool = parts.last().copied().unwrap_or_default().to_string();
+                let middle = parts
+                    .get(1..parts.len().saturating_sub(1))
+                    .unwrap_or_default()
+                    .join("__");
+                // Claude Code prefixes the servers it installs itself.
+                let cfg_name = if self == Agent::Claude {
+                    middle.strip_prefix("claude_ai_").unwrap_or(&middle)
+                } else {
+                    &middle
+                };
+                (inventory.server_for_config_name(cfg_name), tool)
+            }
+            // Cursor sends the tool and nothing else, so the server comes from
+            // the capabilities the walk probed.
+            Agent::Cursor => {
+                let tool = raw_tool_name
+                    .strip_prefix("MCP:")
+                    .unwrap_or(&raw_tool_name)
+                    .to_string();
+                (inventory.server_for_tool_name(&tool), tool)
+            }
+            Agent::VsCode => inventory.split_underscored(&raw_tool_name),
+            Agent::Copilot => inventory.split_hyphenated(&raw_tool_name, self.name()),
+        };
+        McpActivity {
+            server,
+            tool,
+            model: match self {
+                // Python sends the empty string for the others.
+                Agent::Codex | Agent::Cursor => lookup_str(data, &["model"]),
+                _ => String::new(),
+            },
+            cwd: self.event_cwd(data),
+        }
+    }
+
     /// The working directory the event happened in, used to resolve a relative
     /// Read path to the absolute identifier a tool call would produce, so both
     /// share one verdict-cache key. "" when unknown.
@@ -171,6 +229,14 @@ impl Agent {
             Agent::Codex | Agent::Copilot | Agent::Cursor => None,
         }
     }
+}
+
+/// One MCP tool call in the terms the activity endpoint speaks.
+pub struct McpActivity {
+    pub server: String,
+    pub tool: String,
+    pub model: String,
+    pub cwd: String,
 }
 
 /// `(first, last)`, 1-based and inclusive, `None` for "to the end of the file".
