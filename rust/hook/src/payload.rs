@@ -2,6 +2,7 @@
 //! and `_detect_agent()` in `ggshield/verticals/ai/hooks.py`.
 
 use std::collections::BTreeSet;
+use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
 
 use regex::Regex;
@@ -147,7 +148,10 @@ impl Agent {
             Agent::Claude => {
                 let first = positive("offset").unwrap_or(1);
                 match positive("limit") {
-                    Some(limit) => Some((first, Some(first + limit - 1))),
+                    // Both come from `tool_input`, so both are prompt-controlled:
+                    // `first + limit` wrapping would yield an empty slice, i.e. a
+                    // read nothing was scanned for. Saturating means "to the end".
+                    Some(limit) => Some((first, Some(first.saturating_add(limit - 1)))),
                     None if first == 1 => None,
                     None => Some((first, None)),
                 }
@@ -290,48 +294,48 @@ pub fn find_filepaths(prompt: &str) -> BTreeSet<String> {
 /// Resolve a Read identifier against the event's `cwd`, so a relative @-mention
 /// and an absolute tool `file_path` for one file share a single verdict-cache key.
 ///
-/// Lexical and POSIX only, like `os.path.abspath(os.path.join(cwd, identifier))`:
-/// no filesystem access, no symlink resolution, no drive letters.
+/// Lexical, like `os.path.abspath(os.path.join(cwd, identifier))`: no filesystem
+/// access and no symlink resolution. `std::path` supplies the platform's own
+/// notion of "absolute" and of a separator, which is what `os.path` does — a
+/// POSIX-only test treats `C:\...` and `\\host\share\...` as relative and builds
+/// `C:\proj/C:\Users\...`, a path that exists nowhere, so the file is never read
+/// and the payload text is scanned in its place.
 fn abs_read_path(identifier: &str, cwd: &str) -> String {
     if identifier.is_empty() || cwd.is_empty() {
         return identifier.to_string();
     }
-    let joined = if identifier.starts_with('/') {
-        identifier.to_string()
-    } else {
-        format!("{cwd}/{identifier}")
-    };
-    normpath(&joined)
+    // `Path::join` already implements `os.path.join`: an absolute (or, on
+    // Windows, root-relative) second argument replaces the first.
+    normpath(&Path::new(cwd).join(identifier))
 }
 
-/// Lexical `os.path.normpath` for POSIX: squeeze repeated `/`, drop `.`, resolve
-/// `..`. No filesystem access.
-fn normpath(path: &str) -> String {
-    let is_absolute = path.starts_with('/');
-    let mut out: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => match out.last() {
-                Some(&last) if last != ".." => {
+/// Lexical `os.path.normpath`: squeeze repeated separators, drop `.`, resolve
+/// `..`, and render with the platform separator. No filesystem access.
+fn normpath(path: &Path) -> String {
+    let mut out = PathBuf::new();
+    let mut rooted = false;
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => match out.components().next_back() {
+                Some(Component::Normal(_)) => {
                     out.pop();
                 }
                 // As normpath: a leading `..` is kept on a relative path, and
                 // dropped past the root of an absolute one.
-                _ if !is_absolute => out.push(".."),
+                _ if !rooted => out.push(".."),
                 _ => {}
             },
-            _ => out.push(part),
+            other => {
+                rooted |= matches!(other, Component::RootDir | Component::Prefix(_));
+                out.push(other.as_os_str());
+            }
         }
     }
-    let joined = out.join("/");
-    if is_absolute {
-        format!("/{joined}")
-    } else if joined.is_empty() {
-        ".".to_string()
-    } else {
-        joined
+    if out.as_os_str().is_empty() {
+        return ".".to_string();
     }
+    out.to_string_lossy().into_owned()
 }
 
 fn read_payload(identifier: String, agent: Agent) -> Payload {
@@ -480,6 +484,12 @@ fn parse_command(content: &str, agent: Agent, cwd: &str) -> Vec<Payload> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// A POSIX fixture path as `abs_read_path` renders it on this platform, so one
+    /// expectation covers Windows too (where `os.path` uses `\\`).
+    fn native(path: &str) -> String {
+        normpath(Path::new(path))
+    }
 
     fn claude(extra: Value) -> Value {
         let mut base = json!({
@@ -663,7 +673,7 @@ mod tests {
         let payloads = parse(&raw).expect("parses");
         assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].tool, Some(Tool::Read));
-        assert_eq!(payloads[0].identifier, "/tmp/secrets.env");
+        assert_eq!(payloads[0].identifier, native("/tmp/secrets.env"));
         assert_eq!(payloads[1].tool, Some(Tool::Bash));
     }
 
@@ -680,7 +690,7 @@ mod tests {
         .to_string();
         let payloads = parse(&raw).expect("parses");
         assert_eq!(payloads[0].tool, Some(Tool::Read));
-        assert_eq!(payloads[0].identifier, "/tmp/a.txt");
+        assert_eq!(payloads[0].identifier, native("/tmp/a.txt"));
         assert_eq!(payloads[0].content, "");
     }
 
@@ -730,7 +740,7 @@ mod tests {
         }))
         .to_string();
         let payloads = parse(&raw).expect("parses");
-        assert_eq!(payloads[0].identifier, "/tmp/a.txt");
+        assert_eq!(payloads[0].identifier, native("/tmp/a.txt"));
         assert_eq!(payloads[0].content, r#"{"content":"hello"}"#);
     }
 
@@ -761,8 +771,11 @@ mod tests {
         .to_string();
         let payloads = parse(&raw).expect("parses");
         let ids: Vec<_> = payloads.iter().map(|p| p.identifier.as_str()).collect();
-        assert!(ids.contains(&"/tmp/src/main.rs"), "{ids:?}");
-        assert!(ids.contains(&"/tmp/a b.txt"), "{ids:?}");
+        assert!(
+            ids.contains(&native("/tmp/src/main.rs").as_str()),
+            "{ids:?}"
+        );
+        assert!(ids.contains(&native("/tmp/a b.txt").as_str()), "{ids:?}");
         assert_eq!(
             payloads.last().expect("non-empty").event_type,
             EventType::UserPrompt
@@ -847,6 +860,26 @@ mod tests {
         assert_eq!(read_range_of(&codex), None);
     }
 
+    /// GIVEN a Read whose prompt-controlled `offset` and `limit` sum past `u64::MAX`
+    /// WHEN the range is resolved and sliced
+    /// THEN it runs to the end of the file. Wrapping turned the pair into a range
+    /// ending *before* it starts, i.e. an empty document, i.e. an unscanned read.
+    #[test]
+    fn read_range_never_wraps() {
+        let raw = claude(json!({
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "/tmp/a.txt", "offset": 2, "limit": u64::MAX},
+        }));
+        assert_eq!(read_range_of(&raw), Some((2, Some(u64::MAX))));
+
+        let content = (1..=5)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert_eq!(line_slice(&content, (2, Some(u64::MAX))).lines().count(), 5);
+    }
+
     /// GIVEN a Read at PreToolUse and then at PostToolUse
     /// WHEN their ranges are resolved
     /// THEN they are the same window, which is what lets one verdict answer both.
@@ -917,8 +950,9 @@ mod tests {
     /// GIVEN absolute, relative and empty identifiers against various cwds
     /// WHEN each read path is resolved
     /// THEN it matches `abspath(join(...))`: `..` resolved lexically, `.` dropped,
-    /// repeated `/` squeezed, empties left alone.
+    /// repeated separators squeezed, empties left alone.
     #[test]
+    #[cfg(unix)]
     fn abs_read_path_matches_python_abspath_join() {
         assert_eq!(abs_read_path("/tmp/a.txt", "/home/user"), "/tmp/a.txt");
         assert_eq!(
@@ -934,6 +968,44 @@ mod tests {
         assert_eq!(
             abs_read_path("./a//b/x.txt", "/home/user"),
             "/home/user/a/b/x.txt"
+        );
+        // A backslash is an ordinary filename character on POSIX, so this really
+        // is one relative file called `C:\Users\me\x.txt`.
+        assert_eq!(
+            abs_read_path(r"C:\Users\me\x.txt", "/proj"),
+            r"/proj/C:\Users\me\x.txt"
+        );
+    }
+
+    /// GIVEN the absolute path forms Windows actually uses
+    /// WHEN each is resolved against a cwd
+    /// THEN it is left alone rather than appended to the cwd, which would make
+    /// `is_file()` fail and the file be scanned as prompt text instead.
+    #[test]
+    #[cfg(windows)]
+    fn abs_read_path_recognises_windows_absolute_paths() {
+        assert_eq!(
+            abs_read_path(r"C:\Users\me\creds.env", r"C:\proj"),
+            r"C:\Users\me\creds.env"
+        );
+        // Forward slashes are separators on Windows too.
+        assert_eq!(
+            abs_read_path("C:/Users/me/creds.env", r"C:\proj"),
+            r"C:\Users\me\creds.env"
+        );
+        assert_eq!(
+            abs_read_path(r"\\host\share\creds.env", r"C:\proj"),
+            r"\\host\share\creds.env"
+        );
+        // Root-relative: `os.path.join` keeps the cwd's drive, and so does this.
+        assert_eq!(abs_read_path(r"\creds.env", r"D:\proj"), r"D:\creds.env");
+        assert_eq!(
+            abs_read_path(r"src\creds.env", r"C:\proj"),
+            r"C:\proj\src\creds.env"
+        );
+        assert_eq!(
+            abs_read_path(r"..\bar\x.txt", r"C:\proj\foo"),
+            r"C:\proj\bar\x.txt"
         );
     }
 
@@ -951,7 +1023,8 @@ mod tests {
         .to_string();
         let mention = parse(&prompt).expect("parses");
         let ids: Vec<_> = mention.iter().map(|p| p.identifier.as_str()).collect();
-        assert!(ids.contains(&"/home/user/proj/src/creds.env"), "{ids:?}");
+        let wanted = native("/home/user/proj/src/creds.env");
+        assert!(ids.contains(&wanted.as_str()), "{ids:?}");
 
         let read = claude(json!({
             "cwd": "/home/user/proj",
@@ -960,10 +1033,7 @@ mod tests {
             "tool_input": {"file_path": "/home/user/proj/src/creds.env"},
         }))
         .to_string();
-        assert_eq!(
-            parse(&read).expect("parses")[0].identifier,
-            "/home/user/proj/src/creds.env"
-        );
+        assert_eq!(parse(&read).expect("parses")[0].identifier, wanted);
     }
 
     /// GIVEN a Cursor event, which reports `workspace_roots` instead of `cwd`
