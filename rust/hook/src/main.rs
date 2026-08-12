@@ -171,7 +171,7 @@ fn scan_payloads(
 
     let mut pending: Vec<Pending> = Vec::new();
     for (index, payload) in payloads.iter_mut().enumerate() {
-        let Some((content, filename)) = scannable(payload) else {
+        let Some((content, filename)) = scannable(config, payload) else {
             continue;
         };
         if content.is_empty() {
@@ -217,10 +217,21 @@ fn scan_payloads(
     }
 
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
+    let mut failure: Option<Error> = None;
     let max_documents = api::max_documents_per_scan(config);
     let max_payload_size = api::max_payload_size(config);
     for chunk in chunks(&pending, max_documents, max_payload_size) {
-        let results = api::multiscan(config, agent, chunk.iter().map(|item| &item.document))?;
+        // `_collect_results()` reports a failed chunk and carries on with the
+        // rest. Propagating here instead discarded every secret the earlier
+        // chunks had already found and skipped the remaining ones — reachable
+        // from a prompt mentioning 21 files.
+        let results = match api::multiscan(config, agent, chunk.iter().map(|item| &item.document)) {
+            Ok(results) => results,
+            Err(error) => {
+                failure = failure.or(Some(error));
+                continue;
+            }
+        };
         // /v1/multiscan answers one result per document, in order. Any other
         // count is a degraded answer that cannot be attributed to a document.
         let unambiguous = results.len() == chunk.len();
@@ -240,7 +251,13 @@ fn scan_payloads(
             }
         }
     }
-    Ok(found.unwrap_or((0, Vec::new())))
+    match (found, failure) {
+        // A secret beats a partial failure: blocking on what was found is never
+        // worse than failing the whole event open.
+        (Some(found), _) => Ok(found),
+        (None, Some(failure)) => Err(failure),
+        (None, None) => Ok((0, Vec::new())),
+    }
 }
 
 /// `_start_scans()`'s chunking: the API caps a scan both in documents and in
@@ -272,16 +289,29 @@ fn chunks(
     })
 }
 
+/// `UTF8_TO_WORSE_OTHER_ENCODING_RATIO` in scannable.py: past this multiple of the
+/// ceiling, no encoding could bring the file under it, so Python answers
+/// `is_longer_than()` from the byte size and never reads the file.
+const UTF8_TO_WORSE_OTHER_ENCODING_RATIO: u64 = 4;
+
 /// For a Read tool pointing at a real, non-binary file the *file* is scanned,
 /// not the payload text. Everything else scans the payload content under the
 /// identifier as its filename.
-fn scannable(payload: &mut Payload) -> Option<(String, String)> {
+///
+/// `None` means "nothing to scan here": the file is too large to be scanned at
+/// all, so reading it would only cost the memory.
+fn scannable(config: &config::Config, payload: &mut Payload) -> Option<(String, String)> {
     if payload.tool == Some(Tool::Read) {
         let path = Path::new(&payload.identifier);
         if path.is_file() && !is_path_binary(path) {
-            // Python skips a file it cannot decode ("can't detect encoding").
-            let content = std::fs::read(path).ok()?;
-            let content = String::from_utf8(content).ok()?;
+            // Reading first and measuring after is how `@big.log` on a multi-GB
+            // file became an OOM, i.e. no JSON and a non-zero exit: the agent
+            // proceeds unscanned. A ranged read still reads, as Python does —
+            // its slice can well be under the ceiling.
+            if payload.read_range.is_none() && is_over_any_encoding_of_the_ceiling(config, path) {
+                return None;
+            }
+            let content = decode(&std::fs::read(path).ok()?);
             // Only the lines the agent asked for reach the model, and sending
             // the whole file can push it over the document ceiling.
             let content = match payload.read_range {
@@ -295,6 +325,60 @@ fn scannable(payload: &mut Payload) -> Option<(String, String)> {
         std::mem::take(&mut payload.content),
         payload.identifier.clone(),
     ))
+}
+
+fn is_over_any_encoding_of_the_ceiling(config: &config::Config, path: &Path) -> bool {
+    let ceiling =
+        (api::max_document_size(config) as u64).saturating_mul(UTF8_TO_WORSE_OTHER_ENCODING_RATIO);
+    std::fs::metadata(path).is_ok_and(|meta| meta.len() > ceiling)
+}
+
+/// A file's bytes as text, honouring a byte-order mark.
+///
+/// `Scannable._decode_bytes()` detects the encoding with charset_normalizer and
+/// decodes it with `errors="replace"`, giving up only when detection finds
+/// nothing at all. Requiring strict UTF-8 instead would skip whole families of
+/// ordinary files — PowerShell's `Out-File` writes UTF-16LE with a BOM by
+/// default — and a skipped file is an *allowed* read, so its secrets would reach
+/// the model unscanned and unmentioned. That is the one outcome this hook exists
+/// to prevent, so a best-effort decode beats a skip.
+///
+/// Lossy is safe for the purpose: secrets are ASCII, ASCII survives every
+/// encoding here byte for byte, and a mangled accent elsewhere in the file cannot
+/// hide one. What this does not do is charset_normalizer's statistical detection
+/// of BOM-less legacy encodings (CP1250 and friends); those decode as UTF-8,
+/// which keeps their ASCII intact.
+fn decode(bytes: &[u8]) -> String {
+    match bytes {
+        // UTF-32 first: its LE mark starts with the whole UTF-16 LE mark.
+        [0xFF, 0xFE, 0x00, 0x00, rest @ ..] => decode_utf32(rest, u32::from_le_bytes),
+        [0x00, 0x00, 0xFE, 0xFF, rest @ ..] => decode_utf32(rest, u32::from_be_bytes),
+        [0xFF, 0xFE, rest @ ..] => decode_utf16(rest, u16::from_le_bytes),
+        [0xFE, 0xFF, rest @ ..] => decode_utf16(rest, u16::from_be_bytes),
+        // `bytes.decode()` does not drop the UTF-8 mark either, so Python strips
+        // it by hand as well; left in, it would show up in the scanned text.
+        [0xEF, 0xBB, 0xBF, rest @ ..] => String::from_utf8_lossy(rest).into_owned(),
+        _ => String::from_utf8_lossy(bytes).into_owned(),
+    }
+}
+
+/// A trailing odd byte is dropped: it cannot be part of a code unit.
+fn decode_utf16(bytes: &[u8], unit: fn([u8; 2]) -> u16) -> String {
+    let units: Vec<u16> = bytes
+        .chunks_exact(2)
+        .map(|pair| unit([pair[0], pair[1]]))
+        .collect();
+    String::from_utf16_lossy(&units)
+}
+
+fn decode_utf32(bytes: &[u8], unit: fn([u8; 4]) -> u32) -> String {
+    bytes
+        .chunks_exact(4)
+        .map(|quad| {
+            char::from_u32(unit([quad[0], quad[1], quad[2], quad[3]]))
+                .unwrap_or(char::REPLACEMENT_CHARACTER)
+        })
+        .collect()
 }
 
 /// `is_path_binary()`: extension test only, same list as ggshield.
@@ -389,11 +473,13 @@ mod tests {
     /// Recognised by the mock below as "this document holds a secret".
     const SECRET: &str = "AKIAsomething";
 
-    /// What the mock reports on `/v1/metadata`.
+    /// What the mock reports on `/v1/metadata`, plus which multiscan it refuses.
     #[derive(Clone, Copy)]
     struct MockLimits {
         max_documents_per_scan: usize,
         max_document_size: usize,
+        /// The 0-based multiscan request that answers 400 instead of a verdict.
+        fail_scan: Option<usize>,
     }
 
     impl Default for MockLimits {
@@ -401,6 +487,7 @@ mod tests {
             MockLimits {
                 max_documents_per_scan: config::DEFAULT_MAX_DOCUMENTS_PER_SCAN,
                 max_document_size: config::MAXIMUM_DOCUMENT_SIZE,
+                fail_scan: None,
             }
         }
     }
@@ -451,6 +538,7 @@ mod tests {
             let MockLimits {
                 max_documents_per_scan,
                 max_document_size,
+                ..
             } = limits;
             format!(
                 r#"{{"preferences": {{"general__maximum_payload_size": 2621440}}, "secret_scan_preferences": {{"maximum_document_size": {max_document_size}, "maximum_documents_per_scan": {max_documents_per_scan}}}}}"#
@@ -460,12 +548,24 @@ mod tests {
             reader.read_exact(&mut raw).expect("body");
             let documents: Vec<serde_json::Value> =
                 serde_json::from_slice(&raw).expect("documents");
-            recorded.batches.lock().expect("lock").push(
+            let mut batches = recorded.batches.lock().expect("lock");
+            batches.push(
                 documents
                     .iter()
                     .map(|d| d["filename"].as_str().unwrap_or_default().to_string())
                     .collect(),
             );
+            let index = batches.len() - 1;
+            drop(batches);
+            if limits.fail_scan == Some(index) {
+                const REFUSED: &str = r#"{"detail": "refused"}"#;
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{REFUSED}",
+                    REFUSED.len()
+                );
+                return;
+            }
             let results: Vec<&str> = documents
                 .iter()
                 .map(|d| {
@@ -488,6 +588,12 @@ mod tests {
 
     fn test_config(api_url: String) -> config::Config {
         config::Config::with_token(api_url, "token".into(), Default::default())
+    }
+
+    /// A config with no instance to reach, so `max_document_size` answers from the
+    /// compiled-in default. Port 1 is unbound: connection refused, immediately.
+    fn offline_config() -> config::Config {
+        test_config("http://127.0.0.1:1".into())
     }
 
     fn text_payload(identifier: &str, content: &str) -> Payload {
@@ -628,6 +734,65 @@ mod tests {
         assert_eq!(recorded.metadata_hits.load(Ordering::SeqCst), 1);
     }
 
+    /// GIVEN a multi-chunk batch where one chunk is refused by the API
+    /// WHEN it is scanned
+    /// THEN the remaining chunks are still scanned and a secret found in any of
+    /// them still blocks — propagating instead threw away what was already found
+    /// and failed the whole event open.
+    #[test]
+    fn a_refused_chunk_does_not_discard_the_other_chunks() {
+        for (fail_scan, leaky_at) in [(1, 0), (0, 4)] {
+            let (_guard, _dir) = verdict_cache::with_cache_dir();
+            let (url, recorded) = mock_api(MockLimits {
+                max_documents_per_scan: 2,
+                fail_scan: Some(fail_scan),
+                ..MockLimits::default()
+            });
+            let mut payloads: Vec<Payload> = (0..6)
+                .map(|i| {
+                    let content = if i == leaky_at {
+                        format!("aws_key = {SECRET}")
+                    } else {
+                        format!("clean {i}")
+                    };
+                    text_payload(&format!("file{i}.txt"), &content)
+                })
+                .collect();
+
+            let (index, secrets) = scan_payloads(&test_config(url), &mut payloads)
+                .unwrap_or_else(|e| panic!("fail_scan={fail_scan}: {e:?}"));
+
+            assert_eq!(index, leaky_at, "fail_scan={fail_scan}");
+            assert_eq!(secrets.len(), 1, "fail_scan={fail_scan}");
+            // Every chunk was attempted, the refused one included.
+            assert_eq!(recorded.batches.lock().expect("lock").len(), 3);
+        }
+    }
+
+    /// GIVEN every chunk refused and no secret found anywhere
+    /// WHEN the event is scanned
+    /// THEN it fails open with the API's reason, rather than reporting "clean".
+    #[test]
+    fn an_all_refused_scan_fails_open_instead_of_reporting_clean() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, _) = mock_api(MockLimits {
+            max_documents_per_scan: 2,
+            // `fail_scan` matches the first request; the mock repeats nothing, so
+            // one chunk is enough to prove the error is not swallowed.
+            fail_scan: Some(0),
+            ..MockLimits::default()
+        });
+        let mut payloads = [text_payload("clean.txt", "nothing here")];
+
+        let outcome = scan_payloads(&test_config(url), &mut payloads);
+
+        assert!(
+            matches!(&outcome, Err(Error::Fail(m)) if m.contains("(refused)")),
+            "{:?}",
+            outcome.map(|(index, secrets)| (index, secrets.len()))
+        );
+    }
+
     /// GIVEN three documents of the maximum size
     /// WHEN they are chunked
     /// THEN the split honours the per-request byte ceiling, not just the count.
@@ -736,7 +901,7 @@ mod tests {
             read_range: None,
         };
         assert_eq!(
-            scannable(&mut p),
+            scannable(&offline_config(), &mut p),
             Some(("inline".into(), "/nonexistent/nope.txt".into()))
         );
     }
@@ -758,7 +923,7 @@ mod tests {
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };
-        let (content, filename) = scannable(&mut p).expect("scannable");
+        let (content, filename) = scannable(&offline_config(), &mut p).expect("scannable");
         assert_eq!(content, "TOKEN=abc");
         assert_eq!(filename, path.to_string_lossy());
     }
@@ -787,15 +952,138 @@ mod tests {
             raw: serde_json::Value::Object(Default::default()),
             read_range,
         };
+        let config = offline_config();
         assert!(
-            scannable(&mut payload(None)).expect("whole file").0.len()
+            scannable(&config, &mut payload(None))
+                .expect("whole file")
+                .0
+                .len()
                 > config::MAXIMUM_DOCUMENT_SIZE
         );
-        let sliced = scannable(&mut payload(Some((1, Some(10)))))
+        let sliced = scannable(&config, &mut payload(Some((1, Some(10)))))
             .expect("slice")
             .0;
         assert!(sliced.len() < config::MAXIMUM_DOCUMENT_SIZE);
         assert_eq!(sliced.lines().count(), 11);
+    }
+
+    /// GIVEN the same secret written in each encoding a byte-order mark announces
+    /// WHEN the bytes are decoded
+    /// THEN the secret comes back verbatim, and no mark is left in the text.
+    #[test]
+    fn every_byte_order_mark_decodes_to_the_same_text() {
+        let text = "AWS_SECRET=byIvSsomethingTXHU\n";
+
+        let utf16 = |big_endian: bool| {
+            let mut bytes = if big_endian {
+                vec![0xFE, 0xFF]
+            } else {
+                vec![0xFF, 0xFE]
+            };
+            for unit in text.encode_utf16() {
+                bytes.extend_from_slice(&if big_endian {
+                    unit.to_be_bytes()
+                } else {
+                    unit.to_le_bytes()
+                });
+            }
+            bytes
+        };
+        let utf32 = |big_endian: bool| {
+            let mut bytes = if big_endian {
+                vec![0x00, 0x00, 0xFE, 0xFF]
+            } else {
+                vec![0xFF, 0xFE, 0x00, 0x00]
+            };
+            for c in text.chars() {
+                bytes.extend_from_slice(&if big_endian {
+                    (c as u32).to_be_bytes()
+                } else {
+                    (c as u32).to_le_bytes()
+                });
+            }
+            bytes
+        };
+        let mut utf8_bom = vec![0xEF, 0xBB, 0xBF];
+        utf8_bom.extend_from_slice(text.as_bytes());
+
+        for (name, bytes) in [
+            // What PowerShell's `Out-File` writes by default.
+            ("utf-16le", utf16(false)),
+            ("utf-16be", utf16(true)),
+            ("utf-32le", utf32(false)),
+            ("utf-32be", utf32(true)),
+            ("utf-8 bom", utf8_bom),
+            ("utf-8", text.as_bytes().to_vec()),
+        ] {
+            assert_eq!(decode(&bytes), text, "{name}");
+        }
+    }
+
+    /// GIVEN bytes that are no valid encoding at all, with an ASCII secret in them
+    /// WHEN they are decoded
+    /// THEN the secret survives, because skipping the file would allow the read
+    /// with nothing scanned.
+    #[test]
+    fn undecodable_bytes_keep_their_ascii_rather_than_being_skipped() {
+        let mut bytes = vec![0x80, 0xFF, 0xFE_u8];
+        bytes.extend_from_slice(b"token=byIvSsomethingTXHU");
+        bytes.push(0x81);
+        assert!(decode(&bytes).contains("token=byIvSsomethingTXHU"));
+    }
+
+    /// GIVEN a Read payload pointing at a UTF-16LE file, as PowerShell writes them
+    /// WHEN its scannable content is taken
+    /// THEN the text is scanned instead of the file being silently skipped.
+    #[test]
+    fn a_utf16_file_is_scanned_not_skipped() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("secrets.txt");
+        let mut bytes = vec![0xFF, 0xFE];
+        for unit in "AWS_SECRET=byIvSsomethingTXHU\n".encode_utf16() {
+            bytes.extend_from_slice(&unit.to_le_bytes());
+        }
+        std::fs::write(&path, &bytes).expect("write");
+        let mut p = Payload {
+            event_type: EventType::PreToolUse,
+            tool: Some(Tool::Read),
+            content: String::new(),
+            identifier: path.to_string_lossy().to_string(),
+            agent: payload::Agent::Claude,
+            raw: serde_json::Value::Object(Default::default()),
+            read_range: None,
+        };
+        assert_eq!(
+            scannable(&offline_config(), &mut p).expect("scannable").0,
+            "AWS_SECRET=byIvSsomethingTXHU\n"
+        );
+    }
+
+    /// GIVEN a whole-file read of a file no encoding could bring under the ceiling
+    /// WHEN its scannable content is taken
+    /// THEN nothing is read: the bytes would be skipped anyway, and reading them
+    /// first is how a multi-GB `@big.log` became an OOM with no verdict at all.
+    #[test]
+    fn an_oversized_whole_file_read_is_not_read_into_memory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("big.log");
+        let file = std::fs::File::create(&path).expect("create");
+        // Sparse: 64 MiB of length without 64 MiB on disk or in this process.
+        let size = 64 * 1024 * 1024;
+        file.set_len(size).expect("set_len");
+        drop(file);
+        assert!(size > (config::MAXIMUM_DOCUMENT_SIZE * 4) as u64);
+
+        let mut p = Payload {
+            event_type: EventType::PreToolUse,
+            tool: Some(Tool::Read),
+            content: String::new(),
+            identifier: path.to_string_lossy().to_string(),
+            agent: payload::Agent::Claude,
+            raw: serde_json::Value::Object(Default::default()),
+            read_range: None,
+        };
+        assert_eq!(scannable(&offline_config(), &mut p), None);
     }
 
     /// GIVEN a Read payload pointing at a file with a binary extension
@@ -815,6 +1103,9 @@ mod tests {
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };
-        assert_eq!(scannable(&mut p).expect("scannable").0, "");
+        assert_eq!(
+            scannable(&offline_config(), &mut p).expect("scannable").0,
+            ""
+        );
     }
 }
