@@ -17,13 +17,18 @@ windows_sign() {
         die "$SM_CLIENT_CERT_FILE does not exist"
     fi
 
+    # Both executables: leaving ggshield-py.exe unsigned ships an unsigned
+    # executable, which SmartScreen flags.
     local archive_dir="$BUILD_DIR/$ARCHIVE_DIR_NAME"
-    smctl sign \
-        --verbose \
-        --exit-non-zero-on-fail \
-        --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
-        --tool signtool \
-        --input "$archive_dir/$INSTALL_PREFIX/ggshield.exe"
+    local exe
+    for exe in ggshield.exe ggshield-py.exe ; do
+        smctl sign \
+            --verbose \
+            --exit-non-zero-on-fail \
+            --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
+            --tool signtool \
+            --input "$archive_dir/$INSTALL_PREFIX/$exe"
+    done
 }
 
 windows_create_archive() {
@@ -42,7 +47,12 @@ windows_build_chocolatey_package() {
     mkdir choco-package/tools
 
     cp -r "$BUILD_DIR/$ARCHIVE_DIR_NAME/_internal" choco-package/tools
-    cp "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield.exe" choco-package/tools
+    # ggshield-py.exe too: the dispatcher looks for it as a sibling.
+    cp "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield.exe" \
+       "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield-py.exe" choco-package/tools
+    # Chocolatey shims every .exe it finds into its bin/ (which is on the PATH)
+    # unless a <name>.exe.ignore marker sits next to it. ggshield-py is internal.
+    touch choco-package/tools/ggshield-py.exe.ignore
     cp "$ROOT_DIR/scripts/chocolatey/ggshield.nuspec" choco-package
     cp "$ROOT_DIR/scripts/chocolatey/VERIFICATION.txt" choco-package/tools
     cp "$ROOT_DIR/LICENSE" choco-package/tools/LICENSE.txt

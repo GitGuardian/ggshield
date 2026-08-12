@@ -59,18 +59,39 @@ def build_hook_command() -> str:
 
     How the path is recovered depends on the launch:
 
-    - Frozen standalone bundle (``.pkg``/``.deb``/``.rpm``): ``sys.executable``.
+    - Frozen standalone bundle (``.pkg``/``.deb``/``.rpm``): the ``ggshield``
+      dispatcher sitting next to ``sys.executable``, when there is one.
+      PyInstaller derives ``sys.executable`` from the OS, so under the Rust
+      dispatcher it names the internal ``ggshield-py`` launcher — correct to run,
+      but it would bypass the dispatcher and pay the Python startup on every
+      call. Older bundles with no dispatcher keep using ``sys.executable``.
     - Bare name (``ggshield``, the pip/pipx/Homebrew case): the shell does not
       absolutize ``sys.argv[0]``, so resolve it against PATH with
       ``shutil.which``.
     - Explicit or relative path (``/opt/homebrew/bin/ggshield``,
       ``./ggshield``): ``abspath``.
 
-    Symlinks are kept unresolved so a package manager's stable launcher
-    survives upgrades.
+    Symlinks are left unresolved in the code paths that see them: the
+    pip/pipx/Homebrew cases go through ``shutil.which``/``abspath``, which do not
+    follow the final symlink, so a stable ``…/bin/ggshield`` launcher keeps
+    working across upgrades.
+
+    Known limitation on the macOS standalone bundle: ``/usr/local/bin/ggshield``
+    is a symlink into a *versioned* ``/opt/gitguardian/ggshield-<version>/``
+    directory, but the frozen path comes from ``sys.executable``, which the OS
+    already resolved. The hook is therefore pinned to the versioned path and must
+    be reinstalled after an upgrade.
     """
     if getattr(sys, "frozen", False):
         executable = sys.executable
+        dispatcher = os.path.join(
+            os.path.dirname(executable),
+            "ggshield" + (".exe" if os.name == "nt" else ""),
+        )
+        if os.path.normpath(dispatcher) != os.path.normpath(executable) and os.access(
+            dispatcher, os.X_OK
+        ):
+            executable = dispatcher
     else:
         argv0 = sys.argv[0]
         if os.path.dirname(argv0):

@@ -13,11 +13,16 @@
 /// open — it prints `Error: <message>` on stderr and exits 128.
 ///
 /// `Clone` so `Config::token()` can hand its memoised failure to every caller.
+///
+/// `Unsupported` is a configuration this binary knowingly cannot handle and
+/// `ggshield-py` can: the dispatcher hands the event over instead of failing
+/// open, so the message here is used only if handing over is impossible too.
 #[derive(Debug, Clone)]
 pub enum Error {
     Invalid(String),
     Fail(String),
     Fatal(String),
+    Unsupported(String),
 }
 
 impl Error {
@@ -52,11 +57,14 @@ impl Error {
         ))
     }
 
-    /// A capability this binary knowingly does not implement. The caller supplies
-    /// the remediation, because "use the Python hook" is not one: `ggshield secret
-    /// scan ai-hook` is the very argv the dispatcher answers natively.
+    /// A capability this binary knowingly does not implement: running with the
+    /// wrong rules is worse than not running.
+    ///
+    /// This does not fail open — the dispatcher hands the event to `ggshield-py`,
+    /// which implements all of ggshield's configuration. The caller's remediation
+    /// is the fallback for a bundle with no launcher to hand to.
     pub fn unimplemented(what: impl AsRef<str>, remediation: impl AsRef<str>) -> Self {
-        Error::Fail(format!(
+        Error::Unsupported(format!(
             "the native hook does not support {} — this action was NOT scanned for \
              secrets. {}",
             what.as_ref(),

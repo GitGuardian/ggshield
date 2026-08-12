@@ -397,10 +397,10 @@ fn send_once(
         .header("mode", "ai_hook")
         .header("GGShield-Agent-Name", agent.name())
         .header("GGShield-Command-Path", "ggshield secret scan ai-hook")
-        .header("GGShield-Version", env!("CARGO_PKG_VERSION"))
+        .header("GGShield-Version", env!("GGSHIELD_VERSION"))
         .header(
             "User-Agent",
-            concat!("ggshield-hook/", env!("CARGO_PKG_VERSION")),
+            concat!("ggshield-hook/", env!("GGSHIELD_VERSION")),
         )
         .send(body)
         .map_err(|e| Error::scan(e.to_string()))?;
@@ -435,6 +435,25 @@ mod tests {
     use std::net::TcpListener;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+
+    /// GIVEN the version this binary reports in `GGShield-Version` and `User-Agent`
+    /// WHEN it is compared with ggshield's `__version__`
+    /// THEN they are the same string, so the dashboard cannot attribute a
+    /// native-hook scan to a version that was never released.
+    #[test]
+    fn the_reported_version_is_ggshields_own() {
+        let init =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ggshield/__init__.py");
+        let source = std::fs::read_to_string(&init).expect("ggshield/__init__.py");
+        let assignment = format!("__version__ = \"{}\"", env!("GGSHIELD_VERSION"));
+        assert!(
+            source.contains(&assignment),
+            "reported {} is not the {} in {}",
+            env!("GGSHIELD_VERSION"),
+            "__version__",
+            init.display()
+        );
+    }
 
     /// A localhost `/v1/metadata` responder, and the count of requests it served.
     fn metadata_api() -> (String, Arc<AtomicUsize>) {

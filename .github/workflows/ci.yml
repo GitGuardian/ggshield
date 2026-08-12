@@ -171,7 +171,8 @@ jobs:
   ai_hook_equivalence:
     name: AI hook equivalence (Rust/Python)
     # `rust` is a second, native implementation of
-    # `ggshield secret scan ai-hook`. It reimplements the local ignore rules
+    # `ggshield secret scan ai-hook`, reached through the `ggshield` dispatcher
+    # with the same argv an agent uses. It reimplements the local ignore rules
     # from .gitguardian.yaml, the five agent output contracts, and the payload
     # parsing -- all security-relevant logic that now exists twice. This job is
     # the only thing keeping the two copies honest: it compares the verdict AND

@@ -1,8 +1,11 @@
 [workspace]
-members = ["common", "config", "hook"]
+members = ["common", "config", "hook", "dispatcher"]
 resolver = "2"
 
 [workspace.package]
+# Crate metadata only; nothing is published from here. The version the hook
+# *reports* to the API comes from ggshield's own `__version__`, read at build
+# time by hook/build.rs.
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -18,10 +21,9 @@ serde_json = { version = "1", features = ["preserve_order"] }
 # auth_config.yaml (the token file). Maintained fork of the archived serde_yaml.
 serde_yaml_ng = "0.10"
 
-# Blocking HTTP + TLS. Deliberately *not* reqwest: one blocking request per
-# process, so an async runtime is pure startup cost and binary weight.
-# `platform-verifier` uses the OS trust store, which on-prem installs behind a
-# corporate CA need (webpki-roots alone would reject them).
+# Blocking HTTP + TLS. Not reqwest: one request per process, so an async runtime
+# is pure startup cost. `platform-verifier` uses the OS trust store, which
+# on-prem installs behind a corporate CA need.
 ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier", "json"] }
 
 # `@file` extraction out of user prompts — mirrors _FILE_PATH_REGEX in hooks.py.
@@ -40,33 +42,29 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 # keyring lock. Already in the tree transitively; std exposes none of them.
 libc = "0.2"
 
-# `.env` parsing (GITGUARDIAN_* overrides). Zero transitive dependencies, so it
-# costs nothing on the hot path, and its dialect is the de-facto one. Only the
-# `*_iter` API is used: it yields pairs without touching the process environment.
+# `.env` parsing (GITGUARDIAN_* overrides). Only the `*_iter` API is used: it
+# yields pairs without touching the process environment.
 dotenvy = "0.15"
 
-# Read-only keychain access, in-process. Chosen over shelling out to
-# /usr/bin/security: no fork+exec on the hot path, no argv quoting, and the
+# Read-only keychain access, in-process: no fork+exec on the hot path, and the
 # only API we link is the read one, so a write is not expressible.
 security-framework = "3"
 
 # Read-only Secret Service (libsecret/D-Bus) access, to read the same item
-# Python's `keyring` SecretService backend wrote. Pure-Rust (zbus over the
-# session bus, no libdbus C link, so it cross-checks from macOS); the blocking
-# API keeps the no-async-runtime rule the HTTP client also follows. We only
-# ever call `search_items` + `get_secret`, so a write is not expressible.
+# Python's `keyring` SecretService backend wrote. Pure-Rust zbus, no libdbus C
+# link; blocking API, like the HTTP client. Only `search_items` + `get_secret`.
 secret-service = { version = "5", default-features = false, features = ["rt-async-io-crypto-rust"] }
 
 # Read-only Windows Credential Manager access (`CredReadW`), matching the
-# WinVaultKeyring target scheme Python's `keyring` writes. FFI declarations
-# only; we link nothing but the read entry point, so a write is not expressible.
-# `LockFileEx` (Storage_FileSystem + System_IO for OVERLAPPED) is the other half:
-# the byte-range lock `filelock` takes via `msvcrt.locking`, so the credential
-# read serialises against `ggshield`'s.
+# WinVaultKeyring target scheme Python's `keyring` writes; we link nothing but
+# the read entry point. `LockFileEx` (Storage_FileSystem + System_IO for
+# OVERLAPPED) is the byte-range lock `filelock` takes via `msvcrt.locking`, so
+# the credential read serialises against `ggshield`'s.
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Security_Credentials",
   "Win32_Storage_FileSystem",
+  "Win32_System_Console",
   "Win32_System_IO",
 ] }
 
@@ -82,5 +80,5 @@ unwrap_used = "warn"
 lto = true
 codegen-units = 1
 strip = true
-# NOT panic = "abort": main() catches unwinds so a bug still fails open with a
-# warning instead of killing the hook. See main.rs.
+# NOT panic = "abort": `run_hook()` catches unwinds so a bug still fails open
+# with a warning instead of killing the hook. See hook/src/lib.rs.

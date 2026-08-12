@@ -31,7 +31,11 @@ flowchart TD
 
 ## Generating the standalone executable
 
-We use [PyInstaller](https://pyinstaller.org) to generate `ggshield` standalone executable.
+We use [PyInstaller](https://pyinstaller.org) to generate the standalone executable.
+
+The `ggshield` entry point is a small native (Rust) dispatcher. It answers the
+time-critical `secret scan ai-hook` command itself and delegates every other
+command to the bundled PyInstaller launcher (`ggshield-py`).
 
 ## Signing
 

@@ -66,10 +66,12 @@ PYTHON = Path(
 # depends on, which is the only way to tell "the Rust port is wrong" apart from
 # "the Python PR has not merged yet".
 PY_SOURCES = Path(os.environ.get("GGSHIELD_PYTHON_SOURCES", REPO))
-RUST = ROOT / "target" / "release" / "ggshield-hook"
+# The dispatcher, named `ggshield`: it answers `secret scan ai-hook` natively and
+# execs `ggshield-py` for anything else, so RS_CMD carries that exact argv.
+RUST = ROOT / "target" / "release" / "ggshield"
 
 PY_CMD = [str(PYTHON), "-m", "ggshield", "secret", "scan", "ai-hook"]
-RS_CMD = [str(RUST)]
+RS_CMD = [str(RUST), "secret", "scan", "ai-hook"]
 # The shipped PyInstaller bundle, if this machine has one installed. It is the
 # real baseline: a source checkout and a frozen binary do not start alike.
 FROZEN = Path("/usr/local/bin/ggshield")

@@ -5,9 +5,9 @@ edition.workspace = true
 publish.workspace = true
 description = "Fast native implementation of `ggshield secret scan ai-hook` (Claude Code only)."
 
-[[bin]]
-name = "ggshield-hook"
-path = "src/main.rs"
+# Library only, no binary target: the dispatcher (../dispatcher) calls `run_hook()`.
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 ggshield-common = { workspace = true }

@@ -1,6 +1,7 @@
 import contextlib
 import json
 import ntpath
+import os
 import posixpath
 import sys
 from pathlib import Path
@@ -845,6 +846,61 @@ class TestBuildHookCommand:
         ), patch("ggshield.verticals.ai.installation.shutil.which") as which:
             assert build_hook_command() == "/opt/ggshield/ggshield secret scan ai-hook"
         which.assert_not_called()
+
+    # These two assert POSIX file semantics that build_hook_command does not
+    # use on Windows: the sibling is named `ggshield` (no `.exe` suffix) and
+    # its executability is the POSIX x-bit (os.access(X_OK)), which Windows
+    # ignores. The Windows dispatcher-preference (the `.exe` branch in
+    # build_hook_command) still runs in production and is exercised by the real
+    # PyInstaller Windows packaging job; it just has no dedicated Windows unit
+    # test here. Honest scoping, not a silent skip.
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="asserts POSIX executable-bit / no-.exe-suffix semantics",
+    )
+    def test_frozen_bundle_prefers_the_dispatcher_sibling(self, tmp_path):
+        """In a dispatcher bundle, PyInstaller's sys.executable names the
+        internal ggshield-py launcher (it comes from /proc/self/exe, not
+        argv[0]). The hook must point at the sibling `ggshield` dispatcher,
+        which answers `secret scan ai-hook` natively -- otherwise every hook
+        call pays the Python startup the dispatcher exists to remove."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        dispatcher = tmp_path / "ggshield"
+        dispatcher.write_text("")
+        dispatcher.chmod(0o755)
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", str(launcher), create=True
+        ):
+            assert build_hook_command() == f"{dispatcher} secret scan ai-hook"
+
+    def test_frozen_bundle_without_dispatcher_keeps_sys_executable(self, tmp_path):
+        """An older bundle has no dispatcher next to the launcher: keep
+        sys.executable, exactly as before."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", str(launcher), create=True
+        ):
+            assert build_hook_command() == f"{launcher} secret scan ai-hook"
+
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="asserts POSIX executable-bit / no-.exe-suffix semantics",
+    )
+    def test_frozen_bundle_ignores_a_non_executable_dispatcher(self, tmp_path):
+        """A `ggshield` file that cannot be executed (broken install) must not
+        be written into the hook command -- the agent would see a failing hook
+        on every tool call."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        dispatcher = tmp_path / "ggshield"
+        dispatcher.write_text("")
+        dispatcher.chmod(0o644)
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", str(launcher), create=True
+        ):
+            assert build_hook_command() == f"{launcher} secret scan ai-hook"
 
 
 class _FakeAgent:

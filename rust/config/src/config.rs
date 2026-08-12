@@ -989,7 +989,10 @@ mod tests {
         let resolved = dotenv_overrides()
             .and_then(|dotenv| instance_name(&UserConfig::default(), &dotenv))
             .map_err(|error| match error {
-                Error::Fail(message) | Error::Fatal(message) | Error::Invalid(message) => message,
+                Error::Fail(message)
+                | Error::Fatal(message)
+                | Error::Invalid(message)
+                | Error::Unsupported(message) => message,
             });
         unsafe {
             for (key, _) in vars {
