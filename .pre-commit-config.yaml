@@ -49,10 +49,10 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        # Scoped to scripts/install: the repo's other shell scripts
-        # (docker/, scripts/check-import-linter-config.sh) have pre-existing
-        # findings that are out of scope here.
-        files: ^scripts/install/.*\.sh$
+        # Opt-in, not repo-wide: the other shell scripts (docker/,
+        # scripts/check-import-linter-config.sh) have pre-existing findings that
+        # are out of scope here.
+        files: ^scripts/(install/.*\.sh|smoke-test-wheel)$
 
   - repo: https://github.com/thlorenz/doctoc
     rev: v2.2.0

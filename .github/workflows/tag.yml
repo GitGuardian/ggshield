@@ -13,8 +13,14 @@ jobs:
       release_mode: true
       sign: true
 
+  # The platform wheels carrying the Rust `ggshield`. Called from here rather
+  # than triggered on the tag itself, so its artifacts land in this run and
+  # `push_to_pypi` below can download them.
+  build_platform_wheels:
+    uses: ./.github/workflows/wheels.yml
+
   push_to_pypi:
-    needs: build_release_assets
+    needs: [build_release_assets, build_platform_wheels]
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
@@ -24,11 +30,21 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Download wheel and sdist
+      # Two artifacts, never one: both jobs would name a pure wheel
+      # `ggshield-<version>-py3-none-any.whl`, so only `build_wheel_sdist`
+      # builds one. See .github/workflows/wheels.yml.
+      - name: Download the sdist and the pure-Python wheel
         uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
+
+      - name: Download the platform wheels
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
