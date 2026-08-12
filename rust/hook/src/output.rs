@@ -1,9 +1,10 @@
 //! The per-agent output contracts. One transcription of `output_result()` per
 //! adapter in `ggshield/verticals/ai/agents/`.
 //!
-//! The five schemas disagree about which key blocks, which events can block at
-//! all, whether a warning is carried, and what the exit code means. Getting one
-//! wrong produces a verdict the agent silently ignores, not an error.
+//! The six schemas disagree about which key blocks, which events can block at
+//! all, whether a warning is carried, whether anything is printed when the action
+//! is allowed, and what the exit code means. Getting one wrong produces a verdict
+//! the agent silently ignores, not an error.
 
 use serde_json::{Map, Value};
 
@@ -51,11 +52,15 @@ impl<'a> HookResult<'a> {
     }
 }
 
-/// What an adapter decided to emit: a JSON document on stdout, or (Codex's
-/// unknown-event branch) a bare message on stderr.
+/// What an adapter decided to emit: a JSON document on stdout, (Codex's
+/// unknown-event branch) a bare message on stderr, or (Vibe's passthrough)
+/// nothing at all.
 pub enum Emission {
     Stdout(Value, i32),
     Stderr(String, i32),
+    /// No output whatsoever. Distinct from `Stdout({})`: Vibe's documented
+    /// passthrough is an empty stdout, and a bare `{}` is not that.
+    Silent(i32),
 }
 
 fn obj(pairs: Vec<(&str, Value)>) -> Value {
@@ -100,6 +105,27 @@ pub fn emission(result: &HookResult) -> Emission {
     let message = result.message.as_str();
     let event = result.payload.event_type;
     match result.payload.agent {
+        // vibe.py: the event type plays no part here, a plain allow prints
+        // nothing, and the keys are `system_message` and `deny`.
+        Agent::Vibe => {
+            if result.block {
+                Emission::Stdout(
+                    obj(vec![
+                        ("decision", "deny".into()),
+                        ("reason", Value::from(message)),
+                    ]),
+                    0,
+                )
+            } else if !result.warning.is_empty() {
+                Emission::Stdout(
+                    obj(vec![("system_message", result.warning.clone().into())]),
+                    0,
+                )
+            } else {
+                Emission::Silent(0)
+            }
+        }
+
         // claude_code.py
         Agent::Claude => Emission::Stdout(
             if !result.block {
@@ -208,6 +234,7 @@ pub fn output_result(result: &HookResult) -> i32 {
             eprintln!("{message}");
             code
         }
+        Emission::Silent(code) => code,
     }
 }
 
@@ -228,11 +255,12 @@ mod tests {
         }
     }
 
-    /// stdout bytes for a result, or `None` when the adapter writes to stderr.
+    /// stdout bytes for a result, or `None` when the adapter writes to stderr or
+    /// emits nothing at all.
     fn emitted(result: &HookResult) -> Option<String> {
         match emission(result) {
             Emission::Stdout(value, _) => Some(value.to_string()),
-            Emission::Stderr(..) => None,
+            Emission::Stderr(..) | Emission::Silent(..) => None,
         }
     }
 
@@ -252,6 +280,36 @@ mod tests {
     }
 
     const DENY: &str = r#"{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"nope"}}"#;
+
+    /// GIVEN an allow, a fail-open warning and a block on each Vibe event
+    /// WHEN they are emitted
+    /// THEN an allow prints nothing at all, a block denies in snake_case, and the
+    /// verdict is the same whatever the event — Vibe's schema ignores it.
+    #[test]
+    fn vibe_contract() {
+        for event in [
+            EventType::UserPrompt,
+            EventType::PreToolUse,
+            EventType::PostToolUse,
+            EventType::Other,
+        ] {
+            let p = payload(Agent::Vibe, event);
+            assert!(
+                matches!(emission(&HookResult::allow(&p)), Emission::Silent(0)),
+                "vibe must emit nothing when allowing {event:?}"
+            );
+            assert_eq!(
+                blocked(Agent::Vibe, event).as_deref(),
+                Some(r#"{"decision":"deny","reason":"nope"}"#),
+                "{event:?}"
+            );
+            assert_eq!(
+                warned(Agent::Vibe, event).as_deref(),
+                Some(r#"{"system_message":"could not scan"}"#),
+                "{event:?}"
+            );
+        }
+    }
 
     /// GIVEN an allow, a fail-open warning and a block on each Claude event
     /// WHEN they are emitted

@@ -28,10 +28,11 @@ pub enum Tool {
     Other,
 }
 
-/// The five assistants ggshield supports, in the registry order of `AGENTS`
+/// The six assistants ggshield supports, in the registry order of `AGENTS`
 /// (agents/__init__.py). Detection takes the FIRST match, so the order matters.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Agent {
+    Vibe,
     Claude,
     Codex,
     Copilot,
@@ -39,7 +40,8 @@ pub enum Agent {
     VsCode,
 }
 
-pub const AGENTS: [Agent; 5] = [
+pub const AGENTS: [Agent; 6] = [
+    Agent::Vibe,
     Agent::Claude,
     Agent::Codex,
     Agent::Copilot,
@@ -51,6 +53,7 @@ impl Agent {
     /// Sent as the `GGShield-Agent-Name` header.
     pub fn name(self) -> &'static str {
         match self {
+            Agent::Vibe => "vibe",
             Agent::Claude => "claude-code",
             Agent::Codex => "codex",
             Agent::Copilot => "copilot",
@@ -63,6 +66,7 @@ impl Agent {
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub fn display_name(self) -> &'static str {
         match self {
+            Agent::Vibe => "Mistral Vibe",
             Agent::Claude => "Claude Code",
             Agent::Codex => "Codex",
             Agent::Copilot => "Copilot CLI",
@@ -80,6 +84,13 @@ impl Agent {
             .and_then(Value::as_str)
             .unwrap_or_default();
         match self {
+            // Vibe's snake_case event names are exact, which is why it is
+            // registered first: a Vibe transcript path under /home/claude would
+            // otherwise be claimed by Claude's "claude" substring heuristic below.
+            Agent::Vibe => matches!(
+                data.get("hook_event_name").and_then(Value::as_str),
+                Some("pre_tool" | "post_tool" | "post_agent")
+            ),
             Agent::Claude => data.get("session_id").is_some() && transcript.contains("claude"),
             Agent::Codex => {
                 data.get("turn_id").is_some() || transcript.to_lowercase().contains(".codex")
@@ -166,9 +177,10 @@ impl Agent {
                     Some((first, last))
                 }
             }
-            // No range ever seen from these three: Copilot CLI's `view` carries
-            // only `path`, Cursor's Read has no range keys, Codex shells out.
-            Agent::Codex | Agent::Copilot | Agent::Cursor => None,
+            // No range ever seen from these four: Copilot CLI's `view` carries
+            // only `path`, Cursor's Read has no range keys, Codex shells out, and
+            // Vibe's `read_file` carries only `path`.
+            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe => None,
         }
     }
 }
@@ -228,8 +240,11 @@ fn event_type_from_name(name: &str) -> EventType {
     match name.to_lowercase().as_str() {
         // Copilot CLI's and Cursor's spellings of the prompt event.
         "userpromptsubmit" | "userpromptsubmitted" | "beforesubmitprompt" => EventType::UserPrompt,
-        "pretooluse" => EventType::PreToolUse,
-        "posttooluse" => EventType::PostToolUse,
+        // "pre_tool"/"post_tool" are Vibe's spelling. Its "post_agent" is
+        // deliberately absent: it falls through to EventType::Other, which
+        // carries no content to scan.
+        "pretooluse" | "pre_tool" => EventType::PreToolUse,
+        "posttooluse" | "post_tool" => EventType::PostToolUse,
         _ => EventType::Other,
     }
 }
@@ -240,7 +255,9 @@ fn parse_tool(data: &Value) -> Tool {
         return Tool::Mcp;
     }
     match name.as_str() {
-        "shell" | "bash" | "run_in_terminal" => Tool::Bash,
+        // `git_bash` and `powershell` are Vibe's other two shells; mapping them to
+        // Bash is what gets their command parsed for file reads.
+        "shell" | "bash" | "git_bash" | "powershell" | "run_in_terminal" => Tool::Bash,
         "read" | "read_file" | "view" => Tool::Read,
         _ => Tool::Other,
     }
@@ -412,8 +429,20 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
             let parsed = parse_tool(&data);
             tool = Some(parsed);
             let empty = Value::Object(Default::default());
+            let empty_text = Value::String(String::new());
             let output =
                 lookup(&data, &["tool_output", "tool_response", "tool_result"]).unwrap_or(&empty);
+            // Vibe nulls the structured output when the tool call failed and
+            // leaves the text the model sees in `tool_output_text`. Without this
+            // the scanned content would be the literal "null".
+            let output = if output.is_null() {
+                match data.get("tool_output_text") {
+                    Some(text) if !text.is_null() => text,
+                    _ => &empty_text,
+                }
+            } else {
+                output
+            };
             content = match output {
                 // With no tool output at all this is the *string* "{}", which is
                 // non-empty, so Python does scan it.
@@ -447,16 +476,28 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         read_range,
     });
 
-    // `post_process_payload()`. Only Copilot overrides it: its MCP tools carry no
-    // prefix, so they are identified by the "-" its own snake_case tools lack.
-    if agent == Agent::Copilot {
-        for payload in &mut payloads {
-            if payload.tool == Some(Tool::Other)
-                && lookup_str(&payload.raw, &["tool_name"]).contains('-')
-            {
-                payload.tool = Some(Tool::Mcp);
+    // `post_process_payload()`. Two agents override it, both because their MCP
+    // tool names carry no `mcp` prefix for `parse_tool()` to key off.
+    match agent {
+        // Copilot's MCP tools are "<server>-<tool>", and its own tools are
+        // snake_case, so a "-" is the only signal.
+        Agent::Copilot => {
+            for payload in &mut payloads {
+                if payload.tool == Some(Tool::Other)
+                    && lookup_str(&payload.raw, &["tool_name"]).contains('-')
+                {
+                    payload.tool = Some(Tool::Mcp);
+                }
             }
         }
+        // Vibe's are "{server}_{tool}", which only its configured server names
+        // can distinguish. See `vibe::post_process`.
+        Agent::Vibe => {
+            for payload in &mut payloads {
+                crate::vibe::post_process(payload);
+            }
+        }
+        _ => {}
     }
     Ok(payloads)
 }
@@ -552,6 +593,144 @@ mod tests {
         for (label, data, expected) in cases {
             assert_eq!(Agent::detect(&data), expected, "{label}");
         }
+    }
+
+    fn vibe(extra: Value) -> Value {
+        let mut base = json!({
+            "session_id": "session-123",
+            "transcript_path": "/home/user/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+        });
+        for (k, v) in extra.as_object().expect("object") {
+            base[k] = v.clone();
+        }
+        base
+    }
+
+    /// GIVEN a Vibe payload whose transcript path also contains "claude"
+    /// WHEN the agent is detected
+    /// THEN it is Vibe: its snake_case event names are exact, so it is registered
+    /// ahead of Claude's transcript-path substring heuristic.
+    #[test]
+    fn vibe_wins_over_claude_when_the_path_contains_claude() {
+        let data = json!({
+            "session_id": "session-123",
+            "transcript_path": "/home/claude/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "pre_tool",
+            "tool_name": "bash",
+            "tool_input": {"command": "whoami"},
+        });
+        assert_eq!(Agent::detect(&data), Some(Agent::Vibe));
+    }
+
+    /// GIVEN each of Vibe's three event names, and one it does not emit
+    /// WHEN the agent is detected
+    /// THEN only its own three identify it — detection keys on the event name
+    /// alone, so a near-miss must not be claimed.
+    #[test]
+    fn vibe_is_detected_from_its_event_names_alone() {
+        for event in ["pre_tool", "post_tool", "post_agent"] {
+            let data = json!({"hook_event_name": event});
+            assert_eq!(Agent::detect(&data), Some(Agent::Vibe), "{event}");
+        }
+        assert_eq!(
+            Agent::detect(&json!({"hook_event_name": "pre_tool_use"})),
+            None
+        );
+    }
+
+    /// GIVEN Vibe's `post_agent` event
+    /// WHEN it is parsed
+    /// THEN Vibe is recognised but the event maps to no type, so there is nothing
+    /// to scan — exactly as in Python.
+    #[test]
+    fn vibe_post_agent_parses_as_an_other_event() {
+        let raw = vibe(json!({"hook_event_name": "post_agent"})).to_string();
+        let payloads = parse(&raw).expect("parses");
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].agent, Agent::Vibe);
+        assert_eq!(payloads[0].event_type, EventType::Other);
+        assert_eq!(payloads[0].content, "");
+    }
+
+    /// GIVEN a `cat` command from each of Vibe's three shells
+    /// WHEN it is parsed
+    /// THEN all three are Bash, so the command is parsed for the file read rather
+    /// than scanned as an opaque tool input.
+    #[test]
+    fn vibe_shell_tools_are_all_bash() {
+        for tool_name in ["bash", "git_bash", "powershell"] {
+            let raw = vibe(json!({
+                "hook_event_name": "pre_tool",
+                "tool_name": tool_name,
+                "tool_input": {"command": "cat /tmp/secret.txt"},
+            }))
+            .to_string();
+            let payloads = parse(&raw).expect("parses");
+            assert_eq!(
+                payloads.last().expect("non-empty").tool,
+                Some(Tool::Bash),
+                "{tool_name}"
+            );
+            // The command names a file, so it is also scanned as a read.
+            assert!(
+                payloads.iter().any(|p| p.tool == Some(Tool::Read)),
+                "{tool_name}: no synthesised read"
+            );
+        }
+    }
+
+    /// GIVEN a failed Vibe tool call, which reports a null structured output
+    /// WHEN it is parsed
+    /// THEN the text the model actually sees is scanned, not the literal "null".
+    #[test]
+    fn vibe_failed_post_tool_scans_the_output_text() {
+        let raw = vibe(json!({
+            "hook_event_name": "post_tool",
+            "tool_name": "bash",
+            "tool_input": {"command": "failing-command"},
+            "tool_status": "failure",
+            "tool_output": null,
+            "tool_output_text": "failure output",
+        }))
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        assert_eq!(payloads[0].event_type, EventType::PostToolUse);
+        assert_eq!(payloads[0].content, "failure output");
+
+        // Null output and no text either: nothing to scan, still not "null".
+        let raw = vibe(json!({
+            "hook_event_name": "post_tool",
+            "tool_name": "bash",
+            "tool_input": {"command": "x"},
+            "tool_output": null,
+        }))
+        .to_string();
+        assert_eq!(parse(&raw).expect("parses")[0].content, "");
+    }
+
+    /// GIVEN a successful Vibe `read_file`, which names the file in `path`
+    /// WHEN it is parsed
+    /// THEN the path is the identifier and the structured output is the content,
+    /// so the null fallback does not disturb the normal case.
+    #[test]
+    fn vibe_post_tool_read_uses_the_path_and_the_structured_output() {
+        let raw = vibe(json!({
+            "hook_event_name": "post_tool",
+            "tool_name": "read_file",
+            "tool_input": {"path": "/tmp/secret.txt"},
+            "tool_status": "success",
+            "tool_output": {"content": "file content"},
+            "tool_output_text": "file content",
+        }))
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        assert_eq!(payloads[0].tool, Some(Tool::Read));
+        assert_eq!(payloads[0].identifier, "/tmp/secret.txt");
+        assert_eq!(payloads[0].content, r#"{"content":"file content"}"#);
+        // Vibe's read_file carries no range: the whole file is scanned.
+        assert_eq!(payloads[0].read_range, None);
     }
 
     /// GIVEN a Cursor payload arriving at a Claude-Code-format hook

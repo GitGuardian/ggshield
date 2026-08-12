@@ -18,6 +18,7 @@ mod notify;
 mod output;
 mod payload;
 mod verdict_cache;
+mod vibe;
 
 use ggshield_common::{binary_extensions, error};
 use ggshield_config::config;
@@ -213,8 +214,10 @@ struct Pending {
 /// index 0 with no secrets — the caller only reads that payload for its output
 /// contract.
 ///
-/// `send_mcp_activity()` is not implemented, and not warned about either: it
-/// swallows every exception and returns "allowed" (mcp.py).
+/// KNOWN LIMITATION — `send_mcp_activity()` is not implemented, so Python can
+/// block an MCP tool call on policy grounds with no secret involved and the native
+/// hook cannot. Not warned about either: Python swallows every exception from that
+/// call and returns "allowed" (mcp.py).
 fn scan_payloads(
     config: &config::Config,
     payloads: &mut [Payload],

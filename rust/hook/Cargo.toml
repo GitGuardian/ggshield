@@ -17,6 +17,7 @@ serde_json = { workspace = true }
 ureq = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

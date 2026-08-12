@@ -15,7 +15,7 @@ sides must produce but whose value is allowed to differ (see `same_request`).
   python3 tests/equivalence.py --bench N  # also time both, N iterations/side
 
 Five matrices:
-  agents   5 assistants x 6 payload shapes x {clean, secret}
+  agents   6 assistants x their own payload shapes x {clean, secret}
   config   .gitguardian.yaml cases: discovery, precedence, and every key that
            changes the verdict or the request
   range    ranged reads: the lines an agent reads are the lines that
@@ -137,31 +137,54 @@ def agent_bases():
             "/home/user1/.cursor/projects/foo/agent-transcripts/75fed8a8/75fed8a8.jsonl"
         ),
     }
+    # Vibe is detected from its event names alone. The "claude" in the path is
+    # deliberate: it makes registry order (Vibe before Claude) observable.
+    vibe = {
+        "session_id": "session-123",
+        "parent_session_id": None,
+        "transcript_path": "/home/claude/.vibe/logs/session-123.jsonl",
+        "cwd": "/home/user1/foo",
+    }
     return {
         "claude": claude,
         "codex": codex,
         "copilot": copilot,
         "cursor": cursor,
+        "vibe": vibe,
         "vscode": vscode,
     }
 
 
 def agent_payloads():
-    """5 agents x 6 payload shapes, each in that agent's own dialect.
+    """6 agents x 6 payload shapes, each in that agent's own dialect.
+
+    Vibe differs: no prompt event, plus four shapes of its own.
 
     Shapes are copied from tests/unit/verticals/ai/test_hooks.py.
     """
     bases = agent_bases()
     claude, codex = bases["claude"], bases["codex"]
     copilot, cursor, vscode = bases["copilot"], bases["cursor"], bases["vscode"]
+    vibe = bases["vibe"]
 
     command = (
         f"aws configure set aws_access_key_id {CLIENT_ID} --secret {CLIENT_SECRET}"
     )
     prompt = f"deploy with key {CLIENT_ID} please"
 
-    def shapes(base, *, prompt_event, pre, post, bash, read, output_key, output_value):
-        return {
+    def shapes(
+        base,
+        *,
+        prompt_event,
+        pre,
+        post,
+        bash,
+        read,
+        output_key,
+        output_value,
+        read_key="file_path",
+    ):
+        built = {
             "user_prompt": {**base, "hook_event_name": prompt_event, "prompt": prompt},
             "pre_bash": {
                 **base,
@@ -173,7 +196,7 @@ def agent_payloads():
                 **base,
                 "hook_event_name": pre,
                 "tool_name": read,
-                "tool_input": {"file_path": READ_FILE},
+                "tool_input": {read_key: READ_FILE},
             },
             "pre_other": {
                 **base,
@@ -201,6 +224,10 @@ def agent_payloads():
                 },
             },
         }
+        # Vibe hooks tools only: no prompt event, so there is no shape to send.
+        if prompt_event is None:
+            del built["user_prompt"]
+        return built
 
     return {
         "claude": shapes(
@@ -244,6 +271,49 @@ def agent_payloads():
             # Cursor sends the tool output as an already-serialised string.
             output_value=json.dumps({"output": CLIENT_ID, "exitCode": 0}),
         ),
+        "vibe": {
+            **shapes(
+                vibe,
+                prompt_event=None,
+                pre="pre_tool",
+                post="post_tool",
+                bash="bash",
+                read="read_file",
+                read_key="path",
+                output_key="tool_output",
+                output_value={"content": CLIENT_ID},
+            ),
+            # A failed tool call: Vibe nulls the structured output and leaves the
+            # text the model sees in tool_output_text. Scanning the literal "null"
+            # instead would miss this secret.
+            "post_bash_failed": {
+                **vibe,
+                "hook_event_name": "post_tool",
+                "tool_name": "bash",
+                "tool_input": {"command": "printenv"},
+                "tool_status": "failure",
+                "tool_output": None,
+                "tool_output_text": f"AWS_SECRET_ACCESS_KEY={CLIENT_SECRET}",
+                "tool_error": "failed",
+            },
+            # git_bash and powershell are Vibe's other two shells, so the `cat`
+            # must be parsed as a file read.
+            "pre_git_bash_cat": {
+                **vibe,
+                "hook_event_name": "pre_tool",
+                "tool_name": "git_bash",
+                "tool_input": {"command": f"cat {READ_FILE}"},
+            },
+            "pre_powershell_cat": {
+                **vibe,
+                "hook_event_name": "pre_tool",
+                "tool_name": "powershell",
+                "tool_input": {"command": f"Get-Content {READ_FILE}"},
+            },
+            # post_agent is recognised as Vibe but maps to no event type, so it
+            # must parse and pass through rather than being refused.
+            "post_agent": {**vibe, "hook_event_name": "post_agent"},
+        },
         "vscode": shapes(
             vscode,
             prompt_event="UserPromptSubmit",
@@ -1339,7 +1409,7 @@ def report(failures, label, verdict_ok, request_ok, py, rs):
 
 def compare_agents(tmp):
     failures = []
-    print("Agents: 5 assistants x 6 payload shapes x {clean, secret}")
+    print("Agents: 6 assistants x their own payload shapes x {clean, secret}")
     for mode in ("clean", "secret"):
         log = tmp / f"requests-agents-{mode}.jsonl"
         mock, port = start_mock(mode, log)

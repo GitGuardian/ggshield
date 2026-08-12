@@ -29,6 +29,10 @@ ureq = { version = "3", default-features = false, features = ["rustls", "platfor
 # `@file` extraction out of user prompts — mirrors _FILE_PATH_REGEX in hooks.py.
 regex = "1"
 
+# Vibe's `config.toml`, for the MCP server names that tell a `{server}_{tool}`
+# call from one of Vibe's own tools. No `display`: we only ever read.
+toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
+
 # Payload debounce hash + the content identifier, both sha256 in the Python.
 sha2 = "0.10"
 
