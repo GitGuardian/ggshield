@@ -4,6 +4,7 @@ import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Set
 
@@ -233,10 +234,11 @@ def emit_fail_open_response(stdin_content: str, error: Exception) -> int:
     return payload.agent.output_result(HookResult.allow_with_warning(payload, warning))
 
 
+# No remediation step: this warning also reaches the agent (Cursor puts it in
+# agent_message), and the model would run whatever command it names.
 MCP_NOT_CHECKED_WARNING = (
-    "This MCP tool call was NOT checked against your organization's policy: "
-    "ggshield got no answer from GitGuardian. The call was allowed anyway — run "
-    "'ggshield api-status' to diagnose."
+    "GitGuardian could not be reached, so this MCP tool call was NOT checked "
+    "against your organization's policy. The call was allowed anyway."
 )
 
 
@@ -594,14 +596,17 @@ class AIHookScanner:
                 scan_result = self._scan_content(payload)
                 mcp_result = activity.result()
 
+            if mcp_result.warning and mcp_result.warning not in warnings:
+                warnings.append(mcp_result.warning)
+
             # The scan verdict keeps precedence, as it did when it short-circuited
             # the activity call.
             if scan_result.block:
-                return scan_result
+                # Carry the warning along: an auditor wants both the block and
+                # the fact that the policy check did not run.
+                return replace(scan_result, warning=" ".join(warnings))
             if mcp_result.block:
                 return mcp_result
-            if mcp_result.warning and mcp_result.warning not in warnings:
-                warnings.append(mcp_result.warning)
         if warnings:
             return HookResult.allow_with_warning(payloads[0], " ".join(warnings))
         return HookResult.allow(payloads[0])

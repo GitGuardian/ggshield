@@ -8,9 +8,10 @@ from typing import List, Optional, Set
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from pygitguardian import GGClient
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MAXIMUM_PAYLOAD_SIZE
-from pygitguardian.models import MCPActivityResponse
+from pygitguardian.models import AIDiscovery, Detail, MCPActivityResponse, UserInfo
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
@@ -543,6 +544,49 @@ class TestMCPActivity:
         assert result.block is False
         assert MCP_NOT_CHECKED_WARNING in result.warning
 
+    @pytest.mark.parametrize(
+        ("answer", "warns"),
+        [
+            (Detail(status_code=404, detail="Not found"), False),
+            (Detail(status_code=403, detail="Forbidden"), False),
+            (Detail(status_code=500, detail="Server Error"), True),
+            (requests.exceptions.ConnectionError("offline"), True),
+            (MCPActivityResponse(allowed=True, reason=""), False),
+        ],
+        ids=["404", "403", "500", "connection-error", "allow"],
+    )
+    @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
+    def test_only_an_outage_warns(
+        self, mock_refresh: MagicMock, answer: object, warns: bool
+    ):
+        """GIVEN an MCP policy endpoint that answers, declines or is unreachable
+        WHEN an MCP PreToolUse is scanned
+        THEN the call is always allowed, and only an outage carries a warning:
+        an instance that does not offer MCP policy would warn on every call."""
+        mock_refresh.return_value = AIDiscovery(
+            user=UserInfo(hostname="host", username="user", machine_id="mid"),
+            servers=[],
+            discovery_duration=0.1,
+        )
+        scanner = _mock_scanner([])
+        if isinstance(answer, Exception):
+            scanner.client.log_mcp_activity.side_effect = answer
+        else:
+            scanner.client.log_mcp_activity.return_value = answer
+        data = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "mcp__some_server__some_tool",
+            "tool_input": {"arg": "value"},
+            "cursor_version": "2.5.25",
+        }
+
+        result = AIHookScanner(scanner)._scan_payloads(
+            parse_hook_input(json.dumps(data))
+        )
+
+        assert result.block is False
+        assert bool(result.warning) is warns
+
     @patch("ggshield.verticals.ai.hooks.send_mcp_activity")
     def test_a_policy_answer_warns_about_nothing(self, mock_send_mcp: MagicMock):
         """A real allow must stay silent — otherwise every MCP call carries noise."""
@@ -627,6 +671,16 @@ class TestMCPActivityOverlap:
         assert "blocked by policy" not in result.message
         # Approved behaviour change: the activity is logged even when we block.
         mock_send.assert_called_once()
+
+    def test_scan_block_keeps_the_unchecked_policy_warning(self):
+        """Both facts matter to an auditor: the block, and that the policy check
+        did not run."""
+        scanner = _mock_scanner(["sk-secret"])
+        with patch("ggshield.verticals.ai.hooks.send_mcp_activity", return_value=None):
+            result = AIHookScanner(scanner)._scan_payloads([self._payload()])
+
+        assert result.block
+        assert result.warning == MCP_NOT_CHECKED_WARNING
 
     def test_mcp_block_returned_when_the_scan_allows(self):
         scanner = _mock_scanner([])

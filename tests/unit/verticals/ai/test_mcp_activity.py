@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 import requests
 from pygitguardian.models import Detail, MCPActivityResponse, UserInfo
 
@@ -66,8 +67,11 @@ class TestSendMCPActivity:
         assert result.reason == "blocked by policy"
 
     @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
-    def test_an_api_error_is_no_answer_not_an_allow(self, mock_refresh: MagicMock):
-        """A Detail response means the API did not decide, so it is not an allow."""
+    @pytest.mark.parametrize("status_code", [400, 403, 404, 422])
+    def test_a_4xx_is_a_silent_allow(self, mock_refresh: MagicMock, status_code: int):
+        """The instance does not offer MCP policy (route missing on an older
+        on-prem, feature off for the workspace): a configuration fact, not an
+        outage, so it must not warn on every single MCP tool call."""
         mock_refresh.return_value = _ai_discovery()
         payload = _payload()
         payload.agent.parse_mcp_activity = MagicMock(
@@ -76,8 +80,45 @@ class TestSendMCPActivity:
 
         client = MagicMock()
         client.log_mcp_activity.return_value = Detail(
-            status_code=400, detail="Validation Error"
+            status_code=status_code, detail="Not found"
         )
+
+        result = send_mcp_activity(client, payload)
+
+        assert result is not None
+        assert result.allowed is True
+
+    @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
+    @pytest.mark.parametrize("status_code", [500, 502, 503])
+    def test_a_5xx_is_no_answer_not_an_allow(
+        self, mock_refresh: MagicMock, status_code: int
+    ):
+        """A server error is a genuine outage: no policy decision was made."""
+        mock_refresh.return_value = _ai_discovery()
+        payload = _payload()
+        payload.agent.parse_mcp_activity = MagicMock(
+            return_value=_mcp_activity_request()
+        )
+
+        client = MagicMock()
+        client.log_mcp_activity.return_value = Detail(
+            status_code=status_code, detail="Server Error"
+        )
+
+        assert send_mcp_activity(client, payload) is None
+
+    @patch("ggshield.verticals.ai.mcp.refresh_and_maybe_submit_discovery")
+    def test_an_error_without_a_status_is_no_answer(self, mock_refresh: MagicMock):
+        """No status code means we cannot tell the instance declined, so treat it
+        as an outage."""
+        mock_refresh.return_value = _ai_discovery()
+        payload = _payload()
+        payload.agent.parse_mcp_activity = MagicMock(
+            return_value=_mcp_activity_request()
+        )
+
+        client = MagicMock()
+        client.log_mcp_activity.return_value = Detail(detail="The request timed out.")
 
         assert send_mcp_activity(client, payload) is None
 
