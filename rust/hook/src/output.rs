@@ -250,6 +250,7 @@ mod tests {
             content: String::new(),
             identifier: "id".into(),
             agent,
+            cwd: String::new(),
             raw: Value::Object(Default::default()),
             read_range: None,
         }

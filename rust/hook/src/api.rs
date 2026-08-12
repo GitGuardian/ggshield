@@ -130,7 +130,7 @@ struct ScanResult {
 /// `get_ignore_sha()`: sha256 over the policy break's matches rendered as
 /// "<match>,<match_type>", stably sorted by match_type. Users paste this value
 /// into `ignored_matches`, so it has to hash identically.
-fn ignore_sha(matches: &[Match]) -> String {
+pub(crate) fn ignore_sha(matches: &[Match]) -> String {
     let mut sorted: Vec<&Match> = matches.iter().collect();
     sorted.sort_by(|a, b| a.match_type.cmp(&b.match_type));
     let hashable: String = sorted

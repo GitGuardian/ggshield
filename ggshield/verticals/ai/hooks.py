@@ -6,7 +6,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
 import filelock
 from notifypy import Notify
@@ -20,6 +20,7 @@ from ggshield.core.scan import Scannable, ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
+from ggshield.utils.files import is_path_excluded
 from ggshield.utils.os import getenv_bool
 from ggshield.verticals.ai.mcp import is_mcp_activity_payload, send_mcp_activity
 
@@ -567,14 +568,29 @@ def _post_remediation_steps(secrets: List[Secret]) -> str:
     return "\n".join(f"  {i}. {step}" for i, step in enumerate(steps, start=1))
 
 
-def _false_positive_block(count: int) -> str:
+def _false_positive_block(secrets: Sequence[Secret]) -> str:
+    """The remediation for a false positive, with the entries it would write.
+
+    The shas are spelled out because the message censors every match, so the sha
+    is otherwise unknowable and a hand-written `ignored_matches` entry silently
+    never matches. The sha is a digest, not the secret, and `secret ignore`
+    already writes it in clear.
+    """
+    count = len(secrets)
     this_is_a_false_positive = pluralize(
         "this is a false positive", count, "these are false positives"
     )
+    # dict, not set: one entry per sha, in the order the secrets are reported.
+    shas = dict.fromkeys(secret.get_ignore_sha() for secret in secrets)
+    entries = "\n".join(f"    - match: {sha}" for sha in shas)
     return f"""\
 > If {this_is_a_false_positive}, run:
 
-    ggshield secret ignore --last-found"""
+    ggshield secret ignore --last-found
+
+  which adds to secret.ignored_matches in .gitguardian.yaml:
+
+{entries}"""
 
 
 class AIHookScanner:
@@ -591,8 +607,24 @@ class AIHookScanner:
         ValueError: If the input is not valid.
     """
 
-    def __init__(self, scanner: ScannerProtocol):
+    def __init__(
+        self,
+        scanner: ScannerProtocol,
+        exclusion_regexes: Optional[Set[Pattern[str]]] = None,
+    ):
         self.scanner = scanner
+        self.exclusion_regexes = exclusion_regexes or set()
+
+    def _is_excluded(self, payload: HookPayload) -> bool:
+        """Whether `secret.ignored_paths` covers what this payload would scan.
+
+        READ only: every other tool's identifier is a command or a content hash,
+        which a path pattern must not be tested against. A USER_PROMPT
+        @-mention is a READ too, so both ways of naming a file are covered.
+        """
+        if not self.exclusion_regexes or payload.tool != Tool.READ:
+            return False
+        return is_path_excluded(payload.identifier, self.exclusion_regexes)
 
     def scan(self, content: str) -> int:
         """Scan the content, print the result and return the exit code."""
@@ -681,6 +713,10 @@ class AIHookScanner:
         # (index in `payloads`, document to scan, verdict cache key).
         to_scan: List[Tuple[int, Scannable, Optional[str]]] = []
         for index, payload in enumerate(payloads):
+            # Excluded by secret.ignored_paths: never read, never sent, allowed.
+            # Before payload.scannable, which would read the file.
+            if self._is_excluded(payload):
+                continue
             # One Scannable for both the cache key and the scan, so the two can
             # never disagree about what was scanned.
             scannable = payload.scannable
@@ -830,7 +866,7 @@ class AIHookScanner:
             identifier=payload.identifier,
             secret_lines="\n".join(_secret_lines(secrets, escape_markdown)),
             post_remediation_steps=_post_remediation_steps(secrets),
-            false_positive_instructions=_false_positive_block(count),
+            false_positive_instructions=_false_positive_block(secrets),
         )
         if escape_markdown:
             message = markdown_hard_breaks(message)

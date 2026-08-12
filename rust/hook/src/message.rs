@@ -66,6 +66,26 @@ pub fn censor_string(text: &str) -> String {
     out
 }
 
+/// The `ignored_matches` entries `ggshield secret ignore --last-found` would
+/// write, one per distinct ignore sha, in the order the secrets are reported.
+///
+/// Spelled out because the message censors every match, so the sha is otherwise
+/// unknowable and a hand-written entry never matches. See
+/// `_false_positive_block()`.
+fn ignore_shas(secrets: &[Secret]) -> String {
+    let mut seen: Vec<String> = Vec::new();
+    for secret in secrets {
+        let sha = crate::api::ignore_sha(&secret.matches);
+        if !seen.contains(&sha) {
+            seen.push(sha);
+        }
+    }
+    seen.iter()
+        .map(|sha| format!("    - match: {sha}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// One bullet per secret, plus its incident URL when we know one. The censoring
 /// asterisks become bullets, which markdown would otherwise read as emphasis.
 fn secret_lines(secrets: &[Secret]) -> String {
@@ -155,6 +175,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
         ),
         ("identifier", payload.identifier.clone()),
         ("secret_lines", secret_lines(secrets)),
+        ("ignore_shas", ignore_shas(secrets)),
     ];
     let steps = if nb_incidents > 0 {
         REMEDIATION_STEPS_WITH_INCIDENT_TEMPLATE
@@ -231,6 +252,7 @@ mod tests {
             content: String::new(),
             identifier: identifier.into(),
             agent: crate::payload::Agent::Claude,
+            cwd: String::new(),
             raw: Value::Object(Default::default()),
             read_range: None,
         }
@@ -295,7 +317,30 @@ mod tests {
         // The censoring asterisks are rendered as bullets.
         assert!(!msg.contains("): byI*"), "{msg}");
         assert!(msg.contains("The command was not executed and the secret was not leaked."));
-        assert!(msg.ends_with("    ggshield secret ignore --last-found"));
+        assert!(msg.contains("    ggshield secret ignore --last-found"));
+        assert!(
+            msg.ends_with(&format!(
+                "    - match: {}",
+                crate::api::ignore_sha(&secrets[0].matches)
+            )),
+            "{msg}"
+        );
+    }
+
+    /// GIVEN two secrets that share one ignore sha
+    /// WHEN the false-positive block is built
+    /// THEN the entry appears once: it is a config to paste, not a tally.
+    #[test]
+    fn the_ignore_sha_entries_are_deduplicated() {
+        let one = secret("AWS Keys", "valid", &["aaa"]);
+        let same = secret("AWS Keys", "valid", &["aaa"]);
+        let other = secret("Generic Password", "valid", &["bbb"]);
+        let rendered = ignore_shas(&[one, same, other]);
+
+        assert_eq!(rendered.lines().count(), 2, "{rendered}");
+        for line in rendered.lines() {
+            assert!(line.starts_with("    - match: "), "{line}");
+        }
     }
 
     /// GIVEN two secrets found in a file the agent already read
