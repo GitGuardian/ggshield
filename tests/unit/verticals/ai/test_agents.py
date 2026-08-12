@@ -1,8 +1,10 @@
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
 
+import jwt
 import pytest
 from pygitguardian.models import MCPToolInfo, UserInfo
 
@@ -1784,3 +1786,141 @@ class TestParseToolArguments:
     )
     def test_non_dict_schema_returns_none(self, schema: Any):
         assert _parse_tool_arguments(schema) is None
+
+
+def _jwt(payload: Dict[str, Any]) -> str:
+    """Build a JWT carrying payload. The signature is never checked on read."""
+    return jwt.encode(payload, "k" * 32)
+
+
+class TestSubscriptionEmail:
+    """Each agent reports the account it is logged into, or nothing at all."""
+
+    def test_claude_reads_oauth_account(self, tmp_path: Path):
+        """GIVEN a ~/.claude.json holding an oauthAccount
+        WHEN subscription_email is read
+        THEN the account's emailAddress is returned"""
+        claude_json = tmp_path / ".claude.json"
+        claude_json.write_text(
+            json.dumps({"oauthAccount": {"emailAddress": "dev@example.com"}})
+        )
+        with patch.object(
+            Claude,
+            "user_mcp_file",
+            new_callable=lambda: property(lambda self: claude_json),
+        ):
+            assert Claude().subscription_email() == "dev@example.com"
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            pytest.param({}, id="no-oauth-account"),
+            pytest.param({"oauthAccount": {}}, id="no-email"),
+            pytest.param({"oauthAccount": "nope"}, id="account-not-a-dict"),
+            pytest.param({"oauthAccount": {"emailAddress": ""}}, id="empty-email"),
+        ],
+    )
+    def test_claude_returns_none_without_an_account(
+        self, tmp_path: Path, content: Dict[str, Any]
+    ):
+        """GIVEN a ~/.claude.json with no usable account
+        WHEN subscription_email is read
+        THEN None is returned"""
+        claude_json = tmp_path / ".claude.json"
+        claude_json.write_text(json.dumps(content))
+        with patch.object(
+            Claude,
+            "user_mcp_file",
+            new_callable=lambda: property(lambda self: claude_json),
+        ):
+            assert Claude().subscription_email() is None
+
+    def test_claude_returns_none_when_the_file_is_missing(self, tmp_path: Path):
+        """GIVEN no ~/.claude.json at all
+        WHEN subscription_email is read
+        THEN None is returned"""
+        with patch.object(
+            Claude,
+            "user_mcp_file",
+            new_callable=lambda: property(lambda self: tmp_path / "absent.json"),
+        ):
+            assert Claude().subscription_email() is None
+
+    def test_codex_decodes_the_id_token(self, tmp_path: Path):
+        """GIVEN a ~/.codex/auth.json whose id_token carries an email claim
+        WHEN subscription_email is read
+        THEN the claim is decoded and returned"""
+        (tmp_path / "auth.json").write_text(
+            json.dumps({"tokens": {"id_token": _jwt({"email": "dev@example.com"})}})
+        )
+        with patch.object(
+            Codex,
+            "config_folder",
+            new_callable=lambda: property(lambda self: tmp_path),
+        ):
+            assert Codex().subscription_email() == "dev@example.com"
+
+    @pytest.mark.parametrize(
+        "tokens",
+        [
+            pytest.param({}, id="no-id-token"),
+            pytest.param({"id_token": "not-a-jwt"}, id="not-a-jwt"),
+            pytest.param(
+                {"id_token": "a.!!!not-base64!!!.c"}, id="undecodable-payload"
+            ),
+            pytest.param({"id_token": _jwt({"sub": "x"})}, id="no-email-claim"),
+            pytest.param({"id_token": 42}, id="token-not-a-string"),
+        ],
+    )
+    def test_codex_returns_none_on_an_unusable_token(
+        self, tmp_path: Path, tokens: Dict[str, Any]
+    ):
+        """GIVEN a ~/.codex/auth.json with no readable email claim
+        WHEN subscription_email is read
+        THEN None is returned rather than raising"""
+        (tmp_path / "auth.json").write_text(json.dumps({"tokens": tokens}))
+        with patch.object(
+            Codex,
+            "config_folder",
+            new_callable=lambda: property(lambda self: tmp_path),
+        ):
+            assert Codex().subscription_email() is None
+
+    def test_cursor_returns_none_without_a_state_database(self, tmp_path: Path):
+        """GIVEN no Cursor state.vscdb on disk
+        WHEN subscription_email is read
+        THEN None is returned"""
+        with patch(
+            "ggshield.verticals.ai.agents.cursor.get_editor_user_data_dir",
+            return_value=tmp_path,
+        ):
+            assert Cursor().subscription_email() is None
+
+    def test_cursor_reads_cached_email(self, tmp_path: Path):
+        """GIVEN a Cursor state.vscdb holding cursorAuth/cachedEmail
+        WHEN subscription_email is read
+        THEN the cached email is returned"""
+        db_dir = tmp_path / "globalStorage"
+        db_dir.mkdir()
+        conn = sqlite3.connect(db_dir / "state.vscdb")
+        conn.execute("CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value BLOB)")
+        conn.execute(
+            "INSERT INTO ItemTable VALUES ('cursorAuth/cachedEmail', 'dev@example.com')"
+        )
+        conn.commit()
+        conn.close()
+        with patch(
+            "ggshield.verticals.ai.agents.cursor.get_editor_user_data_dir",
+            return_value=tmp_path,
+        ):
+            assert Cursor().subscription_email() == "dev@example.com"
+
+    @pytest.mark.parametrize(
+        "agent",
+        [pytest.param(Vibe(), id="vibe"), pytest.param(VSCode(), id="vscode")],
+    )
+    def test_agents_without_a_local_account_report_nothing(self, agent: Agent):
+        """GIVEN an agent that keeps no account on disk
+        WHEN subscription_email is read
+        THEN None is returned, never a stand-in from git config"""
+        assert agent.subscription_email() is None

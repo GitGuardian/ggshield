@@ -82,6 +82,7 @@ def discover_ai_configuration(machine_id: Optional[str] = None) -> AIDiscovery:
                     name=agent.name,
                     hooks_installed=installed,
                     hooks_command=command,
+                    subscription_email=agent.subscription_email(),
                 )
             )
 

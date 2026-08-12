@@ -529,6 +529,14 @@ class Agent(ABC):
             return ai_config.user
         return UserInfo(hostname="", username="", machine_id="")
 
+    def subscription_email(self) -> Optional[str]:
+        """Email of the assistant subscription this agent is signed into, or None.
+
+        Never approximated: `git config user.email` names the repository, not the
+        subscription, so an agent on a personal plan would report a work address.
+        """
+        return None
+
     # Helper methods
 
     def _load_file(self, path: Path) -> Optional[Dict[str, Any]]:

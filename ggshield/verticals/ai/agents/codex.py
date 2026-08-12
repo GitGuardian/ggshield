@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, Literal, Optional
 
 import click
+import jwt
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
@@ -31,6 +32,22 @@ class CodexActivitySource(JSONLActivitySource):
         )
 
 
+def _id_token_email(token: Any) -> Optional[str]:
+    """Return the email claim of an unverified id_token, or None.
+
+    Signature and expiry are unchecked on purpose: it is our own local token, read
+    only to name the subscription, and a stale one still names it correctly.
+    """
+    if not isinstance(token, str):
+        return None
+    try:
+        claims = jwt.decode(token, options={"verify_signature": False})
+    except jwt.PyJWTError:
+        return None
+    email = claims.get("email")
+    return email if isinstance(email, str) and email else None
+
+
 class Codex(Agent):
     """Behavior specific to OpenAI Codex."""
 
@@ -47,6 +64,14 @@ class Codex(Agent):
     @property
     def config_folder(self) -> Path:
         return get_user_home_dir() / ".codex"
+
+    def subscription_email(self) -> Optional[str]:
+        """Read the ChatGPT account email out of ~/.codex/auth.json's id_token."""
+        data = self._load_file(self.config_folder / "auth.json") or {}
+        tokens = data.get("tokens")
+        if not isinstance(tokens, dict):
+            return None
+        return _id_token_email(tokens.get("id_token"))
 
     def output_result(self, result: HookResult) -> int:
         response: Dict[str, Any] = {}

@@ -10,7 +10,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-08-09T11:35:38.727439Z"
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
@@ -1161,7 +1161,7 @@ requires-dist = [
     { name = "oauthlib", specifier = ">=3.2.1,<4" },
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
-    { name = "pygitguardian", specifier = "~=1.33.1" },
+    { name = "pygitguardian", git = "https://github.com/GitGuardian/py-gitguardian.git?rev=0b9278889119f1535b072a997caa13a781e4cd59" },
     { name = "pyjwt", specifier = ">=2.13.0,<3" },
     { name = "python-dotenv", specifier = ">=0.21.0,<2" },
     { name = "pyyaml", specifier = ">=6.0.1,<7" },
@@ -2933,7 +2933,7 @@ wheels = [
 [[package]]
 name = "pygitguardian"
 version = "1.33.1"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/GitGuardian/py-gitguardian.git?rev=0b9278889119f1535b072a997caa13a781e4cd59#0b9278889119f1535b072a997caa13a781e4cd59" }
 dependencies = [
     { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "marshmallow", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -2942,10 +2942,6 @@ dependencies = [
     { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "setuptools" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/9c/aded3498a510e3886d42c8882ae7e281daf8fa4d811f068f038135bc8746/pygitguardian-1.33.1.tar.gz", hash = "sha256:e93bdd6d45b2bbe8dca50840f5aaacb7d7af113b749c3b8838302a72936675ce", size = 59190, upload-time = "2026-07-28T12:29:41.202Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/83/c882abce7474364543fc6a65765c74d9eb89ab3b30045d192932d2bb5cc8/pygitguardian-1.33.1-py3-none-any.whl", hash = "sha256:ec241824b09af8a42264d55548f75db92278d3fcc38e08a320c82512bd0a7af9", size = 24530, upload-time = "2026-07-28T12:29:40.149Z" },
 ]
 
 [[package]]
