@@ -483,27 +483,53 @@ pub fn api_to_dashboard_url(api_url: &str) -> String {
     }
 }
 
+/// `validate_instance_url()` / `api_to_dashboard_url()` in `core/url_utils.py`:
+/// anything but `https` is refused, so the token and the scanned content cannot
+/// travel in the clear. A loopback host is the exception, for a local instance —
+/// and `127.0.0.1` is allowed only for a *dashboard* URL, as in Python.
+///
+/// Python raises a `UsageError`, which `ai_hook_cmd`'s `except Exception` turns
+/// into this same fail-open warning.
+fn validate_scheme(url: &str, kind: &str, loopback: &[&str]) -> Result<(), Error> {
+    let (scheme, rest) = url.split_once("://").unwrap_or(("", url));
+    if scheme == "https" || loopback.iter().any(|host| rest.starts_with(host)) {
+        return Ok(());
+    }
+    Err(Error::scan(format!(
+        "Invalid scheme for {kind} URL '{url}', expected HTTPS"
+    )))
+}
+
+fn validate_dashboard_url(url: &str) -> Result<(), Error> {
+    validate_scheme(url, "dashboard", &["localhost", "127.0.0.1"])
+}
+
 /// The instance the scan should talk to, as a *dashboard* URL.
 /// `Config.get_instance_name_and_source()`, in its priority order, minus the
 /// `--instance` flag (the hook is always invoked without arguments).
-fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> String {
+fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> Result<String, Error> {
     if let Some(url) = env_var(dotenv, "GITGUARDIAN_INSTANCE") {
-        return url.trim_end_matches('/').to_string();
+        validate_dashboard_url(&url)?;
+        return Ok(url.trim_end_matches('/').to_string());
     }
     if let Some(url) = env_var(dotenv, "GITGUARDIAN_API_URL") {
-        return api_to_dashboard_url(&url);
+        validate_scheme(&url, "API", &["localhost"])?;
+        return Ok(api_to_dashboard_url(&url));
     }
     if let Some(url) = &user.instance {
-        return url.clone();
+        return Ok(url.clone());
     }
-    DEFAULT_INSTANCE_URL.to_string()
+    Ok(DEFAULT_INSTANCE_URL.to_string())
 }
 
 pub fn resolve() -> Result<Config, Error> {
     let dotenv = dotenv_overrides()?;
     let user = user_config::load()?;
 
-    let instance = instance_name(&user, &dotenv);
+    let instance = instance_name(&user, &dotenv)?;
+    // `Config.api_url` validates again, which is what catches a `.gitguardian.yaml`
+    // `instance:` — the only source above that does not carry its own check.
+    validate_dashboard_url(&instance)?;
     let api_url = dashboard_to_api_url(&instance);
 
     // Env var wins over everything, short-circuiting keychain access as
@@ -961,7 +987,7 @@ mod tests {
             }
         }
         let resolved = dotenv_overrides()
-            .map(|dotenv| instance_name(&UserConfig::default(), &dotenv))
+            .and_then(|dotenv| instance_name(&UserConfig::default(), &dotenv))
             .map_err(|error| match error {
                 Error::Fail(message) | Error::Fatal(message) | Error::Invalid(message) => message,
             });
@@ -973,6 +999,74 @@ mod tests {
         resolved
     }
 
+    /// GIVEN an instance or API URL over cleartext http, and the loopback hosts
+    /// Python exempts
+    /// WHEN the instance is resolved
+    /// THEN the cleartext ones are refused with `validate_instance_url()`'s message
+    /// — the token and the scanned content would otherwise go out unencrypted —
+    /// and a local instance still works.
+    #[test]
+    fn a_cleartext_instance_is_refused() {
+        let _guard = exclusive();
+        let (_dir, original) = in_a_checkout(&[]);
+
+        for (vars, expected) in [
+            (
+                [("GITGUARDIAN_INSTANCE", "http://gg.example.com")],
+                Some("Invalid scheme for dashboard URL 'http://gg.example.com', expected HTTPS"),
+            ),
+            (
+                [("GITGUARDIAN_API_URL", "http://gg.example.com/exposed")],
+                Some("Invalid scheme for API URL 'http://gg.example.com/exposed', expected HTTPS"),
+            ),
+            // A URL with no scheme at all is refused too, as `urlparse` gives it
+            // neither a scheme nor a netloc.
+            (
+                [("GITGUARDIAN_INSTANCE", "gg.example.com")],
+                Some("Invalid scheme for dashboard URL 'gg.example.com', expected HTTPS"),
+            ),
+            ([("GITGUARDIAN_INSTANCE", "https://gg.example.com")], None),
+            // The loopback exemptions, including the API-URL one Python narrows
+            // to `localhost`.
+            ([("GITGUARDIAN_INSTANCE", "http://localhost:8000")], None),
+            ([("GITGUARDIAN_INSTANCE", "http://127.0.0.1:8000")], None),
+            ([("GITGUARDIAN_API_URL", "http://localhost:8000")], None),
+            (
+                [("GITGUARDIAN_API_URL", "http://127.0.0.1:8000")],
+                Some("Invalid scheme for API URL 'http://127.0.0.1:8000', expected HTTPS"),
+            ),
+        ] {
+            let resolved = resolved_instance(&vars);
+            match expected {
+                None => assert!(resolved.is_ok(), "{vars:?}: {resolved:?}"),
+                Some(detail) => {
+                    let Err(message) = &resolved else {
+                        panic!("{vars:?} was accepted: {resolved:?}");
+                    };
+                    assert!(message.contains(detail), "{vars:?}: {message}");
+                    assert!(message.contains("NOT scanned for secrets"), "{message}");
+                }
+            }
+        }
+
+        std::env::set_current_dir(original).expect("chdir back");
+    }
+
+    /// GIVEN a `.gitguardian.yaml` naming a cleartext instance, the one source that
+    /// carries no check of its own
+    /// WHEN the instance is validated
+    /// THEN it is refused too, because `Config.api_url` validates again.
+    #[test]
+    fn a_cleartext_instance_from_the_user_config_is_refused() {
+        let user = UserConfig {
+            instance: Some("http://gg.example.com".to_string()),
+            ..UserConfig::default()
+        };
+        let instance = instance_name(&user, &DotEnv::default()).expect("resolves");
+        assert!(validate_dashboard_url(&instance).is_err());
+        assert!(validate_dashboard_url("https://gg.example.com").is_ok());
+    }
+
     /// GIVEN a `.env` in the cwd, at the repository root, or named by
     /// `GITGUARDIAN_DOTENV_PATH`
     /// WHEN the config is resolved
@@ -982,39 +1076,39 @@ mod tests {
     fn the_dotenv_is_found_where_the_cli_looks_for_it() {
         let _guard = exclusive();
         let (dir, original) = in_a_checkout(&[
-            (".env", "GITGUARDIAN_INSTANCE=http://gitroot\n"),
-            ("other.env", "GITGUARDIAN_INSTANCE=http://explicit\n"),
+            (".env", "GITGUARDIAN_INSTANCE=https://gitroot\n"),
+            ("other.env", "GITGUARDIAN_INSTANCE=https://explicit\n"),
         ]);
 
-        assert_eq!(resolved_instance(&[]), Ok("http://gitroot".to_string()));
+        assert_eq!(resolved_instance(&[]), Ok("https://gitroot".to_string()));
         std::fs::write(
             dir.path().join("sub/.env"),
-            "GITGUARDIAN_INSTANCE=http://cwd\n",
+            "GITGUARDIAN_INSTANCE=https://cwd\n",
         )
         .expect("write");
-        assert_eq!(resolved_instance(&[]), Ok("http://cwd".to_string()));
+        assert_eq!(resolved_instance(&[]), Ok("https://cwd".to_string()));
         assert_eq!(
             resolved_instance(&[(
                 "GITGUARDIAN_DOTENV_PATH",
                 dir.path().join("other.env").to_str().expect("utf-8"),
             )]),
-            Ok("http://explicit".to_string())
+            Ok("https://explicit".to_string())
         );
         assert_eq!(
             resolved_instance(&[
                 ("GITGUARDIAN_DONT_LOAD_ENV", "1"),
-                ("GITGUARDIAN_INSTANCE", "http://env"),
+                ("GITGUARDIAN_INSTANCE", "https://env"),
             ]),
-            Ok("http://env".to_string())
+            Ok("https://env".to_string())
         );
         // Falsy spellings leave loading enabled, so the file beats the exported
         // variable.
         assert_eq!(
             resolved_instance(&[
                 ("GITGUARDIAN_DONT_LOAD_ENV", "0"),
-                ("GITGUARDIAN_INSTANCE", "http://env"),
+                ("GITGUARDIAN_INSTANCE", "https://env"),
             ]),
-            Ok("http://cwd".to_string())
+            Ok("https://cwd".to_string())
         );
 
         std::env::set_current_dir(original).expect("chdir back");
@@ -1033,18 +1127,18 @@ mod tests {
             ("GITGUARDIAN_API_KEY=\"a\\tb\"\n", "GITGUARDIAN_API_KEY"),
             ("GITGUARDIAN_API_KEY='unterminated\n", "GITGUARDIAN_API_KEY"),
             (
-                "GITGUARDIAN_INSTANCE=http://x junk\n",
+                "GITGUARDIAN_INSTANCE=https://x junk\n",
                 "GITGUARDIAN_INSTANCE",
             ),
             // A rejected *second* binding: the CLI would apply it, so resolving
             // the earlier one is a wrong answer, not a partial one.
             (
-                "GITGUARDIAN_INSTANCE=http://cwd\nGITGUARDIAN_INSTANCE=\"a\\tb\"\n",
+                "GITGUARDIAN_INSTANCE=https://cwd\nGITGUARDIAN_INSTANCE=\"a\\tb\"\n",
                 "GITGUARDIAN_INSTANCE",
             ),
         ] {
             std::fs::write(dir.path().join("sub/.env"), content).expect("write");
-            let message = resolved_instance(&[("GITGUARDIAN_INSTANCE", "http://env")])
+            let message = resolved_instance(&[("GITGUARDIAN_INSTANCE", "https://env")])
                 .expect_err(content)
                 .to_string();
             assert!(message.contains(var), "{content:?}: {message}");
@@ -1063,14 +1157,14 @@ mod tests {
         let (dir, original) = in_a_checkout(&[]);
 
         for content in [
-            "FOO=\"a\\tb\"\nGITGUARDIAN_INSTANCE=http://cwd\n",
-            "FOO=bar baz\nGITGUARDIAN_INSTANCE=http://cwd\n",
-            "GITGUARDIAN_INSTANCE=http://cwd\nFOO='unterminated\n",
+            "FOO=\"a\\tb\"\nGITGUARDIAN_INSTANCE=https://cwd\n",
+            "FOO=bar baz\nGITGUARDIAN_INSTANCE=https://cwd\n",
+            "GITGUARDIAN_INSTANCE=https://cwd\nFOO='unterminated\n",
         ] {
             std::fs::write(dir.path().join("sub/.env"), content).expect("write");
             assert_eq!(
-                resolved_instance(&[("GITGUARDIAN_INSTANCE", "http://env")]),
-                Ok("http://cwd".to_string()),
+                resolved_instance(&[("GITGUARDIAN_INSTANCE", "https://env")]),
+                Ok("https://cwd".to_string()),
                 "{content:?}"
             );
         }
