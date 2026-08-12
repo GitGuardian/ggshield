@@ -15,6 +15,15 @@ use ggshield_config::user_config::SecretConfig;
 const API_PATH_MAX_LENGTH: usize = 256;
 const TIMEOUT_SECS: u64 = 60;
 
+/// `_RETRY_STATUS_FORCELIST` and `RetryProfile.DEFAULT` in core/client.py:
+/// `urllib3.Retry(total=5, backoff_factor=0.5, backoff_max=8)`, which sleeps 0, 1,
+/// 2, 4, 8 s before its five retries. A single 503 must not fail an event open.
+///
+/// No jitter: urllib3's exists to spread a fleet of clients, and this is one
+/// process making one request.
+const RETRY_STATUSES: [u16; 3] = [502, 503, 504];
+const RETRY_BACKOFF_SECS: [u64; 5] = [0, 1, 2, 4, 8];
+
 /// The TLS config to attach when `.gitguardian.yaml` set `insecure` (or v1
 /// `allow_self_signed`): certificate verification off, matching `session.verify
 /// = False` in `core/client.py`. `None` keeps ureq's verifying default.
@@ -281,6 +290,17 @@ pub fn max_payload_size(config: &Config) -> usize {
     limits(config).maximum_payload_size
 }
 
+/// `os.path.basename()`: everything after the last separator, and the platform
+/// decides what a separator is. Splitting on `/` alone sent a full `C:\...` path
+/// to the API — the one thing `filename_only` exists to prevent.
+fn basename(path: &str) -> &str {
+    let separators: &[char] = if cfg!(windows) { &['/', '\\'] } else { &['/'] };
+    match path.rfind(separators) {
+        Some(index) => &path[index + 1..],
+        None => path,
+    }
+}
+
 pub fn multiscan<'a>(
     config: &Config,
     agent: crate::payload::Agent,
@@ -292,7 +312,7 @@ pub fn multiscan<'a>(
             // `_document_filename()`: basename first when `filename_only` is
             // set, then truncated to the LAST 256 characters.
             let filename = if config.user.secret.filename_only {
-                let base = doc.filename.rsplit('/').next().unwrap_or_default();
+                let base = basename(&doc.filename);
                 if base.is_empty() { &doc.filename } else { base }
             } else {
                 &doc.filename
@@ -302,48 +322,21 @@ pub fn multiscan<'a>(
                 .chars()
                 .skip(length.saturating_sub(API_PATH_MAX_LENGTH))
                 .collect();
+            // `replace_0_bytes()` in pygitguardian's DocumentSchema: the API
+            // rejects a NUL byte with a 400, which fails the whole event open.
+            // The ASCII substitute is one byte, so no size accounting moves.
+            let document = doc.content.replace('\0', "\u{1a}");
             // Field order and the null `location` are pygitguardian's
             // DocumentSchema.
-            json!({"filename": filename, "document": doc.content, "location": null})
+            json!({"filename": filename, "document": document, "location": null})
         })
         .collect();
     let body = Value::Array(payload).to_string();
 
-    let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
-    let mut builder = ureq::post(&url)
-        .config()
-        .timeout_global(Some(std::time::Duration::from_secs(TIMEOUT_SECS)));
-    if let Some(tls) = insecure_tls(config) {
-        builder = builder.tls_config(tls);
-    }
-    let response = builder
-        .build()
-        .header("Authorization", format!("Token {}", config.token()?))
-        .header("Content-Type", "application/json")
-        // Telemetry ggshield sends on every scan.
-        .header("mode", "ai_hook")
-        .header("GGShield-Agent-Name", agent.name())
-        .header("GGShield-Command-Path", "ggshield secret scan ai-hook")
-        .header("GGShield-Version", env!("CARGO_PKG_VERSION"))
-        .header(
-            "User-Agent",
-            concat!("ggshield-hook/", env!("CARGO_PKG_VERSION")),
-        )
-        .send(&body);
-
-    let mut response = match response {
-        Ok(response) => response,
-        Err(e) => return Err(Error::scan(e.to_string())),
-    };
-
-    let status = response.status().as_u16();
+    let (status, text) = send_with_retries(config, agent, &body)?;
     if status == 401 || status == 403 {
         return Err(Error::auth());
     }
-    let text = response
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| Error::scan(e.to_string()))?;
     if status != 200 {
         let detail = serde_json::from_str::<Value>(&text)
             .ok()
@@ -359,6 +352,65 @@ pub fn multiscan<'a>(
         .into_iter()
         .map(|result| split_result(result, &config.user.secret))
         .collect())
+}
+
+/// POST the batch, retrying the statuses ggshield retries. Returns the final
+/// status and body.
+fn send_with_retries(
+    config: &Config,
+    agent: crate::payload::Agent,
+    body: &str,
+) -> Result<(u16, String), Error> {
+    let mut answer = send_once(config, agent, body);
+    for backoff in RETRY_BACKOFF_SECS {
+        match &answer {
+            Ok((status, _)) if RETRY_STATUSES.contains(status) => {}
+            _ => break,
+        }
+        std::thread::sleep(std::time::Duration::from_secs(backoff));
+        answer = send_once(config, agent, body);
+    }
+    answer
+}
+
+fn send_once(
+    config: &Config,
+    agent: crate::payload::Agent,
+    body: &str,
+) -> Result<(u16, String), Error> {
+    let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
+    let mut builder = ureq::post(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(TIMEOUT_SECS)))
+        // ureq turns any 4xx/5xx into an `Err` by default, which made the 401
+        // branch below dead code: an expired token said "could not scan" instead
+        // of "run ggshield auth login", and a 503 could not be recognised either.
+        .http_status_as_error(false);
+    if let Some(tls) = insecure_tls(config) {
+        builder = builder.tls_config(tls);
+    }
+    let mut response = builder
+        .build()
+        .header("Authorization", format!("Token {}", config.token()?))
+        .header("Content-Type", "application/json")
+        // Telemetry ggshield sends on every scan.
+        .header("mode", "ai_hook")
+        .header("GGShield-Agent-Name", agent.name())
+        .header("GGShield-Command-Path", "ggshield secret scan ai-hook")
+        .header("GGShield-Version", env!("CARGO_PKG_VERSION"))
+        .header(
+            "User-Agent",
+            concat!("ggshield-hook/", env!("CARGO_PKG_VERSION")),
+        )
+        .send(body)
+        .map_err(|e| Error::scan(e.to_string()))?;
+
+    let status = response.status().as_u16();
+    let text = response
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| Error::scan(e.to_string()))?;
+    Ok((status, text))
 }
 
 fn split_result(result: ScanResult, secret_config: &SecretConfig) -> DocumentResult {
@@ -379,10 +431,10 @@ fn split_result(result: ScanResult, secret_config: &SecretConfig) -> DocumentRes
 mod tests {
     use super::*;
 
-    use std::io::{BufRead, BufReader, Write};
+    use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
 
     /// A localhost `/v1/metadata` responder, and the count of requests it served.
     fn metadata_api() -> (String, Arc<AtomicUsize>) {
@@ -414,6 +466,185 @@ mod tests {
 
     fn config_for(api_url: String) -> Config {
         Config::with_token(api_url, "token".into(), Default::default())
+    }
+
+    /// A `/v1/multiscan` responder that answers a scripted list of statuses, and
+    /// the bodies it was POSTed. The last status repeats once the script runs out.
+    fn scan_api(statuses: Vec<u16>) -> (String, Arc<Mutex<Vec<String>>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let url = format!("http://{}", listener.local_addr().expect("addr"));
+        let bodies = Arc::new(Mutex::new(Vec::new()));
+        let recorded = Arc::clone(&bodies);
+        std::thread::spawn(move || {
+            for (index, mut stream) in listener.incoming().flatten().enumerate() {
+                let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+                let mut line = String::new();
+                let mut length = 0usize;
+                while reader.read_line(&mut line).is_ok_and(|n| n > 0) {
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some(value) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                        length = value.trim().parse().unwrap_or(0);
+                    }
+                    line.clear();
+                }
+                let mut raw = vec![0u8; length];
+                let _ = reader.read_exact(&mut raw);
+                recorded
+                    .lock()
+                    .expect("lock")
+                    .push(String::from_utf8_lossy(&raw).into_owned());
+                let status = *statuses
+                    .get(index)
+                    .or_else(|| statuses.last())
+                    .unwrap_or(&200);
+                let body = if status == 200 {
+                    r#"[{"policy_breaks": []}]"#.to_string()
+                } else {
+                    r#"{"detail": "nope"}"#.to_string()
+                };
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            }
+        });
+        (url, bodies)
+    }
+
+    fn scan_one(config: &Config, content: &str) -> Result<Vec<DocumentResult>, Error> {
+        multiscan(
+            config,
+            crate::payload::Agent::Claude,
+            [&Document {
+                content: content.into(),
+                filename: "a.env".into(),
+            }],
+        )
+    }
+
+    /// GIVEN a document carrying a NUL byte
+    /// WHEN it is sent
+    /// THEN the NUL is replaced with the ASCII substitute, as pygitguardian's
+    /// `replace_0_bytes()` does — the raw byte earns a 400 and fails the event open.
+    #[test]
+    fn nul_bytes_never_reach_the_api() {
+        let (url, bodies) = scan_api(vec![200]);
+        let config = config_for(url);
+
+        scan_one(&config, "TOKEN=a\0b").expect("scan");
+
+        let sent = bodies.lock().expect("lock")[0].clone();
+        assert!(!sent.contains("\\u0000"), "{sent}");
+        assert!(sent.contains("\\u001a"), "{sent}");
+    }
+
+    /// GIVEN an instance answering 503 twice before it answers
+    /// WHEN a batch is scanned
+    /// THEN it is retried rather than failing the event open, as
+    /// `RetryProfile.DEFAULT` does.
+    #[test]
+    fn a_retryable_status_is_retried() {
+        let (url, bodies) = scan_api(vec![503, 502, 200]);
+        let config = config_for(url);
+
+        let results = scan_one(&config, "nothing here").expect("scan");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(bodies.lock().expect("lock").len(), 3);
+    }
+
+    /// GIVEN an instance rejecting the token
+    /// WHEN a batch is scanned
+    /// THEN the user is told to log in, and the request is not retried.
+    #[test]
+    fn an_unauthorised_scan_reports_an_auth_failure() {
+        let (url, bodies) = scan_api(vec![401]);
+        let config = config_for(url);
+
+        let Err(error) = scan_one(&config, "nothing here") else {
+            panic!("a 401 must not look like a clean scan");
+        };
+
+        let Error::Fail(message) = error else {
+            panic!("expected Fail, got {error:?}");
+        };
+        assert!(
+            message.contains("could not authenticate") && message.contains("auth login"),
+            "{message}"
+        );
+        assert_eq!(bodies.lock().expect("lock").len(), 1);
+    }
+
+    /// GIVEN a status the API returns for a bad request
+    /// WHEN a batch is scanned
+    /// THEN its `detail` is reported once, with no retry.
+    #[test]
+    fn a_client_error_is_reported_without_retrying() {
+        let (url, bodies) = scan_api(vec![400]);
+        let config = config_for(url);
+
+        let Err(error) = scan_one(&config, "nothing here") else {
+            panic!("a 400 must not look like a clean scan");
+        };
+
+        assert!(
+            matches!(&error, Error::Fail(m) if m.contains("(nope)")),
+            "{error:?}"
+        );
+        assert_eq!(bodies.lock().expect("lock").len(), 1);
+    }
+
+    /// GIVEN a path in each platform's spelling
+    /// WHEN its basename is taken for `filename_only`
+    /// THEN the platform's own separators are honoured, so no local path leaks.
+    #[test]
+    fn basename_honours_the_platform_separators() {
+        assert_eq!(basename("/home/user/creds.env"), "creds.env");
+        assert_eq!(basename("creds.env"), "creds.env");
+        assert_eq!(basename("/home/user/"), "");
+        if cfg!(windows) {
+            assert_eq!(basename(r"C:\Users\me\creds.env"), "creds.env");
+            assert_eq!(basename(r"C:/Users/me\creds.env"), "creds.env");
+        } else {
+            // A backslash is an ordinary filename character on POSIX.
+            assert_eq!(basename(r"C:\Users\me\creds.env"), r"C:\Users\me\creds.env");
+        }
+    }
+
+    /// GIVEN `filename_only` and a full path in the platform's spelling
+    /// WHEN the document is sent
+    /// THEN only the basename reaches the API.
+    #[test]
+    fn filename_only_sends_no_local_path() {
+        let (url, bodies) = scan_api(vec![200]);
+        let mut user = ggshield_config::user_config::UserConfig::default();
+        user.secret.filename_only = true;
+        let config = Config::with_token(url, "token".into(), user);
+        let path = if cfg!(windows) {
+            r"C:\Users\me\secrets\creds.env"
+        } else {
+            "/home/me/secrets/creds.env"
+        };
+
+        multiscan(
+            &config,
+            crate::payload::Agent::Claude,
+            [&Document {
+                content: "nothing here".into(),
+                filename: path.into(),
+            }],
+        )
+        .expect("scan");
+
+        let sent = bodies.lock().expect("lock")[0].clone();
+        assert!(sent.contains(r#""filename":"creds.env""#), "{sent}");
+        assert!(
+            !sent.contains("secrets\\\\") && !sent.contains("secrets/"),
+            "{sent}"
+        );
     }
 
     /// Backdate the entry the hook wrote: ageing it past its TTL is the one thing
