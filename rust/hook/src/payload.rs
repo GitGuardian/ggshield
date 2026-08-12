@@ -727,7 +727,7 @@ mod tests {
         .to_string();
         let payloads = parse(&raw).expect("parses");
         assert_eq!(payloads[0].tool, Some(Tool::Read));
-        assert_eq!(payloads[0].identifier, "/tmp/secret.txt");
+        assert_eq!(payloads[0].identifier, native("/tmp/secret.txt"));
         assert_eq!(payloads[0].content, r#"{"content":"file content"}"#);
         // Vibe's read_file carries no range: the whole file is scanned.
         assert_eq!(payloads[0].read_range, None);
