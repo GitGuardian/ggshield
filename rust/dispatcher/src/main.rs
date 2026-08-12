@@ -13,6 +13,9 @@ fn main() {
     if dispatch::is_native_hook(&args) {
         std::process::exit(run_native_hook());
     }
+    if dispatch::is_warm_notifier(&args) {
+        std::process::exit(ggshield_hook::warm_notifier());
+    }
     dispatch::delegate(&args);
 }
 

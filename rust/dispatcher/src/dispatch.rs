@@ -22,6 +22,13 @@ use windows_sys::core::BOOL;
 /// Python.
 const NATIVE_HOOK_ARGS: [&str; 3] = ["secret", "scan", "ai-hook"];
 
+/// What `machine setup` runs once the hooks are written. macOS only asks for
+/// notification permission when an app first posts one, and until that is
+/// answered the notification is dropped in silence -- so the asking is done
+/// here, while the user is deliberately setting ggshield up, rather than the
+/// first time a secret leaks.
+const WARM_NOTIFIER_ARGS: [&str; 4] = ["secret", "scan", "ai-hook", "--warm-notifier"];
+
 /// As named inside the bundle by `scripts/build-os-packages/build-os-packages`.
 /// That name and "next to me" are the whole contract between the two binaries.
 const PYTHON_LAUNCHER: &str = if cfg!(windows) {
@@ -32,8 +39,12 @@ const PYTHON_LAUNCHER: &str = if cfg!(windows) {
 
 /// True only for the exact `secret scan ai-hook` form.
 pub fn is_native_hook(args: &[OsString]) -> bool {
-    args.len() == NATIVE_HOOK_ARGS.len()
-        && std::iter::zip(args, NATIVE_HOOK_ARGS).all(|(got, want)| got == want)
+    args == NATIVE_HOOK_ARGS
+}
+
+/// True only for the exact `secret scan ai-hook --warm-notifier` form.
+pub fn is_warm_notifier(args: &[OsString]) -> bool {
+    args == WARM_NOTIFIER_ARGS
 }
 
 pub fn delegate(args: &[OsString]) -> ! {
@@ -222,6 +233,32 @@ mod tests {
     #[test]
     fn the_exact_hook_invocation_is_handled_natively() {
         assert!(is_native_hook(&args(&["secret", "scan", "ai-hook"])));
+    }
+
+    /// GIVEN the warm-up invocation `machine setup` runs, and its near misses
+    /// WHEN each is tested against both predicates
+    /// THEN only the exact form warms, it is never mistaken for a hook event,
+    /// and everything else still goes to Python.
+    #[test]
+    fn only_the_exact_warm_up_invocation_warms() {
+        let warm = args(&["secret", "scan", "ai-hook", "--warm-notifier"]);
+        assert!(is_warm_notifier(&warm));
+        // It carries no payload, so answering it as a hook event would scan
+        // an empty stdin and print a verdict nobody asked for.
+        assert!(!is_native_hook(&warm));
+
+        for case in [
+            args(&["secret", "scan", "ai-hook"]),
+            args(&["secret", "scan", "ai-hook", "--warm-notifier", "--verbose"]),
+            args(&["secret", "scan", "ai-hook", "--warm-notifier=1"]),
+            args(&["--warm-notifier", "secret", "scan", "ai-hook"]),
+            args(&["secret", "scan", "ai-hook", "--Warm-Notifier"]),
+        ] {
+            assert!(
+                !is_warm_notifier(&case),
+                "{case:?} was claimed as a warm-up"
+            );
+        }
     }
 
     /// GIVEN near misses: empty argv, prefixes, an extra or a leading option, a

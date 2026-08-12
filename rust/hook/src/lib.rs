@@ -14,6 +14,7 @@
 
 mod api;
 mod message;
+mod notify;
 mod output;
 mod payload;
 mod verdict_cache;
@@ -76,6 +77,26 @@ pub fn run_hook() -> Outcome {
 /// `run_hook` because only the dispatcher knows whether it worked.
 pub fn fail_open(stdin_content: &str, warning: Error) -> i32 {
     handle_error(stdin_content, warning)
+}
+
+/// Raise one harmless notification, so whatever the desktop wants to ask about
+/// notifications gets asked now.
+///
+/// On macOS that is a permission prompt, and it is the whole point: an app may
+/// only post notifications the user has allowed, and until the prompt is
+/// answered `display notification` reports success and shows nothing. Asked
+/// here, during `machine setup`, the user is deliberately setting ggshield up
+/// and the dialog makes sense. Left to the first real detection, it lands on
+/// top of a leaked secret -- and a prompt nobody answers is a leak alert
+/// nobody sees.
+///
+/// Always exits 0: an installer must not fail over a banner.
+pub fn warm_notifier() -> i32 {
+    notify::send(
+        "ggshield",
+        "ggshield will alert you here when a secret reaches your AI agent.",
+    );
+    0
 }
 
 /// The three failure modes of `ai_hook_cmd`.
@@ -441,9 +462,7 @@ fn has_already_been_seen(content: &str) -> bool {
 /// `_send_secret_notification()`. Best effort; every failure is swallowed so the
 /// block decision still gets emitted.
 ///
-/// The message embeds attacker-influenced command text, so the strings are passed
-/// as run-handler arguments rather than interpolated into the AppleScript source.
-#[cfg(target_os = "macos")]
+/// Only the wording lives here; `notify` owns the per-OS delivery.
 fn notify(result: &HookResult) {
     let source = match result.payload.tool {
         Some(Tool::Read) => "reading a file".to_string(),
@@ -469,26 +488,8 @@ fn notify(result: &HookResult) {
         result.nbr_secrets,
         message::pluralize("secret", result.nbr_secrets, None)
     );
-    let _ = std::process::Command::new("osascript")
-        .args([
-            "-e",
-            "on run argv",
-            "-e",
-            "display notification (item 1 of argv) with title (item 2 of argv)",
-            "-e",
-            "end run",
-            "--",
-            &body,
-            "ggshield - Secrets Detected",
-        ])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
+    notify::send("ggshield - Secrets Detected", &body);
 }
-
-#[cfg(not(target_os = "macos"))]
-fn notify(_result: &HookResult) {}
 
 #[cfg(test)]
 mod tests {

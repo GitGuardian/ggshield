@@ -82,6 +82,11 @@ def build_hook_command() -> str:
     already resolved. The hook is therefore pinned to the versioned path and must
     be reinstalled after an upgrade.
     """
+    return f"{_quote_executable(hook_executable())} secret scan ai-hook"
+
+
+def hook_executable() -> str:
+    """The ggshield binary the hook should run. See `build_hook_command`."""
     if getattr(sys, "frozen", False):
         executable = sys.executable
         dispatcher = os.path.join(
@@ -100,7 +105,7 @@ def build_hook_command() -> str:
             # On a PATH miss fall back to abspath, never sys.executable
             # (the Python interpreter, not ggshield).
             executable = shutil.which(argv0) or os.path.abspath(argv0)
-    return f"{_quote_executable(executable)} secret scan ai-hook"
+    return executable
 
 
 def _quote_executable(path: str) -> str:
