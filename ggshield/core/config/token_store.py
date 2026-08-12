@@ -218,9 +218,16 @@ class KeyringTokenStore(TokenStore):
                     _macos_store_token(instance_url, token)
                     return
                 except Exception as exc:
-                    logger.debug(
-                        "Could not store the token with a shared Keychain ACL (%s), "
-                        "falling back to the plain keyring write",
+                    # Loud on purpose: the token is still stored, but only this
+                    # binary can read it without asking. The other one prompts,
+                    # and an agent-spawned hook cannot answer a Keychain dialog —
+                    # so the symptom is a hook that stops scanning, with the cause
+                    # nowhere the user would look.
+                    logger.warning(
+                        "Could not grant every ggshield binary access to the token "
+                        "in the Keychain (%s). The token was stored, but macOS may "
+                        "ask for permission again; run 'ggshield api-status' once in "
+                        "a terminal to approve it.",
                         exc,
                     )
             keyring.set_password(KEYRING_SERVICE, instance_url, token)
