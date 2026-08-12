@@ -83,6 +83,23 @@ def _macos_trusted_binaries() -> List[str]:
     return paths
 
 
+def _writes_to_the_apple_keychain() -> bool:
+    """Whether the configured keyring backend is the Apple Keychain itself.
+
+    `_macos_store_token` bypasses keyring and talks to the Keychain directly,
+    while `get_token`/`delete_token` go through the configured backend. With
+    PYTHON_KEYRING_BACKEND pointing elsewhere the two disagree: `auth login`
+    reports success and nothing can authenticate afterwards, because the token
+    was written where nothing reads it.
+    """
+    try:
+        from keyring.backends import macOS
+
+        return isinstance(keyring.get_keyring(), macOS.Keyring)
+    except Exception:
+        return False
+
+
 def _macos_store_token(instance_url: str, token: str) -> None:
     """Store the token in the Keychain with an ACL trusting every ggshield binary.
 
@@ -196,7 +213,7 @@ class KeyringTokenStore(TokenStore):
 
     def store_token(self, instance_url: str, token: str) -> None:
         with _keyring_lock():
-            if sys.platform == "darwin":
+            if sys.platform == "darwin" and _writes_to_the_apple_keychain():
                 try:
                     _macos_store_token(instance_url, token)
                     return
