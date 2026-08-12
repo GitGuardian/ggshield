@@ -241,6 +241,16 @@ class Results:
     results: List[Result] = field(default_factory=list)
     errors: List[Error] = field(default_factory=list)
 
+    def by_url(self) -> Dict[str, Result]:
+        """Results keyed by the url of the document each is about.
+
+        `results` is neither in send order (chunks arrive as they complete) nor one
+        entry per document (a skipped document has no result), so `Result.url` is what
+        ties a result back to its document. Documents sharing a url collapse to one
+        entry, so a caller needing a per-document answer must send distinct urls.
+        """
+        return {result.url: result for result in self.results}
+
     @staticmethod
     def from_exception(exc: Exception) -> "Results":
         """Create a Results representing a failure"""

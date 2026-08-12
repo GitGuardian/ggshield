@@ -3,12 +3,16 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 import click
+import pytest
 from click.testing import CliRunner
+from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MAXIMUM_PAYLOAD_SIZE
 from pygitguardian.models import (
     AgentInfo,
     AIDiscovery,
     MCPConfiguration,
     MCPServer,
+    MultiScanResult,
+    ScanResult,
     UserInfo,
 )
 
@@ -29,6 +33,33 @@ CLAUDE_PRE_TOOL_USE_PAYLOAD = json.dumps(
         "tool_input": {"command": "echo hello"},
     }
 )
+
+
+SOURCE_UUID = "11111111-1111-1111-1111-111111111111"
+
+
+def _scanning_client() -> MagicMock:
+    """A client that answers every scan with "nothing found"."""
+    client = MagicMock()
+    # The verdict cache key is built from both, and joins them as strings.
+    client.base_uri = "https://api.example.com"
+    client.api_key = "some-api-key"
+    client.maximum_payload_size = MAXIMUM_PAYLOAD_SIZE
+    client.secret_scan_preferences.maximum_document_size = DOCUMENT_SIZE_THRESHOLD_BYTES
+    client.secret_scan_preferences.maximum_documents_per_scan = 20
+
+    def multi_content_scan(documents, *args, **kwargs):
+        result = MultiScanResult(
+            [
+                ScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+                for _ in documents
+            ]
+        )
+        result.status_code = 200
+        return result
+
+    client.multi_content_scan.side_effect = multi_content_scan
+    return client
 
 
 def _user():
@@ -213,6 +244,79 @@ class TestAiHookCmd:
         )
 
         assert result.exit_code == 1
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [[], ["--source-uuid", SOURCE_UUID]],
+        ids=["without-source-uuid", "with-source-uuid"],
+    )
+    @patch("ggshield.verticals.secret.secret_scanner.check_client_api_key")
+    @patch("ggshield.cmd.secret.scan.ai_hook.create_client_from_config")
+    def test_hook_never_creates_incidents(
+        self,
+        mock_create_client: MagicMock,
+        mock_check_api_key: MagicMock,
+        extra_args: List[str],
+    ):
+        """GIVEN `secret.source_uuid` set (or not)
+        WHEN the AI hook scans
+        THEN it scans with multi_content_scan and all_secrets, and never creates
+        incidents: scan_and_create_incidents cannot request all_secrets, which the
+        hook needs to block on an already-known secret."""
+        client = _scanning_client()
+        mock_create_client.return_value = client
+
+        result = CliRunner().invoke(
+            cli,
+            ["secret", "scan", "ai-hook", *extra_args],
+            input=CLAUDE_PRE_TOOL_USE_PAYLOAD,
+        )
+
+        assert result.exit_code == 0
+        client.scan_and_create_incidents.assert_not_called()
+        client.multi_content_scan.assert_called_once()
+        assert client.multi_content_scan.call_args.kwargs["all_secrets"] is True
+
+    @patch("ggshield.cmd.secret.scan.ai_hook.AIHookScanner")
+    @patch("ggshield.cmd.secret.scan.ai_hook.SecretScanner")
+    @patch("ggshield.cmd.secret.scan.ai_hook.create_client_from_config")
+    def test_only_source_uuid_is_dropped_from_the_config(
+        self,
+        mock_client: MagicMock,
+        mock_scanner_cls: MagicMock,
+        mock_hook_scanner: MagicMock,
+    ):
+        """GIVEN a config where source_uuid sits next to other secret settings
+        WHEN the AI hook builds its scanner
+        THEN only source_uuid is cleared; every other setting reaches the scanner."""
+        mock_hook_scanner.return_value.scan.return_value = 0
+
+        result = CliRunner().invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "ai-hook",
+                "--source-uuid",
+                SOURCE_UUID,
+                "--ignore-known-secrets",
+                "--all-secrets",
+                "--show-secrets",
+                "--filename-only",
+                "--banlist-detector",
+                "dummy_detector",
+            ],
+            input=CLAUDE_PRE_TOOL_USE_PAYLOAD,
+        )
+
+        assert result.exit_code == 0
+        secret_config = mock_scanner_cls.call_args.kwargs["secret_config"]
+        assert secret_config.source_uuid is None
+        assert secret_config.ignore_known_secrets is True
+        assert secret_config.all_secrets is True
+        assert secret_config.show_secrets is True
+        assert secret_config.filename_only is True
+        assert secret_config.ignored_detectors == {"dummy_detector"}
 
 
 # ---------------------------------------------------------------------------

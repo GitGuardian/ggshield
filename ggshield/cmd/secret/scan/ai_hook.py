@@ -1,4 +1,5 @@
 import sys
+from dataclasses import replace
 from typing import Any
 
 import click
@@ -59,7 +60,10 @@ def ai_hook_cmd(
                 command_path=ctx.command_path,
                 extra_headers=build_agent_headers(stdin_content),
             ),
-            secret_config=config.user_config.secret,
+            # The hook always scans and never creates incidents: source_uuid
+            # would route it to scan_and_create_incidents, which cannot request
+            # `all_secrets`. Other commands keep it.
+            secret_config=replace(config.user_config.secret, source_uuid=None),
         )
         return AIHookScanner(scanner).scan(stdin_content)
     except ValueError as e:

@@ -3,13 +3,22 @@ import os
 import shlex
 import shutil
 import sys
+from collections.abc import MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import click
+import tomlkit
 from pygitguardian.models import HealthCheckResponse
+from tomlkit.exceptions import TOMLKitError
+
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
@@ -32,7 +41,7 @@ class InstallationStats:
 class BuildConfigResult:
     agent: Agent
     settings_path: Path
-    new_config: Dict[str, Any]
+    new_config: MutableMapping[str, Any]
     stats: InstallationStats
 
 
@@ -103,10 +112,13 @@ def install_hooks(
     # Ensure parent directory exists
     settings_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write the updated config
+    # Write the updated config in the assistant's native format.
     with settings_path.open("w", encoding="utf-8") as f:
-        json.dump(new_config, f, indent=2)
-        f.write("\n")
+        if result.agent.settings_format == "toml":
+            f.write(tomlkit.dumps(new_config))
+        else:
+            json.dump(new_config, f, indent=2)
+            f.write("\n")
 
     # Report what happened
     styled_path = click.style(settings_path, fg="yellow", bold=True)
@@ -116,6 +128,9 @@ def install_hooks(
         click.echo(f"{display_name} hooks updated in {styled_path}")
     else:
         click.echo(f"{display_name} hooks successfully added in {styled_path}")
+
+    if warning := result.agent.post_install_warning(mode):
+        ui.display_warning(warning)
 
     return 0
 
@@ -143,13 +158,30 @@ def build_hook_config(
     command = build_hook_command()
 
     # Load existing config or create new one
-    existing_config: dict = {}
+    existing_config: MutableMapping[str, Any] = (
+        tomlkit.document() if agent.settings_format == "toml" else {}
+    )
 
     if settings_path.exists():
         try:
             with settings_path.open("r", encoding="utf-8") as f:
-                existing_config = json.load(f)
-        except json.JSONDecodeError as e:
+                if agent.settings_format == "toml":
+                    raw_config = f.read()
+                    # Two parsers on purpose, don't drop either one:
+                    # - tomllib validates. tomlkit silently *repairs* some
+                    #   malformed input ("[[hooks]" becomes "[[hooks]]"), so on
+                    #   its own it would rewrite a broken file into a different
+                    #   one instead of telling the user to fix it.
+                    # - tomlkit then builds the editable document, because it is
+                    #   the only one of the two that can write back, and it keeps
+                    #   the comments and formatting of a file the user hand-edits.
+                    tomllib.loads(raw_config)
+                    existing_config = tomlkit.parse(raw_config)
+                else:
+                    existing_config = json.load(f)
+        # TOMLKitError, not just its ParseError subclass: a duplicate key in an
+        # inline table raises KeyAlreadyPresent, which is not a ParseError.
+        except (json.JSONDecodeError, tomllib.TOMLDecodeError, TOMLKitError) as e:
             raise UnexpectedError(
                 f"Failed to parse {settings_path}: {e}. "
                 "Please fix or remove the file before installing hooks."
@@ -162,14 +194,21 @@ def build_hook_config(
         command="",
     )
 
-    stats = _fill_dict(
-        config=existing_config,
-        template=agent.settings_template,
-        command=command,
-        overwrite=force,
-        stats=stats,
-        locator=agent.settings_locate,
-    )
+    try:
+        stats = _fill_dict(
+            config=existing_config,
+            template=agent.settings_template,
+            command=command,
+            overwrite=force,
+            stats=stats,
+            locator=agent.settings_locate,
+        )
+    except ValueError as e:
+        # The file parsed but does not have the shape we can merge into.
+        raise UnexpectedError(
+            f"Failed to update {settings_path}: {e}. "
+            "Please fix or remove the file before installing hooks."
+        )
 
     return BuildConfigResult(
         agent=agent,
@@ -180,7 +219,7 @@ def build_hook_config(
 
 
 def _fill_dict(
-    config: Dict[str, Any],
+    config: MutableMapping[str, Any],
     template: Dict[str, Any],
     command: str,
     overwrite: bool,
@@ -190,9 +229,9 @@ def _fill_dict(
     """
     Recursively fill a dictionary with the template, leaving other keys untouched.
 
-    Inside lists, will look for a match by searching "ggshield" anywhere in the object, otherwise add a new element.
-    This means that the template cannot have multiple hooks in the same list.
-    In case the need arises, the algorithm will need to be adapted.
+    Inside lists, `locator` finds the object to update, otherwise a new element is
+    added. A template list may hold several objects: each is located independently,
+    so an agent can declare more than one hook in the same list.
 
     Args:
         config: The dictionary to fill
@@ -208,29 +247,47 @@ def _fill_dict(
             _fill_dict(new_config, value, command, overwrite, stats, locator)
         # List: locate the correct object
         elif isinstance(value, list):
-            # but first, make sure we only have one object in the template
-            if len(value) != 1:
-                raise ValueError(f"Expected only one object in template for {key}")
-
             config_list = config.setdefault(key, [])
-            existing_value = locator(config_list, value[0])
-            if existing_value is not None:
-                # Found it. Continue with this object.
-                _fill_dict(existing_value, value[0], command, overwrite, stats, locator)
-            else:
-                # Not found. Add new object.
-                config_list.append(deepcopy(value[0]))
-                _fill_dict(
-                    config_list[-1], value[0], command, overwrite, stats, locator
-                )
+            if not isinstance(config_list, list):
+                raise ValueError(f"expected a list of objects at '{key}'")
+            # Ignore anything that isn't an object: the file is hand-editable and a
+            # stray scalar must not crash the install.
+            candidates = [item for item in config_list if isinstance(item, dict)]
+            for template_item in value:
+                if not isinstance(template_item, dict):
+                    raise ValueError(f"Expected objects in template list for {key}")
+                existing_value = locator(candidates, template_item)
+                if existing_value is not None:
+                    # Found it. Continue with this object.
+                    _fill_dict(
+                        existing_value,
+                        template_item,
+                        command,
+                        overwrite,
+                        stats,
+                        locator,
+                    )
+                else:
+                    # Not found. Add a new object.
+                    config_list.append(deepcopy(template_item))
+                    _fill_dict(
+                        config_list[-1],
+                        template_item,
+                        command,
+                        overwrite,
+                        stats,
+                        locator,
+                    )
 
         # Scalar value: if template is the string "<COMMAND>", replace it with the command.
         else:
             if key not in config:
                 config[key] = value
-            # for stats
+            # For stats: only the command slot tells us whether ggshield is already
+            # installed. Other scalars may legitimately contain "ggshield" — a hook
+            # name, for instance — and must not be counted as an existing install.
             cmd = config.get(key, "")
-            if isinstance(cmd, str) and "ggshield" in cmd:
+            if value == "<COMMAND>" and isinstance(cmd, str) and "ggshield" in cmd:
                 stats.already_present += 1
                 stats.command = cmd
             # Update if needed

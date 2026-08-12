@@ -230,6 +230,17 @@ class Agent(ABC):
         """
         return payload.event_type == EventType.POST_TOOL_USE
 
+    def event_cwd(self, data: Dict[str, Any]) -> str:
+        """The directory the event happened in, used to resolve relative file
+        paths to absolute ones so a file mentioned in a prompt and the same file
+        read by a tool share one verdict-cache key.
+
+        Most agents (Claude, Codex, Copilot CLI, VSCode) put it in "cwd"; Cursor
+        overrides this to read "workspace_roots". Returns "" when unknown, in
+        which case callers leave paths untouched rather than guess.
+        """
+        return data.get("cwd", "") or ""
+
     def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:
         """The lines a read tool call is about to expose, 1-based and inclusive.
 
@@ -251,6 +262,16 @@ class Agent(ABC):
     @abstractmethod
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         """Path to the settings file for this AI coding tool."""
+
+    @property
+    def settings_format(self) -> Literal["json", "toml"]:
+        """Serialization format used by the assistant's hook settings file."""
+        return "json"
+
+    def post_install_warning(self, mode: Literal["local", "global"]) -> Optional[str]:
+        """Warning to show after a successful install, if the assistant needs
+        one more step before it will actually load the hooks."""
+        return None
 
     @property
     def settings_template(self) -> Dict[str, Any]:
