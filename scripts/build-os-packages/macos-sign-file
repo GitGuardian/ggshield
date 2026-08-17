@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Code-sign one Mach-O with the GitGuardian Developer ID certificate.
+#
+# A script rather than a function in macos-functions.bash because the macOS wheel
+# signs from Python (hatch_build.py) and the standalone bundle from bash: the
+# `ggshield` in both is the same dispatcher reading the same Keychain item, so
+# both must produce the same designated requirement — one invocation, one set of
+# identifiers.
+#
+# $1 is the file to sign, $2 an optional entitlements plist. $MACOS_P12_FILE and
+# $MACOS_P12_PASSWORD_FILE must point to the certificate and to its password.
+set -euo pipefail
+
+file="${1:?usage: $0 FILE [ENTITLEMENTS]}"
+entitlements="${2:-}"
+if [ -z "${MACOS_P12_FILE:-}" ] || [ -z "${MACOS_P12_PASSWORD_FILE:-}" ] ; then
+    echo "$0: MACOS_P12_FILE and MACOS_P12_PASSWORD_FILE must be set" >&2
+    exit 1
+fi
+
+echo "- Signing $file${entitlements:+ (with entitlements)}"
+
+args=(
+    --p12-file "$MACOS_P12_FILE"
+    --p12-password-file "$MACOS_P12_PASSWORD_FILE"
+    --code-signature-flags runtime
+    --for-notarization
+)
+if [ -n "$entitlements" ] ; then
+    args+=(--entitlements-xml-path "$entitlements")
+fi
+
+# Left alone, rcodesign keeps the ad-hoc identifier the linker left in the
+# Mach-O, which carries a per-build hash: 1.53.0 shipped as
+# `ggshield-55554944c60d09a76c903cb78828e61396fa0721`. The identifier is part of
+# the designated requirement, and the designated requirement is what a Keychain
+# item's ACL records when the user clicks "Always Allow" — so a per-build
+# identifier means the grant stops matching on the next release and every upgrade
+# re-prompts for the token. Both launchers read the token, so both need a stable
+# one; libraries keep their own, they are never the process asking for the secret.
+identifier=""
+case "$(basename "$file")" in
+    ggshield)    identifier=com.gitguardian.ggshield ;;
+    ggshield-py) identifier=com.gitguardian.ggshield-py ;;
+esac
+[ -z "$identifier" ] || args+=(--binary-identifier "$identifier")
+
+rcodesign sign "${args[@]}" "$file"
+
+# A wrong identifier signs, notarizes and installs perfectly happily; it only
+# surfaces later as a re-prompt on upgrade. Check the one thing the ACL depends on.
+if [ -n "$identifier" ] ; then
+    # --verbose, or codesign prints only the path. Everything goes to stderr.
+    signed_as=$(codesign --display --verbose "$file" 2>&1 | sed -n 's/^Identifier=//p')
+    if [ "$signed_as" != "$identifier" ] ; then
+        echo "FAIL: $file is signed as '$signed_as', not $identifier" >&2
+        exit 1
+    fi
+fi

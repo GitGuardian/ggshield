@@ -107,6 +107,25 @@ class RustDispatcherBuildHook(BuildHookInterface):
                 f"which does not match the {plat} wheel tag"
             )
 
+    def _sign(self, binary: Path) -> None:
+        """Code-sign the fused binary, when the build was given a certificate.
+
+        On the fused file rather than the slices: one signature covers both, and
+        cargo leaves the x86_64 slice unsigned altogether.
+
+        Unsigned -- local builds and PRs from forks, neither of which can read the
+        secrets -- the wheel still installs and runs. What it loses is a stable
+        designated requirement: an ad-hoc signature carries no signing identity,
+        so the requirement degenerates to the binary's cdhash, which changes on
+        every build. That requirement is what a Keychain item's ACL records, so
+        the grant the user gives `ggshield` for the API token stops matching on
+        the next upgrade.
+        """
+        if not os.environ.get("MACOS_P12_FILE"):
+            return
+        script = Path(self.root) / "scripts/build-os-packages/macos-sign-file"
+        subprocess.run([str(script), str(binary)], check=True)
+
     def _build(self, crate: Path, binary: Path) -> None:
         # --locked: build the dependency versions committed in rust/Cargo.lock,
         # not whatever resolves today.
@@ -139,6 +158,7 @@ class RustDispatcherBuildHook(BuildHookInterface):
             subprocess.run(
                 ["lipo", "-create", "-output", str(binary), *slices], check=True
             )
+            self._sign(binary)
         else:
             subprocess.run(
                 ["cargo", "build", "--release", "--locked", "--bin", "ggshield"],

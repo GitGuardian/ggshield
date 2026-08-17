@@ -18,6 +18,9 @@ jobs:
   # `push_to_pypi` below can download them.
   build_platform_wheels:
     uses: ./.github/workflows/wheels.yml
+    secrets: inherit
+    with:
+      sign: true
 
   push_to_pypi:
     needs: [build_release_assets, build_platform_wheels]
