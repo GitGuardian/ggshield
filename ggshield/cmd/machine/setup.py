@@ -14,9 +14,11 @@ from ggshield.cmd.install import (
     install_global,
     install_system,
 )
+from ggshield.cmd.machine.doctor import HONEYTOKEN_SCOPE
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config, granted_scopes
 from ggshield.utils.os import is_root
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
@@ -210,6 +212,20 @@ def _setup_git_hooks(system: bool) -> bool:
 
 
 def _setup_honeytokens(ctx: click.Context) -> bool:
-    """Plant a honeytoken on this machine (idempotent reconcile via `plant`)."""
+    """Plant a honeytoken on this machine (idempotent reconcile via `plant`).
+
+    Planting needs `honeytokens:write`, which only a plan offering honeytokens grants,
+    and only to a Manager. Without it this is a skip, not a failure: the machine is not
+    misconfigured, the feature is unavailable — and failing here would gate the whole
+    setup on something the workspace cannot have.
+    """
     click.echo(click.style("Honeytoken", bold=True))
+    scopes = granted_scopes(create_client_from_config(ContextObj.get(ctx).config))
+    if scopes is not None and HONEYTOKEN_SCOPE not in scopes:
+        ui.display_warning(
+            f"  skipped: the token does not have the `{HONEYTOKEN_SCOPE}` scope "
+            "(Business or Enterprise plan, Manager access level). Run "
+            f"`ggshield auth login --scopes {HONEYTOKEN_SCOPE}` to request it."
+        )
+        return True
     return ctx.invoke(plant_cmd) == 0
