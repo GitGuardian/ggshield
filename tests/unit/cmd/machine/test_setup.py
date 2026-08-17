@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -324,3 +324,41 @@ class TestHoneytokenPlant:
         """`honeytoken plant` stays a first-class command (not deprecated)."""
         result = cli_fs_runner.invoke(cli, ["honeytoken", "plant"])
         assert "deprecated" not in result.output.lower()
+
+
+class TestSetupHoneytokens:
+    """Planting is skipped, not failed, when the workspace cannot grant the scope."""
+
+    BASE = "ggshield.cmd.machine.setup"
+
+    def _run(self, scopes, plant_exit_code=0):
+        from ggshield.cmd.machine.setup import _setup_honeytokens
+
+        ctx = MagicMock()
+        ctx.invoke.return_value = plant_exit_code
+        with patch(f"{self.BASE}.create_client_from_config"), patch(
+            f"{self.BASE}.granted_scopes", return_value=scopes
+        ):
+            return _setup_honeytokens(ctx), ctx.invoke
+
+    def test_plants_when_the_scope_is_granted(self):
+        ok, invoke = self._run({"scan", "honeytokens:write"})
+        invoke.assert_called_once()
+        assert ok is True
+
+    def test_reports_a_failing_plant(self):
+        ok, _invoke = self._run({"scan", "honeytokens:write"}, plant_exit_code=1)
+        assert ok is False
+
+    def test_skips_without_the_scope_and_does_not_fail(self, capsys):
+        ok, invoke = self._run({"scan"})
+        assert ok is True
+        invoke.assert_not_called()
+        output = capsys.readouterr()
+        assert "honeytokens:write" in output.out + output.err
+
+    def test_plants_when_scopes_are_unreadable(self):
+        """An unreadable token must not silently disable the protection: try to plant
+        and let the API be the judge."""
+        _ok, invoke = self._run(None)
+        invoke.assert_called_once()
