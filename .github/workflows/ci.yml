@@ -168,6 +168,134 @@ jobs:
           TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
           TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
 
+  ai_hook_equivalence:
+    name: AI hook equivalence (Rust/Python)
+    # `rust` is a second, native implementation of
+    # `ggshield secret scan ai-hook`. It reimplements the local ignore rules
+    # from .gitguardian.yaml, the five agent output contracts, and the payload
+    # parsing -- all security-relevant logic that now exists twice. This job is
+    # the only thing keeping the two copies honest: it compares the verdict AND
+    # the POSTed /v1/multiscan body against the real Python hook. If it is
+    # removed, weakened, or given a `paths` filter, that protection goes away
+    # silently.
+    #
+    # Deliberately NOT path-filtered. The equivalence result depends on far more
+    # of the package than it looks: ggshield/verticals/ai/** (parsing, output
+    # contracts, message templates), ggshield/core/config/** (discovery, v1
+    # conversion, token resolution), ggshield/verticals/secret/**
+    # (compute_ignore_reason -- the ignore rules themselves),
+    # ggshield/core/filter.py (censoring, ignore shas), core/text_utils.py
+    # (message wording), core/url_utils.py, core/dirs.py, core/constants.py,
+    # core/errors.py (exit codes), core/scan/**, utils/_binary_extensions.py,
+    # cmd/secret/scan/ai_hook.py, and pyproject.toml / uv.lock (a pygitguardian
+    # bump can change the wire schema -- that is how the `type` vs `break_type`
+    # bug was found). Enumerating that list is a maintenance burden whose
+    # failure mode is a silent false negative, so the job just always runs.
+    # A few minutes of CI is the cheaper side of that trade.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --locked --group dev --group tests
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
+
+      - name: Check formatting
+        working-directory: rust
+        # rust-toolchain.toml pins the version, so rustup provisions it here.
+        run: cargo fmt --all --check
+
+      - name: Lint
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run unit tests
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: Check the vendored binary extension list is in sync
+        # src/binary_extensions.rs is generated from the Python set. It decides
+        # which files are read from disk and scanned, so drift is a detection
+        # gap, not cosmetics.
+        run: |
+          uv run python - <<'PY'
+          import pathlib, re, sys
+          from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
+
+          rust = pathlib.Path("rust/common/src/binary_extensions.rs").read_text()
+          # cargo fmt packs the array, so match the literals, not whole lines.
+          # Nothing before "= [" contains a quote, so the split is unambiguous.
+          vendored = set(re.findall(r'"([^"]+)"', rust.split("= [", 1)[1]))
+          if vendored != set(BINARY_EXTENSIONS):
+              missing = sorted(set(BINARY_EXTENSIONS) - vendored)
+              extra = sorted(vendored - set(BINARY_EXTENSIONS))
+              sys.exit(
+                  "rust/common/src/binary_extensions.rs is out of sync with "
+                  f"ggshield/utils/_binary_extensions.py\n  missing: {missing}\n  extra: {extra}"
+              )
+          print(f"{len(vendored)} extensions in sync")
+          PY
+
+      - name: Build the release binary
+        working-directory: rust
+        run: cargo build --release
+
+      - name: Compare against the Python hook
+        # Runs both implementations against the same payloads, the same
+        # .gitguardian.yaml fixtures and the same localhost mock API. Nothing
+        # reaches the real GitGuardian API: the mock is the only server
+        # involved, and no API key is provided to this job.
+        env:
+          GGSHIELD_VENV_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        run: |
+          python3 rust/tests/equivalence.py
+
+  rust:
+    name: Rust (${{ matrix.os }})
+    # The equivalence job above only runs cargo on ubuntu, so the platform-
+    # specific code -- the three keychain readers and the Windows config dir --
+    # is never clippy'd or tested. This job builds and tests the workspace on
+    # each OS so that code cannot rot silently.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-2022]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-rustjob|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
   build_os_packages:
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit

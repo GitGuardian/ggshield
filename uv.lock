@@ -1154,7 +1154,7 @@ requires-dist = [
     { name = "configupdater", specifier = ">=3.2,<4" },
     { name = "cryptography", specifier = ">=43.0.1,<49" },
     { name = "filelock", specifier = ">=3.19.1" },
-    { name = "keyring", specifier = ">=24.0.0,<26" },
+    { name = "keyring", specifier = ">=25.0.0,<26" },
     { name = "marshmallow", specifier = ">=3.18,<5" },
     { name = "marshmallow-dataclass", specifier = ">=8.7.0,<9" },
     { name = "notify-py", specifier = ">=0.3.43" },

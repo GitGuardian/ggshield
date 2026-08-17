@@ -1,0 +1,7 @@
+[toolchain]
+# Pinned to the same version the cove workspace pins, so fmt and clippy are
+# deterministic across workstations and CI (an unpinned `stable` reformats
+# edition-2024 code differently per rustup release).
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]
+# No release targets listed: only the host target is built today.

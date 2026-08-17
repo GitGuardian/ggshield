@@ -1,0 +1,12 @@
+**🚨 Detected {count} {secrets} in your prompt 🚨**  
+{secret_lines}
+
+The prompt was not sent to the agent and the {secrets} {were} not leaked.
+
+> How to remediate
+
+  Since the {secrets} {were} detected before the prompt was sent:  
+  1. remove the {secrets} from your prompt.  
+  2. submit your prompt again.
+
+{false_positive_instructions}

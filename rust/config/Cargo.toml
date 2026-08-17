@@ -1,0 +1,33 @@
+[package]
+name = "ggshield-config"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Config and user_config loading (incl. keyring/auth) for the ggshield ai-hook port."
+
+[dependencies]
+ggshield-common = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml_ng = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+dotenvy = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+secret-service = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

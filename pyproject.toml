@@ -55,7 +55,11 @@ dependencies = [
     "urllib3>=2.2.2,<3",
     "truststore>=0.10.1; python_version >= \"3.10\"",
     "notify-py>=0.3.43",
-    "keyring>=24.0.0,<26",
+    # 25.0 is where `keyring.backends.macOS.api.create_cf` replaced
+    # `create_cfstr`; `_macos_store_token` needs it to set the Keychain ACL that
+    # lets the native hook read the token without a prompt. On 24.x the
+    # AttributeError was swallowed and the ACL silently never applied.
+    "keyring>=25.0.0,<26",
     "tomli>=2.4.0; python_version < \"3.11\"",
     "tomlkit>=0.13.3,<0.14",
     "filelock>=3.19.1",

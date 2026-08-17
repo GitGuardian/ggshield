@@ -1,0 +1,11 @@
+**🚨 Detected {count} {secrets} in the command output 🚨**  
+{secret_lines}
+
+The {secrets} {were} exposed to the AI agent and may persist in conversation logs. Consider {them} compromised.
+
+> How to remediate
+
+  Since the {secrets} {were} leaked after the command was run:  
+{remediation_steps}
+
+{false_positive_instructions}
