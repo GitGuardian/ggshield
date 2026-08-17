@@ -112,6 +112,60 @@ class TestDoctorCommand:
         assert result.exit_code == 1
         assert "failed" in result.output
 
+    def test_optional_check_warns_without_failing(self, cli_fs_runner: CliRunner):
+        """An unavailable protection is reported with `!` and its fix, but must not fail
+        the run — it would gate an MDM rollout on a scope the workspace cannot have."""
+        optional = Check(
+            "Scope `honeytokens:write`", False, fix="use a token", optional=True
+        )
+        with patch(
+            f"{BASE}._check_auth_and_scopes",
+            return_value=(["scan"], Check("Authentication", True)),
+        ), patch(f"{BASE}._is_plugin_installed", return_value=False), patch(
+            f"{BASE}._check_ai_hooks", return_value=Check("AI hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks", return_value=Check("Git hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks_precedence",
+            return_value=Check("Git hook precedence", True),
+        ), patch(
+            f"{BASE}._check_scopes", return_value=[optional]
+        ):
+            result = cli_fs_runner.invoke(cli, ["machine", "doctor"])
+        assert result.exit_code == 0
+        assert "correctly set up" in result.output
+        assert "unavailable" in result.output
+        assert "use a token" in result.output
+
+    def test_optional_check_alongside_a_skipped_one(self, cli_fs_runner: CliRunner):
+        """
+        GIVEN a skipped git check and an unavailable optional protection
+        WHEN doctor runs
+        THEN it exits 0, marks the protection `!`, and its summary names both
+        """
+        optional = Check(
+            "Scope `honeytokens:write`", False, fix="use a token", optional=True
+        )
+        with patch(
+            f"{BASE}._check_auth_and_scopes",
+            return_value=(["scan"], Check("Authentication", True)),
+        ), patch(f"{BASE}._is_plugin_installed", return_value=False), patch(
+            f"{BASE}._check_ai_hooks", return_value=Check("AI hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks",
+            return_value=Check.skip("Git hooks", "no git", "install git"),
+        ), patch(
+            f"{BASE}._check_git_hooks_precedence",
+            return_value=Check("Git hook precedence", True),
+        ), patch(
+            f"{BASE}._check_scopes", return_value=[optional]
+        ):
+            result = cli_fs_runner.invoke(cli, ["machine", "doctor"])
+        assert result.exit_code == 0
+        assert "! Scope `honeytokens:write`" in result.output
+        assert "except for the skipped checks: Git hooks." in result.output
+        assert "1 optional protection(s) unavailable" in result.output
+
     def test_plugin_check_skipped_without_plugin(self, cli_fs_runner: CliRunner):
         _result, m_plugin = self._run(
             cli_fs_runner, auth_ok=True, ai_ok=True, git_ok=True, plugin_installed=False
@@ -303,6 +357,28 @@ class TestCheckScopes:
         by_name = {c.name: c.ok for c in checks}
         assert by_name["Scope `scan`"] is True
         assert by_name["Scope `honeytokens:write`"] is False
+
+    def test_plan_gated_scopes_are_optional_but_scan_is_not(self):
+        """A workspace whose plan does not offer them can never be granted the
+        plan-gated scopes, so missing them must not fail the run the way a missing
+        `scan` does."""
+        by_name = {c.name: c for c in _check_scopes(["scan"], plugin_installed=False)}
+        assert by_name["Scope `honeytokens:write`"].optional is True
+        assert by_name["Scope `ai-discover:send`"].optional is True
+        assert by_name["Scope `scan`"].optional is False
+
+    def test_endpoint_scope_stays_required_with_the_plugin(self):
+        """Installing the plugin is an explicit opt-in, so a token that cannot upload
+        endpoint data is a real misconfiguration, not an unavailable feature."""
+        with_plugin = _check_scopes(["scan"], plugin_installed=True)
+        endpoint = [c for c in with_plugin if "endpoints:send" in c.name]
+        assert endpoint and endpoint[0].optional is False
+
+    def test_scope_fix_names_the_scopes_flag(self):
+        """Plain `auth login` reuses a valid token and would never ask for the missing
+        scope, so the fix has to spell out `--scopes`."""
+        by_name = {c.name: c for c in _check_scopes(["scan"], plugin_installed=False)}
+        assert "--scopes honeytokens:write" in by_name["Scope `honeytokens:write`"].fix
 
     def test_ai_discover_scope_reported(self):
         checks = _check_scopes(["scan"], plugin_installed=False)
