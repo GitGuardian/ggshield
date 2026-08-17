@@ -499,6 +499,37 @@ class TestAuthLoginWeb:
         config = Config()
         assert len(config.auth_config.instances) == 0
 
+    def test_stray_space_in_scopes_still_reuses_the_token(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a still-valid token that carries the scope asked for with --scopes
+        WHEN --scopes has a stray space around that scope
+        THEN the token is reused: the space must not become an empty scope that no
+            token carries, which would force a new login on every run
+        """
+        self._scopes = " honeytokens:write  "
+        self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        with_honeytokens = create_json_response(
+            {
+                **VALID_API_TOKENS_RESPONSE.json(),
+                "scopes": [
+                    *VALID_API_TOKENS_RESPONSE.json()["scopes"],
+                    "honeytokens:write",
+                ],
+            }
+        )
+        self._request_mock.add_GET(API_TOKENS_ENDPOINT, with_honeytokens)
+        add_instance_config()
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS, output
+        self._webbrowser_open_mock.assert_not_called()
+        assert "already authenticated" in output
+        assert "missing the requested" not in output
+        self._request_mock.assert_all_requests_happened()
+
     @pytest.mark.parametrize(
         "instance_url", [DEFAULT_INSTANCE_URL, "https://some_instance.com"]
     )
@@ -1522,3 +1553,63 @@ def test_warn_missing_scopes_swallows_connection_error(capsys):
     _warn_missing_scopes(client_mock)  # must not raise
 
     assert "scopes were not granted" not in capsys.readouterr().err
+
+
+class TestCheckExistingTokenScopes:
+    """A valid token is only reusable if it carries the scopes `--scopes` asked for."""
+
+    OAUTH = "ggshield.verticals.auth.oauth"
+
+    def _client(self, cli_fs_runner) -> OAuthClient:
+        add_instance_config(instance_url=DEFAULT_INSTANCE_URL)
+        return OAuthClient(Config(), DEFAULT_INSTANCE_URL)
+
+    def _check(self, cli_fs_runner, granted, required):
+        client = self._client(cli_fs_runner)
+        with patch(f"{self.OAUTH}.create_client_from_config"), patch(
+            f"{self.OAUTH}.check_client_api_key"
+        ), patch(f"{self.OAUTH}.granted_scopes", return_value=granted) as m_scopes:
+            return client.check_existing_token(required_scopes=required), m_scopes
+
+    def test_reuses_token_that_has_the_requested_scope(self, cli_fs_runner, capsys):
+        """
+        GIVEN a valid token that carries the scope asked for with --scopes
+        WHEN auth login checks it
+        THEN the token is reused
+        """
+        reused, _ = self._check(
+            cli_fs_runner, {"scan", "honeytokens:write"}, ["honeytokens:write"]
+        )
+        assert reused is True
+
+    def test_reauthenticates_when_the_requested_scope_is_missing(
+        self, cli_fs_runner, capsys
+    ):
+        """
+        GIVEN a valid token that lacks the scope asked for with --scopes
+        WHEN auth login checks it
+        THEN the token is not reused, so the login flow runs and can grant the scope
+        """
+        reused, _ = self._check(cli_fs_runner, {"scan"}, ["honeytokens:write"])
+        assert reused is False
+        assert "honeytokens:write" in capsys.readouterr().out
+
+    def test_no_scope_lookup_without_requested_scopes(self, cli_fs_runner):
+        """
+        GIVEN a plain `auth login` (no --scopes)
+        WHEN the existing token is checked
+        THEN no scope lookup happens: there is nothing to check and it would cost a
+        round trip on every login
+        """
+        reused, m_scopes = self._check(cli_fs_runner, {"scan"}, None)
+        assert reused is True
+        m_scopes.assert_not_called()
+
+    def test_unreadable_scopes_keep_the_token(self, cli_fs_runner):
+        """
+        GIVEN a token whose scopes cannot be read (network blip, error Detail)
+        WHEN the existing token is checked against --scopes
+        THEN the token is kept: a failed lookup must not force a needless re-login
+        """
+        reused, _ = self._check(cli_fs_runner, None, ["honeytokens:write"])
+        assert reused is True
