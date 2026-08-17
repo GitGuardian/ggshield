@@ -50,6 +50,7 @@ VALID_TOKEN_RESPONSE = create_json_response(
         "scope": [
             "scan",
             "honeytokens:check",
+            "honeytokens:write",
             "endpoints:send",
             "ai-discover:send",
         ],
@@ -81,6 +82,7 @@ VALID_API_TOKENS_RESPONSE = create_json_response(
         "scopes": [
             "scan",
             "honeytokens:check",
+            "honeytokens:write",
             "endpoints:send",
             "ai-discover:send",
         ],
@@ -961,6 +963,7 @@ class TestAuthLoginWeb:
             scope_set = {
                 "scan",
                 "honeytokens:check",
+                "honeytokens:write",
                 "endpoints:send",
                 "ai-discover:send",
             }

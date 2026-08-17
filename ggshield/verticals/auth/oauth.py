@@ -33,6 +33,10 @@ SCAN_SCOPE = "scan"
 DEFAULT_SCOPES = [
     SCAN_SCOPE,
     "honeytokens:check",
+    # `ggshield machine setup` plants a honeytoken by default, so the default token must
+    # be able to. Like endpoints:send and ai-discover:send, the backend grants it only on
+    # a plan that offers it and drops it otherwise (`_warn_missing_scopes` reports that).
+    "honeytokens:write",
     "endpoints:send",
     "ai-discover:send",
 ]

@@ -115,9 +115,9 @@ def print_default_instance_message(config: Config) -> None:
     type=str,
     help=(
         "Space-separated list of extra scopes to request in addition to the default"
-        " scopes (scan, honeytokens:check, endpoints:send, ai-discover:send). If the"
-        " current token lacks one of them, ggshield authenticates again instead of"
-        " reusing it."
+        " scopes (scan, honeytokens:check, honeytokens:write, endpoints:send,"
+        " ai-discover:send). If the current token lacks one of them, ggshield"
+        " authenticates again instead of reusing it."
     ),
     metavar="SCOPES",
 )
@@ -172,7 +172,8 @@ def login_cmd(
     The minimum required scope for the token is `scan`.
 
     By default, the created token will have the `scan`, `honeytokens:check`,
-    `endpoints:send`, and `ai-discover:send` scopes.
+    `honeytokens:write`, `endpoints:send`, and `ai-discover:send` scopes. Your plan
+    decides which of them are granted; ggshield reports the ones that were not.
     Use the `--scopes` option to request extra scopes. You can find the list of
     available scopes in [GitGuardian API documentation][1].
 
