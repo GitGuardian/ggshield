@@ -8,7 +8,8 @@
       (MAP_JIT) memory, which the hardened runtime denies unless the process's
       MAIN executable carries this entitlement. Without it PCRE2 silently falls
       back to the interpreter and `ggshield machine scan` is dramatically
-      slower. Attached to the `ggshield` launcher in macos_sign_file().
+      slower. Attached to `ggshield-py` (the PyInstaller launcher that JITs) in
+      macos-functions.bash, not to the `ggshield` Rust dispatcher.
     -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>

@@ -633,6 +633,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ggshield-dispatcher"
+version = "0.1.0"
+dependencies = [
+ "ggshield-hook",
+ "tempfile",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "ggshield-hook"
 version = "0.1.0"
 dependencies = [

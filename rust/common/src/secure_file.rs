@@ -54,6 +54,29 @@ pub fn read_if_trusted(path: &Path) -> Option<String> {
     Some(raw)
 }
 
+/// Whether a directory only we can write to, so what we put there is still ours.
+///
+/// The boundary is other local users, for a tree we hand to the OS to *execute*.
+/// The cache dir is configurable and its mode drifts, so it is the holding
+/// directory that decides: whoever can write it can replace whatever is inside.
+#[cfg(unix)]
+pub fn is_private_dir(path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    // SAFETY: `getuid` is a plain syscall wrapper and cannot fail.
+    let uid = unsafe { libc::getuid() };
+    // `symlink_metadata`, so a link is judged on itself rather than on wherever
+    // it points -- and rejected outright, as in `O_NOFOLLOW`.
+    std::fs::symlink_metadata(path).is_ok_and(|meta| {
+        !meta.is_symlink() && meta.is_dir() && meta.uid() == uid && meta.mode() & 0o022 == 0
+    })
+}
+
+#[cfg(not(unix))]
+pub fn is_private_dir(_path: &Path) -> bool {
+    true
+}
+
 /// Write `contents` to `path`, readable and writable by us alone. Truncates in
 /// place, so a caller that cannot afford a torn read stages and renames.
 pub fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
