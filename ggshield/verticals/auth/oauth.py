@@ -18,10 +18,12 @@ from ggshield.core.client import (
     create_client,
     create_client_from_config,
     create_session,
+    granted_scopes,
     safe_response_json,
 )
 from ggshield.core.config import Config, InstanceConfig
 from ggshield.core.errors import APIKeyCheckError, UnexpectedError
+from ggshield.core.text_utils import pluralize
 from ggshield.core.url_utils import urljoin
 from ggshield.utils.datetime import get_pretty_date
 
@@ -31,6 +33,10 @@ SCAN_SCOPE = "scan"
 DEFAULT_SCOPES = [
     SCAN_SCOPE,
     "honeytokens:check",
+    # `ggshield machine setup` plants a honeytoken by default, so the default token must
+    # be able to. Like endpoints:send and ai-discover:send, the backend grants it only on
+    # a plan that offers it and drops it otherwise (`_warn_missing_scopes` reports that).
+    "honeytokens:write",
     "endpoints:send",
     "ai-discover:send",
 ]
@@ -411,12 +417,16 @@ class OAuthClient:
             )
         return self._state
 
-    def check_existing_token(self) -> bool:
+    def check_existing_token(self, required_scopes: Optional[List[str]] = None) -> bool:
         """
         Check if the config already has a non expired token.
         If one could be found, outputs a message including the expiry date
         and return True.
         Else return False
+
+        ``required_scopes`` holds the scopes asked for explicitly with ``--scopes``: a
+        token lacking one cannot do what the user just asked for, so fall through to a
+        fresh login instead of reporting "already authenticated" and doing nothing.
         """
         account = self.instance_config.account
         if account is None or not account.token or self.instance_config.expired:
@@ -432,6 +442,24 @@ class OAuthClient:
                 "Account had an API key recorded but it's no longer valid, removing it"
             )
             self.instance_config.account = None
+            return False
+
+        # Only when `--scopes` asked for something: with nothing to check there is
+        # nothing to learn, and the lookup would cost a round trip on every login.
+        scopes = granted_scopes(client) if required_scopes else None
+        missing = (
+            []
+            if scopes is None
+            else [s for s in required_scopes or [] if s not in scopes]
+        )
+        if missing:
+            # Keep the account: the new login overwrites it on success, and dropping it
+            # first would leave an aborted login with no token at all.
+            click.echo(
+                "The current token is missing the requested "
+                f"{pluralize('scope', len(missing))} {', '.join(missing)}. "
+                "Authenticating again to get a new token."
+            )
             return False
 
         # Trigger a save to migrate cleartext tokens to keyring if needed
