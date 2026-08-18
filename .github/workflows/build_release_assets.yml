@@ -7,13 +7,21 @@ on:
   workflow_call:
     inputs:
       release_mode:
-        description: 'Release mode (signed binaries, no commit sha in version number)'
+        description: 'Release mode (no commit sha in version number)'
+        type: boolean
+        default: false
+      sign:
+        description: 'Code-sign the binaries (needs secrets, so no PR from a fork can)'
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
       release_mode:
-        description: 'Release mode (signed binaries, no commit sha in version number)'
+        description: 'Release mode (no commit sha in version number)'
+        type: boolean
+        default: false
+      sign:
+        description: 'Code-sign the binaries (needs secrets, so no PR from a fork can)'
         type: boolean
         default: false
 
@@ -185,7 +193,7 @@ jobs:
           uv sync --locked --no-default-groups --group tests --group standalone
 
       - name: Prepare macOS secrets
-        if: startsWith(matrix.os, 'macos-') && inputs.release_mode
+        if: startsWith(matrix.os, 'macos-') && inputs.sign
         run: |
           set -euo pipefail
           SECRETS_DIR=$TMPDIR/secrets
@@ -208,7 +216,7 @@ jobs:
           MACOS_API_KEY_FILE: ${{ secrets.MACOS_API_KEY_FILE }}
 
       - name: Setup Windows environment
-        if: startsWith(matrix.os, 'windows-') && inputs.release_mode
+        if: startsWith(matrix.os, 'windows-') && inputs.sign
         shell: bash
         run: |
           signtool_install_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
@@ -239,7 +247,7 @@ jobs:
           EOF
 
       - name: Install Windows dependencies
-        if: startsWith(matrix.os, 'windows-') && inputs.release_mode
+        if: startsWith(matrix.os, 'windows-') && inputs.sign
         shell: bash
         run: |
           scripts/build-os-packages/install-keylockertools
@@ -247,10 +255,13 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [ "${{ inputs.release_mode }}" = "true" ] ; then
-            args="--sign"
-          else
-            args="--suffix +${GITHUB_SHA:0:7}"
+          args=""
+          if [ "${{ inputs.sign }}" = "true" ] ; then
+            args="$args --sign"
+          fi
+          # The +sha stamp is what tells an internal build apart from the release.
+          if [ "${{ inputs.release_mode }}" != "true" ] ; then
+            args="$args --suffix +${GITHUB_SHA:0:7}"
           fi
           # Run the script with `bash -c` because `uv run` does not
           # automatically do it on Windows
