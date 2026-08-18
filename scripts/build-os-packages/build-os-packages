@@ -72,10 +72,11 @@ EOF
 }
 
 read_version() {
-    # Match the full `__version__ = "X.Y.Z"` assignment, not just any X.Y.Z in
-    # the file: other lines (type hints, examples in messages, ...) can hold
-    # version-like substrings that would otherwise corrupt VERSION.
-    VERSION=$(sed -n 's/^__version__ *= *"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' \
+    # Anchor on the `__version__` assignment, not just any version-like
+    # substring: other lines (type hints, examples in messages, ...) can hold
+    # one and would corrupt VERSION. The whole quoted value is kept, so a
+    # pre-release suffix survives into the package name.
+    VERSION=$(sed -n 's/^__version__ *= *"\([0-9][^"]*\)".*/\1/p' \
         "$ROOT_DIR/ggshield/__init__.py")
     if [ -n "$VERSION_SUFFIX" ] ; then
         VERSION="${VERSION}${VERSION_SUFFIX}"
