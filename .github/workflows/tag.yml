@@ -54,6 +54,13 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.pypi_password }}
+          # A release now uploads eight files from two jobs instead of two from
+          # one. PyPI takes them one at a time and refuses a filename it already
+          # has, so a failure partway through leaves the rest unpublished and a
+          # plain re-run dies on what already landed — with no way to replace it,
+          # because a PyPI filename cannot be reused. Skipping what is already
+          # there makes the re-run finish the job instead.
+          skip-existing: true
 
   release:
     runs-on: ubuntu-22.04
