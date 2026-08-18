@@ -11,6 +11,7 @@ jobs:
     secrets: inherit
     with:
       release_mode: true
+      sign: true
 
   push_to_pypi:
     needs: build_release_assets
