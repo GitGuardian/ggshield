@@ -11,6 +11,7 @@ from ggshield.cmd.utils.common_options import (
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.config.auth_config import InstanceConfig
+from ggshield.core.config.token_store import KEYRING_SENTINEL
 from ggshield.core.filter import censor_string
 
 from .constants import DATETIME_FORMAT, FIELDS
@@ -48,7 +49,13 @@ def get_instance_info(
 
     if account is not None:
         workspace_id = account.workspace_id
-        token = censor_string(account.token)
+        # Censoring the real token would mean reading the credential store, and
+        # listing the config is not worth a Keychain prompt.
+        token = (
+            "stored in keyring"
+            if account.token == KEYRING_SENTINEL
+            else censor_string(account.token)
+        )
         token_name = account.token_name
         expire_at = account.expire_at
         expiry = expire_at.strftime(DATETIME_FORMAT) if expire_at else "never"

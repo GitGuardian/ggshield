@@ -74,9 +74,7 @@ def cli(
     instance: Optional[str],
     **kwargs: Any,
 ) -> None:
-    # Load .env before Config so AuthConfig.load() can see GITGUARDIAN_API_KEY
-    # set via dotenv and skip keyring access when an env-provided token will be
-    # used instead.
+    # Load .env before Config so the config sees the variables it sets.
     dotenv_vars = load_dot_env()
 
     # Create ContextObj, load config

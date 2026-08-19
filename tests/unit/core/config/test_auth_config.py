@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
 from ggshield.core.config import Config
 from ggshield.core.config.auth_config import (
@@ -175,6 +176,26 @@ def _reset_token_store():
     reset_token_store()
 
 
+def _sentinel_auth_config() -> dict:
+    """A copy of TEST_AUTH_CONFIG with every token replaced by the keyring sentinel."""
+    config = deepcopy(TEST_AUTH_CONFIG)
+    for instance in config["instances"]:
+        for account in instance["accounts"]:
+            account["token"] = KEYRING_SENTINEL
+    return config
+
+
+def _saved_tokens() -> list:
+    """The tokens as written to the auth config file."""
+    with open(get_auth_config_filepath()) as fp:
+        data = yaml.safe_load(fp)
+    return [
+        account["token"]
+        for instance in data["instances"]
+        for account in instance["accounts"]
+    ]
+
+
 @pytest.mark.usefixtures("isolated_fs", "_reset_token_store")
 class TestAuthConfigKeyring:
     """Tests for keyring integration in AuthConfig load/save."""
@@ -228,8 +249,8 @@ class TestAuthConfigKeyring:
     def test_load_with_keyring(self, monkeypatch):
         """
         GIVEN a YAML config with keyring sentinel tokens
-        WHEN loading with keyring enabled
-        THEN tokens are hydrated from keyring
+        WHEN loading the config, then reading the instance tokens
+        THEN the keyring is only read when a token is actually used
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
@@ -250,15 +271,21 @@ class TestAuthConfigKeyring:
             return_value=mock_store,
         ):
             config = Config()
+            mock_store.get_token.assert_not_called()
 
-        assert config.auth_config.instances[0].account.token == real_token
-        assert config.auth_config.instances[1].account.token == real_token
+            assert config.auth_config.instances[0].token == real_token
+            assert config.auth_config.instances[1].token == real_token
+
+        assert mock_store.get_token.call_count == 2
+        # The resolved token is memoised, so a second read costs nothing
+        assert config.auth_config.instances[0].token == real_token
+        assert mock_store.get_token.call_count == 2
 
     def test_load_keyring_missing_token(self, monkeypatch):
         """
         GIVEN a YAML config with keyring sentinel
         WHEN the keyring returns None for a token
-        THEN the account metadata is preserved but the token is cleared
+        THEN the token reads as empty and the sentinel is kept in the config
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
@@ -278,12 +305,14 @@ class TestAuthConfigKeyring:
         ):
             config = Config()
 
-        # Account metadata is preserved, only the token is cleared
+            assert config.auth_config.instances[0].token == ""
+            assert config.auth_config.instances[1].token == ""
+
+        # Account metadata and the sentinel are preserved, so a later save()
+        # keeps pointing at the stored token
         assert config.auth_config.instances[0].account is not None
-        assert config.auth_config.instances[0].account.token == ""
+        assert config.auth_config.instances[0].account.token == KEYRING_SENTINEL
         assert config.auth_config.instances[0].account.token_name == "my_token"
-        assert config.auth_config.instances[1].account is not None
-        assert config.auth_config.instances[1].account.token == ""
 
     def test_migration_cleartext_to_keyring(self, monkeypatch):
         """
@@ -370,7 +399,7 @@ class TestAuthConfigKeyring:
         """
         GIVEN a YAML config with keyring sentinel
         WHEN get_token raises an exception
-        THEN the account metadata is preserved and the token is cleared
+        THEN the token reads as empty and the sentinel is kept in the config
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
@@ -390,15 +419,17 @@ class TestAuthConfigKeyring:
         ):
             config = Config()
 
+            assert config.auth_config.instances[0].token == ""
+
         assert config.auth_config.instances[0].account is not None
-        assert config.auth_config.instances[0].account.token == ""
+        assert config.auth_config.instances[0].account.token == KEYRING_SENTINEL
         assert config.auth_config.instances[0].account.token_name == "my_token"
 
     def test_load_sentinel_without_keyring(self, monkeypatch):
         """
         GIVEN a YAML config with keyring sentinel tokens
-        WHEN loading with GGSHIELD_NO_KEYRING=1 (keyring disabled)
-        THEN the token is cleared and a warning is logged
+        WHEN reading a token with GGSHIELD_NO_KEYRING=1 (keyring disabled)
+        THEN the token reads as empty and the sentinel is kept in the config
         """
         monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
 
@@ -410,11 +441,11 @@ class TestAuthConfigKeyring:
 
         config = Config()
 
-        # Sentinel is detected and cleared rather than sent as an API token
+        # Sentinel is detected rather than sent as an API token
+        assert config.auth_config.instances[0].token == ""
+        assert config.auth_config.instances[1].token == ""
         assert config.auth_config.instances[0].account is not None
-        assert config.auth_config.instances[0].account.token == ""
-        assert config.auth_config.instances[1].account is not None
-        assert config.auth_config.instances[1].account.token == ""
+        assert config.auth_config.instances[0].account.token == KEYRING_SENTINEL
 
     def test_load_skips_keyring_when_env_api_key_set(self, monkeypatch):
         """
@@ -445,6 +476,124 @@ class TestAuthConfigKeyring:
         mock_get_store.assert_not_called()
         mock_store.is_available.assert_not_called()
         mock_store.get_token.assert_not_called()
+
+    def test_load_does_not_touch_the_store(self, monkeypatch):
+        """
+        GIVEN a YAML config with keyring sentinel tokens
+        WHEN loading the config without asking for a token
+        THEN the credential store is never reached
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store"
+        ) as mock_get_store:
+            config = Config()
+            # Everything a token-free command reads stays local
+            assert config.auth_config.default_token_lifetime == 2
+            assert config.auth_config.instances[0].account.token_name == "my_token"
+
+        mock_get_store.assert_not_called()
+
+    def test_get_instance_token_reads_the_store(self, monkeypatch):
+        """
+        GIVEN a YAML config with keyring sentinel tokens
+        WHEN asking for an instance token
+        THEN the token comes from the credential store
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        raw_config = _sentinel_auth_config()
+        raw_config["instances"][0]["accounts"][0]["expire_at"] = None
+        write_yaml(get_auth_config_filepath(), raw_config)
+
+        mock_store = KeyringTokenStore()
+        mock_store.get_token = MagicMock(return_value="real-token-from-keyring")
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store",
+            return_value=mock_store,
+        ):
+            token = Config().auth_config.get_instance_token(
+                "https://dashboard.gitguardian.com"
+            )
+
+        assert token == "real-token-from-keyring"
+        mock_store.get_token.assert_called_once_with(
+            "https://dashboard.gitguardian.com"
+        )
+
+    def test_save_keeps_unresolved_token(self, monkeypatch):
+        """
+        GIVEN a YAML config with keyring sentinel tokens, never resolved
+        WHEN saving the config, as `config set` or `secret ignore` do
+        THEN the sentinel survives and the stored token is left alone
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        mock_store = KeyringTokenStore()
+        mock_store.get_token = MagicMock()
+        mock_store.store_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store",
+            return_value=mock_store,
+        ):
+            config = Config()
+            config.auth_config.default_token_lifetime = 42
+            config.auth_config.save()
+
+        mock_store.get_token.assert_not_called()
+        mock_store.store_token.assert_not_called()
+        assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
+
+    def test_save_keeps_sentinel_when_keyring_read_fails(self, monkeypatch):
+        """
+        GIVEN a YAML config with keyring sentinel tokens the keyring cannot read
+        WHEN a failed token resolution is followed by a save
+        THEN the sentinel survives, so a working keyring recovers the token
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        mock_store = KeyringTokenStore()
+        mock_store.get_token = MagicMock(side_effect=RuntimeError("keyring locked"))
+        mock_store.store_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store",
+            return_value=mock_store,
+        ):
+            config = Config()
+            assert config.auth_config.instances[0].token == ""
+            config.auth_config.save()
+
+        mock_store.store_token.assert_not_called()
+        assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
+
+    def test_save_keeps_sentinel_without_keyring(self, monkeypatch):
+        """
+        GIVEN a YAML config with keyring sentinel tokens and GGSHIELD_NO_KEYRING=1
+        WHEN saving the config
+        THEN the sentinel survives, so re-enabling the keyring recovers the token
+        """
+        monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        config = Config()
+        assert config.auth_config.instances[0].token == ""
+        config.auth_config.save()
+
+        assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
 
     def test_file_store_preserves_cleartext(self, monkeypatch):
         """
