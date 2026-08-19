@@ -5,8 +5,12 @@ on:
     tags:
       - 'v*'
 
+permissions: {}
+
 jobs:
   build_release_assets:
+    permissions:
+      contents: read
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit
     with:
@@ -26,6 +30,8 @@ jobs:
     needs: [build_release_assets, build_platform_wheels]
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
       - name: Set up Python
@@ -140,6 +146,9 @@ jobs:
     name: Push Docker image to Docker Hub and GitHub Packages
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Docker meta
         id: meta
@@ -184,6 +193,8 @@ jobs:
     needs: build_release_assets
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -209,6 +220,8 @@ jobs:
     name: Push to Chocolatey
     runs-on: windows-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5

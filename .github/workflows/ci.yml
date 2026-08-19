@@ -17,6 +17,8 @@ on:
       - 'doc/**'
       - 'README.md'
 
+permissions: {}
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.9'
@@ -25,6 +27,8 @@ jobs:
   lint:
     name: Lint package
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -75,6 +79,8 @@ jobs:
   build:
     name: Build and Test
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -139,6 +145,8 @@ jobs:
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -298,6 +306,8 @@ jobs:
         run: cargo test --workspace
 
   build_os_packages:
+    permissions:
+      contents: read
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit
 
@@ -306,6 +316,8 @@ jobs:
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -324,6 +336,9 @@ jobs:
     name: Push Docker image to Docker Hub and GitHub Packages
     runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     needs:
       - lint
       - build
