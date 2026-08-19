@@ -1,8 +1,11 @@
+import subprocess
+import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from pygitguardian.models import HealthCheckResponse
 
 from ggshield.__main__ import cli
 from ggshield.verticals.ai.installation import (
@@ -14,6 +17,10 @@ from tests.unit.conftest import assert_invoke_ok
 
 
 AGENTS_PATH = "ggshield.verticals.ai.installation.AGENTS"
+
+
+def _raise(error: Exception):
+    raise error
 
 
 class _FakeAgent:
@@ -142,6 +149,53 @@ class TestMachineSetupCommand:
 
         assert result.exit_code == 1
         mock_preflight.assert_not_called()
+
+    @patch("ggshield.cmd.machine.setup._warm_notifier")
+    @patch("ggshield.verticals.ai.installation.create_client_from_config")
+    @patch("ggshield.verticals.ai.installation._is_interactive", return_value=True)
+    @patch("ggshield.cmd.machine.setup.install_all_agent_hooks")
+    def test_a_broken_hook_binary_does_not_fail_setup(
+        self,
+        mock_install,
+        mock_interactive,
+        mock_client,
+        mock_notifier,
+        cli_fs_runner: CliRunner,
+        monkeypatch,
+    ):
+        """
+        GIVEN an interactive setup whose hook binary cannot be run at all
+        WHEN the credential-store warm-up spawns it
+        THEN setup still succeeds: the grant is best effort
+        """
+        mock_install.return_value = SetupSummary(configured=1, failed=0)
+        mock_client.return_value.health_check.return_value = Mock(
+            spec=HealthCheckResponse, status_code=200
+        )
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "executable", "/opt/gitguardian/ggshield-py")
+        monkeypatch.setattr(
+            "ggshield.verticals.ai.installation.hook_executable",
+            lambda: "/opt/gitguardian/ggshield",
+        )
+        # Only the warm-up spawn fails; git and the rest of setup run for real.
+        real_run = subprocess.run
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda args, **kwargs: (
+                _raise(FileNotFoundError("no hook binary here"))
+                if args[0] == "/opt/gitguardian/ggshield"
+                else real_run(args, **kwargs)
+            ),
+        )
+
+        result = cli_fs_runner.invoke(
+            cli, ["machine", "setup", "--no-git-hooks", "--no-honeytokens"]
+        )
+
+        assert_invoke_ok(result)
 
     def test_agent_and_exclude_agent_are_mutually_exclusive(
         self, cli_fs_runner: CliRunner
