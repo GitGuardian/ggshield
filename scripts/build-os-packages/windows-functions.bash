@@ -34,8 +34,11 @@ windows_sign_file() {
     local path="$1"
     local base="${path##*/}"
 
+    # Under $BUILD_DIR rather than $TMPDIR: the runner's temp path is outside
+    # our control and signtool's accepted set is narrow, while $BUILD_DIR is the
+    # directory every release has already signed from.
     local tmp_dir
-    tmp_dir=$(mktemp -d)
+    tmp_dir=$(mktemp -d "$BUILD_DIR/sign.XXXXXX")
     local tmp_path="$tmp_dir/${base//[^A-Za-z0-9._-]/_}"
     cp "$path" "$tmp_path"
 
