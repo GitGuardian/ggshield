@@ -8,6 +8,7 @@ expects to exec its sibling from.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import sysconfig
@@ -135,12 +136,30 @@ class RustDispatcherBuildHook(BuildHookInterface):
         elif sys.platform == "win32":
             if not os.environ.get("SM_API_KEY"):
                 return
-            # Through bash explicitly, since Windows honours no shebang, and with a
+            # Through bash, since Windows honours no shebang, and with a
             # forward-slash path: bash reads the backslashes of a native path as
             # escapes, so `dirname` sees no directory and `cp` no such file.
             self._run_signer(
-                ["bash", str(scripts / "windows-sign-file"), binary.as_posix()]
+                [
+                    self._git_bash(),
+                    str(scripts / "windows-sign-file"),
+                    binary.as_posix(),
+                ]
             )
+
+    @staticmethod
+    def _git_bash() -> str:
+        """The bash that Git for Windows ships, found next to its own git.
+
+        Never a bare ``bash``: on PATH that is System32's WSL launcher, which
+        answers every invocation with "no installed distributions".
+        """
+        git = shutil.which("git")
+        if git:
+            bash = Path(git).resolve().parent.parent / "bin" / "bash.exe"
+            if bash.is_file():
+                return str(bash)
+        raise SigningError("no Git for Windows bash alongside git, cannot sign")
 
     def _run_signer(self, argv: list[str]) -> None:
         """Run a signing script, and say what it said when it fails.
