@@ -165,7 +165,11 @@ jobs:
           # The next step installs smctl, so do not look for it yet.
           echo "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
 
-          SECRETS_DIR=$RUNNER_TEMP/secrets
+          # `cygpath -m`: a drive-letter path with forward slashes, which both bash
+          # and smctl accept. $RUNNER_TEMP is backslashed here, and bash reads a
+          # backslash as an escape rather than a separator, so a path built from it
+          # raw names one file to `mkdir` and a different, missing one to `[ -f ]`.
+          SECRETS_DIR=$(cygpath -m "$RUNNER_TEMP")/secrets
           mkdir -p "$SECRETS_DIR"
           # The client certificate is base64-encoded because it is binary.
           echo "$SM_CLIENT_CERT_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
