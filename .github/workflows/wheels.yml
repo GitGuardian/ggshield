@@ -49,8 +49,10 @@ env:
   # Same rcodesign as build_release_assets.yml installs for the standalone
   # bundles; bump both together. The checksum is the aarch64 one -- the macOS
   # wheel is built on macos-14 and lipo'd, so there is no Intel runner here.
-  RCODESIGN_VERSION: 0.27.0
-  RCODESIGN_SHA256: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
+  # Not named RCODESIGN_*: rcodesign folds every variable carrying that prefix
+  # into its configuration and fails on the keys it does not recognise.
+  APPLE_CODESIGN_VERSION: 0.27.0
+  APPLE_CODESIGN_SHA256: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
 
 jobs:
   macos:
@@ -84,9 +86,9 @@ jobs:
           brew install coreutils
           # Unpacked outside the checkout: `python -m build` runs on it next.
           scripts/download \
-            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F$RCODESIGN_VERSION/apple-codesign-$RCODESIGN_VERSION-aarch64-apple-darwin.tar.gz" \
+            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F$APPLE_CODESIGN_VERSION/apple-codesign-$APPLE_CODESIGN_VERSION-aarch64-apple-darwin.tar.gz" \
             "$RUNNER_TEMP/rcodesign.tar.gz" \
-            "$RCODESIGN_SHA256"
+            "$APPLE_CODESIGN_SHA256"
           tar -C "$RUNNER_TEMP" --strip-components=1 -xzf "$RUNNER_TEMP/rcodesign.tar.gz"
           cp "$RUNNER_TEMP/rcodesign" /usr/local/bin
 
@@ -165,7 +167,11 @@ jobs:
           # The next step installs smctl, so do not look for it yet.
           echo "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
 
-          SECRETS_DIR=$RUNNER_TEMP/secrets
+          # `cygpath -m`: a drive-letter path with forward slashes, which both bash
+          # and smctl accept. $RUNNER_TEMP is backslashed here, and bash reads a
+          # backslash as an escape rather than a separator, so a path built from it
+          # raw names one file to `mkdir` and a different, missing one to `[ -f ]`.
+          SECRETS_DIR=$(cygpath -m "$RUNNER_TEMP")/secrets
           mkdir -p "$SECRETS_DIR"
           # The client certificate is base64-encoded because it is binary.
           echo "$SM_CLIENT_CERT_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"

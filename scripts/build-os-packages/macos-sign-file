@@ -20,6 +20,14 @@ fi
 
 echo "- Signing $file${entitlements:+ (with entitlements)}"
 
+# rcodesign folds every RCODESIGN_* variable into its configuration and refuses
+# to run on a key it does not recognise, so a caller that keeps the tool's
+# version in RCODESIGN_VERSION breaks signing rather than configuring it.
+# Everything this script needs is passed on the command line.
+for name in $(env | sed -n 's/^\(RCODESIGN_[^=]*\)=.*/\1/p') ; do
+    unset "$name"
+done
+
 args=(
     --p12-file "$MACOS_P12_FILE"
     --p12-password-file "$MACOS_P12_PASSWORD_FILE"
