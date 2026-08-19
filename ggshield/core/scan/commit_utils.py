@@ -376,7 +376,7 @@ def get_file_sha_in_ref(
     Helper function to get the shas of files in the git reference.
     """
     for files in batched(files, MAX_FILES_PER_GIT_COMMAND):
-        output = git(["ls-tree", "-z", ref] + files, cwd=cwd)
+        output = git(["ls-tree", "-z", "--end-of-options", ref] + files, cwd=cwd)
         for line in output.split("\0")[:-1]:
             _, _, sha, path = line.split(maxsplit=3)
             yield (path, sha)
