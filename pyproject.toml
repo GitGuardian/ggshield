@@ -39,7 +39,9 @@ dependencies = [
     "charset-normalizer~=3.1.0",
     "click>=8.1.0,<9",
     "configupdater>=3.2,<4",
-    "cryptography>=43.0.1,<49",
+    # The floor stays below the CVE-2026-69247 fix (50.0.0) because sigstore
+    # 4.1.0, the last release supporting Python 3.9, caps cryptography at < 47.
+    "cryptography>=43.0.1,<51",
     "marshmallow>=3.18,<5",
     "marshmallow-dataclass>=8.7.0,<9",
     "oauthlib>=3.2.1,<4",
