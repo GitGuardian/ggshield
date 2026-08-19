@@ -2,6 +2,7 @@ import json
 import os
 import shlex
 import shutil
+import subprocess
 import sys
 from collections.abc import MutableMapping
 from copy import deepcopy
@@ -452,3 +453,50 @@ def check_ai_hook_authentication(config: Config) -> None:
         )
     else:
         click.echo("ggshield successfully authenticated: the hook is ready to scan.")
+    _warm_hook_credential_store()
+
+
+# An event the hook answers by scanning the prompt and nothing else: no file is
+# named, so it reads its token, asks the API about this one line, and exits.
+_WARM_UP_EVENT = json.dumps(
+    {
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": "ggshield-machine-setup",
+        "transcript_path": "ggshield-machine-setup/claude-code.jsonl",
+        "prompt": "ggshield setup: checking the AI hook can read its token.",
+    }
+)
+
+
+def _warm_hook_credential_store() -> None:
+    """Have the hook binary itself read the token once, with the user present.
+
+    Keychain ACLs are per code identity, and in the standalone bundle the hook is
+    the Rust dispatcher, not the ``ggshield-py`` process running setup: the
+    authentication check grants nothing to the binary that does the reading. Its
+    own authorization dialog would first appear inside an agent-spawned hook,
+    where the agent's timeout can kill the process before an answered "Always
+    Allow" is recorded, so the dialog comes back on every turn.
+
+    Only macOS grants per binary, and only the bundle runs the hook from another
+    binary: everywhere else the token has already been read by the identity the
+    hook will use.
+    """
+    if sys.platform != "darwin" or not getattr(sys, "frozen", False):
+        return
+    executable = hook_executable()
+    if executable == sys.executable:
+        return
+    try:
+        subprocess.run(
+            [executable, "secret", "scan", "ai-hook"],
+            input=_WARM_UP_EVENT,
+            text=True,
+            capture_output=True,
+            # Room to answer a Keychain dialog, and a bound so setup cannot hang
+            # on one nobody answers.
+            timeout=60,
+            check=False,
+        )
+    except Exception:
+        pass
