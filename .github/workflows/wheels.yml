@@ -112,7 +112,7 @@ jobs:
           python -m build --wheel --outdir dist
       - name: Smoke test the wheel
         run: scripts/smoke-test-wheel dist/*.whl
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-macos-universal2
           path: dist/*.whl
@@ -202,7 +202,7 @@ jobs:
       - name: Smoke test the wheel
         shell: bash
         run: scripts/smoke-test-wheel dist/*.whl
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-windows-amd64
           path: dist/*.whl
@@ -276,7 +276,7 @@ jobs:
 
               PYTHON="$PY" scripts/smoke-test-wheel dist/*.whl
             '
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.tag }}
           path: dist/*.whl
