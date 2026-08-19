@@ -1,0 +1,263 @@
+name: wheels
+
+concurrency:
+  group: wheels-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Builds the platform wheels carrying the Rust `ggshield` binary, and nothing
+# else: the sdist and the pure-Python `py3-none-any` fallback come from
+# build_release_assets.yml's `build_wheel_sdist` job. Both would otherwise emit
+# the same `ggshield-<version>-py3-none-any.whl`, and PyPI rejects a duplicate
+# file. The two sets meet again in tag.yml's `push_to_pypi`, under artifact names
+# `dist` and `wheel-*`.
+#
+# Each platform wheel is tagged py3-none-<platform>: a native binary but no
+# Python extension module, so it is Python-version-independent.
+
+on:
+  # Called by tag.yml, so a release actually publishes these. Same run as
+  # `build_wheel_sdist`, which is what lets `push_to_pypi` download both.
+  workflow_call:
+    inputs:
+      sign:
+        description: 'Code-sign the macOS binary (needs secrets, so no PR from a fork can)'
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: 'Code-sign the macOS binary (needs secrets, so no PR from a fork can)'
+        type: boolean
+        default: false
+  # Only the packaging inputs: nothing else changes what these wheels contain,
+  # and six jobs on every push is a lot of runner time for that.
+  pull_request:
+    paths:
+      - '.github/workflows/wheels.yml'
+      - 'hatch_build.py'
+      - 'hatch_meta.py'
+      - 'pyproject.toml'
+      - 'scripts/smoke-test-wheel'
+      - 'rust/**'
+
+env:
+  DEFAULT_PYTHON_VERSION: '3.14'
+  # Same rustup as scripts/build-os-packages/build-os-packages pins for the
+  # standalone bundles; bump both together. Checksums from
+  # https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$triple/rustup-init.sha256
+  RUSTUP_VERSION: 1.29.0
+  # Same rcodesign as build_release_assets.yml installs for the standalone
+  # bundles; bump both together. The checksum is the aarch64 one -- the macOS
+  # wheel is built on macos-14 and lipo'd, so there is no Intel runner here.
+  RCODESIGN_VERSION: 0.27.0
+  RCODESIGN_SHA256: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
+
+jobs:
+  macos:
+    name: wheel macos-universal2
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      # Only `sign: true` callers get here, and for them signing is not
+      # best-effort: an unsigned `ggshield` publishes fine and only shows up
+      # months later, as every upgrade re-prompting for Keychain access. Fail
+      # instead of shipping one.
+      - name: Prepare code signing
+        if: inputs.sign
+        env:
+          MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
+          MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MACOS_P12_FILE" ] ; then
+            echo "sign: true, but the signing secrets are not readable here" >&2
+            exit 1
+          fi
+
+          # scripts/download needs `sha256sum`, which macOS does not ship.
+          brew install coreutils
+          # Unpacked outside the checkout: `python -m build` runs on it next.
+          scripts/download \
+            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F$RCODESIGN_VERSION/apple-codesign-$RCODESIGN_VERSION-aarch64-apple-darwin.tar.gz" \
+            "$RUNNER_TEMP/rcodesign.tar.gz" \
+            "$RCODESIGN_SHA256"
+          tar -C "$RUNNER_TEMP" --strip-components=1 -xzf "$RUNNER_TEMP/rcodesign.tar.gz"
+          cp "$RUNNER_TEMP/rcodesign" /usr/local/bin
+
+          SECRETS_DIR=$RUNNER_TEMP/secrets
+          mkdir -p "$SECRETS_DIR"
+          # The p12 is base64-encoded because it is binary.
+          echo "$MACOS_P12_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
+          echo "$MACOS_P12_PASSWORD" > "$SECRETS_DIR/cert.pwd"
+          cat >> "$GITHUB_ENV" <<EOF
+          MACOS_P12_FILE=$SECRETS_DIR/cert.p12
+          MACOS_P12_PASSWORD_FILE=$SECRETS_DIR/cert.pwd
+          EOF
+
+      # hatch_build.py signs the binary itself, right after lipo: nothing outside
+      # the build can, because the wheel is zipped around it.
+      - name: Build wheel
+        env:
+          GGSHIELD_BUILD_RUST: '1'
+        run: |
+          python -m pip install --upgrade build
+          python -m build --wheel --outdir dist
+      - name: Smoke test the wheel
+        run: scripts/smoke-test-wheel dist/*.whl
+      - uses: actions/upload-artifact@v6
+        with:
+          name: wheel-macos-universal2
+          path: dist/*.whl
+
+  windows:
+    name: wheel windows-amd64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
+      - uses: dtolnay/rust-toolchain@stable
+      # Authenticode-signed like the .msi and the .zip. A signature binds no
+      # stored credential here the way a macOS Keychain ACL does, but this is the
+      # `ggshield` every invocation runs, and an unsigned native executable inside
+      # a venv is what AV and EDR heuristics react to. Fail rather than ship one:
+      # `pip install` offers nobody a second chance to check.
+      - name: Prepare code signing
+        if: inputs.sign
+        shell: bash
+        env:
+          WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_CLIENT_CERT_FILE: ${{ secrets.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SM_API_KEY" ] ; then
+            echo "sign: true, but the signing secrets are not readable here" >&2
+            exit 1
+          fi
+
+          signtool_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
+          if [ ! -x "$signtool_dir/signtool.exe" ] ; then
+            echo "signtool.exe is not in '$signtool_dir'" >&2
+            exit 1
+          fi
+          echo "$signtool_dir" >> "$GITHUB_PATH"
+          # The next step installs smctl, so do not look for it yet.
+          echo "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
+
+          SECRETS_DIR=$RUNNER_TEMP/secrets
+          mkdir -p "$SECRETS_DIR"
+          # The client certificate is base64-encoded because it is binary.
+          echo "$SM_CLIENT_CERT_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
+          cat >> "$GITHUB_ENV" <<EOF
+          WINDOWS_CERT_FINGERPRINT=$WINDOWS_CERT_FINGERPRINT
+          SM_API_KEY=$SM_API_KEY
+          SM_HOST=$SM_HOST
+          SM_CLIENT_CERT_FILE=$SECRETS_DIR/cert.p12
+          SM_CLIENT_CERT_PASSWORD=$SM_CLIENT_CERT_PASSWORD
+          EOF
+
+      - name: Install the signing tools
+        if: inputs.sign
+        shell: bash
+        run: scripts/build-os-packages/install-keylockertools
+
+      # hatch_build.py signs the binary itself, right after cargo: nothing outside
+      # the build can, because the wheel is zipped around it.
+      - name: Build wheel
+        shell: bash
+        env:
+          GGSHIELD_BUILD_RUST: '1'
+        run: |
+          python -m pip install --upgrade build
+          python -m build --wheel --outdir dist
+      - name: Smoke test the wheel
+        shell: bash
+        run: scripts/smoke-test-wheel dist/*.whl
+      - uses: actions/upload-artifact@v6
+        with:
+          name: wheel-windows-amd64
+          path: dist/*.whl
+
+  # glibc (manylinux) and musl (musllinux, e.g. Alpine) wheels, each built in
+  # its pypa image so the binary links that libc, then relabelled from the raw
+  # linux_* tag to the image's platform tag. `docker run` rather than a job
+  # `container:`, because manylinux2014's glibc 2.17 is too old to run the
+  # node-based actions.
+  linux:
+    name: wheel ${{ matrix.tag }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Images are digest-pinned: `latest` is rebuilt several times a week, and
+        # the whole point of building here is a reproducible libc floor. Bump the
+        # tag and the digest together.
+        include:
+          - {
+              runs-on: ubuntu-latest,
+              image: 'quay.io/pypa/manylinux2014_x86_64:2026.08.08-1@sha256:0a42cb7e5f4ba6bbfb8d0a86d1aab0c8876ba9c3be16bd99360ae42bf010ec77',
+              tag: manylinux2014_x86_64,
+              rustup_triple: x86_64-unknown-linux-gnu,
+              rustup_sha256: 4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10,
+            }
+          - {
+              runs-on: ubuntu-24.04-arm,
+              image: 'quay.io/pypa/manylinux2014_aarch64:2026.08.08-1@sha256:63bfa74be47f0277e998cb7c1b571b27664ac848bb356b0f4588438f930285dd',
+              tag: manylinux2014_aarch64,
+              rustup_triple: aarch64-unknown-linux-gnu,
+              rustup_sha256: 9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792,
+            }
+          - {
+              runs-on: ubuntu-latest,
+              image: 'quay.io/pypa/musllinux_1_2_x86_64:2026.08.08-1@sha256:b06e331e36f400fa1529b4dd2ee37016f2828422b2e5d054a66257fcf4535697',
+              tag: musllinux_1_2_x86_64,
+              rustup_triple: x86_64-unknown-linux-musl,
+              rustup_sha256: 9cd3fda5fd293890e36ab271af6a786ee22084b5f6c2b83fd8323cec6f0992c1,
+            }
+          - {
+              runs-on: ubuntu-24.04-arm,
+              image: 'quay.io/pypa/musllinux_1_2_aarch64:2026.08.08-1@sha256:23371d5e69a9c90f17d8b36571204c7164c8fac0685725d05696aa8fd607f43b',
+              tag: musllinux_1_2_aarch64,
+              rustup_triple: aarch64-unknown-linux-musl,
+              rustup_sha256: 88761caacddb92cd79b0b1f939f3990ba1997d701a38b3e8dd6746a562f2a759,
+            }
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build, relabel and smoke test the wheel in ${{ matrix.tag }}
+        run: |
+          docker run --rm -v "$PWD:/io" -w /io -e GGSHIELD_BUILD_RUST=1 \
+            "${{ matrix.image }}" bash -euo pipefail -c '
+              # A pinned, checksum-verified rustup-init, not `curl | sh`.
+              # --default-toolchain none: rust/rust-toolchain.toml pins it.
+              scripts/download \
+                "https://static.rust-lang.org/rustup/archive/${{ env.RUSTUP_VERSION }}/${{ matrix.rustup_triple }}/rustup-init" \
+                /tmp/rustup-init \
+                "${{ matrix.rustup_sha256 }}"
+              chmod +x /tmp/rustup-init
+              /tmp/rustup-init -y --profile minimal --default-toolchain none \
+                --no-modify-path
+              source "$HOME/.cargo/env"
+
+              PY=/opt/python/cp311-cp311/bin/python
+              "$PY" -m pip install --upgrade build wheel
+              "$PY" -m build --wheel --outdir dist_raw
+              "$PY" -m wheel tags --remove \
+                --platform-tag "${{ matrix.tag }}" dist_raw/*.whl
+              mkdir -p dist && mv dist_raw/*.whl dist/
+
+              PYTHON="$PY" scripts/smoke-test-wheel dist/*.whl
+            '
+      - uses: actions/upload-artifact@v6
+        with:
+          name: wheel-${{ matrix.tag }}
+          path: dist/*.whl

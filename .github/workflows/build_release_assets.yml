@@ -43,9 +43,18 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
+      # No GGSHIELD_BUILD_RUST: this is the sdist plus the pure-Python
+      # `py3-none-any` fallback wheel, where `ggshield` is the Python entry
+      # point. The platform wheels come from .github/workflows/wheels.yml.
       - name: Create packages
         run: |
           uv build
+
+      - name: Smoke test the pure wheel
+        run: |
+          uv venv /tmp/smoke
+          VIRTUAL_ENV=/tmp/smoke uv pip install dist/*-py3-none-any.whl
+          /tmp/smoke/bin/ggshield --version
 
       - name: Upload packages
         uses: actions/upload-artifact@v6

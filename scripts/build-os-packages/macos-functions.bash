@@ -1,5 +1,7 @@
 MACOS_P12_FILE=${MACOS_P12_FILE:-}
 MACOS_P12_PASSWORD_FILE=${MACOS_P12_PASSWORD_FILE:-}
+# macos-sign-file is a separate process: without this it sees neither.
+export MACOS_P12_FILE MACOS_P12_PASSWORD_FILE
 
 # Path to a file used by rcodesign for notarizing.
 # Follow the instructions from
@@ -37,40 +39,11 @@ macos_sign() {
     done
 }
 
-# $1 is the file to sign, $2 an optional entitlements plist.
+# $1 is the file to sign, $2 an optional entitlements plist. The invocation lives
+# in macos-sign-file, shared with the macOS wheel build.
 macos_sign_file() {
     check_var MACOS_P12_FILE
-
-    local file entitlements
-    file="$1"
-    entitlements="${2:-}"
-    info "- Signing $file${entitlements:+ (with entitlements)}"
-
-    local args=(
-        --p12-file "$MACOS_P12_FILE"
-        --p12-password-file "$MACOS_P12_PASSWORD_FILE"
-        --code-signature-flags runtime
-        --for-notarization
-    )
-    if [ -n "$entitlements" ] ; then
-        args+=(--entitlements-xml-path "$entitlements")
-    fi
-
-    # Left alone, rcodesign keeps the ad-hoc identifier the linker left in the
-    # Mach-O, which carries a per-build hash: 1.53.0 shipped as
-    # `ggshield-55554944c60d09a76c903cb78828e61396fa0721`. The identifier is part
-    # of the designated requirement, and the designated requirement is what a
-    # Keychain item's ACL records when the user clicks "Always Allow" — so a
-    # per-build identifier means the grant stops matching on the next release and
-    # every upgrade re-prompts for the token. Both launchers read the token, so
-    # both need a stable one; libraries keep their own, they are never the
-    # process asking for the secret.
-    case "$(basename "$file")" in
-        ggshield)    args+=(--binary-identifier com.gitguardian.ggshield) ;;
-        ggshield-py) args+=(--binary-identifier com.gitguardian.ggshield-py) ;;
-    esac
-
-    rcodesign sign "${args[@]}" "$file"
+    "$SCRIPT_DIR/macos-sign-file" "$@"
 }
 
 # Every Mach-O in the bundle, because notarization rejects the .pkg if a single

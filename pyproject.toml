@@ -1,6 +1,6 @@
 [project]
 name = "ggshield"
-dynamic = ["version"]
+dynamic = ["version", "scripts"]
 description = "Detect secrets from all sources using GitGuardian's brains"
 keywords = [
     "cli",
@@ -73,15 +73,26 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/GitGuardian/ggshield"
 
-[project.scripts]
-ggshield = "ggshield.__main__:main"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "ggshield/__init__.py"
+
+# `ggshield` is the Rust dispatcher and the Python entry point is `ggshield-py`
+# when GGSHIELD_BUILD_RUST=1 (the wheel CI matrix); otherwise `ggshield` is the
+# Python entry point. See hatch_meta.py / hatch_build.py.
+[tool.hatch.metadata.hooks.custom]
+path = "hatch_meta.py"
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
+
+# The Rust sources are needed only to build the platform wheels (from the repo,
+# in CI); keep them out of the sdist so an sdist install stays pure Python.
+[tool.hatch.build.targets.sdist]
+exclude = ["rust"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

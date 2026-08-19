@@ -70,6 +70,8 @@ Although PyInstaller supports signing, it did not work at the time we tried it, 
 
 For Gatekeeper to accept the app, the executable and all the dynamic libraries must be signed, as well as the .pkg archive itself. Signing the executable and the libraries is done by the `sign` step, whereas signing the .pkg archive is done by the `create_archive` step.
 
+The `rcodesign` invocation lives in its own script, `scripts/build-os-packages/macos-sign-file`, because the macOS wheel signs the same `ggshield` from Python (`hatch_build.py`). Both must produce the same designated requirement, or a Keychain grant given to one artifact does not apply to the other.
+
 [rcodesign]: https://gregoryszorc.com/docs/apple-codesign/
 
 ## Windows specific information
