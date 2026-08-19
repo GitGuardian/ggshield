@@ -108,23 +108,34 @@ class RustDispatcherBuildHook(BuildHookInterface):
             )
 
     def _sign(self, binary: Path) -> None:
-        """Code-sign the fused binary, when the build was given a certificate.
+        """Code-sign the binary, when the build was given a certificate.
 
-        On the fused file rather than the slices: one signature covers both, and
-        cargo leaves the x86_64 slice unsigned altogether.
+        On macOS this is the fused file rather than the slices: one signature
+        covers both, and cargo leaves the x86_64 slice unsigned altogether.
 
         Unsigned -- local builds and PRs from forks, neither of which can read the
-        secrets -- the wheel still installs and runs. What it loses is a stable
-        designated requirement: an ad-hoc signature carries no signing identity,
-        so the requirement degenerates to the binary's cdhash, which changes on
-        every build. That requirement is what a Keychain item's ACL records, so
-        the grant the user gives `ggshield` for the API token stops matching on
-        the next upgrade.
+        secrets -- the wheel still installs and runs. On macOS what it loses is a
+        stable designated requirement: an ad-hoc signature carries no signing
+        identity, so the requirement degenerates to the binary's cdhash, which
+        changes on every build. That requirement is what a Keychain item's ACL
+        records, so the grant the user gives `ggshield` for the API token stops
+        matching on the next upgrade. On Windows nothing binds a stored credential
+        to a signature, so an unsigned build costs only the trust an AV or EDR
+        heuristic extends to a native executable sitting in a venv.
         """
-        if not os.environ.get("MACOS_P12_FILE"):
-            return
-        script = Path(self.root) / "scripts/build-os-packages/macos-sign-file"
-        subprocess.run([str(script), str(binary)], check=True)
+        scripts = Path(self.root) / "scripts/build-os-packages"
+        if sys.platform == "darwin":
+            if not os.environ.get("MACOS_P12_FILE"):
+                return
+            subprocess.run([str(scripts / "macos-sign-file"), str(binary)], check=True)
+        elif sys.platform == "win32":
+            if not os.environ.get("SM_API_KEY"):
+                return
+            # Through bash explicitly: Windows honours no shebang, and Git Bash is
+            # already what drives this build on the runner.
+            subprocess.run(
+                ["bash", str(scripts / "windows-sign-file"), str(binary)], check=True
+            )
 
     def _build(self, crate: Path, binary: Path) -> None:
         # --locked: build the dependency versions committed in rust/Cargo.lock,
@@ -165,3 +176,4 @@ class RustDispatcherBuildHook(BuildHookInterface):
                 cwd=crate,
                 check=True,
             )
+            self._sign(binary)

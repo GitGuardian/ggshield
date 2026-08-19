@@ -115,11 +115,6 @@ jobs:
           name: wheel-macos-universal2
           path: dist/*.whl
 
-  # Not Authenticode-signed, unlike the .msi and .zip: nothing on Windows binds a
-  # stored credential to a binary's signature the way a macOS Keychain ACL does,
-  # so the only thing signing buys the wheel is SmartScreen reputation on a
-  # binary users reach through pip rather than a download. Separate concern,
-  # separate ticket.
   windows:
     name: wheel windows-amd64
     runs-on: windows-latest
@@ -129,6 +124,55 @@ jobs:
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
       - uses: dtolnay/rust-toolchain@stable
+      # Authenticode-signed like the .msi and the .zip. A signature binds no
+      # stored credential here the way a macOS Keychain ACL does, but this is the
+      # `ggshield` every invocation runs, and an unsigned native executable inside
+      # a venv is what AV and EDR heuristics react to. Fail rather than ship one:
+      # `pip install` offers nobody a second chance to check.
+      - name: Prepare code signing
+        if: inputs.sign
+        shell: bash
+        env:
+          WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_CLIENT_CERT_FILE: ${{ secrets.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SM_API_KEY" ] ; then
+            echo "sign: true, but the signing secrets are not readable here" >&2
+            exit 1
+          fi
+
+          signtool_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
+          if [ ! -x "$signtool_dir/signtool.exe" ] ; then
+            echo "signtool.exe is not in '$signtool_dir'" >&2
+            exit 1
+          fi
+          echo "$signtool_dir" >> "$GITHUB_PATH"
+          # The next step installs smctl, so do not look for it yet.
+          echo "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
+
+          SECRETS_DIR=$RUNNER_TEMP/secrets
+          mkdir -p "$SECRETS_DIR"
+          # The client certificate is base64-encoded because it is binary.
+          echo "$SM_CLIENT_CERT_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
+          cat >> "$GITHUB_ENV" <<EOF
+          WINDOWS_CERT_FINGERPRINT=$WINDOWS_CERT_FINGERPRINT
+          SM_API_KEY=$SM_API_KEY
+          SM_HOST=$SM_HOST
+          SM_CLIENT_CERT_FILE=$SECRETS_DIR/cert.p12
+          SM_CLIENT_CERT_PASSWORD=$SM_CLIENT_CERT_PASSWORD
+          EOF
+
+      - name: Install the signing tools
+        if: inputs.sign
+        shell: bash
+        run: scripts/build-os-packages/install-keylockertools
+
+      # hatch_build.py signs the binary itself, right after cargo: nothing outside
+      # the build can, because the wheel is zipped around it.
       - name: Build wheel
         shell: bash
         env:

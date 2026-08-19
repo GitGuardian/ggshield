@@ -26,31 +26,13 @@ windows_sign() {
     done
 }
 
-# smctl rejects any path holding a character signtool does not support, `+`
-# among them, and our "X.Y.Z+sha" builds put one in the archive directory name.
-# So sign a copy placed under a name built from safe characters only, then move
-# the signed bytes back to the original path.
+# $1 is the file to sign. The invocation lives in windows-sign-file, shared with
+# the Windows wheel build.
 windows_sign_file() {
-    local path="$1"
-    local base="${path##*/}"
-
-    # Under $BUILD_DIR rather than $TMPDIR: the runner's temp path is outside
-    # our control and signtool's accepted set is narrow, while $BUILD_DIR is the
-    # directory every release has already signed from.
-    local tmp_dir
-    tmp_dir=$(mktemp -d "$BUILD_DIR/sign.XXXXXX")
-    local tmp_path="$tmp_dir/${base//[^A-Za-z0-9._-]/_}"
-    cp "$path" "$tmp_path"
-
-    smctl sign \
-        --verbose \
-        --exit-non-zero-on-fail \
-        --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
-        --tool signtool \
-        --input "$tmp_path"
-
-    mv "$tmp_path" "$path"
-    rm -rf "$tmp_dir"
+    # Staged under $BUILD_DIR rather than $TMPDIR: the runner's temp path is
+    # outside our control and signtool's accepted set is narrow, while $BUILD_DIR
+    # is the directory every release has already signed from.
+    "$SCRIPT_DIR/windows-sign-file" "$1" "$BUILD_DIR"
 }
 
 windows_create_archive() {
