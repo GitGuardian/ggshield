@@ -144,6 +144,49 @@ class TestDiscoverAIConfiguration:
     )
     @patch("ggshield.verticals.ai.discovery.get_user_info", return_value=_user())
     @patch("ggshield.verticals.ai.discovery.AGENTS")
+    def test_ignores_the_configurations_of_absent_agents(
+        self,
+        mock_agents: MagicMock,
+        mock_user_info: MagicMock,
+        mock_hooks: MagicMock,
+    ):
+        present = MagicMock()
+        present.name = "cursor"
+        present.is_present.return_value = True
+        present.discover_project_directories.return_value = iter([])
+        present.discover_mcp_configurations.return_value = [_cfg(name="s1")]
+        present.discover_capabilities.return_value = False
+
+        # Absent agents also parse the configuration files they recognize, and
+        # some of them report a hardcoded server. None of it must be reported.
+        absent = MagicMock()
+        absent.name = "copilot"
+        absent.is_present.return_value = False
+        absent.discover_project_directories.return_value = iter([])
+        absent.discover_mcp_configurations.return_value = [
+            _cfg(name="s1", agent="copilot"),
+            _cfg(name="github-mcp-server", agent="copilot"),
+        ]
+        absent.discover_capabilities.return_value = False
+
+        mock_agents.values.return_value = [present, absent]
+
+        result = discover_ai_configuration()
+
+        absent.discover_mcp_configurations.assert_not_called()
+        assert [s.name for s in result.servers] == ["s1"]
+        assert {
+            configuration.agent
+            for server in result.servers
+            for configuration in server.configurations
+        } == {"cursor"}
+
+    @patch(
+        "ggshield.verticals.ai.discovery.are_hooks_installed_globally",
+        return_value=(False, None),
+    )
+    @patch("ggshield.verticals.ai.discovery.get_user_info", return_value=_user())
+    @patch("ggshield.verticals.ai.discovery.AGENTS")
     def test_stops_capability_discovery_at_first_success(
         self,
         mock_agents: MagicMock,

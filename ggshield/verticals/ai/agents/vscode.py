@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterator, Literal, Optional, Tuple
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
-from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
+from ggshield.core.dirs import get_editor_user_data_dir
 
 from ..agent_activity.sources import JSONLActivitySource
 from ..models import (
@@ -75,7 +75,7 @@ class VSCode(Agent):
 
     @property
     def config_folder(self) -> Path:
-        return get_user_home_dir() / ".config" / "Code" / "User"
+        return get_editor_user_data_dir("Code")
 
     def output_result(self, result: HookResult) -> int:
         response = {}
