@@ -1,11 +1,11 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from pygitguardian.models import AIDiscovery, MCPConfiguration, MCPServer, UserInfo
 
+from ggshield.core.dirs import get_editor_user_data_dir
 from ggshield.verticals.ai.agents.vscode import VSCode, _find_mcp_invocations
 
 
@@ -79,12 +79,12 @@ class TestFindMCPInvocations:
 
 
 class TestVSCodeIterHistoryEvents:
-    def _seed_session(
-        self, tmp_path: Path, lines: list[str], workspace_folder: str
-    ) -> Path:
-        workspace_hash = (
-            tmp_path / ".config" / "Code" / "User" / "workspaceStorage" / "ws1"
-        )
+    @pytest.fixture(autouse=True)
+    def fake_home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("GG_USER_HOME_DIR", str(tmp_path))
+
+    def _seed_session(self, lines: list[str], workspace_folder: str) -> Path:
+        workspace_hash = get_editor_user_data_dir("Code") / "workspaceStorage" / "ws1"
         sessions = workspace_hash / "chatSessions"
         sessions.mkdir(parents=True)
         (workspace_hash / "workspace.json").write_text(
@@ -99,13 +99,9 @@ class TestVSCodeIterHistoryEvents:
     ) -> None:
         ts_ms = 1_778_855_521_780
         line = _request_line(ts_ms, [_invocation("call-1")])
-        self._seed_session(tmp_path, [line], "/repo")
+        self._seed_session([line], "/repo")
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert len(events) == 1
         ev = events[0]
@@ -124,13 +120,9 @@ class TestVSCodeIterHistoryEvents:
             _request_line(ts_ms, [_invocation("dup", raw_input={"q": "partial"})]),
             _request_line(ts_ms, [_invocation("dup", raw_input={"q": "final"})]),
         ]
-        self._seed_session(tmp_path, lines, "/repo")
+        self._seed_session(lines, "/repo")
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert len(events) == 1
 
@@ -145,13 +137,9 @@ class TestVSCodeIterHistoryEvents:
             _request_line(ts_ms, []),  # establishes last_ts
             bare_line,
         ]
-        self._seed_session(tmp_path, lines, "/repo")
+        self._seed_session(lines, "/repo")
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert len(events) == 1
         assert events[0].timestamp == datetime.fromtimestamp(
@@ -177,13 +165,9 @@ class TestVSCodeIterHistoryEvents:
             }
         )
         bare_line = json.dumps({"kind": 2, "v": [_invocation("late")]})
-        self._seed_session(tmp_path, [snapshot, bare_line], "/repo")
+        self._seed_session([snapshot, bare_line], "/repo")
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert len(events) == 1
         assert events[0].timestamp == datetime.fromtimestamp(
@@ -203,13 +187,9 @@ class TestVSCodeIterHistoryEvents:
             }
         )
         bare_line = json.dumps({"kind": 2, "v": [_invocation("nested")]})
-        self._seed_session(tmp_path, [round_line, bare_line], "/repo")
+        self._seed_session([round_line, bare_line], "/repo")
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert len(events) == 1
         assert events[0].timestamp == datetime.fromtimestamp(
@@ -221,13 +201,9 @@ class TestVSCodeIterHistoryEvents:
     ) -> None:
         """If no request snapshot has been seen yet, there's no timestamp to attach."""
         bare_line = json.dumps({"kind": 2, "v": [_invocation("orphan")]})
-        self._seed_session(tmp_path, [bare_line], "/repo")
+        self._seed_session([bare_line], "/repo")
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert events == []
 
@@ -235,7 +211,7 @@ class TestVSCodeIterHistoryEvents:
         """``source.label`` matches ``MCPConfiguration.name`` byte-for-byte."""
         ts_ms = 1_778_855_521_780
         line = _request_line(ts_ms, [_invocation("c")])
-        self._seed_session(tmp_path, [line], "/repo")
+        self._seed_session([line], "/repo")
 
         config = AIDiscovery(
             user=UserInfo(hostname="h", username="u", machine_id="m"),
@@ -256,11 +232,7 @@ class TestVSCodeIterHistoryEvents:
             discovery_duration=0.0,
         )
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(config))
+        events = list(VSCode().iter_history_events(config))
 
         assert events[0].server == "Notion"
         assert events[0].tool == "notion-search"
@@ -268,9 +240,7 @@ class TestVSCodeIterHistoryEvents:
     def test_ignores_legacy_json_sessions(
         self, tmp_path: Path, empty_ai_config
     ) -> None:
-        workspace_hash = (
-            tmp_path / ".config" / "Code" / "User" / "workspaceStorage" / "ws1"
-        )
+        workspace_hash = get_editor_user_data_dir("Code") / "workspaceStorage" / "ws1"
         sessions = workspace_hash / "chatSessions"
         sessions.mkdir(parents=True)
         (workspace_hash / "workspace.json").write_text(
@@ -278,10 +248,6 @@ class TestVSCodeIterHistoryEvents:
         )
         (sessions / "legacy.json").write_text(json.dumps({"requests": []}))
 
-        with patch(
-            "ggshield.verticals.ai.agents.vscode.get_user_home_dir",
-            return_value=tmp_path,
-        ):
-            events = list(VSCode().iter_history_events(empty_ai_config))
+        events = list(VSCode().iter_history_events(empty_ai_config))
 
         assert events == []

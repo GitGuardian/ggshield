@@ -63,35 +63,40 @@ def discover_ai_configuration(machine_id: Optional[str] = None) -> AIDiscovery:
     start_time = perf_counter()
     mcp_configurations: List[MCPConfiguration] = []
 
+    # Only the agents installed on this machine, because a configuration file can
+    # belong to several agents (a project `.mcp.json` is read by both Claude Code
+    # and Copilot). Reporting a configuration for an absent agent would attribute
+    # it to an agent missing from `agents` below, which is what the API keys on.
+    present_agents = [agent for agent in AGENTS.values() if agent.is_present()]
+
     # Discovered project directories
     projects = {Path.cwd().resolve()}
-    for agent in AGENTS.values():
+    for agent in present_agents:
         projects.update(agent.discover_project_directories())
 
     # Discover MCP configurations
-    for agent in AGENTS.values():
+    for agent in present_agents:
         mcp_configurations.extend(agent.discover_mcp_configurations(projects))
 
     # Hook installation status
     agents = []
-    for agent in AGENTS.values():
-        if agent.is_present():
-            installed, command = are_hooks_installed_globally(agent.name)
-            agents.append(
-                AgentInfo(
-                    name=agent.name,
-                    hooks_installed=installed,
-                    hooks_command=command,
-                    subscription_email=agent.subscription_email(),
-                )
+    for agent in present_agents:
+        installed, command = are_hooks_installed_globally(agent.name)
+        agents.append(
+            AgentInfo(
+                name=agent.name,
+                hooks_installed=installed,
+                hooks_command=command,
+                subscription_email=agent.subscription_email(),
             )
+        )
 
     # Merge MCP configurations into servers
     servers = _merge_mcp_configurations(mcp_configurations)
 
     # Try to find the servers' capabilities
     for server in servers:
-        for agent in AGENTS.values():
+        for agent in present_agents:
             if agent.discover_capabilities(server):
                 # Discovery succeeded for this server. Early return.
                 break
