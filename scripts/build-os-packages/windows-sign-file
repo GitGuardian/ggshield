@@ -39,12 +39,14 @@ base="${file##*/}"
 tmp_path="$tmp_dir/${base//[^A-Za-z0-9._-]/_}"
 cp "$file" "$tmp_path"
 
+# A Windows path for a Windows tool: signtool reads `--input` itself, and only a
+# POSIX-looking argument gets translated on the way to a native process.
 smctl sign \
     --verbose \
     --exit-non-zero-on-fail \
     --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
     --tool signtool \
-    --input "$tmp_path"
+    --input "$(cygpath -w "$tmp_path")"
 
 mv "$tmp_path" "$file"
 rm -rf "$tmp_dir"

@@ -163,9 +163,11 @@ jobs:
             exit 1
           fi
           echo "Signing with $signtool_dir/signtool.exe"
-          echo "$signtool_dir" >> "$GITHUB_PATH"
+          # Windows-form on PATH: smctl is a native process and looks signtool up
+          # through %PATH%, where a `/c/...` entry means nothing.
+          cygpath -w "$signtool_dir" >> "$GITHUB_PATH"
           # The next step installs smctl, so do not look for it yet.
-          echo "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
+          cygpath -w "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
 
           # `cygpath -m`: a drive-letter path with forward slashes, which both bash
           # and smctl accept. $RUNNER_TEMP is backslashed here, and bash reads a
