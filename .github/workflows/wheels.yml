@@ -20,13 +20,13 @@ on:
   workflow_call:
     inputs:
       sign:
-        description: 'Code-sign the macOS binary (needs secrets, so no PR from a fork can)'
+        description: 'Code-sign the macOS and Windows binaries (needs secrets, so no PR from a fork can)'
         type: boolean
         default: false
   workflow_dispatch:
     inputs:
       sign:
-        description: 'Code-sign the macOS binary (needs secrets, so no PR from a fork can)'
+        description: 'Code-sign the macOS and Windows binaries (needs secrets, so no PR from a fork can)'
         type: boolean
         default: false
   # Only the packaging inputs: nothing else changes what these wheels contain,
@@ -145,11 +145,22 @@ jobs:
             exit 1
           fi
 
-          signtool_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
-          if [ ! -x "$signtool_dir/signtool.exe" ] ; then
-            echo "signtool.exe is not in '$signtool_dir'" >&2
+          # Newest SDK present rather than a pinned one: the version differs per
+          # runner image (windows-2022 carries 10.0.22621.0, windows-2025
+          # 10.0.26100.0) and this job runs on whatever `windows-latest` currently
+          # is. build_release_assets.yml can pin because it pins its image too.
+          # `|| true`: with pipefail an unmatched glob would abort the step here,
+          # before the diagnostic below gets to say what was missing.
+          signtool_dir=$(
+            ls -d "/c/Program Files (x86)/Windows Kits/10/bin/"*/x64 2>/dev/null |
+              sort -V | tail -1 || true
+          )
+          if [ -z "$signtool_dir" ] || [ ! -x "$signtool_dir/signtool.exe" ] ; then
+            echo "no signtool.exe under the Windows Kits 10 bin directories" >&2
+            ls -d "/c/Program Files (x86)/Windows Kits/10/bin/"* 2>&1 >&2 || true
             exit 1
           fi
+          echo "Signing with $signtool_dir/signtool.exe"
           echo "$signtool_dir" >> "$GITHUB_PATH"
           # The next step installs smctl, so do not look for it yet.
           echo "/c/Program Files/DigiCert/DigiCert Keylocker Tools" >> "$GITHUB_PATH"
