@@ -127,15 +127,28 @@ class RustDispatcherBuildHook(BuildHookInterface):
         if sys.platform == "darwin":
             if not os.environ.get("MACOS_P12_FILE"):
                 return
-            subprocess.run([str(scripts / "macos-sign-file"), str(binary)], check=True)
+            self._run_signer([str(scripts / "macos-sign-file"), str(binary)])
         elif sys.platform == "win32":
             if not os.environ.get("SM_API_KEY"):
                 return
-            # Through bash explicitly: Windows honours no shebang, and Git Bash is
-            # already what drives this build on the runner.
-            subprocess.run(
-                ["bash", str(scripts / "windows-sign-file"), str(binary)], check=True
+            # Through bash explicitly, since Windows honours no shebang, and with a
+            # forward-slash path: bash reads the backslashes of a native path as
+            # escapes, so `dirname` sees no directory and `cp` no such file.
+            self._run_signer(
+                ["bash", str(scripts / "windows-sign-file"), binary.as_posix()]
             )
+
+    def _run_signer(self, argv: list[str]) -> None:
+        """Run a signing script, keeping whatever it said about a failure.
+
+        The build backend does not forward a child's streams on Windows, so a
+        plain ``check=True`` leaves an unsigned build explained by an exit status
+        and nothing else.
+        """
+        signer = subprocess.run(argv, capture_output=True, text=True)
+        sys.stderr.write(signer.stdout)
+        sys.stderr.write(signer.stderr)
+        signer.check_returncode()
 
     def _build(self, crate: Path, binary: Path) -> None:
         # --locked: build the dependency versions committed in rust/Cargo.lock,
