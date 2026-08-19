@@ -254,10 +254,6 @@ def _install_from_gitguardian(
         ui.display_error(f"Failed to install {plugin_name}: {e}")
         ctx.exit(ExitCode.UNEXPECTED_ERROR)
 
-    plugin_api_client.report_installation(
-        plugin_name, info.version, platform_info.os, platform_info.arch
-    )
-
 
 def _install_from_local_wheel(
     ctx: click.Context,

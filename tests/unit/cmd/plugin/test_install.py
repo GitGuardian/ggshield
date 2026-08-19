@@ -97,9 +97,6 @@ class TestPluginInstall:
         assert "Installing tokenscanner" in result.output
         assert "Installed tokenscanner v1.0.0" in result.output
         mock_downloader.download_and_install.assert_called_once()
-        mock_plugin_api_client.report_installation.assert_called_once_with(
-            "tokenscanner", "1.0.0", mock.ANY, mock.ANY
-        )
         mock_config.enable_plugin.assert_called_once_with(
             "tokenscanner", version="1.0.0"
         )
@@ -372,73 +369,6 @@ class TestPluginInstall:
         assert result.exit_code == ExitCode.UNEXPECTED_ERROR
         assert "not available" in result.output.lower()
         assert "administrator" in result.output.lower()
-
-    def test_install_calls_report_installation_after_success(self, cli_fs_runner):
-        """
-        GIVEN a successful plugin install
-        WHEN running 'ggshield plugin install tokenscanner'
-        THEN report_installation is called (best-effort analytics)
-        """
-        mock_catalog = PluginCatalog(
-            plugins=[
-                PluginInfo(
-                    name="tokenscanner",
-                    display_name="Token Scanner",
-                    description="Local secret scanning",
-                    available=True,
-                    latest_version="1.0.0",
-                    reason=None,
-                ),
-            ],
-        )
-        mock_info = PluginDownloadInfo(
-            filename="tokenscanner-1.0.0-py3-none-any.whl",
-            sha256="abc123",
-            version="1.0.0",
-            size_bytes=100,
-        )
-
-        @contextmanager
-        def fake_download_plugin(*args, **kwargs):
-            yield mock_info, iter([b""])
-
-        with (
-            mock.patch(
-                "ggshield.cmd.plugin.install.create_client_from_config"
-            ) as mock_create_client,
-            mock.patch(
-                "ggshield.cmd.plugin.install.PluginAPIClient"
-            ) as mock_plugin_api_client_class,
-            mock.patch(
-                "ggshield.cmd.plugin.install.PluginDownloader"
-            ) as mock_downloader_class,
-            mock.patch(
-                "ggshield.cmd.plugin.install.EnterpriseConfig"
-            ) as mock_config_class,
-        ):
-            mock_create_client.return_value = mock.MagicMock()
-
-            mock_plugin_api_client = mock.MagicMock()
-            mock_plugin_api_client.get_available_plugins.return_value = mock_catalog
-            mock_plugin_api_client.download_plugin = fake_download_plugin
-            mock_plugin_api_client_class.return_value = mock_plugin_api_client
-
-            mock_downloader = mock.MagicMock()
-            mock_downloader_class.return_value = mock_downloader
-
-            mock_config = mock.MagicMock()
-            mock_config_class.load.return_value = mock_config
-
-            result = cli_fs_runner.invoke(
-                cli,
-                ["plugin", "install", "tokenscanner"],
-                catch_exceptions=False,
-            )
-
-        assert result.exit_code == ExitCode.SUCCESS
-        mock_plugin_api_client.report_installation.assert_called_once_with(
-            "tokenscanner", "1.0.0", mock.ANY, mock.ANY
-        )
 
     def test_install_unavailable_plugin(self, cli_fs_runner):
         """
