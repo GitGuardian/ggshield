@@ -32,6 +32,10 @@ class WrongBinaryError(Exception):
     """The built binary does not match the platform tag we are about to write."""
 
 
+class SigningError(Exception):
+    """A signing script failed, with whatever it printed about why."""
+
+
 class RustDispatcherBuildHook(BuildHookInterface):
     PLUGIN_NAME = "ggshield-rust"
 
@@ -139,16 +143,17 @@ class RustDispatcherBuildHook(BuildHookInterface):
             )
 
     def _run_signer(self, argv: list[str]) -> None:
-        """Run a signing script, keeping whatever it said about a failure.
+        """Run a signing script, and say what it said when it fails.
 
-        The build backend does not forward a child's streams on Windows, so a
-        plain ``check=True`` leaves an unsigned build explained by an exit status
-        and nothing else.
+        The output goes in the exception rather than to stderr: the build backend
+        forwards neither of a child's streams, and the traceback is the only text
+        that reaches the log.
         """
         signer = subprocess.run(argv, capture_output=True, text=True)
-        sys.stderr.write(signer.stdout)
-        sys.stderr.write(signer.stderr)
-        signer.check_returncode()
+        if signer.returncode:
+            raise SigningError(
+                f"{argv[0]} exited {signer.returncode}\n{signer.stdout}{signer.stderr}"
+            )
 
     def _build(self, crate: Path, binary: Path) -> None:
         # --locked: build the dependency versions committed in rust/Cargo.lock,
