@@ -265,9 +265,6 @@ class TestPluginUpdate:
         assert "Updated tokenscanner to v2.0.0" in result.output
         mock_downloader.download_and_install.assert_called_once()
         mock_config.save.assert_called_once()
-        mock_plugin_api_client.report_installation.assert_called_once_with(
-            "tokenscanner", "2.0.0", mock.ANY, mock.ANY
-        )
 
     def test_update_not_installed(self, cli_fs_runner):
         """
@@ -420,13 +417,6 @@ class TestPluginUpdate:
         assert "Updating plugin2" in result.output
         assert "2 plugins updated successfully" in result.output
         assert mock_downloader.download_and_install.call_count == 2
-        assert mock_plugin_api_client.report_installation.call_count == 2
-        mock_plugin_api_client.report_installation.assert_any_call(
-            "plugin1", "2.0.0", mock.ANY, mock.ANY
-        )
-        mock_plugin_api_client.report_installation.assert_any_call(
-            "plugin2", "3.0.0", mock.ANY, mock.ANY
-        )
 
     def test_update_api_error(self, cli_fs_runner):
         """

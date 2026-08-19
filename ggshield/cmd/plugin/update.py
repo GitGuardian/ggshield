@@ -4,7 +4,6 @@ Plugin update command - updates installed plugins.
 
 import logging
 import os
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import click
@@ -31,21 +30,6 @@ from ggshield.core.text_utils import pluralize
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class _InstallationReport:
-    """Args for one deferred ``report_installation`` call.
-
-    Buffered during the update loop and fired after ``enterprise_config.save()``
-    so a stalled ``/installed`` endpoint can't desync wheel-on-disk from
-    the on-disk version record.
-    """
-
-    name: str
-    version: str
-    platform: str
-    arch: str
 
 
 def _is_newer_version(installed_version: str, candidate_version: str) -> bool:
@@ -335,14 +319,6 @@ def update_cmd(
 
     success_count = 0
     error_count = 0
-    # Deferred best-effort report calls. ``report_installation`` is
-    # synchronous over HTTP, and update.py historically invoked it
-    # between the wheel install and the final ``enterprise_config.save()``
-    # — a stalled ``/installed`` endpoint would block the command after
-    # the wheel was already on disk but before the version was persisted.
-    # Buffer the calls instead and fire them after ``save()`` so the
-    # config is always durable before we attempt analytics.
-    installation_reports: List[_InstallationReport] = []
 
     for update in updates_available:
         name = update["name"]
@@ -386,14 +362,6 @@ def update_cmd(
                         signature_mode=signature_mode,
                         bundle_bytes=bundle_bytes,
                     )
-                installation_reports.append(
-                    _InstallationReport(
-                        name=name,
-                        version=info.version,
-                        platform=platform_info.os,
-                        arch=platform_info.arch,
-                    )
-                )
 
             elif source_type == PluginSourceType.GITHUB_RELEASE:
                 download_url = update.get("download_url")
@@ -429,23 +397,7 @@ def update_cmd(
             ui.display_error(f"  Failed to update {name}: {e}")
             error_count += 1
 
-    # Save config FIRST so a hang inside the analytics reports below
-    # can't desync the on-disk version from the wheel that's already on
-    # disk. Each report is best-effort and bounded by HTTP_TIMEOUT_SECONDS
-    # inside ``report_installation`` itself.
     enterprise_config.save()
-
-    # ``installation_reports`` is only appended inside the PLATFORM branch
-    # above, which itself runs after ``plugin_api_client`` has been set —
-    # the buffer is non-empty IFF the client exists, so no None-guard needed.
-    for report in installation_reports:
-        assert plugin_api_client is not None  # invariant: see comment above
-        plugin_api_client.report_installation(
-            report.name,
-            report.version,
-            report.platform,
-            report.arch,
-        )
 
     # Summary
     if success_count > 0:
