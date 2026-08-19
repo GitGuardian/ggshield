@@ -419,7 +419,9 @@ class OAuthClient:
         Else return False
         """
         account = self.instance_config.account
-        if account is None or not account.token or self.instance_config.expired:
+        if account is None or self.instance_config.expired:
+            return False
+        if not self.instance_config.token:
             return False
 
         # Check our API key is valid, if not forget it

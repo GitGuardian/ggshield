@@ -1,5 +1,4 @@
 import logging
-import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -39,6 +38,38 @@ class AccountConfig:
     expire_at: Optional[datetime]
 
 
+def _token_from_store(instance_url: str) -> str:
+    """Read a sentinel-marked token from the credential store, "" if unavailable."""
+    store = get_token_store()
+    if not store.uses_external_storage:
+        logger.warning(
+            "Token for %s is stored in keyring but keyring is disabled. "
+            "Unset GGSHIELD_NO_KEYRING or re-authenticate with "
+            "'ggshield auth login'.",
+            instance_url,
+        )
+        return ""
+
+    try:
+        token = store.get_token(instance_url)
+    except Exception:
+        logger.warning(
+            "Failed to retrieve token from keyring for %s",
+            instance_url,
+            exc_info=True,
+        )
+        return ""
+
+    if token is None:
+        logger.warning(
+            "Token for %s was expected in keyring but not found. "
+            "Re-authenticate with 'ggshield auth login'.",
+            instance_url,
+        )
+        return ""
+    return token
+
+
 @dataclass
 class InstanceConfig:
     # Only handle 1 account per instance for the time being
@@ -55,6 +86,23 @@ class InstanceConfig:
             and self.account.expire_at is not None
             and self.account.expire_at <= datetime.now(timezone.utc)
         )
+
+    @property
+    def token(self) -> str:
+        """The account token, read from the credential store on first use.
+
+        Reading the store pops the macOS Keychain dialog, so it is deferred until
+        a caller actually needs the token. An unreadable token leaves the
+        sentinel in place, so a later save() keeps pointing at the stored one.
+        """
+        if self.account is None:
+            return ""
+        if self.account.token != KEYRING_SENTINEL:
+            return self.account.token
+        token = _token_from_store(self.url)
+        if token:
+            self.account.token = token
+        return token
 
     def init_account(self, token: str, token_data: Dict[str, Any]) -> None:
         """Initialize our account based on the token and the data received from the
@@ -148,37 +196,17 @@ class AuthConfig(FromDictMixin, ToDictMixin):
     def load(cls) -> "AuthConfig":
         """Load the auth config from the app config file.
 
-        If the active token store is a keyring backend, tokens marked with the
-        keyring sentinel are hydrated from the OS credential store.
-
-        When ``GITGUARDIAN_API_KEY`` is set in the environment it overrides any
-        stored token in :meth:`Config.get_api_key_and_source`, so we skip the
-        keyring access here to avoid prompting the user (e.g. for OS keychain
-        unlock) for a credential that will not be used. This matters for
-        global ggshield invocations like pre-commit hooks that already supply
-        a token via the environment.
+        Tokens marked with the keyring sentinel stay unresolved: the credential
+        store is only read by :attr:`InstanceConfig.token`, so a command that
+        needs no token never prompts for one.
         """
         config_path = get_auth_config_filepath()
 
         data = load_yaml_dict(config_path)
         if data:
             data = prepare_auth_config_dict_for_parse(data)
-            instance = cls.from_dict(data)
-        else:
-            instance = cls()
-
-        if os.environ.get("GITGUARDIAN_API_KEY"):
-            return instance
-
-        store = get_token_store()
-        if store.uses_external_storage:
-            for inst in instance.instances:
-                cls._hydrate_from_keyring(store, inst)
-        else:
-            for inst in instance.instances:
-                cls._warn_sentinel_without_keyring(inst)
-
-        return instance
+            return cls.from_dict(data)
+        return cls()
 
     def save(self) -> None:
         config_path = get_auth_config_filepath()
@@ -228,47 +256,10 @@ class AuthConfig(FromDictMixin, ToDictMixin):
         instance = self.get_instance(instance_name)
         if instance.expired:
             raise AuthExpiredError(instance=instance_name)
-        if instance.account is None or not instance.account.token:
+        token = instance.token
+        if not token:
             raise MissingTokenError(instance=instance_name)
-        return instance.account.token
-
-    @staticmethod
-    def _hydrate_from_keyring(store: TokenStore, inst: InstanceConfig) -> None:
-        if inst.account is None or inst.account.token != KEYRING_SENTINEL:
-            return
-        try:
-            token = store.get_token(inst.url)
-        except Exception:
-            logger.warning(
-                "Failed to retrieve token from keyring for %s",
-                inst.url,
-                exc_info=True,
-            )
-            token = None
-
-        if token is not None:
-            inst.account.token = token
-        else:
-            logger.warning(
-                "Token for %s was expected in keyring but not found. "
-                "Re-authenticate with 'ggshield auth login'.",
-                inst.url,
-            )
-            # Preserve account metadata; only clear the token so
-            # that a subsequent save() does not destroy the config.
-            inst.account.token = ""
-
-    @staticmethod
-    def _warn_sentinel_without_keyring(inst: InstanceConfig) -> None:
-        if inst.account is None or inst.account.token != KEYRING_SENTINEL:
-            return
-        logger.warning(
-            "Token for %s is stored in keyring but keyring is disabled. "
-            "Unset GGSHIELD_NO_KEYRING or re-authenticate with "
-            "'ggshield auth login'.",
-            inst.url,
-        )
-        inst.account.token = ""
+        return token
 
     @staticmethod
     def _persist_to_keyring(

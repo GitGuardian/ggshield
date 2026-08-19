@@ -101,7 +101,7 @@ def revoke_token(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
 
     assert instance.account is not None
-    token = instance.account.token
+    token = instance.token
 
     client = create_client(
         token,

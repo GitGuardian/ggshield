@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 from typing import Tuple
+from unittest.mock import MagicMock, patch
 
 import jsonschema
 import pytest
@@ -10,6 +11,7 @@ from voluptuous.validators import All, Match
 
 from ggshield.__main__ import cli
 from ggshield.core.config import Config
+from ggshield.core.config.token_store import KeyringTokenStore
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path
 from ggshield.core.errors import ExitCode
@@ -122,6 +124,34 @@ class TestConfigList:
             )
             == dct
         )
+
+    def test_list_keyring_token_not_read(self, cli_fs_runner, monkeypatch):
+        """
+        GIVEN an instance whose token lives in the credential store
+        WHEN calling `ggshield config list`
+        THEN the store is never read and the token is reported as stored there
+        """
+        add_instance_config()
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+        # The env key short-circuits token resolution, hiding what is tested here
+        monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
+
+        mock_store = KeyringTokenStore()
+        mock_store.get_token = MagicMock()
+        mock_store.store_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_token_store",
+            return_value=mock_store,
+        ):
+            # Save once so the config file holds the sentinel instead of the token
+            Config().save()
+            exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS, output
+        assert "token: stored in keyring" in output
+        mock_store.get_token.assert_not_called()
 
     @staticmethod
     def run_cmd(cli_fs_runner, json: bool = False) -> Tuple[bool, str]:
