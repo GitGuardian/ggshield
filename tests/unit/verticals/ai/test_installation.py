@@ -200,6 +200,78 @@ class TestFillDict:
             added=2, already_present=1, command="ggshield already"
         )
 
+    def test_vanished_ggshield_command_is_repointed(self, tmp_path: Path):
+        """GIVEN a hook pinned to a versioned bundle path an upgrade deleted
+        WHEN the hooks are installed again
+        THEN the command is repointed, instead of failing open on every prompt."""
+        stale = f"{tmp_path / 'ggshield-1.53.0' / 'ggshield'} secret scan ai-hook"
+        config = {"hooks": [{"command": stale}]}
+        stats = _fill_dict(
+            config,
+            {"hooks": [{"command": "<COMMAND>"}]},
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+        assert config == {"hooks": [{"command": COMMAND}]}
+        assert stats == InstallationStats(added=1, already_present=1, command=stale)
+
+    @pytest.mark.skipif(os.name == "nt", reason="creates a symlink")
+    def test_versioned_path_to_the_same_binary_is_repointed(self, tmp_path: Path):
+        """GIVEN a hook pinned to a still-valid versioned path
+        WHEN the new command reaches that same binary through a launcher
+        THEN the hook is migrated to the launcher before the next upgrade."""
+        binary = tmp_path / "ggshield-1.53.0" / "ggshield"
+        binary.parent.mkdir()
+        binary.write_text("")
+        launcher = tmp_path / "ggshield"
+        launcher.symlink_to(binary)
+        command = f"{launcher} secret scan ai-hook"
+        config = {"hooks": [{"command": f"{binary} secret scan ai-hook"}]}
+        _fill_dict(
+            config,
+            {"hooks": [{"command": "<COMMAND>"}]},
+            command,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+        assert config == {"hooks": [{"command": command}]}
+
+    def test_another_tool_command_is_left_alone(self, tmp_path: Path):
+        """GIVEN a hook command running another tool, mentioning ggshield
+        WHEN the hooks are installed again
+        THEN it is kept: only the commands we wrote are ever repointed."""
+        other = f"{tmp_path / 'other-scanner'} --ggshield-compat secret scan ai-hook"
+        config = {"hooks": [{"command": other}]}
+        _fill_dict(
+            config,
+            {"hooks": [{"command": "<COMMAND>"}]},
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+        assert config["hooks"] == [{"command": other}]
+
+    def test_another_tool_windows_command_is_left_alone(self):
+        """GIVEN a Windows hook command running another tool, mentioning ggshield
+        WHEN the hooks are installed again
+        THEN it is kept: arguments mark a command as not ours on Windows too."""
+        other = r"C:\Tools\other-scanner --ggshield-compat secret scan ai-hook"
+        config = {"hooks": [{"command": other}]}
+        with patch("ggshield.verticals.ai.installation.os.name", "nt"):
+            _fill_dict(
+                config,
+                {"hooks": [{"command": "<COMMAND>"}]},
+                COMMAND,
+                overwrite=False,
+                stats=InstallationStats(added=0, already_present=0),
+                locator=_locator,
+            )
+        assert config["hooks"] == [{"command": other}]
+
     def test_non_command_scalar_is_not_an_existing_install(self):
         """A template scalar other than the command may contain "ggshield" (a hook
         name, say). It must not be mistaken for an existing installation."""
@@ -740,23 +812,29 @@ class TestAreHooksInstalledGlobally:
 
 
 @contextlib.contextmanager
-def _simulate_platform(argv, *, windows):
+def _simulate_platform(argv=("ggshield", "install"), *, windows, frozen=None):
     """Run build_hook_command as if on a given OS, regardless of the test host.
 
-    Patches the path primitives the function uses (``os.name``,
-    ``os.path.abspath`` and ``os.path.dirname``) to the chosen flavor (ntpath or
-    posixpath) so the same assertions hold whether the runner is Linux or
-    Windows.
+    Patches the path primitives the function uses (``os.name`` and the
+    ``os.path`` functions) to the chosen flavor (ntpath or posixpath) so the
+    same assertions hold whether the runner is Linux or Windows. ``frozen``
+    names the ``sys.executable`` of a PyInstaller bundle; without it the
+    argv[0] code paths are exercised.
     """
     flavor = ntpath if windows else posixpath
     mod = "ggshield.verticals.ai.installation"
     with contextlib.ExitStack() as stack:
-        stack.enter_context(patch(f"{mod}.sys.argv", argv))
+        stack.enter_context(patch(f"{mod}.sys.argv", list(argv)))
         stack.enter_context(patch(f"{mod}.os.name", "nt" if windows else "posix"))
         stack.enter_context(patch(f"{mod}.os.path.abspath", flavor.abspath))
         stack.enter_context(patch(f"{mod}.os.path.dirname", flavor.dirname))
-        # Frozen detection must be off for the argv[0]-based paths.
-        stack.enter_context(patch.object(sys, "frozen", False, create=True))
+        stack.enter_context(patch(f"{mod}.os.path.join", flavor.join))
+        stack.enter_context(patch(f"{mod}.os.path.normpath", flavor.normpath))
+        stack.enter_context(
+            patch.object(sys, "frozen", frozen is not None, create=True)
+        )
+        if frozen is not None:
+            stack.enter_context(patch.object(sys, "executable", frozen, create=True))
         yield
 
 
@@ -901,6 +979,56 @@ class TestBuildHookCommand:
             sys, "executable", str(launcher), create=True
         ):
             assert build_hook_command() == f"{launcher} secret scan ai-hook"
+
+    def test_frozen_bundle_prefers_the_stable_launcher(self):
+        """GIVEN a frozen macOS bundle installed in a versioned directory
+        WHEN /usr/local/bin/ggshield resolves to that very binary
+        THEN the hook is pinned to the launcher, which survives an upgrade."""
+        versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
+        with _simulate_platform(windows=False, frozen=versioned), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: versioned if path == "/usr/local/bin/ggshield" else path,
+        ):
+            assert build_hook_command() == "/usr/local/bin/ggshield secret scan ai-hook"
+
+    def test_frozen_bundle_ignores_a_launcher_to_another_binary(self):
+        """GIVEN a frozen bundle on a machine that also has a Homebrew ggshield
+        WHEN /usr/local/bin/ggshield resolves to that other install
+        THEN the bundle path is kept: the other binary holds no credentials."""
+        versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
+        with _simulate_platform(windows=False, frozen=versioned), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: (
+                "/opt/homebrew/bin/ggshield"
+                if path == "/usr/local/bin/ggshield"
+                else path
+            ),
+        ):
+            assert build_hook_command() == f"{versioned} secret scan ai-hook"
+
+    def test_stable_launcher_is_not_used_outside_a_frozen_bundle(self):
+        """GIVEN a pip/Homebrew install (not frozen)
+        WHEN a launcher would resolve to the same file
+        THEN argv[0] is still used verbatim, symlinks unresolved."""
+        with _simulate_platform(
+            ["/opt/homebrew/bin/ggshield", "install"], windows=False
+        ), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: "/opt/homebrew/bin/ggshield",
+        ):
+            assert (
+                build_hook_command() == "/opt/homebrew/bin/ggshield secret scan ai-hook"
+            )
+
+    def test_frozen_bundle_on_windows_ignores_posix_launchers(self):
+        """GIVEN a frozen Windows install
+        WHEN the POSIX launcher paths would match
+        THEN they are ignored: they mean nothing on Windows."""
+        exe = r"C:\Program Files\GitGuardian\ggshield\ggshield.exe"
+        with _simulate_platform(windows=True, frozen=exe), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath", lambda path: exe
+        ):
+            assert build_hook_command() == f'"{exe}" secret scan ai-hook'
 
 
 class _FakeAgent:

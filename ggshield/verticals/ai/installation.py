@@ -45,6 +45,9 @@ class BuildConfigResult:
     stats: InstallationStats
 
 
+_HOOK_ARGS = "secret scan ai-hook"
+
+
 def build_hook_command() -> str:
     """Build the AI hook command line written into the agent's settings.
 
@@ -76,13 +79,14 @@ def build_hook_command() -> str:
     follow the final symlink, so a stable ``…/bin/ggshield`` launcher keeps
     working across upgrades.
 
-    Known limitation on the macOS standalone bundle: ``/usr/local/bin/ggshield``
-    is a symlink into a *versioned* ``/opt/gitguardian/ggshield-<version>/``
-    directory, but the frozen path comes from ``sys.executable``, which the OS
-    already resolved. The hook is therefore pinned to the versioned path and must
-    be reinstalled after an upgrade.
+    The frozen path is the one place where a symlink is already gone: the OS
+    resolves ``sys.executable`` for PyInstaller, and on the macOS bundle it
+    resolves into a *versioned* ``/opt/gitguardian/ggshield-<version>/``
+    directory that the next upgrade deletes. A stable launcher
+    (``/usr/local/bin/ggshield``, ``/usr/bin/ggshield``) is therefore preferred
+    when it resolves to that same binary, so the hook survives upgrades.
     """
-    return f"{_quote_executable(hook_executable())} secret scan ai-hook"
+    return f"{_quote_executable(hook_executable())} {_HOOK_ARGS}"
 
 
 def hook_executable() -> str:
@@ -97,6 +101,7 @@ def hook_executable() -> str:
             dispatcher, os.X_OK
         ):
             executable = dispatcher
+        executable = _stable_launcher(executable)
     else:
         argv0 = sys.argv[0]
         if os.path.dirname(argv0):
@@ -106,6 +111,64 @@ def hook_executable() -> str:
             # (the Python interpreter, not ggshield).
             executable = shutil.which(argv0) or os.path.abspath(argv0)
     return executable
+
+
+def _stable_launcher(executable: str) -> str:
+    """A version-independent launcher for `executable`, or `executable` itself.
+
+    Substitution requires the launcher to resolve to the very same file: on a
+    machine carrying several ggshield installs (Homebrew alongside the bundle),
+    the other one is a binary the user never authenticated. A launcher that does
+    not exist resolves to itself, so the comparison simply fails.
+    """
+    if os.name == "nt":
+        return executable
+    target = os.path.realpath(executable)
+    for launcher in ("/usr/local/bin/ggshield", "/usr/bin/ggshield"):
+        if os.path.realpath(launcher) == target:
+            return launcher
+    return executable
+
+
+def _hook_command_executable(command: str) -> Optional[str]:
+    """The ggshield path in a hook command, or None when the command is not ours.
+
+    Anything carrying extra arguments is the user's own command, not one we wrote.
+    """
+    suffix = f" {_HOOK_ARGS}"
+    if not command.endswith(suffix):
+        return None
+    windows = os.name == "nt"
+    try:
+        # posix=False keeps Windows path separators, which posix mode would eat
+        # as escapes; it also keeps the quotes, hence the strip below.
+        parts = shlex.split(command[: -len(suffix)], posix=not windows)
+    except ValueError:
+        # Unbalanced quote in a hand-edited command: not one of ours.
+        return None
+    if len(parts) != 1:
+        return None
+    return parts[0].strip('"') if windows else parts[0]
+
+
+def _is_outdated_hook_command(existing: str, command: str) -> bool:
+    """Whether an installed hook command should be repointed at `command`.
+
+    True for a ggshield command whose binary is gone (a versioned bundle
+    directory an upgrade removed) or that reaches the same binary through a less
+    stable path. Anything else belongs to the user and is left alone.
+    """
+    if existing == command:
+        return False
+    installed = _hook_command_executable(existing)
+    new = _hook_command_executable(command)
+    if installed is None or new is None:
+        return False
+    if "ggshield" not in os.path.basename(installed):
+        return False
+    return not os.path.exists(installed) or os.path.realpath(
+        installed
+    ) == os.path.realpath(new)
 
 
 def _quote_executable(path: str) -> str:
@@ -316,6 +379,10 @@ def _fill_dict(
             if value == "<COMMAND>" and isinstance(cmd, str) and "ggshield" in cmd:
                 stats.already_present += 1
                 stats.command = cmd
+                # An upgrade invalidates a versioned bundle path, and the hook
+                # then fails open: every prompt goes unscanned.
+                if _is_outdated_hook_command(cmd, command):
+                    config[key] = "<COMMAND>"
             # Update if needed
             if overwrite:
                 config[key] = value
