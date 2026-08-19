@@ -138,11 +138,17 @@ def _hook_command_executable(command: str) -> Optional[str]:
     suffix = f" {_HOOK_ARGS}"
     if not command.endswith(suffix):
         return None
-    path = command[: -len(suffix)]
-    if os.name == "nt":
-        return path.strip('"')
-    parts = shlex.split(path)
-    return parts[0] if len(parts) == 1 else None
+    windows = os.name == "nt"
+    try:
+        # posix=False keeps Windows path separators, which posix mode would eat
+        # as escapes; it also keeps the quotes, hence the strip below.
+        parts = shlex.split(command[: -len(suffix)], posix=not windows)
+    except ValueError:
+        # Unbalanced quote in a hand-edited command: not one of ours.
+        return None
+    if len(parts) != 1:
+        return None
+    return parts[0].strip('"') if windows else parts[0]
 
 
 def _is_outdated_hook_command(existing: str, command: str) -> bool:
