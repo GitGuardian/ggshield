@@ -211,7 +211,7 @@ impl RawUserConfig {
     }
 }
 
-fn home_dir() -> Option<PathBuf> {
+pub fn home_dir() -> Option<PathBuf> {
     if let Ok(dir) = std::env::var("GG_USER_HOME_DIR") {
         return Some(PathBuf::from(dir));
     }
