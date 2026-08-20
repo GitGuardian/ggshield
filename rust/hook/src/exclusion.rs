@@ -149,7 +149,9 @@ fn is_pattern_valid(pattern: &str) -> bool {
     true
 }
 
-/// `translate_user_pattern()`: a glob to the regex Python compiles for it.
+/// `translate_user_pattern()`: a glob to the same pattern string Python builds
+/// for it. `regex` and `re` are different flavors, so the translation stays
+/// within the constructs both read alike.
 fn translate_user_pattern(pattern: &str) -> String {
     let mut escaped = String::with_capacity(pattern.len() * 2);
     for character in pattern.chars() {
