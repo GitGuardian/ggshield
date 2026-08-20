@@ -359,7 +359,7 @@ const UTF8_TO_WORSE_OTHER_ENCODING_RATIO: u64 = 4;
 /// `None` means "nothing to scan here": the file is too large to be scanned at
 /// all, so reading it would only cost the memory.
 fn scannable(config: &config::Config, payload: &mut Payload) -> Option<(String, String)> {
-    if payload.tool == Some(Tool::Read) {
+    if payload.tool == Some(Tool::Read) && !cannot_be_a_path(&payload.identifier) {
         let path = Path::new(&payload.identifier);
         if path.is_file() && !is_path_binary(path) {
             // Reading first and measuring after is how `@big.log` on a multi-GB
@@ -383,6 +383,20 @@ fn scannable(config: &config::Config, payload: &mut Payload) -> Option<(String, 
         std::mem::take(&mut payload.content),
         payload.identifier.clone(),
     ))
+}
+
+/// NAME_MAX and PATH_MAX. Nothing over them can name an existing file.
+const NAME_MAX: usize = 255;
+const PATH_MAX: usize = 4096;
+
+/// `_cannot_be_a_path()`: a candidate read path can be a whole shell command (a
+/// heredoc, a pipeline), which no filesystem can name. Counted in characters, as
+/// Python's `len()`, so both implementations answer alike.
+fn cannot_be_a_path(identifier: &str) -> bool {
+    identifier.chars().count() > PATH_MAX
+        || identifier
+            .split(['\\', '/'])
+            .any(|component| component.chars().count() > NAME_MAX)
 }
 
 fn is_over_any_encoding_of_the_ceiling(config: &config::Config, path: &Path) -> bool {
@@ -916,6 +930,23 @@ mod tests {
         assert!(is_path_binary(Path::new("/tmp/a.zip")));
         assert!(!is_path_binary(Path::new("/tmp/a.env")));
         assert!(!is_path_binary(Path::new("/tmp/a")));
+    }
+
+    /// GIVEN a candidate read path holding a whole heredoc command, and one whose
+    /// components are each short but whose total is over PATH_MAX
+    /// WHEN it is measured against the filesystem's limits
+    /// THEN neither can name a file, while an ordinary path still can.
+    #[test]
+    fn an_over_long_candidate_cannot_be_a_path() {
+        let heredoc = format!(
+            "> /tmp/probe.py <<'PYEOF'\n{}\nPYEOF",
+            "x = 1\n".repeat(500)
+        );
+        assert!(cannot_be_a_path(&heredoc));
+        assert!(cannot_be_a_path(&format!("/tmp/{}.env", "a".repeat(300))));
+        assert!(cannot_be_a_path(&"/dir".repeat(2000)));
+        assert!(!cannot_be_a_path("/tmp/creds.env"));
+        assert!(!cannot_be_a_path(r"C:\Users\me\creds.env"));
     }
 
     /// GIVEN a Read payload pointing at a path that is not a file

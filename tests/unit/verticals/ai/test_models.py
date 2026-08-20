@@ -88,6 +88,31 @@ class TestHookPayloadScannable:
         with patch.object(Path, "is_file", side_effect=error):
             assert isinstance(payload.scannable, StringScannable)
 
+    @pytest.mark.parametrize(
+        "identifier",
+        [
+            pytest.param(
+                "> /tmp/probe.py <<'PYEOF'\n" + "x = 1\n" * 500 + "PYEOF",
+                id="heredoc-command",
+            ),
+            pytest.param("/tmp/" + "a" * 300 + ".env", id="component-over-name-max"),
+            pytest.param("/dir" * 2000, id="path-over-path-max"),
+        ],
+    )
+    def test_read_tool_over_long_identifier_is_not_a_path(self, identifier: str):
+        """An identifier too long to name a file is text, and costs no syscall."""
+        payload = HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=Tool.READ,
+            content="some content",
+            identifier=identifier,
+            agent=Cursor(),
+            raw={},
+        )
+        with patch.object(Path, "is_file") as is_file:
+            assert isinstance(payload.scannable, StringScannable)
+        is_file.assert_not_called()
+
     def test_non_read_tool_returns_string_scannable(self):
         payload = HookPayload(
             event_type=EventType.PRE_TOOL_USE,
