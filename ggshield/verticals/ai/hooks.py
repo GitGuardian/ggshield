@@ -695,9 +695,15 @@ class AIHookScanner:
                     if scannable.is_longer_than(DOCUMENT_SIZE_THRESHOLD_BYTES)
                     else scannable.content
                 )
+            except OSError:
+                # A candidate path that stats but cannot be opened is not a
+                # document: SecretScanner only skips a missing file, so batching
+                # it raises there and fails the whole event open, leaving the
+                # command or prompt text of that same event unscanned.
+                continue
             except Exception:
-                # Unreadable or undecodable: no cache key, and it still goes to the
-                # scanner, which decides how to skip it and says so.
+                # Undecodable: no cache key, and it still goes to the scanner,
+                # which decides how to skip it and says so.
                 content = ""
 
             key = (

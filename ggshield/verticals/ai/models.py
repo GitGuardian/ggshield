@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
@@ -128,6 +129,24 @@ class HookResult:
         )
 
 
+#: NAME_MAX and PATH_MAX. Nothing over them can name an existing file.
+_NAME_MAX = 255
+_PATH_MAX = 4096
+
+
+def _cannot_be_a_path(identifier: str) -> bool:
+    """Whether `identifier` is too long for the filesystem to hold such a file.
+
+    A candidate read path can be a whole shell command (a heredoc, a pipeline),
+    which no filesystem can name. Answering from the length keeps that off the
+    syscall, whose failure is platform-dependent: `stat` reports ENAMETOOLONG,
+    which `Path.is_file()` raises before Python 3.13 and swallows after.
+    """
+    return len(identifier) > _PATH_MAX or any(
+        len(component) > _NAME_MAX for component in re.split(r"[\\/]", identifier)
+    )
+
+
 @dataclass
 class HookPayload:
     event_type: EventType
@@ -147,12 +166,13 @@ class HookPayload:
         Cached: a ranged read builds the slice by reading the file, and callers
         ask for the scannable more than once (`empty`, then the scan itself).
         """
-        if self.tool == Tool.READ:
+        if self.tool == Tool.READ and not _cannot_be_a_path(self.identifier):
             # The identifier is not always a real path: it can be a whole shell
             # command (a heredoc, a pipeline...) that a caller guessed was a
             # file name. Path.is_file() only swallows "not found" errors, so it
-            # still raises on such identifiers (ENAMETOOLONG, embedded NULs...).
-            # Never let that abort the scan: fall back to scanning the content.
+            # still raises on such identifiers (embedded NULs, a too-long name on
+            # Python < 3.13...). Never let that abort the scan: fall back to
+            # scanning the content.
             try:
                 path = Path(self.identifier)
                 if path.is_file() and not is_path_binary(path):

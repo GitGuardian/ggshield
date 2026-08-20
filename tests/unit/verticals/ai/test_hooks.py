@@ -603,6 +603,45 @@ class TestBatchedPayloadScan:
         mock_scanner.scan.assert_called_once()
         assert _scanned_urls(mock_scanner) == ["full"]
 
+    def test_an_unreadable_file_does_not_stop_the_rest_of_the_event(
+        self, tmp_path: Path
+    ):
+        """GIVEN an event holding a secret plus a read of a file that stats but
+        cannot be opened
+        WHEN the event is scanned
+        THEN the unreadable document is dropped and the secret still reaches the
+        API, where the read error used to abort the whole event and allow it."""
+        locked = tmp_path / "locked.env"
+        locked.write_text("TOKEN=abc")
+        scanner = _real_secret_scanner()
+        scanner.client.base_uri = INSTANCE
+        scanner.client.api_key = API_KEY
+
+        def multi_content_scan(documents, *args, **kwargs):
+            result = MultiScanResult(
+                [
+                    ApiScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+                    for _ in documents
+                ]
+            )
+            result.status_code = 200
+            return result
+
+        scanner.client.multi_content_scan.side_effect = multi_content_scan
+        payloads = [self._read_payload(locked), self._payload("prompt")]
+        error = PermissionError(errno.EACCES, "Permission denied")
+
+        with patch.object(File, "is_longer_than", side_effect=error):
+            results = AIHookScanner(scanner)._scan_contents(payloads)
+
+        assert [result.block for result in results] == [False, False]
+        sent = [
+            document["filename"]
+            for call in scanner.client.multi_content_scan.call_args_list
+            for document in call.args[0]
+        ]
+        assert sent == ["prompt"]
+
     def test_no_payload_to_scan_makes_no_api_call(self):
         """All payloads empty means nothing to send at all."""
         mock_scanner = _scanner_per_document()

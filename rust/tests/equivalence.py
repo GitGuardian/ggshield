@@ -1225,6 +1225,9 @@ def run(cmd, payload, port, workdir, env_extra=None):
         "GG_USER_HOME_DIR": str(workdir / "home"),
         # Keep the Python side off the OS keychain entirely.
         "GGSHIELD_NO_KEYRING": "1",
+        # Most of these payloads carry a secret, and a PostToolUse verdict raises
+        # a desktop banner per side per case.
+        "GGSHIELD_NO_NOTIFICATION": "1",
         "GITGUARDIAN_DONT_LOAD_ENV": "1",
         "PYTHONPATH": str(PY_SOURCES),
     }
@@ -1684,7 +1687,40 @@ def extra_cases(tmp):
         finally:
             mock.kill()
 
-    # 4. A payload from no known agent: no verdict at all, exit 1.
+    # 4. A candidate read path that stats but cannot be opened. It is not a
+    #    document, and it must not take the rest of the event down with it: the
+    #    prompt holds the secret, so both sides have to block.
+    print("\nUnreadable candidate (the secret in the same event must still block):")
+    unreadable = tmp / "unreadable" / "locked.env"
+    mention_payload = {
+        **agent_bases()["claude"],
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": f"compare @{unreadable} with AWS_KEY={CLIENT_ID}",
+    }
+
+    def lock_file():
+        # Runs once per side, and the previous run left it unwritable.
+        unreadable.parent.mkdir(parents=True, exist_ok=True)
+        unreadable.unlink(missing_ok=True)
+        unreadable.write_text(f"AWS_KEY={CLIENT_ID}\n")
+        unreadable.chmod(0o000)
+
+    log = tmp / "requests-unreadable.jsonl"
+    mock, port = start_mock("secret", log)
+    try:
+        verdict_ok, request_ok, py, rs, _ = compare_one(
+            tmp, log, port, "unreadable", mention_payload, setup=lock_file
+        )
+        report(failures, "unreadable/mention", verdict_ok, request_ok, py, rs)
+        for side, proc in (("python", py), ("rust", rs)):
+            if verdict_of(proc.stdout) != "block":
+                failures.append(f"unreadable/mention ({side} did not block)")
+                print(f"        ^ {side}: {proc.stdout[:120]!r}")
+    finally:
+        mock.kill()
+        unreadable.chmod(0o600)
+
+    # 5. A payload from no known agent: no verdict at all, exit 1.
     print("\nUnrecognized agent (both sides): no stdout, exit 1")
     for side, cmd in (("python", PY_CMD), ("rust", RS_CMD)):
         workdir = make_workdir(tmp, f"unknown-{side}")
