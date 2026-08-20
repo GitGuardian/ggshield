@@ -149,17 +149,31 @@ class RustDispatcherBuildHook(BuildHookInterface):
 
     @staticmethod
     def _git_bash() -> str:
-        """The bash that Git for Windows ships, found next to its own git.
+        """The bash that Git for Windows ships.
 
         Never a bare ``bash``: on PATH that is System32's WSL launcher, which
-        answers every invocation with "no installed distributions".
+        answers every invocation with "no installed distributions". Git for
+        Windows keeps its bash in ``bin``, but ships ``git`` in ``cmd``, ``bin``
+        and ``mingw64/bin`` alike, so which one PATH offers says nothing about
+        how far up the install root is. Try each depth, then the default
+        locations.
         """
+        roots = []
         git = shutil.which("git")
         if git:
-            bash = Path(git).resolve().parent.parent / "bin" / "bash.exe"
+            found = Path(git).resolve().parent
+            roots += [found, found.parent, found.parent.parent]
+        roots += [Path(r"C:\Program Files\Git"), Path(r"C:\Program Files (x86)\Git")]
+
+        tried = []
+        for root in roots:
+            bash = root / "bin" / "bash.exe"
+            tried.append(str(bash))
             if bash.is_file():
                 return str(bash)
-        raise SigningError("no Git for Windows bash alongside git, cannot sign")
+        raise SigningError(
+            "no Git for Windows bash to sign with, tried:\n  " + "\n  ".join(tried)
+        )
 
     def _run_signer(self, argv: list[str]) -> None:
         """Run a signing script, and say what it said when it fails.
