@@ -20,6 +20,7 @@ from ggshield.core.scan import Scannable, ScannerProtocol
 from ggshield.core.scan import SecretProtocol as Secret
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import pluralize, translate_validity
+from ggshield.utils.os import getenv_bool
 from ggshield.verticals.ai.mcp import is_mcp_activity_payload, send_mcp_activity
 
 from .agents import AGENTS
@@ -388,6 +389,8 @@ def _send_desktop_notification(title: str, message: str) -> None:
     paths, emoji, tabs...). ``stdin`` is detached and a timeout enforced so a
     misbehaving notifier can't stall the hook. Other platforms use notifypy.
     """
+    if getenv_bool("GGSHIELD_NO_NOTIFICATION", default=False):
+        return
     if sys.platform == "darwin":
         subprocess.run(
             [

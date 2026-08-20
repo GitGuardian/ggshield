@@ -552,7 +552,7 @@ pub fn resolve() -> Result<Config, Error> {
 
 /// `getenv_bool()` (utils/os.py): set to anything other than `false` or `0`,
 /// case-insensitively, counts as true — including the empty string.
-fn getenv_bool(key: &str) -> bool {
+pub fn getenv_bool(key: &str) -> bool {
     std::env::var(key).is_ok_and(|v| !matches!(v.to_lowercase().as_str(), "false" | "0"))
 }
 
