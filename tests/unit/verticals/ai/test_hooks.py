@@ -33,6 +33,7 @@ from ggshield.verticals.ai.cache import (
 )
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
+    _send_desktop_notification,
     build_agent_headers,
     find_filepaths,
     has_already_been_seen,
@@ -2848,3 +2849,22 @@ class TestReadRange:
         assert isinstance(read_payload.agent, Codex)
         assert read_payload.read_range is None
         assert read_payload.scannable.content == file.read_bytes().decode()
+
+
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", ""])
+@patch("ggshield.verticals.ai.hooks.subprocess.run")
+def test_no_notification_switch_delivers_nothing(mock_run, monkeypatch, value):
+    """GGSHIELD_NO_NOTIFICATION withholds the banner without reaching a backend."""
+    monkeypatch.setenv("GGSHIELD_NO_NOTIFICATION", value)
+    _send_desktop_notification("ggshield - Secrets Detected", "nothing appears")
+    mock_run.assert_not_called()
+
+
+@pytest.mark.parametrize("value", ["0", "false", "False"])
+@patch("ggshield.verticals.ai.hooks.sys.platform", "darwin")
+@patch("ggshield.verticals.ai.hooks.subprocess.run")
+def test_a_falsy_no_notification_switch_still_notifies(mock_run, monkeypatch, value):
+    """The switch reads like every other ggshield boolean: 0 and false are off."""
+    monkeypatch.setenv("GGSHIELD_NO_NOTIFICATION", value)
+    _send_desktop_notification("ggshield - Secrets Detected", "a banner appears")
+    mock_run.assert_called_once()
