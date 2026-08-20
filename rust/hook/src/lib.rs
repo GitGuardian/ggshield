@@ -13,6 +13,7 @@
 //! rather than guessing — see `config::dotenv_overrides()` and `user_config`.
 
 mod api;
+mod exclusion;
 mod message;
 mod notify;
 mod output;
@@ -226,9 +227,18 @@ fn scan_payloads(
         return Err(Error::Invalid("Error: no payloads to scan".into()));
     }
     let agent = payloads[0].agent;
+    let exclusions = exclusion::Exclusions::new(&config.user.secret);
 
     let mut pending: Vec<Pending> = Vec::new();
     for (index, payload) in payloads.iter_mut().enumerate() {
+        // Excluded by `secret.ignored_paths`: never read, never sent, allowed.
+        // READ only: every other tool's identifier is a command or a content
+        // hash, which a path pattern must not be tested against.
+        if payload.tool == Some(Tool::Read)
+            && exclusions.is_excluded(&payload.identifier, &payload.cwd)
+        {
+            continue;
+        }
         let Some((content, filename)) = scannable(config, payload) else {
             continue;
         };
@@ -649,6 +659,7 @@ mod tests {
             content: content.into(),
             identifier: identifier.into(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         }
@@ -960,6 +971,7 @@ mod tests {
             content: "inline".into(),
             identifier: "/nonexistent/nope.txt".into(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };
@@ -983,6 +995,7 @@ mod tests {
             content: String::new(),
             identifier: path.to_string_lossy().to_string(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };
@@ -1012,6 +1025,7 @@ mod tests {
             content: String::new(),
             identifier: path.to_string_lossy().to_string(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range,
         };
@@ -1113,6 +1127,7 @@ mod tests {
             content: String::new(),
             identifier: path.to_string_lossy().to_string(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };
@@ -1143,6 +1158,7 @@ mod tests {
             content: String::new(),
             identifier: path.to_string_lossy().to_string(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };
@@ -1163,6 +1179,7 @@ mod tests {
             content: String::new(),
             identifier: path.to_string_lossy().to_string(),
             agent: payload::Agent::Claude,
+            cwd: String::new(),
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         };

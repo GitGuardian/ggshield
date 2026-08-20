@@ -1,3 +1,7 @@
 > If {this_is}, run:
 
     ggshield secret ignore --last-found
+
+  which adds to secret.ignored_matches in .gitguardian.yaml:
+
+{ignore_shas}

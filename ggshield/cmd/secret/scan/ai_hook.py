@@ -65,7 +65,7 @@ def ai_hook_cmd(
             # `all_secrets`. Other commands keep it.
             secret_config=replace(config.user_config.secret, source_uuid=None),
         )
-        return AIHookScanner(scanner).scan(stdin_content)
+        return AIHookScanner(scanner, ctx_obj.exclusion_regexes).scan(stdin_content)
     except ValueError as e:
         ui.display_error(str(e.args[0]))
         return 1

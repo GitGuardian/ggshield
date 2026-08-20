@@ -125,7 +125,8 @@ impl Agent {
 
     /// The working directory the event happened in, used to resolve a relative
     /// Read path to the absolute identifier a tool call would produce, so both
-    /// share one verdict-cache key. "" when unknown.
+    /// share one verdict-cache key — and as the project root the default
+    /// exclusions are tested relative to. "" when unknown.
     fn event_cwd(self, data: &Value) -> String {
         match self {
             // Cursor reports its workspace roots instead of a `cwd`; the first
@@ -217,6 +218,9 @@ pub struct Payload {
     pub content: String,
     pub identifier: String,
     pub agent: Agent,
+    /// The `cwd` the identifier was resolved against, see `Agent::event_cwd()`.
+    pub cwd: String,
+
     /// The original hook JSON, `{}` for synthesised payloads as in Python. Only
     /// read for the desktop notification's command text.
     pub raw: Value,
@@ -355,13 +359,14 @@ fn normpath(path: &Path) -> String {
     out.to_string_lossy().into_owned()
 }
 
-fn read_payload(identifier: String, agent: Agent) -> Payload {
+fn read_payload(identifier: String, agent: Agent, cwd: &str) -> Payload {
     Payload {
         event_type: EventType::UserPrompt,
         tool: Some(Tool::Read),
         content: String::new(),
         identifier,
         agent,
+        cwd: cwd.to_string(),
         raw: Value::Object(Default::default()),
         read_range: None,
     }
@@ -398,7 +403,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
             content = lookup_str(&data, &["prompt"]);
             // Files named in the prompt can be read without a PreToolUse event.
             for path in find_filepaths(&content) {
-                payloads.push(read_payload(abs_read_path(&path, &cwd), agent));
+                payloads.push(read_payload(abs_read_path(&path, &cwd), agent, &cwd));
             }
         }
         EventType::PreToolUse => {
@@ -472,6 +477,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         content,
         identifier,
         agent,
+        cwd,
         raw: data,
         read_range,
     });
@@ -514,6 +520,7 @@ fn parse_command(content: &str, agent: Agent, cwd: &str) -> Vec<Payload> {
         content: String::new(),
         identifier: abs_read_path(identifier.trim(), cwd),
         agent,
+        cwd: cwd.to_string(),
         raw: Value::Object(Default::default()),
         // `cat`/`Get-Content` read the whole file, and a partial read (`sed -n`,
         // `head`) is not treated as a read at all.

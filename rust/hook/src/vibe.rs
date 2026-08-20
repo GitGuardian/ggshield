@@ -229,6 +229,7 @@ mod tests {
             agent: crate::payload::Agent::Vibe,
             raw: json!({"tool_name": tool_name, "cwd": cwd}),
             read_range: None,
+            cwd: cwd.into(),
         }
     }
 

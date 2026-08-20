@@ -8,8 +8,6 @@
 //! (and a versionless file IS v1) is converted rather than refused.
 //!
 //! Keys treated as no-ops, because they do not reach this path:
-//!   secret.ignored_paths          only builds `ctx_obj.exclusion_regexes`; the
-//!                                 ai-hook builds its scannables directly
 //!   secret.show_secrets           the hook always censors (`censor_match`)
 //!   secret.with_incident_details  only adds a token scope to the API-key
 //!                                 precheck, which this binary skips
@@ -33,6 +31,9 @@ pub struct SecretConfig {
     /// literal secret value; `is_in_ignored_matches` accepts both.
     pub ignored_matches: Vec<String>,
     pub ignored_detectors: BTreeSet<String>,
+    /// Globs, as written in the file. Compiled by `ggshield_hook::exclusion`,
+    /// which also adds the default wildcards.
+    pub ignored_paths: Vec<String>,
     pub ignore_known_secrets: bool,
     /// When true, ignored secrets are still reported — so they still block.
     pub all_secrets: bool,
@@ -81,6 +82,8 @@ struct RawSecretConfig {
     ignored_matches: Vec<IgnoredMatch>,
     #[serde(alias = "ignored-detectors")]
     ignored_detectors: BTreeSet<String>,
+    #[serde(alias = "ignored-paths")]
+    ignored_paths: Vec<String>,
     #[serde(alias = "ignore-known-secrets")]
     ignore_known_secrets: Option<bool>,
     #[serde(alias = "all-secrets")]
@@ -107,6 +110,8 @@ struct V1Config {
     matches_ignore: Vec<V1IgnoredMatch>,
     #[serde(alias = "banlisted-detectors")]
     banlisted_detectors: BTreeSet<String>,
+    #[serde(alias = "paths-ignore")]
+    paths_ignore: Vec<String>,
     #[serde(alias = "api-url")]
     api_url: Option<String>,
     #[serde(alias = "allow-self-signed")]
@@ -155,6 +160,8 @@ impl From<V1Config> for RawUserConfig {
                     })
                     .collect(),
                 ignored_detectors: v1.banlisted_detectors,
+                // `copy_if_set(secret_dct, "ignored_paths", "paths_ignore")`.
+                ignored_paths: v1.paths_ignore,
                 ..RawSecretConfig::default()
             },
         }
@@ -176,6 +183,7 @@ impl RawUserConfig {
         secret
             .ignored_detectors
             .extend(later.secret.ignored_detectors);
+        secret.ignored_paths.extend(later.secret.ignored_paths);
         secret.ignore_known_secrets = later
             .secret
             .ignore_known_secrets
@@ -199,6 +207,7 @@ impl RawUserConfig {
                     .map(|entry| entry.value)
                     .collect(),
                 ignored_detectors: self.secret.ignored_detectors,
+                ignored_paths: self.secret.ignored_paths,
                 ignore_known_secrets: self
                     .secret
                     .ignore_known_secrets
@@ -324,18 +333,39 @@ mod tests {
         assert!(config.secret.filename_only);
     }
 
-    /// GIVEN keys that do not reach the ai-hook path (`ignored_paths` above all)
+    /// GIVEN keys that do not reach the ai-hook path
     /// WHEN the config is loaded
     /// THEN they are accepted and ignored rather than rejected.
     #[test]
     fn keys_that_do_not_reach_this_path_are_accepted_and_ignored() {
         let config = parse(
-            "version: 2\nsecret:\n  ignored_paths: ['**/README.md']\n  show_secrets: true\n  \
+            "version: 2\nsecret:\n  show_secrets: true\n  \
              with_incident_details: true\n  fail_on_server_error: false\nverbose: true\n",
         )
         .expect("parses");
         assert!(config.secret.ignored_matches.is_empty());
         assert!(!config.secret.all_secrets);
+    }
+
+    /// GIVEN `secret.ignored_paths`, in v2 and in the v1 `paths_ignore` spelling
+    /// WHEN the config is loaded
+    /// THEN both reach `SecretConfig`, where the hook compiles them.
+    #[test]
+    fn ignored_paths_are_read_from_both_schemas() {
+        assert_eq!(
+            parse("version: 2\nsecret:\n  ignored_paths: ['**/README.md']\n")
+                .expect("parses")
+                .secret
+                .ignored_paths,
+            vec!["**/README.md"]
+        );
+        assert_eq!(
+            parse("version: 1\npaths-ignore:\n  - '**/*.env'\n")
+                .expect("parses")
+                .secret
+                .ignored_paths,
+            vec!["**/*.env"]
+        );
     }
 
     /// GIVEN the dashed spelling of a key, or the root-level

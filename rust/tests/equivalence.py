@@ -14,7 +14,7 @@ sides must produce but whose value is allowed to differ (see `same_request`).
   python3 tests/equivalence.py            # equivalence only
   python3 tests/equivalence.py --bench N  # also time both, N iterations/side
 
-Five matrices:
+Ten matrices:
   agents   6 assistants x their own payload shapes x {clean, secret}
   config   .gitguardian.yaml cases: discovery, precedence, and every key that
            changes the verdict or the request
@@ -28,6 +28,8 @@ Five matrices:
            not, and that both implementations share one cache file
   dotenv   a `.env` naming GITGUARDIAN_* settings: the instance and token both
            implementations resolve from it
+  exclude  the default ignored-path wildcards: which files a vendored *name*
+           may and may not swallow
   extra    fail-open, and the unrecognized-agent case
 
 Every payload fixture is copied from tests/unit/verticals/ai/test_hooks.py, so
@@ -92,6 +94,18 @@ COPY_FILE = "/tmp/ggshield-hook-equivalence-creds-copy.env"
 CONTENT_DIR = "/tmp"
 CONTENT_NAME = "ggshield-hook-equivalence-content.env"
 CONTENT_FILE = f"{CONTENT_DIR}/{CONTENT_NAME}"
+
+# The exclusion matrix's two checkouts: one that itself sits under a `vendor/`
+# directory, one whose path names nothing the default wildcards mention. Fixed
+# absolute paths, so both sides see the identical identifier -- which the
+# reported prose is built from.
+EXCL_ROOT = Path("/tmp/ggshield-hook-equivalence-exclusions")
+EXCL_VENDORED = EXCL_ROOT / "vendor" / "proj"
+EXCL_PLAIN = EXCL_ROOT / "proj"
+# `\` is a separator on Windows, not a filename character, so this fixture
+# cannot even be created there.
+BACKSLASH_NAME = r"node_modules\pkg\x.py"
+POSIX_ONLY = os.name != "nt"
 
 
 def agent_bases():
@@ -366,6 +380,38 @@ def config_cases(ignore_sha):
             None,
             "allow",
         ),
+        # secret.ignored_paths covers the file the READ names: never read, never
+        # sent, allowed -- as it already is for every other `secret scan`.
+        (
+            "ignored_path_matches",
+            "version: 2\nsecret:\n  ignored_paths:\n  - '**/*.env'\n",
+            None,
+            "allow",
+        ),
+        # A glob that does not cover it must leave the block intact: an exclusion
+        # must not widen past what was written.
+        (
+            "ignored_path_irrelevant",
+            "version: 2\nsecret:\n  ignored_paths:\n  - 'src/**'\n",
+            None,
+            "block",
+        ),
+        # A directory glob, the shape an agent writes for a fixtures dir.
+        (
+            "ignored_path_directory_glob",
+            "version: 2\nsecret:\n  ignored_paths:\n  - 'tmp/**'\n",
+            None,
+            "allow",
+        ),
+        # ...but the same glob with a leading slash does NOT match an absolute
+        # path: `translate_user_pattern()` turns a leading "/" into "^", which
+        # anchors at the start of the string, not at the filesystem root.
+        (
+            "ignored_path_rooted_glob_is_not_filesystem_absolute",
+            "version: 2\nsecret:\n  ignored_paths:\n  - '/tmp/**'\n",
+            None,
+            "block",
+        ),
         (
             "ignored_detector_other",
             "version: 2\nsecret:\n  ignored_detectors:\n  - Generic Password\n",
@@ -399,13 +445,6 @@ def config_cases(ignore_sha):
         (
             "filename_only",
             "version: 2\nsecret:\n  filename_only: true\n",
-            None,
-            "block",
-        ),
-        # ignored_paths must be a no-op on this path: the file is still scanned.
-        (
-            "ignored_paths_is_a_noop_here",
-            "version: 2\nsecret:\n  ignored_paths:\n  - '**/*.env'\n  - 'tmp/*'\n",
             None,
             "block",
         ),
@@ -483,12 +522,12 @@ def config_cases(ignore_sha):
             None,
             "block",
         ),
-        # paths-ignore converts to ignored_paths, still a no-op on this path.
+        # paths-ignore converts to secret.ignored_paths, which the hook honors.
         (
-            "v1_paths_ignore_is_a_noop_here",
+            "v1_paths_ignore",
             "version: 1\npaths-ignore:\n  - '**/*.env'\n",
             None,
-            "block",
+            "allow",
         ),
         # A v1 global config merged with a v2 local one.
         (
@@ -1458,6 +1497,15 @@ def compare_configs(tmp, ignore_sha):
             if actual != expected:
                 failures.append(f"config/{case} (expected {expected}, got {actual})")
                 print(f"        ^ expected the config to {expected}, but it did not")
+
+            # A block must carry the `ignored_matches` entry that would silence
+            # it: both sides agreeing on a message that dropped it would still
+            # read as equivalent.
+            if actual == "block":
+                for side, out in (("python", py), ("rust", rs)):
+                    if f"- match: {ignore_sha}".encode() not in out.stdout:
+                        failures.append(f"config/{case} ({side} has no ignore sha)")
+                        print(f"        ^ {side} blocked without the ignore sha")
     finally:
         mock.kill()
 
@@ -1467,6 +1515,94 @@ def compare_configs(tmp, ignore_sha):
     if same_requests(default, only):
         failures.append("config/filename_only had no effect on the request")
         print("  [DIFF ] config/filename_only did not change the POSTed filename")
+    return failures
+
+
+def write_exclusion_tree():
+    """The same files in both checkouts, so only the project path varies."""
+    shutil.rmtree(EXCL_ROOT, ignore_errors=True)
+    creds = f"AWS_KEY={CLIENT_ID}\n"
+    for project in (EXCL_VENDORED, EXCL_PLAIN):
+        for relative in ("src/creds.env", "node_modules/pkg/creds.env", "credentials"):
+            target = project / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(creds)
+        link = project / "node_modules" / ".cache" / "x"
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(project / "credentials")
+        if POSIX_ONLY:
+            (project / BACKSLASH_NAME).write_text(creds)
+
+
+def exclusion_cases():
+    """(name, project, path read inside it, python verdict, rust verdict)."""
+    cases = [
+        # Teeth: with nothing excluded, this payload shape does block.
+        ("plain_file", EXCL_PLAIN, "src/creds.env", "block", "block"),
+        # The checkout's own path runs through `vendor/`. Python tests the
+        # absolute identifier, so `**/vendor/**/*` matches on that ancestor and
+        # nothing in the project is ever scanned; Rust tests the path relative
+        # to the event cwd. Tracked in `known_divergences`.
+        ("vendor_ancestor", EXCL_VENDORED, "src/creds.env", "allow", "block"),
+        # A symlink parked in `node_modules` pointing outside it. Python
+        # excludes on the link's name; Rust resolves it first. Also tracked.
+        (
+            "symlink_out_of_node_modules",
+            EXCL_PLAIN,
+            "node_modules/.cache/x",
+            "allow",
+            "block",
+        ),
+        # A file that really does live in a vendored tree inside the project
+        # must stay excluded on both sides.
+        (
+            "real_file_in_node_modules",
+            EXCL_PLAIN,
+            "node_modules/pkg/creds.env",
+            "allow",
+            "allow",
+        ),
+    ]
+    if POSIX_ONLY:
+        # Backslashes are ordinary filename characters here, so neither side may
+        # read this name as a `node_modules/` path.
+        cases.append(
+            ("backslash_filename", EXCL_PLAIN, BACKSLASH_NAME, "block", "block")
+        )
+    return cases
+
+
+def compare_exclusions(tmp):
+    """The default ignored-path wildcards: a vendored name vs. a vendored file."""
+    failures = []
+    print("\nDefault ignored-path wildcards: which reads they may swallow")
+    log = tmp / "requests-exclusions.jsonl"
+    mock, port = start_mock("secret", log)
+    try:
+        for case, project, relative, expect_py, expect_rs in exclusion_cases():
+            payload = {
+                **agent_bases()["claude"],
+                "cwd": str(project),
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Read",
+                "tool_input": {"file_path": str(project / relative)},
+            }
+            verdict_ok, request_ok, py, rs, _ = compare_one(
+                tmp, log, port, f"excl-{case}", payload, setup=write_exclusion_tree
+            )
+            report(failures, f"exclusion/{case}", verdict_ok, request_ok, py, rs)
+            # Each side's own verdict is asserted too: two sides that both stop
+            # excluding, or both exclude everything, would still agree.
+            for side, out, expected in (
+                ("python", py, expect_py),
+                ("rust", rs, expect_rs),
+            ):
+                actual = "block" if b"deny" in out.stdout else "allow"
+                if actual != expected:
+                    failures.append(f"exclusion/{case} ({side} {actual})")
+                    print(f"        ^ {side} {actual}ed, expected {expected}")
+    finally:
+        mock.kill()
     return failures
 
 
@@ -1846,6 +1982,7 @@ def main():
         failures += compare_batches(tmp)
         failures += compare_verdict_cache(tmp)
         failures += compare_dotenv(tmp)
+        failures += compare_exclusions(tmp)
         failures += extra_cases(tmp)
         if "--bench" in sys.argv:
             n = int(sys.argv[sys.argv.index("--bench") + 1])
@@ -1853,7 +1990,22 @@ def main():
         # Expected, tracked divergences: the gate stays green for these but
         # still reddens on anything new. Keep this list empty in the steady
         # state; every entry needs a reason and a removal condition.
-        known_divergences = {}
+        known_divergences = {
+            "exclusion/vendor_ancestor": (
+                "the default wildcards are tested against the path relative to "
+                "the event cwd, not the absolute identifier. Python's hook "
+                "matches `**/vendor/**/*` on an ancestor *above* the checkout, "
+                "so a project living under any vendor-like directory has every "
+                "read excluded and is never scanned at all. Remove once the "
+                "Python hook tests the project-relative path too."
+            ),
+            "exclusion/symlink_out_of_node_modules": (
+                "the default wildcards are tested against the resolved path, so "
+                "a symlink parked in `node_modules/` cannot hide a file that "
+                "lives outside it. Python excludes on the link's own name. "
+                "Remove once the Python hook resolves the path too."
+            ),
+        }
         known = [f for f in failures if f in known_divergences]
         unexpected = [f for f in failures if f not in known_divergences]
         for name in known:
@@ -1871,6 +2023,7 @@ def main():
         return 0
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(EXCL_ROOT, ignore_errors=True)
         Path(READ_FILE).unlink(missing_ok=True)
 
 

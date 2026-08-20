@@ -36,6 +36,8 @@ class SecretProtocol(Protocol):
     @property
     def matches(self) -> Sequence[Match]: ...
 
+    def get_ignore_sha(self) -> str: ...
+
 
 class ResultProtocol(Protocol):
     @property

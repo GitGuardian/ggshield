@@ -15,6 +15,7 @@ from pygitguardian.models import MCPActivityResponse, MultiScanResult
 from pygitguardian.models import ScanResult as ApiScanResult
 
 from ggshield.core.config.user_config import SecretConfig
+from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import (
@@ -116,10 +117,13 @@ def _make_secret(
     incident_url: Optional[str] = None,
 ):
     """Minimal Secret for tests; _message_from_secrets only uses
-    detector_display_name, validity, matches[].match, known_secret and
-    incident_url."""
+    detector_display_name, validity, matches[].match, matches[].match_type,
+    known_secret and incident_url."""
     mock_match = MagicMock()
     mock_match.match = match_str
+    # get_ignore_sha() hashes "<match>,<match_type>": a MagicMock would hash its
+    # repr, unique per instance, and the sha reaches the message.
+    mock_match.match_type = "client_secret"
     return Secret(
         detector_display_name="dummy-detector",
         detector_name="dummy-detector",
@@ -404,6 +408,58 @@ class TestBatchedPayloadScan:
         for call in mock_scanner.scan.call_args_list:
             urls = [document.url for document in call.args[0]]
             assert len(urls) == len(set(urls))
+
+    def test_a_read_of_an_ignored_path_is_never_scanned(self, tmp_path: Path):
+        """GIVEN secret.ignored_paths covering the file a READ names
+        WHEN the hook scans the event
+        THEN the file is never sent to the API and the read is allowed."""
+        file = tmp_path / "fixtures" / "creds.py"
+        file.parent.mkdir()
+        file.write_text("token = 'xxx'")
+        mock_scanner = _scanner_per_document()
+
+        results = AIHookScanner(
+            mock_scanner, init_exclusion_regexes(["fixtures/**"])
+        )._scan_contents([self._read_payload(file)])
+
+        mock_scanner.scan.assert_not_called()
+        assert [result.block for result in results] == [False]
+
+    def test_a_read_outside_the_ignored_paths_is_still_scanned(self, tmp_path: Path):
+        """GIVEN secret.ignored_paths that does not cover the file a READ names
+        WHEN the hook scans the event
+        THEN the file is scanned: an exclusion must not widen past its glob."""
+        file = tmp_path / "src" / "creds.py"
+        file.parent.mkdir()
+        file.write_text("token = 'xxx'")
+        mock_scanner = _scanner_per_document()
+
+        AIHookScanner(
+            mock_scanner, init_exclusion_regexes(["fixtures/**"])
+        )._scan_contents([self._read_payload(file)])
+
+        mock_scanner.scan.assert_called_once()
+
+    def test_an_ignored_path_does_not_exclude_a_command_that_mentions_it(self):
+        """GIVEN a BASH payload whose command text contains an excluded path
+        WHEN the hook scans it
+        THEN it is still scanned: a command is not a file, so a substring match
+        must not silence it."""
+        payload = HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=Tool.BASH,
+            content="cat fixtures/creds.py && export TOKEN=xxx",
+            identifier="cat fixtures/creds.py && export TOKEN=xxx",
+            agent=Cursor(),
+            raw={},
+        )
+        mock_scanner = _scanner_per_document()
+
+        AIHookScanner(
+            mock_scanner, init_exclusion_regexes(["fixtures/**"])
+        )._scan_contents([payload])
+
+        mock_scanner.scan.assert_called_once()
 
     def test_a_prompt_mentioning_files_makes_a_single_api_call(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1241,11 +1297,14 @@ class TestMessageFromSecrets:
     def test_message_always_ends_with_false_positive_block(
         self, event_type: EventType, tool: Optional[Tool]
     ):
-        """Every message ends with the false positive escape hatch."""
+        """Every message ends with the false positive escape hatch, and with the
+        `ignored_matches` entry it would write."""
         payload = self._payload(event_type=event_type, tool=tool)
-        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
-        assert message.endswith("    ggshield secret ignore --last-found")
+        secret = _make_secret("sk-xxx")
+        message = AIHookScanner._message_from_secrets([secret], payload)
+        assert "    ggshield secret ignore --last-found" in message
         assert "> If this is a false positive, run:" in message
+        assert message.endswith(f"    - match: {secret.get_ignore_sha()}")
 
     def test_false_positive_block_is_plural_for_several_secrets(self):
         """The false positive block says "these are false positives" when
