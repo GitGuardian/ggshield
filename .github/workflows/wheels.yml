@@ -59,7 +59,7 @@ jobs:
     name: wheel macos-universal2
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
@@ -121,7 +121,7 @@ jobs:
     name: wheel windows-amd64
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
@@ -251,7 +251,7 @@ jobs:
               rustup_sha256: 88761caacddb92cd79b0b1f939f3990ba1997d701a38b3e8dd6746a562f2a759,
             }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build, relabel and smoke test the wheel in ${{ matrix.tag }}
         run: |
           docker run --rm -v "$PWD:/io" -w /io -e GGSHIELD_BUILD_RUST=1 \

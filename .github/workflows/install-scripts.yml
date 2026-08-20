@@ -25,7 +25,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, macos-15-intel]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Ubuntu 22.04's `bats` apt package is 1.2.1 (2019), missing features
       # the test suite relies on (bats_require_minimum_version, `run !`).

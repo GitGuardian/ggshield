@@ -26,7 +26,7 @@ jobs:
     name: Lint package
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -81,7 +81,7 @@ jobs:
         os: [ubuntu-22.04, macos-15-intel, windows-2022]
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
@@ -140,7 +140,7 @@ jobs:
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
@@ -195,7 +195,7 @@ jobs:
     # A few minutes of CI is the cheaper side of that trade.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv and set the Python version
         uses: astral-sh/setup-uv@v7
@@ -280,7 +280,7 @@ jobs:
       run:
         working-directory: rust
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache cargo
         uses: actions/cache@v6
@@ -308,7 +308,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Scan commits for hardcoded secrets
