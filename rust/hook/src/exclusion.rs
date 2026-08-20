@@ -6,7 +6,7 @@
 //! `IGNORED_DEFAULT_WILDCARDS` for every `secret scan` command, so the hook
 //! does too.
 
-use std::path::Path;
+use std::path::PathBuf;
 
 use regex::{Regex, RegexSet};
 
@@ -112,22 +112,18 @@ fn posix(path: &str) -> String {
 /// there is no cwd, when the file is gone, or when it resolves outside the
 /// project — there is no project-relative form then.
 fn project_relative(path: &str, cwd: &str) -> String {
-    let real = |raw: &str| {
-        std::fs::canonicalize(raw)
-            .map(|resolved| resolved.to_string_lossy().into_owned())
-            .unwrap_or_else(|_| raw.to_string())
-    };
+    let real = |raw: &str| std::fs::canonicalize(raw).unwrap_or_else(|_| PathBuf::from(raw));
     let resolved = real(path);
-    if cwd.is_empty() {
-        return posix(&resolved);
-    }
-    // Component-wise, so a sibling directory sharing a name prefix with the
-    // project is not mistaken for being inside it.
-    let relative = Path::new(&resolved)
-        .strip_prefix(real(cwd))
-        .map(|rest| rest.to_string_lossy().into_owned())
-        .unwrap_or(resolved);
-    posix(&relative)
+    let relative = if cwd.is_empty() {
+        resolved.as_path()
+    } else {
+        // Component-wise, so a sibling directory sharing a name prefix with the
+        // project is not mistaken for being inside it.
+        resolved
+            .strip_prefix(real(cwd))
+            .unwrap_or(resolved.as_path())
+    };
+    posix(&relative.to_string_lossy())
 }
 
 /// `is_pattern_valid()`: `***` is never valid, and a `**` must be a whole path
@@ -301,6 +297,19 @@ mod tests {
                 "{root}"
             );
         }
+    }
+
+    /// GIVEN a sibling directory whose name starts with the project's own name
+    /// WHEN a file inside it is tested
+    /// THEN nothing is stripped: `strip_prefix` compares whole components, so the
+    /// sibling is not taken for being inside the project.
+    #[test]
+    fn a_sibling_sharing_a_name_prefix_is_not_inside_the_project() {
+        let excluded = exclusions(&[]);
+        // Stripping "/home/me/proj" as a string would leave "top-1000.txt.bak",
+        // which `top-1000.txt*` matches.
+        assert!(!excluded.is_excluded("/home/me/projtop-1000.txt.bak", "/home/me/proj"));
+        assert!(excluded.is_excluded("/home/me/proj/top-1000.txt.bak", "/home/me/proj"));
     }
 
     /// GIVEN a user glob naming a directory the project itself sits under
