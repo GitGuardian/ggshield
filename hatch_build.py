@@ -8,6 +8,7 @@ expects to exec its sibling from.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import sysconfig
@@ -30,6 +31,10 @@ ELF_MACHINES = {62: "x86_64", 183: "aarch64"}
 
 class WrongBinaryError(Exception):
     """The built binary does not match the platform tag we are about to write."""
+
+
+class SigningError(Exception):
+    """A signing script failed, with whatever it printed about why."""
 
 
 class RustDispatcherBuildHook(BuildHookInterface):
@@ -127,14 +132,60 @@ class RustDispatcherBuildHook(BuildHookInterface):
         if sys.platform == "darwin":
             if not os.environ.get("MACOS_P12_FILE"):
                 return
-            subprocess.run([str(scripts / "macos-sign-file"), str(binary)], check=True)
+            self._run_signer([str(scripts / "macos-sign-file"), str(binary)])
         elif sys.platform == "win32":
             if not os.environ.get("SM_API_KEY"):
                 return
-            # Through bash explicitly: Windows honours no shebang, and Git Bash is
-            # already what drives this build on the runner.
-            subprocess.run(
-                ["bash", str(scripts / "windows-sign-file"), str(binary)], check=True
+            # Through bash, since Windows honours no shebang, and with a
+            # forward-slash path: bash reads the backslashes of a native path as
+            # escapes, so `dirname` sees no directory and `cp` no such file.
+            self._run_signer(
+                [
+                    self._git_bash(),
+                    str(scripts / "windows-sign-file"),
+                    binary.as_posix(),
+                ]
+            )
+
+    @staticmethod
+    def _git_bash() -> str:
+        """The bash that Git for Windows ships.
+
+        Never a bare ``bash``: on PATH that is System32's WSL launcher, which
+        answers every invocation with "no installed distributions". Git for
+        Windows keeps its bash in ``bin``, but ships ``git`` in ``cmd``, ``bin``
+        and ``mingw64/bin`` alike, so which one PATH offers says nothing about
+        how far up the install root is. Try each depth, then the default
+        locations.
+        """
+        roots = []
+        git = shutil.which("git")
+        if git:
+            found = Path(git).resolve().parent
+            roots += [found, found.parent, found.parent.parent]
+        roots += [Path(r"C:\Program Files\Git"), Path(r"C:\Program Files (x86)\Git")]
+
+        tried = []
+        for root in roots:
+            bash = root / "bin" / "bash.exe"
+            tried.append(str(bash))
+            if bash.is_file():
+                return str(bash)
+        raise SigningError(
+            "no Git for Windows bash to sign with, tried:\n  " + "\n  ".join(tried)
+        )
+
+    def _run_signer(self, argv: list[str]) -> None:
+        """Run a signing script, and say what it said when it fails.
+
+        The output goes in the exception rather than to stderr: the build backend
+        forwards neither of a child's streams, and the traceback is the only text
+        that reaches the log.
+        """
+        signer = subprocess.run(argv, capture_output=True, text=True)
+        if signer.returncode:
+            raise SigningError(
+                f"{argv[0]} exited {signer.returncode}\n{signer.stdout}{signer.stderr}"
             )
 
     def _build(self, crate: Path, binary: Path) -> None:
