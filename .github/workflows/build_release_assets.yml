@@ -408,7 +408,7 @@ jobs:
         run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Grype vulnerability database
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/grype/db
           # The DB is refreshed daily upstream; keying on the date avoids
