@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Install a freshly built platform wheel and prove the `ggshield` it puts on PATH
+# is the Rust dispatcher.
+#
+# Everything a wrong wheel gets wrong is invisible until something installs it:
+# a wheel carrying a stale or foreign binary, or one tagged for the wrong
+# platform, builds and uploads perfectly happily. Run this in the environment the
+# wheel claims to target (inside the manylinux/musllinux container, on the macOS
+# and Windows runners), so pip's own platform check is part of the test.
+#
+# $PYTHON overrides the interpreter (the manylinux images have no plain
+# `python`).
+set -euo pipefail
+
+wheel="${1:?usage: $0 WHEEL}"
+python="${PYTHON:-python}"
+
+venv="$(mktemp -d)/venv"
+"$python" -m venv "$venv"
+# `Scripts` on Windows, `bin` everywhere else.
+bin="$venv/bin"
+[ -d "$bin" ] || bin="$venv/Scripts"
+
+"$bin/python" -m pip install --quiet --disable-pip-version-check "$wheel"
+
+echo "--- ggshield --version"
+"$bin/ggshield" --version
+echo "--- ggshield-py --version"
+"$bin/ggshield-py" --version
+
+# Both names answer, but that alone does not say which one ran: the dispatcher
+# execs `ggshield-py`, so the two print the same thing. Hide the sibling and the
+# dispatcher says so and exits 128, where the Python console script would just
+# print its version again -- the one difference that needs no platform-specific
+# file sniffing.
+launcher="$bin/ggshield-py"
+[ -f "$launcher" ] || launcher="$launcher.exe"
+mv "$launcher" "$launcher.hidden"
+set +e
+output="$("$bin/ggshield" --version 2>&1)"
+status=$?
+set -e
+mv "$launcher.hidden" "$launcher"
+
+if [ "$status" != 128 ] ; then
+    echo "FAIL: expected exit 128 from the dispatcher, got $status: $output" >&2
+    exit 1
+fi
+case "$output" in
+    *"installation is incomplete"*) ;;
+    *)
+        echo "FAIL: '$bin/ggshield' is not the Rust dispatcher: $output" >&2
+        exit 1
+        ;;
+esac
+
+echo "OK: $wheel installs and runs the Rust dispatcher"

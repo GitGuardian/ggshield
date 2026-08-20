@@ -27,6 +27,35 @@ class MyException(Exception):
     pass
 
 
+def test_results_by_url():
+    """
+    GIVEN a scan that answered about several documents, out of send order and
+    saying nothing about one of them
+    WHEN looking the results up by url
+    THEN each document finds its own result, and the unanswered one finds none
+    """
+    scannables = [
+        StringScannable(url="second.py", content="SECOND = 2\n"),
+        StringScannable(url="first.py", content="FIRST = 1\n"),
+    ]
+    secret_config = SecretConfig()
+    results = Results(
+        results=[
+            Result.from_scan_result(
+                scannable, ScanResultFactory(policy_breaks=[]), secret_config
+            )
+            # Reversed: a batch comes back in completion order, not send order.
+            for scannable in reversed(scannables)
+        ]
+    )
+
+    by_url = results.by_url()
+
+    assert by_url["first.py"].url == "first.py"
+    assert by_url["second.py"].url == "second.py"
+    assert by_url.get("never-sent.py") is None
+
+
 def test_results_from_exception():
     """
     GIVEN an exception

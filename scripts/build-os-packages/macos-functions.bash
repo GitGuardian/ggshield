@@ -1,5 +1,7 @@
 MACOS_P12_FILE=${MACOS_P12_FILE:-}
 MACOS_P12_PASSWORD_FILE=${MACOS_P12_PASSWORD_FILE:-}
+# macos-sign-file is a separate process: without this it sees neither.
+export MACOS_P12_FILE MACOS_P12_PASSWORD_FILE
 
 # Path to a file used by rcodesign for notarizing.
 # Follow the instructions from
@@ -12,49 +14,45 @@ macos_add_sign_dependencies() {
     DEFAULT_STEPS="$DEFAULT_STEPS notarize"
 }
 
+# The one file in the bundle that gets the JIT entitlement.
+#
+# The hardened runtime denies JIT (executable MAP_JIT memory) unless the
+# process's MAIN executable carries allow-jit, so it goes on the executable that
+# JITs — `ggshield-py`, the PyInstaller launcher — and the bundled .so/.dylib
+# libraries inherit the process permission. `exec` replaces the process image, so
+# ggshield-py's own entitlements are the ones in force. Getting this wrong does
+# not fail the build: satori's PCRE2 falls back to its interpreter and
+# `ggshield machine scan` runs 6-7x slower.
+macos_jit_entitled_binary() {
+    echo "$BUILD_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield-py"
+}
+
 macos_sign() {
+    local jit_entitled
+    jit_entitled=$(macos_jit_entitled_binary)
     macos_list_files_to_sign | while read path ; do
-        macos_sign_file "$path"
+        if [ "$path" = "$jit_entitled" ] ; then
+            macos_sign_file "$path" "$SCRIPT_DIR/macos-entitlements.plist"
+        else
+            macos_sign_file "$path"
+        fi
     done
 }
 
+# $1 is the file to sign, $2 an optional entitlements plist. The invocation lives
+# in macos-sign-file, shared with the macOS wheel build.
 macos_sign_file() {
     check_var MACOS_P12_FILE
-
-    local file
-    file="$1"
-    info "- Signing $file"
-
-    # The hardened runtime ("runtime" code-signature flag) denies JIT
-    # (executable MAP_JIT memory) unless the process's MAIN executable carries
-    # the allow-jit entitlement. The machine-scan plugin (satori) matches with
-    # PCRE2, whose JIT is ~6-7x faster than its interpreter on regex-heavy
-    # files; without the entitlement PCRE2 silently falls back to the
-    # interpreter and `ggshield machine scan` is dramatically slower. JIT
-    # permission is a process-level attribute taken from the main executable, so
-    # the entitlement goes on the `ggshield` launcher only — the bundled
-    # .so/.dylib libraries inherit the process permission and don't need it.
-    if [ "$(basename "$file")" = "ggshield" ] ; then
-        rcodesign sign \
-            --p12-file "$MACOS_P12_FILE" \
-            --p12-password-file "$MACOS_P12_PASSWORD_FILE" \
-            --code-signature-flags runtime \
-            --entitlements-xml-path "$SCRIPT_DIR/macos-entitlements.plist" \
-            --for-notarization \
-            "$file"
-    else
-        rcodesign sign \
-            --p12-file "$MACOS_P12_FILE" \
-            --p12-password-file "$MACOS_P12_PASSWORD_FILE" \
-            --code-signature-flags runtime \
-            --for-notarization \
-            "$file"
-    fi
+    "$SCRIPT_DIR/macos-sign-file" "$@"
 }
 
+# Every Mach-O in the bundle, because notarization rejects the .pkg if a single
+# executable inside it is unsigned. Both binaries are named explicitly: the find
+# below only matches libraries.
 macos_list_files_to_sign() {
     local archive_dir="$BUILD_DIR/$ARCHIVE_DIR_NAME"
     echo "$archive_dir/$INSTALL_PREFIX/ggshield"
+    echo "$archive_dir/$INSTALL_PREFIX/ggshield-py"
     find "$archive_dir" -name '*.so' -o -name '*.dylib'
 }
 

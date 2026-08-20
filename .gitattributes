@@ -1,0 +1,9 @@
+# `include_str!` embeds these byte for byte, and Rust normalizes CRLF to LF
+# inside source string literals but not in included files. Without this, a
+# Windows checkout (core.autocrlf=true) puts CRLF in the hook's output.
+rust/hook/src/templates/*.in text eol=lf
+
+# The notification icons are embedded with `include_bytes!`, so newline rewriting
+# would corrupt them.
+rust/hook/assets/*.png binary
+rust/hook/assets/*.icns binary

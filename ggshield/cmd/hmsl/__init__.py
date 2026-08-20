@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 import click
 
@@ -10,11 +10,21 @@ from ggshield.cmd.hmsl.fingerprint import fingerprint_cmd
 from ggshield.cmd.hmsl.query import query_cmd
 from ggshield.cmd.hmsl.quota import quota_cmd
 from ggshield.cmd.utils.common_options import add_common_options
-from ggshield.utils.click import NaturalOrderGroup
+from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
+
+
+class _NaturalOrderPluginGroup(PluginAwareLazyGroup):
+    """Plugin-aware (see PluginAwareLazyGroup) but keeps the declaration order of
+    the commands in `--help`, like NaturalOrderGroup."""
+
+    def list_commands(self, ctx: click.Context) -> List[str]:
+        self._ensure_plugins()
+        return list(self.commands)
 
 
 @click.group(
-    cls=NaturalOrderGroup,
+    cls=_NaturalOrderPluginGroup,
+    plugin_scope="hmsl",
     commands={
         "check": check_cmd,
         "check-secret-manager": check_secret_manager_group,

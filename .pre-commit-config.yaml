@@ -16,13 +16,16 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: \.importlinter|tests/unit/verticals/secret(/output)?/__snapshots__/.*|tests/unit/core/scan/test_commit_utils.py
+        # rust/hook/src/templates holds the ai-hook's message verbatim: a line
+        # ending in two spaces is a markdown hard break, and no file ends with a
+        # newline, because the templates render byte for byte as written.
+        exclude: \.importlinter|tests/unit/verticals/secret(/output)?/__snapshots__/.*|tests/unit/core/scan/test_commit_utils.py|rust/hook/src/templates/.*
       - id: check-json
       - id: check-added-large-files
       - id: check-yaml
       - id: check-toml
       - id: end-of-file-fixer
-        exclude: .importlinter
+        exclude: .importlinter|rust/hook/src/templates/.*
 
   - repo: https://github.com/Woile/commitizen
     rev: v4.1.0
@@ -46,10 +49,10 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        # Scoped to scripts/install: the repo's other shell scripts
-        # (docker/, scripts/check-import-linter-config.sh) have pre-existing
-        # findings that are out of scope here.
-        files: ^scripts/install/.*\.sh$
+        # Opt-in, not repo-wide: the other shell scripts (docker/,
+        # scripts/check-import-linter-config.sh) have pre-existing findings that
+        # are out of scope here.
+        files: ^scripts/(install/.*\.sh|smoke-test-wheel)$
 
   - repo: https://github.com/thlorenz/doctoc
     rev: v2.2.0

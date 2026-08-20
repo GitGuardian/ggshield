@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
@@ -128,6 +129,24 @@ class HookResult:
         )
 
 
+#: NAME_MAX and PATH_MAX. Nothing over them can name an existing file.
+_NAME_MAX = 255
+_PATH_MAX = 4096
+
+
+def _cannot_be_a_path(identifier: str) -> bool:
+    """Whether `identifier` is too long for the filesystem to hold such a file.
+
+    A candidate read path can be a whole shell command (a heredoc, a pipeline),
+    which no filesystem can name. Answering from the length keeps that off the
+    syscall, whose failure is platform-dependent: `stat` reports ENAMETOOLONG,
+    which `Path.is_file()` raises before Python 3.13 and swallows after.
+    """
+    return len(identifier) > _PATH_MAX or any(
+        len(component) > _NAME_MAX for component in re.split(r"[\\/]", identifier)
+    )
+
+
 @dataclass
 class HookPayload:
     event_type: EventType
@@ -147,12 +166,13 @@ class HookPayload:
         Cached: a ranged read builds the slice by reading the file, and callers
         ask for the scannable more than once (`empty`, then the scan itself).
         """
-        if self.tool == Tool.READ:
+        if self.tool == Tool.READ and not _cannot_be_a_path(self.identifier):
             # The identifier is not always a real path: it can be a whole shell
             # command (a heredoc, a pipeline...) that a caller guessed was a
             # file name. Path.is_file() only swallows "not found" errors, so it
-            # still raises on such identifiers (ENAMETOOLONG, embedded NULs...).
-            # Never let that abort the scan: fall back to scanning the content.
+            # still raises on such identifiers (embedded NULs, a too-long name on
+            # Python < 3.13...). Never let that abort the scan: fall back to
+            # scanning the content.
             try:
                 path = Path(self.identifier)
                 if path.is_file() and not is_path_binary(path):
@@ -230,6 +250,17 @@ class Agent(ABC):
         """
         return payload.event_type == EventType.POST_TOOL_USE
 
+    def event_cwd(self, data: Dict[str, Any]) -> str:
+        """The directory the event happened in, used to resolve relative file
+        paths to absolute ones so a file mentioned in a prompt and the same file
+        read by a tool share one verdict-cache key.
+
+        Most agents (Claude, Codex, Copilot CLI, VSCode) put it in "cwd"; Cursor
+        overrides this to read "workspace_roots". Returns "" when unknown, in
+        which case callers leave paths untouched rather than guess.
+        """
+        return data.get("cwd", "") or ""
+
     def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:
         """The lines a read tool call is about to expose, 1-based and inclusive.
 
@@ -251,6 +282,16 @@ class Agent(ABC):
     @abstractmethod
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         """Path to the settings file for this AI coding tool."""
+
+    @property
+    def settings_format(self) -> Literal["json", "toml"]:
+        """Serialization format used by the assistant's hook settings file."""
+        return "json"
+
+    def post_install_warning(self, mode: Literal["local", "global"]) -> Optional[str]:
+        """Warning to show after a successful install, if the assistant needs
+        one more step before it will actually load the hooks."""
+        return None
 
     @property
     def settings_template(self) -> Dict[str, Any]:
@@ -507,6 +548,14 @@ class Agent(ABC):
         if ai_config is not None:
             return ai_config.user
         return UserInfo(hostname="", username="", machine_id="")
+
+    def subscription_email(self) -> Optional[str]:
+        """Email of the assistant subscription this agent is signed into, or None.
+
+        Never approximated: `git config user.email` names the repository, not the
+        subscription, so an agent on a personal plan would report a work address.
+        """
+        return None
 
     # Helper methods
 

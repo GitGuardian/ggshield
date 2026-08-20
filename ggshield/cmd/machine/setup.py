@@ -1,3 +1,4 @@
+import subprocess
 from typing import Any, Tuple
 
 import click
@@ -20,6 +21,7 @@ from ggshield.utils.os import is_root
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
     check_ai_hook_authentication,
+    hook_executable,
     install_all_agent_hooks,
 )
 
@@ -127,7 +129,30 @@ def _setup_ai_hooks(
     # Run the auth preflight once, and only if we actually configured something.
     if summary.configured and not summary.failed:
         check_ai_hook_authentication(ContextObj.get(ctx).config)
+        _warm_notifier()
     return summary.failed == 0
+
+
+def _warm_notifier() -> None:
+    """Raise one harmless desktop notification, now that the hooks are wired.
+
+    macOS only asks for notification permission when an app first posts one, and
+    until that prompt is answered the notification is delivered nowhere -- no
+    error, no banner. Asking here puts the dialog in front of someone who is
+    deliberately setting ggshield up. Left to the first real detection, it lands
+    on top of a leaked secret, and a prompt nobody answers is a leak alert
+    nobody sees.
+    """
+    try:
+        subprocess.run(
+            [hook_executable(), "secret", "scan", "ai-hook", "--warm-notifier"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=15,
+            check=False,
+        )
+    except Exception:
+        pass
 
 
 def _setup_git_hooks(system: bool) -> bool:

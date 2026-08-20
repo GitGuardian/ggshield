@@ -636,6 +636,13 @@ class TestDiscoveryCacheTTL:
         with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
             assert is_discovery_cache_fresh() is False
 
+    def test_fresh_when_mtime_is_barely_in_the_future(self, tmp_path: Path):
+        """A just-touched file can read slightly ahead of time.time(): the two come
+        from different clock sources. Small skew is fresh, not a clock jump."""
+        self._age(tmp_path, -1)
+        with patch("ggshield.verticals.ai.cache.get_cache_dir", return_value=tmp_path):
+            assert is_discovery_cache_fresh() is True
+
     def test_touch_makes_a_stale_cache_fresh_again(self, tmp_path: Path):
         cache_file = self._age(tmp_path, DISCOVERY_CACHE_TTL_SECONDS + 1)
         content = cache_file.read_text()

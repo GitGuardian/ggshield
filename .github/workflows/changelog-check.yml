@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: 'Check for changelog fragment'
-        uses: brettcannon/check-for-changed-files@v1.1.0
+        uses: brettcannon/check-for-changed-files@v1.2.2
         with:
           file-pattern: |
             changelog.d/*.md

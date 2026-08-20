@@ -14,11 +14,24 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="GitGuardianDir" Name="GitGuardian">
         <Directory Id="INSTALLFOLDER" Name="ggshield">
+          <!-- ggshield.exe is the Rust dispatcher, ggshield-py.exe the
+               PyInstaller launcher it execs as a sibling, so both must land in
+               this directory. One file per component: `msiexec /f` repairs off
+               the component's KeyPath only, so a second file sharing a component
+               would never be repaired. Same Feature, so they install and remove
+               together. -->
           <Component
             Id="MainExecutable"
             Guid="a1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e"
           >
-            <File Source="!(bindpath.SourceDir)\ggshield.exe" />
+            <File Source="!(bindpath.SourceDir)\ggshield.exe" KeyPath="yes" />
+          </Component>
+
+          <Component
+            Id="PythonLauncher"
+            Guid="b02005d0-1817-4bc3-8ad3-0c23cb441a44"
+          >
+            <File Source="!(bindpath.SourceDir)\ggshield-py.exe" KeyPath="yes" />
           </Component>
 
           <Component Id="PathEntry" Guid="d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80">
@@ -43,6 +56,7 @@
 
     <Feature Id="Complete" Level="1">
       <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="PythonLauncher" />
       <ComponentGroupRef Id="InternalFiles" />
       <ComponentRef Id="PathEntry" />
     </Feature>

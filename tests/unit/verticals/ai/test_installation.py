@@ -1,6 +1,7 @@
 import contextlib
 import json
 import ntpath
+import os
 import posixpath
 import sys
 from pathlib import Path
@@ -9,8 +10,14 @@ from unittest.mock import patch
 
 import pytest
 
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
 from ggshield.core.errors import UnexpectedError
-from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor
+from ggshield.verticals.ai.agents import Claude, Codex, Copilot, Cursor, Vibe
 from ggshield.verticals.ai.installation import (
     AgentHookStatus,
     InstallationStats,
@@ -193,21 +200,156 @@ class TestFillDict:
             added=2, already_present=1, command="ggshield already"
         )
 
-    def test_template_list_must_have_exactly_one_element(self):
-        """Template list value must have exactly one element (raises ValueError otherwise)."""
-        config: Dict[str, Any] = {}
-        template = {"hooks": [{"a": 1}, {"b": 2}]}
-        stats = InstallationStats(added=0, already_present=0)
-        with pytest.raises(ValueError, match="Expected only one object in template"):
-            stats = _fill_dict(
+    def test_vanished_ggshield_command_is_repointed(self, tmp_path: Path):
+        """GIVEN a hook pinned to a versioned bundle path an upgrade deleted
+        WHEN the hooks are installed again
+        THEN the command is repointed, instead of failing open on every prompt."""
+        stale = f"{tmp_path / 'ggshield-1.53.0' / 'ggshield'} secret scan ai-hook"
+        config = {"hooks": [{"command": stale}]}
+        stats = _fill_dict(
+            config,
+            {"hooks": [{"command": "<COMMAND>"}]},
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+        assert config == {"hooks": [{"command": COMMAND}]}
+        assert stats == InstallationStats(added=1, already_present=1, command=stale)
+
+    @pytest.mark.skipif(os.name == "nt", reason="creates a symlink")
+    def test_versioned_path_to_the_same_binary_is_repointed(self, tmp_path: Path):
+        """GIVEN a hook pinned to a still-valid versioned path
+        WHEN the new command reaches that same binary through a launcher
+        THEN the hook is migrated to the launcher before the next upgrade."""
+        binary = tmp_path / "ggshield-1.53.0" / "ggshield"
+        binary.parent.mkdir()
+        binary.write_text("")
+        launcher = tmp_path / "ggshield"
+        launcher.symlink_to(binary)
+        command = f"{launcher} secret scan ai-hook"
+        config = {"hooks": [{"command": f"{binary} secret scan ai-hook"}]}
+        _fill_dict(
+            config,
+            {"hooks": [{"command": "<COMMAND>"}]},
+            command,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+        assert config == {"hooks": [{"command": command}]}
+
+    def test_another_tool_command_is_left_alone(self, tmp_path: Path):
+        """GIVEN a hook command running another tool, mentioning ggshield
+        WHEN the hooks are installed again
+        THEN it is kept: only the commands we wrote are ever repointed."""
+        other = f"{tmp_path / 'other-scanner'} --ggshield-compat secret scan ai-hook"
+        config = {"hooks": [{"command": other}]}
+        _fill_dict(
+            config,
+            {"hooks": [{"command": "<COMMAND>"}]},
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+        assert config["hooks"] == [{"command": other}]
+
+    def test_another_tool_windows_command_is_left_alone(self):
+        """GIVEN a Windows hook command running another tool, mentioning ggshield
+        WHEN the hooks are installed again
+        THEN it is kept: arguments mark a command as not ours on Windows too."""
+        other = r"C:\Tools\other-scanner --ggshield-compat secret scan ai-hook"
+        config = {"hooks": [{"command": other}]}
+        with patch("ggshield.verticals.ai.installation.os.name", "nt"):
+            _fill_dict(
                 config,
-                template,
+                {"hooks": [{"command": "<COMMAND>"}]},
                 COMMAND,
                 overwrite=False,
-                stats=stats,
+                stats=InstallationStats(added=0, already_present=0),
                 locator=_locator,
             )
-        assert stats == InstallationStats(added=0, already_present=0)
+        assert config["hooks"] == [{"command": other}]
+
+    def test_non_command_scalar_is_not_an_existing_install(self):
+        """A template scalar other than the command may contain "ggshield" (a hook
+        name, say). It must not be mistaken for an existing installation."""
+        config: Dict[str, Any] = {}
+        template = {"hooks": [{"name": "ggshield-pre-tool", "command": "<COMMAND>"}]}
+        stats = _fill_dict(
+            config,
+            template,
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+
+        assert config == {"hooks": [{"name": "ggshield-pre-tool", "command": COMMAND}]}
+        assert stats == InstallationStats(added=1, already_present=0)
+
+    def test_non_object_entries_are_ignored(self):
+        """Settings files are hand-editable: a stray scalar in a hook list must not
+        crash the merge."""
+        config: Dict[str, Any] = {"hooks": ["stray", {"command": "other"}]}
+        template = {"hooks": [{"command": "<COMMAND>"}]}
+        stats = _fill_dict(
+            config,
+            template,
+            COMMAND,
+            overwrite=False,
+            stats=InstallationStats(added=0, already_present=0),
+            locator=_locator,
+        )
+
+        assert config["hooks"][0] == "stray"
+        assert {"command": COMMAND} in config["hooks"]
+        assert stats.added == 1
+
+    def test_unmergeable_shape_raises_value_error(self):
+        """A list key holding something other than a list cannot be merged into."""
+        with pytest.raises(ValueError, match="expected a list of objects"):
+            _fill_dict(
+                {"hooks": "not-a-list"},
+                {"hooks": [{"command": "<COMMAND>"}]},
+                COMMAND,
+                overwrite=False,
+                stats=InstallationStats(added=0, already_present=0),
+                locator=_locator,
+            )
+
+    def test_template_list_supports_multiple_elements(self):
+        config: Dict[str, Any] = {}
+        template = {
+            "hooks": [
+                {"name": "pre", "command": "<COMMAND>"},
+                {"name": "post", "command": "<COMMAND>"},
+            ]
+        }
+        stats = InstallationStats(added=0, already_present=0)
+        stats = _fill_dict(
+            config,
+            template,
+            COMMAND,
+            overwrite=False,
+            stats=stats,
+            locator=lambda candidates, item: next(
+                (
+                    candidate
+                    for candidate in candidates
+                    if candidate.get("name") == item["name"]
+                ),
+                None,
+            ),
+        )
+        assert config == {
+            "hooks": [
+                {"name": "pre", "command": COMMAND},
+                {"name": "post", "command": COMMAND},
+            ]
+        }
+        assert stats == InstallationStats(added=2, already_present=0)
 
 
 class TestFlavorSettingsProperties:
@@ -319,6 +461,47 @@ class TestFlavorSettingsProperties:
     def test_codex_settings_template(self):
         assert isinstance(Codex().settings_template, dict)
 
+    def test_vibe_settings_path_and_format(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv",
+            return_value=str(tmp_path / "vibe-home"),
+        ):
+            assert (
+                Vibe().settings_path("global") == tmp_path / "vibe-home" / "hooks.toml"
+            )
+            assert Vibe().settings_path("local") == Path(".vibe") / "hooks.toml"
+            assert Vibe().settings_format == "toml"
+
+    def test_vibe_settings_template(self):
+        hooks = Vibe().settings_template["hooks"]
+        assert [hook["type"] for hook in hooks] == ["pre_tool", "post_tool"]
+        assert all(hook["match"] == "*" for hook in hooks)
+
+    def test_vibe_post_install_warning_on_untrusted_folder(self, tmp_path: Path):
+        """Vibe ignores project hooks in untrusted folders, so a local install
+        there must say so instead of reporting plain success."""
+        vibe_home = tmp_path / ".vibe"
+        vibe_home.mkdir()
+        project = tmp_path / "project"
+        project.mkdir()
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv",
+            return_value=str(vibe_home),
+        ), patch("ggshield.verticals.ai.agents.vibe.Path.cwd", return_value=project):
+            vibe = Vibe()
+            # No trusted_folders.toml at all: the folder is not trusted.
+            assert "trusted folders" in (vibe.post_install_warning("local") or "")
+            # A global install is unaffected by folder trust.
+            assert vibe.post_install_warning("global") is None
+
+            # A TOML literal string: a Windows path's backslashes must not be
+            # read as escape sequences.
+            (vibe_home / "trusted_folders.toml").write_text(
+                f"trusted = ['{project}']\n"
+            )
+            assert vibe.post_install_warning("local") is None
+
 
 class TestInstallHooks:
     """Unit tests for the install_hooks function."""
@@ -381,6 +564,146 @@ class TestInstallHooks:
 
         codex_config = tmp_path / ".codex" / "config.toml"
         assert not codex_config.exists()
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_global(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+
+        code = install_hooks("vibe", mode="global")
+
+        assert code == 0
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        config = tomllib.loads(settings_path.read_text())
+        assert [hook["name"] for hook in config["hooks"]] == [
+            "ggshield-pre-tool",
+            "ggshield-post-tool",
+        ]
+        assert all("ggshield" in hook["command"] for hook in config["hooks"])
+        assert all(hook["strict"] is False for hook in config["hooks"])
+
+        install_hooks("vibe", mode="global")
+        config = tomllib.loads(settings_path.read_text())
+        assert [hook["name"] for hook in config["hooks"]] == [
+            "ggshield-pre-tool",
+            "ggshield-post-tool",
+        ]
+
+        updated_command = "/opt/ggshield/bin/ggshield secret scan ai-hook"
+        with patch(
+            "ggshield.verticals.ai.installation.build_hook_command",
+            return_value=updated_command,
+        ):
+            install_hooks("vibe", mode="global", force=True)
+        config = tomllib.loads(settings_path.read_text())
+        assert all(hook["command"] == updated_command for hook in config["hooks"])
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_preserves_existing_toml(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text(
+            "# Keep this comment\n"
+            "[[hooks]]\n"
+            'name = "existing"\n'
+            'type = "pre_tool"\n'
+            'match = "bash"\n'
+            'command = "other-tool"\n'
+        )
+
+        install_hooks("vibe", mode="global")
+
+        text = settings_path.read_text()
+        config = tomllib.loads(text)
+        assert "# Keep this comment" in text
+        assert [hook["name"] for hook in config["hooks"]] == [
+            "existing",
+            "ggshield-pre-tool",
+            "ggshield-post-tool",
+        ]
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_with_corrupt_toml_raises(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text("[[hooks]\n")
+
+        with pytest.raises(UnexpectedError, match="Failed to parse"):
+            install_hooks("vibe", mode="global")
+
+        # The file is reported, never repaired: tomlkit alone parses "[[hooks]"
+        # as "[[hooks]]" and would write that back over the user's file.
+        assert settings_path.read_text() == "[[hooks]\n"
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_with_duplicate_inline_key_raises(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        """A duplicate key in an inline table raises tomlkit's KeyAlreadyPresent,
+        which is a TOMLKitError but not a ParseError."""
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text("a = { x = 1, x = 2 }\n")
+
+        with pytest.raises(UnexpectedError, match="Failed to parse"):
+            install_hooks("vibe", mode="global")
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.get_user_home_dir")
+    @patch("ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None)
+    def test_install_vibe_with_unmergeable_toml_raises(
+        self,
+        mock_getenv: Any,
+        mock_vibe_home: Any,
+        mock_home: Any,
+        tmp_path: Path,
+    ):
+        """Valid TOML of the wrong shape reports the same actionable error as a
+        syntax error, instead of an unhandled traceback."""
+        mock_home.return_value = tmp_path
+        mock_vibe_home.return_value = tmp_path
+        settings_path = tmp_path / ".vibe" / "hooks.toml"
+        settings_path.parent.mkdir(parents=True)
+        settings_path.write_text('hooks = "not-a-list"\n')
+
+        with pytest.raises(UnexpectedError, match="Failed to update"):
+            install_hooks("vibe", mode="global")
 
     def test_install_unsupported_agent_raises(self):
         """install_hooks raises ValueError for unsupported agent."""
@@ -489,23 +812,29 @@ class TestAreHooksInstalledGlobally:
 
 
 @contextlib.contextmanager
-def _simulate_platform(argv, *, windows):
+def _simulate_platform(argv=("ggshield", "install"), *, windows, frozen=None):
     """Run build_hook_command as if on a given OS, regardless of the test host.
 
-    Patches the path primitives the function uses (``os.name``,
-    ``os.path.abspath`` and ``os.path.dirname``) to the chosen flavor (ntpath or
-    posixpath) so the same assertions hold whether the runner is Linux or
-    Windows.
+    Patches the path primitives the function uses (``os.name`` and the
+    ``os.path`` functions) to the chosen flavor (ntpath or posixpath) so the
+    same assertions hold whether the runner is Linux or Windows. ``frozen``
+    names the ``sys.executable`` of a PyInstaller bundle; without it the
+    argv[0] code paths are exercised.
     """
     flavor = ntpath if windows else posixpath
     mod = "ggshield.verticals.ai.installation"
     with contextlib.ExitStack() as stack:
-        stack.enter_context(patch(f"{mod}.sys.argv", argv))
+        stack.enter_context(patch(f"{mod}.sys.argv", list(argv)))
         stack.enter_context(patch(f"{mod}.os.name", "nt" if windows else "posix"))
         stack.enter_context(patch(f"{mod}.os.path.abspath", flavor.abspath))
         stack.enter_context(patch(f"{mod}.os.path.dirname", flavor.dirname))
-        # Frozen detection must be off for the argv[0]-based paths.
-        stack.enter_context(patch.object(sys, "frozen", False, create=True))
+        stack.enter_context(patch(f"{mod}.os.path.join", flavor.join))
+        stack.enter_context(patch(f"{mod}.os.path.normpath", flavor.normpath))
+        stack.enter_context(
+            patch.object(sys, "frozen", frozen is not None, create=True)
+        )
+        if frozen is not None:
+            stack.enter_context(patch.object(sys, "executable", frozen, create=True))
         yield
 
 
@@ -586,6 +915,34 @@ class TestBuildHookCommand:
         ):
             assert build_hook_command() == "/tmp/ggshield secret scan ai-hook"
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="asserts POSIX executable-bit / no-.exe-suffix semantics",
+    )
+    def test_wheel_install_prefers_the_dispatcher_sibling(self, tmp_path):
+        """In a platform-wheel install the user runs `ggshield` (the Rust
+        dispatcher), which execs its `ggshield-py` sibling -- so argv[0] names
+        ggshield-py by the time Python builds the hook command. Pin the hook to
+        the dispatcher, or every hook call pays the Python startup the wheel
+        shipped a native binary to avoid."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        dispatcher = tmp_path / "ggshield"
+        dispatcher.write_text("")
+        dispatcher.chmod(0o755)
+        with _simulate_platform([str(launcher), "machine", "setup"], windows=False):
+            assert build_hook_command() == f"{dispatcher} secret scan ai-hook"
+
+    def test_pure_wheel_install_keeps_its_own_path(self):
+        """The pure-Python wheel installs no dispatcher: `ggshield` IS the Python
+        entry point, and the sibling lookup must not turn it into a self-exec."""
+        with _simulate_platform(
+            ["/proj/.venv/bin/ggshield", "machine", "setup"], windows=False
+        ):
+            assert (
+                build_hook_command() == "/proj/.venv/bin/ggshield secret scan ai-hook"
+            )
+
     def test_frozen_bundle_uses_sys_executable(self):
         """In a PyInstaller standalone bundle (.pkg/.deb/.rpm) the frozen binary
         IS ggshield, so sys.executable is the correct self-path -- and PATH must
@@ -595,6 +952,125 @@ class TestBuildHookCommand:
         ), patch("ggshield.verticals.ai.installation.shutil.which") as which:
             assert build_hook_command() == "/opt/ggshield/ggshield secret scan ai-hook"
         which.assert_not_called()
+
+    # These two assert POSIX file semantics that build_hook_command does not
+    # use on Windows: the sibling is named `ggshield` (no `.exe` suffix) and
+    # its executability is the POSIX x-bit (os.access(X_OK)), which Windows
+    # ignores. The Windows dispatcher-preference (the `.exe` branch in
+    # build_hook_command) still runs in production and is exercised by the real
+    # PyInstaller Windows packaging job; it just has no dedicated Windows unit
+    # test here. Honest scoping, not a silent skip.
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="asserts POSIX executable-bit / no-.exe-suffix semantics",
+    )
+    def test_frozen_bundle_prefers_the_dispatcher_sibling(self, tmp_path):
+        """In a dispatcher bundle, PyInstaller's sys.executable names the
+        internal ggshield-py launcher (it comes from /proc/self/exe, not
+        argv[0]). The hook must point at the sibling `ggshield` dispatcher,
+        which answers `secret scan ai-hook` natively -- otherwise every hook
+        call pays the Python startup the dispatcher exists to remove."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        dispatcher = tmp_path / "ggshield"
+        dispatcher.write_text("")
+        dispatcher.chmod(0o755)
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", str(launcher), create=True
+        ):
+            assert build_hook_command() == f"{dispatcher} secret scan ai-hook"
+
+    def test_frozen_bundle_without_dispatcher_keeps_sys_executable(self, tmp_path):
+        """An older bundle has no dispatcher next to the launcher: keep
+        sys.executable, exactly as before."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", str(launcher), create=True
+        ):
+            assert build_hook_command() == f"{launcher} secret scan ai-hook"
+
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="asserts POSIX executable-bit / no-.exe-suffix semantics",
+    )
+    def test_frozen_bundle_ignores_a_non_executable_dispatcher(self, tmp_path):
+        """A `ggshield` file that cannot be executed (broken install) must not
+        be written into the hook command -- the agent would see a failing hook
+        on every tool call."""
+        launcher = tmp_path / "ggshield-py"
+        launcher.write_text("")
+        dispatcher = tmp_path / "ggshield"
+        dispatcher.write_text("")
+        dispatcher.chmod(0o644)
+        with patch.object(sys, "frozen", True, create=True), patch.object(
+            sys, "executable", str(launcher), create=True
+        ):
+            assert build_hook_command() == f"{launcher} secret scan ai-hook"
+
+    def test_frozen_bundle_prefers_the_stable_launcher(self):
+        """GIVEN a frozen macOS bundle installed in a versioned directory
+        WHEN /usr/local/bin/ggshield resolves to that very binary
+        THEN the hook is pinned to the launcher, which survives an upgrade."""
+        versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
+        with _simulate_platform(windows=False, frozen=versioned), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: versioned if path == "/usr/local/bin/ggshield" else path,
+        ):
+            assert build_hook_command() == "/usr/local/bin/ggshield secret scan ai-hook"
+
+    def test_frozen_dispatcher_bundle_prefers_the_stable_launcher(self):
+        """GIVEN a frozen bundle whose hook binary is the sibling dispatcher
+        WHEN /usr/local/bin/ggshield resolves to that dispatcher
+        THEN the launcher wins: the sibling is picked first, so the launcher has
+        the dispatcher to match against and no versioned path is written."""
+        versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
+        with _simulate_platform(windows=False, frozen=f"{versioned}-py"), patch(
+            "ggshield.verticals.ai.installation.os.access", return_value=True
+        ), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: versioned if path == "/usr/local/bin/ggshield" else path,
+        ):
+            assert build_hook_command() == "/usr/local/bin/ggshield secret scan ai-hook"
+
+    def test_frozen_bundle_ignores_a_launcher_to_another_binary(self):
+        """GIVEN a frozen bundle on a machine that also has a Homebrew ggshield
+        WHEN /usr/local/bin/ggshield resolves to that other install
+        THEN the bundle path is kept: the other binary holds no credentials."""
+        versioned = "/opt/gitguardian/ggshield-1.53.0/ggshield"
+        with _simulate_platform(windows=False, frozen=versioned), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: (
+                "/opt/homebrew/bin/ggshield"
+                if path == "/usr/local/bin/ggshield"
+                else path
+            ),
+        ):
+            assert build_hook_command() == f"{versioned} secret scan ai-hook"
+
+    def test_stable_launcher_is_not_used_outside_a_frozen_bundle(self):
+        """GIVEN a pip/Homebrew install (not frozen)
+        WHEN a launcher would resolve to the same file
+        THEN argv[0] is still used verbatim, symlinks unresolved."""
+        with _simulate_platform(
+            ["/opt/homebrew/bin/ggshield", "install"], windows=False
+        ), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath",
+            lambda path: "/opt/homebrew/bin/ggshield",
+        ):
+            assert (
+                build_hook_command() == "/opt/homebrew/bin/ggshield secret scan ai-hook"
+            )
+
+    def test_frozen_bundle_on_windows_ignores_posix_launchers(self):
+        """GIVEN a frozen Windows install
+        WHEN the POSIX launcher paths would match
+        THEN they are ignored: they mean nothing on Windows."""
+        exe = r"C:\Program Files\GitGuardian\ggshield\ggshield.exe"
+        with _simulate_platform(windows=True, frozen=exe), patch(
+            "ggshield.verticals.ai.installation.os.path.realpath", lambda path: exe
+        ):
+            assert build_hook_command() == f'"{exe}" secret scan ai-hook'
 
 
 class _FakeAgent:

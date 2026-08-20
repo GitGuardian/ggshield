@@ -316,34 +316,6 @@ class TestPluginAPIClient:
 
         mock_response.close.assert_called_once()
 
-    def test_report_installation_posts_correct_body(
-        self, mock_gg_client: MagicMock
-    ) -> None:
-        """report_installation POSTs to /installed with version, platform, arch."""
-        mock_response = MagicMock()
-        mock_response.raise_for_status.return_value = None
-        mock_gg_client.session.post.return_value = mock_response
-
-        client = PluginAPIClient(mock_gg_client)
-        client.report_installation("tokenscanner", "1.0.0", "linux", "x86_64")
-
-        mock_gg_client.session.post.assert_called_once()
-        call_args = mock_gg_client.session.post.call_args
-        url = call_args[0][0]
-        body = call_args[1]["json"]
-        assert "/endpoints/plugins/tokenscanner/installed" in url
-        assert body == {"version": "1.0.0", "platform": "linux", "arch": "x86_64"}
-
-    def test_report_installation_swallows_network_error(
-        self, mock_gg_client: MagicMock
-    ) -> None:
-        """report_installation does not raise when the network call fails."""
-        mock_gg_client.session.post.side_effect = Exception("network failure")
-
-        client = PluginAPIClient(mock_gg_client)
-        # Must not raise
-        client.report_installation("tokenscanner", "1.0.0", "linux", "x86_64")
-
 
 class TestDownloadSignatureBundle:
     """Tests for PluginAPIClient.download_signature_bundle."""
@@ -636,8 +608,7 @@ class TestAssertBaseUrlHttps:
     when the instance URL is misconfigured to http://. ``validate_instance_url``
     catches this at ``auth login`` time except for loopback; this is the
     defense-in-depth backstop for hand-edited configs and the missing
-    ``assert_all_https`` coverage on ``get_available_plugins`` /
-    ``report_installation``.
+    ``assert_all_https`` coverage on ``get_available_plugins``.
     """
 
     def test_accepts_https(self) -> None:
@@ -677,19 +648,6 @@ class TestAssertBaseUrlHttps:
             client.get_available_plugins()
 
         gg.session.get.assert_not_called()
-
-    def test_report_installation_swallows_http_base(self) -> None:
-        """``report_installation`` is best-effort; HTTPS check failure is logged,
-        not raised, and the POST is never sent."""
-        gg = MagicMock()
-        gg.base_uri = "http://api.example.com/"
-        gg.session = MagicMock()
-        client = PluginAPIClient(gg)
-
-        # Must not raise.
-        client.report_installation("tokenscanner", "1.0.0", "linux", "x86_64")
-
-        gg.session.post.assert_not_called()
 
 
 class TestParseContentLength:
@@ -819,34 +777,3 @@ class TestSameOriginPortNormalization:
                 "https://api.gitguardian.com:8443/v1/endpoints/plugins/p/signature"
             )
         gg.session.get.assert_not_called()
-
-
-class TestReportInstallationContract:
-    """Regressions for the ``report_installation`` hardening."""
-
-    @pytest.fixture
-    def mock_gg_client(self) -> MagicMock:
-        client = MagicMock()
-        client.base_uri = "https://api.gitguardian.com/"
-        client.api_key = "test-api-key"
-        client.session = MagicMock()
-        return client
-
-    def test_passes_explicit_timeout(self, mock_gg_client: MagicMock) -> None:
-        """A stalled ``/installed`` POST must not hang the command — update.py
-        relied on the report happening before the final config save before
-        the timeout was added, so the wheel could be on disk with the
-        version still pointing at the previous release."""
-        from ggshield.core.plugin.client import HTTP_TIMEOUT_SECONDS
-
-        response = MagicMock()
-        response.history = []
-        response.url = "https://api.gitguardian.com/v1/endpoints/plugins/p/installed"
-        response.raise_for_status.return_value = None
-        mock_gg_client.session.post.return_value = response
-
-        client = PluginAPIClient(mock_gg_client)
-        client.report_installation("p", "1.0.0", "linux", "x86_64")
-
-        kwargs = mock_gg_client.session.post.call_args.kwargs
-        assert kwargs.get("timeout") == HTTP_TIMEOUT_SECONDS

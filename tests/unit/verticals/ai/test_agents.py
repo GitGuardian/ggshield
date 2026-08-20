@@ -1,8 +1,10 @@
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
 
+import jwt
 import pytest
 from pygitguardian.models import MCPToolInfo, UserInfo
 
@@ -11,6 +13,7 @@ from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
 from ggshield.verticals.ai.agents.codex import Codex
 from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
+from ggshield.verticals.ai.agents.vibe import Vibe
 from ggshield.verticals.ai.agents.vscode import VSCode
 from ggshield.verticals.ai.models import (
     Agent,
@@ -1044,6 +1047,145 @@ class TestCodex:
         assert req.input == {"query": "hello"}
 
 
+# ===========================================================================
+# Vibe
+# ===========================================================================
+
+
+class TestVibe:
+    def test_config_folder_defaults_to_dot_vibe(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            assert Vibe().config_folder == tmp_path / ".vibe"
+
+    def test_config_folder_honors_vibe_home(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv",
+            return_value=str(tmp_path / "custom-vibe"),
+        ):
+            assert Vibe().config_folder == tmp_path / "custom-vibe"
+
+    def test_parse_mcp_activity(self):
+        vibe = Vibe()
+        cfg = _cfg(name="my_server", agent="vibe")
+        server = MCPServer(
+            name="My Server",
+            configurations=[cfg],
+            tools=[MCPToolInfo(name="run_query")],
+        )
+        discovery = _ai_discovery(servers=[server])
+        payload = _payload(
+            vibe,
+            raw={
+                "tool_name": "my_server_run_query",
+                "cwd": "/tmp/project",
+                "tool_input": {"query": "hello"},
+            },
+        )
+
+        req = vibe.parse_mcp_activity(payload, discovery)
+
+        assert req.user == discovery.user
+        assert req.tool == "run_query"
+        assert req.server == "My Server"
+        assert req.agent == "vibe"
+        assert req.model == ""
+        assert req.cwd == "/tmp/project"
+        assert req.input == {"query": "hello"}
+
+    def test_post_process_payload_recognizes_configured_mcp_tool(self, tmp_path: Path):
+        vibe_home = tmp_path / ".vibe"
+        vibe_home.mkdir()
+        (vibe_home / "config.toml").write_text(
+            "[[mcp_servers]]\n"
+            'name = "my_server"\n'
+            'transport = "stdio"\n'
+            'command = "server"\n'
+        )
+        payload = _payload(
+            Vibe(),
+            raw={
+                "tool_name": "my_server_run_query",
+                "cwd": str(tmp_path / "project"),
+                "tool_input": {"query": "hello"},
+            },
+            tool=Tool.OTHER,
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            payload.agent.post_process_payload(payload)
+
+        assert payload.tool == Tool.MCP
+
+    def test_parse_mcp_servers_transports_and_argv_command(self, tmp_path: Path):
+        """Vibe has no SSE transport, and `command` may be a full argv list."""
+        vibe_home = tmp_path / ".vibe"
+        vibe_home.mkdir()
+        (vibe_home / "config.toml").write_text(
+            "[[mcp_servers]]\n"
+            'name = "argv"\n'
+            'transport = "stdio"\n'
+            'command = ["npx", "-y", "some-mcp"]\n'
+            'args = ["--flag"]\n'
+            "\n"
+            "[[mcp_servers]]\n"
+            'name = "streamy"\n'
+            'transport = "streamable-http"\n'
+            'url = "https://example.com/mcp"\n'
+            'auth = { headers = { Authorization = "Bearer abc" } }\n'
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            configurations = {
+                configuration.name: configuration
+                for configuration in Vibe()._get_user_mcp_configurations()
+            }
+
+        argv = configurations["argv"]
+        assert argv.transport == Transport.STDIO
+        assert argv.command == "npx"
+        assert argv.args == ["-y", "some-mcp", "--flag"]
+
+        streamy = configurations["streamy"]
+        assert streamy.transport == Transport.HTTP
+        assert streamy.headers == {"Authorization": "Bearer abc"}
+
+    def test_post_process_payload_rejects_unconfigured_mcp_prefix(self, tmp_path: Path):
+        payload = _payload(
+            Vibe(),
+            raw={
+                "tool_name": "mcp_custom_tool",
+                "cwd": str(tmp_path),
+                "tool_input": {},
+            },
+            tool=Tool.MCP,
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.vibe.os.getenv", return_value=None
+        ), patch(
+            "ggshield.verticals.ai.agents.vibe.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            payload.agent.post_process_payload(payload)
+
+        assert payload.tool == Tool.OTHER
+
+
 class TestCodexDiscoverProjectDirectories:
     def _patch(self, codex: Codex, config_folder: Path):
         return patch.object(
@@ -1644,3 +1786,141 @@ class TestParseToolArguments:
     )
     def test_non_dict_schema_returns_none(self, schema: Any):
         assert _parse_tool_arguments(schema) is None
+
+
+def _jwt(payload: Dict[str, Any]) -> str:
+    """Build a JWT carrying payload. The signature is never checked on read."""
+    return jwt.encode(payload, "k" * 32)
+
+
+class TestSubscriptionEmail:
+    """Each agent reports the account it is logged into, or nothing at all."""
+
+    def test_claude_reads_oauth_account(self, tmp_path: Path):
+        """GIVEN a ~/.claude.json holding an oauthAccount
+        WHEN subscription_email is read
+        THEN the account's emailAddress is returned"""
+        claude_json = tmp_path / ".claude.json"
+        claude_json.write_text(
+            json.dumps({"oauthAccount": {"emailAddress": "dev@example.com"}})
+        )
+        with patch.object(
+            Claude,
+            "user_mcp_file",
+            new_callable=lambda: property(lambda self: claude_json),
+        ):
+            assert Claude().subscription_email() == "dev@example.com"
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            pytest.param({}, id="no-oauth-account"),
+            pytest.param({"oauthAccount": {}}, id="no-email"),
+            pytest.param({"oauthAccount": "nope"}, id="account-not-a-dict"),
+            pytest.param({"oauthAccount": {"emailAddress": ""}}, id="empty-email"),
+        ],
+    )
+    def test_claude_returns_none_without_an_account(
+        self, tmp_path: Path, content: Dict[str, Any]
+    ):
+        """GIVEN a ~/.claude.json with no usable account
+        WHEN subscription_email is read
+        THEN None is returned"""
+        claude_json = tmp_path / ".claude.json"
+        claude_json.write_text(json.dumps(content))
+        with patch.object(
+            Claude,
+            "user_mcp_file",
+            new_callable=lambda: property(lambda self: claude_json),
+        ):
+            assert Claude().subscription_email() is None
+
+    def test_claude_returns_none_when_the_file_is_missing(self, tmp_path: Path):
+        """GIVEN no ~/.claude.json at all
+        WHEN subscription_email is read
+        THEN None is returned"""
+        with patch.object(
+            Claude,
+            "user_mcp_file",
+            new_callable=lambda: property(lambda self: tmp_path / "absent.json"),
+        ):
+            assert Claude().subscription_email() is None
+
+    def test_codex_decodes_the_id_token(self, tmp_path: Path):
+        """GIVEN a ~/.codex/auth.json whose id_token carries an email claim
+        WHEN subscription_email is read
+        THEN the claim is decoded and returned"""
+        (tmp_path / "auth.json").write_text(
+            json.dumps({"tokens": {"id_token": _jwt({"email": "dev@example.com"})}})
+        )
+        with patch.object(
+            Codex,
+            "config_folder",
+            new_callable=lambda: property(lambda self: tmp_path),
+        ):
+            assert Codex().subscription_email() == "dev@example.com"
+
+    @pytest.mark.parametrize(
+        "tokens",
+        [
+            pytest.param({}, id="no-id-token"),
+            pytest.param({"id_token": "not-a-jwt"}, id="not-a-jwt"),
+            pytest.param(
+                {"id_token": "a.!!!not-base64!!!.c"}, id="undecodable-payload"
+            ),
+            pytest.param({"id_token": _jwt({"sub": "x"})}, id="no-email-claim"),
+            pytest.param({"id_token": 42}, id="token-not-a-string"),
+        ],
+    )
+    def test_codex_returns_none_on_an_unusable_token(
+        self, tmp_path: Path, tokens: Dict[str, Any]
+    ):
+        """GIVEN a ~/.codex/auth.json with no readable email claim
+        WHEN subscription_email is read
+        THEN None is returned rather than raising"""
+        (tmp_path / "auth.json").write_text(json.dumps({"tokens": tokens}))
+        with patch.object(
+            Codex,
+            "config_folder",
+            new_callable=lambda: property(lambda self: tmp_path),
+        ):
+            assert Codex().subscription_email() is None
+
+    def test_cursor_returns_none_without_a_state_database(self, tmp_path: Path):
+        """GIVEN no Cursor state.vscdb on disk
+        WHEN subscription_email is read
+        THEN None is returned"""
+        with patch(
+            "ggshield.verticals.ai.agents.cursor.get_editor_user_data_dir",
+            return_value=tmp_path,
+        ):
+            assert Cursor().subscription_email() is None
+
+    def test_cursor_reads_cached_email(self, tmp_path: Path):
+        """GIVEN a Cursor state.vscdb holding cursorAuth/cachedEmail
+        WHEN subscription_email is read
+        THEN the cached email is returned"""
+        db_dir = tmp_path / "globalStorage"
+        db_dir.mkdir()
+        conn = sqlite3.connect(db_dir / "state.vscdb")
+        conn.execute("CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value BLOB)")
+        conn.execute(
+            "INSERT INTO ItemTable VALUES ('cursorAuth/cachedEmail', 'dev@example.com')"
+        )
+        conn.commit()
+        conn.close()
+        with patch(
+            "ggshield.verticals.ai.agents.cursor.get_editor_user_data_dir",
+            return_value=tmp_path,
+        ):
+            assert Cursor().subscription_email() == "dev@example.com"
+
+    @pytest.mark.parametrize(
+        "agent",
+        [pytest.param(Vibe(), id="vibe"), pytest.param(VSCode(), id="vscode")],
+    )
+    def test_agents_without_a_local_account_report_nothing(self, agent: Agent):
+        """GIVEN an agent that keeps no account on disk
+        WHEN subscription_email is read
+        THEN None is returned, never a stand-in from git config"""
+        assert agent.subscription_email() is None

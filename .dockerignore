@@ -6,4 +6,6 @@
 !README.md
 !LICENSE
 !pyproject.toml
+!hatch_build.py
+!hatch_meta.py
 !docker

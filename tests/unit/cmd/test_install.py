@@ -1,3 +1,4 @@
+import json
 import os
 import stat
 import subprocess
@@ -16,7 +17,10 @@ from ggshield.cmd.install import (
     install_local,
 )
 from ggshield.core.errors import ExitCode, MissingTokenError
-from ggshield.verticals.ai.installation import _is_interactive
+from ggshield.verticals.ai.installation import (
+    _is_interactive,
+    _warm_hook_credential_store,
+)
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
@@ -458,6 +462,131 @@ class TestInstallAIHook:
             assert _is_interactive() is True
             stdout.isatty.return_value = False
             assert _is_interactive() is False
+
+
+class TestHookCredentialStoreWarmUp:
+    """The hook binary must be the one that asks for credential-store access."""
+
+    @pytest.fixture()
+    def bundle(self, monkeypatch):
+        """A frozen macOS bundle whose hook is the Rust dispatcher."""
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "executable", "/opt/gitguardian/ggshield-py")
+        monkeypatch.setattr(
+            "ggshield.verticals.ai.installation.hook_executable",
+            lambda: "/opt/gitguardian/ggshield",
+        )
+
+    @patch("ggshield.verticals.ai.installation._is_interactive", return_value=True)
+    @patch("ggshield.verticals.ai.installation.create_client_from_config")
+    @patch("ggshield.verticals.ai.installation._warm_hook_credential_store")
+    def test_warms_up_when_interactive(
+        self,
+        warm_up_mock: Mock,
+        create_client_mock: Mock,
+        interactive_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN an interactive install
+        WHEN the auth preflight runs
+        THEN the hook binary is warmed up too, while the user can answer a dialog
+        """
+        create_client_mock.return_value.health_check.return_value = Mock(
+            spec=HealthCheckResponse, status_code=200
+        )
+
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+
+        assert_invoke_ok(result)
+        warm_up_mock.assert_called_once()
+
+    @patch("ggshield.verticals.ai.installation._is_interactive", return_value=False)
+    @patch("ggshield.verticals.ai.installation._warm_hook_credential_store")
+    def test_no_warm_up_when_non_interactive(
+        self, warm_up_mock: Mock, interactive_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN a non-interactive install (CI, MDM provisioning)
+        WHEN the hooks are installed
+        THEN nothing asks the credential store, so no dialog nobody can answer
+        """
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+
+        assert_invoke_ok(result)
+        warm_up_mock.assert_not_called()
+
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_runs_the_hook_binary_on_a_hook_event(self, run_mock: Mock, bundle):
+        """
+        GIVEN a standalone bundle, where the hook is a distinct code identity
+        WHEN the warm-up runs
+        THEN that binary reads the token, on the hook's own code path
+        """
+        _warm_hook_credential_store()
+
+        run_mock.assert_called_once()
+        args, kwargs = run_mock.call_args
+        assert args[0] == ["/opt/gitguardian/ggshield", "secret", "scan", "ai-hook"]
+        assert json.loads(kwargs["input"])["hook_event_name"] == "UserPromptSubmit"
+        assert kwargs["timeout"] > 0
+
+    @pytest.mark.parametrize("platform", ["linux", "win32"])
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_no_warm_up_outside_macos(
+        self, run_mock: Mock, platform: str, bundle, monkeypatch
+    ):
+        """
+        GIVEN a platform whose credential store does not grant per binary
+        WHEN the warm-up runs
+        THEN nothing is spawned: the trip buys nothing there
+        """
+        monkeypatch.setattr(sys, "platform", platform)
+
+        _warm_hook_credential_store()
+
+        run_mock.assert_not_called()
+
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_no_warm_up_without_a_separate_hook_binary(
+        self, run_mock: Mock, monkeypatch
+    ):
+        """
+        GIVEN a pip/pipx/Homebrew install, where the hook is this interpreter
+        WHEN the warm-up runs
+        THEN nothing is spawned: the reading identity has already been granted
+        """
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.delattr(sys, "frozen", raising=False)
+
+        _warm_hook_credential_store()
+
+        run_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            FileNotFoundError("no hook binary here"),
+            subprocess.TimeoutExpired(cmd="ggshield", timeout=60),
+        ],
+    )
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_a_broken_warm_up_is_swallowed(
+        self, run_mock: Mock, failure: Exception, bundle
+    ):
+        """
+        GIVEN a hook binary that is missing, or a dialog left unanswered
+        WHEN the warm-up runs
+        THEN the failure is swallowed: a best-effort grant must not fail setup
+        """
+        run_mock.side_effect = failure
+
+        _warm_hook_credential_store()
 
 
 @pytest.fixture()

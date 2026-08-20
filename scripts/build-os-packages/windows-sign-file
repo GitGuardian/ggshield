@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Authenticode-sign one file with the GitGuardian certificate, through DigiCert
+# KeyLocker.
+#
+# A script rather than a function in windows-functions.bash because the Windows
+# wheel signs from Python (hatch_build.py) and the standalone bundle from bash:
+# the `ggshield.exe` in both is the same dispatcher, signed with the same
+# certificate.
+#
+# $1 is the file to sign, $2 the directory to stage a copy in (see below),
+# defaulting to the file's own. $WINDOWS_CERT_FINGERPRINT and the SM_* variables
+# are what smctl needs.
+set -euo pipefail
+
+file="${1:?usage: $0 FILE [STAGING_DIR]}"
+staging_dir="${2:-$(dirname "$file")}"
+
+for var in WINDOWS_CERT_FINGERPRINT SM_API_KEY SM_HOST SM_CLIENT_CERT_FILE \
+           SM_CLIENT_CERT_PASSWORD ; do
+    if [ -z "${!var:-}" ] ; then
+        echo "$0: $var must be set" >&2
+        exit 1
+    fi
+done
+if [ ! -f "$SM_CLIENT_CERT_FILE" ] ; then
+    echo "$0: $SM_CLIENT_CERT_FILE does not exist" >&2
+    exit 1
+fi
+
+echo "- Signing $file"
+
+# smctl rejects any path holding a character signtool does not support, `+` among
+# them, and our "X.Y.Z+sha" builds put one in the archive directory name. So sign
+# a copy staged under a name built from safe characters only, then move the signed
+# bytes back. Picking the staging directory is the caller's job: it has to be free
+# of those characters itself.
+tmp_dir=$(mktemp -d "$staging_dir/sign.XXXXXX")
+base="${file##*/}"
+tmp_path="$tmp_dir/${base//[^A-Za-z0-9._-]/_}"
+cp "$file" "$tmp_path"
+
+# A Windows path for a Windows tool: signtool reads `--input` itself, and only a
+# POSIX-looking argument gets translated on the way to a native process.
+smctl sign \
+    --verbose \
+    --exit-non-zero-on-fail \
+    --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
+    --tool signtool \
+    --input "$(cygpath -w "$tmp_path")"
+
+mv "$tmp_path" "$file"
+rm -rf "$tmp_dir"

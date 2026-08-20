@@ -19,6 +19,9 @@ release: 1
 umask: 0o022
 
 contents:
+  # The Rust dispatcher, not the PyInstaller launcher: `ggshield` is the entry
+  # point and `ggshield-py` (which it execs) sits next to it in
+  # /usr/libexec/ggshield, picked up by the `expand: true` entry below.
   - src: ../libexec/ggshield/ggshield
     dst: /usr/bin/ggshield
     type: symlink

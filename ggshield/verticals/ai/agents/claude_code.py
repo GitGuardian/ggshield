@@ -293,6 +293,15 @@ class Claude(Agent):
                 display_name=name,
             )
 
+    def subscription_email(self) -> Optional[str]:
+        """Read the signed-in claude.ai account from ~/.claude.json."""
+        data = self._load_file(self.user_mcp_file) or {}
+        account = data.get("oauthAccount")
+        if not isinstance(account, dict):
+            return None
+        email = account.get("emailAddress")
+        return email if isinstance(email, str) and email else None
+
     def discover_project_directories(self) -> Iterator[Path]:
         """Discover project directories by scraping config files."""
         history_file = self.config_folder / "history.jsonl"

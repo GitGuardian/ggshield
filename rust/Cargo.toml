@@ -1,0 +1,88 @@
+[workspace]
+members = ["common", "config", "hook", "dispatcher"]
+resolver = "2"
+
+[workspace.package]
+# Crate metadata only; nothing is published from here. The version the hook
+# *reports* to the API comes from ggshield's own `__version__`, read at build
+# time by hook/build.rs.
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+# Hook payload in, GitGuardian /v1/multiscan response out. `preserve_order` is
+# load-bearing: an MCP tool's arguments are re-serialized and scanned as text, so
+# without it serde_json would sort the agent's own keys and we would scan bytes
+# the agent never sent.
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+# auth_config.yaml (the token file). Maintained fork of the archived serde_yaml.
+serde_yaml_ng = "0.10"
+
+# Blocking HTTP + TLS. Not reqwest: one request per process, so an async runtime
+# is pure startup cost. `platform-verifier` uses the OS trust store, which
+# on-prem installs behind a corporate CA need.
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier", "json"] }
+
+# `@file` extraction out of user prompts — mirrors _FILE_PATH_REGEX in hooks.py.
+regex = "1"
+
+# Vibe's `config.toml`, for the MCP server names that tell a `{server}_{tool}`
+# call from one of Vibe's own tools. No `display`: we only ever read.
+toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
+
+# Payload debounce hash + the content identifier, both sha256 in the Python.
+sha2 = "0.10"
+
+# Cache/config dirs. Matches what platformdirs returns for ggshield.
+dirs = "6"
+
+# RFC 3339 parsing for the stored token's expiry date.
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+
+# O_NOFOLLOW and getuid for the cache files' ownership checks, flock for the
+# keyring lock. Already in the tree transitively; std exposes none of them.
+libc = "0.2"
+
+# `.env` parsing (GITGUARDIAN_* overrides). Only the `*_iter` API is used: it
+# yields pairs without touching the process environment.
+dotenvy = "0.15"
+
+# Read-only keychain access, in-process: no fork+exec on the hot path, and the
+# only API we link is the read one, so a write is not expressible.
+security-framework = "3"
+
+# Read-only Secret Service (libsecret/D-Bus) access, to read the same item
+# Python's `keyring` SecretService backend wrote. Pure-Rust zbus, no libdbus C
+# link; blocking API, like the HTTP client. Only `search_items` + `get_secret`.
+secret-service = { version = "5", default-features = false, features = ["rt-async-io-crypto-rust"] }
+
+# Read-only Windows Credential Manager access (`CredReadW`), matching the
+# WinVaultKeyring target scheme Python's `keyring` writes; we link nothing but
+# the read entry point. `LockFileEx` (Storage_FileSystem + System_IO for
+# OVERLAPPED) is the byte-range lock `filelock` takes via `msvcrt.locking`, so
+# the credential read serialises against `ggshield`'s.
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security_Credentials",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Console",
+  "Win32_System_IO",
+] }
+
+tempfile = "3"
+
+ggshield-common = { path = "common" }
+ggshield-config = { path = "config" }
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+# NOT panic = "abort": `run_hook()` catches unwinds so a bug still fails open
+# with a warning instead of killing the hook. See hook/src/lib.rs.

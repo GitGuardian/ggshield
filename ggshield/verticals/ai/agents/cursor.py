@@ -90,6 +90,30 @@ class Cursor(Agent):
     def config_folder(self) -> Path:
         return get_user_home_dir() / ".cursor"
 
+    def subscription_email(self) -> Optional[str]:
+        """Read the signed-in Cursor account from cursorAuth/cachedEmail in state.vscdb."""
+        db_path = get_editor_user_data_dir("Cursor") / "globalStorage" / "state.vscdb"
+        if not db_path.is_file():
+            return None
+        try:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        except sqlite3.Error as exc:
+            logger.warning("Cursor: could not open state database %s: %s", db_path, exc)
+            return None
+        try:
+            row = conn.execute(
+                "SELECT value FROM ItemTable WHERE key = 'cursorAuth/cachedEmail'"
+            ).fetchone()
+        except sqlite3.Error:
+            return None
+        finally:
+            conn.close()
+        if not row or not isinstance(row[0], (str, bytes)):
+            return None
+        value = row[0].decode(errors="replace") if isinstance(row[0], bytes) else row[0]
+        # Some ItemTable values are bare strings, others JSON-quoted.
+        return value.strip('"') or None
+
     def output_result(self, result: HookResult) -> int:
         message = result.message or result.warning
         response = {}
@@ -113,6 +137,12 @@ class Cursor(Agent):
 
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
         return "cursor_version" in hook_payload
+
+    def event_cwd(self, data: Dict[str, Any]) -> str:
+        # Cursor reports the working directory as a list of workspace roots
+        # rather than a "cwd" field.
+        roots = data.get("workspace_roots") or []
+        return roots[0] if roots else ""
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".cursor") / "hooks.json"

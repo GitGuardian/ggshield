@@ -11,29 +11,56 @@ jobs:
     secrets: inherit
     with:
       release_mode: true
+      sign: true
+
+  # The platform wheels carrying the Rust `ggshield`. Called from here rather
+  # than triggered on the tag itself, so its artifacts land in this run and
+  # `push_to_pypi` below can download them.
+  build_platform_wheels:
+    uses: ./.github/workflows/wheels.yml
+    secrets: inherit
+    with:
+      sign: true
 
   push_to_pypi:
-    needs: build_release_assets
+    needs: [build_release_assets, build_platform_wheels]
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
-      - name: Download wheel and sdist
-        uses: actions/download-artifact@v4
+      # Two artifacts, never one: both jobs would name a pure wheel
+      # `ggshield-<version>-py3-none-any.whl`, so only `build_wheel_sdist`
+      # builds one. See .github/workflows/wheels.yml.
+      - name: Download the sdist and the pure-Python wheel
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
+
+      - name: Download the platform wheels
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.pypi_password }}
+          # A release now uploads eight files from two jobs instead of two from
+          # one. PyPI takes them one at a time and refuses a filename it already
+          # has, so a failure partway through leaves the rest unpublished and a
+          # plain re-run dies on what already landed — with no way to replace it,
+          # because a PyPI filename cannot be reused. Skipping what is already
+          # there makes the re-run finish the job instead.
+          skip-existing: true
 
   release:
     runs-on: ubuntu-22.04
@@ -53,7 +80,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -64,7 +91,7 @@ jobs:
           echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
       - name: Download OS packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: os-packages-*
           path: dist
@@ -116,7 +143,7 @@ jobs:
     steps:
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             gitguardian/ggshield
@@ -125,20 +152,20 @@ jobs:
             type=ref,event=tag
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -159,10 +186,10 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: os-packages-*
           path: dist
@@ -184,10 +211,10 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: os-packages-windows-*
           path: dist

@@ -10,31 +10,15 @@ from typing import Any, List, Optional
 import click
 
 from ggshield import __version__
-from ggshield.cmd.ai import ai_group
-from ggshield.cmd.auth import auth_group
-from ggshield.cmd.config import config_group
-from ggshield.cmd.hmsl import hmsl_group
-from ggshield.cmd.honeytoken import honeytoken_group
-from ggshield.cmd.install import install_cmd
-from ggshield.cmd.machine import machine_group
-from ggshield.cmd.plugin import plugin_group
-from ggshield.cmd.quota import quota_cmd
-from ggshield.cmd.secret import secret_group
-from ggshield.cmd.secret.scan import scan_group
-from ggshield.cmd.status import status_cmd
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.debug import setup_debug_mode
+from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
 from ggshield.core import check_updates, ui
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.env_utils import load_dot_env
-from ggshield.core.errors import ExitCode
-from ggshield.core.plugin.loader import PluginLoader
-from ggshield.core.plugin.registry import PluginRegistry
 from ggshield.core.ui import ensure_level, log_utils
-from ggshield.core.ui.rich import RichGGShieldUI
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
 
@@ -42,66 +26,27 @@ from ggshield.utils.os import getenv_bool
 logger = logging.getLogger(__name__)
 
 
-@scan_group.result_callback()
-@click.pass_context
-def exit_code(ctx: click.Context, exit_code: int, **kwargs: Any) -> int:
-    """
-    exit_code guarantees that the return value of a scan is 0
-    when exit_zero is enabled
-    """
-    ctx_obj = ContextObj.get(ctx)
-    if (
-        exit_code == ExitCode.SCAN_FOUND_PROBLEMS
-        and ctx_obj.config.user_config.exit_zero
-    ):
-        logger.debug("scan exit_code forced to 0")
-        sys.exit(ExitCode.SUCCESS)
-
-    logger.debug("scan exit_code=%d", exit_code)
-    return exit_code
-
-
-# Plugin registry, lazily initialized when _load_plugins() is called.
-_plugin_registry: Optional[PluginRegistry] = None
-
-# Warnings collected during plugin loading, before logging is configured.
-_deferred_warnings: List[str] = []
-
-
-def _load_plugins() -> PluginRegistry:
-    """Load plugins at module level so commands are available."""
-    global _plugin_registry
-    if _plugin_registry is None:
-        try:
-            enterprise_config = EnterpriseConfig.load_effective()
-            plugin_loader = PluginLoader(enterprise_config)
-            _plugin_registry = plugin_loader.load_enabled_plugins()
-        except Exception as e:
-            _deferred_warnings.append(f"Failed to load plugins: {e}")
-            _plugin_registry = PluginRegistry()
-
-        # Make registry available to hooks module
-        from ggshield.core.plugin.hooks import set_plugin_registry
-
-        set_plugin_registry(_plugin_registry)
-    return _plugin_registry
+# Imported only when Click resolves the name (see cmd/utils/lazy_group.py).
+# Every entry is checked by tests/unit/cmd/test_lazy_commands.py.
+_LAZY_COMMANDS = {
+    "ai": "ggshield.cmd.ai:ai_group",
+    "auth": "ggshield.cmd.auth:auth_group",
+    "config": "ggshield.cmd.config:config_group",
+    "plugin": "ggshield.cmd.plugin:plugin_group",
+    "secret": "ggshield.cmd.secret:secret_group",
+    "install": "ggshield.cmd.install:install_cmd",
+    "machine": "ggshield.cmd.machine:machine_group",
+    "quota": "ggshield.cmd.quota:quota_cmd",
+    "api-status": "ggshield.cmd.status:status_cmd",
+    "honeytoken": "ggshield.cmd.honeytoken:honeytoken_group",
+    "hmsl": "ggshield.cmd.hmsl:hmsl_group",
+}
 
 
 @click.group(
+    cls=PluginAwareLazyGroup,
+    lazy_commands=_LAZY_COMMANDS,
     context_settings={"help_option_names": ["-h", "--help"]},
-    commands={
-        "ai": ai_group,
-        "auth": auth_group,
-        "config": config_group,
-        "plugin": plugin_group,
-        "secret": secret_group,
-        "install": install_cmd,
-        "machine": machine_group,
-        "quota": quota_cmd,
-        "api-status": status_cmd,
-        "honeytoken": honeytoken_group,
-        "hmsl": hmsl_group,
-    },
 )
 @click.option(
     "-c",
@@ -129,9 +74,7 @@ def cli(
     instance: Optional[str],
     **kwargs: Any,
 ) -> None:
-    # Load .env before Config so AuthConfig.load() can see GITGUARDIAN_API_KEY
-    # set via dotenv and skip keyring access when an env-provided token will be
-    # used instead.
+    # Load .env before Config so the config sees the variables it sets.
     dotenv_vars = load_dot_env()
 
     # Create ContextObj, load config
@@ -157,78 +100,10 @@ def cli(
     if instance:
         ctx_obj.config.cmdline_instance_name = instance
 
-    # Use pre-loaded plugin registry
-    ctx_obj.plugin_registry = _load_plugins()
-
-    # Flush deferred plugin warnings now that logging is configured
-    for msg in _deferred_warnings:
-        logger.warning(msg)
-    _deferred_warnings.clear()
+    # Deliberately no plugin loading here: ContextObj.plugin_registry and
+    # PluginAwareLazyGroup each load on demand.
 
     _set_color(ctx)
-
-
-# Register plugin commands with the CLI group.
-# Called from main() to avoid import-time side effects.
-def _add_or_merge_plugin_command(
-    root: click.Group, command: click.Command, warnings: List[str]
-) -> None:
-    """Add a plugin command to the CLI, merging into a built-in group on conflict.
-
-    A plugin normally contributes a brand-new top-level command. When its name
-    collides with an existing built-in command we used to skip it entirely. But
-    some plugins (e.g. ``machine_scan``) contribute subcommands of a namespace
-    that ggshield now owns built-in (``machine``). In that case both the
-    existing command and the plugin command are groups, and we merge the
-    plugin's subcommands into the built-in group rather than dropping them.
-    Overlapping subcommand names are skipped so a plugin can never silently
-    override a built-in subcommand.
-    """
-    name = command.name
-    existing = root.commands.get(name) if name else None
-
-    if existing is None:
-        root.add_command(command)
-        return
-
-    if isinstance(existing, click.Group) and isinstance(command, click.Group):
-        for sub_name, sub_cmd in command.commands.items():
-            if sub_name in existing.commands:
-                warnings.append(
-                    f"Skipping plugin subcommand '{name} {sub_name}' because it "
-                    "conflicts with an existing command"
-                )
-                continue
-            existing.add_command(sub_cmd, sub_name)
-        return
-
-    warnings.append(
-        f"Skipping plugin command '{name}' because it conflicts with an "
-        "existing command"
-    )
-
-
-def _register_plugin_commands() -> None:
-    """Register plugin commands with the CLI."""
-    try:
-        registry = _load_plugins()
-        for cmd in registry.get_commands():
-            if not cmd.name:
-                _deferred_warnings.append("Skipping unnamed plugin command")
-                continue
-            _add_or_merge_plugin_command(cli, cmd, _deferred_warnings)
-    except Exception as e:
-        _deferred_warnings.append(f"Failed to register plugin commands: {e}")
-
-
-# Emitted before Click dispatches: a failed load leaves the command unregistered,
-# so Click rejects it as unknown and the group callback never runs to warn.
-def _warn_about_failed_plugins() -> None:
-    for name, reason in _load_plugins().get_load_failures().items():
-        ui.display_warning(
-            "Plugin '%s' is enabled but failed to load: %s. Its commands are "
-            "unavailable; run `ggshield plugin list` for status." % (name, reason)
-        )
 
 
 def _set_color(ctx: click.Context):
@@ -329,22 +204,19 @@ def main(args: Optional[List[str]] = None) -> Any:
     """
     log_utils.disable_logs()
 
-    _register_plugin_commands()
-
     # Required by pyinstaller when forking.
     # See https://pyinstaller.org/en/latest/common-issues-and-pitfalls.html#multi-processing
     multiprocessing.freeze_support()
 
     if not os.getenv("GG_PLAINTEXT_OUTPUT", False) and sys.stderr.isatty():
+        # Local import: rich is only needed for an interactive terminal, not for
+        # hooks and CI runs, whose output is piped.
+        from ggshield.core.ui.rich import RichGGShieldUI
+
         ui.set_ui(RichGGShieldUI())
 
     force_utf8_output()
     setup_truststore()
-
-    # cli.main() has not yet consumed _GGSHIELD_COMPLETE, so skip the warning
-    # during shell completion to avoid leaking it into completion output.
-    if "_GGSHIELD_COMPLETE" not in os.environ:
-        _warn_about_failed_plugins()
 
     show_crash_log = getenv_bool("GITGUARDIAN_CRASH_LOG")
     return cli.main(args, prog_name="ggshield", standalone_mode=not show_crash_log)

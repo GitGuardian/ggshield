@@ -16,7 +16,7 @@ from ggshield.cmd.install import (
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config, safe_api_tokens
-from ggshield.core.plugin.hooks import get_plugin_registry
+from ggshield.core.plugin.hooks import load_plugin_registry
 from ggshield.verticals.ai.installation import ai_hook_posture
 
 
@@ -230,14 +230,14 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
 
 
 def _is_plugin_installed() -> bool:
-    registry = get_plugin_registry()
+    registry = load_plugin_registry()
     return registry is not None and registry.get_plugin(PLUGIN_NAME) is not None
 
 
 def _check_plugin_native() -> Check:
     """Prove the plugin's native scanner loads on this machine (signed, arch-specific
     wheel + compiled extension), without running a scan."""
-    registry = get_plugin_registry()
+    registry = load_plugin_registry()
     plugin = registry.get_plugin(PLUGIN_NAME) if registry else None
     version = ""
     if plugin is not None:

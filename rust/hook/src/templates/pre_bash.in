@@ -1,0 +1,11 @@
+**🚨 Detected {count} {secrets} in the command 🚨**  
+{secret_lines}
+
+The command was not executed and the {secrets} {were} not leaked.
+
+> How to remediate
+
+  Since the {secrets} {were} detected before the command was run:  
+  1. consider moving the {secrets} to a secrets manager.
+
+{false_positive_instructions}

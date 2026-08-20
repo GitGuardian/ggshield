@@ -17,13 +17,22 @@ windows_sign() {
         die "$SM_CLIENT_CERT_FILE does not exist"
     fi
 
+    # Both executables: leaving ggshield-py.exe unsigned ships an unsigned
+    # executable, which SmartScreen flags.
     local archive_dir="$BUILD_DIR/$ARCHIVE_DIR_NAME"
-    smctl sign \
-        --verbose \
-        --exit-non-zero-on-fail \
-        --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
-        --tool signtool \
-        --input "$archive_dir/$INSTALL_PREFIX/ggshield.exe"
+    local exe
+    for exe in ggshield.exe ggshield-py.exe ; do
+        windows_sign_file "$archive_dir/$INSTALL_PREFIX/$exe"
+    done
+}
+
+# $1 is the file to sign. The invocation lives in windows-sign-file, shared with
+# the Windows wheel build.
+windows_sign_file() {
+    # Staged under $BUILD_DIR rather than $TMPDIR: the runner's temp path is
+    # outside our control and signtool's accepted set is narrow, while $BUILD_DIR
+    # is the directory every release has already signed from.
+    "$SCRIPT_DIR/windows-sign-file" "$1" "$BUILD_DIR"
 }
 
 windows_create_archive() {
@@ -42,7 +51,12 @@ windows_build_chocolatey_package() {
     mkdir choco-package/tools
 
     cp -r "$BUILD_DIR/$ARCHIVE_DIR_NAME/_internal" choco-package/tools
-    cp "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield.exe" choco-package/tools
+    # ggshield-py.exe too: the dispatcher looks for it as a sibling.
+    cp "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield.exe" \
+       "$BUILD_DIR/$ARCHIVE_DIR_NAME/ggshield-py.exe" choco-package/tools
+    # Chocolatey shims every .exe it finds into its bin/ (which is on the PATH)
+    # unless a <name>.exe.ignore marker sits next to it. ggshield-py is internal.
+    touch choco-package/tools/ggshield-py.exe.ignore
     cp "$ROOT_DIR/scripts/chocolatey/ggshield.nuspec" choco-package
     cp "$ROOT_DIR/scripts/chocolatey/VERIFICATION.txt" choco-package/tools
     cp "$ROOT_DIR/LICENSE" choco-package/tools/LICENSE.txt
@@ -98,12 +112,7 @@ windows_build_msi_package() {
 
     if [ "$DO_SIGN" -eq 1 ] ; then
         info "Signing MSI package"
-        smctl sign \
-            --verbose \
-            --exit-non-zero-on-fail \
-            --fingerprint "$WINDOWS_CERT_FINGERPRINT" \
-            --tool signtool \
-            --input "$msi_path"
+        windows_sign_file "$msi_path"
     fi
 
     info "MSI package created in $msi_path"

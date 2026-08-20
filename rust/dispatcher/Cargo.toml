@@ -1,0 +1,27 @@
+[package]
+name = "ggshield-dispatcher"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The `ggshield` front door: `secret scan ai-hook` natively, everything else to `ggshield-py`."
+
+# Named `ggshield` because it *is* `ggshield`: this binary is what the bundle
+# installs on the PATH, and it delegates to the renamed PyInstaller launcher
+# (`ggshield-py`) for every command it does not handle itself.
+[[bin]]
+name = "ggshield"
+path = "src/main.rs"
+
+[dependencies]
+# The hook half: the exact `secret scan ai-hook` argv is answered by this.
+ggshield-hook = { path = "../hook" }
+
+# Ctrl-C has to be handed to the child, which needs SetConsoleCtrlHandler.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
