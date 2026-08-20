@@ -21,6 +21,7 @@ mod verdict_cache;
 
 use ggshield_common::{binary_extensions, error};
 use ggshield_config::config;
+use ggshield_discovery::Inventory;
 
 use std::io::Read;
 use std::path::Path;
@@ -169,23 +170,31 @@ fn apply_exit_zero(code: i32, exit_zero: bool) -> i32 {
 }
 
 fn scan(config: &config::Config, stdin_content: &str) -> Result<i32, Error> {
+    let mut payloads = payload::parse(stdin_content)?;
+
+    // Before the debounce, not after: declining hands this same stdin to
+    // `ggshield-py`, and a debounce entry we had already written would make it
+    // exit 0 with no verdict at all — an allow nobody decided.
+    let inventory = mcp_inventory(&payloads)?;
+
     if !stdin_content.is_empty() && has_already_been_seen(stdin_content) {
         return Ok(0);
     }
 
-    let mut payloads = payload::parse(stdin_content)?;
-    let (index, secrets) = scan_payloads(config, &mut payloads)?;
+    let (index, verdict) = scan_payloads(config, &mut payloads, inventory.as_ref())?;
     let payload = &payloads[index];
 
-    if secrets.is_empty() {
-        return Ok(output::output_result(&HookResult::allow(payload)));
-    }
-
-    let result = HookResult::block(
-        payload,
-        message::from_secrets(&secrets, payload),
-        secrets.len(),
-    );
+    let result = match verdict {
+        Verdict::Allowed => return Ok(output::output_result(&HookResult::allow(payload))),
+        // Not a secret, so no count and no remediation steps: the reason is the
+        // organisation's own, and it is shown as it was written.
+        Verdict::NotPermitted(reason) => HookResult::block(payload, reason, 0),
+        Verdict::Secrets(secrets) => HookResult::block(
+            payload,
+            message::from_secrets(&secrets, payload),
+            secrets.len(),
+        ),
+    };
     // `has_secret_already_leaked()`: on PostToolUse the secret is already in the
     // agent's context, so tell the user out-of-band. Best effort.
     if payload.event_type == EventType::PostToolUse {
@@ -206,23 +215,43 @@ struct Pending {
     key: Option<String>,
 }
 
-/// `_scan_payloads()` plus `_scan_contents()`: scan everything the event still
-/// needs scanned, in as few requests as possible.
+/// What the event is allowed to do, once both of the API's answers are in.
+enum Verdict {
+    Allowed,
+    /// Secrets the scan found, which the block message is built from.
+    Secrets(Vec<api::Secret>),
+    /// The MCP activity endpoint refused this tool call, with the organisation's
+    /// own reason. The arguments were clean; the call itself is denied.
+    NotPermitted(String),
+}
+
+/// `_scan_payloads()` plus `_scan_contents()` and `_send_mcp_activity()`: settle
+/// everything this event needs settled, in as few requests as possible.
 ///
-/// Returns the secrets found and the index of the first payload holding them, or
-/// index 0 with no secrets — the caller only reads that payload for its output
-/// contract.
+/// Returns the verdict and the index of the payload it belongs to, or index 0 when
+/// nothing blocks — the caller only reads that payload for its output contract.
 ///
-/// `send_mcp_activity()` is not implemented, and not warned about either: it
-/// swallows every exception and returns "allowed" (mcp.py).
+/// An MCP tool call needs both of the API's answers: the arguments can carry a
+/// secret, *and* the call itself can be one the organisation does not permit.
+/// Neither implies the other.
+///
+/// Verdicts are applied one payload at a time, in the order the payloads were
+/// parsed, and a scan verdict takes precedence over an activity verdict for the
+/// same payload, exactly as in `_scan_payloads()`.
+///
+/// A chunk the API refused is reported — a fail-open `Err` — only when nothing
+/// blocks: any verdict already settled outranks it, so a denial in hand is not
+/// discarded by a later chunk that could not be scanned.
 fn scan_payloads(
     config: &config::Config,
     payloads: &mut [Payload],
-) -> Result<(usize, Vec<api::Secret>), Error> {
+    inventory: Option<&Inventory>,
+) -> Result<(usize, Verdict), Error> {
     if payloads.is_empty() {
         return Err(Error::Invalid("Error: no payloads to scan".into()));
     }
     let agent = payloads[0].agent;
+    let denial = mcp_denial(config, payloads, inventory)?;
 
     let mut pending: Vec<Pending> = Vec::new();
     for (index, payload) in payloads.iter_mut().enumerate() {
@@ -268,7 +297,7 @@ fn scan_payloads(
         });
     }
     if pending.is_empty() {
-        return Ok((0, Vec::new()));
+        return Ok(apply(None, denial));
     }
 
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
@@ -306,13 +335,93 @@ fn scan_payloads(
             }
         }
     }
-    match (found, failure) {
-        // A secret beats a partial failure: blocking on what was found is never
-        // worse than failing the whole event open.
-        (Some(found), _) => Ok(found),
-        (None, Some(failure)) => Err(failure),
-        (None, None) => Ok((0, Vec::new())),
+    match apply(found, denial) {
+        // Nothing to block on, but a chunk went unscanned: fail open with the
+        // API's reason rather than report the event clean.
+        (_, Verdict::Allowed) => match failure {
+            Some(failure) => Err(failure),
+            None => Ok((0, Verdict::Allowed)),
+        },
+        // A verdict beats a partial failure: blocking on what was settled is never
+        // worse than failing the whole event open — and a denial already in hand
+        // must not be thrown away by a later chunk the API refused.
+        settled => Ok(settled),
     }
+}
+
+/// `_scan_payloads()`'s final loop: the earlier blocking index wins, and on the
+/// same index the secret does.
+fn apply(
+    secrets: Option<(usize, Vec<api::Secret>)>,
+    denial: Option<(usize, String)>,
+) -> (usize, Verdict) {
+    match (secrets, denial) {
+        (Some((index, secrets)), None) => (index, Verdict::Secrets(secrets)),
+        (None, Some((index, reason))) => (index, Verdict::NotPermitted(reason)),
+        (Some((scanned, secrets)), Some((denied, reason))) => {
+            if scanned <= denied {
+                (scanned, Verdict::Secrets(secrets))
+            } else {
+                (denied, Verdict::NotPermitted(reason))
+            }
+        }
+        (None, None) => (0, Verdict::Allowed),
+    }
+}
+
+/// `is_mcp_activity_payload()`: only a `PreToolUse` on an MCP tool is activity.
+/// There is nothing to permit or deny after the fact.
+fn is_mcp_activity(payload: &Payload) -> bool {
+    payload.event_type == EventType::PreToolUse && payload.tool == Some(Tool::Mcp)
+}
+
+/// The inventory this event's MCP payloads need, or a decline if there is none.
+///
+/// `refresh_and_maybe_submit_discovery()` in one line: a fresh `ai_discovery.json`
+/// is trusted rather than re-walked. What this cannot do is *produce* one, so a
+/// stale or absent file declines the whole event to `ggshield-py`, which owns the
+/// walk — it then submits and rewrites the file, and the next hour runs natively.
+///
+/// Deliberately not a fail-open: allowing without an inventory would make deleting
+/// one cache file enough to lift an administrator's block.
+fn mcp_inventory(payloads: &[Payload]) -> Result<Option<Inventory>, Error> {
+    if !payloads.iter().any(is_mcp_activity) {
+        return Ok(None);
+    }
+    ggshield_discovery::load_fresh().map(Some).ok_or_else(|| {
+        Error::unimplemented(
+            "checking MCP tool calls against your organization's policies without a \
+             recent inventory of your MCP servers",
+            "Reinstall ggshield: the bundled Python implementation, which builds that \
+             inventory, should sit next to the 'ggshield' executable.",
+        )
+    })
+}
+
+/// `send_mcp_activity()` for every MCP payload in the event, and the first denial
+/// it comes back with.
+///
+/// Sequential with the scan, where Python overlaps the two on a thread pool:
+/// `Config` memoises the token in a `OnceCell` and so is not `Sync`, and sharing
+/// it across a scope would mean resolving the credential store up front — the one
+/// call that can block on a macOS Keychain prompt.
+fn mcp_denial(
+    config: &config::Config,
+    payloads: &[Payload],
+    inventory: Option<&Inventory>,
+) -> Result<Option<(usize, String)>, Error> {
+    let Some(inventory) = inventory else {
+        return Ok(None);
+    };
+    for (index, payload) in payloads.iter().enumerate() {
+        if !is_mcp_activity(payload) {
+            continue;
+        }
+        if let Some(reason) = api::mcp_activity(config, payload, inventory)? {
+            return Ok(Some((index, reason)));
+        }
+    }
+    Ok(None)
 }
 
 /// `_start_scans()`'s chunking: the API caps a scan both in documents and in
@@ -494,6 +603,7 @@ fn notify(result: &HookResult) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use std::io::{BufRead, BufReader, Write};
     use std::net::{TcpListener, TcpStream};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -502,38 +612,46 @@ mod tests {
     /// Recognised by the mock below as "this document holds a secret".
     const SECRET: &str = "AKIAsomething";
 
-    /// What the mock reports on `/v1/metadata`, plus which multiscan it refuses.
+    /// How the mock answers: the limits it reports on `/v1/metadata`, which
+    /// multiscan it refuses, and what the MCP activity endpoint says about the tool
+    /// call — `None` permits it.
     #[derive(Clone, Copy)]
-    struct MockLimits {
+    struct Mock {
         max_documents_per_scan: usize,
         max_document_size: usize,
         /// The 0-based multiscan request that answers 400 instead of a verdict.
         fail_scan: Option<usize>,
+        deny: Option<&'static str>,
     }
 
-    impl Default for MockLimits {
+    impl Default for Mock {
         fn default() -> Self {
-            MockLimits {
+            Mock {
                 max_documents_per_scan: config::DEFAULT_MAX_DOCUMENTS_PER_SCAN,
                 max_document_size: config::MAXIMUM_DOCUMENT_SIZE,
                 fail_scan: None,
+                deny: None,
             }
         }
     }
 
-    /// Every multiscan batch's filenames, plus the `/v1/metadata` fetch count.
+    /// What the mock recorded: every multiscan batch's filenames, every MCP
+    /// activity report, and how many times `/v1/metadata` was fetched.
     struct Recorded {
         batches: Mutex<Vec<Vec<String>>>,
+        activities: Mutex<Vec<serde_json::Value>>,
         metadata_hits: AtomicUsize,
     }
 
     /// A localhost stand-in for the API: answers `/v1/metadata` (with the given
-    /// limits) and `/v1/multiscan`, recording what it was sent.
-    fn mock_api(limits: MockLimits) -> (String, Arc<Recorded>) {
+    /// limits), `/v1/multiscan` and `/v1/agent-activity/mcp-activity`, recording
+    /// what it was sent. Nothing ever leaves the machine.
+    fn mock_api(limits: Mock) -> (String, Arc<Recorded>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let url = format!("http://{}", listener.local_addr().expect("addr"));
         let recorded = Arc::new(Recorded {
             batches: Mutex::new(Vec::new()),
+            activities: Mutex::new(Vec::new()),
             metadata_hits: AtomicUsize::new(0),
         });
         let served = Arc::clone(&recorded);
@@ -545,9 +663,10 @@ mod tests {
         (url, recorded)
     }
 
-    /// One request: the metadata a client reads before chunking, or a multiscan
-    /// answering one result per document, in the order they were sent.
-    fn serve(mut stream: TcpStream, recorded: &Recorded, limits: MockLimits) {
+    /// One request: the metadata a client reads before chunking, the policy answer
+    /// for an MCP tool call, or a multiscan answering — as the real one does —
+    /// exactly one result per document, in the order the documents were sent.
+    fn serve(mut stream: TcpStream, recorded: &Recorded, limits: Mock) {
         let mut reader = BufReader::new(stream.try_clone().expect("clone"));
         let mut request_line = String::new();
         reader.read_line(&mut request_line).expect("request line");
@@ -564,7 +683,7 @@ mod tests {
 
         let body = if request_line.starts_with("GET") {
             recorded.metadata_hits.fetch_add(1, Ordering::SeqCst);
-            let MockLimits {
+            let Mock {
                 max_documents_per_scan,
                 max_document_size,
                 ..
@@ -572,6 +691,18 @@ mod tests {
             format!(
                 r#"{{"preferences": {{"general__maximum_payload_size": 2621440}}, "secret_scan_preferences": {{"maximum_document_size": {max_document_size}, "maximum_documents_per_scan": {max_documents_per_scan}}}}}"#
             )
+        } else if request_line.contains("/v1/agent-activity/mcp-activity") {
+            let mut raw = vec![0u8; length];
+            reader.read_exact(&mut raw).expect("body");
+            recorded
+                .activities
+                .lock()
+                .expect("lock")
+                .push(serde_json::from_slice(&raw).expect("activity"));
+            match limits.deny {
+                Some(reason) => json!({"allowed": false, "reason": reason}).to_string(),
+                None => json!({"allowed": true, "reason": ""}).to_string(),
+            }
         } else {
             let mut raw = vec![0u8; length];
             reader.read_exact(&mut raw).expect("body");
@@ -625,6 +756,22 @@ mod tests {
         test_config("http://127.0.0.1:1".into())
     }
 
+    /// `scan_payloads` for an event with no MCP payload in it, reduced to the
+    /// secrets found — which is all the scan-side cases below assert on.
+    fn scan_for_secrets(
+        config: &config::Config,
+        payloads: &mut [Payload],
+    ) -> Result<(usize, Vec<api::Secret>), Error> {
+        let (index, verdict) = scan_payloads(config, payloads, None)?;
+        Ok((
+            index,
+            match verdict {
+                Verdict::Secrets(secrets) => secrets,
+                Verdict::Allowed | Verdict::NotPermitted(_) => Vec::new(),
+            },
+        ))
+    }
+
     fn text_payload(identifier: &str, content: &str) -> Payload {
         Payload {
             event_type: EventType::UserPrompt,
@@ -644,7 +791,7 @@ mod tests {
     #[test]
     fn one_event_is_one_request_and_the_block_lands_on_the_right_payload() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
-        let (url, recorded) = mock_api(MockLimits::default());
+        let (url, recorded) = mock_api(Mock::default());
         let mut payloads = [
             text_payload("empty.txt", ""),
             text_payload("clean.txt", "nothing here"),
@@ -652,7 +799,7 @@ mod tests {
             text_payload("also-clean.txt", "nothing here either"),
         ];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets) = scan_for_secrets(&test_config(url), &mut payloads).expect("scan");
 
         assert_eq!(index, 2);
         assert_eq!(secrets.len(), 1);
@@ -668,15 +815,15 @@ mod tests {
     #[test]
     fn a_batch_over_the_limit_is_chunked_to_what_metadata_reports() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
-        let (url, recorded) = mock_api(MockLimits {
+        let (url, recorded) = mock_api(Mock {
             max_documents_per_scan: 8,
-            ..MockLimits::default()
+            ..Mock::default()
         });
         let mut payloads: Vec<Payload> = (0..21)
             .map(|i| text_payload(&format!("file{i}.txt"), &format!("content {i}")))
             .collect();
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets) = scan_for_secrets(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         let batches = recorded.batches.lock().expect("lock");
@@ -690,15 +837,15 @@ mod tests {
     #[test]
     fn a_batch_is_chunked_to_a_sub_default_instance_limit() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
-        let (url, recorded) = mock_api(MockLimits {
+        let (url, recorded) = mock_api(Mock {
             max_documents_per_scan: 3,
-            ..MockLimits::default()
+            ..Mock::default()
         });
         let mut payloads: Vec<Payload> = (0..8)
             .map(|i| text_payload(&format!("file{i}.txt"), &format!("content {i}")))
             .collect();
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets) = scan_for_secrets(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         let batches = recorded.batches.lock().expect("lock");
@@ -711,9 +858,9 @@ mod tests {
     #[test]
     fn a_large_document_under_the_raised_instance_limit_is_scanned() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
-        let (url, recorded) = mock_api(MockLimits {
+        let (url, recorded) = mock_api(Mock {
             max_document_size: 4 * 1024 * 1024,
-            ..MockLimits::default()
+            ..Mock::default()
         });
         // Over the 1 MiB trigger, under the 4 MiB instance limit.
         let big = format!(
@@ -724,7 +871,7 @@ mod tests {
         assert!(big.len() > config::MAXIMUM_DOCUMENT_SIZE);
         let mut payloads = [text_payload("big.txt", &big)];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets) = scan_for_secrets(&test_config(url), &mut payloads).expect("scan");
 
         assert_eq!(index, 0);
         assert_eq!(secrets.len(), 1);
@@ -741,9 +888,9 @@ mod tests {
     #[test]
     fn a_document_over_a_sub_default_instance_limit_is_skipped() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
-        let (url, recorded) = mock_api(MockLimits {
+        let (url, recorded) = mock_api(Mock {
             max_document_size: 512 * 1024,
-            ..MockLimits::default()
+            ..Mock::default()
         });
         let big = format!("{SECRET}\n{}", "x".repeat(700_000));
         assert!(big.len() < config::MAXIMUM_DOCUMENT_SIZE);
@@ -752,7 +899,7 @@ mod tests {
             text_payload("small.txt", &format!("aws_key = {SECRET}")),
         ];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets) = scan_for_secrets(&test_config(url), &mut payloads).expect("scan");
 
         // The oversized document never reached the API.
         assert_eq!(index, 1);
@@ -772,10 +919,10 @@ mod tests {
     fn a_refused_chunk_does_not_discard_the_other_chunks() {
         for (fail_scan, leaky_at) in [(1, 0), (0, 4)] {
             let (_guard, _dir) = verdict_cache::with_cache_dir();
-            let (url, recorded) = mock_api(MockLimits {
+            let (url, recorded) = mock_api(Mock {
                 max_documents_per_scan: 2,
                 fail_scan: Some(fail_scan),
-                ..MockLimits::default()
+                ..Mock::default()
             });
             let mut payloads: Vec<Payload> = (0..6)
                 .map(|i| {
@@ -788,7 +935,7 @@ mod tests {
                 })
                 .collect();
 
-            let (index, secrets) = scan_payloads(&test_config(url), &mut payloads)
+            let (index, secrets) = scan_for_secrets(&test_config(url), &mut payloads)
                 .unwrap_or_else(|e| panic!("fail_scan={fail_scan}: {e:?}"));
 
             assert_eq!(index, leaky_at, "fail_scan={fail_scan}");
@@ -804,16 +951,16 @@ mod tests {
     #[test]
     fn an_all_refused_scan_fails_open_instead_of_reporting_clean() {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
-        let (url, _) = mock_api(MockLimits {
+        let (url, _) = mock_api(Mock {
             max_documents_per_scan: 2,
             // `fail_scan` matches the first request; the mock repeats nothing, so
             // one chunk is enough to prove the error is not swallowed.
             fail_scan: Some(0),
-            ..MockLimits::default()
+            ..Mock::default()
         });
         let mut payloads = [text_payload("clean.txt", "nothing here")];
 
-        let outcome = scan_payloads(&test_config(url), &mut payloads);
+        let outcome = scan_for_secrets(&test_config(url), &mut payloads);
 
         assert!(
             matches!(&outcome, Err(Error::Fail(m)) if m.contains("(refused)")),
@@ -1136,5 +1283,256 @@ mod tests {
             scannable(&offline_config(), &mut p).expect("scannable").0,
             ""
         );
+    }
+
+    /// An `ai_discovery.json` in the shape `save_discovery_cache()` writes. Its one
+    /// server's Claude Code configuration name mangles to "git_hub", so a resolved
+    /// report proves the inventory was read, not echoed.
+    const INVENTORY: &str = r#"{
+        "user": {"hostname": "laptop", "username": "dev", "machine_id": "m-1",
+                 "user_email": "dev@example.com"},
+        "discovery_duration": 0.5,
+        "servers": [{"name": "GitHub", "tools": [],
+                     "configurations": [{"name": "git hub", "agent": "claude-code"}]}]
+    }"#;
+
+    fn write_inventory(dir: &Path) {
+        std::fs::write(dir.join("ai_discovery.json"), INVENTORY).expect("write inventory");
+    }
+
+    /// One Claude Code MCP tool call with nothing incriminating in its arguments.
+    fn mcp_event() -> String {
+        json!({
+            "session_id": "abc",
+            "transcript_path": "/Users/x/.claude/projects/p/abc.jsonl",
+            "cwd": "/home/dev/proj",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "mcp__git_hub__delete_repository",
+            "tool_input": {"owner": "acme", "repo": "prod"},
+        })
+        .to_string()
+    }
+
+    /// GIVEN an MCP tool call whose arguments hold no secret, and an organisation
+    /// that does not permit the call
+    /// WHEN the event is settled
+    /// THEN it blocks with the reason the API gave, and the report it sent names the
+    /// canonical server the inventory resolved.
+    #[test]
+    fn a_call_the_api_does_not_permit_blocks_even_with_clean_arguments() {
+        let (_guard, dir) = verdict_cache::with_cache_dir();
+        write_inventory(dir.path());
+        let (url, recorded) = mock_api(Mock {
+            deny: Some("Deleting repositories is not allowed by your organization."),
+            ..Mock::default()
+        });
+        let mut payloads = payload::parse(&mcp_event()).expect("parses");
+        let inventory = ggshield_discovery::load_fresh().expect("fresh inventory");
+
+        let (index, verdict) =
+            scan_payloads(&test_config(url), &mut payloads, Some(&inventory)).expect("settled");
+
+        assert_eq!(index, 0);
+        match verdict {
+            Verdict::NotPermitted(reason) => assert_eq!(
+                reason,
+                "Deleting repositories is not allowed by your organization."
+            ),
+            other => panic!(
+                "expected a denial, got {:?}",
+                matches!(other, Verdict::Allowed)
+            ),
+        }
+        let activities = recorded.activities.lock().expect("lock");
+        assert_eq!(activities.len(), 1);
+        let sent = &activities[0];
+        // "mcp__git_hub__delete_repository" split, and "git hub" resolved.
+        assert_eq!(sent["server"], "GitHub");
+        assert_eq!(sent["tool"], "delete_repository");
+        assert_eq!(sent["agent"], "claude-code");
+        assert_eq!(sent["cwd"], "/home/dev/proj");
+        assert_eq!(sent["model"], "");
+        assert_eq!(sent["input"], json!({"owner": "acme", "repo": "prod"}));
+        assert_eq!(sent["user"]["machine_id"], "m-1");
+        assert_eq!(sent["user"]["user_email"], "dev@example.com");
+        // An ISO 8601 instant, which is what marshmallow's DateTime dumps.
+        assert!(
+            sent["timestamp"]
+                .as_str()
+                .is_some_and(|t| t.ends_with("+00:00")),
+            "{:?}",
+            sent["timestamp"]
+        );
+    }
+
+    /// GIVEN the same call, permitted this time
+    /// WHEN the event is settled
+    /// THEN it is allowed, and the arguments were still scanned: the two questions
+    /// are asked independently.
+    #[test]
+    fn a_permitted_call_is_allowed_and_its_arguments_are_still_scanned() {
+        let (_guard, dir) = verdict_cache::with_cache_dir();
+        write_inventory(dir.path());
+        let (url, recorded) = mock_api(Mock::default());
+        let mut payloads = payload::parse(&mcp_event()).expect("parses");
+        let inventory = ggshield_discovery::load_fresh().expect("fresh inventory");
+
+        let (_, verdict) =
+            scan_payloads(&test_config(url), &mut payloads, Some(&inventory)).expect("settled");
+
+        assert!(matches!(verdict, Verdict::Allowed));
+        assert_eq!(recorded.activities.lock().expect("lock").len(), 1);
+        assert_eq!(recorded.batches.lock().expect("lock").len(), 1);
+    }
+
+    /// GIVEN an MCP tool call and no inventory to check it against — no cache file,
+    /// then one older than the TTL
+    /// WHEN the event is scanned
+    /// THEN it is declined, which the dispatcher turns into `Outcome::Delegate` and
+    /// answers from `ggshield-py`. Never an allow: failing open here would make
+    /// deleting a cache file enough to lift an administrator's block.
+    #[test]
+    fn a_stale_inventory_hands_the_event_over_instead_of_allowing_it() {
+        let (_guard, dir) = verdict_cache::with_cache_dir();
+        let (url, recorded) = mock_api(Mock::default());
+        let config = test_config(url);
+
+        // No inventory at all.
+        assert!(
+            matches!(scan(&config, &mcp_event()), Err(Error::Unsupported(_))),
+            "an absent inventory must decline, not allow"
+        );
+
+        // One from two hours ago: written, but past the TTL the Python honours.
+        write_inventory(dir.path());
+        let stale = std::time::SystemTime::now() - std::time::Duration::from_secs(7200);
+        std::fs::File::options()
+            .write(true)
+            .open(dir.path().join("ai_discovery.json"))
+            .expect("open")
+            .set_modified(stale)
+            .expect("set mtime");
+        assert!(
+            matches!(scan(&config, &mcp_event()), Err(Error::Unsupported(_))),
+            "a stale inventory must decline, not allow"
+        );
+        // Declining costs no requests: the answer is Python's, whole.
+        assert_eq!(recorded.activities.lock().expect("lock").len(), 0);
+        assert_eq!(recorded.batches.lock().expect("lock").len(), 0);
+        // ...and the debounce is untouched, so `ggshield-py` does not answer the
+        // hand-over with silence because it thinks it has seen this payload.
+        assert!(!dir.path().join("latest_ai_hook.txt").exists());
+
+        // Refreshed: handled natively, no hand-over.
+        write_inventory(dir.path());
+        assert!(scan(&config, &mcp_event()).is_ok());
+        assert_eq!(recorded.activities.lock().expect("lock").len(), 1);
+    }
+
+    /// GIVEN an MCP tool call that takes no arguments — nothing to scan, so the
+    /// token is needed for the policy check and nothing else — and a credential
+    /// store that cannot answer
+    /// WHEN the event is scanned
+    /// THEN it fails open with a warning, as Python does by needing the token before
+    /// it can ask at all. A silent allow here would wave through every
+    /// argument-less MCP tool without one request or one word to the user.
+    #[test]
+    fn an_unreadable_token_warns_instead_of_allowing_an_argument_less_call() {
+        let (_guard, dir) = verdict_cache::with_cache_dir();
+        write_inventory(dir.path());
+        std::fs::write(
+            dir.path().join("auth_config.yaml"),
+            format!(
+                "instances:\n- url: https://keyring-absent.invalid\n  accounts:\n  - token: {}\n",
+                config::KEYRING_SENTINEL
+            ),
+        )
+        .expect("write");
+        // SAFETY: serialised by the guard above; restored below.
+        unsafe {
+            std::env::set_var("GG_CONFIG_DIR", dir.path());
+            std::env::set_var("GG_USER_HOME_DIR", dir.path());
+            std::env::set_var("GITGUARDIAN_INSTANCE", "https://keyring-absent.invalid");
+            std::env::set_var("GITGUARDIAN_DONT_LOAD_ENV", "1");
+            std::env::remove_var("GITGUARDIAN_API_KEY");
+            std::env::remove_var("GGSHIELD_NO_KEYRING");
+        }
+        let resolved = config::resolve();
+        let outcome = resolved.as_ref().map(|config| {
+            scan(
+                config,
+                &json!({
+                    "session_id": "abc",
+                    "transcript_path": "/Users/x/.claude/projects/p/abc.jsonl",
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "mcp__git_hub__list_repositories",
+                })
+                .to_string(),
+            )
+        });
+        unsafe {
+            std::env::remove_var("GG_CONFIG_DIR");
+            std::env::remove_var("GG_USER_HOME_DIR");
+            std::env::remove_var("GITGUARDIAN_INSTANCE");
+            std::env::remove_var("GITGUARDIAN_DONT_LOAD_ENV");
+        }
+
+        assert!(resolved.is_ok(), "config resolution failed: {resolved:?}");
+        match outcome {
+            Ok(Err(Error::Fail(warning))) => {
+                assert!(warning.contains("could not authenticate"), "{warning}")
+            }
+            other => panic!("expected a fail-open warning, got {other:?}"),
+        }
+    }
+
+    /// GIVEN an event where a secret and a denial land on different payloads, and
+    /// then on the same one
+    /// WHEN the verdicts are applied
+    /// THEN the earlier payload's verdict wins, and on a tie the scan does —
+    /// `_scan_payloads()`'s order, which decides which message the user sees.
+    #[test]
+    fn the_earlier_payload_wins_and_a_tie_goes_to_the_scan() {
+        let secrets = || Some((1, Vec::new()));
+        let denial = |index| Some((index, "denied".to_string()));
+
+        assert!(matches!(apply(secrets(), denial(2)).1, Verdict::Secrets(_)));
+        assert!(matches!(
+            apply(secrets(), denial(0)).1,
+            Verdict::NotPermitted(_)
+        ));
+        // Same payload: Python's loop checks the scan result first.
+        assert!(matches!(apply(secrets(), denial(1)).1, Verdict::Secrets(_)));
+        assert_eq!(apply(secrets(), denial(0)).0, 0);
+        assert!(matches!(apply(None, None).1, Verdict::Allowed));
+    }
+
+    /// GIVEN an MCP payload at PostToolUse, and a non-MCP tool call at PreToolUse
+    /// WHEN the event is settled with a denying API
+    /// THEN neither reports activity: `is_mcp_activity_payload()` is a PreToolUse on
+    /// an MCP tool and nothing else, and there is nothing to permit after the fact.
+    #[test]
+    fn only_a_pre_tool_use_on_an_mcp_tool_is_activity() {
+        let (_guard, dir) = verdict_cache::with_cache_dir();
+        write_inventory(dir.path());
+        let (url, recorded) = mock_api(Mock {
+            deny: Some("nope"),
+            ..Mock::default()
+        });
+        let config = test_config(url);
+        for event in [
+            json!({"session_id": "a", "transcript_path": "/x/.claude/p.jsonl",
+                   "hook_event_name": "PostToolUse",
+                   "tool_name": "mcp__git_hub__delete_repository",
+                   "tool_input": {"repo": "prod"},
+                   "tool_response": {"ok": true}}),
+            json!({"session_id": "a", "transcript_path": "/x/.claude/p.jsonl",
+                   "hook_event_name": "PreToolUse", "tool_name": "WebFetch",
+                   "tool_input": {"url": "https://example.com"}}),
+        ] {
+            let code = scan(&config, &event.to_string()).expect("settled");
+            assert_eq!(code, 0, "{event}");
+        }
+        assert_eq!(recorded.activities.lock().expect("lock").len(), 0);
     }
 }

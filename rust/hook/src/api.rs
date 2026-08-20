@@ -1,7 +1,9 @@
-//! `POST /v1/multiscan`, and the instance limits that decide how a scan is split.
+//! `POST /v1/multiscan` and `POST /v1/agent-activity/mcp-activity`, and the
+//! instance limits that decide how a scan is split.
 //!
-//! Detection is entirely server-side: this module ships bytes and interprets a
-//! verdict. There is no detector, no regex and no rule here.
+//! Neither decision is taken here: this module ships bytes and interprets a
+//! verdict. There is no detector, no regex, no rule and no policy here, and there
+//! must never be one.
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -10,6 +12,9 @@ use ggshield_common::error::Error;
 use ggshield_common::hash::sha256_hex;
 use ggshield_config::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
 use ggshield_config::user_config::SecretConfig;
+use ggshield_discovery::{Inventory, User};
+
+use crate::payload::Payload;
 
 /// `_API_PATH_MAX_LENGTH` in secret_scanner.py.
 const API_PATH_MAX_LENGTH: usize = 256;
@@ -411,6 +416,108 @@ fn send_once(
         .read_to_string()
         .map_err(|e| Error::scan(e.to_string()))?;
     Ok((status, text))
+}
+
+/// `MCPActivityRequest`, field for field and in pygitguardian's order.
+fn activity_body(payload: &Payload, inventory: &Inventory) -> String {
+    let activity = payload.agent.mcp_activity(&payload.raw, inventory);
+    let User {
+        hostname,
+        username,
+        machine_id,
+        user_email,
+    } = &inventory.user;
+    // The arguments verbatim; `preserve_order` keeps the agent's own key order
+    // (see the workspace manifest). Absent, or anything but an object, sends the
+    // empty object the field is declared as rather than a body the API rejects.
+    let input = payload
+        .raw
+        .get("tool_input")
+        .filter(|value| value.is_object())
+        .cloned()
+        .unwrap_or_else(|| Value::Object(Default::default()));
+    json!({
+        "user": {
+            "hostname": hostname,
+            "username": username,
+            "machine_id": machine_id,
+            "user_email": user_email,
+        },
+        "tool": activity.tool,
+        "server": activity.server,
+        "agent": payload.agent.name(),
+        "model": activity.model,
+        "cwd": activity.cwd,
+        "input": input,
+        // `HookPayload.timestamp` is the moment the hook ran, not a field of the
+        // event; marshmallow dumps it as an ISO 8601 instant with microseconds.
+        "timestamp": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, false),
+    })
+    .to_string()
+}
+
+/// `log_mcp_activity()`: report the MCP tool call and read back whether the
+/// organisation permits it.
+///
+/// `Some(reason)` is a denial the caller must apply. `None` allows — and so does a
+/// failed request, matching mcp.py, which swallows the exception and returns
+/// allowed. No warning either, for the same reason.
+///
+/// An unreadable token is the exception: Python's client needs it before it can ask
+/// at all, so it fails open *visibly*. Here nothing else needs it for an MCP call
+/// with no arguments — no content to scan means no verdict-cache key — so reading
+/// it late and shrugging would allow the call with no request and no warning.
+///
+/// What must *not* fail open is a missing inventory, which is why one is a
+/// parameter rather than looked up here: deciding "allowed" without a fresh one
+/// would let anyone lift an administrator's block by deleting a cache file. The
+/// caller declines the whole event to `ggshield-py` instead.
+pub fn mcp_activity(
+    config: &Config,
+    payload: &Payload,
+    inventory: &Inventory,
+) -> Result<Option<String>, Error> {
+    let token = config.token()?;
+    Ok(activity_verdict(
+        config,
+        token,
+        &activity_body(payload, inventory),
+    ))
+}
+
+fn activity_verdict(config: &Config, token: &str, body: &str) -> Option<String> {
+    let url = format!("{}/v1/agent-activity/mcp-activity", config.api_url);
+    let mut builder = ureq::post(&url)
+        .config()
+        .timeout_global(Some(std::time::Duration::from_secs(TIMEOUT_SECS)));
+    if let Some(tls) = insecure_tls(config) {
+        builder = builder.tls_config(tls);
+    }
+    let mut response = builder
+        .build()
+        .header("Authorization", format!("Token {token}"))
+        .header("Content-Type", "application/json")
+        .header(
+            "User-Agent",
+            concat!("ggshield-hook/", env!("GGSHIELD_VERSION")),
+        )
+        .send(body)
+        .ok()?;
+    // `is_ok()` requires a 200; anything else is a `Detail`, which mcp.py reads as
+    // allowed rather than as a denial.
+    if response.status().as_u16() != 200 {
+        return None;
+    }
+    let verdict: ActivityVerdict = response.body_mut().read_json().ok()?;
+    (!verdict.allowed).then_some(verdict.reason)
+}
+
+/// `MCPActivityResponse`. Both fields are required on the wire; a body missing
+/// either fails to parse, which allows.
+#[derive(Debug, Deserialize)]
+struct ActivityVerdict {
+    allowed: bool,
+    reason: String,
 }
 
 fn split_result(result: ScanResult, secret_config: &SecretConfig) -> DocumentResult {
