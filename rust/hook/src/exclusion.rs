@@ -8,7 +8,7 @@
 
 use std::path::Path;
 
-use regex::Regex;
+use regex::{Regex, RegexSet};
 
 use ggshield_config::user_config::SecretConfig;
 
@@ -38,9 +38,9 @@ const REGEX_SPECIAL_CHARS: &str = ".^$+*?{}()[]\\|";
 #[derive(Debug, Default)]
 pub struct Exclusions {
     /// The user's own globs, tested against the identifier as it reaches us.
-    user: Vec<Regex>,
-    /// `IGNORED_DEFAULT_WILDCARDS`, tested project-relative — see `is_excluded`.
-    default: Vec<Regex>,
+    user: RegexSet,
+    /// `IGNORED_DEFAULT_WILDCARDS`, tested project-relative, see `is_excluded`.
+    default: RegexSet,
 }
 
 impl Exclusions {
@@ -73,19 +73,26 @@ impl Exclusions {
     /// match) is not reproduced: the hook only asks about files a tool named.
     #[must_use]
     pub fn is_excluded(&self, path: &str, cwd: &str) -> bool {
-        if self.user.iter().any(|regex| regex.is_match(&posix(path))) {
-            return true;
-        }
-        let relative = project_relative(path, cwd);
-        self.default.iter().any(|regex| regex.is_match(&relative))
+        self.user.is_match(&posix(path)) || self.default.is_match(&project_relative(path, cwd))
     }
 }
 
-fn compile<'a>(patterns: impl Iterator<Item = &'a str>) -> Vec<Regex> {
-    patterns
+/// One set per group: the whole group compiles into a single automaton, and
+/// every hook run pays that compilation.
+fn compile<'a>(patterns: impl Iterator<Item = &'a str>) -> RegexSet {
+    let translated: Vec<String> = patterns
         .filter(|pattern| is_pattern_valid(pattern))
-        .filter_map(|pattern| Regex::new(&translate_user_pattern(pattern)).ok())
-        .collect()
+        .map(translate_user_pattern)
+        .collect();
+    RegexSet::new(&translated).unwrap_or_else(|_| {
+        // A glob `regex` rejects drops itself rather than the whole set.
+        RegexSet::new(
+            translated
+                .iter()
+                .filter(|pattern| Regex::new(pattern).is_ok()),
+        )
+        .unwrap_or_else(|_| RegexSet::empty())
+    })
 }
 
 /// `path` with the separators the patterns are written with. Only Windows has
@@ -343,5 +350,18 @@ mod tests {
         let excluded = exclusions(&["a***b", "tests/fixtures/**"]);
         assert!(excluded.is_excluded("/repo/tests/fixtures/creds.py", ""));
         assert!(!excluded.is_excluded("/repo/a-b", ""));
+    }
+
+    /// GIVEN a glob whose translation is past what `regex` will compile
+    /// WHEN the set is compiled
+    /// THEN only that glob is dropped, and the others still exclude.
+    #[test]
+    fn an_oversized_glob_does_not_take_the_rest_of_the_set_with_it() {
+        let oversized = "**/".repeat(10_000);
+        assert!(is_pattern_valid(&oversized));
+        assert!(RegexSet::new([translate_user_pattern(&oversized)]).is_err());
+
+        let excluded = exclusions(&[&oversized, "tests/fixtures/**"]);
+        assert!(excluded.is_excluded("/repo/tests/fixtures/creds.py", ""));
     }
 }
