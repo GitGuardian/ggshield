@@ -105,7 +105,7 @@ class TestVSCodeIterHistoryEvents:
 
         assert len(events) == 1
         ev = events[0]
-        assert ev.tool == "no_notion-search"
+        assert ev.tool == "notion-search"
         assert ev.server == "makenotion/notion-mcp-server"
         assert ev.agent == "vscode"
         assert ev.cwd == "/repo"

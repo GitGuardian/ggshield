@@ -207,13 +207,16 @@ class VSCode(Agent):
         _, *parts = raw_tool_name.split("_")
 
         # At each separation point (starting from the biggest name possible), check if the mangled name is in the map.
-        for i in range(len(parts)):
+        for i in range(1, len(parts)):
             mangled_name = "_".join(parts[:-i])
             if mangled_name in mangled_to_server:
                 return mangled_to_server[mangled_name], "_".join(parts[-i:])
 
-        # If no match is found, fallback to use the first part as the server name.
-        return parts[0], "_".join(parts[1:])
+        # Nothing local matches, and VSCode leaves no delimiter between the mangled
+        # server name and the tool, so any cut here is a guess that resolves to no
+        # server at all. Report the raw name and let the API split it against the
+        # whole inventory, which is wider than what this machine can see.
+        return "", raw_tool_name
 
     def iter_history_events(
         self, ai_config: Optional[AIDiscovery]
@@ -291,10 +294,9 @@ class VSCode(Agent):
         tool_input = (invocation.get("toolSpecificData") or {}).get("rawInput") or {}
         if not isinstance(tool_input, dict):
             tool_input = {}
-        _, tool_name = self._lookup_server_name(tool_id, ai_config)
         return MCPActivityRequest(
             user=self._user_or_default(ai_config),
-            tool=tool_name,
+            tool=_strip_mangled_prefix(tool_id, server_cfg_name),
             server=self._resolve_server_name(server_cfg_name, ai_config),
             agent=self.name,
             model="",
@@ -349,3 +351,13 @@ MANGLING_PATTERN = re.compile(r"[^A-Za-z0-9-]+")
 def _mangle_name(name: str) -> str:
     """Mangle a name in the same way VSCode does."""
     return MANGLING_PATTERN.sub("_", name).lower()[:13]
+
+
+def _strip_mangled_prefix(tool_id: str, server_cfg_name: str) -> str:
+    """Remove the "mcp_{mangled server}_" prefix VSCode puts in front of a tool name.
+
+    History entries carry the server label next to the tool id, so the cut is known
+    here and needs no lookup.
+    """
+    prefix = f"mcp_{_mangle_name(server_cfg_name)}_"
+    return tool_id[len(prefix) :] if tool_id.startswith(prefix) else tool_id
