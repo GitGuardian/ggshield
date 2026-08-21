@@ -1,7 +1,3 @@
-<a href="https://gitguardian.com/"><img src="https://cdn.jsdelivr.net/gh/gitguardian/ggshield/doc/logo.svg"></a>
-
----
-
 # [ggshield](https://github.com/GitGuardian/ggshield): protect your code with GitGuardian
 
 [![PyPI](https://img.shields.io/pypi/v/ggshield?color=%231B2D55&style=for-the-badge)](https://pypi.org/project/ggshield/)
