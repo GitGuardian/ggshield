@@ -19,7 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     # Gated: opens PRs on other repositories with a PAT, so it waits for the
     # same approval as the other publishing jobs. `environment` must live on the
-    # job because this is a reusable workflow. See doc/dev/release.md.
+    # job because this is a reusable workflow, and it also covers the
+    # workflow_dispatch entry point.
     environment: release
     strategy:
       fail-fast: false

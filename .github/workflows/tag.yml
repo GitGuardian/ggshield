@@ -26,7 +26,6 @@ jobs:
     needs: [build_release_assets, build_platform_wheels]
     runs-on: ubuntu-22.04
     # Gated: publishing waits for a second person to approve the deployment.
-    # See doc/dev/release.md.
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
