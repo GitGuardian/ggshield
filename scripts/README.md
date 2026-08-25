@@ -16,9 +16,11 @@ Provide commands to run the steps required for a release.
 
 To list the commands use `scripts/release --help`.
 
-The script aborts if the `VERSION` environment variable is not set. It must be set to the version we want to release.
+The script aborts if the working tree is dirty, is not up-to-date, is not on a
+release branch (`main` or `X.Y.x`), or depends on an unreleased version of a
+dependency. Use `--dev-mode` to ignore those checks.
 
-The script aborts if the working-tree is not clean (can be bypassed with `--allow-dirty`) or is not on the `main` branch (can be bypassed by defining the `RELEASE_BRANCH` environment variable).
+See [doc/dev/release.md](../doc/dev/release.md) for the release process.
 
 ## vulnscan/scan_packages.py
 

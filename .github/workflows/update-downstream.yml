@@ -17,6 +17,10 @@ on:
 jobs:
   update-ggshield-version:
     runs-on: ubuntu-latest
+    # Gated: opens PRs on other repositories with a PAT, so it waits for the
+    # same approval as the other publishing jobs. `environment` must live on the
+    # job because this is a reusable workflow. See doc/dev/release.md.
+    environment: release
     strategy:
       fail-fast: false
       matrix:
