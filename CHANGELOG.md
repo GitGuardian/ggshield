@@ -1,5 +1,223 @@
 # Changelog
 
+<a id='changelog-1.54.0'></a>
+
+## 1.54.0 — 2026-08-26
+
+- `pip`/`pipx` installs now ship the native Rust `ggshield` on common platforms
+  (Linux x86-64/aarch64 for glibc and musl, macOS universal2, Windows x86-64); the Python implementation is installed
+  alongside as `ggshield-py`. Platforms without a native wheel fall back to the
+  pure-Python wheel, where `ggshield` is the Python entry point — as does
+  Homebrew, which builds from the source distribution.
+
+### Added
+
+- Add secret-scanning hook support for Mistral Vibe 2.21 and later. Global and
+  project installation preserves existing `hooks.toml` content and configures
+  Vibe's `pre_tool` and `post_tool` events.
+
+- A native `ggshield-hook` binary implements `ggshield secret scan ai-hook`,
+  removing the interpreter startup cost the hook paid twice per tool call. It
+  resolves the instance's scan limits from the same places ggshield does
+  (`GG_MAX_DOC_SIZE` / `GG_MAX_DOCS`, the on-disk auth-check cache, then
+  `/v1/metadata`), so a document or a batch the instance would reject is split or
+  skipped instead of failing the scan. It caches what it learns from
+  `/v1/metadata` for five minutes, so a hook path where only the native binary
+  runs does not pay that round trip on every scan.
+
+- The native hook now honours the `GITGUARDIAN_INSTANCE`, `GITGUARDIAN_API_URL`
+  and `GITGUARDIAN_API_KEY` settings a `.env` file provides, instead of declining
+  to scan when it found one. It reads the file from the same places ggshield does
+  (`GITGUARDIAN_DOTENV_PATH`, then the working directory, then the repository
+  root), and gives it the same precedence: a value in the `.env` overrides the
+  same variable already exported in the environment. A self-hosted instance
+  configured through a `.env` is therefore scanned against, rather than left
+  unscanned. Two caveats: an unbraced `$` in a value is expanded as a variable
+  reference (so `GITGUARDIAN_API_KEY=abc$def` resolves to `abc` — quote it as
+  `'abc$def'` to keep the `$`), and a `GITGUARDIAN_*` line the parser rejects
+  still leaves the action unscanned, with a message naming the variable.
+
+- AI discovery now reports, per agent, the email of the assistant subscription that agent is signed into, so a personal
+  subscription can be told apart from a company one. Read locally from Claude Code, Codex and Cursor. Mistral Vibe and
+  VSCode keep no account on disk and report nothing.
+
+- `GGSHIELD_NO_NOTIFICATION` suppresses the AI hook's desktop notification. The
+  secret is still detected and the tool call still blocked; only the banner is
+  withheld.
+
+### Changed
+
+- Release binaries are now built with Python 3.14 instead of 3.10, ahead of Python 3.10's
+  end-of-life. This also updates the SQLite bundled in the released binaries, fixing
+  `CVE-2025-6965` and `CVE-2025-7709`.
+
+- AI hooks no longer call the API twice for the same document. An unambiguously clean
+  scan result is cached locally for 15 minutes, keyed on the exact document sent and on
+  the instance and token it was sent with, so a file read costs one API round trip
+  instead of two (`PreToolUse` and `PostToolUse` scan the same file).
+
+- `ggshield` starts faster: each command now imports only the modules it needs, and
+  plugin discovery runs only when a plugin command is actually resolved. This speeds
+  up every invocation, in particular the ones that run automatically on every git
+  commit (`secret scan pre-commit`) and on every AI agent tool call
+  (`secret scan ai-hook`).
+
+- `ggshield secret scan ai-hook` is now much faster on MCP tool calls: the local
+  discovery walk is cached for an hour instead of running on every call, and the
+  secret scan and the MCP activity call now run concurrently instead of one after
+  the other. Measured against a mock API at the production p50 latency, an MCP
+  `PreToolUse` event goes from 1183 ms to 387 ms (p50). Other events are
+  unaffected. As a consequence, an MCP tool call is now reported to GitGuardian
+  even when the secret scan blocks it.
+
+- AI hooks now scan all the payloads of an event in a single API call instead of one
+  call each. A prompt mentioning three files used to cost four round trips; measured
+  against a mock API at the production p50 latency, such a `UserPromptSubmit` goes from
+  1561 ms to 395 ms (p50). Single-payload events are unchanged.
+
+- In the standalone packages (`.pkg`, `.deb`, `.rpm`, `.msi`, Chocolatey, archives), `ggshield`
+  is now a small native dispatcher: it runs `ggshield secret scan ai-hook` and hands every other
+  command to the bundled Python implementation. There is still a single `ggshield` command, and
+  every command behaves as before.
+
+- AI hooks now resolve the file paths of `Read` tool calls and prompt `@`-mentions to an
+  absolute path against the event's working directory. A file mentioned in a prompt and the
+  same file later read by a tool now share one verdict-cache key, so it is scanned once
+  instead of twice. As a result, the file path reported in block messages (and sent for
+  scanning) is now absolute for prompt-mentioned files.
+
+- The native hook accepts a `.gitguardian.yaml` key spelled with `-` or with `_`,
+  but no longer resolves a config that sets the _same_ key in both spellings the
+  way the Python implementation does: the last spelling in the file wins. Using
+  one spelling per key, which every documented example does, is unaffected.
+
+- When the AI hook blocks, its message now shows the `secret.ignored_matches`
+  entry that would silence it, one line per detected secret. The message censors
+  every match, so the entry could not previously be written by hand from what it
+  showed. The value shown is the ignore sha, a digest rather than the secret,
+  and is the same one `ggshield secret ignore --last-found` writes.
+
+- `ggshield plugin install` and `ggshield plugin update` no longer send an
+  installation report to the GitGuardian instance. The endpoint it targeted was
+  never implemented, so the call always failed and was silently discarded.
+
+- The GitGuardian logo shipped with ggshield is the refreshed one: the Chocolatey
+  package icon uses the solid black mark, and the macOS desktop notification icon
+  uses the app icon on its own dark ground.
+
+- ggshield now requires `py-gitguardian` 1.34.0, which carries the
+  `AgentInfo.subscription_email` field the AI discovery report sends.
+
+### Fixed
+
+- On macOS, `ggshield` no longer triggers the Xcode Command Line Tools install prompt
+  when the tools are not installed.
+
+- On macOS, `ggshield` no longer pops a "Keychain Not Found" dialog when checking
+  whether the keyring is usable. The check now only reads from the credential
+  store instead of writing a probe entry, which also stops it from silently
+  falling back to file-based token storage on machines where the keychain can be
+  read but not written.
+
+- `ggshield secret scan ai-hook` no longer skips the scan when a Bash command starting with
+  `cat` or `Get-Content` is not a plain file read (a heredoc, a redirection...).
+  Such commands are now always scanned as text.
+
+- `ggshield secret scan ai-hook` now scans only the lines an agent actually reads, instead of
+  the whole file. A file over the API's 1 MiB document limit was skipped outright — allowed
+  without being scanned at all — even when the agent only read a few hundred lines of it;
+  that slice now scans normally. Ranges are read from Claude Code (`offset`/`limit`) and
+  VS Code (`startLine`/`endLine`); a read without a range still scans the whole file.
+
+- The AI discovery is now submitted to GitGuardian only when the local AI/MCP
+  configuration actually changed, as it was always meant to be. A type mismatch
+  between a freshly discovered MCP configuration and one read back from the local
+  cache made the comparison always report a change, so every MCP tool call
+  uploaded a full discovery payload.
+
+- When a secret is found in a file mentioned in a prompt (`@path`), AI hooks now name
+  that file in the block message instead of reporting it as a secret "in your prompt".
+  The previous wording pointed at the wrong content and asked the user to edit a prompt
+  that did not contain the secret.
+
+- On macOS, the token stored by `ggshield auth login` is now created with a
+  Keychain ACL trusting every ggshield binary, so the native hook can read it
+  without prompting. Previously only the writing binary was trusted and each
+  login reset the ACL, making "Always Allow" wear off.
+
+- On macOS, `ggshield` no longer asks for Keychain access again after every upgrade. The
+  code-signing identifier embedded a per-build hash, so the "Always Allow" grant recorded
+  for one release stopped matching the next one; it is now pinned to
+  `com.gitguardian.ggshield`. One grant made from a release built with this fix onwards
+  keeps working across upgrades.
+
+- The AI hooks no longer create incidents on your dashboard when `secret.source_uuid` is set
+  in your configuration (a setting shared with CI scanning): a hook event is not a source
+  scan, and every prompt and every file the agent read was creating an incident. They also
+  now always scan with `all_secrets`, so they can block on a secret that is already known to
+  GitGuardian instead of letting it through.
+
+- `tomli` was added to the dev dependency group, without a marker, so dev environments always have it regardless of the
+  Python interpreter, and ty can resolve the fallback branch it insists on analyzing
+
+- `secret scan ai-hook` now honours `secret.ignored_paths` from
+  `.gitguardian.yaml`, as every other `secret scan` command already did. A file
+  excluded there is no longer read, sent, or blocked on when an agent reads it.
+  Previously the setting was silently inert on this path. `ignored_matches` and
+  `ignored_detectors` were never affected. This also brings the default
+  exclusions to the hook: reads under `node_modules/`, `.venv/`, `vendor/`,
+  `.git/` and the other `IGNORED_DEFAULT_WILDCARDS` entries are no longer
+  scanned. Those defaults are matched against the path _relative to the project_
+  and with symlinks resolved, so a checkout that itself lives under a directory
+  named `vendor/`, `node_modules/` or `.venv/` is still scanned normally, and a
+  symlink parked in a vendored tree cannot hide a file living outside it.
+
+- On macOS, `ggshield auth login` no longer writes the token straight to the
+  Apple Keychain when `PYTHON_KEYRING_BACKEND` selects another backend: the write
+  now follows the backend the token is read back from. Previously login reported
+  success while nothing could authenticate afterwards.
+- `keyring` now requires 25.0 or later, the first version carrying the
+  `create_cf` binding the Keychain ACL is built with. On 24.x the ACL silently
+  never applied.
+
+- AI discovery no longer reports MCP server configurations for agents that are not
+  installed. A project `.mcp.json` is read by several agents, and Copilot also declared a
+  hardcoded GitHub MCP server, so machines without those agents reported configurations
+  they could not run.
+
+- On macOS and Windows, `ggshield` now finds VSCode's user directory, so its global MCP
+  servers and its known workspaces are discovered there too.
+
+- The `cryptography` shipped in the released binaries is now 50.0.0, fixing
+  `CVE-2026-69247`, a Bleichenbacher oracle in PKCS#7 `EnvelopedData` decryption.
+  ggshield does not use that code path.
+
+- The AI hook installed from the macOS standalone package now points at
+  `/usr/local/bin/ggshield` instead of the versioned `/opt/gitguardian/ggshield-<version>/`
+  directory an upgrade removes, so it keeps scanning after an upgrade.
+
+- `ggshield machine setup` now repoints an AI hook command whose ggshield binary is gone,
+  or is reachable through a more stable path, instead of leaving the broken command in
+  place.
+
+- On macOS, `ggshield machine setup` now asks the Keychain for access as the binary
+  that actually runs the AI hook. Keychain grants are per binary, so the hook used to
+  raise its own authorization dialog inside an agent-spawned process, where the agent's
+  timeout could kill it before "Always Allow" was recorded and the dialog came back on
+  every prompt.
+
+- `ggshield` no longer reads the OS credential store on startup. The token is now
+  fetched when a command actually needs it, so commands that do not use one (such as
+  `ggshield config list`, `ggshield plugin list` and `ggshield install`) no longer
+  trigger a macOS Keychain password prompt.
+
+- `ggshield secret scan ai-hook` no longer leaves a whole event unscanned when the file path
+  it guessed from a Bash command or an `@`-mention cannot be read. Such a candidate is
+  dropped instead of being sent to the scanner, where the read error aborted the event and
+  allowed the action with a "could not scan" warning, so the command or prompt text of that
+  same event is now always scanned. A candidate longer than the filesystem's limits (a
+  heredoc mistaken for a file name) is also recognized as text without a filesystem call.
+
 <a id='changelog-1.53.0'></a>
 
 ## 1.53.0 — 2026-07-28
