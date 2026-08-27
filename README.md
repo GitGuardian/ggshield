@@ -7,6 +7,9 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/GitGuardian/ggshield/main.yml?branch=main&style=for-the-badge)](https://github.com/GitGuardian/ggshield/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
+> [!IMPORTANT]
+> **macOS: upgrading to 1.54.0 triggers a Keychain prompt for `ggshield-py`**, a second binary that now reads your saved token. Click **Always Allow**; it won't ask again.
+
 `ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 500+ types of secrets.
 
 `ggshield` uses our [public API](https://api.gitguardian.com/docs) through [py-gitguardian](https://github.com/GitGuardian/py-gitguardian) to scan and detect potential vulnerabilities in files and other text content.
@@ -34,7 +37,6 @@ Only metadata such as call time, request size and scan mode is stored from scans
     - [Using pip](#using-pip)
 - [Initial setup](#initial-setup)
   - [Using `ggshield auth login`](#using-ggshield-auth-login)
-  - [macOS: Keychain prompt after upgrading](#macos-keychain-prompt-after-upgrading)
   - [Manual setup](#manual-setup)
 - [Getting started](#getting-started)
   - [Secrets](#secrets)
@@ -189,17 +191,6 @@ pip install --user --upgrade ggshield
 To use `ggshield` you need to authenticate against GitGuardian servers. To do so, use the `ggshield auth login` command. This command automates the provisioning of a personal access token and its configuration on the local workstation.
 
 You can learn more about it from [`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
-
-## macOS: Keychain prompt after upgrading
-
-> [!IMPORTANT]
-> **Upgrading to 1.54.0 triggers a macOS Keychain prompt.**
->
-> Since 1.54.0, `ggshield` is a fast native launcher that hands most commands to a second binary, `ggshield-py`. Both read your token from the Keychain, and the entry you already have trusts only the old single binary — so macOS asks before letting `ggshield-py` read it.
->
-> Click **Always Allow**, or run `ggshield auth login` again to rewrite the entry so it trusts both. Either way the prompt does not come back.
->
-> Deploying with an MDM? Set `GITGUARDIAN_API_KEY` instead (see below): nothing then touches the Keychain.
 
 ## Manual setup
 
