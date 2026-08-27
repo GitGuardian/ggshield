@@ -1,14 +1,24 @@
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 from click.testing import CliRunner
 from pygitguardian.models import HealthCheckResponse
 
 from ggshield.__main__ import cli
 from ggshield.cmd.install import _hook_body, hook_is_outdated
+from ggshield.core.errors import APIKeyCheckError
+from ggshield.core.plugin.client import (
+    PluginAPIError,
+    PluginCatalog,
+    PluginInfo,
+    PluginsNotEnabledError,
+)
+from ggshield.core.plugin.installer import InstalledPlugin
 from ggshield.verticals.ai.installation import (
     SetupSummary,
     install_all_agent_hooks,
@@ -120,7 +130,8 @@ class TestMachineSetupCommand:
         mock_install.return_value = SetupSummary(configured=2, failed=0)
 
         result = cli_fs_runner.invoke(
-            cli, ["machine", "setup", "--no-git-hooks", "--no-honeytokens"]
+            cli,
+            ["machine", "setup", "--no-git-hooks", "--no-honeytokens", "--no-plugins"],
         )
 
         assert_invoke_ok(result)
@@ -135,7 +146,8 @@ class TestMachineSetupCommand:
         mock_install.return_value = SetupSummary(configured=0, failed=0)
 
         result = cli_fs_runner.invoke(
-            cli, ["machine", "setup", "--no-git-hooks", "--no-honeytokens"]
+            cli,
+            ["machine", "setup", "--no-git-hooks", "--no-honeytokens", "--no-plugins"],
         )
 
         assert_invoke_ok(result)
@@ -155,6 +167,7 @@ class TestMachineSetupCommand:
                 "setup",
                 "--no-git-hooks",
                 "--no-honeytokens",
+                "--no-plugins",
                 "--agent",
                 "claude-code",
             ],
@@ -171,7 +184,8 @@ class TestMachineSetupCommand:
         mock_install.return_value = SetupSummary(configured=1, failed=1)
 
         result = cli_fs_runner.invoke(
-            cli, ["machine", "setup", "--no-git-hooks", "--no-honeytokens"]
+            cli,
+            ["machine", "setup", "--no-git-hooks", "--no-honeytokens", "--no-plugins"],
         )
 
         assert result.exit_code == 1
@@ -219,7 +233,8 @@ class TestMachineSetupCommand:
         )
 
         result = cli_fs_runner.invoke(
-            cli, ["machine", "setup", "--no-git-hooks", "--no-honeytokens"]
+            cli,
+            ["machine", "setup", "--no-git-hooks", "--no-honeytokens", "--no-plugins"],
         )
 
         assert_invoke_ok(result)
@@ -229,7 +244,15 @@ class TestMachineSetupCommand:
     ):
         result = cli_fs_runner.invoke(
             cli,
-            ["machine", "setup", "--agent", "cursor", "--exclude-agent", "codex"],
+            [
+                "machine",
+                "setup",
+                "--no-plugins",
+                "--agent",
+                "cursor",
+                "--exclude-agent",
+                "codex",
+            ],
         )
         assert result.exit_code != 0
         assert "cannot be used together" in result.output
@@ -241,56 +264,83 @@ class TestMachineSetupCommand:
 
 
 class TestMachineSetupOrchestration:
-    """`machine setup` runs all three protections by default; flags drop one."""
+    """`machine setup` runs all four protections by default; flags drop one."""
 
     AI = "ggshield.cmd.machine.setup._setup_ai_hooks"
     GIT = "ggshield.cmd.machine.setup._setup_git_hooks"
     HT = "ggshield.cmd.machine.setup._setup_honeytokens"
+    PLUGINS = "ggshield.cmd.machine.setup._setup_plugins"
 
-    def _run(self, cli_fs_runner, args, ai=True, git=True, ht=True):
+    def _run(self, cli_fs_runner, args, ai=True, git=True, ht=True, plugins=True):
         with patch(self.AI, return_value=ai) as m_ai, patch(
             self.GIT, return_value=git
-        ) as m_git, patch(self.HT, return_value=ht) as m_ht:
+        ) as m_git, patch(self.HT, return_value=ht) as m_ht, patch(
+            self.PLUGINS, return_value=plugins
+        ) as m_plugins:
             result = cli_fs_runner.invoke(cli, ["machine", "setup", *args])
-        return result, m_ai, m_git, m_ht
+        return result, m_ai, m_git, m_ht, m_plugins
 
     def test_runs_all_features_by_default(self, cli_fs_runner: CliRunner):
-        result, m_ai, m_git, m_ht = self._run(cli_fs_runner, [])
+        result, m_ai, m_git, m_ht, m_plugins = self._run(cli_fs_runner, [])
         assert_invoke_ok(result)
         m_ai.assert_called_once()
         m_git.assert_called_once()
         m_ht.assert_called_once()
+        m_plugins.assert_called_once()
 
     def test_no_ai_hooks_skips_ai(self, cli_fs_runner: CliRunner):
-        result, m_ai, m_git, m_ht = self._run(cli_fs_runner, ["--no-ai-hooks"])
+        result, m_ai, m_git, m_ht, _m_plugins = self._run(
+            cli_fs_runner, ["--no-ai-hooks"]
+        )
         assert_invoke_ok(result)
         m_ai.assert_not_called()
         m_git.assert_called_once()
         m_ht.assert_called_once()
 
     def test_no_git_hooks_skips_git(self, cli_fs_runner: CliRunner):
-        result, _m_ai, m_git, _m_ht = self._run(cli_fs_runner, ["--no-git-hooks"])
+        result, _m_ai, m_git, *_ = self._run(cli_fs_runner, ["--no-git-hooks"])
         assert_invoke_ok(result)
         m_git.assert_not_called()
 
     def test_no_honeytokens_skips_honeytokens(self, cli_fs_runner: CliRunner):
-        result, _m_ai, _m_git, m_ht = self._run(cli_fs_runner, ["--no-honeytokens"])
+        result, _m_ai, _m_git, m_ht, _m_plugins = self._run(
+            cli_fs_runner, ["--no-honeytokens"]
+        )
         assert_invoke_ok(result)
         m_ht.assert_not_called()
 
+    def test_no_plugins_skips_plugins(self, cli_fs_runner: CliRunner):
+        result, _m_ai, _m_git, m_ht, m_plugins = self._run(
+            cli_fs_runner, ["--no-plugins"]
+        )
+        assert_invoke_ok(result)
+        m_plugins.assert_not_called()
+        m_ht.assert_called_once()
+
     def test_failing_feature_returns_nonzero(self, cli_fs_runner: CliRunner):
-        result, _m_ai, _m_git, _m_ht = self._run(cli_fs_runner, [], git=False)
+        result, *_ = self._run(cli_fs_runner, [], git=False)
+        assert result.exit_code == 1
+
+    def test_failing_plugin_step_returns_nonzero(self, cli_fs_runner: CliRunner):
+        result, *_ = self._run(cli_fs_runner, [], plugins=False)
         assert result.exit_code == 1
 
     def test_system_flag_forwarded_to_git_hooks(self, cli_fs_runner: CliRunner):
-        result, _m_ai, m_git, _m_ht = self._run(
+        result, _m_ai, m_git, *_ = self._run(
             cli_fs_runner, ["--system", "--no-ai-hooks", "--no-honeytokens"]
         )
         assert_invoke_ok(result)
         m_git.assert_called_once_with(True)
 
+    def test_system_flag_forwarded_to_plugins(self, cli_fs_runner: CliRunner):
+        result, *_rest, m_plugins = self._run(
+            cli_fs_runner, ["--system", "--no-ai-hooks", "--no-honeytokens"]
+        )
+        assert_invoke_ok(result)
+        assert m_plugins.call_args.args[1] is True
+
     def test_git_hooks_default_to_non_system(self, cli_fs_runner: CliRunner):
-        result, _m_ai, m_git, _m_ht = self._run(
+        result, _m_ai, m_git, *_ = self._run(
             cli_fs_runner, ["--no-ai-hooks", "--no-honeytokens"]
         )
         assert_invoke_ok(result)
@@ -303,7 +353,7 @@ def test_setup_plants_every_honeytoken_type(
     m_plant, _m_registration, cli_fs_runner: CliRunner
 ):
     result = cli_fs_runner.invoke(
-        cli, ["machine", "setup", "--no-ai-hooks", "--no-git-hooks"]
+        cli, ["machine", "setup", "--no-ai-hooks", "--no-git-hooks", "--no-plugins"]
     )
     assert_invoke_ok(result)
     m_plant.assert_called_once_with(token_type="all")
@@ -509,3 +559,391 @@ class TestHoneytokenPlant:
         """`honeytoken plant` stays a first-class command (not deprecated)."""
         result = cli_fs_runner.invoke(cli, ["honeytoken", "plant"])
         assert "deprecated" not in result.output.lower()
+
+
+class TestSetupPlugins:
+    """The plugin step installs what the account is entitled to, and only that.
+
+    Entitlement comes from the catalog (`available` / `reason`), so these tests
+    drive the catalog rather than any notion of a plan.
+    """
+
+    BASE = "ggshield.cmd.machine.setup"
+
+    def _plugin(
+        self,
+        name="machine_scan",
+        available=True,
+        latest="1.2.0",
+        reason=None,
+        has_artifact=True,
+    ):
+        return PluginInfo(
+            name=name,
+            display_name=name.replace("_", " ").title(),
+            description="",
+            available=available,
+            latest_version=latest,
+            reason=reason,
+            has_artifact_for_platform=has_artifact,
+        )
+
+    @contextmanager
+    def _catalog(
+        self,
+        plugins=None,
+        error=None,
+        installed=None,
+        enabled=None,
+        root=False,
+        plugins_dir="/plugins",
+    ):
+        """Pin the catalog call, the on-disk lookup and the enabled plugins.
+
+        ``installed`` maps a catalog reference to the version on disk, under
+        ``/plugins``; ``enabled`` lists the ones the loader sees enabled
+        (default: all installed ones). ``plugins_dir`` is the machine-wide
+        plugin dir.
+        """
+        installed = installed or {}
+        enabled = set(installed) if enabled is None else set(enabled)
+        api_client = Mock()
+        if error is not None:
+            api_client.get_available_plugins.side_effect = error
+        else:
+            api_client.get_available_plugins.return_value = PluginCatalog(
+                plugins=plugins or []
+            )
+
+        def wheel(name):
+            return Path(f"/plugins/{name}/{name}-{installed[name]}.whl")
+
+        downloader = Mock()
+        downloader.plugins_dir = Path(plugins_dir)
+        downloader.get_installed_version.side_effect = lambda name, **_: (
+            installed.get(name)
+        )
+        downloader.get_wheel_path.side_effect = lambda name, **_: (
+            wheel(name) if name in installed else None
+        )
+        with patch(f"{self.BASE}.create_client_from_config"), patch(
+            f"{self.BASE}.PluginAPIClient", return_value=api_client
+        ), patch(f"{self.BASE}.PluginDownloader", return_value=downloader), patch(
+            f"{self.BASE}.EnterpriseConfig"
+        ), patch(
+            f"{self.BASE}._enabled_wheel_paths",
+            return_value={wheel(name).resolve() for name in enabled},
+        ), patch(
+            f"{self.BASE}.is_root", return_value=root
+        ), patch(
+            f"{self.BASE}.get_system_plugins_dir", return_value=Path(plugins_dir)
+        ), patch(
+            f"{self.BASE}.enable_installed_plugin",
+            side_effect=lambda _config, name, *_args: name,
+        ) as m_enable, patch(
+            f"{self.BASE}.install_plugin_from_platform"
+        ) as m_install:
+            m_install.enable = m_enable
+            yield m_install
+
+    def _run(self, cli_fs_runner, *extra_args):
+        return cli_fs_runner.invoke(
+            cli,
+            [
+                "machine",
+                "setup",
+                *extra_args,
+                "--no-ai-hooks",
+                "--no-git-hooks",
+                "--no-honeytokens",
+            ],
+        )
+
+    def test_installs_every_available_plugin(self, cli_fs_runner: CliRunner):
+        plugins = [self._plugin("machine_scan"), self._plugin("tokenscanner")]
+        with self._catalog(plugins) as m_install:
+            m_install.side_effect = lambda _client, name, **kwargs: InstalledPlugin(
+                name=name, version="1.2.0"
+            )
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        assert [call.args[1] for call in m_install.call_args_list] == [
+            "machine_scan",
+            "tokenscanner",
+        ]
+        assert "installed machine_scan v1.2.0" in result.output
+
+    def test_skips_plugin_the_account_cannot_install(self, cli_fs_runner: CliRunner):
+        plugins = [
+            self._plugin(
+                "machine_scan",
+                available=False,
+                latest=None,
+                reason="Business or Enterprise plans only",
+            )
+        ]
+        with self._catalog(plugins) as m_install:
+            result = self._run(cli_fs_runner)
+        # Not entitled is a normal outcome, not a setup failure.
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        assert "no plugins available for this account" in result.output
+        assert "Business or Enterprise plans only" in result.output
+
+    def test_skips_plugin_with_no_build_for_this_platform(
+        self, cli_fs_runner: CliRunner
+    ):
+        """Entitlement comes from the account only: a plugin with no artifact for
+        this machine is skipped, not downloaded into a 404 that fails setup."""
+        plugins = [
+            self._plugin("machine_scan", has_artifact=False),
+            self._plugin("tokenscanner"),
+        ]
+        with self._catalog(plugins) as m_install:
+            m_install.return_value = InstalledPlugin(
+                name="tokenscanner", version="1.2.0"
+            )
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        assert [call.args[1] for call in m_install.call_args_list] == ["tokenscanner"]
+        assert "machine_scan: not available for this platform; skipped" in (
+            result.output
+        )
+
+    def test_plugin_system_disabled_is_not_a_failure(self, cli_fs_runner: CliRunner):
+        with self._catalog(error=PluginsNotEnabledError()) as m_install:
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        assert "not enabled on this workspace" in result.output
+
+    def test_unreachable_catalog_is_not_a_failure(self, cli_fs_runner: CliRunner):
+        with self._catalog(error=PluginAPIError("boom")) as m_install:
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        assert "could not fetch the plugin catalog" in result.output
+
+    def test_already_installed_plugin_is_left_alone(self, cli_fs_runner: CliRunner):
+        with self._catalog(
+            [self._plugin("machine_scan", latest="1.2.0")],
+            installed={"machine_scan": "1.2.0"},
+        ) as m_install:
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        assert "machine_scan already installed v1.2.0" in result.output
+
+    def test_outdated_plugin_points_at_plugin_update(self, cli_fs_runner: CliRunner):
+        # `setup` adds what is missing; upgrading stays an explicit `plugin update`.
+        with self._catalog(
+            [self._plugin("machine_scan", latest="1.3.0")],
+            installed={"machine_scan": "1.2.0"},
+        ) as m_install:
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        assert "v1.3.0 available" in result.output
+        assert "ggshield plugin update --all" in result.output
+
+    def test_failed_install_of_entitled_plugin_fails_setup(
+        self, cli_fs_runner: CliRunner
+    ):
+        with self._catalog([self._plugin("machine_scan")]) as m_install:
+            m_install.side_effect = PluginAPIError("download failed")
+            result = self._run(cli_fs_runner)
+        assert result.exit_code == 1
+        assert "could not install machine_scan" in result.output
+
+    def test_one_failing_plugin_does_not_stop_the_others(
+        self, cli_fs_runner: CliRunner
+    ):
+        plugins = [self._plugin("machine_scan"), self._plugin("tokenscanner")]
+        with self._catalog(plugins) as m_install:
+            m_install.side_effect = [
+                PluginAPIError("download failed"),
+                InstalledPlugin(name="tokenscanner", version="1.2.0"),
+            ]
+            result = self._run(cli_fs_runner)
+        assert result.exit_code == 1
+        assert "could not install machine_scan" in result.output
+        assert "installed tokenscanner v1.2.0" in result.output
+
+    def test_installed_but_disabled_plugin_is_enabled(self, cli_fs_runner: CliRunner):
+        """A wheel on disk with its config row disabled or missing is not set up:
+        setup enables it rather than reporting it as already installed."""
+        with self._catalog(
+            [self._plugin("machine_scan", latest="1.2.0")],
+            installed={"machine_scan": "1.2.0"},
+            enabled=[],
+        ) as m_install:
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        m_install.enable.assert_called_once()
+        assert m_install.enable.call_args.args[1:] == (
+            "machine_scan",
+            "1.2.0",
+            Path("/plugins/machine_scan/machine_scan-1.2.0.whl"),
+        )
+        assert "enabled machine_scan v1.2.0" in result.output
+        assert "already installed" not in result.output
+
+    def test_newer_version_is_compared_as_a_version(self, cli_fs_runner: CliRunner):
+        # As strings "1.10.0" < "1.9.0": the hint must not claim a downgrade.
+        with self._catalog(
+            [self._plugin("machine_scan", latest="1.9.0")],
+            installed={"machine_scan": "1.10.0"},
+        ):
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        assert "machine_scan already installed v1.10.0" in result.output
+        assert "available" not in result.output
+
+    def test_auth_failure_is_not_reported_as_unreachable_catalog(
+        self, cli_fs_runner: CliRunner
+    ):
+        with self._catalog(
+            error=APIKeyCheckError("https://api.gitguardian.com", "Invalid API key.")
+        ) as m_install:
+            result = self._run(cli_fs_runner)
+        assert result.exit_code == 1
+        m_install.assert_not_called()
+        assert "could not authenticate to GitGuardian: Invalid API key." in (
+            result.output
+        )
+        assert "could not fetch the plugin catalog" not in result.output
+
+    def test_rejected_api_key_is_an_auth_failure(self, cli_fs_runner: CliRunner):
+        response = requests.Response()
+        response.status_code = 401
+        error = PluginAPIError("Failed to fetch plugins: 401 Unauthorized")
+        error.__cause__ = requests.HTTPError(response=response)
+        with self._catalog(error=error) as m_install:
+            result = self._run(cli_fs_runner)
+        assert result.exit_code == 1
+        m_install.assert_not_called()
+        assert "GitGuardian rejected the API key" in result.output
+        assert "ggshield auth login" in result.output
+
+    def test_system_without_root_does_not_install_per_user(
+        self, cli_fs_runner: CliRunner
+    ):
+        with self._catalog([self._plugin("machine_scan")], root=False) as m_install:
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "machine",
+                    "setup",
+                    "--system",
+                    "--no-ai-hooks",
+                    "--no-git-hooks",
+                    "--no-honeytokens",
+                ],
+            )
+        assert result.exit_code == 1
+        m_install.assert_not_called()
+        assert "needs root" in result.output
+
+    def test_system_without_root_passes_when_set_up_machine_wide(
+        self, cli_fs_runner: CliRunner
+    ):
+        """After `sudo ggshield machine setup`, a user's `--system` run finds the
+        plugin installed and enabled machine-wide: nothing needs root."""
+        with self._catalog(
+            [self._plugin("machine_scan")],
+            installed={"machine_scan": "1.2.0"},
+            root=False,
+        ) as m_install:
+            result = self._run(cli_fs_runner, "--system")
+        assert_invoke_ok(result)
+        m_install.assert_not_called()
+        m_install.enable.assert_not_called()
+        assert "machine_scan already installed v1.2.0" in result.output
+        assert "needs root" not in result.output
+
+    def test_system_without_root_ignores_a_per_user_install(
+        self, cli_fs_runner: CliRunner
+    ):
+        """A copy in the user's own plugin dir does not set the machine up."""
+        with self._catalog(
+            [self._plugin("machine_scan")],
+            installed={"machine_scan": "1.2.0"},
+            root=False,
+            plugins_dir="/system/plugins",
+        ) as m_install:
+            result = self._run(cli_fs_runner, "--system")
+        assert result.exit_code == 1
+        m_install.assert_not_called()
+        assert "installing machine_scan machine-wide needs root" in result.output
+        assert "already installed" not in result.output
+
+    def test_system_without_root_does_not_enable_per_user(
+        self, cli_fs_runner: CliRunner
+    ):
+        with self._catalog(
+            [self._plugin("machine_scan")],
+            installed={"machine_scan": "1.2.0"},
+            enabled=[],
+            root=False,
+        ) as m_install:
+            result = self._run(cli_fs_runner, "--system")
+        assert result.exit_code == 1
+        m_install.enable.assert_not_called()
+        assert "enabling machine_scan machine-wide needs root" in result.output
+
+    def test_system_as_root_installs(self, cli_fs_runner: CliRunner):
+        with self._catalog([self._plugin("machine_scan")], root=True) as m_install:
+            m_install.return_value = InstalledPlugin(
+                name="machine_scan", version="1.2.0"
+            )
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "machine",
+                    "setup",
+                    "--system",
+                    "--no-ai-hooks",
+                    "--no-git-hooks",
+                    "--no-honeytokens",
+                ],
+            )
+        assert_invoke_ok(result)
+        m_install.assert_called_once()
+
+    def test_root_reinstalls_a_plugin_only_in_its_own_dir(
+        self, cli_fs_runner: CliRunner
+    ):
+        """A root run provisions every user: a copy in root's per-user plugin
+        dir (outside the machine-wide one) does not count as installed."""
+        with self._catalog(
+            [self._plugin("machine_scan")],
+            installed={"machine_scan": "1.2.0"},
+            root=True,
+            plugins_dir="/system/plugins",
+        ) as m_install:
+            m_install.return_value = InstalledPlugin(
+                name="machine_scan", version="1.2.0"
+            )
+            result = self._run(cli_fs_runner)
+        assert_invoke_ok(result)
+        m_install.assert_called_once()
+        assert "installed machine_scan v1.2.0" in result.output
+
+    @pytest.mark.parametrize("root", [True, False])
+    def test_enabled_check_reads_the_config_layer_setup_targets(self, root):
+        """Root checks the machine-wide config only (what every user gets); a
+        user checks the effective one, so an admin's machine-wide enable counts."""
+        from ggshield.cmd.machine.setup import _enabled_wheel_paths
+
+        enabled = Mock(is_enabled=True, wheel_path=Path("/plugins/a/a.whl"))
+        disabled = Mock(is_enabled=False, wheel_path=Path("/plugins/b/b.whl"))
+        with patch(f"{self.BASE}.is_root", return_value=root), patch(
+            f"{self.BASE}.EnterpriseConfig"
+        ) as m_config, patch(f"{self.BASE}.PluginLoader") as m_loader:
+            m_loader.return_value.discover_plugins.return_value = [enabled, disabled]
+            assert _enabled_wheel_paths() == {Path("/plugins/a/a.whl").resolve()}
+        if root:
+            m_loader.assert_called_once_with(m_config.load.return_value)
+        else:
+            m_loader.assert_called_once_with(m_config.load_effective.return_value)
