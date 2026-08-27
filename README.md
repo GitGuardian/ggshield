@@ -8,7 +8,7 @@
 [![Codecov](https://img.shields.io/codecov/c/github/GitGuardian/ggshield?style=for-the-badge)](https://codecov.io/gh/GitGuardian/ggshield/)
 
 > [!IMPORTANT]
-> **macOS: upgrading to 1.54.0 triggers a Keychain prompt for `ggshield-py`**, a second binary that now reads your saved token. Click **Always Allow**; it won't ask again.
+> **macOS: upgrading to 1.54.0 triggers a Keychain prompt for `ggshield-py`**, a second binary that now reads your saved token as part of our performance improvements. Click **Always Allow**; it won't ask again.
 
 `ggshield` is a CLI application that runs in your local environment or in a CI environment to help you detect more than 500+ types of secrets.
 
