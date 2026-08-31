@@ -2,6 +2,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import List
 from unittest.mock import Mock, patch
 
 import pytest
@@ -10,6 +11,12 @@ from pygitguardian.models import MultiScanResult
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
+from tests.factories import ScanResultFactory, build_policy_break
+from tests.factory_constants import (
+    INVALID_REGEX_PATTERN,
+    SOPS_ENCRYPTED_VALUE,
+    SOPS_PATTERN,
+)
 from tests.repository import Repository
 from tests.unit.conftest import (
     _ONE_LINE_AND_MULTILINE_PATCH,
@@ -20,6 +27,15 @@ from tests.unit.conftest import (
     my_vcr,
     write_text,
 )
+
+
+def assert_secrets_ignored(output: str, nb_ignored: int) -> None:
+    if nb_ignored > 0:
+        assert (
+            f"{nb_ignored} secret{'s' if nb_ignored != 1 else ''} ignored"
+        ) in output
+    else:
+        assert "ignored" not in output
 
 
 def create_normally_ignored_file() -> Path:
@@ -509,10 +525,186 @@ class TestScanDirectory:
                 assert (
                     f": {nb_secret} secret{'s' if nb_secret != 1 else ''} detected"
                 ) in result.output
-                if nb_ignored > 0:
-                    assert (
-                        f"{nb_ignored} secret{'s' if nb_ignored != 1 else ''} ignored"
-                    ) in result.output
+                assert_secrets_ignored(result.output, nb_ignored)
+
+    @pytest.mark.parametrize(
+        ("ignored_match_patterns", "nb_secret", "nb_ignored"),
+        [
+            ([], 2, 0),
+            (["--ignore-match-pattern", "^-----BEGIN RSA PRIVATE KEY-----"], 1, 1),
+            (["--ignore-match-pattern", r"^SG\."], 1, 1),
+            (["--ignore-match-pattern", SOPS_PATTERN], 2, 0),
+            (
+                [
+                    "--ignore-match-pattern",
+                    r"^SG\.",
+                    "--ignore-match-pattern",
+                    "^-----BEGIN RSA",
+                ],
+                0,
+                2,
+            ),
+        ],
+    )
+    def test_ignore_match_patterns(
+        self,
+        cli_fs_runner: CliRunner,
+        ignored_match_patterns: List[str],
+        nb_secret: int,
+        nb_ignored: int,
+    ) -> None:
+        """
+        GIVEN a file holding a RSA private key and a SendGrid key
+        WHEN scanning it while ignoring matches by pattern
+        THEN only the secrets whose match is searched by a pattern should be ignored
+        """
+        write_text(Path("file_secret"), _ONE_LINE_AND_MULTILINE_PATCH)
+        with my_vcr.use_cassette("test_scan_path_file_one_line_and_multiline_patch"):
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "secret",
+                    "scan",
+                    "-v",
+                    *ignored_match_patterns,
+                    "path",
+                    "file_secret",
+                    "--exit-zero",
+                ],
+            )
+
+            assert result.exit_code == ExitCode.SUCCESS, result.output
+            assert (
+                f": {nb_secret} secret{'s' if nb_secret != 1 else ''} detected"
+            ) in result.output
+            assert_secrets_ignored(result.output, nb_ignored)
+
+    def test_ignore_match_patterns_from_both_cli_and_config(
+        self, cli_fs_runner: CliRunner
+    ) -> None:
+        """
+        GIVEN a config file ignoring the SendGrid key by pattern
+        WHEN scanning with a pattern ignoring the RSA private key on the command line
+        THEN both secrets should be ignored
+        """
+        write_text(Path("file_secret"), _ONE_LINE_AND_MULTILINE_PATCH)
+        write_text(
+            Path(".gitguardian.yaml"),
+            "version: 2\nsecret:\n  ignored_match_patterns:\n    - '^SG\\.'\n",
+        )
+
+        with my_vcr.use_cassette("test_scan_path_file_one_line_and_multiline_patch"):
+            result = cli_fs_runner.invoke(
+                cli,
+                [
+                    "secret",
+                    "scan",
+                    "-v",
+                    "--ignore-match-pattern",
+                    "^-----BEGIN RSA",
+                    "path",
+                    "file_secret",
+                    "--exit-zero",
+                ],
+            )
+
+            assert result.exit_code == ExitCode.SUCCESS, result.output
+            assert ": 0 secrets detected" in result.output
+            assert_secrets_ignored(result.output, 2)
+
+    @pytest.mark.parametrize(
+        ("ignore_options", "nb_secret", "nb_ignored"),
+        [
+            ([], 1, 0),
+            (["--ignore-match-pattern", SOPS_PATTERN], 0, 1),
+        ],
+    )
+    @patch("pygitguardian.GGClient.multi_content_scan")
+    @my_vcr.use_cassette("test_scan_context_repository.yaml")
+    def test_ignore_sops_encrypted_match(
+        self,
+        scan_mock: Mock,
+        cli_fs_runner: CliRunner,
+        ignore_options: List[str],
+        nb_secret: int,
+        nb_ignored: int,
+    ) -> None:
+        """
+        GIVEN a file holding a sops-encrypted value reported as a secret
+        WHEN scanning it while ignoring matches looking sops-encrypted
+        THEN the secret should be ignored, and detected without the pattern
+        """
+        write_text(Path("secrets.yaml"), SOPS_ENCRYPTED_VALUE)
+        scan_result = MultiScanResult(
+            [
+                ScanResultFactory(
+                    policy_breaks=[build_policy_break(SOPS_ENCRYPTED_VALUE)]
+                )
+            ]
+        )
+        scan_result.status_code = 200
+        scan_mock.return_value = scan_result
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "-v",
+                *ignore_options,
+                "path",
+                "secrets.yaml",
+                "--exit-zero",
+            ],
+        )
+
+        assert result.exit_code == ExitCode.SUCCESS, result.output
+        assert (
+            f": {nb_secret} secret{'s' if nb_secret != 1 else ''} detected"
+        ) in result.output
+        assert_secrets_ignored(result.output, nb_ignored)
+
+    def test_invalid_ignore_match_pattern(self, cli_fs_runner: CliRunner) -> None:
+        """
+        GIVEN an ignore pattern which is not a valid regex
+        WHEN scanning
+        THEN it should fail with a usage error naming the pattern
+        """
+        write_text(Path("file_secret"), _ONE_LINE_AND_MULTILINE_PATCH)
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "secret",
+                "scan",
+                "--ignore-match-pattern",
+                INVALID_REGEX_PATTERN,
+                "path",
+                "file_secret",
+            ],
+        )
+
+        assert result.exit_code == ExitCode.USAGE_ERROR, result.output
+        assert INVALID_REGEX_PATTERN in result.output
+
+    def test_invalid_ignore_match_pattern_from_config(
+        self, cli_fs_runner: CliRunner
+    ) -> None:
+        """
+        GIVEN a config file holding an ignore pattern which is not a valid regex
+        WHEN scanning
+        THEN it should fail with a usage error naming the pattern
+        """
+        write_text(Path("file_secret"), _ONE_LINE_AND_MULTILINE_PATCH)
+        write_text(
+            Path(".gitguardian.yaml"),
+            f"version: 2\nsecret:\n  ignored_match_patterns:\n    - '{INVALID_REGEX_PATTERN}'\n",
+        )
+
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file_secret"])
+
+        assert result.exit_code == ExitCode.USAGE_ERROR, result.output
+        assert INVALID_REGEX_PATTERN in result.output
 
     @patch("pygitguardian.GGClient.multi_content_scan")
     @my_vcr.use_cassette("test_scan_context_repository.yaml")

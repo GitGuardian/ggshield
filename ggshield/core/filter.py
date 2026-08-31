@@ -47,6 +47,26 @@ def is_in_ignored_matches(
     return False
 
 
+def is_in_ignored_match_patterns(
+    policy_break: PolicyBreak,
+    ignored_match_patterns: Iterable[str],
+) -> bool:
+    """
+    is_in_ignored_match_patterns checks if any of the occurrence matches is ignored,
+    by searching each pattern in the match value.
+
+    :param policy_break: Policy Break occurrence to judge
+    :param ignored_match_patterns: Iterable of regexes to search for
+    :return: True if ignored
+    """
+
+    return any(
+        re.search(pattern, match.match)
+        for pattern in ignored_match_patterns
+        for match in policy_break.matches
+    )
+
+
 def get_ignore_sha(policy_break: PolicyBreak) -> str:
     hashable = "".join(
         [
@@ -104,6 +124,22 @@ def init_exclusion_regexes(paths_ignore: Iterable[str]) -> Set[Pattern[str]]:
             raise UsageError(f"{path} is not a valid exclude pattern.")
         res.add(re.compile(translate_user_pattern(path)))
     return res
+
+
+def validate_ignored_match_patterns(patterns: Iterable[str]) -> None:
+    """
+    Check the patterns secret values are searched for, so that an unusable one is
+    reported when the command starts rather than silently affecting the scan.
+    """
+    for pattern in patterns:
+        if not pattern:
+            raise UsageError("An ignored match pattern should not be empty.")
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise UsageError(
+                f"{pattern} could not be compiled as a regex: {exc}"
+            ) from exc
 
 
 def censor_string(text: str) -> str:

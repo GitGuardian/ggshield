@@ -18,7 +18,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core import ui
 from ggshield.core.config.user_config import SecretConfig
-from ggshield.core.filter import init_exclusion_regexes
+from ggshield.core.filter import init_exclusion_regexes, validate_ignored_match_patterns
 from ggshield.utils.click import RealPath
 from ggshield.verticals.secret.output import (
     SecretJSONOutputHandler,
@@ -128,6 +128,30 @@ _banlist_detectors_option = click.option(
 )
 
 
+def _ignored_match_patterns_callback(
+    ctx: click.Context, param: click.Parameter, value: Optional[List[str]]
+) -> Optional[List[str]]:
+    ignored_match_patterns = _get_secret_config(ctx).ignored_match_patterns
+    if value is not None:
+        ignored_match_patterns.update(value)
+
+    validate_ignored_match_patterns(ignored_match_patterns)
+    return value
+
+
+_ignored_match_patterns_option = click.option(
+    "--ignore-match-pattern",
+    default=None,
+    help="""
+    Ignore secrets whose value matches the specified regex. The regex is searched
+    anywhere in the value: anchor it with ^ to only match a prefix.
+    """,
+    multiple=True,
+    callback=_ignored_match_patterns_callback,
+    metavar="PATTERN",
+)
+
+
 _with_incident_details_option = click.option(
     "--with-incident-details",
     is_flag=True,
@@ -195,6 +219,7 @@ def add_secret_scan_common_options() -> Callable[[AnyFunction], AnyFunction]:
         _exclude_option(cmd)
         _ignore_known_secrets_option(cmd)
         _banlist_detectors_option(cmd)
+        _ignored_match_patterns_option(cmd)
         _with_incident_details_option(cmd)
         instance_option(cmd)
         _all_secrets(cmd)

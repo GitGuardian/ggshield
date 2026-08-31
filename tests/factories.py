@@ -1,4 +1,5 @@
 import random
+from typing import List
 
 import factory
 import factory.fuzzy
@@ -7,7 +8,7 @@ from pygitguardian.models import Match, PolicyBreak, ScanResult
 from ggshield.core.scan.scannable import StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.secret_scan_collection import Secret
-from tests.factory_constants import DETECTOR_NAMES, MATCH_NAMES
+from tests.factory_constants import DETECTOR_NAMES, MATCH_NAMES, MATCH_SEPARATOR
 
 
 def get_line_index(content, index):
@@ -119,3 +120,23 @@ class SecretFactory(factory.Factory):
     vault_name = None
     vault_path = None
     vault_path_count = None
+
+
+def build_policy_break(*match_values: str) -> PolicyBreak:
+    content = MATCH_SEPARATOR.join(match_values)
+    matches: List[Match] = []
+    index_start = 0
+    for index, value in enumerate(match_values):
+        matches.append(
+            MatchFactory(
+                content=content,
+                match=value,
+                match_type=f"password_{index}",
+                index_start=index_start,
+                index_end=index_start + len(value),
+            )
+        )
+        index_start += len(value) + len(MATCH_SEPARATOR)
+
+    policy_break: PolicyBreak = PolicyBreakFactory(content=content, matches=matches)
+    return policy_break
