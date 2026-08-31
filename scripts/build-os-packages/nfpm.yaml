@@ -21,13 +21,16 @@ umask: 0o022
 contents:
   # The Rust dispatcher, not the PyInstaller launcher: `ggshield` is the entry
   # point and `ggshield-py` (which it execs) sits next to it in
-  # /usr/libexec/ggshield, picked up by the `expand: true` entry below.
+  # /usr/libexec/ggshield, picked up by the bundle entry below.
   - src: ../libexec/ggshield/ggshield
     dst: /usr/bin/ggshield
     type: symlink
 
+  # type: tree so the rpm owns the bundle dirs and prunes stale *.dist-info on
+  # upgrade; expand: true is still required to expand ${PYINSTALLER_OUTPUT_DIR}.
   - src: ${PYINSTALLER_OUTPUT_DIR}
     dst: /usr/libexec/ggshield
+    type: tree
     expand: true
 
     # Required because our bundled Python binary still uses libcrypt.so.1, but
