@@ -194,6 +194,24 @@ def safe_api_tokens(client: GGClient) -> Union[APITokensResponse, Detail]:
         raise _non_json_error(client.base_uri, exc) from exc
 
 
+def granted_scopes(client: GGClient) -> Optional[set[str]]:
+    """The scopes the client's token carries, or None when they could not be read.
+
+    Scopes are raw strings, not ``TokenScope``: a scope newer than pygitguardian's enum
+    (e.g. ``endpoints:send``) must still count as granted. ``None`` means "unknown",
+    never "none granted" — a caller must not report a scope as missing because the
+    lookup itself failed.
+    """
+    try:
+        token_info = safe_api_tokens(client)
+    except (UnexpectedError, requests.exceptions.RequestException):
+        return None
+    if not isinstance(token_info, APITokensResponse):
+        # An error Detail (401/500...) tells us nothing about the scopes.
+        return None
+    return set(token_info.scopes or [])
+
+
 def safe_response_json(response: requests.Response) -> Any:
     """Parse a JSON response body, raising a clean UnexpectedError that names the
     instance URL instead of letting a raw JSONDecodeError escape when the body is
