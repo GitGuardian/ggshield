@@ -51,3 +51,7 @@ overrides:
     depends:
       - libc6
       - git
+
+rpm:
+  scripts:
+    posttrans: scripts/build-os-packages/rpm-posttrans.sh
