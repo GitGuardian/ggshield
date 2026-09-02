@@ -223,15 +223,26 @@ impl Agent {
                     Some((first, last))
                 }
             }
-            // No range ever seen from these five: Copilot CLI's `view` carries
-            // only `path`, Cursor's Read has no range keys, Codex shells out,
-            // Vibe's `read_file` carries only `path`. Kiro's IDE reader does
-            // carry `offset` and `limit`, but nothing establishes whether they
-            // mean what the same two names mean to Claude, and a range read the
-            // wrong way round scans past the lines the agent asked for while
-            // leaving the ones it gets unscanned. The whole file is the safe
-            // answer until a payload settles it.
-            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe | Agent::Kiro => None,
+            // Kiro's `read_file` spells the same two parameters as Claude and
+            // counts `offset` from zero, not one: measured against a numbered
+            // file, `offset` 49 with `limit` 11 returns lines 50 to 60. A zero
+            // `offset` is a real read from the top, so it cannot go through
+            // `positive`, which reads 0 as absent. Its CLI `fs_read` names its
+            // files under `operations` and carries no bounds we have seen, so
+            // it arrives here with neither parameter and reads whole files.
+            Agent::Kiro => {
+                let offset = tool_input.get("offset").and_then(Value::as_u64);
+                let first = offset.unwrap_or(0).saturating_add(1);
+                match positive("limit") {
+                    Some(limit) => Some((first, Some(first.saturating_add(limit - 1)))),
+                    None if first == 1 => None,
+                    None => Some((first, None)),
+                }
+            }
+            // No range ever seen from these four: Copilot CLI's `view` carries
+            // only `path`, Cursor's Read has no range keys, Codex shells out, and
+            // Vibe's `read_file` carries only `path`.
+            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe => None,
         }
     }
 }
@@ -1504,6 +1515,36 @@ mod tests {
             "{:?}",
             payloads[0].content
         );
+    }
+
+    /// GIVEN the read ranges Kiro's `read_file` sends
+    /// WHEN they are resolved
+    /// THEN `offset` counts from zero, so the payload measured against a
+    /// numbered file (49, 11) covers lines 50 to 60, and a read with neither
+    /// parameter still covers the whole file.
+    #[test]
+    fn kiro_read_ranges_count_the_offset_from_zero() {
+        let cases = [
+            (
+                json!({"path": "f", "offset": 49, "limit": 11}),
+                Some((50, Some(60))),
+            ),
+            (
+                json!({"path": "f", "offset": 0, "limit": 10}),
+                Some((1, Some(10))),
+            ),
+            (json!({"path": "f", "offset": 49}), Some((50, None))),
+            (json!({"path": "f"}), None),
+            // The CLI reader names its files elsewhere and sends no bounds.
+            (json!({"operations": [{"mode": "Line", "path": "f"}]}), None),
+        ];
+        for (tool_input, expected) in cases {
+            assert_eq!(
+                Agent::Kiro.read_range(&tool_input),
+                expected,
+                "{tool_input}"
+            );
+        }
     }
 
     /// GIVEN a Kiro CLI `fs_read`, whose files are named in an `operations` list

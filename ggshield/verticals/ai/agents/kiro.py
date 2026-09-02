@@ -8,7 +8,15 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
 
 from ..agent_activity.sources import JSONLActivitySource
-from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration, Scope
+from ..models import (
+    Agent,
+    EventType,
+    HookPayload,
+    HookResult,
+    MCPConfiguration,
+    ReadRange,
+    Scope,
+)
 
 
 #: Every trigger Kiro can fire a command hook on, in both spellings: the CLI
@@ -130,6 +138,26 @@ class Kiro(Agent):
         return hook_payload.get("hook_event_name") in TRIGGERS and not any(
             key in hook_payload for key in FOREIGN_KEYS
         )
+
+    def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:
+        """Kiro's `read_file` takes `offset`, the first line counted from zero,
+        and `limit`, a number of lines. Measured against a numbered file:
+        `offset` 49 with `limit` 11 returns lines 50 to 60.
+
+        Claude spells the same two parameters, but counts `offset` from one, so
+        the arms cannot be shared. A zero `offset` is a real read from the top
+        rather than an absent one, hence the explicit None check.
+
+        The CLI's own `fs_read` names its files under `operations` and carries
+        no bounds we have seen, so it reads whole files and lands here with
+        neither parameter.
+        """
+        offset = tool_input.get("offset")
+        limit = tool_input.get("limit")
+        first = offset + 1 if isinstance(offset, int) and offset >= 0 else 1
+        if isinstance(limit, int) and limit > 0:
+            return first, first + limit - 1
+        return None if first == 1 else (first, None)
 
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         # A directory of standalone files rather than one settings file, so

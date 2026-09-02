@@ -2063,6 +2063,27 @@ class TestKiro:
         assert captured.out == ""
         assert "could not scan" in captured.err
 
+    @pytest.mark.parametrize(
+        ("tool_input", "expected"),
+        [
+            ({"path": "f", "offset": 49, "limit": 11}, (50, 60)),
+            ({"path": "f", "offset": 0, "limit": 10}, (1, 10)),
+            ({"path": "f", "offset": 49}, (50, None)),
+            ({"path": "f"}, None),
+            # The CLI reader names its files elsewhere and sends no bounds.
+            ({"operations": [{"mode": "Line", "path": "f"}]}, None),
+        ],
+    )
+    def test_read_range_counts_the_offset_from_zero(
+        self, tool_input: Dict[str, Any], expected: Optional[Any]
+    ):
+        """GIVEN the read ranges Kiro's read_file sends
+        WHEN they are resolved
+        THEN `offset` counts from zero, so the range measured against a
+        numbered file (49, 11) covers lines 50 to 60, and a read with neither
+        parameter still covers the whole file."""
+        assert Kiro().read_range(tool_input) == expected
+
     def test_settings_template_matcher_is_a_regex(self):
         """GIVEN the installed hook file
         WHEN its matchers are read
