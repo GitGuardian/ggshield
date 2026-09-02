@@ -34,8 +34,16 @@ TRIGGERS = frozenset(
 )
 
 #: Keys another assistant sends and Kiro never does. Several trigger names are
-#: shared, so the event name alone would let Kiro claim their payloads.
-FOREIGN_KEYS = ("transcript_path", "cursor_version", "turn_id", "timestamp")
+#: shared, so the event name alone would let Kiro claim their payloads. Junie
+#: CLI is the reason `project_path` is here: it mirrors Claude Code's wire
+#: protocol deliberately, which leaves it with no marker of its own either.
+FOREIGN_KEYS = (
+    "transcript_path",
+    "cursor_version",
+    "turn_id",
+    "timestamp",
+    "project_path",
+)
 
 #: Kiro compiles a hook's `matcher` as a regular expression and drops the hook
 #: when it does not compile. A bare "*" is not a valid regex ("nothing to

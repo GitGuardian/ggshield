@@ -1998,6 +1998,18 @@ class TestKiro:
                     "cwd": "/tmp",
                 },
             ),
+            (
+                # Junie CLI mirrors Claude Code's field names on purpose, so it
+                # reaches Kiro's matcher with a trigger name Kiro also uses.
+                "junie cli",
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "session_id": "s",
+                    "cwd": "/p",
+                    "project_path": "/p",
+                    "prompt": "hello",
+                },
+            ),
             ("unknown trigger", {"hook_event_name": "beforeShellExecution"}),
         ],
     )

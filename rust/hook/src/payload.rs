@@ -143,11 +143,18 @@ impl Agent {
                     "PostFileDelete",
                 ];
                 // Several of those spellings are shared with Claude, Cursor,
-                // Codex and Copilot CLI, so the event name alone would let Kiro
-                // claim their payloads. These four keys are what each of them
-                // sends and Kiro never does.
-                const FOREIGN_KEYS: [&str; 4] =
-                    ["transcript_path", "cursor_version", "turn_id", "timestamp"];
+                // Codex, Copilot CLI and Junie CLI, so the event name alone
+                // would let Kiro claim their payloads. These keys are what each
+                // of them sends and Kiro never does. `project_path` is Junie's,
+                // which mirrors Claude Code's wire protocol deliberately and so
+                // has no marker of its own either.
+                const FOREIGN_KEYS: [&str; 5] = [
+                    "transcript_path",
+                    "cursor_version",
+                    "turn_id",
+                    "timestamp",
+                    "project_path",
+                ];
                 let Some(name) = data.get("hook_event_name").and_then(Value::as_str) else {
                     return false;
                 };
@@ -1365,7 +1372,7 @@ mod tests {
     /// carrying a key it never sends.
     #[test]
     fn kiro_never_claims_another_agents_payload() {
-        let cases: [(&str, Value, Option<Agent>); 5] = [
+        let cases: [(&str, Value, Option<Agent>); 6] = [
             (
                 "claude",
                 claude(json!({"hook_event_name": "PreToolUse"})),
@@ -1387,6 +1394,14 @@ mod tests {
                 json!({"hook_event_name": "PreToolUse", "session_id": "s",
                        "timestamp": "t", "cwd": "/tmp"}),
                 Some(Agent::Copilot),
+            ),
+            // Junie CLI mirrors Claude Code's field names on purpose, so it
+            // reaches Kiro's matcher with a trigger name Kiro also uses.
+            (
+                "junie cli",
+                json!({"hook_event_name": "UserPromptSubmit", "session_id": "s",
+                       "cwd": "/p", "project_path": "/p", "prompt": "hello"}),
+                None,
             ),
             // Not one of Kiro's trigger spellings, and nothing else matches.
             (
