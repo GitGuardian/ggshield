@@ -240,7 +240,9 @@ class TestAiHookCmd:
         result = runner.invoke(
             cli,
             ["secret", "scan", "ai-hook"],
-            input='{"hook_event_name": "PreToolUse"}',
+            # An event name no adapter answers to: "PreToolUse" with no other
+            # agent's marker beside it is Kiro's own signature.
+            input='{"hook_event_name": "somethingElse"}',
         )
 
         assert result.exit_code == 1

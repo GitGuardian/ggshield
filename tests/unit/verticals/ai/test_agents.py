@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
 from ggshield.verticals.ai.agents.codex import Codex
 from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
+from ggshield.verticals.ai.agents.kiro import Kiro
 from ggshield.verticals.ai.agents.vibe import Vibe
 from ggshield.verticals.ai.agents.vscode import VSCode
 from ggshield.verticals.ai.models import (
@@ -20,6 +22,7 @@ from ggshield.verticals.ai.models import (
     AIDiscovery,
     EventType,
     HookPayload,
+    HookResult,
     MCPConfiguration,
     MCPServer,
     Scope,
@@ -1924,3 +1927,340 @@ class TestSubscriptionEmail:
         WHEN subscription_email is read
         THEN None is returned, never a stand-in from git config"""
         assert agent.subscription_email() is None
+
+
+# ===========================================================================
+# Kiro
+# ===========================================================================
+
+
+class TestKiro:
+    def test_config_folder(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.kiro.get_user_home_dir", return_value=tmp_path
+        ):
+            assert Kiro().config_folder == tmp_path / ".kiro"
+
+    def test_mcp_files(self):
+        kiro = Kiro()
+        assert kiro.project_mcp_file(Path("/tmp/project")) == (
+            Path("/tmp/project") / ".kiro" / "settings" / "mcp.json"
+        )
+        assert kiro.user_mcp_file.parts[-3:] == (".kiro", "settings", "mcp.json")
+
+    @pytest.mark.parametrize(
+        ("label", "payload"),
+        [
+            (
+                "cli",
+                {
+                    "hook_event_name": "preToolUse",
+                    "cwd": "/p",
+                    "tool_name": "fs_write",
+                    "tool_input": {"command": "create"},
+                },
+            ),
+            (
+                "ide",
+                {
+                    "session_id": "sess_1",
+                    "hook_event_name": "PreToolUse",
+                    "cwd": "/p",
+                    "tool_name": "read_file",
+                    "tool_input": {"path": "/p/a.py", "offset": None, "limit": None},
+                },
+            ),
+        ],
+    )
+    def test_is_caller_recognises_both_surfaces(
+        self, label: str, payload: Dict[str, Any]
+    ):
+        """GIVEN a payload from the Kiro CLI or the Kiro IDE
+        WHEN the caller is identified
+        THEN Kiro claims it, whichever spelling the trigger uses."""
+        assert Kiro().is_caller(payload) is True, label
+
+    @pytest.mark.parametrize(
+        ("label", "payload"),
+        [
+            (
+                "claude",
+                {"hook_event_name": "PreToolUse", "transcript_path": "/c.jsonl"},
+            ),
+            ("cursor", {"hook_event_name": "preToolUse", "cursor_version": "2.5.25"}),
+            ("codex", {"hook_event_name": "PreToolUse", "turn_id": "t1"}),
+            (
+                "copilot",
+                {
+                    "hook_event_name": "PreToolUse",
+                    "session_id": "s",
+                    "timestamp": "t",
+                    "cwd": "/tmp",
+                },
+            ),
+            ("unknown trigger", {"hook_event_name": "beforeShellExecution"}),
+        ],
+    )
+    def test_is_caller_refuses_other_agents(self, label: str, payload: Dict[str, Any]):
+        """GIVEN a payload carrying a trigger name Kiro shares with another agent
+        WHEN the caller is identified
+        THEN Kiro refuses it: it never sends any of those agents' own keys."""
+        assert Kiro().is_caller(payload) is False, label
+
+    @pytest.mark.parametrize(
+        ("event_type", "expected"),
+        [
+            (EventType.USER_PROMPT, 2),
+            (EventType.PRE_TOOL_USE, 2),
+            (EventType.POST_TOOL_USE, 0),
+            (EventType.OTHER, 0),
+        ],
+    )
+    def test_output_result_blocks_with_exit_code_2(
+        self, event_type: EventType, expected: int, capsys
+    ):
+        """GIVEN a block on each event type
+        WHEN the verdict is emitted
+        THEN only the events Kiro can still act on exit 2, nothing reaches
+        stdout, and the reason goes to stderr for the model."""
+        kiro = Kiro()
+        payload = _payload(kiro, tool=Tool.READ)
+        payload.event_type = event_type
+        result = HookResult(block=True, message="nope", nbr_secrets=1, payload=payload)
+
+        assert kiro.output_result(result) == expected
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert ("nope" in captured.err) is (expected == 2)
+
+    def test_output_result_allows_silently_and_warns_on_stderr(self, capsys):
+        """GIVEN an allow, then an allow carrying a fail-open warning
+        WHEN each is emitted
+        THEN both exit 0 and neither writes to stdout, which Kiro would feed to
+        the model as context."""
+        kiro = Kiro()
+        payload = _payload(kiro, tool=Tool.READ)
+
+        assert kiro.output_result(HookResult.allow(payload)) == 0
+        assert capsys.readouterr().out == ""
+
+        warned = HookResult.allow_with_warning(payload, "could not scan")
+        assert kiro.output_result(warned) == 0
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "could not scan" in captured.err
+
+    def test_settings_template_matcher_is_a_regex(self):
+        """GIVEN the installed hook file
+        WHEN its matchers are read
+        THEN they are regexes: Kiro drops a hook whose matcher does not compile,
+        and a bare "*" does not, so it would install a hook that never runs."""
+        hooks = Kiro().settings_template["hooks"]
+        matchers = {hook["trigger"]: hook.get("matcher") for hook in hooks}
+
+        assert matchers == {
+            "UserPromptSubmit": None,
+            "PreToolUse": ".*",
+            "PostToolUse": ".*",
+        }
+
+    def test_settings_locate_matches_on_the_trigger(self):
+        """GIVEN hooks that all carry the same matcher
+        WHEN one is located for an update
+        THEN the trigger is what tells them apart."""
+        kiro = Kiro()
+        candidates = [
+            {"trigger": "PreToolUse", "name": "ggshield-pre-tool"},
+            {"trigger": "PostToolUse", "name": "ggshield-post-tool"},
+        ]
+
+        found = kiro.settings_locate(candidates, {"trigger": "PostToolUse"})
+
+        assert found is candidates[1]
+        assert kiro.settings_locate(candidates, {"trigger": "SessionStart"}) is None
+
+    def test_user_mcp_configurations_include_powers(self, tmp_path: Path):
+        """GIVEN an mcp.json holding the user's own servers and a power's
+        WHEN the user-scoped configurations are discovered
+        THEN both are reported: a power's server is a live server too."""
+        settings = tmp_path / ".kiro" / "settings"
+        settings.mkdir(parents=True)
+        (settings / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {"mine": {"command": "uvx", "args": ["mine"]}},
+                    "powers": {
+                        "mcpServers": {
+                            "from-power": {"url": "https://example.test/mcp"}
+                        }
+                    },
+                }
+            )
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.kiro.get_user_home_dir", return_value=tmp_path
+        ):
+            configurations = list(Kiro()._get_user_mcp_configurations())
+
+        assert {c.name for c in configurations} == {"mine", "from-power"}
+        assert all(c.scope == Scope.USER and c.agent == "kiro" for c in configurations)
+
+    def test_user_mcp_configurations_read_powers_nested_per_power(self, tmp_path: Path):
+        """GIVEN an mcp.json that keys the powers block by power
+        WHEN the user-scoped configurations are discovered
+        THEN their servers are still reported."""
+        settings = tmp_path / ".kiro" / "settings"
+        settings.mkdir(parents=True)
+        (settings / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "powers": {
+                        "aws-docs": {"mcpServers": {"docs": {"command": "uvx"}}},
+                        "notes": {"mcpServers": {"notes": {"command": "notes-mcp"}}},
+                    }
+                }
+            )
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.kiro.get_user_home_dir", return_value=tmp_path
+        ):
+            configurations = list(Kiro()._get_user_mcp_configurations())
+
+        assert {c.name for c in configurations} == {"docs", "notes"}
+
+    def test_project_mcp_configurations(self, tmp_path: Path):
+        """GIVEN a workspace holding .kiro/settings/mcp.json
+        WHEN its configurations are discovered
+        THEN the servers are reported against that project."""
+        settings = tmp_path / ".kiro" / "settings"
+        settings.mkdir(parents=True)
+        (settings / "mcp.json").write_text(
+            json.dumps({"mcpServers": {"pg": {"command": "postgres-mcp"}}})
+        )
+
+        configurations = list(Kiro()._get_project_mcp_configurations(tmp_path))
+
+        assert [c.name for c in configurations] == ["pg"]
+        assert configurations[0].scope == Scope.PROJECT
+        assert configurations[0].project == str(tmp_path)
+
+    def test_iter_history_events_yields_only_mcp_tool_calls(self, tmp_path: Path):
+        """GIVEN a session transcript holding first-party and MCP tool calls
+        WHEN its history is walked
+        THEN only the MCP calls are reported, in either spelling, with their
+        arguments and the time they were made."""
+        session = tmp_path / ".kiro" / "sessions" / "a1b2" / "sess_1"
+        session.mkdir(parents=True)
+        lines = [
+            {
+                "id": "1",
+                "timestamp": "2026-09-01T14:29:42.409Z",
+                "payload": {"type": "user"},
+            },
+            {
+                "id": "2",
+                "timestamp": "2026-09-01T14:29:43.000Z",
+                "payload": {
+                    "type": "tool_call",
+                    "toolName": "read_file",
+                    "args": {"path": "/p/a.py"},
+                },
+            },
+            {
+                "id": "3",
+                "timestamp": "2026-09-01T14:29:44.000Z",
+                "payload": {
+                    "type": "tool_call",
+                    "toolName": "@probe-time/get_current_time",
+                    "args": {"timezone": "UTC"},
+                },
+            },
+            {
+                "id": "4",
+                "timestamp": "2026-09-01T14:29:45.000Z",
+                "payload": {
+                    "type": "tool_call",
+                    "toolName": "mcp_probe_time_get_current_time",
+                    "args": {},
+                },
+            },
+        ]
+        (session / "messages.jsonl").write_text(
+            "\n".join(json.dumps(line) for line in lines)
+        )
+        cfg = _cfg(name="probe-time", agent="kiro")
+        discovery = _ai_discovery(
+            servers=[MCPServer(name="probe-time", configurations=[cfg], tools=[])]
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.kiro.get_user_home_dir", return_value=tmp_path
+        ):
+            events = list(Kiro().iter_history_events(discovery))
+
+        assert [(e.server, e.tool) for e in events] == [
+            ("probe-time", "get_current_time"),
+            ("probe-time", "get_current_time"),
+        ]
+        assert events[0].input == {"timezone": "UTC"}
+        assert events[0].timestamp == datetime(
+            2026, 9, 1, 14, 29, 44, tzinfo=timezone.utc
+        )
+        assert all(e.agent == "kiro" for e in events)
+
+    def test_iter_history_events_survives_a_broken_transcript(self, tmp_path: Path):
+        """GIVEN a transcript holding a truncated line and an undated tool call
+        WHEN its history is walked
+        THEN the unusable lines are skipped rather than aborting the walk."""
+        session = tmp_path / ".kiro" / "sessions" / "a1b2" / "sess_1"
+        session.mkdir(parents=True)
+        (session / "messages.jsonl").write_text(
+            "{not json\n"
+            + json.dumps(
+                {"payload": {"type": "tool_call", "toolName": "@srv/tool", "args": {}}}
+            )
+            + "\n"
+            + json.dumps(
+                {
+                    "timestamp": "2026-09-01T14:29:44.000Z",
+                    "payload": {
+                        "type": "tool_call",
+                        "toolName": "@srv/tool",
+                        "args": {},
+                    },
+                }
+            )
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.kiro.get_user_home_dir", return_value=tmp_path
+        ):
+            events = list(Kiro().iter_history_events(None))
+
+        assert [(e.server, e.tool) for e in events] == [("srv", "tool")]
+
+    def test_parse_mcp_activity_splits_both_spellings(self):
+        """GIVEN the CLI's "@server/tool" and the IDE's "mcp_server_tool"
+        WHEN the MCP activity is parsed
+        THEN both resolve to the same server and tool."""
+        kiro = Kiro()
+        cfg = _cfg(name="probe-time", agent="kiro")
+        discovery = _ai_discovery(
+            servers=[MCPServer(name="probe-time", configurations=[cfg], tools=[])]
+        )
+
+        cli = kiro.parse_mcp_activity(
+            _payload(kiro, raw={"tool_name": "@probe-time/get_current_time"}), discovery
+        )
+        ide = kiro.parse_mcp_activity(
+            _payload(kiro, raw={"tool_name": "mcp_probe_time_get_current_time"}),
+            discovery,
+        )
+
+        for request in (cli, ide):
+            assert request.server == "probe-time"
+            assert request.tool == "get_current_time"
+            assert request.agent == "kiro"

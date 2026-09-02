@@ -52,10 +52,17 @@ TOOL_NAME_TO_TOOL = {
     "git_bash": Tool.BASH,  # Mistral Vibe
     "powershell": Tool.BASH,  # Mistral Vibe, on Windows
     "run_in_terminal": Tool.BASH,  # Copilot
+    "execute_bash": Tool.BASH,  # Kiro
+    "execute_cmd": Tool.BASH,  # Kiro, an alias of execute_bash
+    "execute_pwsh": Tool.BASH,  # Kiro, on Windows
     "read": Tool.READ,  # Claude/Cursor
-    "read_file": Tool.READ,  # Copilot
+    "read_file": Tool.READ,  # Copilot, Kiro IDE
+    "fs_read": Tool.READ,  # Kiro CLI
     "view": Tool.READ,  # Copilot CLI
 }
+# Kiro's writers (fs_write, str_replace, fs_append) are deliberately absent:
+# unrecognized, their tool_input is scanned as text, and that is what carries the
+# content about to be written.
 
 
 def has_already_been_seen(content: str) -> bool:
@@ -201,6 +208,13 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
                 lookup(tool_input, ["file_path", "filePath", "path"], ""), cwd
             )
             read_range = agent.read_range(tool_input)
+            if not identifier:
+                # A reader that names its files somewhere else entirely. The
+                # payload appended below then holds no path and no text, so it
+                # is scanned for nothing.
+                payloads.extend(
+                    _parse_read_operations(tool_input, agent, timestamp, cwd)
+                )
         elif tool_input:
             # MCP and unrecognized tool arguments can carry secrets bound for
             # potentially external servers. Scan them, like tool_output below.
@@ -227,6 +241,12 @@ def parse_hook_input(raw_content: str) -> list[HookPayload]:
                 lookup(tool_input, ["file_path", "filePath", "path"], ""), cwd
             )
             read_range = agent.read_range(tool_input)
+            if not identifier and len(paths := _read_operation_paths(tool_input)) == 1:
+                # A reader that names its file under `operations`. Recovering it
+                # is what lets `secret.ignored_paths` and the verdict cache see
+                # a path at all; the response body alone gives them a hash. Only
+                # a single-file read has one path to answer with.
+                identifier = _abs_read_path(paths[0], cwd)
 
     # If identifier was not set, hash the content
     if not identifier:
@@ -295,7 +315,9 @@ def _cannot_scan_warning(error: Exception) -> str:
 def _parse_tool(data: Dict[str, Any]) -> Tool:
     """Parse the tool name."""
     tool_name = data.get("tool_name", "").lower()
-    if tool_name.startswith("mcp"):
+    # The Kiro IDE's "mcp_{server}_{tool}" matches the prefix rule; the Kiro CLI
+    # writes the same call as "@{server}/{tool}".
+    if tool_name.startswith(("mcp", "@")):
         return Tool.MCP
     return TOOL_NAME_TO_TOOL.get(tool_name, Tool.OTHER)
 
@@ -368,6 +390,49 @@ def _parse_command(
                 tool=Tool.READ,
                 content="",
                 identifier=identifier,
+                agent=agent,
+                raw={},
+                timestamp=timestamp,
+            )
+        )
+    return payloads
+
+
+def _read_operation_paths(tool_input: Dict[str, Any]) -> List[str]:
+    """The file paths a read tool names under `operations`, in order."""
+    operations = tool_input.get("operations")
+    if not isinstance(operations, list):
+        return []
+    return [
+        operation["path"]
+        for operation in operations
+        if isinstance(operation, dict)
+        and isinstance(operation.get("path"), str)
+        and operation["path"]
+    ]
+
+
+def _parse_read_operations(
+    tool_input: Dict[str, Any],
+    agent: Agent,
+    timestamp: datetime,
+    cwd: str = "",
+) -> List[HookPayload]:
+    """The files a read tool names in an `operations` list, one payload each.
+
+    Kiro's `fs_read` takes {"operations": [{"mode": "Line", "path": ...}, ...]},
+    so one call can expose several files and none of them is reachable through
+    the usual file_path/path lookup. Every entry is a file about to reach the
+    model, so every entry gets scanned.
+    """
+    payloads = []
+    for path in _read_operation_paths(tool_input):
+        payloads.append(
+            HookPayload(
+                event_type=EventType.PRE_TOOL_USE,
+                tool=Tool.READ,
+                content="",
+                identifier=_abs_read_path(path, cwd),
                 agent=agent,
                 raw={},
                 timestamp=timestamp,

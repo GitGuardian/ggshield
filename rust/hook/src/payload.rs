@@ -28,7 +28,7 @@ pub enum Tool {
     Other,
 }
 
-/// The six assistants ggshield supports, in the registry order of `AGENTS`
+/// The assistants ggshield supports, in the registry order of `AGENTS`
 /// (agents/__init__.py). Detection takes the FIRST match, so the order matters.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Agent {
@@ -38,15 +38,20 @@ pub enum Agent {
     Copilot,
     Cursor,
     VsCode,
+    Kiro,
 }
 
-pub const AGENTS: [Agent; 6] = [
+pub const AGENTS: [Agent; 7] = [
     Agent::Vibe,
     Agent::Claude,
     Agent::Codex,
     Agent::Copilot,
     Agent::Cursor,
     Agent::VsCode,
+    // Last: Kiro keys on event names other agents share (`PreToolUse` and
+    // friends), so it is the broadest matcher of the seven and every exact one
+    // gets first refusal.
+    Agent::Kiro,
 ];
 
 impl Agent {
@@ -59,6 +64,7 @@ impl Agent {
             Agent::Copilot => "copilot",
             Agent::Cursor => "cursor",
             Agent::VsCode => "vscode",
+            Agent::Kiro => "kiro",
         }
     }
 
@@ -72,6 +78,7 @@ impl Agent {
             Agent::Copilot => "Copilot CLI",
             Agent::Cursor => "Cursor",
             Agent::VsCode => "VSCode",
+            Agent::Kiro => "Kiro",
         }
     }
 
@@ -115,6 +122,37 @@ impl Agent {
             }
             Agent::Cursor => data.get("cursor_version").is_some(),
             Agent::VsCode => transcript.to_lowercase().contains("github.copilot-chat"),
+            // Kiro CLI spells its triggers in camelCase and the Kiro IDE in
+            // PascalCase; neither surface sends anything else identifying.
+            Agent::Kiro => {
+                const TRIGGERS: [&str; 15] = [
+                    "userPromptSubmit",
+                    "UserPromptSubmit",
+                    "preToolUse",
+                    "PreToolUse",
+                    "postToolUse",
+                    "PostToolUse",
+                    "agentSpawn",
+                    "SessionStart",
+                    "stop",
+                    "Stop",
+                    "PreTaskExec",
+                    "PostTaskExec",
+                    "PostFileCreate",
+                    "PostFileSave",
+                    "PostFileDelete",
+                ];
+                // Several of those spellings are shared with Claude, Cursor,
+                // Codex and Copilot CLI, so the event name alone would let Kiro
+                // claim their payloads. These four keys are what each of them
+                // sends and Kiro never does.
+                const FOREIGN_KEYS: [&str; 4] =
+                    ["transcript_path", "cursor_version", "turn_id", "timestamp"];
+                let Some(name) = data.get("hook_event_name").and_then(Value::as_str) else {
+                    return false;
+                };
+                TRIGGERS.contains(&name) && FOREIGN_KEYS.iter().all(|key| data.get(key).is_none())
+            }
         }
     }
 
@@ -178,10 +216,15 @@ impl Agent {
                     Some((first, last))
                 }
             }
-            // No range ever seen from these four: Copilot CLI's `view` carries
-            // only `path`, Cursor's Read has no range keys, Codex shells out, and
-            // Vibe's `read_file` carries only `path`.
-            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe => None,
+            // No range ever seen from these five: Copilot CLI's `view` carries
+            // only `path`, Cursor's Read has no range keys, Codex shells out,
+            // Vibe's `read_file` carries only `path`. Kiro's IDE reader does
+            // carry `offset` and `limit`, but nothing establishes whether they
+            // mean what the same two names mean to Claude, and a range read the
+            // wrong way round scans past the lines the agent asked for while
+            // leaving the ones it gets unscanned. The whole file is the safe
+            // answer until a payload settles it.
+            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe | Agent::Kiro => None,
         }
     }
 }
@@ -255,14 +298,25 @@ fn event_type_from_name(name: &str) -> EventType {
 
 fn parse_tool(data: &Value) -> Tool {
     let name = lookup_str(data, &["tool_name"]).to_lowercase();
-    if name.starts_with("mcp") {
+    // The Kiro IDE's `mcp_{server}_{tool}` already matches the prefix rule; the
+    // Kiro CLI writes the same call as `@{server}/{tool}`.
+    if name.starts_with("mcp") || name.starts_with('@') {
         return Tool::Mcp;
     }
     match name.as_str() {
         // `git_bash` and `powershell` are Vibe's other two shells; mapping them to
         // Bash is what gets their command parsed for file reads.
-        "shell" | "bash" | "git_bash" | "powershell" | "run_in_terminal" => Tool::Bash,
-        "read" | "read_file" | "view" => Tool::Read,
+        // `execute_bash`, its `execute_cmd` alias and `execute_pwsh` are Kiro's.
+        "shell" | "bash" | "git_bash" | "powershell" | "run_in_terminal" | "execute_bash"
+        | "execute_cmd" | "execute_pwsh" => Tool::Bash,
+        // `fs_read` is Kiro's CLI reader, `read_file` its IDE one. Its plural
+        // `read_files` is deliberately absent: it takes several paths in an
+        // unverified shape, and a Read payload whose path lookup finds nothing
+        // scans nothing. Left generic, the response it returns is still scanned.
+        "read" | "read_file" | "view" | "fs_read" => Tool::Read,
+        // Kiro's writers (`fs_write`, `str_replace`, `fs_append`) belong here on
+        // purpose: the generic branch scans their `tool_input`, which is what
+        // carries the content about to be written.
         _ => Tool::Other,
     }
 }
@@ -423,6 +477,12 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
                         &cwd,
                     );
                     read_range = agent.read_range(tool_input);
+                    // A reader that names its files somewhere else entirely, see
+                    // `read_operations`. The payload built here then carries no
+                    // identifier and no content, so it is scanned for nothing.
+                    if identifier.is_empty() {
+                        payloads.extend(read_operations(tool_input, agent, &cwd));
+                    }
                 }
                 // MCP and unrecognised tool arguments can carry secrets bound
                 // for external servers, so they are scanned as text.
@@ -462,6 +522,16 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
                     &cwd,
                 );
                 read_range = agent.read_range(tool_input);
+                if identifier.is_empty() {
+                    // A reader that names its file under `operations`. Recovering
+                    // it is what lets `secret.ignored_paths` and the verdict cache
+                    // see a path at all; the response body alone gives them a
+                    // hash. Only a single-file read has one path to answer with.
+                    let paths = read_operation_paths(tool_input);
+                    if let [path] = paths[..] {
+                        identifier = abs_read_path(path, &cwd);
+                    }
+                }
             }
         }
         EventType::Other => {}
@@ -506,6 +576,46 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         _ => {}
     }
     Ok(payloads)
+}
+
+/// The file paths a read tool names under `operations`, in order.
+fn read_operation_paths(tool_input: &Value) -> Vec<&str> {
+    tool_input
+        .get("operations")
+        .and_then(Value::as_array)
+        .map(|operations| {
+            operations
+                .iter()
+                .filter_map(|operation| operation.get("path").and_then(Value::as_str))
+                .filter(|path| !path.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The files a read tool names in an `operations` list rather than in a `path` of
+/// its own, one payload each.
+///
+/// Kiro's `fs_read` takes `{"operations": [{"mode": "Line", "path": "..."}, ...]}`,
+/// so a single call can expose several files and none of them is reachable through
+/// the usual `file_path`/`path` lookup. Every entry is a file about to reach the
+/// model, so every entry is scanned; a call whose paths cannot be read at all
+/// leaves nothing behind, which is what an unrecognised shape must not do
+/// silently.
+fn read_operations(tool_input: &Value, agent: Agent, cwd: &str) -> Vec<Payload> {
+    read_operation_paths(tool_input)
+        .into_iter()
+        .map(|path| Payload {
+            event_type: EventType::PreToolUse,
+            tool: Some(Tool::Read),
+            content: String::new(),
+            identifier: abs_read_path(path, cwd),
+            agent,
+            cwd: cwd.to_string(),
+            raw: Value::Object(Default::default()),
+            read_range: None,
+        })
+        .collect()
 }
 
 /// `_parse_command()`: agents sometimes read a file by shelling out.
@@ -557,7 +667,7 @@ mod tests {
     /// THEN each is identified from its own signature and the last two are refused.
     #[test]
     fn detects_each_agent_from_its_own_signature() {
-        let cases: [(&str, Value, Option<Agent>); 8] = [
+        let cases: [(&str, Value, Option<Agent>); 10] = [
             ("claude", claude(json!({})), Some(Agent::Claude)),
             (
                 "codex via turn_id",
@@ -585,6 +695,18 @@ mod tests {
                 json!({"session_id": "s",
                        "transcript_path": "/x/GitHub.Copilot-Chat/sess.json"}),
                 Some(Agent::VsCode),
+            ),
+            (
+                "kiro cli",
+                json!({"hook_event_name": "preToolUse", "cwd": "/p",
+                       "tool_name": "fs_write", "tool_input": {"command": "create"}}),
+                Some(Agent::Kiro),
+            ),
+            (
+                "kiro ide",
+                json!({"session_id": "sess_1", "hook_event_name": "PreToolUse",
+                       "cwd": "/p", "tool_name": "str_replace", "tool_input": {}}),
+                Some(Agent::Kiro),
             ),
             (
                 "codex sends transcript_path as null",
@@ -1234,5 +1356,265 @@ mod tests {
         });
         assert_eq!(Agent::Cursor.event_cwd(&cursor), "/home/user/foo");
         assert_eq!(Agent::Cursor.event_cwd(&json!({})), "");
+    }
+
+    /// GIVEN payloads carrying an event name Kiro shares with another agent, plus
+    /// one of that agent's own keys
+    /// WHEN the agent is detected
+    /// THEN the other agent wins: Kiro is registered last and refuses any payload
+    /// carrying a key it never sends.
+    #[test]
+    fn kiro_never_claims_another_agents_payload() {
+        let cases: [(&str, Value, Option<Agent>); 5] = [
+            (
+                "claude",
+                claude(json!({"hook_event_name": "PreToolUse"})),
+                Some(Agent::Claude),
+            ),
+            (
+                "cursor",
+                json!({"cursor_version": "2.5.25", "hook_event_name": "preToolUse",
+                       "tool_name": "Read"}),
+                Some(Agent::Cursor),
+            ),
+            (
+                "codex",
+                json!({"turn_id": "t1", "hook_event_name": "PreToolUse"}),
+                Some(Agent::Codex),
+            ),
+            (
+                "copilot",
+                json!({"hook_event_name": "PreToolUse", "session_id": "s",
+                       "timestamp": "t", "cwd": "/tmp"}),
+                Some(Agent::Copilot),
+            ),
+            // Not one of Kiro's trigger spellings, and nothing else matches.
+            (
+                "unknown trigger",
+                json!({"hook_event_name": "beforeShellExecution", "cwd": "/p"}),
+                None,
+            ),
+        ];
+        for (label, data, expected) in cases {
+            assert_eq!(Agent::detect(&data), expected, "{label}");
+        }
+    }
+
+    /// GIVEN each Kiro trigger that carries nothing to scan
+    /// WHEN it is parsed
+    /// THEN Kiro is recognised and the event maps to no type.
+    #[test]
+    fn kiro_content_free_triggers_are_other_events() {
+        for event in [
+            "agentSpawn",
+            "SessionStart",
+            "stop",
+            "Stop",
+            "PreTaskExec",
+            "PostTaskExec",
+            "PostFileCreate",
+            "PostFileSave",
+            "PostFileDelete",
+        ] {
+            let raw = json!({"hook_event_name": event, "cwd": "/p"}).to_string();
+            let payloads = parse(&raw).expect("parses");
+            assert_eq!(payloads[0].agent, Agent::Kiro, "{event}");
+            assert_eq!(payloads[0].event_type, EventType::Other, "{event}");
+        }
+    }
+
+    /// GIVEN Kiro's tool names from both surfaces
+    /// WHEN each is classified
+    /// THEN the readers and the two shells are recognised, and both MCP spellings
+    /// (the CLI's `@server/tool` and the IDE's `mcp_server_tool`) are MCP.
+    #[test]
+    fn kiro_tool_names_map_to_their_tools() {
+        let cases = [
+            ("fs_read", Tool::Read),
+            ("read_file", Tool::Read),
+            // Several paths in a shape we have not verified: kept generic so no
+            // Read payload is built around a path lookup that finds nothing.
+            ("read_files", Tool::Other),
+            ("execute_bash", Tool::Bash),
+            ("execute_pwsh", Tool::Bash),
+            ("@github/create_issue", Tool::Mcp),
+            ("mcp_github_create_issue", Tool::Mcp),
+            // The writers stay generic so their tool_input is scanned as text.
+            ("fs_write", Tool::Other),
+            ("str_replace", Tool::Other),
+            ("fs_append", Tool::Other),
+        ];
+        for (tool_name, expected) in cases {
+            let data = json!({"tool_name": tool_name});
+            assert_eq!(parse_tool(&data), expected, "{tool_name}");
+        }
+    }
+
+    /// GIVEN a Kiro CLI `fs_write` and a Kiro IDE `str_replace`, the pre-write
+    /// blocking path
+    /// WHEN each is parsed
+    /// THEN the content about to be written is in the scanned text.
+    #[test]
+    fn kiro_write_tools_scan_the_content_being_written() {
+        let raw = json!({
+            "hook_event_name": "preToolUse",
+            "cwd": "/home/user/proj",
+            "tool_name": "fs_write",
+            "tool_input": {"command": "create", "path": "/home/user/proj/.env",
+                           "file_text": "TOKEN=deadbeef"},
+        })
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        assert_eq!(payloads[0].agent, Agent::Kiro);
+        assert_eq!(payloads[0].event_type, EventType::PreToolUse);
+        assert_eq!(payloads[0].tool, Some(Tool::Other));
+        assert!(
+            payloads[0].content.contains("TOKEN=deadbeef"),
+            "{:?}",
+            payloads[0].content
+        );
+
+        let raw = json!({
+            "session_id": "sess_1",
+            "hook_event_name": "PreToolUse",
+            "cwd": "/home/user/proj",
+            "tool_name": "str_replace",
+            "tool_input": {"path": "/home/user/proj/a.py", "oldStr": "hi",
+                           "newStr": "TOKEN=deadbeef", "replace_all": false},
+        })
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        assert!(
+            payloads[0].content.contains("TOKEN=deadbeef"),
+            "{:?}",
+            payloads[0].content
+        );
+    }
+
+    /// GIVEN a Kiro CLI `fs_read`, whose files are named in an `operations` list
+    /// WHEN it is parsed
+    /// THEN every path in the list becomes its own Read payload, resolved against
+    /// `cwd`, and the call's own payload carries nothing to scan.
+    #[test]
+    fn kiro_fs_read_operations_become_one_payload_per_file() {
+        let raw = json!({
+            "hook_event_name": "preToolUse",
+            "cwd": "/home/user/proj",
+            "tool_name": "fs_read",
+            "tool_input": {"operations": [
+                {"mode": "Line", "path": "/home/user/proj/seed.txt"},
+                {"mode": "Line", "path": "creds.env"},
+                {"mode": "Directory"},
+            ]},
+        })
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        // The synthesised payloads come first, the call's own payload last.
+        let reads: Vec<_> = payloads[..payloads.len() - 1]
+            .iter()
+            .map(|p| (p.identifier.as_str(), p.event_type, p.read_range))
+            .collect();
+        assert_eq!(
+            reads,
+            vec![
+                (
+                    native("/home/user/proj/seed.txt").as_str(),
+                    EventType::PreToolUse,
+                    None
+                ),
+                (
+                    native("/home/user/proj/creds.env").as_str(),
+                    EventType::PreToolUse,
+                    None
+                ),
+            ]
+        );
+        // An operations list leaves the call's own payload with no text at all, so
+        // `scan_payloads` skips it instead of scanning the empty string. Its
+        // identifier is the hash of that empty content, not a path.
+        assert!(payloads.last().expect("non-empty").content.is_empty());
+    }
+
+    /// GIVEN the PostToolUse of a Kiro CLI `fs_read` of a single file
+    /// WHEN it is parsed
+    /// THEN the file is the identifier, so the exclusions and the verdict cache
+    /// still see a path rather than a hash of the response.
+    #[test]
+    fn kiro_fs_read_post_tool_use_keeps_the_path() {
+        let raw = json!({
+            "hook_event_name": "postToolUse",
+            "cwd": "/home/user/proj",
+            "tool_name": "fs_read",
+            "tool_input": {"operations": [{"mode": "Line", "path": "creds.env"}]},
+            "tool_response": {"success": true, "result": ["password = hunter2"]},
+        })
+        .to_string();
+
+        let payloads = parse(&raw).expect("parses");
+
+        assert_eq!(payloads[0].tool, Some(Tool::Read));
+        assert_eq!(payloads[0].identifier, native("/home/user/proj/creds.env"));
+    }
+
+    /// GIVEN a read of several files at once, which no single path can name
+    /// WHEN its PostToolUse is parsed
+    /// THEN the response is scanned under a content hash rather than under one
+    /// of the files, which would answer for the others too.
+    #[test]
+    fn kiro_multi_file_read_post_tool_use_falls_back_to_a_hash() {
+        let raw = json!({
+            "hook_event_name": "postToolUse",
+            "cwd": "/home/user/proj",
+            "tool_name": "fs_read",
+            "tool_input": {"operations": [
+                {"mode": "Line", "path": "a.env"},
+                {"mode": "Line", "path": "b.env"},
+            ]},
+            "tool_response": "password = hunter2",
+        })
+        .to_string();
+
+        let payloads = parse(&raw).expect("parses");
+
+        assert_eq!(payloads[0].identifier, sha256_hex("password = hunter2"));
+    }
+
+    /// GIVEN a Kiro prompt and a Kiro read, from either surface
+    /// WHEN they are parsed
+    /// THEN the prompt is scanned with its @-mentions resolved against `cwd`, and
+    /// the read covers the whole file.
+    #[test]
+    fn kiro_prompt_and_read_use_the_plain_cwd() {
+        let raw = json!({
+            "hook_event_name": "userPromptSubmit",
+            "cwd": "/home/user/proj",
+            "prompt": "check @src/creds.env",
+        })
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        let ids: Vec<_> = payloads.iter().map(|p| p.identifier.as_str()).collect();
+        assert!(
+            ids.contains(&native("/home/user/proj/src/creds.env").as_str()),
+            "{ids:?}"
+        );
+        assert_eq!(
+            payloads.last().expect("non-empty").content,
+            "check @src/creds.env"
+        );
+
+        let raw = json!({
+            "session_id": "sess_1",
+            "hook_event_name": "PostToolUse",
+            "cwd": "/home/user/proj",
+            "tool_name": "read_file",
+            "tool_input": {"path": "creds.env"},
+            "tool_response": "TOKEN=deadbeef",
+        })
+        .to_string();
+        let payloads = parse(&raw).expect("parses");
+        assert_eq!(payloads[0].tool, Some(Tool::Read));
+        assert_eq!(payloads[0].identifier, native("/home/user/proj/creds.env"));
+        assert_eq!(payloads[0].content, "TOKEN=deadbeef");
+        assert_eq!(payloads[0].read_range, None);
     }
 }

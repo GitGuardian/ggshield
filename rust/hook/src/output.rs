@@ -1,7 +1,7 @@
 //! The per-agent output contracts. One transcription of `output_result()` per
 //! adapter in `ggshield/verticals/ai/agents/`.
 //!
-//! The six schemas disagree about which key blocks, which events can block at
+//! The schemas disagree about which key blocks, which events can block at
 //! all, whether a warning is carried, whether anything is printed when the action
 //! is allowed, and what the exit code means. Getting one wrong produces a verdict
 //! the agent silently ignores, not an error.
@@ -220,6 +220,31 @@ pub fn emission(result: &HookResult) -> Emission {
             },
             0,
         ),
+
+        // Kiro, which has no Python adapter to mirror. There is no JSON verdict
+        // protocol on either surface: Kiro reads exit 2 as "blocked" and
+        // forwards the stderr text to the model.
+        Agent::Kiro => {
+            if result.block {
+                match event {
+                    // Constraint: the Kiro IDE does not honour a non-zero exit on
+                    // its prompt-submit trigger, so the prompt reaches the model
+                    // anyway and the verdict is advisory there. It blocks on the CLI.
+                    EventType::UserPrompt | EventType::PreToolUse => {
+                        Emission::Stderr(message.to_string(), 2)
+                    }
+                    // Nothing to block after the fact; lib.rs raises the desktop
+                    // notification for PostToolUse.
+                    EventType::PostToolUse | EventType::Other => Emission::Silent(0),
+                }
+            } else if !result.warning.is_empty() {
+                // A fail-open warning is text for the model, not a block, so the
+                // exit code stays 0.
+                Emission::Stderr(result.warning.clone(), 0)
+            } else {
+                Emission::Silent(0)
+            }
+        }
     }
 }
 
@@ -461,6 +486,58 @@ mod tests {
             assert_eq!(
                 allowed(Agent::Copilot, event),
                 allowed(Agent::VsCode, event)
+            );
+        }
+    }
+
+    /// `(stderr text, exit code)`, or `None` when the adapter emits nothing.
+    fn stderr_of(result: &HookResult) -> Option<(String, i32)> {
+        match emission(result) {
+            Emission::Stderr(message, code) => Some((message, code)),
+            Emission::Silent(..) => None,
+            Emission::Stdout(value, _) => panic!("unexpected stdout: {value}"),
+        }
+    }
+
+    /// GIVEN an allow, a fail-open warning and a block on each Kiro event
+    /// WHEN they are emitted
+    /// THEN nothing ever reaches stdout: a block on a prompt or a tool call is
+    /// stderr with exit 2, a warning is stderr with exit 0, and everything else is
+    /// silent.
+    #[test]
+    fn kiro_contract() {
+        for event in [
+            EventType::UserPrompt,
+            EventType::PreToolUse,
+            EventType::PostToolUse,
+            EventType::Other,
+        ] {
+            let p = payload(Agent::Kiro, event);
+            assert_eq!(stderr_of(&HookResult::allow(&p)), None, "{event:?}");
+            assert_eq!(
+                stderr_of(&HookResult::allow_with_warning(&p, "could not scan".into())),
+                Some(("could not scan".to_string(), 0)),
+                "{event:?}"
+            );
+        }
+
+        // Only the two events Kiro can still act on block, and exit 2 is what it
+        // reads as "blocked".
+        for event in [EventType::UserPrompt, EventType::PreToolUse] {
+            let p = payload(Agent::Kiro, event);
+            assert_eq!(
+                stderr_of(&HookResult::block(&p, "nope".into(), 1)),
+                Some(("nope".to_string(), 2)),
+                "{event:?}"
+            );
+        }
+        // Too late to block: lib.rs notifies instead.
+        for event in [EventType::PostToolUse, EventType::Other] {
+            let p = payload(Agent::Kiro, event);
+            assert_eq!(
+                stderr_of(&HookResult::block(&p, "nope".into(), 1)),
+                None,
+                "{event:?}"
             );
         }
     }

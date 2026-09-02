@@ -24,6 +24,7 @@ from ggshield.verticals.ai.agents import (
     Codex,
     Copilot,
     Cursor,
+    Kiro,
     Vibe,
     VSCode,
 )
@@ -905,7 +906,11 @@ class TestBuildAgentHeaders:
 
     def test_unrecognized_agent_degrades_to_empty_dict(self):
         """An unrecognized agent yields no headers rather than raising (fail-open)."""
-        assert build_agent_headers(json.dumps({"hook_event_name": "PreToolUse"})) == {}
+        # "PreToolUse" on its own is Kiro's signature, so the unrecognized case
+        # needs an event name no adapter answers to.
+        assert (
+            build_agent_headers(json.dumps({"hook_event_name": "somethingElse"})) == {}
+        )
 
     def test_invalid_json_degrades_to_empty_dict(self):
         """Malformed input yields no headers rather than raising (fail-open)."""
@@ -1909,11 +1914,122 @@ class TestAIHookScannerParseInput:
     def test_raises_if_no_agent_recognized(self):
         """Test raises if no agent can be recognized."""
         data = {
-            "hook_event_name": "UserPromptSubmit",
+            "hook_event_name": "somethingElse",
             "prompt": "hello world",
         }
         with pytest.raises(ValueError, match="Unrecognized agent"):
             parse_hook_input(json.dumps(data))
+
+    def test_kiro_cli_pre_tool_use_write_scans_the_content(self):
+        """GIVEN a Kiro CLI fs_write about to create a file
+        WHEN the payload is parsed
+        THEN the content about to be written is what gets scanned: the writers
+        stay unrecognized so their tool_input is scanned as text."""
+        data = {
+            "hook_event_name": "preToolUse",
+            "cwd": "/home/user/project",
+            "tool_name": "fs_write",
+            "tool_input": {
+                "command": "create",
+                "path": "/home/user/project/.env",
+                "file_text": "password = hunter2",
+            },
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Kiro)
+        assert payload.event_type == EventType.PRE_TOOL_USE
+        assert payload.tool == Tool.OTHER
+        assert "password = hunter2" in payload.content
+
+    def test_kiro_cli_fs_read_operations_become_one_payload_per_file(self):
+        """GIVEN a Kiro CLI fs_read, which names its files in an operations list
+        WHEN the payload is parsed
+        THEN every path in the list is scanned, resolved against cwd, and the
+        call's own payload carries nothing."""
+        data = {
+            "hook_event_name": "preToolUse",
+            "cwd": "/home/user/project",
+            "tool_name": "fs_read",
+            "tool_input": {
+                "operations": [
+                    {"mode": "Line", "path": "/home/user/project/seed.txt"},
+                    {"mode": "Line", "path": "creds.env"},
+                    {"mode": "Directory"},
+                ]
+            },
+        }
+
+        payloads = parse_hook_input(json.dumps(data))
+
+        assert [p.identifier for p in payloads[:-1]] == [
+            os.path.abspath("/home/user/project/seed.txt"),
+            os.path.abspath("/home/user/project/creds.env"),
+        ]
+        assert all(p.tool == Tool.READ for p in payloads[:-1])
+        assert payloads[-1].content == ""
+
+    def test_kiro_cli_fs_read_post_tool_use_keeps_the_path(self):
+        """GIVEN the PostToolUse of a Kiro CLI fs_read of a single file
+        WHEN the payload is parsed
+        THEN the file is the identifier, so `secret.ignored_paths` and the
+        verdict cache still see a path rather than a hash of the response."""
+        data = {
+            "hook_event_name": "postToolUse",
+            "cwd": "/home/user/project",
+            "tool_name": "fs_read",
+            "tool_input": {"operations": [{"mode": "Line", "path": "creds.env"}]},
+            "tool_response": {"success": True, "result": ["password = hunter2"]},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert payload.tool == Tool.READ
+        assert payload.identifier == os.path.abspath("/home/user/project/creds.env")
+
+    def test_kiro_ide_read_file_is_a_read(self):
+        """GIVEN a Kiro IDE read_file, which names its file in `path`
+        WHEN the payload is parsed
+        THEN the file is the scanned document and the whole file is covered."""
+        data = {
+            "session_id": "sess_1",
+            "hook_event_name": "PreToolUse",
+            "cwd": "/home/user/project",
+            "tool_name": "read_file",
+            "tool_input": {
+                "path": "/home/user/project/seed.txt",
+                "offset": None,
+                "limit": None,
+            },
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Kiro)
+        assert payload.tool == Tool.READ
+        assert payload.identifier == os.path.abspath("/home/user/project/seed.txt")
+        assert payload.read_range is None
+
+    @pytest.mark.parametrize(
+        "tool_name",
+        ["@postgres/query", "mcp_probe_time_get_current_time"],
+        ids=["cli", "ide"],
+    )
+    def test_kiro_mcp_tool_names_are_mcp(self, tool_name: str):
+        """GIVEN either of Kiro's two MCP tool-name spellings
+        WHEN the payload is parsed
+        THEN the call is recognized as MCP activity."""
+        data = {
+            "hook_event_name": "preToolUse",
+            "cwd": "/home/user/project",
+            "tool_name": tool_name,
+            "tool_input": {"sql": "select 1"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert payload.tool == Tool.MCP
 
     def test_codex_user_prompt(self):
         """Test Codex UserPromptSubmit parsing."""
