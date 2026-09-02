@@ -13,6 +13,8 @@ on:
       - 'labeled'
       - 'unlabeled'
 
+permissions: {}
+
 jobs:
   check-changelog:
     runs-on: ubuntu-22.04

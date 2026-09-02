@@ -25,6 +25,8 @@ on:
         type: boolean
         default: false
 
+permissions: {}
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.14'
@@ -33,6 +35,8 @@ env:
 jobs:
   build_wheel_sdist:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -66,6 +70,8 @@ jobs:
   build_os_packages:
     name: Build packages
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     container: ${{ matrix.container }}
     strategy:
       fail-fast: false
