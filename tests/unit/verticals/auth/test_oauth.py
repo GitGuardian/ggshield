@@ -1,6 +1,12 @@
+import signal
+import socket
+import threading
+import time
+from http.server import HTTPServer
 from unittest.mock import Mock
 from urllib import parse as urlparse
 
+import click
 import pytest
 import requests.exceptions
 
@@ -173,3 +179,72 @@ def test_print_login_success_without_account_raises_cleanly():
 
     with pytest.raises(UnexpectedError):
         client._print_login_success()
+
+
+# Generous compared to the server poll interval, well under the safety-net
+# unblock delay, so a regression fails fast instead of hanging.
+CALLBACK_WAIT_LIMIT = 3.0
+
+
+def _poke(server: HTTPServer) -> None:
+    """Open and drop a connection so a blocked handle_request() returns."""
+    with socket.create_connection(("127.0.0.1", server.server_port)):
+        pass
+
+
+@pytest.fixture
+def listening_client():
+    client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
+    client._prepare_server()
+    assert client.server is not None
+    yield client
+    _poke(client.server)
+    client.server.server_close()
+
+
+@pytest.mark.enable_socket
+def test_wait_for_callback_notices_externally_set_finished_flag(listening_client):
+    """
+    GIVEN the localhost callback server waiting for the browser redirect
+    WHEN the wait is told to stop from outside the request handler (the shape
+         of Ctrl+C on Windows: the interrupt only sets a flag and cannot wake
+         the blocking select())
+    THEN the wait loop returns promptly instead of blocking until a request
+         arrives
+    """
+    client = listening_client
+    waiter = threading.Thread(target=client._wait_for_callback, daemon=True)
+    waiter.start()
+    time.sleep(0.2)
+
+    client._request_finished = True
+    waiter.join(timeout=CALLBACK_WAIT_LIMIT)
+
+    assert not waiter.is_alive()
+
+
+@pytest.mark.enable_socket
+def test_wait_for_callback_aborts_on_sigint_that_does_not_wake_select(
+    listening_client,
+):
+    """
+    GIVEN the localhost callback server waiting for the browser redirect
+    WHEN SIGINT is raised from another thread, which trips Python's signal flag
+         without interrupting the main thread's blocking select() (this is how
+         Windows delivers Ctrl+C)
+    THEN the wait aborts within the poll interval instead of hanging until a
+         request arrives
+    """
+    client = listening_client
+    threading.Timer(0.2, signal.raise_signal, args=(signal.SIGINT,)).start()
+    unblock = threading.Timer(CALLBACK_WAIT_LIMIT + 2, _poke, args=(client.server,))
+    unblock.daemon = True
+    unblock.start()
+
+    start = time.monotonic()
+    with pytest.raises(click.Abort):
+        client._wait_for_callback()
+    elapsed = time.monotonic() - start
+    unblock.cancel()
+
+    assert elapsed < CALLBACK_WAIT_LIMIT
