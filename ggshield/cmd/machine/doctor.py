@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import import_module
 from typing import Any, List, Optional
 
@@ -53,9 +53,16 @@ class Check:
 
 
 @click.command(name="doctor")
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Fail on protections reported as unavailable, instead of only on a machine "
+    "that is misconfigured. Use it where the workspace is known to offer them, e.g. "
+    "an MDM rollout on a Business plan.",
+)
 @add_common_options()
 @click.pass_context
-def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
+def doctor_cmd(ctx: click.Context, strict: bool, **kwargs: Any) -> int:
     """
     Check that this machine's ggshield protections are correctly set up.
 
@@ -74,6 +81,12 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     `ggshield plugin install`). Exits non-zero if any check fails, so it can gate an
     MDM rollout — except checks marked `!`, which report a protection the workspace
     does not offer (honeytokens on a plan without them) rather than a machine to fix.
+
+    A missing scope is indistinguishable from a plan that does not grant it: the API
+    exposes a token's scopes, not the workspace's entitlements or the member's access
+    level. `--strict` is how a caller who knows better says so, turning those `!` into
+    failures: a fleet whose plan does offer honeytokens wants a token that cannot
+    plant one to fail the gate.
     """
     config = ContextObj.get(ctx).config
 
@@ -87,6 +100,10 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     checks.extend(_check_scopes(scopes, plugin_installed))
     if plugin_installed:
         checks.append(_check_plugin_native())
+
+    if strict:
+        # Drop the exemption rather than teach _render and the exit code about it.
+        checks = [replace(check, optional=False) for check in checks]
 
     _render(checks)
     return 0 if all(check.ok or check.optional for check in checks) else 1

@@ -90,6 +90,59 @@ class TestDoctorCommand:
         assert "unavailable" in result.output
         assert "use a token" in result.output
 
+    def _run_with_optional_failure(self, cli_fs_runner, args):
+        optional = Check(
+            "Scope `honeytokens:write`", False, fix="use a token", optional=True
+        )
+        with patch(
+            f"{BASE}._check_auth_and_scopes",
+            return_value=(["scan"], Check("Authentication", True)),
+        ), patch(f"{BASE}._is_plugin_installed", return_value=False), patch(
+            f"{BASE}._check_ai_hooks", return_value=Check("AI hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks", return_value=Check("Git hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks_precedence",
+            return_value=Check("Git hook precedence", True),
+        ), patch(
+            f"{BASE}._check_scopes", return_value=[optional]
+        ):
+            return cli_fs_runner.invoke(cli, ["machine", "doctor", *args])
+
+    def test_strict_fails_on_an_unavailable_protection(self, cli_fs_runner: CliRunner):
+        """A caller who knows the workspace offers the protection wants a token that
+        cannot use it to fail the gate, not to be told the machine is fine."""
+        result = self._run_with_optional_failure(cli_fs_runner, ["--strict"])
+        assert result.exit_code == 1
+        assert "1 check(s) failed" in result.output
+        assert "correctly set up" not in result.output
+        assert "use a token" in result.output
+
+    def test_strict_keeps_a_healthy_machine_passing(self, cli_fs_runner: CliRunner):
+        """--strict only drops the exemption; it invents no new failures."""
+        with patch(
+            f"{BASE}._check_auth_and_scopes",
+            return_value=(["scan"], Check("Authentication", True)),
+        ), patch(f"{BASE}._is_plugin_installed", return_value=False), patch(
+            f"{BASE}._check_ai_hooks", return_value=Check("AI hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks", return_value=Check("Git hooks", True)
+        ), patch(
+            f"{BASE}._check_git_hooks_precedence",
+            return_value=Check("Git hook precedence", True),
+        ), patch(
+            f"{BASE}._check_scopes", return_value=[Check("Scope `scan`", True)]
+        ):
+            result = cli_fs_runner.invoke(cli, ["machine", "doctor", "--strict"])
+        assert result.exit_code == 0
+        assert "correctly set up" in result.output
+
+    def test_default_stays_lenient(self, cli_fs_runner: CliRunner):
+        """Without --strict the exemption holds, so an MDM rollout is not gated on a
+        scope the workspace may be unable to grant."""
+        result = self._run_with_optional_failure(cli_fs_runner, [])
+        assert result.exit_code == 0
+
     def test_plugin_check_skipped_without_plugin(self, cli_fs_runner: CliRunner):
         _result, m_plugin = self._run(
             cli_fs_runner, auth_ok=True, ai_ok=True, git_ok=True, plugin_installed=False
