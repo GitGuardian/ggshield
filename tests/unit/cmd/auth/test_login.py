@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import requests.exceptions
 from pygitguardian import GGClient
-from pygitguardian.models import Detail
+from pygitguardian.models import APITokensResponse, Detail
 
 from ggshield.__main__ import cli
-from ggshield.cmd.auth.login import _warn_missing_scopes
+from ggshield.cmd.auth.login import _expected_scopes, _warn_missing_scopes
 from ggshield.core.config import Config
 from ggshield.core.config.auth_config import AccountConfig, InstanceConfig
 from ggshield.core.config.token_store import (
@@ -25,7 +25,7 @@ from ggshield.core.config.utils import get_auth_config_filepath
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.utils.datetime import get_pretty_date
-from ggshield.verticals.auth import OAuthClient, OAuthError
+from ggshield.verticals.auth import DEFAULT_SCOPES, OAuthClient, OAuthError
 from ggshield.verticals.auth.oauth import OOB_REDIRECT_URI
 from tests.unit.conftest import assert_invoke_ok
 from tests.unit.request_mock import (
@@ -499,6 +499,56 @@ class TestAuthLoginWeb:
         config = Config()
         assert len(config.auth_config.instances) == 0
 
+    def test_existing_token_missing_a_default_scope_is_reported(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a still-valid token that lacks one of the default scopes, e.g. one minted
+            before that scope joined the defaults
+        WHEN auth login reuses it
+        THEN the missing scope is reported instead of the token staying silently short
+        AND the wording says the token lacks it, not that the server refused it
+        AND the command that would request it is named
+        AND the token is kept: reporting must not trigger a login
+        """
+        self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        self._request_mock.add_GET(
+            API_TOKENS_ENDPOINT,
+            create_json_response(
+                {**VALID_API_TOKENS_RESPONSE.json(), "scopes": ["scan"]}
+            ),
+        )
+        add_instance_config()
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS, output
+        self._webbrowser_open_mock.assert_not_called()
+        assert "already authenticated" in output
+        assert "the current token does not have the following scopes" in output
+        assert "ai-discover:send" in output
+        assert "ggshield auth login --scopes" in output
+        # Nothing was refused on this path, so the post-login wording must not appear.
+        assert "were not granted" not in output
+        self._request_mock.assert_all_requests_happened()
+
+    def test_existing_token_with_every_scope_stays_quiet(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a still-valid token carrying every default scope
+        WHEN auth login reuses it
+        THEN nothing is reported
+        """
+        self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        self._request_mock.add_GET(API_TOKENS_ENDPOINT, VALID_API_TOKENS_RESPONSE)
+        add_instance_config()
+
+        exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS, output
+        assert "does not have the following scopes" not in output
+
     def test_stray_space_in_scopes_still_reuses_the_token(
         self, cli_fs_runner, monkeypatch
     ):
@@ -519,6 +569,8 @@ class TestAuthLoginWeb:
                 ],
             }
         )
+        # Read once to decide whether the token can be kept, once to report its scopes.
+        self._request_mock.add_GET(API_TOKENS_ENDPOINT, with_honeytokens)
         self._request_mock.add_GET(API_TOKENS_ENDPOINT, with_honeytokens)
         add_instance_config()
 
@@ -536,6 +588,7 @@ class TestAuthLoginWeb:
     def test_existing_token_no_expiry(self, instance_url, cli_fs_runner, monkeypatch):
         self._instance_url = instance_url
         self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        self._request_mock.add_GET(API_TOKENS_ENDPOINT, VALID_API_TOKENS_RESPONSE)
 
         add_instance_config(instance_url=instance_url)
 
@@ -568,6 +621,7 @@ class TestAuthLoginWeb:
 
         self._instance_url = instance_url
         self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        self._request_mock.add_GET(API_TOKENS_ENDPOINT, VALID_API_TOKENS_RESPONSE)
 
         add_instance_config(instance_url=instance_url, expiry_date=dt)
 
@@ -591,6 +645,7 @@ class TestAuthLoginWeb:
         """
         self._instance_url = DEFAULT_INSTANCE_URL
         self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        self._request_mock.add_GET(API_TOKENS_ENDPOINT, VALID_API_TOKENS_RESPONSE)
         _add_keyring_instance_config(DEFAULT_INSTANCE_URL)
 
         keyring_store = OSKeystore()
@@ -1520,7 +1575,7 @@ def test_warn_missing_scopes_swallows_non_json_body(capsys):
         0,
     )
 
-    _warn_missing_scopes(client_mock)  # must not raise
+    _warn_missing_scopes(client_mock, ["scan"])  # must not raise
 
     assert "scopes were not granted" not in capsys.readouterr().err
 
@@ -1535,9 +1590,139 @@ def test_warn_missing_scopes_silent_on_error_detail(capsys):
     client_mock.base_uri = "https://dashboard.example.com"
     client_mock.api_tokens.return_value = Detail("Unauthorized", 401)
 
-    _warn_missing_scopes(client_mock)
+    _warn_missing_scopes(client_mock, ["scan"])
 
     assert "scopes were not granted" not in capsys.readouterr().err
+
+
+class TestReportsRefusedScopes:
+    """The backend grants the subset the member is eligible for and drops the rest, so
+    ggshield has to report against what was asked for, not against the defaults."""
+
+    def _client(self, granted):
+        client = Mock(spec=GGClient)
+        client.base_uri = "https://dashboard.example.com"
+        client.api_tokens.return_value = Mock(
+            spec=APITokensResponse, scopes=list(granted)
+        )
+        return client
+
+    def test_expected_scopes_appends_requested_ones(self):
+        """
+        GIVEN scopes requested with --scopes
+        WHEN the expected set is built
+        THEN it is the defaults plus those, without duplicates
+        """
+        expected = _expected_scopes(["honeytokens:write", "scan"])
+        assert expected[: len(DEFAULT_SCOPES)] == list(DEFAULT_SCOPES)
+        assert "honeytokens:write" in expected
+        assert len(expected) == len(set(expected))
+
+    def test_expected_scopes_defaults_to_the_defaults(self):
+        assert _expected_scopes(None) == list(DEFAULT_SCOPES)
+
+    def test_a_refused_requested_scope_is_reported(self, capsys):
+        """
+        GIVEN a token granted everything except the scope asked for with --scopes
+        WHEN the login reports its scopes
+        THEN that scope is named, instead of the login looking entirely successful
+        """
+        client = self._client(DEFAULT_SCOPES)
+
+        _warn_missing_scopes(client, _expected_scopes(["honeytokens:write"]))
+
+        err = capsys.readouterr().err
+        assert "scopes were not granted" in err
+        assert "honeytokens:write" in err
+
+    def test_a_kept_token_is_told_what_to_run(self, capsys):
+        """
+        GIVEN a kept token that lacks an expected scope
+        WHEN the absence is reported
+        THEN the wording says the token lacks it, not that it was refused, and names the
+            command that requests it: nothing was refused on this path
+        """
+        client = self._client(["scan"])
+
+        _warn_missing_scopes(client, ["scan", "honeytokens:check"], reused_token=True)
+
+        err = capsys.readouterr().err
+        assert "the current token does not have the following scopes" in err
+        assert "were not granted" not in err
+        assert (
+            '"ggshield auth login --scopes honeytokens:check" to get a token that does'
+            in err
+        )
+        # Any member can get this one: the command is not conditioned on the plan.
+        assert "Only members" not in err
+
+    def test_a_plan_gated_scope_says_who_can_get_it(self, capsys):
+        """
+        GIVEN a kept token that lacks only a scope the plan must offer
+        WHEN the absence is reported
+        THEN the wording says who can get it, and that there is nothing to fix
+            otherwise, instead of sending every member to `--scopes`: on a plan that
+            does not offer it, that login mints a new token without the scope and the
+            next login prints the same advice
+        """
+        client = self._client(["scan", "honeytokens:check", "endpoints:send"])
+
+        _warn_missing_scopes(client, list(DEFAULT_SCOPES), reused_token=True)
+
+        err = " ".join(capsys.readouterr().err.split())
+        assert (
+            "Only members of a Business or Enterprise workspace can get"
+            " ai-discover:send. If that is you, run"
+            ' "ggshield auth login --scopes ai-discover:send"; otherwise your plan'
+            " cannot grant it, and there is nothing to fix." in err
+        )
+        assert "to get a token that does" not in err
+
+    def test_mixed_missing_scopes_split_the_advice(self, capsys):
+        """
+        GIVEN a kept token that lacks both a scope any member can get and plan-gated
+            ones
+        WHEN the absence is reported
+        THEN the unconditional command asks only for the former, and the eligible
+            member's command asks for everything missing, so one login is enough
+        """
+        client = self._client(["scan"])
+
+        _warn_missing_scopes(client, list(DEFAULT_SCOPES), reused_token=True)
+
+        err = " ".join(capsys.readouterr().err.split())
+        assert (
+            '"ggshield auth login --scopes honeytokens:check" to get a token that does'
+            in err
+        )
+        assert "can get endpoints:send, ai-discover:send." in err
+        assert (
+            "ggshield auth login --scopes"
+            " 'honeytokens:check endpoints:send ai-discover:send'" in err
+        )
+        assert "cannot grant them" in err
+
+    def test_several_missing_scopes_make_one_copyable_value(self, capsys):
+        """
+        GIVEN a kept token that lacks several expected scopes
+        WHEN the absence is reported
+        THEN the command quotes them as the single value `--scopes` takes
+        """
+        client = self._client(["scan"])
+
+        _warn_missing_scopes(
+            client, ["scan", "endpoints:send", "ai-discover:send"], reused_token=True
+        )
+
+        err = capsys.readouterr().err
+        assert "ggshield auth login --scopes 'endpoints:send ai-discover:send'" in err
+
+    def test_nothing_is_reported_when_everything_was_granted(self, capsys):
+        client = self._client([*DEFAULT_SCOPES, "honeytokens:write"])
+
+        _warn_missing_scopes(client, _expected_scopes(["honeytokens:write"]))
+
+        assert "scopes were not granted" not in capsys.readouterr().err
 
 
 def test_warn_missing_scopes_swallows_connection_error(capsys):
@@ -1550,7 +1735,7 @@ def test_warn_missing_scopes_swallows_connection_error(capsys):
     client_mock.base_uri = "https://dashboard.example.com"
     client_mock.api_tokens.side_effect = requests.exceptions.ConnectionError("boom")
 
-    _warn_missing_scopes(client_mock)  # must not raise
+    _warn_missing_scopes(client_mock, ["scan"])  # must not raise
 
     assert "scopes were not granted" not in capsys.readouterr().err
 

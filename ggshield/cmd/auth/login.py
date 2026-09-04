@@ -1,4 +1,5 @@
 import re
+import shlex
 from typing import Any, List, Optional, Tuple
 
 import click
@@ -21,22 +22,79 @@ from ggshield.core.url_utils import clean_url
 from ggshield.verticals.auth import DEFAULT_SCOPES, OAuthClient
 
 
-def _warn_missing_scopes(client: GGClient) -> None:
+def _expected_scopes(extra_scopes: Optional[List[str]]) -> List[str]:
+    """The scopes this login asked for: the defaults plus anything from ``--scopes``.
+
+    The backend grants the subset the member is eligible for and drops the rest, so
+    what the user asked for is what we have to report against. Comparing against
+    ``DEFAULT_SCOPES`` alone leaves a refused ``--scopes`` entirely unmentioned. This is
+    also the set sent in the authorize URL.
+    """
+    return list(dict.fromkeys([*DEFAULT_SCOPES, *(extra_scopes or [])]))
+
+
+# Default scopes the server grants only on a Business or Enterprise plan. A member
+# whose plan does not offer them never gets them, whatever they run, so `--scopes`
+# cannot be the advice for everyone: each attempt would mint a new token and the next
+# login would print the same advice (`machine doctor` says the same).
+_PLAN_GATED_SCOPES = ("endpoints:send", "ai-discover:send")
+
+
+def _login_command(scopes: List[str]) -> str:
+    # `--scopes` takes one space-separated value: quote it when it has several.
+    return "ggshield auth login --scopes " + shlex.quote(" ".join(scopes))
+
+
+def _reused_token_warning(missing: List[str]) -> str:
+    """The warning for a kept token: what it lacks, and who can get it."""
+    lines = [
+        "Warning: the current token does not have the following scopes: "
+        + ", ".join(missing)
+        + "."
+    ]
+    requestable = [s for s in missing if s not in _PLAN_GATED_SCOPES]
+    gated = [s for s in missing if s in _PLAN_GATED_SCOPES]
+    if requestable:
+        lines.append(f'Run "{_login_command(requestable)}" to get a token that does.')
+    if gated:
+        # A member who is eligible gets every missing scope with one login.
+        lines.append(
+            "Only members of a Business or Enterprise workspace can get "
+            + ", ".join(gated)
+            + f'. If that is you, run "{_login_command(missing)}"; otherwise your '
+            "plan cannot grant "
+            + ("it" if len(gated) == 1 else "them")
+            + ", and there is nothing to fix."
+        )
+    return "\n".join(lines)
+
+
+def _warn_missing_scopes(
+    client: GGClient, expected_scopes: List[str], *, reused_token: bool = False
+) -> None:
+    """Report the expected scopes the token does not carry.
+
+    ``reused_token`` distinguishes the two ways a scope can be absent, which need
+    different words and a different next step: after a login the server refused it,
+    while a kept token was simply never asked for it.
+    """
     # Best-effort warning: never fail an already-successful login when the scopes cannot
     # be read (non-JSON body, network blip, an error Detail that says nothing about them).
     granted = granted_scopes(client)
     if granted is None:
         return
-    missing = [s for s in DEFAULT_SCOPES if s not in granted]
-    if missing:
-        click.echo(
-            "Warning: the following scopes were not granted: "
-            + ", ".join(missing)
-            + ".\n"
-            "Some features may require additional permissions at runtime.\n"
-            "Contact your workspace administrator if you need access.",
-            err=True,
-        )
+    missing = [s for s in expected_scopes if s not in granted]
+    if not missing:
+        return
+    if reused_token:
+        click.echo(_reused_token_warning(missing), err=True)
+        return
+    click.echo(
+        "Warning: the following scopes were not granted: " + ", ".join(missing) + ".\n"
+        "Some features may require additional permissions at runtime.\n"
+        "Contact your workspace administrator if you need access.",
+        err=True,
+    )
 
 
 def validate_login_path(
@@ -265,7 +323,7 @@ def token_login(config: Config, instance: Optional[str]) -> None:
     click.echo("Authentication was successful.")
     print_default_instance_message(config)
 
-    _warn_missing_scopes(client)
+    _warn_missing_scopes(client, list(DEFAULT_SCOPES))
 
 
 def web_login(
@@ -287,7 +345,14 @@ def web_login(
     client = OAuthClient(config, defined_instance)
 
     if client.check_existing_token(required_scopes=extra_scopes):
-        # skip the process if a valid token is already saved
+        # skip the process if a valid token is already saved. Report what it lacks: a
+        # kept token is never re-checked otherwise, so one minted before a scope joined
+        # the defaults stays silently short until it expires.
+        _warn_missing_scopes(
+            create_client_from_config(config),
+            _expected_scopes(extra_scopes),
+            reused_token=True,
+        )
         return
 
     client.oauth_process(
@@ -297,5 +362,7 @@ def web_login(
         extra_scopes=extra_scopes,
         no_browser=no_browser,
     )
-    _warn_missing_scopes(create_client_from_config(config))
+    _warn_missing_scopes(
+        create_client_from_config(config), _expected_scopes(extra_scopes)
+    )
     print_default_instance_message(config)
