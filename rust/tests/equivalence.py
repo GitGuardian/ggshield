@@ -14,7 +14,7 @@ sides must produce but whose value is allowed to differ (see `same_request`).
   python3 tests/equivalence.py            # equivalence only
   python3 tests/equivalence.py --bench N  # also time both, N iterations/side
 
-Ten matrices:
+Eleven matrices:
   agents   6 assistants x their own payload shapes x {clean, secret}
   config   .gitguardian.yaml cases: discovery, precedence, and every key that
            changes the verdict or the request
@@ -31,6 +31,8 @@ Ten matrices:
   exclude  the default ignored-path wildcards: which files a vendored *name*
            may and may not swallow
   extra    fail-open, and the unrecognized-agent case
+  kiro     Kiro, which the Rust hook serves alone: asserted against its
+           output contract instead of diffed, there being no Python side
 
 Every payload fixture is copied from tests/unit/verticals/ai/test_hooks.py, so
 the shapes are the ones ggshield's own tests consider realistic.
@@ -1876,6 +1878,121 @@ def extra_cases(tmp):
     return failures
 
 
+def kiro_payloads():
+    """Kiro's own shapes, one per surface: the CLI in camelCase, the IDE in
+    PascalCase, `fs_read`/`operations` against `read_file`/`offset`.
+
+    Shapes are copied from the adapter's own research; Kiro has no Python
+    implementation to lift fixtures from, which is the point of `check_kiro`.
+    """
+    cli = {"hook_event_name": "preToolUse", "cwd": "/tmp"}
+    ide = {"session_id": "sess_1", "cwd": "/tmp"}
+    command = (
+        f"aws configure set aws_access_key_id {CLIENT_ID} --secret {CLIENT_SECRET}"
+    )
+    return {
+        # (payload, whether it carries something to scan)
+        "cli/user_prompt": (
+            {
+                "hook_event_name": "userPromptSubmit",
+                "cwd": "/tmp",
+                "prompt": f"deploy with key {CLIENT_ID} please",
+            },
+            True,
+        ),
+        "cli/pre_bash": (
+            {**cli, "tool_name": "execute_bash", "tool_input": {"command": command}},
+            True,
+        ),
+        "cli/pre_fs_read": (
+            {
+                **cli,
+                "tool_name": "fs_read",
+                "tool_input": {"operations": [{"mode": "Line", "path": READ_FILE}]},
+            },
+            True,
+        ),
+        "cli/pre_fs_write": (
+            {
+                **cli,
+                "tool_name": "fs_write",
+                "tool_input": {"command": "create", "file_text": f"KEY={CLIENT_ID}"},
+            },
+            True,
+        ),
+        "cli/post_bash": (
+            {
+                "hook_event_name": "postToolUse",
+                "cwd": "/tmp",
+                "tool_name": "execute_bash",
+                "tool_input": {"command": "printenv"},
+                "tool_response": {"success": True, "result": [f"KEY={CLIENT_ID}"]},
+            },
+            True,
+        ),
+        "ide/pre_read_file": (
+            {
+                **ide,
+                "hook_event_name": "PreToolUse",
+                "tool_name": "read_file",
+                "tool_input": {"path": READ_FILE, "offset": 0, "limit": 20},
+            },
+            True,
+        ),
+        # No tool and no prompt: recognised, parsed, and scanned for nothing.
+        "ide/session_start": (
+            {**ide, "hook_event_name": "SessionStart"},
+            False,
+        ),
+    }
+
+
+def check_kiro(tmp):
+    """Kiro, asserted rather than diffed: the Rust hook is its only
+    implementation, so there is no Python side to compare against.
+
+    The contract is `Agent::Kiro` in output.rs: nothing ever reaches stdout, a
+    block on a prompt or a pre-tool call is stderr with exit 2, and everything
+    else exits 0. A payload that carries something to scan must also reach the
+    API, otherwise a silent parse failure would read as a clean allow.
+    """
+    failures = []
+    print("\nKiro (Rust-only, asserted): exit codes, stderr, and what was sent")
+    for mode in ("clean", "secret"):
+        log = tmp / f"requests-kiro-{mode}.jsonl"
+        mock, port = start_mock(mode, log)
+        try:
+            for name, (payload, scannable) in kiro_payloads().items():
+                workdir = make_workdir(tmp, f"kiro-{mode}-{name.replace('/', '-')}")
+                write_read_file()
+                before = len(read_requests(log))
+                proc, _ = run(RS_CMD, payload, port, workdir)
+                sent = len(read_requests(log)) > before
+                blocks = mode == "secret" and payload["hook_event_name"] in (
+                    "userPromptSubmit",
+                    "preToolUse",
+                    "PreToolUse",
+                )
+                expected_code = 2 if blocks else 0
+                ok = (
+                    proc.returncode == expected_code
+                    and proc.stdout == b""
+                    and bool(proc.stderr) == blocks
+                    and sent == scannable
+                )
+                print(f"  [{'OK  ' if ok else 'FAIL'}] {mode}/{name}")
+                if not ok:
+                    failures.append(f"kiro/{mode}/{name}")
+                    print(
+                        f"        exit={proc.returncode} (want {expected_code}) "
+                        f"stdout={proc.stdout[:120]!r} "
+                        f"stderr={proc.stderr[:120]!r} sent={sent} (want {scannable})"
+                    )
+        finally:
+            mock.kill()
+    return failures
+
+
 def bench(tmp, iterations):
     """Latency, alternating sides so machine load hits both equally.
 
@@ -1984,6 +2101,7 @@ def main():
         failures += compare_dotenv(tmp)
         failures += compare_exclusions(tmp)
         failures += extra_cases(tmp)
+        failures += check_kiro(tmp)
         if "--bench" in sys.argv:
             n = int(sys.argv[sys.argv.index("--bench") + 1])
             bench(tmp, n)
