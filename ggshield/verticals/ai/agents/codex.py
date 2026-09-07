@@ -108,6 +108,17 @@ class Codex(Agent):
     def settings_path(self, mode: Literal["local", "global"]) -> Path:
         return Path(".codex") / "hooks.json"
 
+    def post_install_warning(self, mode: Literal["local", "global"]) -> Optional[str]:
+        # Codex trusts a hook by hashing its definition, recorded under
+        # [hooks.state] in ~/.codex/config.toml, and an untrusted hook does not
+        # run. Repinning the ggshield path re-hashes the entry back to
+        # untrusted, so the review is needed after a reinstall too.
+        return (
+            f"{self.display_name} runs a hook only once you approve it. Start "
+            "'codex' and accept the hook review, otherwise these hooks are "
+            "installed but scan nothing."
+        )
+
     def project_mcp_file(self, directory: Path) -> Path:
         return directory / ".codex" / "config.toml"
 
