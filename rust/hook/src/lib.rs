@@ -901,7 +901,9 @@ mod tests {
         let outcome = resolved.as_ref().map(|config| {
             scan(
                 config,
-                r#"{"unknown_agent": true, "hook_event_name": "PreToolUse"}"#,
+                // An event name no adapter answers to: "PreToolUse" alone, with
+                // no other agent's marker beside it, is Kiro's own signature.
+                r#"{"unknown_agent": true, "hook_event_name": "somethingElse"}"#,
             )
         });
         unsafe {
