@@ -461,6 +461,12 @@ class TestFlavorSettingsProperties:
     def test_codex_settings_template(self):
         assert isinstance(Codex().settings_template, dict)
 
+    def test_codex_warns_about_the_hook_review(self):
+        """Codex does not run a hook until it is approved, in either scope."""
+        for mode in ("local", "global"):
+            warning = Codex().post_install_warning(mode)
+            assert warning is not None and "codex" in warning
+
     def test_vibe_settings_path_and_format(self, tmp_path: Path):
         with patch(
             "ggshield.verticals.ai.agents.vibe.os.getenv",
