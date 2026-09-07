@@ -148,6 +148,29 @@ pub fn emission(result: &HookResult) -> Emission {
             0,
         ),
 
+        // Junie CLI, which this hook serves alone. Its hook API is Claude
+        // Code's, so the verdict schema is too, except that Junie has no
+        // PostToolUse event at all: nothing it fires can carry a tool result,
+        // so that arm is unreachable rather than shared.
+        Agent::Junie => Emission::Stdout(
+            if !result.block {
+                allow_with_optional_warning(&result.warning)
+            } else {
+                match event {
+                    EventType::UserPrompt => decision_block(message, true),
+                    EventType::PreToolUse => deny_pre_tool_use(message),
+                    // SessionStart, Stop, StopFailure, SessionEnd and
+                    // PermissionRequest land here; `continue: false` is the one
+                    // key every Junie event honours.
+                    EventType::PostToolUse | EventType::Other => obj(vec![
+                        ("continue", false.into()),
+                        ("stopReason", message.into()),
+                    ]),
+                }
+            },
+            0,
+        ),
+
         // codex.py. No `additionalContext` (Codex shows the decision reason in
         // the transcript), and the unknown-event branch goes to stderr with exit 2.
         Agent::Codex => {
@@ -497,6 +520,47 @@ mod tests {
             assert_eq!(
                 allowed(Agent::Copilot, event),
                 allowed(Agent::VsCode, event)
+            );
+        }
+    }
+
+    /// GIVEN each Junie event, allowed, warned and blocked
+    /// WHEN it is emitted
+    /// THEN the schema is Claude Code's, which is what Junie's hook API
+    /// deliberately copies: `permissionDecision` denies a tool call, `decision`
+    /// blocks a prompt, and an allow always prints `continue: true`.
+    #[test]
+    fn junie_contract() {
+        assert_eq!(
+            blocked(Agent::Junie, EventType::PreToolUse).as_deref(),
+            Some(
+                r#"{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"nope"}}"#
+            )
+        );
+        assert_eq!(
+            blocked(Agent::Junie, EventType::UserPrompt).as_deref(),
+            Some(r#"{"decision":"block","reason":"nope","additionalContext":"nope"}"#)
+        );
+        // No PostToolUse event exists, so this arm is only ever reached by the
+        // events that carry nothing to scan.
+        assert_eq!(
+            blocked(Agent::Junie, EventType::Other).as_deref(),
+            Some(r#"{"continue":false,"stopReason":"nope"}"#)
+        );
+        for event in [
+            EventType::UserPrompt,
+            EventType::PreToolUse,
+            EventType::Other,
+        ] {
+            assert_eq!(
+                allowed(Agent::Junie, event).as_deref(),
+                Some(r#"{"continue":true}"#),
+                "{event:?}"
+            );
+            assert_eq!(
+                warned(Agent::Junie, event).as_deref(),
+                Some(r#"{"continue":true,"systemMessage":"could not scan"}"#),
+                "{event:?}"
             );
         }
     }
