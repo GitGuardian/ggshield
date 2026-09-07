@@ -1632,7 +1632,8 @@ class TestVSCodeParseMcpActivity:
         assert req.tool == "tool_name"
         assert req.server == "server2"
 
-    def test_unknown_server_falls_back_to_cfg_name(self):
+    def test_unknown_server_reports_the_raw_tool_name(self):
+        """An unsplittable name is reported as-is, for the API to resolve."""
         vscode = VSCode()
         discovery = _ai_discovery(servers=[])
         payload = _payload(
@@ -1642,8 +1643,21 @@ class TestVSCodeParseMcpActivity:
 
         req = vscode.parse_mcp_activity(payload, discovery)
 
-        assert req.server == "unknown"
-        assert req.tool == "tool_name"
+        assert req.server == ""
+        assert req.tool == "mcp_unknown_tool_name"
+
+    def test_empty_tool_name_is_reported_without_a_server(self):
+        """A payload with no tool name must not break the hook."""
+        vscode = VSCode()
+        payload = _payload(
+            vscode,
+            raw={"tool_name": "", "cwd": "/tmp", "tool_input": {}},
+        )
+
+        req = vscode.parse_mcp_activity(payload, _ai_discovery(servers=[]))
+
+        assert req.server == ""
+        assert req.tool == ""
 
 
 # ===========================================================================
