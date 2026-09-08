@@ -408,8 +408,13 @@ class TestSetupHoneytokens:
         ok, invoke = self._run({"scan"})
         assert ok is True
         invoke.assert_not_called()
-        output = capsys.readouterr()
-        assert "honeytokens:write" in output.out + output.err
+        text = "".join(capsys.readouterr())
+        assert "honeytokens:write" in text
+        # Say who can get the scope: sending every member through `--scopes` would
+        # loop the ineligible through a re-login that mints a token per attempt.
+        assert "Manager" in text
+        assert "--scopes honeytokens:write" in text
+        assert "cannot grant it" in text
 
     def test_plants_when_scopes_are_unreadable(self):
         """An unreadable token must not silently disable the protection: try to plant

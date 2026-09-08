@@ -223,9 +223,11 @@ def _setup_honeytokens(ctx: click.Context) -> bool:
     scopes = granted_scopes(create_client_from_config(ContextObj.get(ctx).config))
     if scopes is not None and HONEYTOKEN_SCOPE not in scopes:
         ui.display_warning(
-            f"  skipped: the token does not have the `{HONEYTOKEN_SCOPE}` scope "
-            "(Business or Enterprise plan, Manager access level). Run "
-            f"`ggshield auth login --scopes {HONEYTOKEN_SCOPE}` to request it."
+            f"  skipped: the token does not have the `{HONEYTOKEN_SCOPE}` scope, "
+            "which only a Manager on a Business or Enterprise plan can get. If that "
+            f"is you, run `ggshield auth login --scopes {HONEYTOKEN_SCOPE}`; "
+            "otherwise your plan or role cannot grant it, and honeytoken protection "
+            "is unavailable here."
         )
         return True
     return ctx.invoke(plant_cmd) == 0

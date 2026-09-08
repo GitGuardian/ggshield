@@ -28,7 +28,7 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 
 # Scopes the configured protections need.
 _SCAN_SCOPE = "scan"  # the AI and git hooks run `ggshield secret scan`
-HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (granted only to Business)
+HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (Managers, paid plans only)
 _ENDPOINT_SCOPE = "endpoints:send"  # the machine_scan plugin uploads endpoint data
 _AI_DISCOVER_SCOPE = "ai-discover:send"  # `ai discover` uploads AI agent discovery
 
@@ -205,6 +205,18 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
             "service-account token)"
         )
 
+    def _unavailable_fix(scope: str, granted_to: str) -> str:
+        # The server grants what the plan and role allow and silently drops the rest,
+        # so pointing everyone at `--scopes` sends an ineligible member into a loop
+        # that mints a token per attempt. Lead with who can get the scope, and say
+        # what it means when that is not the reader.
+        return (
+            f"only {granted_to} can get the `{scope}` scope. If that is you, run "
+            f"`ggshield auth login --scopes {scope}` (or use a service-account "
+            "token); otherwise your plan or role cannot grant it, and there is "
+            "nothing to fix on this machine"
+        )
+
     checks = [
         Check(
             f"Scope `{_SCAN_SCOPE}`",
@@ -220,15 +232,19 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
         Check(
             f"Scope `{HONEYTOKEN_SCOPE}`",
             HONEYTOKEN_SCOPE in scopes,
-            "honeytoken protection — Business or Enterprise plans only",
-            fix=_scope_fix(HONEYTOKEN_SCOPE, paid_plan=True),
+            "honeytoken protection — Managers on Business or Enterprise plans only",
+            fix=_unavailable_fix(
+                HONEYTOKEN_SCOPE, "a Manager on a Business or Enterprise plan"
+            ),
             optional=True,
         ),
         Check(
             f"Scope `{_AI_DISCOVER_SCOPE}`",
             _AI_DISCOVER_SCOPE in scopes,
             "AI agent discovery upload — Business or Enterprise plans only",
-            fix=_scope_fix(_AI_DISCOVER_SCOPE, paid_plan=True),
+            fix=_unavailable_fix(
+                _AI_DISCOVER_SCOPE, "members of a Business or Enterprise workspace"
+            ),
             optional=True,
         ),
     ]

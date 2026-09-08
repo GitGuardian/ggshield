@@ -241,6 +241,21 @@ class TestCheckScopes:
         by_name = {c.name: c for c in _check_scopes(["scan"], plugin_installed=False)}
         assert "--scopes honeytokens:write" in by_name["Scope `honeytokens:write`"].fix
 
+    def test_plan_gated_fix_leads_with_who_can_get_the_scope(self):
+        """The server silently drops a scope the plan or role does not allow, so
+        pointing everyone at `--scopes` would send an ineligible member into a
+        re-login loop. The fix has to say who can get the scope and what it means
+        when that is not the reader."""
+        by_name = {c.name: c for c in _check_scopes(["scan"], plugin_installed=False)}
+        honeytoken_fix = by_name["Scope `honeytokens:write`"].fix
+        assert "Manager" in honeytoken_fix
+        assert "nothing to fix" in honeytoken_fix
+        # Only honeytokens are Manager-gated.
+        assert "Manager" not in by_name["Scope `ai-discover:send`"].fix
+        assert "nothing to fix" in by_name["Scope `ai-discover:send`"].fix
+        # A required scope keeps its unconditional fix: missing it is a real break.
+        assert "nothing to fix" not in by_name["Scope `scan`"].fix
+
     def test_ai_discover_scope_reported(self):
         checks = _check_scopes(["scan"], plugin_installed=False)
         by_name = {c.name: c.ok for c in checks}
