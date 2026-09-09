@@ -25,6 +25,8 @@ jobs:
   push_to_pypi:
     needs: [build_release_assets, build_platform_wheels]
     runs-on: ubuntu-22.04
+    # Gated: publishing waits for a second person to approve the deployment.
+    environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - uses: actions/checkout@v7
@@ -139,6 +141,7 @@ jobs:
   push_docker_images:
     name: Push Docker image to Docker Hub and GitHub Packages
     runs-on: ubuntu-22.04
+    environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Docker meta
@@ -183,6 +186,7 @@ jobs:
   push_to_cloudsmith:
     needs: build_release_assets
     runs-on: ubuntu-22.04
+    environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Checkout
@@ -208,6 +212,7 @@ jobs:
     needs: build_release_assets
     name: Push to Chocolatey
     runs-on: windows-latest
+    environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     steps:
       - name: Checkout
