@@ -59,11 +59,16 @@ jobs:
     name: wheel macos-universal2
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
-      - uses: dtolnay/rust-toolchain@stable
+      # `v1` is the most specific ref upstream publishes: this action has no
+      # semver tags, only `v1` and per-version branches (`stable` is a branch
+      # too, and moves every rustup release). Which toolchain actually builds
+      # the binary is decided separately -- hatch_build.py runs cargo with
+      # cwd=rust/, so rust/rust-toolchain.toml pins that.
+      - uses: dtolnay/rust-toolchain@v1
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       # Only `sign: true` callers get here, and for them signing is not
@@ -112,7 +117,7 @@ jobs:
           python -m build --wheel --outdir dist
       - name: Smoke test the wheel
         run: scripts/smoke-test-wheel dist/*.whl
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: wheel-macos-universal2
           path: dist/*.whl
@@ -121,11 +126,16 @@ jobs:
     name: wheel windows-amd64
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
-      - uses: dtolnay/rust-toolchain@stable
+      # `v1` is the most specific ref upstream publishes: this action has no
+      # semver tags, only `v1` and per-version branches (`stable` is a branch
+      # too, and moves every rustup release). Which toolchain actually builds
+      # the binary is decided separately -- hatch_build.py runs cargo with
+      # cwd=rust/, so rust/rust-toolchain.toml pins that.
+      - uses: dtolnay/rust-toolchain@v1
       # Authenticode-signed like the .msi and the .zip. A signature binds no
       # stored credential here the way a macOS Keychain ACL does, but this is the
       # `ggshield` every invocation runs, and an unsigned native executable inside
@@ -202,7 +212,7 @@ jobs:
       - name: Smoke test the wheel
         shell: bash
         run: scripts/smoke-test-wheel dist/*.whl
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: wheel-windows-amd64
           path: dist/*.whl
@@ -251,7 +261,7 @@ jobs:
               rustup_sha256: 88761caacddb92cd79b0b1f939f3990ba1997d701a38b3e8dd6746a562f2a759,
             }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - name: Build, relabel and smoke test the wheel in ${{ matrix.tag }}
         run: |
           docker run --rm -v "$PWD:/io" -w /io -e GGSHIELD_BUILD_RUST=1 \
@@ -276,7 +286,7 @@ jobs:
 
               PYTHON="$PY" scripts/smoke-test-wheel dist/*.whl
             '
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: wheel-${{ matrix.tag }}
           path: dist/*.whl

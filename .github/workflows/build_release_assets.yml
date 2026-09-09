@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v7.6.0
         with:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
@@ -57,7 +57,7 @@ jobs:
           /tmp/smoke/bin/ggshield --version
 
       - name: Upload packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: dist
           path: |
@@ -73,14 +73,14 @@ jobs:
         include:
           - os: ubuntu-22.04
             # When building on Linux we use a container to build using an old enough version
-            container: rockylinux/rockylinux:8
+            container: rockylinux/rockylinux:8.10
             arch: x86_64
             nfpm_arch: x86_64
             sha256sum:
               python: d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb
               nfpm: 9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
           - os: ubuntu-24.04-arm
-            container: rockylinux/rockylinux:8
+            container: rockylinux/rockylinux:8.10
             arch: aarch64
             nfpm_arch: arm64
             sha256sum:
@@ -98,14 +98,14 @@ jobs:
               python: 1c7e8db27d1f5c029c232406103b7216baaa8a32a900a64f6dee20f8eaaca1af
               rcodesign: 163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           # Get enough commits to run `ggshield secret scan commit-range` on ourselves
           fetch-depth: 10
 
       - name: Set up Python 3.14 (Windows 1/2)
         if: matrix.os == 'windows-2022'
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.14'
 
@@ -298,7 +298,7 @@ jobs:
           TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
           TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: os-packages-${{ matrix.os }}
           path: |
@@ -325,11 +325,11 @@ jobs:
           - ubuntu-22.04
           - ubuntu-24.04-arm
         image:
-          - debian:stable
-          - ubuntu:latest
+          - debian:stable-20260824
+          - ubuntu:26.04
           - rockylinux/rockylinux:8.8
-          - rockylinux/rockylinux:9
-          - opensuse/leap
+          - rockylinux/rockylinux:9.8
+          - opensuse/leap:16.0
     steps:
       - name: Install requirements
         run: |
@@ -347,7 +347,7 @@ jobs:
           esac
 
       - name: Download OS packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           pattern: os-packages-${{ matrix.runner }}
           path: dist
@@ -391,14 +391,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           sparse-checkout: |
             scripts/vulnscan
             .grype.yaml
 
       - name: Download built packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           pattern: os-packages-*
           path: packages
@@ -408,7 +408,7 @@ jobs:
         run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Grype vulnerability database
-        uses: actions/cache@v6
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/grype/db
           # The DB is refreshed daily upstream; keying on the date avoids
