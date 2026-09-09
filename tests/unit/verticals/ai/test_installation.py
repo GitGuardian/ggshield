@@ -228,8 +228,9 @@ class TestFillDict:
         launcher = tmp_path / "ggshield"
         launcher.symlink_to(binary)
         command = f"{launcher} secret scan ai-hook"
-        config = {"hooks": [{"command": f"{binary} secret scan ai-hook"}]}
-        _fill_dict(
+        versioned = f"{binary} secret scan ai-hook"
+        config = {"hooks": [{"command": versioned}]}
+        stats = _fill_dict(
             config,
             {"hooks": [{"command": "<COMMAND>"}]},
             command,
@@ -238,6 +239,9 @@ class TestFillDict:
             locator=_locator,
         )
         assert config == {"hooks": [{"command": command}]}
+        assert stats == InstallationStats(
+            added=1, already_present=1, repointed_live=1, command=versioned
+        )
 
     def test_another_tool_command_is_left_alone(self, tmp_path: Path):
         """GIVEN a hook command running another tool, mentioning ggshield
@@ -794,6 +798,58 @@ class TestAreHooksInstalledGlobally:
         installed, command = are_hooks_installed_globally("claude-code")
         assert installed is True
         assert command == COMMAND
+
+    @pytest.mark.skipif(os.name == "nt", reason="creates a symlink")
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    def test_live_command_through_a_launcher_stays_installed(
+        self, mock_home: Any, tmp_path: Path
+    ):
+        """GIVEN a hook pinned to a live binary that install would repoint
+        WHEN the status is read
+        THEN the agent counts as protected: that hook scans every prompt."""
+        mock_home.return_value = tmp_path
+        binary = tmp_path / "ggshield-1.53.0" / "ggshield"
+        binary.parent.mkdir()
+        binary.write_text("")
+        launcher = tmp_path / "ggshield"
+        launcher.symlink_to(binary)
+        versioned = f"{binary} secret scan ai-hook"
+
+        with patch(
+            "ggshield.verticals.ai.installation.build_hook_command",
+            return_value=versioned,
+        ):
+            install_hooks("claude-code", mode="global")
+
+        with patch(
+            "ggshield.verticals.ai.installation.build_hook_command",
+            return_value=f"{launcher} secret scan ai-hook",
+        ):
+            installed, command = are_hooks_installed_globally("claude-code")
+
+        assert installed is True
+        assert command == versioned
+
+    @patch("ggshield.verticals.ai.installation.get_user_home_dir")
+    def test_dead_command_is_reported_with_its_path(
+        self, mock_home: Any, tmp_path: Path
+    ):
+        """GIVEN a hook pinned to a binary an upgrade deleted
+        WHEN the status is read
+        THEN it is not installed, and the dead command says why."""
+        mock_home.return_value = tmp_path
+        stale = f"{tmp_path / 'ggshield-1.53.0' / 'ggshield'} secret scan ai-hook"
+
+        with patch(
+            "ggshield.verticals.ai.installation.build_hook_command",
+            return_value=stale,
+        ):
+            install_hooks("claude-code", mode="global")
+
+        installed, command = are_hooks_installed_globally("claude-code")
+
+        assert installed is False
+        assert command == stale
 
     @patch("ggshield.verticals.ai.installation.get_user_home_dir")
     def test_no_settings_file_returns_false(self, mock_home: Any, tmp_path: Path):
