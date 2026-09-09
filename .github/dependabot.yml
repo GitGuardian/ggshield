@@ -38,3 +38,17 @@ updates:
       interval: 'weekly'
     cooldown:
       default-days: 3
+
+  # Lint/format hook revs in .pre-commit-config.yaml, which were updated by
+  # hand until now.
+  - package-ecosystem: 'pre-commit'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+    ignore:
+      # This repo's own hook: `rev` there tracks ggshield's __version__ in the
+      # working tree, so a bump belongs to the release, not to Dependabot --
+      # otherwise the self-reference points at a version this tree isn't yet.
+      - dependency-name: 'https://github.com/gitguardian/ggshield'
