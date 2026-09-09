@@ -35,6 +35,9 @@ from .agents import AGENTS, Agent
 class InstallationStats:
     added: int = 0
     already_present: int = 0
+    # Slots repointed away from a live binary. They count in `added`, yet the
+    # command they held scans every prompt: see `are_hooks_installed_globally`.
+    repointed_live: int = 0
     command: str = ""
 
 
@@ -405,6 +408,9 @@ def _fill_dict(
                 # then fails open: every prompt goes unscanned.
                 if _is_outdated_hook_command(cmd, command):
                     config[key] = "<COMMAND>"
+                    installed = _hook_command_executable(cmd)
+                    if installed and os.path.exists(installed):
+                        stats.repointed_live += 1
             # Update if needed
             if overwrite:
                 config[key] = value
@@ -416,12 +422,15 @@ def _fill_dict(
 
 
 def are_hooks_installed_globally(agent_name: str) -> Tuple[bool, Optional[str]]:
-    """Whether the ggshield AI hooks are installed in this agent's global settings file."""
-    result = build_hook_config(agent_name, "global")
-    return (
-        result.stats.added == 0,
-        result.stats.command if result.stats.added == 0 else None,
-    )
+    """Whether the ggshield AI hooks are installed in this agent's global settings file.
+
+    A slot repointed at a stabler path holds a hook that scans every prompt, so it
+    reads as installed; only a missing or dead command leaves the agent
+    unprotected. The command comes back either way, to tell a dead path from a
+    config that never had a hook.
+    """
+    stats = build_hook_config(agent_name, "global").stats
+    return stats.added == stats.repointed_live, stats.command or None
 
 
 @dataclass
