@@ -29,6 +29,9 @@ env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.14'
   GRYPE_VERSION: 0.116.1
+  # grype_${GRYPE_VERSION}_linux_amd64.tar.gz, from the release's
+  # grype_${GRYPE_VERSION}_checksums.txt. Update both together.
+  GRYPE_SHA256: 0122df7b655981abe547ad3d2190d65551dac6a2bfc80b4dc2a989b5d0587458
 
 jobs:
   build_wheel_sdist:
@@ -395,6 +398,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/vulnscan
+            scripts/download
             .grype.yaml
 
       - name: Download built packages
@@ -416,9 +420,17 @@ jobs:
           key: grype-db-${{ steps.date.outputs.date }}
 
       - name: Install Grype
+        # Not `curl .../main/install.sh | sh`: that fetches an unpinned script
+        # from a branch and pipes it into a shell, so upstream can change what
+        # runs here at any time. The release tarball is pinned and
+        # checksum-verified instead, like rustup-init in wheels.yml.
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
-            | sh -s -- -b /usr/local/bin "v${GRYPE_VERSION}"
+          scripts/download \
+            "https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_linux_amd64.tar.gz" \
+            /tmp/grype.tar.gz \
+            "${GRYPE_SHA256}"
+          tar -xzf /tmp/grype.tar.gz -C /tmp grype
+          install -m 0755 /tmp/grype /usr/local/bin/grype
 
       - name: Scan and report
         # tee, not >>: the report is genuinely useful in the plain job log
