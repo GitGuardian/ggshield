@@ -1,0 +1,39 @@
+# Cargo configuration for the ggshield Rust workspace.
+#
+# Cargo probes `.cargo/config.toml` in the invocation directory and every
+# parent, and hatch_build.py runs cargo with cwd=rust/, so settings here apply
+# to the hook builds.
+
+# --- Publish-age cooldown (not enabled yet: needs Rust >= 1.100) ------------
+#
+# This is cargo's equivalent of the 3-day cooldown Python dependencies already
+# get from `exclude-newer = "3 days"` in pyproject.toml's [tool.uv], and of the
+# `cooldown.default-days: 3` being added to .github/dependabot.yml for the
+# other ecosystems.
+#
+# A compromised release is usually yanked within hours of discovery, so
+# refusing anything published in the last 3 days keeps the
+# malicious-then-deleted versions out of a resolve entirely.
+#
+# Enforcement would already be strict without further config:
+# `resolver.incompatible-publish-age` defaults to "deny", which ignores
+# too-new versions *unless they are already in Cargo.lock*. So this holds back
+# new crates without churning the versions we have locked today.
+#
+# Why it stays commented: the key is only respected as of Rust 1.100 (RFC
+# 3923, stabilized there), and rust-toolchain.toml pins 1.96.0 to match the
+# cove workspace. Uncommenting it today does nothing except print
+#
+#   warning: ignoring `registry.global-min-publish-age` without `-Zmin-publish-age`
+#
+# on every cargo invocation. Uncomment when the pinned toolchain reaches
+# 1.100+; that bump is a cross-repo decision, not ggshield's alone.
+#
+# Note this is defense in depth rather than the primary control: Cargo.lock is
+# committed, so what actually reaches a build is whatever Dependabot proposes,
+# and its cargo updates already sit behind the same 3-day cooldown. This would
+# cover resolution that happens outside Dependabot, such as a local
+# `cargo update`.
+#
+# [registry]
+# global-min-publish-age = "3 days"
