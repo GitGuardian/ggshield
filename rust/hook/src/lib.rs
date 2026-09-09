@@ -49,6 +49,17 @@ pub enum Outcome {
     },
 }
 
+/// Decode the hook event an agent wrote to our stdin.
+///
+/// U+FEFF is not White_Space, so `trim` leaves a BOM in place and the parser
+/// then rejects the whole event. Agents on Windows can prefix one.
+fn decode_payload(buffer: &[u8]) -> String {
+    String::from_utf8_lossy(buffer)
+        .trim_start_matches('\u{feff}')
+        .trim()
+        .to_string()
+}
+
 /// Run the hook end to end; the dispatcher acts on the outcome.
 pub fn run_hook() -> Outcome {
     let mut buffer = Vec::new();
@@ -56,7 +67,7 @@ pub fn run_hook() -> Outcome {
         .lock()
         .take(MAX_READ_SIZE)
         .read_to_end(&mut buffer);
-    let stdin_content = String::from_utf8_lossy(&buffer).trim().to_string();
+    let stdin_content = decode_payload(&buffer);
 
     // An agent reads a non-zero exit with no JSON as "the hook is broken", so a
     // panic is treated as any other internal failure.
@@ -528,6 +539,17 @@ mod tests {
 
     /// Recognised by the mock below as "this document holds a secret".
     const SECRET: &str = "AKIAsomething";
+
+    #[test]
+    fn decode_payload_survives_a_bom() {
+        let event =
+            br#"{"hook_event_name":"beforeSubmitPrompt","cursor_version":"3.17.8","prompt":"hi"}"#;
+        let mut with_bom = vec![0xEF, 0xBB, 0xBF];
+        with_bom.extend_from_slice(event);
+
+        assert_eq!(decode_payload(&with_bom), decode_payload(event));
+        assert!(payload::parse(&decode_payload(&with_bom)).is_ok());
+    }
 
     /// What the mock reports on `/v1/metadata`, plus which multiscan it refuses.
     #[derive(Clone, Copy)]
