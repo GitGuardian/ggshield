@@ -116,13 +116,17 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // rollout file of its own, which no hook can reach, so the wording
             // says the output never reached the agent and claims nothing about
             // what is on disk.
-            Agent::Codex => true,
-            // Vibe is documented to replace a blocked tool result too, and
-            // Cursor can for an MCP tool. Neither is established here against a
-            // real payload yet, and until it is they keep the leaked wording:
-            // telling someone to rotate a secret that never left is a nuisance,
-            // telling them not to rotate one that did is a breach.
-            Agent::Copilot | Agent::Cursor | Agent::Kiro | Agent::Vibe | Agent::VsCode => false,
+            // `decision: "deny"` replaces `tool_output_text`, the field the
+            // model reads, so like Codex the reason we send is all it gets and
+            // the tool matters no more than it does there. Vibe also keeps the
+            // raw output in its own session log, out of a hook's reach.
+            Agent::Codex | Agent::Vibe => true,
+            // Cursor can replace an MCP tool's output only, and the rest cannot
+            // at all. Until each is established against a real payload they
+            // keep the leaked wording: telling someone to rotate a secret that
+            // never left is a nuisance, telling them not to rotate one that did
+            // is a breach.
+            Agent::Copilot | Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
         }
 }
 
@@ -688,22 +692,17 @@ mod tests {
                 );
             }
         }
-        // Codex replaces the tool result whatever the tool, so it needs no
-        // shape of its own and every tool redacts.
-        for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Mcp), None] {
-            assert!(can_redact_tool_output(&payload_with_tool(
-                Agent::Codex,
-                EventType::PostToolUse,
-                tool
-            )));
+        // Codex and Vibe replace the tool result whatever the tool, so neither
+        // needs a shape of its own and every tool redacts.
+        for agent in [Agent::Codex, Agent::Vibe] {
+            for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Mcp), None] {
+                assert!(
+                    can_redact_tool_output(&payload_with_tool(agent, EventType::PostToolUse, tool)),
+                    "{agent:?}/{tool:?}"
+                );
+            }
         }
-        for agent in [
-            Agent::Copilot,
-            Agent::Cursor,
-            Agent::Kiro,
-            Agent::Vibe,
-            Agent::VsCode,
-        ] {
+        for agent in [Agent::Copilot, Agent::Cursor, Agent::Kiro, Agent::VsCode] {
             assert!(
                 !can_redact_tool_output(&payload(agent, EventType::PostToolUse)),
                 "{agent:?} has no verified way to replace an output"
