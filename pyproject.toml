@@ -63,7 +63,7 @@ dependencies = [
     # AttributeError was swallowed and the ACL silently never applied.
     "keyring>=25.0.0,<26",
     "tomli>=2.4.0; python_version < \"3.11\"",
-    "tomlkit>=0.13.3,<0.14",
+    "tomlkit>=0.13.3,<0.16",
     "filelock>=3.19.1",
     "unearth>=0.18.2",
 ]
