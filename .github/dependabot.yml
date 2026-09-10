@@ -1,6 +1,54 @@
 version: 2
+
+# Every ecosystem below shares the same cooldown: a release must have been
+# public for 3 days before Dependabot will open a PR for it. This is supply
+# chain hygiene, not conservatism about versions -- a compromised release is
+# usually yanked within hours of discovery, so waiting out that window keeps
+# the malicious-then-deleted versions from ever reaching a branch here.
 updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
+    cooldown:
+      default-days: 3
+
+  # The root Dockerfile's base image. Scoped to '/' so the functional-test
+  # Dockerfiles under tests/ stay out of scope: their FROM is a build arg
+  # (TEST_DOCKER_IMAGE), not an image reference Dependabot could pin.
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+
+  # Python runtime + dev dependencies (pyproject.toml / uv.lock).
+  - package-ecosystem: 'uv'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+
+  # The Rust workspace backing the native pre-commit hook.
+  - package-ecosystem: 'cargo'
+    directory: '/rust'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+
+  # Lint/format hook revs in .pre-commit-config.yaml, which were updated by
+  # hand until now.
+  - package-ecosystem: 'pre-commit'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+    ignore:
+      # This repo's own hook: `rev` there tracks ggshield's __version__ in the
+      # working tree, so a bump belongs to the release, not to Dependabot --
+      # otherwise the self-reference points at a version this tree isn't yet.
+      - dependency-name: 'https://github.com/gitguardian/ggshield'

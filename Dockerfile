@@ -1,4 +1,6 @@
-FROM python:3.10-slim AS build
+# Pinned to an exact patch release, not `3.10-slim`, so a rebuild resolves to
+# the same interpreter every time. Bumped by Dependabot (docker ecosystem).
+FROM python:3.10.21-slim AS build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
