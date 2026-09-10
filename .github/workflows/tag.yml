@@ -5,8 +5,12 @@ on:
     tags:
       - 'v*'
 
+permissions: {}
+
 jobs:
   build_release_assets:
+    permissions:
+      contents: read
     uses: ./.github/workflows/build_release_assets.yml
     secrets: inherit
     with:
@@ -28,6 +32,8 @@ jobs:
     # Gated: publishing waits for a second person to approve the deployment.
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python
@@ -143,6 +149,9 @@ jobs:
     runs-on: ubuntu-22.04
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Docker meta
         id: meta
@@ -188,6 +197,8 @@ jobs:
     runs-on: ubuntu-22.04
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -214,6 +225,8 @@ jobs:
     runs-on: windows-latest
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
