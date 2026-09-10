@@ -117,12 +117,17 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // the tool matters no more than it does there. Vibe also keeps the
             // raw output in its own session log, out of a hook's reach.
             Agent::Codex | Agent::Vibe => true,
-            // Cursor can replace an MCP tool's output only, and the rest cannot
-            // at all. Until each is established against a real payload they
-            // keep the leaked wording: telling someone to rotate a secret that
-            // never left is a nuisance, telling them not to rotate one that did
-            // is a breach.
-            Agent::Copilot | Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
+            // Cursor reads a replacement for an MCP tool's output and for
+            // nothing else: of its two postToolUse call sites, only the MCP one
+            // looks at the hook's answer, and the other discards it. So a shell
+            // command's output and a file's content still reach the model there
+            // and keep the leaked wording, in the same session as this one.
+            Agent::Cursor => payload.tool == Some(Tool::Mcp),
+            // Copilot CLI's command hooks and VS Code's have no replacement
+            // field at all: `modifiedResult` belongs to Copilot's separate SDK
+            // agent surface, and VS Code's contract stops at `decision: block`.
+            // Kiro is not established either way yet.
+            Agent::Copilot | Agent::Kiro | Agent::VsCode => false,
         }
 }
 
@@ -290,7 +295,18 @@ pub fn emission(result: &HookResult) -> Emission {
                     ]),
                     0,
                 ),
-                EventType::PostToolUse => Emission::Stdout(Value::Object(Map::new()), 0),
+                // An MCP response can be replaced; anything else Cursor runs
+                // cannot, and the empty object is all it will read.
+                EventType::PostToolUse => Emission::Stdout(
+                    if result.block && result.payload.tool == Some(Tool::Mcp) {
+                        // A bare string is one of the two shapes Cursor accepts
+                        // here, and the one that needs no content-block wrapper.
+                        obj(vec![("updated_mcp_tool_output", message.into())])
+                    } else {
+                        Value::Object(Map::new())
+                    },
+                    0,
+                ),
                 EventType::Other => {
                     Emission::Stdout(Value::Object(Map::new()), if result.block { 2 } else { 0 })
                 }
@@ -692,12 +708,50 @@ mod tests {
                 );
             }
         }
-        for agent in [Agent::Copilot, Agent::Cursor, Agent::Kiro, Agent::VsCode] {
+        // Cursor is the split case: MCP yes, everything else no.
+        assert!(can_redact_tool_output(&payload_with_tool(
+            Agent::Cursor,
+            EventType::PostToolUse,
+            Some(Tool::Mcp)
+        )));
+        for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Other), None] {
+            assert!(
+                !can_redact_tool_output(&payload_with_tool(
+                    Agent::Cursor,
+                    EventType::PostToolUse,
+                    tool
+                )),
+                "cursor cannot replace {tool:?} output"
+            );
+        }
+        for agent in [Agent::Copilot, Agent::Kiro, Agent::VsCode] {
             assert!(
                 !can_redact_tool_output(&payload(agent, EventType::PostToolUse)),
                 "{agent:?} has no verified way to replace an output"
             );
         }
+    }
+
+    /// GIVEN a secret in an MCP response and in a shell output on Cursor
+    /// WHEN each block is emitted
+    /// THEN only the MCP one carries a replacement; the shell one is the bare
+    /// object Cursor reads nothing from.
+    #[test]
+    fn cursor_replaces_an_mcp_output_and_nothing_else() {
+        assert_eq!(
+            blocked_tool(Agent::Cursor, EventType::PostToolUse, Some(Tool::Mcp)).as_deref(),
+            Some(r#"{"updated_mcp_tool_output":"nope"}"#)
+        );
+        for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Other), None] {
+            assert_eq!(
+                blocked_tool(Agent::Cursor, EventType::PostToolUse, tool).as_deref(),
+                Some("{}"),
+                "{tool:?}"
+            );
+        }
+        // Allowing an MCP call sends no replacement either.
+        let p = payload_with_tool(Agent::Cursor, EventType::PostToolUse, Some(Tool::Mcp));
+        assert_eq!(emitted(&HookResult::allow(&p)).as_deref(), Some("{}"));
     }
 
     /// `(stderr text, exit code)`, or `None` when the adapter emits nothing.

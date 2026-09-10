@@ -474,7 +474,7 @@ mod tests {
         );
         let leaked = from_secrets(
             &secrets,
-            &payload_for(Agent::Cursor, EventType::PostToolUse, Some(Tool::Mcp), "id"),
+            &payload_for(Agent::VsCode, EventType::PostToolUse, Some(Tool::Mcp), "id"),
         );
         assert!(withheld.contains("withheld from the agent"), "{withheld}");
         assert!(!withheld.contains("compromised"), "{withheld}");
