@@ -17,6 +17,12 @@ on:
       - 'doc/**'
       - 'README.md'
 
+# Never cancel on main: push_docker_images-unstable gates on that run, so
+# cancelling it would skip the unstable image for that commit.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.9'

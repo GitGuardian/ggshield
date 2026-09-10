@@ -10,6 +10,10 @@ on:
         description: 'Python version to use (use https://github.com/actions/setup-python#supported-version-syntax)'
         default: '3.10'
 
+concurrency:
+  group: perfbench-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.10'
