@@ -210,8 +210,7 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
         // only for the invocation that scanned: one event, one banner. An agent
         // that lets us replace the output leaked nothing, so a banner there
         // would report a non-event.
-        if payload.event_type == EventType::PostToolUse
-            && !output::can_redact_tool_output(payload)
+        if payload.event_type == EventType::PostToolUse && !output::can_redact_tool_output(payload)
         {
             notify(&result);
         }
