@@ -28,8 +28,8 @@ pub enum Tool {
     Other,
 }
 
-/// The assistants ggshield supports, in the registry order of `AGENTS`
-/// (agents/__init__.py). Detection takes the FIRST match, so the order matters.
+/// The assistants ggshield supports. Detection takes the FIRST match in
+/// `AGENTS`, so that array's order matters; this enum's does not.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Agent {
     Vibe,
@@ -43,15 +43,16 @@ pub enum Agent {
 
 pub const AGENTS: [Agent; 7] = [
     Agent::Vibe,
-    Agent::Claude,
+    Agent::Cursor,
     Agent::Codex,
     Agent::Copilot,
-    Agent::Cursor,
     Agent::VsCode,
-    // Last: Kiro keys on event names other agents share (`PreToolUse` and
-    // friends), so it is the broadest matcher of the seven and every exact one
-    // gets first refusal.
+    // Kiro keys on event names other agents share (`PreToolUse` and friends),
+    // so every agent carrying a marker of its own gets first refusal.
     Agent::Kiro,
+    // Last: Claude Code has no marker of its own, so it answers for whatever
+    // the six above refuse. See its arm of `is_caller`.
+    Agent::Claude,
 ];
 
 impl Agent {
@@ -91,14 +92,19 @@ impl Agent {
             .and_then(Value::as_str)
             .unwrap_or_default();
         match self {
-            // Vibe's snake_case event names are exact, which is why it is
-            // registered first: a Vibe transcript path under /home/claude would
-            // otherwise be claimed by Claude's "claude" substring heuristic below.
             Agent::Vibe => matches!(
                 data.get("hook_event_name").and_then(Value::as_str),
                 Some("pre_tool" | "post_tool" | "post_agent")
             ),
-            Agent::Claude => data.get("session_id").is_some() && transcript.contains("claude"),
+            // Claude Code sends nothing the others do not, and its transcripts
+            // live under `$CLAUDE_CONFIG_DIR/projects/`, a directory any
+            // devcontainer or multi-account setup renames. So it is the residual
+            // matcher, registered last: a transcript path beside a `session_id`,
+            // wherever that path leads. Keying on the path's shape instead would
+            // hand a relocated session to no agent at all, and hand a payload
+            // from an agent that mangles the user's own project path into its
+            // own to whichever fragment matched first.
+            Agent::Claude => data.get("session_id").is_some() && !transcript.is_empty(),
             Agent::Codex => {
                 data.get("turn_id").is_some() || transcript.to_lowercase().contains(".codex")
             }
@@ -754,10 +760,11 @@ mod tests {
         base
     }
 
-    /// GIVEN a Vibe payload whose transcript path also contains "claude"
+    /// GIVEN a Vibe payload, which carries a `session_id` and a transcript path
+    /// like Claude's
     /// WHEN the agent is detected
-    /// THEN it is Vibe: its snake_case event names are exact, so it is registered
-    /// ahead of Claude's transcript-path substring heuristic.
+    /// THEN it is Vibe: its snake_case event names are exact, and Claude answers
+    /// only for what every agent with a marker of its own has refused.
     #[test]
     fn vibe_wins_over_claude_when_the_path_contains_claude() {
         let data = json!({
@@ -912,15 +919,69 @@ mod tests {
         assert_eq!(Agent::detect(&missing), None);
     }
 
-    /// GIVEN a payload matching two adapters
+    /// GIVEN a payload carrying both Codex's `turn_id` and a Claude transcript
+    /// path
     /// WHEN the agent is detected
-    /// THEN the earlier one in registry order wins.
+    /// THEN Codex wins: it names itself with a key of its own, and Claude, which
+    /// answers for whatever the others refuse, is tried after all of them.
     #[test]
     fn detection_follows_registry_order() {
-        // Claude before Codex: a .codex transcript path with a claude segment.
         let both = json!({"session_id": "s", "turn_id": "t",
-                          "transcript_path": "/home/u/.claude/p/x.jsonl"});
-        assert_eq!(Agent::detect(&both), Some(Agent::Claude));
+                          "transcript_path": "/home/u/.claude/projects/p/x.jsonl"});
+        assert_eq!(Agent::detect(&both), Some(Agent::Codex));
+        assert_eq!(*AGENTS.last().expect("non-empty"), Agent::Claude);
+    }
+
+    /// GIVEN a Cursor payload whose transcript path embeds a user project named
+    /// after Claude, the shape Cursor mangles into its own transcript path
+    /// WHEN the agent is detected
+    /// THEN it stays Cursor whatever the user called their project: a wrong
+    /// agent means a verdict in a schema the caller ignores, so a `preToolUse`
+    /// deny would not block the tool call.
+    ///
+    /// Cursor's `cursor_version` is what decides this, and Claude's residual
+    /// matcher would take these payloads, so registry order is what holds the
+    /// guarantee up: keep Claude last.
+    #[test]
+    fn a_user_project_named_after_claude_stays_with_its_own_agent() {
+        for project in ["myapp", "claude-tools", "claude-sdk/thing", "Claude-Demo"] {
+            let data = json!({
+                "cursor_version": "3.19.19",
+                "session_id": "75fed8a8",
+                "hook_event_name": "preToolUse",
+                "transcript_path":
+                    format!("/home/u/.cursor/projects/{project}/agent-transcripts/t.jsonl"),
+            });
+            assert_eq!(Agent::detect(&data), Some(Agent::Cursor), "{project}");
+        }
+    }
+
+    /// GIVEN Claude Code transcripts under the default config dir and under two
+    /// relocations of it, which `CLAUDE_CONFIG_DIR` does for devcontainer and
+    /// multi-account setups
+    /// WHEN the agent is detected
+    /// THEN every one of them is Claude. The config dir is named by that
+    /// variable, so `.claude` is not in the path to key on: anchoring detection
+    /// there leaves a relocated session attributed to no agent, i.e. unscanned.
+    #[test]
+    fn claude_is_detected_whatever_its_config_dir_is_called() {
+        for transcript in [
+            "/Users/u/.claude/projects/slug/s.jsonl",
+            "/Users/u/.config/claude/projects/slug/s.jsonl",
+            "/opt/cc/projects/slug/s.jsonl",
+            // A subagent's transcript, and the Windows spelling of the default.
+            "/Users/u/.claude/projects/slug/s/subagents/agent-1.jsonl",
+            r"C:\Users\u\.claude\projects\slug\s.jsonl",
+        ] {
+            let data = json!({"session_id": "s", "transcript_path": transcript});
+            assert_eq!(Agent::detect(&data), Some(Agent::Claude), "{transcript}");
+        }
+        // A `session_id` alone is every agent's, so it identifies none of them.
+        assert_eq!(Agent::detect(&json!({"session_id": "s"})), None);
+        assert_eq!(
+            Agent::detect(&json!({"session_id": "s", "transcript_path": ""})),
+            None
+        );
     }
 
     /// GIVEN a payload whose fields match no agent's signature
