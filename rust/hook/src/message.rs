@@ -17,6 +17,11 @@ const PRE_OTHER_TEMPLATE: &str = include_str!("templates/pre_other.in");
 const POST_BASH_TEMPLATE: &str = include_str!("templates/post_bash.in");
 const POST_READ_TEMPLATE: &str = include_str!("templates/post_read.in");
 const POST_OTHER_TEMPLATE: &str = include_str!("templates/post_other.in");
+// Used when the agent lets us replace the output, so the secret never reached
+// the model and the leaked wording would send the user to rotate for nothing.
+const POST_BASH_REDACTED_TEMPLATE: &str = include_str!("templates/post_bash_redacted.in");
+const POST_READ_REDACTED_TEMPLATE: &str = include_str!("templates/post_read_redacted.in");
+const POST_OTHER_REDACTED_TEMPLATE: &str = include_str!("templates/post_other_redacted.in");
 const SECRET_LINE_TEMPLATE: &str = include_str!("templates/secret_line.in");
 const INCIDENT_URL_LINE_TEMPLATE: &str = include_str!("templates/incident_url_line.in");
 const REMEDIATION_STEPS_TEMPLATE: &str = include_str!("templates/remediation_steps.in");
@@ -133,12 +138,19 @@ fn secret_lines(secrets: &[Secret]) -> String {
 /// Called only with at least one secret, which is what lets the templates
 /// hard-break into the secret list.
 pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
+    // Whether the output was withheld from the model decides the whole second
+    // half of the message: what happened, and whether there is anything to
+    // revoke. See `output::can_redact_tool_output`.
+    let withheld = crate::output::can_redact_tool_output(payload);
     let template = match (payload.event_type, payload.tool) {
         // A UserPrompt event also carries a Tool::Read payload per file mentioned
         // in the prompt: the secret is in that file, not in the prompt, so the
         // prompt wording would name the wrong content.
         (EventType::UserPrompt, Some(Tool::Read)) => PRE_READ_TEMPLATE,
         (EventType::UserPrompt, _) => USER_PROMPT_TEMPLATE,
+        (EventType::PostToolUse, Some(Tool::Bash)) if withheld => POST_BASH_REDACTED_TEMPLATE,
+        (EventType::PostToolUse, Some(Tool::Read)) if withheld => POST_READ_REDACTED_TEMPLATE,
+        (EventType::PostToolUse, _) if withheld => POST_OTHER_REDACTED_TEMPLATE,
         (EventType::PostToolUse, Some(Tool::Bash)) => POST_BASH_TEMPLATE,
         (EventType::PostToolUse, Some(Tool::Read)) => POST_READ_TEMPLATE,
         (EventType::PostToolUse, _) => POST_OTHER_TEMPLATE,
@@ -246,12 +258,23 @@ mod tests {
     }
 
     fn payload(event_type: EventType, tool: Option<Tool>, identifier: &str) -> Payload {
+        payload_for(crate::payload::Agent::Claude, event_type, tool, identifier)
+    }
+
+    /// The agent decides whether a PostToolUse output was withheld from the
+    /// model, and so which half of the message the templates render.
+    fn payload_for(
+        agent: crate::payload::Agent,
+        event_type: EventType,
+        tool: Option<Tool>,
+        identifier: &str,
+    ) -> Payload {
         Payload {
             event_type,
             tool,
             content: String::new(),
             identifier: identifier.into(),
-            agent: crate::payload::Agent::Claude,
+            agent,
             cwd: String::new(),
             raw: Value::Object(Default::default()),
             read_range: None,
@@ -352,7 +375,14 @@ mod tests {
             secret("AWS Keys", "valid", &["AKIAsomethingXYZ"]),
             secret("Generic Password", "unknown", &["hunter2hunter2"]),
         ];
-        let p = payload(EventType::PostToolUse, Some(Tool::Read), "/tmp/creds.env");
+        // VS Code cannot replace a tool output, so the secret really did reach
+        // the model and this is the wording that must survive.
+        let p = payload_for(
+            crate::payload::Agent::VsCode,
+            EventType::PostToolUse,
+            Some(Tool::Read),
+            "/tmp/creds.env",
+        );
         let msg = from_secrets(&secrets, &p);
         assert!(
             msg.contains("Detected 2 secrets in /tmp/creds.env"),
@@ -372,7 +402,12 @@ mod tests {
         let mut s = secret("AWS Keys", "valid", &["AKIAsomethingXYZ"]);
         s.known_secret = true;
         s.incident_url = Some("https://dashboard.gitguardian.com/incidents/9".into());
-        let p = payload(EventType::PostToolUse, Some(Tool::Bash), "id");
+        let p = payload_for(
+            crate::payload::Agent::VsCode,
+            EventType::PostToolUse,
+            Some(Tool::Bash),
+            "id",
+        );
         let msg = from_secrets(&[s], &p);
         assert!(msg.contains("    Incident URL: https://dashboard.gitguardian.com/incidents/9"));
         assert!(
@@ -401,6 +436,57 @@ mod tests {
         assert!(msg.contains("in /tmp/config.py"));
         assert!(!msg.contains("in your prompt"));
         assert!(!msg.contains("remove the secret from your prompt"));
+    }
+
+    /// GIVEN a secret in an output the agent let us replace
+    /// WHEN the block message is built
+    /// THEN it says the output was withheld and never tells the user to revoke.
+    #[test]
+    fn a_withheld_output_never_advises_revoking() {
+        for (tool, expected) in [
+            (Tool::Bash, "The command ran, but its output was withheld"),
+            (Tool::Read, "The file content was withheld"),
+        ] {
+            let p = payload(EventType::PostToolUse, Some(tool), "/tmp/creds.env");
+            let msg = from_secrets(&[secret("AWS Keys", "valid", &["AKIAsomething"])], &p);
+            assert!(msg.contains(expected), "{tool:?}: {msg}");
+            assert!(msg.contains("not sent to the model"), "{tool:?}: {msg}");
+            assert!(!msg.contains("Consider it compromised"), "{tool:?}: {msg}");
+            assert!(!msg.contains("revoke"), "{tool:?}: {msg}");
+            // The false-positive escape hatch stays: a withheld output is still
+            // a blocked one, and the user may disagree with the finding.
+            assert!(msg.contains("ggshield secret ignore --last-found"), "{msg}");
+        }
+    }
+
+    /// GIVEN the same secret in the same tool output on two agents
+    /// WHEN one of them can replace the output and the other cannot
+    /// THEN only the agent that cannot is told the secret was compromised.
+    #[test]
+    fn the_wording_follows_the_agent_not_the_event() {
+        use crate::payload::Agent;
+        let secrets = [secret("AWS Keys", "valid", &["AKIAsomething"])];
+        let withheld = from_secrets(
+            &secrets,
+            &payload_for(
+                Agent::Claude,
+                EventType::PostToolUse,
+                Some(Tool::Bash),
+                "id",
+            ),
+        );
+        let leaked = from_secrets(
+            &secrets,
+            &payload_for(
+                Agent::VsCode,
+                EventType::PostToolUse,
+                Some(Tool::Bash),
+                "id",
+            ),
+        );
+        assert!(withheld.contains("withheld from the agent"), "{withheld}");
+        assert!(!withheld.contains("compromised"), "{withheld}");
+        assert!(leaked.contains("Consider it compromised."), "{leaked}");
     }
 
     /// GIVEN every (event, tool) pair the dispatch table has an arm for

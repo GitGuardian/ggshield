@@ -1,0 +1,12 @@
+**🚨 Detected {count} {secrets} in {identifier} 🚨**  
+{secret_lines}
+
+The file content was withheld from the agent, so the {secrets} {were} not sent to the model.
+
+> How to remediate
+
+  Since the {secrets} {were} caught before the content reached the agent:  
+  1. avoid sharing this file with the agent.
+  2. if the agent needs other values from this file, share only the non-sensitive parts.
+
+{false_positive_instructions}
