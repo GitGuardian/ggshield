@@ -2106,9 +2106,90 @@ def main():
             n = int(sys.argv[sys.argv.index("--bench") + 1])
             bench(tmp, n)
         # Expected, tracked divergences: the gate stays green for these but
-        # still reddens on anything new. Keep this list empty in the steady
-        # state; every entry needs a reason and a removal condition.
+        # still reddens on anything new. Every entry needs a reason and a
+        # removal condition.
+        #
+        # Two kinds live here. The first two are Python bugs the Rust hook does
+        # not reproduce, and they go away when Python is fixed. The rest are
+        # deliberate Rust-side improvements that are not being back-ported,
+        # because the Python ai-hook is being retired: Rust is the reference
+        # implementation now. They all go away with it. Anything new still has
+        # to be justified here, so the gate keeps catching accidental drift in
+        # the parsing, the request body and the other agents' contracts.
         known_divergences = {
+            "secret/claude/post_bash": (
+                "Rust returns `hookSpecificOutput.updatedToolOutput`, so the "
+                "command output holding the secret is replaced before Claude reads "
+                "it, and the message says the output was withheld instead of "
+                "telling the user to revoke. Python passes the output through with "
+                "a warning beside it. Remove with the Python ai-hook, which is "
+                "being retired; Rust is the reference implementation and this "
+                "change is not back-ported."
+            ),
+            "secret/claude/user_prompt": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "mention/relative": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "mention/absolute": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "mention/dot_segments": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "mention/parent_segment": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "batch/many_mentions": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "cache/a_blocking_verdict_is_never_cached": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
+            "unreadable/mention": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
+            ),
             "exclusion/vendor_ancestor": (
                 "the default wildcards are tested against the path relative to "
                 "the event cwd, not the absolute identifier. Python's hook "
