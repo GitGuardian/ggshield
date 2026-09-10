@@ -107,7 +107,7 @@ override-dependencies = [
     # pyinstaller declares an upper bound on the Python version it supports
     # (< 3.16 as of 6.21.0), which conflicts with our open-ended
     # `requires-python = ">=3.9"`. Force the version to sidestep the conflict.
-    "pyinstaller==6.21.0",
+    "pyinstaller==6.22.2",
 ]
 
 # Pin the default index to public PyPI so user-level uv config (e.g. an internal
@@ -200,4 +200,4 @@ dev = [
     # analyzed whatever the interpreter, so devs should install it unconditionally
     "tomli>=2.4.0",
 ]
-standalone = ["pyinstaller==6.21.0"]
+standalone = ["pyinstaller==6.22.2"]
