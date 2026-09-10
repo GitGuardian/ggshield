@@ -19,7 +19,7 @@ FROM ghcr.io/astral-sh/uv:0.10.8@sha256:88234bc9e09c2b2f6d176a3daf411419eb0370d4
 # to the same interpreter every time. Bumped by Dependabot (docker ecosystem).
 # `builder` and `build` stay on the same base image: see UV_PYTHON_DOWNLOADS
 # below.
-FROM python:3.10.21-slim@sha256:fd76ade0c607f27677bc04be3c60749f400eedc941d9e72967e19a4cedff80c2 AS builder
+FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS builder
 
 COPY --from=uv /uv /usr/local/bin/uv
 
@@ -45,7 +45,7 @@ COPY . .
 # /app, which does not exist in the runtime stage.
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.10.21-slim@sha256:fd76ade0c607f27677bc04be3c60749f400eedc941d9e72967e19a4cedff80c2 AS build
+FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
