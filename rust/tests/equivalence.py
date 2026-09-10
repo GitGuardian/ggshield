@@ -2117,6 +2117,20 @@ def main():
         # to be justified here, so the gate keeps catching accidental drift in
         # the parsing, the request body and the other agents' contracts.
         known_divergences = {
+            "secret/vibe/post_bash": (
+                "Vibe already replaced `tool_output_text` with the reason, so the "
+                "secret reached the model on neither side. Rust says the output "
+                "was withheld; Python still tells the user to revoke. Remove with "
+                "the Python ai-hook, which is being retired; Rust is the reference "
+                "implementation and this change is not back-ported."
+            ),
+            "secret/vibe/post_bash_failed": (
+                "Vibe already replaced `tool_output_text` with the reason, so the "
+                "secret reached the model on neither side. Rust says the output "
+                "was withheld; Python still tells the user to revoke. Remove with "
+                "the Python ai-hook, which is being retired; Rust is the reference "
+                "implementation and this change is not back-ported."
+            ),
             "secret/codex/post_bash": (
                 "Codex already replaces a blocked tool result, so the secret "
                 "never reached the model on either side. Rust says so; Python "
