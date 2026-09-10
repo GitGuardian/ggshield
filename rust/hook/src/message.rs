@@ -466,23 +466,15 @@ mod tests {
     fn the_wording_follows_the_agent_not_the_event() {
         use crate::payload::Agent;
         let secrets = [secret("AWS Keys", "valid", &["AKIAsomething"])];
+        // Codex on an MCP tool: a tool Claude could not redact, on an agent
+        // that replaces every tool result. The wording tracks the agent.
         let withheld = from_secrets(
             &secrets,
-            &payload_for(
-                Agent::Claude,
-                EventType::PostToolUse,
-                Some(Tool::Bash),
-                "id",
-            ),
+            &payload_for(Agent::Codex, EventType::PostToolUse, Some(Tool::Mcp), "id"),
         );
         let leaked = from_secrets(
             &secrets,
-            &payload_for(
-                Agent::VsCode,
-                EventType::PostToolUse,
-                Some(Tool::Bash),
-                "id",
-            ),
+            &payload_for(Agent::Cursor, EventType::PostToolUse, Some(Tool::Mcp), "id"),
         );
         assert!(withheld.contains("withheld from the agent"), "{withheld}");
         assert!(!withheld.contains("compromised"), "{withheld}");
