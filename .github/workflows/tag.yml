@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  UV_VERSION: 0.10.8
+
 jobs:
   build_release_assets:
     uses: ./.github/workflows/build_release_assets.yml
@@ -199,8 +202,18 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      # Pinned, and cooled with an explicit flag since `uv tool install` reads
+      # no `[tool.uv]`: this job holds CLOUDSMITH_API_KEY, and the bare `pip
+      # install` it replaces resolved 65 packages fresh from PyPI at each release.
       - name: Install Cloudsmith CLI
-        run: pip install cloudsmith-cli
+        run: |
+          uv tool install --exclude-newer '3 days' cloudsmith-cli==1.26.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Push to Cloudsmith
         run: |
