@@ -200,8 +200,10 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<i32, Error> {
         secrets.len(),
     );
     // `has_secret_already_leaked()`: on PostToolUse the secret is already in the
-    // agent's context, so tell the user out-of-band. Best effort.
-    if payload.event_type == EventType::PostToolUse {
+    // agent's context, so tell the user out-of-band. Best effort. Unless the
+    // agent let us replace the output, in which case nothing leaked and a
+    // "secrets detected" banner would be telling the user about a non-event.
+    if payload.event_type == EventType::PostToolUse && !output::can_redact_tool_output(payload) {
         notify(&result);
     }
     Ok(output::output_result(&result))
