@@ -45,11 +45,13 @@ pub const AGENTS: [Agent; 7] = [
     Agent::Vibe,
     Agent::Cursor,
     Agent::Codex,
-    Agent::Copilot,
     Agent::VsCode,
     // Kiro keys on event names other agents share (`PreToolUse` and friends),
     // so every agent carrying a marker of its own gets first refusal.
     Agent::Kiro,
+    // Copilot CLI sends no marker either, only the four fields below, so it is
+    // broader than Kiro and comes after it.
+    Agent::Copilot,
     // Last: Claude Code has no marker of its own, so it answers for whatever
     // the six above refuse. See its arm of `is_caller`.
     Agent::Claude,
@@ -108,23 +110,31 @@ impl Agent {
             Agent::Codex => {
                 data.get("turn_id").is_some() || transcript.to_lowercase().contains(".codex")
             }
-            // Copilot CLI emits only the default fields, which is itself the
-            // signature: an exact key-set match once the optional ones are gone.
+            // Copilot CLI sends no field of its own, so it is identified by the
+            // four every one of its hooks carries plus the absence of the keys
+            // that name another agent.
+            //
+            // The four are required as a subset, never as an exact key set: an
+            // exact set refuses the payload outright the day Copilot CLI adds a
+            // field, and a payload no agent claims exits 1, which every agent
+            // reads as a hook error and runs the tool call anyway. So the whole
+            // Copilot install disarms at once, silently.
             Agent::Copilot => {
                 const DEFAULT_FIELDS: [&str; 4] =
                     ["hook_event_name", "session_id", "timestamp", "cwd"];
-                const OPTIONAL_FIELDS: [&str; 4] =
-                    ["prompt", "tool_name", "tool_input", "tool_result"];
-                let Some(map) = data.as_object() else {
-                    return false;
-                };
-                let remaining: Vec<&str> = map
-                    .keys()
-                    .map(String::as_str)
-                    .filter(|k| !OPTIONAL_FIELDS.contains(k))
-                    .collect();
-                remaining.len() == DEFAULT_FIELDS.len()
-                    && DEFAULT_FIELDS.iter().all(|f| remaining.contains(f))
+                // What the others send and Copilot CLI never does. Kiro and
+                // Vibe carry no such key, and both are registered earlier;
+                // `transcript_path` is the one that holds against Claude Code,
+                // which is tried after Copilot and also matches on a
+                // `session_id`. `project_path` is Junie's.
+                const FOREIGN_KEYS: [&str; 4] = [
+                    "transcript_path",
+                    "cursor_version",
+                    "turn_id",
+                    "project_path",
+                ];
+                DEFAULT_FIELDS.iter().all(|field| data.get(field).is_some())
+                    && FOREIGN_KEYS.iter().all(|key| data.get(key).is_none())
             }
             Agent::Cursor => data.get("cursor_version").is_some(),
             Agent::VsCode => transcript.to_lowercase().contains("github.copilot-chat"),
@@ -901,22 +911,88 @@ mod tests {
         assert_eq!(Agent::detect(&cursor), Some(Agent::Cursor));
     }
 
-    /// GIVEN a payload carrying exactly Copilot CLI's default fields
-    /// WHEN a key is added or removed
-    /// THEN it is no longer detected as Copilot: the signature is an exact key set.
+    /// GIVEN a Copilot CLI payload that gained a field we have never seen
+    /// WHEN the agent is detected
+    /// THEN it is still Copilot: the four default fields are required as a
+    /// subset, so an added field degrades to a match rather than to no agent
+    /// at all, which exits 1 and lets the tool call through unscanned.
+    ///
+    /// Do not restore the exact key set. It made every Copilot user's scanning
+    /// depend on Copilot CLI never adding a field to its hook payload, and the
+    /// day it did nothing would have errored visibly.
     #[test]
-    fn copilot_detection_is_an_exact_key_set() {
+    fn copilot_detection_survives_an_added_field() {
         let base = json!({"hook_event_name": "PreToolUse", "session_id": "s",
                           "timestamp": "t", "cwd": "/tmp"});
         assert_eq!(Agent::detect(&base), Some(Agent::Copilot));
 
-        let mut with_extra = base.clone();
-        with_extra["permission_mode"] = json!("default");
-        assert_eq!(Agent::detect(&with_extra), None);
+        for field in ["workspace", "permission_mode", "tool_call_id"] {
+            let mut with_extra = base.clone();
+            with_extra[field] = json!("whatever");
+            assert_eq!(Agent::detect(&with_extra), Some(Agent::Copilot), "{field}");
+        }
 
-        let mut missing = base.clone();
-        missing.as_object_mut().expect("object").shift_remove("cwd");
-        assert_eq!(Agent::detect(&missing), None);
+        // The four are still required: one missing is not a Copilot payload.
+        for field in ["hook_event_name", "session_id", "timestamp", "cwd"] {
+            let mut missing = base.clone();
+            missing
+                .as_object_mut()
+                .expect("object")
+                .shift_remove(field)
+                .expect("present");
+            assert_ne!(Agent::detect(&missing), Some(Agent::Copilot), "{field}");
+        }
+    }
+
+    /// GIVEN one payload per other supported agent, each with the four fields
+    /// Copilot's rule asks for added to it
+    /// WHEN the agent is detected
+    /// THEN each keeps its own agent: Copilot's rule is the second broadest of
+    /// the seven, so it must not answer for a payload another agent named.
+    #[test]
+    fn copilot_never_claims_another_agents_payload() {
+        let defaults = json!({"hook_event_name": "PreToolUse", "session_id": "s",
+                              "timestamp": "t", "cwd": "/tmp"});
+        let cases: [(&str, Value, Agent); 5] = [
+            ("vibe", json!({"hook_event_name": "pre_tool"}), Agent::Vibe),
+            ("cursor", json!({"cursor_version": "2.5.25"}), Agent::Cursor),
+            ("codex", json!({"turn_id": "t1"}), Agent::Codex),
+            (
+                "vscode",
+                json!({"transcript_path": "/x/GitHub.copilot-chat/s.json"}),
+                Agent::VsCode,
+            ),
+            (
+                "claude",
+                json!({"transcript_path": "/home/u/.claude/projects/p/x.jsonl"}),
+                Agent::Claude,
+            ),
+        ];
+        for (label, marker, expected) in cases {
+            let mut data = defaults.clone();
+            for (key, value) in marker.as_object().expect("object") {
+                data[key] = value.clone();
+            }
+            assert_eq!(Agent::detect(&data), Some(expected), "{label}");
+        }
+    }
+
+    /// GIVEN the Kiro payloads from both surfaces, which carry no `timestamp`
+    /// WHEN the agent is detected
+    /// THEN they stay with Kiro rather than falling to Copilot's rule, which is
+    /// registered after Kiro's and requires the `timestamp` Kiro never sends.
+    /// The two rules are mutually exclusive on that key alone, so a Kiro
+    /// payload that ever gains a `timestamp` becomes indistinguishable from a
+    /// Copilot one and detection cannot separate them.
+    #[test]
+    fn kiro_payloads_are_not_claimed_by_copilots_rule() {
+        let cli = json!({"hook_event_name": "preToolUse", "cwd": "/p",
+                         "tool_name": "fs_write", "tool_input": {"command": "create"}});
+        assert_eq!(Agent::detect(&cli), Some(Agent::Kiro));
+
+        let ide = json!({"session_id": "sess_1", "hook_event_name": "PreToolUse",
+                         "cwd": "/p", "tool_name": "str_replace", "tool_input": {}});
+        assert_eq!(Agent::detect(&ide), Some(Agent::Kiro));
     }
 
     /// GIVEN a payload carrying both Codex's `turn_id` and a Claude transcript
