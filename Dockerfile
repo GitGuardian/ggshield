@@ -12,14 +12,14 @@
 # Dependabot's docker ecosystem only parses `FROM` lines, so this is what lets
 # it keep the version below updated.
 # Pinned by digest as well as by tag, since a tag can be moved to a different commit.
-FROM ghcr.io/astral-sh/uv:0.10.8@sha256:88234bc9e09c2b2f6d176a3daf411419eb0370d450a08129257410de9cfafd2a AS uv
+FROM ghcr.io/astral-sh/uv:0.12.13@sha256:b485bd65cc2cf1c9a93b3554012c9c3778cf7b1b5fd3d3096ce9e1226c97e1e6 AS uv
 
 # Pinned by digest, not just by tag: a tag is a mutable pointer that can be
 # repushed to different content, so the digest is what makes a rebuild resolve
 # to the same interpreter every time. Bumped by Dependabot (docker ecosystem).
 # `builder` and `build` stay on the same base image: see UV_PYTHON_DOWNLOADS
 # below.
-FROM python:3.10.21-slim@sha256:fd76ade0c607f27677bc04be3c60749f400eedc941d9e72967e19a4cedff80c2 AS builder
+FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS builder
 
 COPY --from=uv /uv /usr/local/bin/uv
 
@@ -45,7 +45,7 @@ COPY . .
 # /app, which does not exist in the runtime stage.
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.10.21-slim@sha256:fd76ade0c607f27677bc04be3c60749f400eedc941d9e72967e19a4cedff80c2 AS build
+FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
