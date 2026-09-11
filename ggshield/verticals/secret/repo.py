@@ -221,19 +221,19 @@ def scan_commit_range(
                         commit_scanned_callback,
                     )
                 )
-                # Stop now if an exception has been raised by a future
-                for future in futures:
-                    exception = future.exception()
-                    if exception is not None:
-                        raise exception
 
-            for future in as_completed(futures):
-                scan_collection = future.result()
-                for scan in scan_collection.scans_with_results:
-                    if scan.results and scan.results.errors:
-                        for error in scan.results.errors:
-                            ui.display_error(error.description)
-                    scans.append(scan)
+            try:
+                for future in as_completed(futures):
+                    scan_collection = future.result()
+                    for scan in scan_collection.scans_with_results:
+                        if scan.results and scan.results.errors:
+                            for error in scan.results.errors:
+                                ui.display_error(error.description)
+                        scans.append(scan)
+            except Exception:
+                # Don't run the remaining batches if one already failed
+                executor.shutdown(cancel_futures=True)
+                raise
 
     return_code = output_handler.process_scan(
         SecretScanCollection(
