@@ -353,18 +353,18 @@ class TestUserConfig:
         THEN its timeout defaults to 120 seconds
         """
         config = UserConfig()
-        assert config.timeout == 120
+        assert config.api_timeout == 120
 
     def test_timeout_from_config_file(self, local_config_path):
         """
         GIVEN a config file setting a custom timeout
         WHEN loading the config
-        THEN UserConfig.timeout has the configured value
+        THEN UserConfig.api_timeout has the configured value
         """
-        write_yaml(local_config_path, {"version": 2, "timeout": 30})
+        write_yaml(local_config_path, {"version": 2, "api_timeout": 30})
 
         config, _ = UserConfig.load(local_config_path)
-        assert config.timeout == 30
+        assert config.api_timeout == 30
 
     def test_bad_local_config(self, local_config_path, global_config_path):
         """

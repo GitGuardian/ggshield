@@ -103,7 +103,7 @@ class UserConfig(FilteredConfig):
     max_commits_for_hook: int = 50
     # How long to wait for the GitGuardian API to answer, in seconds. Can be
     # overridden with the GITGUARDIAN_API_TIMEOUT environment variable.
-    timeout: int = DEFAULT_API_TIMEOUT
+    api_timeout: int = DEFAULT_API_TIMEOUT
     secret: SecretConfig = field(default_factory=SecretConfig)
     debug: bool = False
 

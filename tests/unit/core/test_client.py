@@ -426,7 +426,7 @@ def test_create_client_from_config_forwards_retry_profile():
     config.api_url = "https://api.example.com"
     config.user_config = Mock()
     config.user_config.insecure = False
-    config.user_config.timeout = 120
+    config.user_config.api_timeout = 120
 
     with patch("ggshield.core.client.create_client") as create_client_mock:
         create_client_from_config(config, retry_profile=RetryProfile.PRE_RECEIVE)
@@ -490,7 +490,7 @@ def test_create_client_from_config_uses_config_file_timeout(
     """
     with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "test-api-key"}, clear=True):
         config = Config()
-        config.user_config.timeout = 30
+        config.user_config.api_timeout = 30
         client = create_client_from_config(config)
 
     assert client.timeout == 30
@@ -510,7 +510,7 @@ def test_create_client_from_config_env_var_overrides_config_file(
         clear=True,
     ):
         config = Config()
-        config.user_config.timeout = 30
+        config.user_config.api_timeout = 30
         client = create_client_from_config(config)
 
     assert client.timeout == 45
@@ -531,7 +531,7 @@ def test_api_timeout_from_config_for_direct_callers(isolated_fs: FakeFilesystem)
         clear=True,
     ):
         config = Config()
-        config.user_config.timeout = 300
+        config.user_config.api_timeout = 300
         timeout = api_timeout_from_config(config)
         client = create_client("key", "https://api.example.com", timeout=timeout)
 
@@ -578,7 +578,7 @@ def test_create_client_from_config_invalid_config_file_timeout(
     """
     with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "test-api-key"}, clear=True):
         config = Config()
-        config.user_config.timeout = value
+        config.user_config.api_timeout = value
         with pytest.raises(click.UsageError, match="timeout"):
             create_client_from_config(config)
 
