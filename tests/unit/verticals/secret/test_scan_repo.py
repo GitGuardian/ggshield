@@ -313,3 +313,47 @@ def test_scan_commit_range_stops_on_error(
         )
 
     assert len(started) < nb_commits
+
+
+@patch("ggshield.verticals.secret.repo.MAX_WORKERS", 2)
+@patch("ggshield.verticals.secret.repo.get_required_token_scopes_from_config")
+@patch("ggshield.verticals.secret.repo.check_client_api_key")
+@patch("ggshield.verticals.secret.repo.Commit.from_sha")
+@patch("ggshield.verticals.secret.repo.scan_commits_content")
+def test_scan_commit_range_scans_batches_in_parallel(
+    scan_commits_content_mock, from_sha_mock, _check_api_key, _scopes
+):
+    """
+    GIVEN 2 batches and 2 workers
+    WHEN scanning
+    THEN the second batch starts before the first one ends
+    """
+    events = []
+
+    def scan(commits, *args):
+        events.append("start")
+        time.sleep(0.1)
+        events.append("end")
+        return SecretScanCollection(id="batch", type="commit-range", scans=[])
+
+    scan_commits_content_mock.side_effect = scan
+    from_sha_mock.side_effect = lambda sha, exclusion_regexes: Commit(
+        sha=sha,
+        patch_parser=MagicMock(),
+        info=CommitInformation(author="", email="", date="", paths=[Path("f")]),
+    )
+    client = MagicMock()
+    client.secret_scan_preferences.maximum_documents_per_scan = 1
+
+    scan_commit_range(
+        client=client,
+        cache=MagicMock(),
+        commit_list=["sha1", "sha2"],
+        output_handler=MagicMock(),
+        exclusion_regexes=set(),
+        scan_context=ScanContext(scan_mode=ScanMode.PRE_RECEIVE, command_path="x"),
+        secret_config=SecretConfig(),
+    )
+
+    # Sequential scanning would give ["start", "end", "start", "end"]
+    assert events[:2] == ["start", "start"]
