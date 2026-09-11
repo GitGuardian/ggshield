@@ -98,6 +98,13 @@ def _resolve_timeout(config_timeout: int) -> int:
     return timeout
 
 
+def api_timeout_from_config(config: Config) -> int:
+    """Timeout to pass to create_client() when not going through
+    create_client_from_config(), so the config key and the environment
+    variable are honoured there too."""
+    return _resolve_timeout(config.user_config.timeout)
+
+
 def create_client_from_config(
     config: Config,
     *,
@@ -136,7 +143,7 @@ https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
         allow_self_signed=config.user_config.insecure,
         callbacks=callbacks,
         retry_profile=retry_profile,
-        timeout=_resolve_timeout(config.user_config.timeout),
+        timeout=api_timeout_from_config(config),
     )
 
 

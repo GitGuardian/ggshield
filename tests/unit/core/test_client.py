@@ -17,6 +17,7 @@ from pygitguardian.models import (
 
 from ggshield.core.client import (
     RetryProfile,
+    api_timeout_from_config,
     check_client_api_key,
     create_client,
     create_client_from_config,
@@ -513,6 +514,29 @@ def test_create_client_from_config_env_var_overrides_config_file(
         client = create_client_from_config(config)
 
     assert client.timeout == 45
+
+
+def test_api_timeout_from_config_for_direct_callers(isolated_fs: FakeFilesystem):
+    """
+    GIVEN a config file timeout and a different GITGUARDIAN_API_TIMEOUT value
+    WHEN a caller that builds a client itself resolves the timeout
+    THEN it gets the same value create_client_from_config() would use
+
+    Commands like auth login/logout, the OAuth flow and HMSL call
+    create_client() directly, so they need this to honour the settings.
+    """
+    with patch.dict(
+        os.environ,
+        {"GITGUARDIAN_API_KEY": "test-api-key", "GITGUARDIAN_API_TIMEOUT": "240"},
+        clear=True,
+    ):
+        config = Config()
+        config.user_config.timeout = 300
+        timeout = api_timeout_from_config(config)
+        client = create_client("key", "https://api.example.com", timeout=timeout)
+
+    assert timeout == 240
+    assert client.timeout == 240
 
 
 @pytest.mark.parametrize("value", ["not-a-number", "0", "-5"])
