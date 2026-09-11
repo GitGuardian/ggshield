@@ -13,6 +13,7 @@
 //! rather than guessing — see `config::dotenv_overrides()` and `user_config`.
 
 mod api;
+mod debounce;
 mod exclusion;
 mod message;
 mod notify;
@@ -28,7 +29,7 @@ use std::io::Read;
 use std::path::Path;
 
 use error::Error;
-use output::HookResult;
+use output::{Emission, HookResult};
 use payload::{EventType, Payload, Tool};
 
 /// `MAX_READ_SIZE` in ai_hook.py.
@@ -154,7 +155,8 @@ fn run(stdin_content: &str) -> Result<i32, Error> {
     let config = config::resolve()?;
     warn_if_insecure(&config);
     let exit_zero = config.user.exit_zero;
-    Ok(apply_exit_zero(scan(&config, stdin_content)?, exit_zero))
+    let emission = scan(&config, stdin_content)?;
+    Ok(apply_exit_zero(output::emit(emission), exit_zero))
 }
 
 /// The two warnings `create_session()` prints when TLS verification is disabled.
@@ -181,30 +183,42 @@ fn apply_exit_zero(code: i32, exit_zero: bool) -> i32 {
     if exit_zero && code == 1 { 0 } else { code }
 }
 
-fn scan(config: &config::Config, stdin_content: &str) -> Result<i32, Error> {
-    if !stdin_content.is_empty() && has_already_been_seen(stdin_content) {
-        return Ok(0);
+/// Decide what this event is answered with. The caller emits it, once.
+fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error> {
+    // An empty stdin has no verdict to share: it is rejected below.
+    let debounce_hash = (!stdin_content.is_empty()).then(|| debounce::hash(stdin_content));
+    if let Some(hash) = &debounce_hash
+        && let Some(emission) = debounce::replay(hash)
+    {
+        return Ok(emission);
     }
 
     let mut payloads = payload::parse(stdin_content)?;
     let (index, secrets) = scan_payloads(config, &mut payloads)?;
     let payload = &payloads[index];
 
-    if secrets.is_empty() {
-        return Ok(output::output_result(&HookResult::allow(payload)));
-    }
+    let result = if secrets.is_empty() {
+        HookResult::allow(payload)
+    } else {
+        let result = HookResult::block(
+            payload,
+            message::from_secrets(&secrets, payload),
+            secrets.len(),
+        );
+        // `has_secret_already_leaked()`: on PostToolUse the secret is already in
+        // the agent's context, so tell the user out-of-band. Best effort, and
+        // only for the invocation that scanned: one event, one banner.
+        if payload.event_type == EventType::PostToolUse {
+            notify(&result);
+        }
+        result
+    };
 
-    let result = HookResult::block(
-        payload,
-        message::from_secrets(&secrets, payload),
-        secrets.len(),
-    );
-    // `has_secret_already_leaked()`: on PostToolUse the secret is already in the
-    // agent's context, so tell the user out-of-band. Best effort.
-    if payload.event_type == EventType::PostToolUse {
-        notify(&result);
+    let emission = output::emission(&result);
+    if let Some(hash) = &debounce_hash {
+        debounce::store(hash, &emission);
     }
-    Ok(output::output_result(&result))
+    Ok(emission)
 }
 
 /// One payload still waiting for an API answer, and its cache key.
@@ -277,8 +291,8 @@ fn scan_payloads(
             None
         };
         // A Read resolves to the same document at PreToolUse and PostToolUse, so
-        // the second event is answered locally. `has_already_been_seen()` cannot:
-        // it debounces on raw stdin, which differs between the two.
+        // the second event is answered locally. The payload debounce cannot: it
+        // keys on raw stdin, which differs between the two.
         if let Some(key) = &key
             && verdict_cache::has_clean_verdict(key)
         {
@@ -473,28 +487,6 @@ fn is_path_binary(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
         .is_some_and(|ext| binary_extensions::BINARY_EXTENSIONS.contains(&ext))
-}
-
-/// `has_already_been_seen()`. Some setups install hooks from several assistants
-/// and invoke us twice with an identical payload.
-///
-/// No file lock, unlike Python's `filelock`: losing the race means both
-/// processes scan the same payload — slower, never less safe.
-fn has_already_been_seen(content: &str) -> bool {
-    let hash = payload::sha256_hex(content.trim());
-    let Some(dir) = config::cache_dir() else {
-        return false;
-    };
-    if std::fs::create_dir_all(&dir).is_err() {
-        return false;
-    }
-    let path = dir.join("latest_ai_hook.txt");
-    let stored = std::fs::read_to_string(&path).unwrap_or_default();
-    if stored == hash {
-        return true;
-    }
-    let _ = std::fs::write(&path, &hash);
-    false
 }
 
 /// `_send_secret_notification()`. Best effort; every failure is swallowed so the
@@ -941,6 +933,58 @@ mod tests {
             Ok(Err(Error::Invalid(message))) => assert_eq!(message, "Unrecognized agent"),
             other => panic!("expected an Invalid rejection, got {other:?}"),
         }
+    }
+
+    /// A Claude Code PreToolUse event, as an agent writes it to our stdin.
+    fn claude_bash_event(command: &str) -> String {
+        serde_json::json!({
+            "session_id": "abc",
+            "transcript_path": "/Users/x/.claude/projects/p/abc.jsonl",
+            "cwd": "/tmp",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+        })
+        .to_string()
+    }
+
+    /// GIVEN two ggshield hooks configured for one event, so the same payload
+    /// reaches us twice
+    /// WHEN each invocation decides what to answer
+    /// THEN both answer the same verdict, and only the first one scans.
+    #[test]
+    fn a_second_hook_replays_the_verdict_rather_than_falling_silent() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, recorded) = mock_api(MockLimits::default());
+        let config = test_config(url);
+        let event = claude_bash_event(&format!("aws configure set key {SECRET}"));
+
+        let first = scan(&config, &event).expect("first");
+        let second = scan(&config, &event).expect("second");
+
+        // A block, so the clean-verdict cache plays no part: the request count
+        // below is the debounce's alone.
+        assert!(matches!(first, Emission::Stdout(..)), "{first:?}");
+        assert_eq!(first, second);
+        assert_eq!(recorded.batches.lock().expect("lock").len(), 1);
+    }
+
+    /// GIVEN a stored verdict that cannot be parsed
+    /// WHEN the same payload reaches us again
+    /// THEN it is scanned again, and answered with the same verdict.
+    #[test]
+    fn an_unreadable_stored_verdict_falls_back_to_scanning() {
+        let (_guard, dir) = verdict_cache::with_cache_dir();
+        let (url, recorded) = mock_api(MockLimits::default());
+        let config = test_config(url);
+        let event = claude_bash_event(&format!("aws configure set key {SECRET}"));
+
+        let first = scan(&config, &event).expect("first");
+        std::fs::write(dir.path().join("ai_hook_debounce.json"), "{ truncated").expect("write");
+        let second = scan(&config, &event).expect("second");
+
+        assert_eq!(first, second);
+        assert_eq!(recorded.batches.lock().expect("lock").len(), 2);
     }
 
     /// GIVEN `exit_zero`

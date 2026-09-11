@@ -55,6 +55,10 @@ impl<'a> HookResult<'a> {
 /// What an adapter decided to emit: a JSON document on stdout, (Codex's
 /// unknown-event branch) a bare message on stderr, or (Vibe's passthrough)
 /// nothing at all.
+///
+/// Serializable because the payload debounce stores one, so a second hook fired
+/// for the same event replays the same verdict.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Emission {
     Stdout(Value, i32),
     Stderr(String, i32),
@@ -251,7 +255,13 @@ pub fn emission(result: &HookResult) -> Emission {
 
 /// Prints the verdict and returns the process exit code.
 pub fn output_result(result: &HookResult) -> i32 {
-    match emission(result) {
+    emit(emission(result))
+}
+
+/// Prints one emission, whether it was just decided or replayed from the
+/// debounce, and returns the process exit code.
+pub fn emit(emission: Emission) -> i32 {
+    match emission {
         Emission::Stdout(value, code) => {
             println!("{value}");
             code

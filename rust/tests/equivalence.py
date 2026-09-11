@@ -38,8 +38,9 @@ Every payload fixture is copied from tests/unit/verticals/ai/test_hooks.py, so
 the shapes are the ones ggshield's own tests consider realistic.
 
 Both sides get a *fresh* cache dir per run, otherwise the payload debounce
-(`has_already_been_seen`) makes the second implementation exit silently and the
-comparison is meaningless.
+answers a repeated payload from what the previous run left behind (silently in
+Python, by replaying the stored verdict in Rust) and the comparison is
+meaningless.
 """
 
 import json
