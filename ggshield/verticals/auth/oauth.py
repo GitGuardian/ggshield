@@ -14,6 +14,7 @@ import click
 from oauthlib.oauth2 import OAuth2Error, WebApplicationClient
 
 from ggshield.core.client import (
+    api_timeout_from_config,
     check_client_api_key,
     create_client,
     create_client_from_config,
@@ -362,6 +363,7 @@ class OAuthClient:
             self._access_token,
             self.api_url,
             allow_self_signed=self.config.user_config.insecure,
+            timeout=api_timeout_from_config(self.config),
         ).get(endpoint="token")
         if not response.ok:
             raise OAuthError("The created token is invalid.")
