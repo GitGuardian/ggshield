@@ -42,6 +42,10 @@ DEFAULT_SCOPES = [
 # redirecting to localhost; the user pastes the code back into the terminal.
 OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
 
+# Upper bound on how long a Ctrl+C can go unnoticed while waiting for the
+# browser callback.
+CALLBACK_POLL_INTERVAL_SECONDS = 0.5
+
 logger = logging.getLogger(__name__)
 
 # Number of leading characters of an authorization code we keep visible when
@@ -265,13 +269,17 @@ class OAuthClient:
 
     def _prepare_server(self) -> None:
         try:
-            self.server = HTTPServer(
+            server = HTTPServer(
                 ("127.0.0.1", 0),
                 functools.partial(RequestHandler, self),
             )
-            self._port = self.server.server_port
         except OSError:
             raise UnexpectedError("Could not find unoccupied port.")
+        # Windows Ctrl+C only sets a flag that Python can act on once the
+        # blocking select() in handle_request() returns, so never block forever.
+        server.timeout = CALLBACK_POLL_INTERVAL_SECONDS
+        self.server = server
+        self._port = server.server_port
 
     def _wait_for_callback(self) -> None:
         """
