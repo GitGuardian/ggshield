@@ -13,6 +13,7 @@ from ggshield.core.config.user_config import (
 )
 from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.types import IgnoredMatch
+from tests.factory_constants import SOPS_PATTERN
 from tests.unit.conftest import write_text, write_yaml
 
 
@@ -345,6 +346,33 @@ class TestUserConfig:
         result = json.loads(config.dump_for_monitoring())
         assert isinstance(result["source_uuid"], str)
         assert result["source_uuid"] == str(uid)
+
+    def test_ignored_match_patterns_from_config_file(self, local_config_path):
+        """
+        GIVEN a config file holding ignore patterns
+        WHEN loading the configuration
+        THEN the patterns should be read
+        """
+        write_yaml(
+            local_config_path,
+            {"version": 2, "secret": {"ignored_match_patterns": [SOPS_PATTERN]}},
+        )
+
+        config = Config()
+
+        assert config.user_config.secret.ignored_match_patterns == {SOPS_PATTERN}
+
+    def test_dump_for_monitoring_counts_ignored_match_patterns(self):
+        """
+        GIVEN a SecretConfig with ignored match patterns
+        WHEN dump_for_monitoring() is called
+        THEN it should report how many patterns are configured
+        """
+        config = SecretConfig(ignored_match_patterns={"^ENC\\[", "^vault:"})
+
+        result = json.loads(config.dump_for_monitoring())
+
+        assert result["ignored_match_patterns_count"] == 2
 
     def test_bad_local_config(self, local_config_path, global_config_path):
         """

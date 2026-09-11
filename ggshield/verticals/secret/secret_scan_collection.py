@@ -17,7 +17,7 @@ from pygitguardian.models import (
 
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import handle_api_error
-from ggshield.core.filter import is_in_ignored_matches
+from ggshield.core.filter import is_in_ignored_match_patterns, is_in_ignored_matches
 from ggshield.core.lines import get_lines_from_content
 from ggshield.core.scan import Scannable
 from ggshield.utils.git_shell import Filemode
@@ -26,6 +26,9 @@ from ggshield.verticals.secret.extended_match import ExtendedMatch
 
 class IgnoreKind(str, Enum):
     IGNORED_MATCH = "Match ignored via local .gitguardian yaml"
+    IGNORED_MATCH_PATTERN = (
+        "Match ignored via --ignore-match-pattern or local .gitguardian yaml"
+    )
     IGNORED_DETECTOR = "Detector ignored via local .gitguardian yaml"
     KNOWN_SECRET = "Secret is known in dashboard and --ignore-known-secrets is used"
     NOT_INTRODUCED = "Secret was not in added in commit"
@@ -60,6 +63,10 @@ def compute_ignore_reason(
         )
     elif is_in_ignored_matches(policy_break, secret_config.ignored_matches or []):
         ignore_reason = IgnoreReason(IgnoreKind.IGNORED_MATCH)
+    elif is_in_ignored_match_patterns(
+        policy_break, secret_config.ignored_match_patterns
+    ):
+        ignore_reason = IgnoreReason(IgnoreKind.IGNORED_MATCH_PATTERN)
     elif policy_break.break_type in secret_config.ignored_detectors:
         ignore_reason = IgnoreReason(IgnoreKind.IGNORED_DETECTOR)
     elif secret_config.ignore_known_secrets and policy_break.known_secret:

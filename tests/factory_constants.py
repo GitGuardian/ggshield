@@ -90,3 +90,13 @@ MATCH_NAMES = [
     "client_key",
     "config_value",
 ]
+
+SOPS_ENCRYPTED_VALUE = (
+    "ENC[AES256_GCM,data:Zm9vYmFyYmF6,iv:9Xk1Nw==,tag:Qk5tZw==,type:str]"
+)
+
+SOPS_PATTERN = r"^ENC\[AES256_GCM,data:"
+
+INVALID_REGEX_PATTERN = "^ENC["
+
+MATCH_SEPARATOR = "\n"
