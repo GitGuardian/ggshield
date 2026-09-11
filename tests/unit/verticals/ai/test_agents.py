@@ -14,6 +14,7 @@ from ggshield.verticals.ai.agents.claude_code import Claude, _mangle_server_name
 from ggshield.verticals.ai.agents.codex import Codex
 from ggshield.verticals.ai.agents.copilot import Copilot
 from ggshield.verticals.ai.agents.cursor import Cursor, _parse_tool_arguments
+from ggshield.verticals.ai.agents.junie import Junie
 from ggshield.verticals.ai.agents.kiro import Kiro
 from ggshield.verticals.ai.agents.vibe import Vibe
 from ggshield.verticals.ai.agents.vscode import VSCode
@@ -2174,3 +2175,116 @@ class TestKiro:
             assert request.server == "probe-time"
             assert request.tool == "get_current_time"
             assert request.agent == "kiro"
+
+
+# ===========================================================================
+# Junie CLI
+# ===========================================================================
+
+
+class TestJunie:
+    def test_config_folder_and_mcp_files(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.junie.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            junie = Junie()
+            assert junie.config_folder == tmp_path / ".junie"
+            assert junie.user_mcp_file == tmp_path / ".junie" / "mcp" / "mcp.json"
+        assert Junie().project_mcp_file(Path("/tmp/project")) == (
+            Path("/tmp/project") / ".junie" / "mcp" / "mcp.json"
+        )
+
+    def test_settings_template_covers_the_two_scannable_events(self):
+        """GIVEN the installed hook file
+        WHEN its events are read
+        THEN it hooks the prompt and the tool call, and carries no matcher:
+        Junie matches one against the tool name and refuses an entry whose
+        matcher matches nothing."""
+        hooks = Junie().settings_template["hooks"]
+
+        assert sorted(hooks) == ["PreToolUse", "UserPromptSubmit"]
+        for entries in hooks.values():
+            assert entries == [{"hooks": [{"type": "command", "command": "<COMMAND>"}]}]
+
+    def test_settings_locate_finds_the_entry_by_its_nested_command(self):
+        """GIVEN matcher entries that carry no matcher of ours
+        WHEN one is located for an update
+        THEN the ggshield command one list down identifies it, so a second
+        install updates the entry instead of appending a duplicate."""
+        junie = Junie()
+        candidates = [
+            {"hooks": [{"type": "command", "command": "somebody-elses-hook"}]},
+            {
+                "hooks": [
+                    {"type": "command", "command": "/usr/bin/ggshield secret scan"}
+                ]
+            },
+        ]
+
+        template = {"hooks": [{"type": "command", "command": "<COMMAND>"}]}
+
+        assert junie.settings_locate(candidates, template) is candidates[1]
+        assert junie.settings_locate(candidates[:1], template) is None
+
+    def test_local_install_warns_that_junie_ignores_it(self):
+        """GIVEN a project-scoped install
+        WHEN the post-install warning is read
+        THEN it says Junie will not load it: a repository must not be able to
+        run shell commands on checkout."""
+        assert "ignores" in (Junie().post_install_warning("local") or "")
+        assert "Early Access" in (Junie().post_install_warning("global") or "")
+
+    def test_discover_project_directories_reads_the_session_index(self, tmp_path: Path):
+        """GIVEN a session index naming one project twice and one broken line
+        WHEN the project directories are discovered
+        THEN each existing project is yielded once and the broken line is
+        skipped: a running CLI appends to this file, so a half-written last
+        line is expected."""
+        project = tmp_path / "project"
+        project.mkdir()
+        sessions = tmp_path / ".junie" / "sessions"
+        sessions.mkdir(parents=True)
+        (sessions / "index.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps({"sessionId": "a", "projectDir": str(project)}),
+                    json.dumps({"sessionId": "b", "projectDir": str(project)}),
+                    json.dumps(
+                        {"sessionId": "c", "projectDir": str(tmp_path / "gone")}
+                    ),
+                    '{"sessionId": "d", "projectDir": "/half-writt',
+                ]
+            )
+        )
+
+        with patch(
+            "ggshield.verticals.ai.agents.junie.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            assert list(Junie().discover_project_directories()) == [project.resolve()]
+
+    def test_discover_project_directories_survives_no_index(self, tmp_path: Path):
+        with patch(
+            "ggshield.verticals.ai.agents.junie.get_user_home_dir",
+            return_value=tmp_path,
+        ):
+            assert list(Junie().discover_project_directories()) == []
+
+    def test_parse_mcp_activity_reports_the_whole_tool_name(self):
+        """GIVEN an MCP tool call
+        WHEN the activity is parsed
+        THEN the whole name is the tool and no server is claimed: how Junie
+        spells an MCP tool in a hook payload is unverified, and a split would
+        be a guess."""
+        junie = Junie()
+        payload = _payload(
+            junie,
+            raw={"tool_name": "github/create_issue", "cwd": "/tmp", "tool_input": {}},
+        )
+
+        request = junie.parse_mcp_activity(payload, _ai_discovery(servers=[]))
+
+        assert request.server == ""
+        assert request.tool == "github/create_issue"
+        assert request.agent == "junie"

@@ -240,8 +240,8 @@ class TestAiHookCmd:
         result = runner.invoke(
             cli,
             ["secret", "scan", "ai-hook"],
-            # An event name no adapter answers to: "PreToolUse" with no other
-            # agent's marker beside it is Kiro's own signature.
+            # An event name no adapter answers to. A bare "PreToolUse" would
+            # not do: the Rust hook reads that as Kiro's signature.
             input='{"hook_event_name": "somethingElse"}',
         )
 

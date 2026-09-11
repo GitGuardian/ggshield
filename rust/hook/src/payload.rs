@@ -38,14 +38,16 @@ pub enum Agent {
     Copilot,
     Cursor,
     VsCode,
+    Junie,
     Kiro,
 }
 
-pub const AGENTS: [Agent; 7] = [
+pub const AGENTS: [Agent; 8] = [
     Agent::Vibe,
     Agent::Cursor,
     Agent::Codex,
     Agent::VsCode,
+    Agent::Junie,
     // Kiro keys on event names other agents share (`PreToolUse` and friends),
     // so every agent carrying a marker of its own gets first refusal.
     Agent::Kiro,
@@ -53,7 +55,7 @@ pub const AGENTS: [Agent; 7] = [
     // broader than Kiro and comes after it.
     Agent::Copilot,
     // Last: Claude Code has no marker of its own, so it answers for whatever
-    // the six above refuse. See its arm of `is_caller`.
+    // the seven above refuse. See its arm of `is_caller`.
     Agent::Claude,
 ];
 
@@ -67,6 +69,7 @@ impl Agent {
             Agent::Copilot => "copilot",
             Agent::Cursor => "cursor",
             Agent::VsCode => "vscode",
+            Agent::Junie => "junie",
             Agent::Kiro => "kiro",
         }
     }
@@ -81,6 +84,7 @@ impl Agent {
             Agent::Copilot => "Copilot CLI",
             Agent::Cursor => "Cursor",
             Agent::VsCode => "VSCode",
+            Agent::Junie => "Junie CLI",
             Agent::Kiro => "Kiro",
         }
     }
@@ -138,6 +142,14 @@ impl Agent {
             }
             Agent::Cursor => data.get("cursor_version").is_some(),
             Agent::VsCode => transcript.to_lowercase().contains("github.copilot-chat"),
+            // Junie CLI mirrors Claude Code's wire protocol on purpose, down to
+            // the field names, so `project_path` is the only thing that tells
+            // the two apart: Junie always sends it and Claude never does. The
+            // absent `transcript_path` is what keeps this off a future
+            // assistant that borrows the same protocol *and* ships a transcript.
+            Agent::Junie => {
+                data.get("project_path").is_some() && data.get("transcript_path").is_none()
+            }
             // Kiro CLI spells its triggers in camelCase and the Kiro IDE in
             // PascalCase; neither surface sends anything else identifying.
             Agent::Kiro => {
@@ -199,6 +211,19 @@ impl Agent {
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string(),
+            // Junie runs a hook from its own home directory and reports that as
+            // `cwd`, so the workspace it names in `project_path` is what a
+            // relative read path has to resolve against. Observed on the wire:
+            // the docs say only that `project_path` is sent "when the session
+            // provides it".
+            Agent::Junie => {
+                let project = lookup_str(data, &["project_path"]);
+                if project.is_empty() {
+                    lookup_str(data, &["cwd"])
+                } else {
+                    project
+                }
+            }
             _ => lookup_str(data, &["cwd"]),
         }
     }
@@ -258,7 +283,14 @@ impl Agent {
             // No range ever seen from these four: Copilot CLI's `view` carries
             // only `path`, Cursor's Read has no range keys, Codex shells out, and
             // Vibe's `read_file` carries only `path`.
-            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe => None,
+            //
+            // Junie is here for a different reason: its ranged reader `open`
+            // reaches a hook as Claude's `Read` and carries `file_path` with an
+            // `offset`, but never a `limit`, so a range would run to the end of
+            // the file anyway. Constraint: whole-file means a read of a file over
+            // `maximum_document_size` is skipped by the scanner entirely, which
+            // the `offset` alone cannot narrow.
+            Agent::Codex | Agent::Copilot | Agent::Cursor | Agent::Vibe | Agent::Junie => None,
         }
     }
 }
@@ -347,7 +379,12 @@ fn parse_tool(data: &Value) -> Tool {
         // `read_files` is deliberately absent: it takes several paths in an
         // unverified shape, and a Read payload whose path lookup finds nothing
         // scans nothing. Left generic, the response it returns is still scanned.
-        "read" | "read_file" | "view" | "fs_read" => Tool::Read,
+        //
+        // `open_entire_file` is Junie's whole-file reader, and the one tool of
+        // its own it does not rename to Claude's spelling: its ranged sibling
+        // `open` reaches a hook as `Read`, this one keeps its name and would
+        // otherwise read a file with nothing scanned first.
+        "read" | "read_file" | "view" | "fs_read" | "open_entire_file" => Tool::Read,
         // Kiro's writers (`fs_write`, `str_replace`, `fs_append`) belong here on
         // purpose: the generic branch scans their `tool_input`, which is what
         // carries the content about to be written.
@@ -1513,6 +1550,119 @@ mod tests {
         assert_eq!(Agent::Cursor.event_cwd(&json!({})), "");
     }
 
+    /// GIVEN the two readers a real Junie CLI dispatched to a PreToolUse hook
+    /// WHEN each is classified and parsed
+    /// THEN both build a Read payload around the path they name, under the two
+    /// different spellings Junie sends them as.
+    #[test]
+    fn both_junie_readers_are_read_tools() {
+        for (tool_name, tool_input) in [
+            ("Read", json!({"file_path": "creds.txt", "offset": 1})),
+            ("open_entire_file", json!({"path": "creds.txt"})),
+        ] {
+            assert_eq!(parse_tool(&json!({"tool_name": tool_name})), Tool::Read);
+            let raw = json!({
+                "hook_event_name": "PreToolUse",
+                "cwd": "/home/someone/.junie",
+                "project_path": "/p",
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+            })
+            .to_string();
+            let payloads = parse(&raw).expect("parses");
+            assert_eq!(payloads[0].agent, Agent::Junie, "{tool_name}");
+            assert_eq!(payloads[0].tool, Some(Tool::Read), "{tool_name}");
+            // Resolved against the project, not the `cwd` Junie reports.
+            assert_eq!(
+                payloads[0].identifier,
+                native("/p/creds.txt"),
+                "{tool_name}"
+            );
+            // Whole file: Junie sends no `limit`, so no range narrows the scan.
+            assert_eq!(payloads[0].read_range, None, "{tool_name}");
+        }
+    }
+
+    /// GIVEN the SessionStart payload a real Junie CLI 26.8.31 sent
+    /// WHEN its working directory is resolved
+    /// THEN the project wins over `cwd`, which is Junie's own home directory
+    /// rather than the workspace.
+    #[test]
+    fn junie_resolves_the_project_not_its_own_home() {
+        let payload = json!({
+            "hook_event_name": "SessionStart",
+            "session_id": "session-260908-103926-173d",
+            "cwd": "/Users/someone/.junie",
+            "project_path": "/Users/someone/work/project",
+            "source": "startup",
+        });
+
+        assert_eq!(Agent::detect(&payload), Some(Agent::Junie));
+        assert_eq!(
+            Agent::Junie.event_cwd(&payload),
+            "/Users/someone/work/project"
+        );
+        // A payload that names no project falls back rather than resolving
+        // against nothing.
+        assert_eq!(
+            Agent::Junie.event_cwd(&json!({"cwd": "/fallback"})),
+            "/fallback"
+        );
+    }
+
+    /// GIVEN Junie CLI payloads, and the payloads of the two agents whose wire
+    /// protocol Junie borrows
+    /// WHEN the agent is detected
+    /// THEN `project_path` is what tells Junie from Claude, and Claude's
+    /// `transcript_path` is what keeps Junie off a Claude payload.
+    #[test]
+    fn junie_is_detected_by_its_project_path() {
+        let cases: [(&str, Value, Option<Agent>); 5] = [
+            (
+                "prompt",
+                json!({"hook_event_name": "UserPromptSubmit", "session_id": "s",
+                       "cwd": "/p", "project_path": "/p", "prompt": "hello"}),
+                Some(Agent::Junie),
+            ),
+            (
+                "pre tool",
+                json!({"hook_event_name": "PreToolUse", "cwd": "/p",
+                       "project_path": "/p", "tool_name": "Bash",
+                       "tool_input": {"command": "ls"}}),
+                Some(Agent::Junie),
+            ),
+            // Every other Junie event reaches the hook too, and none of them
+            // carries anything to scan.
+            (
+                "session start",
+                json!({"hook_event_name": "SessionStart", "session_id": "s",
+                       "cwd": "/p", "project_path": "/p", "source": "startup"}),
+                Some(Agent::Junie),
+            ),
+            // Claude wins: it is registered first, and it is the transcript
+            // path that separates the two protocols.
+            (
+                "claude keeps its own payload",
+                claude(json!({"hook_event_name": "UserPromptSubmit", "project_path": "/p"})),
+                Some(Agent::Claude),
+            ),
+            // Constraint: `project_path` is sent only "when the session
+            // provides it", so a session without a project falls through to
+            // Kiro, whose contract also blocks on exit 2 but reports the wrong
+            // agent. Every Junie CLI run has a project, so this is the shape we
+            // have never seen rather than one we tolerate.
+            (
+                "no project path",
+                json!({"hook_event_name": "PreToolUse", "cwd": "/p",
+                       "tool_name": "Bash", "tool_input": {"command": "ls"}}),
+                Some(Agent::Kiro),
+            ),
+        ];
+        for (label, payload, expected) in cases {
+            assert_eq!(Agent::detect(&payload), expected, "{label}");
+        }
+    }
+
     /// GIVEN payloads carrying an event name Kiro shares with another agent, plus
     /// one of that agent's own keys
     /// WHEN the agent is detected
@@ -1544,12 +1694,13 @@ mod tests {
                 Some(Agent::Copilot),
             ),
             // Junie CLI mirrors Claude Code's field names on purpose, so it
-            // reaches Kiro's matcher with a trigger name Kiro also uses.
+            // reaches Kiro's matcher with a trigger name Kiro also uses. Its
+            // own `project_path` is what settles it, in both directions.
             (
                 "junie cli",
                 json!({"hook_event_name": "UserPromptSubmit", "session_id": "s",
                        "cwd": "/p", "project_path": "/p", "prompt": "hello"}),
-                None,
+                Some(Agent::Junie),
             ),
             // Not one of Kiro's trigger spellings, and nothing else matches.
             (

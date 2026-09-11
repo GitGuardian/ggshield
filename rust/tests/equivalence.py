@@ -14,7 +14,7 @@ sides must produce but whose value is allowed to differ (see `same_request`).
   python3 tests/equivalence.py            # equivalence only
   python3 tests/equivalence.py --bench N  # also time both, N iterations/side
 
-Eleven matrices:
+Twelve matrices:
   agents   6 assistants x their own payload shapes x {clean, secret}
   config   .gitguardian.yaml cases: discovery, precedence, and every key that
            changes the verdict or the request
@@ -33,6 +33,8 @@ Eleven matrices:
   extra    fail-open, and the unrecognized-agent case
   kiro     Kiro, which the Rust hook serves alone: asserted against its
            output contract instead of diffed, there being no Python side
+  junie    Junie CLI, likewise Rust-only: Claude Code's verdict schema, its
+           own `project_path`, and no PostToolUse event at all
 
 Every payload fixture is copied from tests/unit/verticals/ai/test_hooks.py, so
 the shapes are the ones ggshield's own tests consider realistic.
@@ -1994,6 +1996,151 @@ def check_kiro(tmp):
     return failures
 
 
+def junie_payloads():
+    """Junie CLI's shapes: Claude Code's wire protocol plus `project_path`.
+
+    Field names copied from the hook payload builder in Junie's own jar
+    (`DefaultExternalHookRuntime.buildStdinJson`): `hook_event_name` and `cwd`
+    always, `session_id` and `project_path` when the session provides them.
+    """
+    base = {"session_id": "sess-1", "cwd": "/tmp", "project_path": "/tmp"}
+    command = (
+        f"aws configure set aws_access_key_id {CLIENT_ID} --secret {CLIENT_SECRET}"
+    )
+    return {
+        # (payload, whether it carries something to scan)
+        "user_prompt": (
+            {
+                **base,
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": f"deploy with key {CLIENT_ID} please",
+            },
+            True,
+        ),
+        "pre_bash": (
+            {
+                **base,
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "tool_input": {"command": command, "run_in_background": False},
+            },
+            True,
+        ),
+        "pre_read": (
+            {
+                **base,
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Read",
+                "tool_input": {"file_path": READ_FILE},
+            },
+            True,
+        ),
+        "pre_write": (
+            {
+                **base,
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Write",
+                "tool_input": {
+                    "file_path": "/tmp/out.env",
+                    "content": f"K={CLIENT_ID}",
+                },
+            },
+            True,
+        ),
+        # Junie has no PostToolUse event at all. These four carry nothing to
+        # scan, and must still parse rather than be refused as another agent's.
+        # `cwd` is Junie's own home, not the workspace: the project is what a
+        # relative read path resolves against. Captured from a real session.
+        "session_start": (
+            {
+                **base,
+                "cwd": "/Users/someone/.junie",
+                "hook_event_name": "SessionStart",
+                "source": "startup",
+            },
+            False,
+        ),
+        "stop": (
+            {
+                **base,
+                "hook_event_name": "Stop",
+                "stop_hook_active": False,
+                "last_assistant_message": "done",
+            },
+            False,
+        ),
+        "stop_failure": (
+            {
+                **base,
+                "hook_event_name": "StopFailure",
+                "error": "rate_limit",
+                "error_details": "429 Too Many Requests",
+            },
+            False,
+        ),
+        # The real SessionEnd envelope, captured from Junie 26.8.31: two keys
+        # and nothing else, so `buildStdinJson`'s "cwd always" does not hold
+        # here. With no `project_path` no adapter answers to it, which is the
+        # unrecognized-agent exit rather than a verdict. Harmless because
+        # ggshield installs no SessionEnd hook: the event carries nothing to
+        # scan, and hooking it would only add an exit ggshield logs a warning for.
+        "session_end": (
+            {"hook_event_name": "SessionEnd", "reason": "prompt_input_exit"},
+            False,
+            1,
+        ),
+    }
+
+
+def check_junie(tmp):
+    """Junie, asserted rather than diffed: the Rust hook is its only
+    implementation, so there is no Python side to compare against.
+
+    The contract is `Agent::Junie` in output.rs, which is Claude Code's: JSON on
+    stdout and exit 0 always, a block spelled `permissionDecision` on a tool
+    call and `decision` on a prompt. A payload that carries something to scan
+    must also reach the API, otherwise a silent parse failure would read as a
+    clean allow.
+    """
+    failures = []
+    print("\nJunie (Rust-only, asserted): verdict schema, exit code, and what was sent")
+    for mode in ("clean", "secret"):
+        log = tmp / f"requests-junie-{mode}.jsonl"
+        mock, port = start_mock(mode, log)
+        try:
+            for name, case in junie_payloads().items():
+                payload, scannable = case[0], case[1]
+                expected_code = case[2] if len(case) > 2 else 0
+                workdir = make_workdir(tmp, f"junie-{mode}-{name}")
+                write_read_file()
+                before = len(read_requests(log))
+                proc, _ = run(RS_CMD, payload, port, workdir)
+                sent = len(read_requests(log)) > before
+                blocks = mode == "secret" and scannable
+                if expected_code:
+                    # No agent answers to it, so there is no verdict to read.
+                    ok = proc.returncode == expected_code and proc.stdout == b""
+                else:
+                    ok = (
+                        proc.returncode == 0
+                        and verdict_of(proc.stdout) == ("block" if blocks else "allow")
+                        and sent == scannable
+                    )
+                print(f"  [{'OK  ' if ok else 'FAIL'}] {mode}/{name}")
+                if not ok:
+                    failures.append(f"junie/{mode}/{name}")
+                    print(
+                        f"        exit={proc.returncode} (want {expected_code}) "
+                        f"verdict={verdict_of(proc.stdout)} "
+                        f"(want {'block' if blocks else 'allow'}) "
+                        f"sent={sent} (want {scannable}) "
+                        f"stdout={proc.stdout[:160]!r}"
+                    )
+        finally:
+            mock.kill()
+    return failures
+
+
 def bench(tmp, iterations):
     """Latency, alternating sides so machine load hits both equally.
 
@@ -2103,6 +2250,7 @@ def main():
         failures += compare_exclusions(tmp)
         failures += extra_cases(tmp)
         failures += check_kiro(tmp)
+        failures += check_junie(tmp)
         if "--bench" in sys.argv:
             n = int(sys.argv[sys.argv.index("--bench") + 1])
             bench(tmp, n)
