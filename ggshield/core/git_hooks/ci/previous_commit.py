@@ -139,7 +139,7 @@ def gitlab_merge_request_previous_commit_sha() -> Optional[str]:
         return None
 
     # Requires to fetch targeted branch to access current HEAD
-    git(["fetch", "origin", targeted_branch])
+    git(["fetch", "--end-of-options", "origin", targeted_branch])
 
     try:
         last_commit = get_last_commit_sha_of_branch(f"origin/{targeted_branch}")
@@ -266,7 +266,7 @@ def azure_pull_request_previous_commit_sha() -> Optional[str]:
         return None
 
     # Requires to fetch targeted branch to access current HEAD
-    git(["fetch", "origin", targeted_branch])
+    git(["fetch", "--end-of-options", "origin", targeted_branch])
 
     last_commit = get_last_commit_sha_of_branch(f"origin/{targeted_branch}")
     if last_commit is not None:
