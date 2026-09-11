@@ -1,5 +1,10 @@
+import http.server
 import os
-from typing import Type
+import socket
+import struct
+import threading
+from contextlib import contextmanager
+from typing import Any, Iterator, List, Tuple, Type
 from unittest.mock import Mock, patch
 
 import click
@@ -454,3 +459,184 @@ def test_create_session_with_self_signed_option(allow_self_signed: bool):
         assert session.verify is False
     else:
         assert session.verify is True
+
+
+# --- Real-server tests for the POST/read-timeout retry behaviour below.
+#
+# These spin up an actual local TCP/HTTP server instead of mocking exceptions,
+# so the full requests -> urllib3 -> Retry stack is exercised, not just the
+# code we wrote.
+
+
+@contextmanager
+def _hanging_server() -> Iterator[Tuple[int, List[str]]]:
+    """A server that accepts connections but never replies, to trigger a
+    genuine read timeout. Returns (port, attempts), where attempts grows by
+    one connection accepted."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("127.0.0.1", 0))
+    sock.listen(20)
+    port = sock.getsockname()[1]
+    attempts: List[str] = []
+    stop = threading.Event()
+
+    def serve() -> None:
+        while not stop.is_set():
+            sock.settimeout(0.2)
+            try:
+                conn, _ = sock.accept()
+            except socket.timeout:
+                continue
+            attempts.append("connection")
+            try:
+                conn.settimeout(5)
+                conn.recv(65536)  # read the request, then go silent
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    try:
+        yield port, attempts
+    finally:
+        stop.set()
+        sock.close()
+
+
+@contextmanager
+def _reset_server() -> Iterator[Tuple[int, List[str]]]:
+    """A server that accepts a connection and immediately resets it, the
+    scenario PR #1218 added POST to allowed_methods for."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("127.0.0.1", 0))
+    sock.listen(20)
+    port = sock.getsockname()[1]
+    attempts: List[str] = []
+    stop = threading.Event()
+
+    def serve() -> None:
+        while not stop.is_set():
+            sock.settimeout(0.2)
+            try:
+                conn, _ = sock.accept()
+            except socket.timeout:
+                continue
+            attempts.append("connection")
+            # SO_LINGER with a zero timeout makes close() send a RST
+            # instead of a clean FIN, i.e. a connection reset.
+            conn.setsockopt(
+                socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+            )
+            conn.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    try:
+        yield port, attempts
+    finally:
+        stop.set()
+        sock.close()
+
+
+@contextmanager
+def _status_server(status_code: int) -> Iterator[Tuple[int, List[str]]]:
+    """A server that always answers with status_code."""
+    attempts: List[str] = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def _reply(self) -> None:
+            attempts.append(self.command)
+            self.send_response(status_code)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def do_GET(self) -> None:  # noqa: N802
+            self._reply()
+
+        def do_POST(self) -> None:  # noqa: N802
+            self._reply()
+
+        def log_message(self, format: str, *args: Any) -> None:
+            pass  # keep test output clean
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield port, attempts
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+
+
+@pytest.mark.parametrize(
+    "retry_profile", [RetryProfile.DEFAULT, RetryProfile.PRE_RECEIVE]
+)
+def test_post_read_timeout_is_not_retried(retry_profile: RetryProfile):
+    """
+    GIVEN a server that accepts the connection but never replies
+    WHEN a POST request hits the read timeout
+    THEN only one attempt is made, and a requests.exceptions.ReadTimeout is raised
+
+    A read timeout means the server already has the request and is working
+    on it, so retrying would only make it redo that work.
+    """
+    with _hanging_server() as (port, attempts):
+        session = create_session(retry_profile=retry_profile)
+        with pytest.raises(requests.exceptions.ReadTimeout):
+            session.post(
+                f"http://127.0.0.1:{port}/v1/multiscan", json={}, timeout=(5, 0.2)
+            )
+        assert len(attempts) == 1
+
+
+def test_get_read_timeout_is_still_retried():
+    """
+    GIVEN the same server that never replies
+    WHEN a GET request hits the read timeout
+    THEN it is retried (the fix only exempts POST)
+    """
+    with _hanging_server() as (port, attempts):
+        # PRE_RECEIVE (total=1) keeps the test fast: one retry is enough to
+        # prove the request is retried at all.
+        session = create_session(retry_profile=RetryProfile.PRE_RECEIVE)
+        with pytest.raises(requests.exceptions.ConnectionError):
+            session.get(f"http://127.0.0.1:{port}/v1/foo", timeout=(5, 0.2))
+        assert len(attempts) == 2
+
+
+def test_post_connection_reset_is_still_retried():
+    """
+    GIVEN a server that resets the connection instead of replying
+    WHEN a POST request is sent
+    THEN it is still retried the full number of times
+
+    Regression guard for PR #1218, which added POST to allowed_methods so
+    connection resets on POST get retried.
+    """
+    with _reset_server() as (port, attempts):
+        session = create_session(retry_profile=RetryProfile.PRE_RECEIVE)
+        with pytest.raises(requests.exceptions.ConnectionError):
+            session.post(
+                f"http://127.0.0.1:{port}/v1/multiscan", json={}, timeout=(5, 0.2)
+            )
+        assert len(attempts) == 2
+
+
+@pytest.mark.parametrize("status_code", [502, 503, 504])
+def test_post_status_forcelist_is_still_retried(status_code: int):
+    """
+    GIVEN a server that always answers with a status in the forcelist
+    WHEN a POST request is sent
+    THEN it is still retried the full number of times
+    """
+    with _status_server(status_code) as (port, attempts):
+        session = create_session(retry_profile=RetryProfile.PRE_RECEIVE)
+        with pytest.raises(requests.exceptions.RetryError):
+            session.post(
+                f"http://127.0.0.1:{port}/v1/multiscan", json={}, timeout=(5, 5)
+            )
+        assert len(attempts) == 2
