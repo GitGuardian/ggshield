@@ -84,7 +84,7 @@ MAX_API_TIMEOUT = 3600
 def _resolve_timeout(config_timeout: int) -> int:
     """Resolve the API timeout: env var overrides the config file value."""
     raw = os.getenv(API_TIMEOUT_ENV_VAR)
-    source = API_TIMEOUT_ENV_VAR if raw is not None else "the 'timeout' config key"
+    source = API_TIMEOUT_ENV_VAR if raw is not None else "the 'api_timeout' config key"
     try:
         timeout = getenv_int(API_TIMEOUT_ENV_VAR, config_timeout)
     except ValueError:
@@ -105,7 +105,7 @@ def api_timeout_from_config(config: Config) -> int:
     """Timeout to pass to create_client() when not going through
     create_client_from_config(), so the config key and the environment
     variable are honoured there too."""
-    return _resolve_timeout(config.user_config.timeout)
+    return _resolve_timeout(config.user_config.api_timeout)
 
 
 def create_client_from_config(
@@ -157,12 +157,17 @@ def create_client(
     allow_self_signed: bool = False,
     callbacks: Optional[GGClientCallbacks] = None,
     retry_profile: RetryProfile = RetryProfile.DEFAULT,
-    timeout: int = DEFAULT_API_TIMEOUT,
+    timeout: Optional[int] = None,
 ) -> GGClient:
     """
     Implementation of create_client_from_config(). Exposed as a function for specific
     cases such as needing a GGClient instance while defining the config account.
+
+    Without an explicit timeout the environment variable is still honoured, so a
+    caller that forgets api_timeout_from_config() loses only the config file.
     """
+    if timeout is None:
+        timeout = _resolve_timeout(DEFAULT_API_TIMEOUT)
     session = create_session(
         allow_self_signed=allow_self_signed,
         retry_profile=retry_profile,
