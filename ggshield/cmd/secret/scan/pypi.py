@@ -23,10 +23,15 @@ from ggshield.core.scan.file import create_files_from_paths
 from ggshield.core.scanner_ui import create_scanner_ui
 from ggshield.utils.archive import safe_unpack
 from ggshield.utils.files import ListFilesMode
+from ggshield.utils.os import getenv_int
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
 
 PYPI_DOWNLOAD_TIMEOUT = 30
+# Anything past an hour is a typo, and a big enough number overflows the float
+# the deadline is built from.
+MAX_PYPI_DOWNLOAD_TIMEOUT = 3600
+TIMEOUT_ENV_VAR = "GG_PYPI_DOWNLOAD_TIMEOUT"
 DEFAULT_INDEX_URL = "https://pypi.org/simple/"
 
 
@@ -40,20 +45,28 @@ def _get_index_urls() -> List[str]:
 
 def _download_timeout() -> int:
     """Seconds allowed for the whole download. `GG_PYPI_DOWNLOAD_TIMEOUT` raises
-    it for the functional test, whose package is 454 MB; a malformed value falls
-    back rather than failing the scan."""
-    raw = os.getenv("GG_PYPI_DOWNLOAD_TIMEOUT", "")
-    return int(raw) if raw.isdigit() else PYPI_DOWNLOAD_TIMEOUT
+    it for the functional test, whose package is 454 MB. A bad value is refused
+    rather than ignored: falling back silently would just time out later."""
+    try:
+        timeout = getenv_int(TIMEOUT_ENV_VAR, PYPI_DOWNLOAD_TIMEOUT)
+    except ValueError:
+        raise UnexpectedError(f"{TIMEOUT_ENV_VAR} must be a whole number of seconds.")
+    if not 1 <= timeout <= MAX_PYPI_DOWNLOAD_TIMEOUT:
+        raise UnexpectedError(
+            f"{TIMEOUT_ENV_VAR} must be between 1"
+            f" and {MAX_PYPI_DOWNLOAD_TIMEOUT} seconds."
+        )
+    return timeout
 
 
-def _enforce_deadline(deadline: float) -> None:  # pragma: no cover
+def _enforce_deadline(deadline: float, timeout: int) -> None:  # pragma: no cover
     """Give up once the download budget is spent."""
     if time.monotonic() > deadline:
-        raise TimeoutError(f"timed out after {_download_timeout()}s")
+        raise TimeoutError(f"timed out after {timeout}s")
 
 
 def _download_link(
-    finder: PackageFinder, link: Link, dest: Path, deadline: float
+    finder: PackageFinder, link: Link, dest: Path, deadline: float, timeout: int
 ) -> None:
     """Stream the distribution at `link` into `dest`, giving up once `deadline`
     is reached."""
@@ -61,14 +74,15 @@ def _download_link(
         response.raise_for_status()
         with dest.open("wb") as f:
             for chunk in response.iter_bytes():
-                _enforce_deadline(deadline)
+                _enforce_deadline(deadline, timeout)
                 f.write(chunk)
 
 
 def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
     ui.display_heading("Downloading package")
 
-    deadline = time.monotonic() + _download_timeout()
+    timeout = _download_timeout()
+    deadline = time.monotonic() + timeout
 
     finder = PackageFinder(
         index_urls=_get_index_urls(),
@@ -89,12 +103,13 @@ def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
 
     archive_path = temp_dir / best_match.link.filename
     try:
-        _enforce_deadline(deadline)
+        _enforce_deadline(deadline, timeout)
         _download_link(
             finder=finder,
             link=best_match.link,
             dest=archive_path,
             deadline=deadline,
+            timeout=timeout,
         )
     except Exception as exc:
         raise UnexpectedError(f'Failed to download "{package_name}": {exc}')

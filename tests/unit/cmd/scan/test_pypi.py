@@ -9,7 +9,9 @@ from packaging.requirements import InvalidRequirement
 
 from ggshield.cmd.secret.scan.pypi import (
     DEFAULT_INDEX_URL,
+    MAX_PYPI_DOWNLOAD_TIMEOUT,
     PYPI_DOWNLOAD_TIMEOUT,
+    TIMEOUT_ENV_VAR,
     _download_timeout,
     _get_index_urls,
     get_files_from_package,
@@ -59,21 +61,42 @@ class TestDownloadTimeout:
     def test_defaults_to_the_builtin_budget(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv("GG_PYPI_DOWNLOAD_TIMEOUT", raising=False)
+        monkeypatch.delenv(TIMEOUT_ENV_VAR, raising=False)
 
         assert _download_timeout() == PYPI_DOWNLOAD_TIMEOUT
 
-    def test_honors_the_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("GG_PYPI_DOWNLOAD_TIMEOUT", "300")
-
-        assert _download_timeout() == 300
-
-    def test_falls_back_on_a_malformed_value(
-        self, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("value, expected", (("300", 300), ("300 ", 300)))
+    def test_honors_the_env_override(
+        self, monkeypatch: pytest.MonkeyPatch, value: str, expected: int
     ) -> None:
-        monkeypatch.setenv("GG_PYPI_DOWNLOAD_TIMEOUT", "five minutes")
+        monkeypatch.setenv(TIMEOUT_ENV_VAR, value)
 
-        assert _download_timeout() == PYPI_DOWNLOAD_TIMEOUT
+        assert _download_timeout() == expected
+
+    @pytest.mark.parametrize(
+        "value",
+        (
+            "five minutes",
+            # isdigit() accepts this, int() does not.
+            "\N{SUPERSCRIPT TWO}",
+            "0",
+            "-1",
+            # Large enough to overflow the float the deadline is built from.
+            "1" + "0" * 309,
+        ),
+    )
+    def test_refuses_a_value_it_cannot_honor(
+        self, monkeypatch: pytest.MonkeyPatch, value: str
+    ) -> None:
+        monkeypatch.setenv(TIMEOUT_ENV_VAR, value)
+
+        with pytest.raises(UnexpectedError, match=TIMEOUT_ENV_VAR):
+            _download_timeout()
+
+    def test_accepts_the_upper_bound(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(TIMEOUT_ENV_VAR, str(MAX_PYPI_DOWNLOAD_TIMEOUT))
+
+        assert _download_timeout() == MAX_PYPI_DOWNLOAD_TIMEOUT
 
 
 @patch("ggshield.cmd.secret.scan.pypi.PackageFinder")
