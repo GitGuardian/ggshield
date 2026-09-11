@@ -3,6 +3,7 @@ import os
 from enum import Enum
 from typing import Any, Optional, Union
 
+import click
 import requests
 import urllib3
 from pygitguardian import GGClient, GGClientCallbacks
@@ -12,7 +13,7 @@ from requests.adapters import HTTPAdapter
 
 from . import auth_check_cache, ui
 from .config import Config
-from .constants import DEFAULT_INSTANCE_URL
+from .constants import DEFAULT_API_TIMEOUT, DEFAULT_INSTANCE_URL
 from .errors import (
     APIKeyCheckError,
     MissingScopesError,
@@ -67,6 +68,36 @@ def _build_retry(profile: RetryProfile) -> urllib3.Retry:
     )
 
 
+# Name chosen to avoid colliding with GITGUARDIAN_TIMEOUT, which already
+# controls the pre-receive hook's own wall-clock budget (see
+# ggshield/core/git_hooks/prereceive.py) and means something else entirely.
+API_TIMEOUT_ENV_VAR = "GITGUARDIAN_API_TIMEOUT"
+
+
+def _resolve_timeout(config_timeout: int) -> int:
+    """Resolve the API timeout: env var overrides the config file value."""
+    raw = os.getenv(API_TIMEOUT_ENV_VAR)
+    if raw is None:
+        timeout = config_timeout
+        source = "the 'timeout' config key"
+    else:
+        try:
+            timeout = int(raw)
+        except ValueError:
+            raise click.UsageError(
+                f"Invalid {API_TIMEOUT_ENV_VAR} value: '{raw}'. "
+                "It must be a whole number of seconds."
+            )
+        source = API_TIMEOUT_ENV_VAR
+
+    if timeout <= 0:
+        raise click.UsageError(
+            f"Invalid value for {source}: {timeout}. "
+            "The API timeout must be a positive number of seconds."
+        )
+    return timeout
+
+
 def create_client_from_config(
     config: Config,
     *,
@@ -105,6 +136,7 @@ https://docs.gitguardian.com/ggshield-docs/reference/auth/login""",
         allow_self_signed=config.user_config.insecure,
         callbacks=callbacks,
         retry_profile=retry_profile,
+        timeout=_resolve_timeout(config.user_config.timeout),
     )
 
 
@@ -115,6 +147,7 @@ def create_client(
     allow_self_signed: bool = False,
     callbacks: Optional[GGClientCallbacks] = None,
     retry_profile: RetryProfile = RetryProfile.DEFAULT,
+    timeout: int = DEFAULT_API_TIMEOUT,
 ) -> GGClient:
     """
     Implementation of create_client_from_config(). Exposed as a function for specific
@@ -129,7 +162,7 @@ def create_client(
             api_key=api_key,
             base_uri=api_url,
             user_agent=os.getenv("GG_USER_AGENT", "ggshield"),
-            timeout=60,
+            timeout=timeout,
             session=session,
             callbacks=callbacks,
         )

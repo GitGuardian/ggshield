@@ -18,6 +18,9 @@ MAX_WORKERS = max(1, min(CPU_COUNT, _get_max_workers()))
 DEFAULT_CONFIG_FILENAME = ".gitguardian.yaml"
 USER_CONFIG_FILENAMES = [".gitguardian", ".gitguardian.yml", DEFAULT_CONFIG_FILENAME]
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
+# Some API responses take longer than a minute, so 120s gives them room to
+# complete instead of failing the scan.
+DEFAULT_API_TIMEOUT = 120
 DEFAULT_HMSL_URL = "https://api.hasmysecretleaked.com"
 AUTH_CONFIG_FILENAME = "auth_config.yaml"
 ON_PREMISE_API_URL_PATH_PREFIX = "/exposed"

@@ -18,6 +18,7 @@ from pygitguardian.models import (
 from ggshield.core.client import (
     RetryProfile,
     check_client_api_key,
+    create_client,
     create_client_from_config,
     create_session,
     safe_api_tokens,
@@ -402,8 +403,6 @@ def test_create_client_threads_retry_profile():
     Tests the low-level entry point, which is what create_client_from_config
     forwards to.
     """
-    from ggshield.core.client import create_client
-
     client = create_client(
         api_key="test-api-key",
         api_url="https://api.example.com",
@@ -426,6 +425,7 @@ def test_create_client_from_config_forwards_retry_profile():
     config.api_url = "https://api.example.com"
     config.user_config = Mock()
     config.user_config.insecure = False
+    config.user_config.timeout = 120
 
     with patch("ggshield.core.client.create_client") as create_client_mock:
         create_client_from_config(config, retry_profile=RetryProfile.PRE_RECEIVE)
@@ -454,3 +454,95 @@ def test_create_session_with_self_signed_option(allow_self_signed: bool):
         assert session.verify is False
     else:
         assert session.verify is True
+
+
+def test_create_client_default_timeout():
+    """
+    GIVEN create_client is called without a timeout
+    WHEN the client is created
+    THEN it defaults to 120 seconds
+    """
+    client = create_client(api_key="test-api-key", api_url="https://api.example.com")
+
+    assert client.timeout == 120
+
+
+def test_create_client_from_config_default_timeout(isolated_fs: FakeFilesystem):
+    """
+    GIVEN no timeout set in the config file or environment
+    WHEN create_client_from_config() is called
+    THEN the resulting client uses the 120 seconds default
+    """
+    with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "test-api-key"}, clear=True):
+        client = create_client_from_config(Config())
+
+    assert client.timeout == 120
+
+
+def test_create_client_from_config_uses_config_file_timeout(
+    isolated_fs: FakeFilesystem,
+):
+    """
+    GIVEN a config with a custom timeout
+    WHEN create_client_from_config() is called
+    THEN the resulting client uses that timeout
+    """
+    with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "test-api-key"}, clear=True):
+        config = Config()
+        config.user_config.timeout = 30
+        client = create_client_from_config(config)
+
+    assert client.timeout == 30
+
+
+def test_create_client_from_config_env_var_overrides_config_file(
+    isolated_fs: FakeFilesystem,
+):
+    """
+    GIVEN a config file timeout and a different GITGUARDIAN_API_TIMEOUT value
+    WHEN create_client_from_config() is called
+    THEN the environment variable wins
+    """
+    with patch.dict(
+        os.environ,
+        {"GITGUARDIAN_API_KEY": "test-api-key", "GITGUARDIAN_API_TIMEOUT": "45"},
+        clear=True,
+    ):
+        config = Config()
+        config.user_config.timeout = 30
+        client = create_client_from_config(config)
+
+    assert client.timeout == 45
+
+
+@pytest.mark.parametrize("value", ["not-a-number", "0", "-5"])
+def test_create_client_from_config_invalid_env_var_timeout(
+    isolated_fs: FakeFilesystem, value: str
+):
+    """
+    GIVEN an invalid GITGUARDIAN_API_TIMEOUT value (not an integer, zero, negative)
+    WHEN create_client_from_config() is called
+    THEN it raises a clear UsageError instead of crashing
+    """
+    with patch.dict(
+        os.environ,
+        {"GITGUARDIAN_API_KEY": "test-api-key", "GITGUARDIAN_API_TIMEOUT": value},
+        clear=True,
+    ):
+        with pytest.raises(click.UsageError, match="GITGUARDIAN_API_TIMEOUT"):
+            create_client_from_config(Config())
+
+
+def test_create_client_from_config_invalid_config_file_timeout(
+    isolated_fs: FakeFilesystem,
+):
+    """
+    GIVEN a config with a zero timeout
+    WHEN create_client_from_config() is called
+    THEN it raises a clear UsageError instead of crashing
+    """
+    with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "test-api-key"}, clear=True):
+        config = Config()
+        config.user_config.timeout = 0
+        with pytest.raises(click.UsageError, match="timeout"):
+            create_client_from_config(config)
