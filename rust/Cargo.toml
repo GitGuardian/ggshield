@@ -37,7 +37,7 @@ toml = { version = "1", default-features = false, features = ["std", "parse", "s
 sha2 = "0.10"
 
 # Cache/config dirs. Matches what platformdirs returns for ggshield.
-dirs = "6"
+dirs = "7"
 
 # RFC 3339 parsing for the stored token's expiry date.
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
