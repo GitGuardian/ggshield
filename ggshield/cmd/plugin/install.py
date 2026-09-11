@@ -26,6 +26,7 @@ from ggshield.core.plugin.downloader import (
     InsecureSourceError,
     PluginDownloader,
 )
+from ggshield.core.plugin.installer import install_plugin_from_platform
 from ggshield.core.plugin.loader import enable_installed_plugin
 from ggshield.core.plugin.platform import get_platform_info
 from ggshield.core.plugin.signature import (
@@ -199,48 +200,20 @@ def _install_from_gitguardian(
 
     downloader = PluginDownloader()
     enterprise_config = EnterpriseConfig.load()
-    platform_info = get_platform_info()
 
     ui.display_info(f"Installing {plugin_name}...")
 
     try:
-        with plugin_api_client.download_plugin(
-            plugin_name, platform_info=platform_info, version=version
-        ) as (info, chunks):
-            bundle_bytes: Optional[bytes] = None
-            if info.signature_url:
-                try:
-                    bundle_bytes = plugin_api_client.download_signature_bundle(
-                        info.signature_url
-                    )
-                except PluginAPIError as bundle_err:
-                    # In STRICT mode, an unreachable bundle is a hard
-                    # failure — the user expects signature verification.
-                    # In WARN mode they have opted into accepting
-                    # unsigned plugins, so a bundle the proxy couldn't
-                    # serve is equivalent to "no signature available"
-                    # rather than a reason to abort an otherwise valid
-                    # wheel download.
-                    if signature_mode == SignatureVerificationMode.STRICT:
-                        raise
-                    ui.display_warning(
-                        f"Could not fetch signature bundle for {plugin_name}: "
-                        f"{bundle_err}. Continuing without verification "
-                        f"(--allow-unsigned)."
-                    )
-            wheel_path = downloader.download_and_install(
-                info,
-                chunks,
-                plugin_name,
-                signature_mode=signature_mode,
-                bundle_bytes=bundle_bytes,
-            )
-
-        installed_name = enable_installed_plugin(
-            enterprise_config, plugin_name, info.version, wheel_path
+        installed = install_plugin_from_platform(
+            plugin_api_client,
+            plugin_name,
+            version=version,
+            signature_mode=signature_mode,
+            downloader=downloader,
+            enterprise_config=enterprise_config,
+            platform_info=get_platform_info(),
         )
-        enterprise_config.save()
-        ui.display_info(f"Installed {installed_name} v{info.version}")
+        ui.display_info(f"Installed {installed.name} v{installed.version}")
 
     except SignatureVerificationError as e:
         ui.display_error(f"Signature verification failed for {plugin_name}: {e}")
