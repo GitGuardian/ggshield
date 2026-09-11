@@ -110,17 +110,19 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // `claude_capability_matches_the_shapes_it_can_build` locks the two
             // together.
             Agent::Claude => matches!(payload.tool, Some(Tool::Bash | Tool::Read)),
-            // Codex and Vibe are documented to replace a blocked tool result,
-            // and Cursor can for an MCP tool. None of that is established here
-            // against a real payload yet, and until it is they keep the leaked
-            // wording: telling someone to rotate a secret that never left is a
-            // nuisance, telling them not to rotate one that did is a breach.
-            Agent::Codex
-            | Agent::Copilot
-            | Agent::Cursor
-            | Agent::Kiro
-            | Agent::Vibe
-            | Agent::VsCode => false,
+            // `decision: "block"` already replaces the tool result, whatever
+            // the tool, so Codex needs no extra field in the response. Only the
+            // model is protected: Codex also records the raw output in a
+            // rollout file of its own, which no hook can reach, so the wording
+            // says the output never reached the agent and claims nothing about
+            // what is on disk.
+            Agent::Codex => true,
+            // Vibe is documented to replace a blocked tool result too, and
+            // Cursor can for an MCP tool. Neither is established here against a
+            // real payload yet, and until it is they keep the leaked wording:
+            // telling someone to rotate a secret that never left is a nuisance,
+            // telling them not to rotate one that did is a breach.
+            Agent::Copilot | Agent::Cursor | Agent::Kiro | Agent::Vibe | Agent::VsCode => false,
         }
 }
 
@@ -686,8 +688,16 @@ mod tests {
                 );
             }
         }
+        // Codex replaces the tool result whatever the tool, so it needs no
+        // shape of its own and every tool redacts.
+        for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Mcp), None] {
+            assert!(can_redact_tool_output(&payload_with_tool(
+                Agent::Codex,
+                EventType::PostToolUse,
+                tool
+            )));
+        }
         for agent in [
-            Agent::Codex,
             Agent::Copilot,
             Agent::Cursor,
             Agent::Kiro,
