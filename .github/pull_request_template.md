@@ -37,6 +37,7 @@ For example:
 
 - [ ] As much as possible, the changes include tests (unit and/or functional)
 - [ ] If the changes affect the end user (new feature, behavior change, bug fix) then the PR has a changelog entry (see doc/dev/getting-started.md). If the changes do not affect the end user, then the `skip-changelog` label has been added to the PR.
+
 <!-- This can't be done for PR created from forks. In this case, uncomment the line below: -->
 
 <!--
