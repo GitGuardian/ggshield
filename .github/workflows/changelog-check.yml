@@ -13,6 +13,11 @@ on:
       - 'labeled'
       - 'unlabeled'
 
+# Fires once per label change, and only the last run sees the final label set.
+concurrency:
+  group: changelog-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-changelog:
     runs-on: ubuntu-22.04
