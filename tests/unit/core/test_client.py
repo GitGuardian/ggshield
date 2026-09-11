@@ -539,12 +539,22 @@ def test_api_timeout_from_config_for_direct_callers(isolated_fs: FakeFilesystem)
     assert client.timeout == 240
 
 
-@pytest.mark.parametrize("value", ["not-a-number", "0", "-5"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "not-a-number",
+        "\u00b2",  # isdigit() says yes, int() disagrees
+        "0",
+        "-5",
+        "3601",
+        "1" + "0" * 309,  # large enough to overflow socket.settimeout()
+    ],
+)
 def test_create_client_from_config_invalid_env_var_timeout(
     isolated_fs: FakeFilesystem, value: str
 ):
     """
-    GIVEN an invalid GITGUARDIAN_API_TIMEOUT value (not an integer, zero, negative)
+    GIVEN an invalid GITGUARDIAN_API_TIMEOUT value
     WHEN create_client_from_config() is called
     THEN it raises a clear UsageError instead of crashing
     """
@@ -557,16 +567,35 @@ def test_create_client_from_config_invalid_env_var_timeout(
             create_client_from_config(Config())
 
 
+@pytest.mark.parametrize("value", [0, -5, 3601, 10**309])
 def test_create_client_from_config_invalid_config_file_timeout(
-    isolated_fs: FakeFilesystem,
+    isolated_fs: FakeFilesystem, value: int
 ):
     """
-    GIVEN a config with a zero timeout
+    GIVEN a config file timeout outside the accepted range
     WHEN create_client_from_config() is called
     THEN it raises a clear UsageError instead of crashing
     """
     with patch.dict(os.environ, {"GITGUARDIAN_API_KEY": "test-api-key"}, clear=True):
         config = Config()
-        config.user_config.timeout = 0
+        config.user_config.timeout = value
         with pytest.raises(click.UsageError, match="timeout"):
             create_client_from_config(config)
+
+
+def test_create_client_from_config_accepts_the_highest_timeout(
+    isolated_fs: FakeFilesystem,
+):
+    """
+    GIVEN a timeout right on the upper bound
+    WHEN create_client_from_config() is called
+    THEN it is accepted
+    """
+    with patch.dict(
+        os.environ,
+        {"GITGUARDIAN_API_KEY": "test-api-key", "GITGUARDIAN_API_TIMEOUT": "3600"},
+        clear=True,
+    ):
+        client = create_client_from_config(Config())
+
+    assert client.timeout == 3600

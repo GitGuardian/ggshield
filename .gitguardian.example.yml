@@ -14,7 +14,7 @@ instance: https://dashboard.gitguardian.com # default: https://dashboard.gitguar
 # Maximum commits to scan in a hook.
 max_commits_for_hook: 50 # default: 50
 
-# How long to wait for the GitGuardian API to answer, in seconds.
+# How long to wait for the GitGuardian API to answer, in seconds, between 1 and 3600.
 # The environment variable GITGUARDIAN_API_TIMEOUT can also be used to override this.
 timeout: 120 # default: 120
 
