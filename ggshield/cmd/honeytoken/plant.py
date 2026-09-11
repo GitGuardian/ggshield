@@ -32,6 +32,18 @@ from ggshield.verticals.honeytoken.targets import (
 )
 
 
+# A 403 on reconcile is an entitlement problem, not a broken machine, and the raw API
+# body does not say which of the three prerequisites is missing.
+_FORBIDDEN_HELP = """ggshield is not allowed to plant honeytokens on your workspace. Make sure that:
+
+- the honeytoken module is enabled for your GitGuardian workspace,
+- you have the necessary permissions as a user (Manager access level),
+- the token used by ggshield has the `honeytokens:write` scope
+  (run `ggshield auth login --scopes honeytokens:write`).
+
+To learn more, visit https://docs.gitguardian.com/honeytoken/getting-started."""
+
+
 @dataclass
 class _Outcome:
     """Per-target reconciliation result, aggregated into the final exit code."""
@@ -202,7 +214,10 @@ def _reconcile_for_user(
                 profile_name=profile_name,
             )
     except EndpointDeploymentsError as exc:
-        click.echo(f"[{target.username}] {exc}", err=True)
+        if exc.status_code == 403:
+            click.echo(f"[{target.username}] {_FORBIDDEN_HELP}", err=True)
+        else:
+            click.echo(f"[{target.username}] {exc}", err=True)
         outcome.api_failure = True
         outcome.api_auth_failure = exc.is_auth
         return outcome
