@@ -4,7 +4,7 @@ import socket
 import struct
 import threading
 from contextlib import contextmanager
-from typing import Any, Iterator, List, Tuple, Type
+from typing import Any, Callable, Iterator, List, Tuple, Type
 from unittest.mock import Mock, patch
 
 import click
@@ -461,87 +461,65 @@ def test_create_session_with_self_signed_option(allow_self_signed: bool):
         assert session.verify is True
 
 
-# --- Real-server tests for the POST/read-timeout retry behaviour below.
-#
-# These spin up an actual local TCP/HTTP server instead of mocking exceptions,
-# so the full requests -> urllib3 -> Retry stack is exercised, not just the
-# code we wrote.
-
-
-# CI runs pytest with --disable-socket. The tests below talk to a server they
-# start themselves, so each one allows sockets again, restricted to loopback.
+# The tests below drive a real local server rather than mocking exceptions, so
+# the whole requests -> urllib3 -> Retry stack is exercised. pytest-socket's
+# allow_hosts marker keeps them to loopback; do not add enable_socket, which
+# short-circuits that check and opens the socket completely.
 
 
 @contextmanager
-def _hanging_server() -> Iterator[Tuple[int, List[str]]]:
-    """A server that accepts connections but never replies, to trigger a
-    genuine read timeout. Returns (port, attempts), where attempts grows by
-    one connection accepted."""
+def _raw_server(
+    handle: Callable[[socket.socket], None]
+) -> Iterator[Tuple[int, List[str]]]:
+    """Serve raw connections with `handle`, yielding (port, attempts).
+
+    `attempts` gains one entry per connection accepted, which is how the tests
+    count retries.
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", 0))
     sock.listen(20)
+    sock.settimeout(0.2)
     port = sock.getsockname()[1]
     attempts: List[str] = []
     stop = threading.Event()
 
     def serve() -> None:
         while not stop.is_set():
-            sock.settimeout(0.2)
             try:
                 conn, _ = sock.accept()
             except socket.timeout:
                 continue
             attempts.append("connection")
-            try:
-                conn.settimeout(5)
-                conn.recv(65536)  # read the request, then go silent
-            except OSError:
-                pass
+            handle(conn)
 
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
     try:
         yield port, attempts
     finally:
+        # Join before closing: closing the listening socket while accept() is
+        # blocked on it raises OSError in the thread.
         stop.set()
+        thread.join(timeout=5)
         sock.close()
 
 
-@contextmanager
-def _reset_server() -> Iterator[Tuple[int, List[str]]]:
-    """A server that accepts a connection and immediately resets it, the
-    scenario PR #1218 added POST to allowed_methods for."""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 0))
-    sock.listen(20)
-    port = sock.getsockname()[1]
-    attempts: List[str] = []
-    stop = threading.Event()
-
-    def serve() -> None:
-        while not stop.is_set():
-            sock.settimeout(0.2)
-            try:
-                conn, _ = sock.accept()
-            except socket.timeout:
-                continue
-            attempts.append("connection")
-            # SO_LINGER with a zero timeout makes close() send a RST
-            # instead of a clean FIN, i.e. a connection reset.
-            conn.setsockopt(
-                socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
-            )
-            conn.close()
-
-    thread = threading.Thread(target=serve, daemon=True)
-    thread.start()
+def _read_then_go_silent(conn: socket.socket) -> None:
+    """Take the request and never answer, to cause a real read timeout."""
     try:
-        yield port, attempts
-    finally:
-        stop.set()
-        sock.close()
+        conn.settimeout(5)
+        conn.recv(65536)
+    except OSError:
+        pass
+
+
+def _reset(conn: socket.socket) -> None:
+    """Reset the connection instead of answering."""
+    # SO_LINGER with a zero timeout makes close() send a RST rather than a FIN.
+    conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+    conn.close()
 
 
 @contextmanager
@@ -551,6 +529,12 @@ def _status_server(status_code: int) -> Iterator[Tuple[int, List[str]]]:
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def _reply(self) -> None:
+            # Read the body before answering. Closing a socket that still holds
+            # unread data sends a RST, and Windows then drops the response the
+            # client had already received.
+            remaining = int(self.headers.get("Content-Length") or 0)
+            while remaining > 0:
+                remaining -= len(self.rfile.read(min(remaining, 65536)))
             attempts.append(self.command)
             self.send_response(status_code)
             self.send_header("Content-Length", "0")
@@ -574,13 +558,13 @@ def _status_server(status_code: int) -> Iterator[Tuple[int, List[str]]]:
     finally:
         server.shutdown()
         thread.join(timeout=5)
+        server.server_close()
 
 
+@pytest.mark.allow_hosts(["127.0.0.1"])
 @pytest.mark.parametrize(
     "retry_profile", [RetryProfile.DEFAULT, RetryProfile.PRE_RECEIVE]
 )
-@pytest.mark.enable_socket
-@pytest.mark.allow_hosts(["127.0.0.1"])
 def test_post_read_timeout_is_not_retried(retry_profile: RetryProfile):
     """
     GIVEN a server that accepts the connection but never replies
@@ -590,7 +574,7 @@ def test_post_read_timeout_is_not_retried(retry_profile: RetryProfile):
     A read timeout means the server already has the request and is working
     on it, so retrying would only make it redo that work.
     """
-    with _hanging_server() as (port, attempts):
+    with _raw_server(_read_then_go_silent) as (port, attempts):
         session = create_session(retry_profile=retry_profile)
         with pytest.raises(requests.exceptions.ReadTimeout):
             session.post(
@@ -599,7 +583,6 @@ def test_post_read_timeout_is_not_retried(retry_profile: RetryProfile):
         assert len(attempts) == 1
 
 
-@pytest.mark.enable_socket
 @pytest.mark.allow_hosts(["127.0.0.1"])
 def test_get_read_timeout_is_still_retried():
     """
@@ -607,7 +590,7 @@ def test_get_read_timeout_is_still_retried():
     WHEN a GET request hits the read timeout
     THEN it is retried (the fix only exempts POST)
     """
-    with _hanging_server() as (port, attempts):
+    with _raw_server(_read_then_go_silent) as (port, attempts):
         # PRE_RECEIVE (total=1) keeps the test fast: one retry is enough to
         # prove the request is retried at all.
         session = create_session(retry_profile=RetryProfile.PRE_RECEIVE)
@@ -616,7 +599,6 @@ def test_get_read_timeout_is_still_retried():
         assert len(attempts) == 2
 
 
-@pytest.mark.enable_socket
 @pytest.mark.allow_hosts(["127.0.0.1"])
 def test_post_connection_reset_is_still_retried():
     """
@@ -627,7 +609,7 @@ def test_post_connection_reset_is_still_retried():
     Regression guard for PR #1218, which added POST to allowed_methods so
     connection resets on POST get retried.
     """
-    with _reset_server() as (port, attempts):
+    with _raw_server(_reset) as (port, attempts):
         session = create_session(retry_profile=RetryProfile.PRE_RECEIVE)
         with pytest.raises(requests.exceptions.ConnectionError):
             session.post(
@@ -636,9 +618,8 @@ def test_post_connection_reset_is_still_retried():
         assert len(attempts) == 2
 
 
-@pytest.mark.parametrize("status_code", [502, 503, 504])
-@pytest.mark.enable_socket
 @pytest.mark.allow_hosts(["127.0.0.1"])
+@pytest.mark.parametrize("status_code", [502, 503, 504])
 def test_post_status_forcelist_is_still_retried(status_code: int):
     """
     GIVEN a server that always answers with a status in the forcelist
