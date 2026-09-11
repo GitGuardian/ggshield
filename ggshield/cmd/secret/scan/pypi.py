@@ -38,10 +38,18 @@ def _get_index_urls() -> List[str]:
     return index_urls
 
 
+def _download_timeout() -> int:
+    """Seconds allowed for the whole download. `GG_PYPI_DOWNLOAD_TIMEOUT` raises
+    it for the functional test, whose package is 454 MB; a malformed value falls
+    back rather than failing the scan."""
+    raw = os.getenv("GG_PYPI_DOWNLOAD_TIMEOUT", "")
+    return int(raw) if raw.isdigit() else PYPI_DOWNLOAD_TIMEOUT
+
+
 def _enforce_deadline(deadline: float) -> None:  # pragma: no cover
-    """Give up once the PYPI_DOWNLOAD_TIMEOUT budget is spent."""
+    """Give up once the download budget is spent."""
     if time.monotonic() > deadline:
-        raise TimeoutError(f"timed out after {PYPI_DOWNLOAD_TIMEOUT}s")
+        raise TimeoutError(f"timed out after {_download_timeout()}s")
 
 
 def _download_link(
@@ -60,7 +68,7 @@ def _download_link(
 def save_package_to_tmp(temp_dir: Path, package_name: str) -> None:
     ui.display_heading("Downloading package")
 
-    deadline = time.monotonic() + PYPI_DOWNLOAD_TIMEOUT
+    deadline = time.monotonic() + _download_timeout()
 
     finder = PackageFinder(
         index_urls=_get_index_urls(),

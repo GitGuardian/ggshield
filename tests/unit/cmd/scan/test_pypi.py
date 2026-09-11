@@ -9,6 +9,8 @@ from packaging.requirements import InvalidRequirement
 
 from ggshield.cmd.secret.scan.pypi import (
     DEFAULT_INDEX_URL,
+    PYPI_DOWNLOAD_TIMEOUT,
+    _download_timeout,
     _get_index_urls,
     get_files_from_package,
     save_package_to_tmp,
@@ -51,6 +53,27 @@ class TestGetIndexUrls:
             "https://extra1.test/simple/",
             "https://extra2.test/simple/",
         ]
+
+
+class TestDownloadTimeout:
+    def test_defaults_to_the_builtin_budget(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("GG_PYPI_DOWNLOAD_TIMEOUT", raising=False)
+
+        assert _download_timeout() == PYPI_DOWNLOAD_TIMEOUT
+
+    def test_honors_the_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("GG_PYPI_DOWNLOAD_TIMEOUT", "300")
+
+        assert _download_timeout() == 300
+
+    def test_falls_back_on_a_malformed_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("GG_PYPI_DOWNLOAD_TIMEOUT", "five minutes")
+
+        assert _download_timeout() == PYPI_DOWNLOAD_TIMEOUT
 
 
 @patch("ggshield.cmd.secret.scan.pypi.PackageFinder")
