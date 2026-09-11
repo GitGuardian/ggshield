@@ -34,7 +34,7 @@ regex = "1"
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
 
 # Payload debounce hash + the content identifier, both sha256 in the Python.
-sha2 = "0.10"
+sha2 = "0.11"
 
 # Cache/config dirs. Matches what platformdirs returns for ggshield.
 dirs = "6"
