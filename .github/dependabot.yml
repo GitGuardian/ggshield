@@ -6,8 +6,10 @@ version: 2
 # usually yanked within hours of discovery, so waiting out that window keeps
 # the malicious-then-deleted versions from ever reaching a branch here.
 #
-# Each also groups minor and patch bumps only: a major can need a code change,
-# and grouped, one broken major blocks every safe bump beside it.
+# Most also group minor and patch bumps only: a major can need a code change,
+# and grouped, one broken major blocks every safe bump beside it. Docker is the
+# exception: a 3.10 -> 3.14 interpreter jump counts as minor there, so a group
+# would batch the riskiest bump in the file behind a "minor and patch" label.
 #
 # `labels` replaces the set Dependabot applies itself, so its two are repeated.
 updates:
@@ -34,11 +36,6 @@ updates:
     cooldown:
       default-days: 3
     labels: ['dependencies', 'docker', 'skip-changelog']
-    groups:
-      docker-minor-patch:
-        applies-to: version-updates
-        patterns: ['*']
-        update-types: ['minor', 'patch']
 
   # Python runtime + dev dependencies (pyproject.toml / uv.lock).
   - package-ecosystem: 'uv'
