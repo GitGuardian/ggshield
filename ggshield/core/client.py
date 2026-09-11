@@ -11,6 +11,8 @@ from pygitguardian.models import APITokensResponse, Detail, TokenScope
 from requests import Session
 from requests.adapters import HTTPAdapter
 
+from ggshield.utils.os import getenv_int
+
 from . import auth_check_cache, ui
 from .config import Config
 from .constants import DEFAULT_API_TIMEOUT, DEFAULT_INSTANCE_URL
@@ -73,27 +75,28 @@ def _build_retry(profile: RetryProfile) -> urllib3.Retry:
 # ggshield/core/git_hooks/prereceive.py) and means something else entirely.
 API_TIMEOUT_ENV_VAR = "GITGUARDIAN_API_TIMEOUT"
 
+MIN_API_TIMEOUT = 1
+# The ceiling also keeps the value small enough for socket.settimeout(), which
+# raises OverflowError on an int too large to convert to float.
+MAX_API_TIMEOUT = 3600
+
 
 def _resolve_timeout(config_timeout: int) -> int:
     """Resolve the API timeout: env var overrides the config file value."""
     raw = os.getenv(API_TIMEOUT_ENV_VAR)
-    if raw is None:
-        timeout = config_timeout
-        source = "the 'timeout' config key"
-    else:
-        try:
-            timeout = int(raw)
-        except ValueError:
-            raise click.UsageError(
-                f"Invalid {API_TIMEOUT_ENV_VAR} value: '{raw}'. "
-                "It must be a whole number of seconds."
-            )
-        source = API_TIMEOUT_ENV_VAR
-
-    if timeout <= 0:
+    source = API_TIMEOUT_ENV_VAR if raw is not None else "the 'timeout' config key"
+    try:
+        timeout = getenv_int(API_TIMEOUT_ENV_VAR, config_timeout)
+    except ValueError:
         raise click.UsageError(
-            f"Invalid value for {source}: {timeout}. "
-            "The API timeout must be a positive number of seconds."
+            f"Invalid {API_TIMEOUT_ENV_VAR} value: '{raw}'. "
+            "It must be a whole number of seconds."
+        )
+
+    if not MIN_API_TIMEOUT <= timeout <= MAX_API_TIMEOUT:
+        raise click.UsageError(
+            f"Invalid value for {source}: {timeout}. The API timeout must be "
+            f"between {MIN_API_TIMEOUT} and {MAX_API_TIMEOUT} seconds."
         )
     return timeout
 
