@@ -1,9 +1,11 @@
 import itertools
 import logging
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections.abc import Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, List, Pattern, Set
+from re import Pattern
+from typing import Callable, List, Set
 
 from click import UsageError
 from pygitguardian import GGClient
@@ -189,10 +191,8 @@ def scan_commit_range(
                 (Commit.from_staged(exclusion_regexes=exclusion_regexes),)
             )
         commits_iters.append(
-            (
-                Commit.from_sha(sha, exclusion_regexes=exclusion_regexes)
-                for sha in commit_list
-            )
+            Commit.from_sha(sha, exclusion_regexes=exclusion_regexes)
+            for sha in commit_list
         )
         commits_batch = get_commits_by_batch(
             commits=itertools.chain(*commits_iters),
@@ -221,19 +221,20 @@ def scan_commit_range(
                         commit_scanned_callback,
                     )
                 )
-                # Stop now if an exception has been raised by a future
-                for future in futures:
-                    exception = future.exception()
-                    if exception is not None:
-                        raise exception
 
-            for future in as_completed(futures):
-                scan_collection = future.result()
-                for scan in scan_collection.scans_with_results:
-                    if scan.results and scan.results.errors:
-                        for error in scan.results.errors:
-                            ui.display_error(error.description)
-                    scans.append(scan)
+            try:
+                # in submission order so we preserve the order
+                for future in futures:
+                    scan_collection = future.result()
+                    for scan in scan_collection.scans_with_results:
+                        if scan.results and scan.results.errors:
+                            for error in scan.results.errors:
+                                ui.display_error(error.description)
+                        scans.append(scan)
+            except Exception:
+                # Don't run the remaining batches if one already failed
+                executor.shutdown(cancel_futures=True)
+                raise
 
     return_code = output_handler.process_scan(
         SecretScanCollection(
