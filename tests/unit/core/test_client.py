@@ -613,6 +613,10 @@ def test_create_client_from_config_accepts_the_highest_timeout(
 # code we wrote.
 
 
+# CI runs pytest with --disable-socket. The tests below talk to a server they
+# start themselves, so each one allows sockets again, restricted to loopback.
+
+
 @contextmanager
 def _hanging_server() -> Iterator[Tuple[int, List[str]]]:
     """A server that accepts connections but never replies, to trigger a
@@ -720,6 +724,8 @@ def _status_server(status_code: int) -> Iterator[Tuple[int, List[str]]]:
 @pytest.mark.parametrize(
     "retry_profile", [RetryProfile.DEFAULT, RetryProfile.PRE_RECEIVE]
 )
+@pytest.mark.enable_socket
+@pytest.mark.allow_hosts(["127.0.0.1"])
 def test_post_read_timeout_is_not_retried(retry_profile: RetryProfile):
     """
     GIVEN a server that accepts the connection but never replies
@@ -738,6 +744,8 @@ def test_post_read_timeout_is_not_retried(retry_profile: RetryProfile):
         assert len(attempts) == 1
 
 
+@pytest.mark.enable_socket
+@pytest.mark.allow_hosts(["127.0.0.1"])
 def test_get_read_timeout_is_still_retried():
     """
     GIVEN the same server that never replies
@@ -753,6 +761,8 @@ def test_get_read_timeout_is_still_retried():
         assert len(attempts) == 2
 
 
+@pytest.mark.enable_socket
+@pytest.mark.allow_hosts(["127.0.0.1"])
 def test_post_connection_reset_is_still_retried():
     """
     GIVEN a server that resets the connection instead of replying
@@ -772,6 +782,8 @@ def test_post_connection_reset_is_still_retried():
 
 
 @pytest.mark.parametrize("status_code", [502, 503, 504])
+@pytest.mark.enable_socket
+@pytest.mark.allow_hosts(["127.0.0.1"])
 def test_post_status_forcelist_is_still_retried(status_code: int):
     """
     GIVEN a server that always answers with a status in the forcelist
