@@ -6,7 +6,7 @@ from typing import Optional
 import jwt
 from pygitguardian.models import Detail, JWTService
 
-from ggshield.core.client import create_client
+from ggshield.core.client import api_timeout_from_config, create_client
 from ggshield.core.config.config import Config
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import (
@@ -109,6 +109,7 @@ def get_token(config: Config) -> Optional[str]:
             api_url=config.saas_api_url,
             api_key=config.saas_api_key,
             allow_self_signed=config.user_config.insecure,
+            timeout=api_timeout_from_config(config),
         )
         audience = config.hmsl_audience
     except (MissingTokenError, AuthExpiredError):

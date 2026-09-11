@@ -25,6 +25,12 @@ pub const USER_CONFIG_FILENAMES: [&str; 3] =
     [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"];
 const CURRENT_CONFIG_VERSION: i64 = 2;
 
+/// `DEFAULT_API_TIMEOUT` in core/constants.py, and the bounds `_resolve_timeout()`
+/// enforces in core/client.py.
+pub const DEFAULT_API_TIMEOUT: u64 = 120;
+pub const MIN_API_TIMEOUT: u64 = 1;
+pub const MAX_API_TIMEOUT: u64 = 3600;
+
 #[derive(Debug, Default, Clone)]
 pub struct SecretConfig {
     /// Each entry is either the sha256 "ignore sha" of a policy break or a
@@ -47,6 +53,9 @@ pub struct UserConfig {
     /// Disables TLS certificate verification for the API client (v1
     /// `allow_self_signed`). Off by default; see `api.rs`.
     pub insecure: bool,
+    /// How long to wait for the API to answer, in seconds. `timeout` in
+    /// core/constants.py and core/config/user_config.py.
+    pub api_timeout: u64,
     pub secret: SecretConfig,
 }
 
@@ -68,6 +77,7 @@ struct RawUserConfig {
     /// `_fix_allow_self_signed()`: the v1 spelling is the same setting.
     #[serde(alias = "allow_self_signed", alias = "allow-self-signed")]
     insecure: Option<bool>,
+    api_timeout: Option<u64>,
     /// `_fix_ignore_known_secrets()`: originally accepted at the root, where it
     /// still works unless `secret` gives its own value.
     #[serde(alias = "ignore-known-secrets")]
@@ -149,6 +159,7 @@ impl From<V1Config> for RawUserConfig {
             instance,
             exit_zero: v1.exit_zero,
             insecure: v1.allow_self_signed,
+            api_timeout: None,
             ignore_known_secrets: None,
             secret: RawSecretConfig {
                 ignored_matches: v1
@@ -176,6 +187,7 @@ impl RawUserConfig {
         self.instance = later.instance.or_else(|| self.instance.take());
         self.exit_zero = later.exit_zero.or(self.exit_zero);
         self.insecure = later.insecure.or(self.insecure);
+        self.api_timeout = later.api_timeout.or(self.api_timeout);
         self.ignore_known_secrets = later.ignore_known_secrets.or(self.ignore_known_secrets);
 
         let secret = &mut self.secret;
@@ -199,6 +211,7 @@ impl RawUserConfig {
                 .map(|url| url.trim_end_matches('/').to_string()),
             exit_zero: self.exit_zero.unwrap_or_default(),
             insecure: self.insecure.unwrap_or_default(),
+            api_timeout: self.api_timeout.unwrap_or(DEFAULT_API_TIMEOUT),
             secret: SecretConfig {
                 ignored_matches: self
                     .secret
@@ -477,6 +490,20 @@ mod tests {
                 "{yaml:?} must be fatal"
             );
         }
+    }
+
+    /// GIVEN a config with and without a `timeout`
+    /// WHEN the config is loaded
+    /// THEN the key is honoured, and the Python default applies when it is absent
+    #[test]
+    fn timeout_is_read_from_the_config() {
+        assert_eq!(parse("version: 2\n").expect("parses").api_timeout, 120);
+        assert_eq!(
+            parse("version: 2\napi_timeout: 300\n")
+                .expect("parses")
+                .api_timeout,
+            300
+        );
     }
 
     /// GIVEN `insecure` (or its v1 spelling) and `source_uuid`

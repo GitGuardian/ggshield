@@ -9,11 +9,31 @@ use serde_json::{Value, json};
 use ggshield_common::error::Error;
 use ggshield_common::hash::sha256_hex;
 use ggshield_config::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
-use ggshield_config::user_config::SecretConfig;
+use ggshield_config::user_config::{
+    DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig,
+};
 
 /// `_API_PATH_MAX_LENGTH` in secret_scanner.py.
 const API_PATH_MAX_LENGTH: usize = 256;
-const TIMEOUT_SECS: u64 = 60;
+/// How long to wait for the API to answer. `_resolve_timeout()` in
+/// core/client.py: the environment variable wins over the config file. Where
+/// Python refuses an unusable value, the hook ignores it and carries on: it
+/// must never block an agent over a mistyped setting.
+fn timeout_secs(config: &Config) -> u64 {
+    resolve_timeout(
+        std::env::var("GITGUARDIAN_API_TIMEOUT").ok().as_deref(),
+        config.user.api_timeout,
+    )
+}
+
+fn resolve_timeout(from_env: Option<&str>, configured: u64) -> u64 {
+    let in_range = |value: &u64| (MIN_API_TIMEOUT..=MAX_API_TIMEOUT).contains(value);
+    from_env
+        .and_then(|raw| raw.trim().parse().ok())
+        .filter(in_range)
+        .or(Some(configured).filter(in_range))
+        .unwrap_or(DEFAULT_API_TIMEOUT)
+}
 
 /// `_RETRY_STATUS_FORCELIST` and `RetryProfile.DEFAULT` in core/client.py:
 /// `urllib3.Retry(total=5, backoff_factor=0.5, backoff_max=8)`, which sleeps 0, 1,
@@ -261,7 +281,7 @@ fn fetch_metadata(config: &Config) -> Option<Value> {
     let url = format!("{}/v1/metadata", config.api_url);
     let mut builder = ureq::get(&url)
         .config()
-        .timeout_global(Some(std::time::Duration::from_secs(TIMEOUT_SECS)));
+        .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))));
     if let Some(tls) = insecure_tls(config) {
         builder = builder.tls_config(tls);
     }
@@ -381,7 +401,7 @@ fn send_once(
     let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
     let mut builder = ureq::post(&url)
         .config()
-        .timeout_global(Some(std::time::Duration::from_secs(TIMEOUT_SECS)))
+        .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))))
         // ureq turns any 4xx/5xx into an `Err` by default, which made the 401
         // branch below dead code: an expired token said "could not scan" instead
         // of "run ggshield auth login", and a 503 could not be recognised either.
@@ -429,6 +449,28 @@ fn split_result(result: ScanResult, secret_config: &SecretConfig) -> DocumentRes
 
 #[cfg(test)]
 mod tests {
+
+    /// GIVEN a config timeout and an environment value
+    /// WHEN the request timeout is resolved
+    /// THEN the environment wins, and an unusable value on either side is
+    /// ignored rather than failing the hook
+    #[test]
+    fn the_timeout_follows_the_same_order_as_python() {
+        assert_eq!(resolve_timeout(None, 300), 300);
+        assert_eq!(resolve_timeout(Some("240"), 300), 240);
+        assert_eq!(resolve_timeout(Some(" 240 "), 300), 240);
+
+        for unusable in ["not-a-number", "0", "3601", ""] {
+            assert_eq!(
+                resolve_timeout(Some(unusable), 300),
+                300,
+                "for {unusable:?}"
+            );
+        }
+
+        // Nothing usable anywhere falls back to the shared default.
+        assert_eq!(resolve_timeout(Some("0"), 0), DEFAULT_API_TIMEOUT);
+    }
     use super::*;
 
     use std::io::{BufRead, BufReader, Read, Write};
