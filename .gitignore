@@ -134,3 +134,6 @@ test-secret-files.json
 
 # uv
 .python-version
+
+# Generated at build time from the repo-root providers/ (single source).
+/packages/python/src/gitguardian/providers/

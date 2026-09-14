@@ -5,12 +5,17 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        exclude: snap_
+        # packages/ is the SDKs and the Rust crates: each carries its own
+        # formatter and linter (ruff, oxfmt/oxlint, rustfmt/clippy) enforced by
+        # its own workflow. Running ggshield's Python and JS hooks over them
+        # only makes two formatters fight over the same files.
+        exclude: snap_|^packages/
 
   - repo: https://github.com/PyCQA/flake8
     rev: 7.3.0
     hooks:
       - id: flake8
+        exclude: ^packages/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -38,12 +43,13 @@ repos:
     rev: v3.9.6
     hooks:
       - id: prettier
-        exclude: \.wxs$
+        exclude: \.wxs$|^packages/
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
+        exclude: ^packages/
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1

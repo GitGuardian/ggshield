@@ -1,5 +1,7 @@
 [workspace]
 members = ["apps/*", "packages/*"]
+# packages/python is an SDK, not a Rust crate.
+exclude = ["packages/python"]
 resolver = "2"
 
 [workspace.package]
