@@ -5,6 +5,7 @@ from .claude_code import Claude
 from .codex import Codex
 from .copilot import Copilot
 from .cursor import Cursor
+from .junie import Junie
 from .kiro import Kiro
 from .vibe import Vibe
 from .vscode import VSCode
@@ -16,8 +17,27 @@ from .vscode import VSCode
 # broadest matcher and every exact one gets first refusal.
 AGENTS: Dict[str, Agent] = {
     agent.name: agent
-    for agent in [Vibe(), Claude(), Codex(), Copilot(), Cursor(), VSCode(), Kiro()]
+    for agent in [
+        Vibe(),
+        Claude(),
+        Codex(),
+        Copilot(),
+        Cursor(),
+        VSCode(),
+        Junie(),
+        Kiro(),
+    ]
 }
 
 
-__all__ = ["AGENTS", "Claude", "Codex", "Copilot", "Cursor", "Kiro", "Vibe", "VSCode"]
+__all__ = [
+    "AGENTS",
+    "Claude",
+    "Codex",
+    "Copilot",
+    "Cursor",
+    "Junie",
+    "Kiro",
+    "Vibe",
+    "VSCode",
+]
