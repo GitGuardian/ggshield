@@ -9,6 +9,7 @@ from pygitguardian.models import APITokensResponse
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import (
+    api_timeout_from_config,
     create_client,
     create_client_from_config,
     safe_api_tokens,
@@ -242,6 +243,7 @@ def token_login(config: Config, instance: Optional[str]) -> None:
         api_key=token,
         api_url=config.api_url,
         allow_self_signed=config.user_config.insecure,
+        timeout=api_timeout_from_config(config),
     )
     try:
         response = client.get(endpoint="token")
