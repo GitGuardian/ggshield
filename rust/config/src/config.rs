@@ -876,7 +876,10 @@ mod tests {
     use std::sync::{Mutex, MutexGuard};
 
     /// The environment and the cwd are per-process, so tests touching them must
-    /// not overlap.
+    /// not overlap — *reading* counts. `instance_name` consults
+    /// `GITGUARDIAN_INSTANCE` before it falls back to the user config, so a test
+    /// that only asserts on it still has to hold this lock or it races the
+    /// tests that export that variable.
     static PROCESS_STATE: Mutex<()> = Mutex::new(());
 
     fn exclusive() -> MutexGuard<'static, ()> {
@@ -1061,6 +1064,7 @@ mod tests {
     /// THEN it is refused too, because `Config.api_url` validates again.
     #[test]
     fn a_cleartext_instance_from_the_user_config_is_refused() {
+        let _guard = exclusive();
         let user = UserConfig {
             instance: Some("http://gg.example.com".to_string()),
             ..UserConfig::default()
