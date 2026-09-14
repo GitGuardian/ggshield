@@ -44,15 +44,15 @@ class RustDispatcherBuildHook(BuildHookInterface):
         if os.environ.get("GGSHIELD_BUILD_RUST") != "1":
             return
 
-        crate = Path(self.root) / "rust"
+        workspace = Path(self.root)
         name = "ggshield" + (".exe" if sys.platform == "win32" else "")
-        binary = crate / "target" / "release" / name
+        binary = workspace / "target" / "release" / name
 
         # Unconditionally, never `if not binary.exists()`: a leftover
         # target/release/ggshield from another arch -- or another OS -- is
         # indistinguishable from a fresh one by existence alone, and cargo is
         # nearly free when the artifact is already current.
-        self._build(crate, binary)
+        self._build(workspace, binary)
 
         # A native binary but no Python extension module: platform-specific yet
         # valid for any Python 3 -> py3-none-<platform>. (Linux relabels the raw
@@ -188,15 +188,15 @@ class RustDispatcherBuildHook(BuildHookInterface):
                 f"{argv[0]} exited {signer.returncode}\n{signer.stdout}{signer.stderr}"
             )
 
-    def _build(self, crate: Path, binary: Path) -> None:
-        # --locked: build the dependency versions committed in rust/Cargo.lock,
+    def _build(self, workspace: Path, binary: Path) -> None:
+        # --locked: build the dependency versions committed in Cargo.lock,
         # not whatever resolves today.
         if sys.platform == "darwin":
             for target in MACOS_TARGETS:
-                # cwd=crate: add the target to the toolchain pinned by
+                # cwd=workspace: add the target to the toolchain pinned by
                 # rust-toolchain.toml, which is the one cargo below uses.
                 subprocess.run(
-                    ["rustup", "target", "add", target], cwd=crate, check=True
+                    ["rustup", "target", "add", target], cwd=workspace, check=True
                 )
                 subprocess.run(
                     [
@@ -209,12 +209,12 @@ class RustDispatcherBuildHook(BuildHookInterface):
                         "--bin",
                         "ggshield",
                     ],
-                    cwd=crate,
+                    cwd=workspace,
                     check=True,
                 )
             binary.parent.mkdir(parents=True, exist_ok=True)
             slices = [
-                str(crate / "target" / t / "release" / "ggshield")
+                str(workspace / "target" / t / "release" / "ggshield")
                 for t in MACOS_TARGETS
             ]
             subprocess.run(
@@ -224,7 +224,7 @@ class RustDispatcherBuildHook(BuildHookInterface):
         else:
             subprocess.run(
                 ["cargo", "build", "--release", "--locked", "--bin", "ggshield"],
-                cwd=crate,
+                cwd=workspace,
                 check=True,
             )
             self._sign(binary)

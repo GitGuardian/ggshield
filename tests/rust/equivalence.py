@@ -55,8 +55,8 @@ import time
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent.parent
-REPO = ROOT.parent
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent.parent
 # The venv lives in the main checkout; PYTHONPATH below points the interpreter
 # at *this* worktree's sources so we compare against the same commit the Rust
 # port was written from.
@@ -73,7 +73,7 @@ PYTHON = Path(
 PY_SOURCES = Path(os.environ.get("GGSHIELD_PYTHON_SOURCES", REPO))
 # The dispatcher, named `ggshield`: it answers `secret scan ai-hook` natively and
 # execs `ggshield-py` for anything else, so RS_CMD carries that exact argv.
-RUST = ROOT / "target" / "release" / "ggshield"
+RUST = REPO / "target" / "release" / "ggshield"
 
 PY_CMD = [str(PYTHON), "-m", "ggshield", "secret", "scan", "ai-hook"]
 RS_CMD = [str(RUST), "secret", "scan", "ai-hook"]
@@ -1204,7 +1204,7 @@ def start_mock(mode, request_log):
     port = free_port()
     env = {**os.environ, "MODE": mode, "REQUEST_LOG": str(request_log)}
     proc = subprocess.Popen(
-        [sys.executable, str(ROOT / "tests" / "mock_api.py"), str(port)],
+        [sys.executable, str(HERE / "mock_api.py"), str(port)],
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -2085,7 +2085,7 @@ def main():
     if not PYTHON.exists():
         sys.exit(f"missing Python venv at {PYTHON}")
 
-    sys.path.insert(0, str(ROOT / "tests"))
+    sys.path.insert(0, str(HERE))
     import mock_api
 
     tmp = Path(tempfile.mkdtemp(prefix="ggshield-hook-eq-"))

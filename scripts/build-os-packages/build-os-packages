@@ -230,7 +230,7 @@ step_build() {
 # Version and checksums of the `rustup-init` the release build installs when the
 # container has no cargo. Pinned like everything else in a release: it runs as
 # root in the build container, before signing. This pins the installer only; the
-# toolchain is pinned by rust/rust-toolchain.toml.
+# toolchain is pinned by rust-toolchain.toml.
 #
 # To bump: pick a version from https://static.rust-lang.org/rustup/release-stable.toml
 # and read each sha256 from
@@ -276,12 +276,12 @@ install_rustup() {
 # dispatcher relies on to find its sibling; see doc/dev/os-packages.md.
 build_dispatcher() {
     info "Building the Rust dispatcher"
-    local crate_dir="$ROOT_DIR/rust"
+    local crate_dir="$ROOT_DIR"
 
     # The Rocky 8 build container has neither rustup nor a C compiler (ring, the
     # TLS backend, compiles C); macOS and Windows runners ship rustup. Not done in
     # the CI's shared dependency step: doing it there broke the later `uv` step.
-    # --default-toolchain none because rust/rust-toolchain.toml pins the version.
+    # --default-toolchain none because rust-toolchain.toml pins the version.
     if [ "$HUMAN_OS" = Linux ] ; then
         command -v cc > /dev/null 2>&1 || yum install -y gcc
     fi
