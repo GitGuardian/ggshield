@@ -1,0 +1,55 @@
+# The JavaScript SDK in packages/js. Its own workflow, for the same reason as
+# sdk-python.yml: per-path scoping, and a toolchain (pnpm + oxlint + tsgo)
+# nothing else here uses.
+name: JavaScript SDK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/sdk-js.yml'
+      # providers/*.yaml is the single source src/providers.generated.js comes
+      # from, and the workspace files decide what `pnpm install` resolves.
+      - 'providers/**'
+      - 'packages/js/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+  pull_request:
+    paths:
+      - '.github/workflows/sdk-js.yml'
+      - 'providers/**'
+      - 'packages/js/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+
+concurrency:
+  group: sdk-js-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  js_sdk:
+    name: Test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The runner image's own Node, with corepack providing the pnpm version
+      # pinned by `packageManager` in package.json. No setup-node: this
+      # repository pins every action to a SHA, and adding one for a package
+      # that only declares `engines: node >= 20` is not worth a new pin to
+      # audit. `node --version` below is what makes that assumption visible if
+      # the image ever ships something older.
+      - name: Enable pnpm
+        run: |
+          node --version
+          corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # test, fmt, lint, typecheck, build and knip, in parallel.
+      - name: Checks
+        run: pnpm run ci
