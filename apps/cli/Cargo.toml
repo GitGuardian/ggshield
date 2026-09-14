@@ -15,6 +15,8 @@ path = "src/main.rs"
 [dependencies]
 # The hook half: the exact `secret scan ai-hook` argv is answered by this.
 ggshield-hook = { workspace = true }
+# The `secret` store verbs: read, write and inject secrets.
+ggshield-secrets-cli = { workspace = true }
 
 # Ctrl-C has to be handed to the child, which needs SetConsoleCtrlHandler.
 [target.'cfg(windows)'.dependencies]
@@ -22,6 +24,16 @@ windows-sys = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+assert_cmd = "2"
+# Feature unification during `cargo test` gives the binary under test the
+# file-backed stand-in for the OS credential store, so the secret tests
+# exercise real encryption without a login keychain. A plain `cargo build`
+# does not build dev-dependencies, so a shipped binary never has it.
+ggshield-secrets = { workspace = true, features = ["test-keystore"] }
+
+# openpty, for the tests that check what the secret verbs do on a real TTY.
+[target.'cfg(unix)'.dev-dependencies]
+libc = { workspace = true }
 
 [lints]
 workspace = true

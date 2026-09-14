@@ -76,6 +76,7 @@ tempfile = "3"
 
 ggshield-common = { path = "packages/rust-common" }
 ggshield-secrets = { path = "packages/rust-secrets" }
+ggshield-secrets-cli = { path = "packages/rust-secrets-cli" }
 ggshield-config = { path = "packages/rust-config" }
 ggshield-hook = { path = "packages/rust-hook" }
 
