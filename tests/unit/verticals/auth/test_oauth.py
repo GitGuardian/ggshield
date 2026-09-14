@@ -236,15 +236,53 @@ def test_wait_for_callback_aborts_on_sigint_that_does_not_wake_select(
          request arrives
     """
     client = listening_client
-    threading.Timer(0.2, signal.raise_signal, args=(signal.SIGINT,)).start()
-    unblock = threading.Timer(CALLBACK_WAIT_LIMIT + 2, _poke, args=(client.server,))
-    unblock.daemon = True
-    unblock.start()
+    assert client.server is not None
+
+    def unblock():
+        # Regression path: end the loop so the test fails with DID NOT RAISE
+        # instead of hanging on the next handle_request().
+        client._request_finished = True
+        _poke(client.server)
+
+    interrupt = threading.Timer(0.2, signal.raise_signal, args=(signal.SIGINT,))
+    safety = threading.Timer(CALLBACK_WAIT_LIMIT + 2, unblock)
+    safety.daemon = True
 
     start = time.monotonic()
-    with pytest.raises(click.Abort):
-        client._wait_for_callback()
-    elapsed = time.monotonic() - start
-    unblock.cancel()
+    try:
+        interrupt.start()
+        safety.start()
+        with pytest.raises(click.Abort):
+            client._wait_for_callback()
+    finally:
+        # A stray SIGINT firing during a later test would kill the session.
+        interrupt.cancel()
+        safety.cancel()
 
-    assert elapsed < CALLBACK_WAIT_LIMIT
+    assert time.monotonic() - start < CALLBACK_WAIT_LIMIT
+
+
+@pytest.mark.enable_socket
+def test_wait_for_callback_is_not_wedged_by_silent_peer(listening_client):
+    """
+    GIVEN a peer that connected to the callback server but never sends a
+          request line (browser pre-connect, port scan)
+    WHEN the wait is told to stop while the handler is blocked reading from
+         that peer
+    THEN the wait loop still returns promptly instead of blocking until the
+         peer closes its connection
+    """
+    client = listening_client
+    assert client.server is not None
+    silent_peer = socket.create_connection(("127.0.0.1", client.server.server_port))
+    try:
+        waiter = threading.Thread(target=client._wait_for_callback, daemon=True)
+        waiter.start()
+        time.sleep(0.2)
+
+        client._request_finished = True
+        waiter.join(timeout=CALLBACK_WAIT_LIMIT)
+
+        assert not waiter.is_alive()
+    finally:
+        silent_peer.close()

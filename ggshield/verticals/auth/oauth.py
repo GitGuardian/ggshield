@@ -516,6 +516,10 @@ class OAuthClient:
 
 
 class RequestHandler(BaseHTTPRequestHandler):
+    # Bounds readline() on an accepted-but-silent peer; the server timeout
+    # only covers select() before accept().
+    timeout = CALLBACK_POLL_INTERVAL_SECONDS
+
     def __init__(
         self,
         oauth_client: OAuthClient,
