@@ -137,3 +137,8 @@ test-secret-files.json
 
 # Generated at build time from the repo-root providers/ (single source).
 /packages/python/src/gitguardian/providers/
+
+# Node / pnpm workspace
+node_modules/
+# Generated at build time from the repo-root providers/ (single source).
+/packages/js/src/providers.generated.js

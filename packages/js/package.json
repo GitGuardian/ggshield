@@ -1,0 +1,49 @@
+{
+  "name": "gitguardian",
+  "version": "0.1.0",
+  "description": "GitGuardian secrets SDK — read secrets from your secret manager straight into memory",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GitGuardian/ggshield"
+  },
+  "files": [
+    "src",
+    "dist",
+    "!src/**/*.test.js"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "lint": "oxlint",
+    "check": "tsgo --noEmit",
+    "build": "tsgo -p tsconfig.build.json",
+    "knip": "knip",
+    "ci": "pnpm run generate:providers && concurrently -g -n test,fmt,lint,check,build,knip 'node --test' 'oxfmt --check .' 'oxlint' 'tsgo --noEmit' 'tsgo -p tsconfig.build.json' 'knip'",
+    "generate:providers": "node scripts/generate-providers.mjs",
+    "prepare": "pnpm run generate:providers",
+    "prepack": "pnpm run generate:providers && pnpm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "concurrently": "^9",
+    "knip": "^6",
+    "oxfmt": "0.59.0",
+    "oxlint": "1.74.0",
+    "yaml": "^2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.10.0"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "ggshield-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Repo root — pnpm workspace entry point for the JavaScript SDK in packages/js.",
+  "scripts": {
+    "test": "pnpm -F gitguardian run test",
+    "ci": "pnpm -F gitguardian run ci",
+    "lint": "pnpm -F gitguardian run lint",
+    "fmt": "pnpm -F gitguardian run fmt",
+    "fmt:check": "pnpm -F gitguardian run fmt:check",
+    "check": "pnpm -F gitguardian run check",
+    "build": "pnpm -F gitguardian run build",
+    "knip": "pnpm -F gitguardian run knip",
+    "generate:providers": "pnpm -F gitguardian run generate:providers"
+  },
+  "packageManager": "pnpm@11.10.0"
+}

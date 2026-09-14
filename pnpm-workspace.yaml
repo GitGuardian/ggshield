@@ -1,0 +1,6 @@
+# Only packages/js is a JavaScript package; the Rust crates and
+# packages/python are not part of the pnpm workspace. Declaring this
+# workspace here also makes it the nearest one, so pnpm ignores any workspace a
+# developer happens to have further up their home directory.
+packages:
+  - packages/js

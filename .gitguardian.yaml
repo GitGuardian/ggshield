@@ -2,6 +2,8 @@ version: 2
 
 secret:
   ignored_matches:
+    - match: c2d0128a4b07f733e339d6785911a0b6863aa99184bb054fada49d0ff5c12bf1
+      name: 1Password vault/item path fixture in the JS SDK tests
     - match: 8ffee698dca25f63e9e0937d842a1b0ea1699a1c72438ac0b1720d1f7aba589a
       name: zsh array name (chpwd_functions) asserted in the activate hook tests
     - match: 87a4ca384e5ded884e378695f5c5b9575adf831545af45d53a551bed6a7034bf

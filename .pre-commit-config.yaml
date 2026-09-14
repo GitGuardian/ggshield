@@ -43,7 +43,9 @@ repos:
     rev: v3.9.6
     hooks:
       - id: prettier
-        exclude: \.wxs$|^packages/
+        # pnpm-lock.yaml is generated: pnpm owns its formatting, and a
+        # prettier pass over it is undone by the next install.
+        exclude: \.wxs$|^packages/|^pnpm-lock\.yaml$
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
