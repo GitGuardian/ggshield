@@ -1,5 +1,5 @@
 [package]
-name = "ggshield-dispatcher"
+name = "ggshield-cli"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 # The hook half: the exact `secret scan ai-hook` argv is answered by this.
-ggshield-hook = { path = "../hook" }
+ggshield-hook = { workspace = true }
 
 # Ctrl-C has to be handed to the child, which needs SetConsoleCtrlHandler.
 [target.'cfg(windows)'.dependencies]

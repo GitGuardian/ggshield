@@ -665,6 +665,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ggshield-cli"
+version = "0.1.0"
+dependencies = [
+ "ggshield-hook",
+ "tempfile",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "ggshield-common"
 version = "0.1.0"
 dependencies = [
@@ -687,15 +696,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
- "tempfile",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "ggshield-dispatcher"
-version = "0.1.0"
-dependencies = [
- "ggshield-hook",
  "tempfile",
  "windows-sys 0.61.2",
 ]

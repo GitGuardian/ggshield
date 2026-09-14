@@ -1,6 +1,6 @@
 //! The hook: `ggshield secret scan ai-hook`, as a library.
 //!
-//! The dispatcher binary (`../dispatcher`) is the `ggshield` the standalone
+//! The dispatcher binary (`../../apps/cli`) is the `ggshield` the standalone
 //! bundle puts on the PATH. It calls [`run_hook`] for the exact
 //! `secret scan ai-hook` argv and hands everything else to `ggshield-py`, so
 //! stdin is still untouched when we get here.

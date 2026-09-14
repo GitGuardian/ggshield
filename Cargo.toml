@@ -1,11 +1,11 @@
 [workspace]
-members = ["common", "config", "hook", "dispatcher"]
+members = ["apps/*", "packages/*"]
 resolver = "2"
 
 [workspace.package]
 # Crate metadata only; nothing is published from here. The version the hook
 # *reports* to the API comes from ggshield's own `__version__`, read at build
-# time by hook/build.rs.
+# time by packages/rust-hook/build.rs.
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -74,8 +74,9 @@ windows-sys = { version = "0.61", features = [
 
 tempfile = "3"
 
-ggshield-common = { path = "common" }
-ggshield-config = { path = "config" }
+ggshield-common = { path = "packages/rust-common" }
+ggshield-config = { path = "packages/rust-config" }
+ggshield-hook = { path = "packages/rust-hook" }
 
 [workspace.lints.clippy]
 unwrap_used = "warn"

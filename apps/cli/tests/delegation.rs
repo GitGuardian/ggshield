@@ -39,7 +39,7 @@ struct Output {
 /// the file it points at earns `ETXTBSY`. Nothing is wrong with the binary — the
 /// window is someone else's fork, so waiting it out is the whole fix.
 ///
-/// To see it fail, relink first — `touch dispatcher/src/main.rs` before each
+/// To see it fail, relink first — `touch apps/cli/src/main.rs` before each
 /// run, on Linux. A freshly linked binary fails about six runs in ten; a warm
 /// one never fails, however many times it is run or however few cores it is
 /// given. That is why CI hits this on nearly every run, building once and
