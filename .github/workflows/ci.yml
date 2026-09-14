@@ -218,20 +218,17 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust/target
-          key: cargo|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
+            target
+          key: cargo|${{ runner.os }}|${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
 
       - name: Check formatting
-        working-directory: rust
         # rust-toolchain.toml pins the version, so rustup provisions it here.
         run: cargo fmt --all --check
 
       - name: Lint
-        working-directory: rust
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run unit tests
-        working-directory: rust
         run: cargo test --workspace
 
       - name: Check the vendored binary extension list is in sync
@@ -243,7 +240,7 @@ jobs:
           import pathlib, re, sys
           from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 
-          rust = pathlib.Path("rust/common/src/binary_extensions.rs").read_text()
+          rust = pathlib.Path("packages/rust-common/src/binary_extensions.rs").read_text()
           # cargo fmt packs the array, so match the literals, not whole lines.
           # Nothing before "= [" contains a quote, so the split is unambiguous.
           vendored = set(re.findall(r'"([^"]+)"', rust.split("= [", 1)[1]))
@@ -251,14 +248,13 @@ jobs:
               missing = sorted(set(BINARY_EXTENSIONS) - vendored)
               extra = sorted(vendored - set(BINARY_EXTENSIONS))
               sys.exit(
-                  "rust/common/src/binary_extensions.rs is out of sync with "
+                  "packages/rust-common/src/binary_extensions.rs is out of sync with "
                   f"ggshield/utils/_binary_extensions.py\n  missing: {missing}\n  extra: {extra}"
               )
           print(f"{len(vendored)} extensions in sync")
           PY
 
       - name: Build the release binary
-        working-directory: rust
         run: cargo build --release
 
       - name: Compare against the Python hook
@@ -269,7 +265,7 @@ jobs:
         env:
           GGSHIELD_VENV_PYTHON: ${{ github.workspace }}/.venv/bin/python
         run: |
-          python3 rust/tests/equivalence.py
+          python3 tests/rust/equivalence.py
 
   rust:
     name: Rust (${{ matrix.os }})
@@ -282,9 +278,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, macos-14, windows-2022]
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -294,8 +287,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust/target
-          key: cargo-rustjob|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
+            target
+          key: cargo-rustjob|${{ runner.os }}|${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
 
       - name: Lint
         run: cargo clippy --workspace --all-targets -- -D warnings

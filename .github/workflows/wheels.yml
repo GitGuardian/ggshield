@@ -38,7 +38,11 @@ on:
       - 'hatch_meta.py'
       - 'pyproject.toml'
       - 'scripts/smoke-test-wheel'
-      - 'rust/**'
+      - 'apps/**'
+      - 'packages/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
 
 env:
   DEFAULT_PYTHON_VERSION: '3.14'
@@ -66,8 +70,8 @@ jobs:
       # Commented `v1`, not a semver tag: this action publishes only `v1` and
       # per-version branches (`stable` is a branch too, and moves every rustup
       # release). Which toolchain actually builds the binary is decided
-      # separately -- hatch_build.py runs cargo with cwd=rust/, so
-      # rust/rust-toolchain.toml pins that.
+      # separately -- hatch_build.py runs cargo at the repository root, so
+      # rust-toolchain.toml pins that.
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
           # Required once pinned by SHA: the `stable` *branch* used to default
@@ -137,8 +141,8 @@ jobs:
       # Commented `v1`, not a semver tag: this action publishes only `v1` and
       # per-version branches (`stable` is a branch too, and moves every rustup
       # release). Which toolchain actually builds the binary is decided
-      # separately -- hatch_build.py runs cargo with cwd=rust/, so
-      # rust/rust-toolchain.toml pins that.
+      # separately -- hatch_build.py runs cargo at the repository root, so
+      # rust-toolchain.toml pins that.
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
           # See the macOS job above: required once the action is SHA-pinned.
@@ -274,7 +278,7 @@ jobs:
           docker run --rm -v "$PWD:/io" -w /io -e GGSHIELD_BUILD_RUST=1 \
             "${{ matrix.image }}" bash -euo pipefail -c '
               # A pinned, checksum-verified rustup-init, not `curl | sh`.
-              # --default-toolchain none: rust/rust-toolchain.toml pins it.
+              # --default-toolchain none: rust-toolchain.toml pins it.
               scripts/download \
                 "https://static.rust-lang.org/rustup/archive/${{ env.RUSTUP_VERSION }}/${{ matrix.rustup_triple }}/rustup-init" \
                 /tmp/rustup-init \
