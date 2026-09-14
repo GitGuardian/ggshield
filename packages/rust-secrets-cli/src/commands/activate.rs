@@ -68,7 +68,9 @@ use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use ggshield_secrets::{DEFAULT_PROJECT_PATH, Provider, SecretStore, trust, user_scope_path};
+use ggshield_secrets::{
+    DEFAULT_PROJECT_PATH, Provider, SecretStore, repo_scope_path, trust, user_scope_path,
+};
 use secrecy::{ExposeSecret, SecretString};
 
 use crate::env::{validate_env_key, validate_env_value};
@@ -505,7 +507,7 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
     // does not inherit that approval. Deliberately not a prompt: a y/n on every
     // `cd` is answered without reading, which is the failure this exists to
     // prevent.
-    if !trust::is_trusted(&found.path)? {
+    if found.needs_trust && !trust::is_trusted(&found.path)? {
         report_always(
             shell,
             &format!(
@@ -682,6 +684,11 @@ struct Found {
     directory: PathBuf,
     path: PathBuf,
     fingerprint: u64,
+    /// Whether loading it needs the user's approval. True for a dotenv found by
+    /// walking; false for the repository's own store, which `git clone` never
+    /// transfers and only this CLI writes, so there is no stranger's file to
+    /// consent to.
+    needs_trust: bool,
     /// Why the file must not be read, when it must not be. Recorded like any
     /// other outcome so the message appears once rather than on every prompt.
     refusal: Option<String>,
@@ -714,6 +721,7 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
                     fingerprint: fingerprint(&metadata) ^ user_scope_fingerprint(),
                     path,
                     refusal: None,
+                    needs_trust: true,
                 });
             }
             // There *is* something here, and it is not a file we may read.
@@ -732,6 +740,7 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
                         path.display()
                     )),
                     path,
+                    needs_trust: true,
                 });
             }
             Err(_) => {}
@@ -744,7 +753,29 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
             break;
         }
     }
-    None
+    // No dotenv anywhere above: in a repository, its own store is what a fresh
+    // worktree has instead of a `.env`, and loading it is the point of the
+    // scope. Outside one, or with no store written yet, there is nothing.
+    repo_store(&cwd)
+}
+
+/// The repository's store, as a load target, when it exists.
+fn repo_store(cwd: &Path) -> Option<Found> {
+    let path = repo_scope_path(cwd)?;
+    let metadata = std::fs::symlink_metadata(&path).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    Some(Found {
+        // The directory whose prompt this is, not the store's own: the state
+        // records where the shell was, and the store is shared by every
+        // worktree of the repository.
+        directory: cwd.to_path_buf(),
+        fingerprint: fingerprint(&metadata) ^ user_scope_fingerprint(),
+        path,
+        refusal: None,
+        needs_trust: false,
+    })
 }
 
 /// Cheap "has this file changed" stamp: modification time and length.

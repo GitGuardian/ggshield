@@ -23,6 +23,11 @@ pub(crate) struct Args {
     /// exposed automatically when output is piped or redirected.
     #[arg(long)]
     expose: bool,
+    /// Say which scope each value came from (file provider): user, repo or
+    /// project. A value the repository defines and this checkout overrides
+    /// looks identical otherwise.
+    #[arg(long)]
+    scopes: bool,
 }
 
 pub(crate) fn execute(args: Args) -> Result<()> {
@@ -48,6 +53,13 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         }
         None => {
             let (fields, warnings) = store.get_secrets_with_warnings(&path)?;
+            // Read before printing: it costs one more parse of the same files
+            // and decrypts nothing.
+            let scopes = if args.scopes {
+                store.field_scopes(&path)?
+            } else {
+                Default::default()
+            };
             // On stderr, so a redirected or piped stdout still holds only the
             // values — but the user is told which fields are missing and why.
             // `get` reports what it read and warns about the rest, deliberately:
@@ -63,10 +75,16 @@ pub(crate) fn execute(args: Args) -> Result<()> {
                 // assignments. Quote those so the output stays parseable as the
                 // dotenv it looks like. Single-line values are printed as before.
                 let shown = show(value, expose);
+                // A trailing comment, so the output is still the dotenv it
+                // looks like and still parses if something reads it back.
+                let scope = match scopes.get(key) {
+                    Some(scope) => format!("  # {scope}"),
+                    None => String::new(),
+                };
                 if shown.contains('\n') || shown.contains('\r') {
-                    writeln!(out, "{key}={}", quote_for_display(shown))?;
+                    writeln!(out, "{key}={}{scope}", quote_for_display(shown))?;
                 } else {
-                    writeln!(out, "{key}={shown}")?;
+                    writeln!(out, "{key}={shown}{scope}")?;
                 }
             }
         }

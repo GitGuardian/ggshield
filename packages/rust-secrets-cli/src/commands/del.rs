@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail, ensure};
 use ggshield_secrets::{Provider, SecretError, SecretStore, user_scope_path};
 
-use crate::commands::shared::{Scope, confirm, field_count, secret_path};
+use crate::commands::shared::{Scope, confirm, field_count, write_path};
 use crate::env::validate_env_key;
 
 /// Delete a provider secret, or selected fields from it.
@@ -24,10 +24,12 @@ pub(crate) struct Args {
     provider: Provider,
     /// Full path to the secret.
     /// Vault: <mount>/<secret path>; 1Password: <vault>/<item>;
-    /// file: the dotenv file to edit (default: .env).
+    /// file: the dotenv file to edit (default: the repository store,
+    /// or .env outside a repository).
     #[arg(long)]
     path: Option<String>,
-    /// Which file to edit, for the file provider (default: project).
+    /// Which file to edit, for the file provider (default: repo in a git
+    /// repository, project outside one).
     #[arg(long, value_enum)]
     scope: Option<Scope>,
     /// Skip confirmation.
@@ -54,7 +56,7 @@ pub(crate) fn execute(args: Args) -> Result<()> {
     for key in &args.keys {
         validate_env_key(key)?;
     }
-    let path = secret_path(args.provider, args.path, args.scope)?;
+    let path = write_path(args.provider, args.path, args.scope)?;
     let store = SecretStore::builder(args.provider)
         .env_override(false)
         .build()?;

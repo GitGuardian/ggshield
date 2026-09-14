@@ -5,7 +5,7 @@ use ggshield_secrets::{Provider, SecretStore};
 use secrecy::SecretString;
 
 use crate::commands::shared::{
-    Scope, confirm_existing_fields, field_count, prompt_secret, secret_path,
+    Scope, confirm_existing_fields, field_count, prompt_secret, write_path,
 };
 use crate::env::{validate_env_key, validate_env_value};
 
@@ -16,10 +16,12 @@ pub(crate) struct Args {
     provider: Provider,
     /// Full path to the secret.
     /// Vault: <mount>/<secret path>; 1Password: <vault>/<item>;
-    /// file: the dotenv file to write (default: .env).
+    /// file: the dotenv file to write (default: the repository store,
+    /// or .env outside a repository).
     #[arg(long)]
     path: Option<String>,
-    /// Which file to write, for the file provider (default: project).
+    /// Which file to write, for the file provider (default: repo in a git
+    /// repository, project outside one).
     #[arg(long, value_enum)]
     scope: Option<Scope>,
     /// Store the value as readable plaintext instead of encrypting it.
@@ -53,7 +55,7 @@ pub(crate) fn execute(args: Args) -> Result<()> {
     if args.plain && args.provider != Provider::File {
         anyhow::bail!("--plain only applies to the file provider");
     }
-    let path = secret_path(args.provider, args.path, args.scope)?;
+    let path = write_path(args.provider, args.path, args.scope)?;
     let store = SecretStore::builder(args.provider)
         .env_override(false)
         .file_encrypt(!args.plain)

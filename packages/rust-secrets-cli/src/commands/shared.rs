@@ -3,14 +3,19 @@ use std::io::{IsTerminal, Write};
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use ggshield_secrets::{DEFAULT_PROJECT_PATH, Provider, SecretStore, user_scope_path};
+use ggshield_secrets::{
+    DEFAULT_PROJECT_PATH, Provider, SecretStore, repo_scope_path, user_scope_path,
+};
 
 /// Which file a `file`-provider value is written to, git-config style.
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub(crate) enum Scope {
     /// This machine's user file, shared by every project.
     User,
-    /// The project's own file (the default).
+    /// The repository's file, shared by every worktree of it. Lives in the git
+    /// directory, so it is never committed and never arrives with a clone.
+    Repo,
+    /// The checkout's own file.
     Project,
 }
 
@@ -23,6 +28,38 @@ pub(crate) fn secret_path(
     path: Option<String>,
     scope: Option<Scope>,
 ) -> Result<String> {
+    resolve_path(provider, path, scope, Default_::Project)
+}
+
+/// The file a *writing* command should act on.
+///
+/// Same rules as [`secret_path`], except that with neither `--scope` nor
+/// `--path` it targets the repository's file when there is one. Writing the
+/// checkout's `.env` by default is what makes every worktree of a repository
+/// need its own copy of the same values, which is the duplication the repo
+/// scope exists to end; `--scope project` still names the checkout's file when
+/// a value really is local to it.
+pub(crate) fn write_path(
+    provider: Provider,
+    path: Option<String>,
+    scope: Option<Scope>,
+) -> Result<String> {
+    resolve_path(provider, path, scope, Default_::Repo)
+}
+
+/// Which file an unqualified command means.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Default_ {
+    Project,
+    Repo,
+}
+
+fn resolve_path(
+    provider: Provider,
+    path: Option<String>,
+    scope: Option<Scope>,
+    default: Default_,
+) -> Result<String> {
     if provider != Provider::File {
         if scope.is_some() {
             bail!("--scope only applies to the file provider");
@@ -32,9 +69,36 @@ pub(crate) fn secret_path(
     match (scope, path) {
         (Some(Scope::User), Some(_)) => bail!("--scope user and --path cannot be combined"),
         (Some(Scope::User), None) => require_utf8_path(user_scope_path()?),
+        (Some(Scope::Repo), Some(_)) => bail!("--scope repo and --path cannot be combined"),
+        (Some(Scope::Repo), None) => require_utf8_path(explicit_repo_path()?),
         (_, Some(path)) => Ok(path),
-        (_, None) => Ok(DEFAULT_PROJECT_PATH.to_string()),
+        (Some(Scope::Project), None) => Ok(DEFAULT_PROJECT_PATH.to_string()),
+        (None, None) => match default {
+            Default_::Project => Ok(DEFAULT_PROJECT_PATH.to_string()),
+            // Outside a repository there is nothing to share a store with, so
+            // this is the project file and no explanation is owed.
+            Default_::Repo => match repo_path() {
+                Some(path) => require_utf8_path(path),
+                None => Ok(DEFAULT_PROJECT_PATH.to_string()),
+            },
+        },
     }
+}
+
+/// The repo-scope file for the current directory.
+fn repo_path() -> Option<std::path::PathBuf> {
+    repo_scope_path(Path::new("."))
+}
+
+/// The same, for `--scope repo`, where not being in a repository is an error
+/// rather than a reason to pick another file.
+fn explicit_repo_path() -> Result<std::path::PathBuf> {
+    repo_path().ok_or_else(|| {
+        anyhow::anyhow!(
+            "--scope repo needs a git repository, and this directory is not in one. Use --scope \
+             project (the default here) or --path to name a file"
+        )
+    })
 }
 
 /// A platform path as a `String`, refused rather than converted lossily.
@@ -47,7 +111,7 @@ pub(crate) fn secret_path(
 fn require_utf8_path(path: std::path::PathBuf) -> Result<String> {
     path.into_os_string().into_string().map_err(|path| {
         anyhow::anyhow!(
-            "the user-scope file's path is not valid UTF-8 ({}), and this command cannot name it \
+            "the scope file's path is not valid UTF-8 ({}), and this command cannot name it \
              without changing it. Pass --path with a UTF-8 path, or set $XDG_CONFIG_HOME (on \
              macOS, $HOME) to one",
             Path::new(&path).display()

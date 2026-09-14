@@ -3454,3 +3454,190 @@ fn get_and_run_are_not_gated_by_trust() {
     assert_ok(&output);
     assert_eq!(stdout(&output).trim(), "fake-ungated-value");
 }
+
+/// Make the workspace's project directory a git checkout, and return the
+/// repo-scope file the CLI should resolve to.
+fn make_repository(workspace: &Workspace) -> PathBuf {
+    let git_dir = workspace.project.path().join(".git");
+    std::fs::create_dir_all(&git_dir).unwrap();
+    git_dir.join("gitguardian").join("secrets.env")
+}
+
+/// The duplication this scope exists to end: one `set` in a repository, and
+/// every worktree of it reads the value without a copy of its own.
+#[test]
+fn a_value_set_in_a_repository_is_written_to_the_shared_store() {
+    let workspace = Workspace::new();
+    let store = make_repository(&workspace);
+
+    let output = workspace.set(
+        &["set", "--provider", "file", "API_KEY"],
+        "fake-shared-value",
+    );
+    assert_ok(&output);
+
+    assert!(store.exists(), "{} was not written", store.display());
+    assert!(
+        !workspace.project.path().join(".env").exists(),
+        "the checkout's .env was written instead of the repository's store"
+    );
+    let read = workspace.run(&[
+        "get",
+        "--provider",
+        "file",
+        "--field",
+        "API_KEY",
+        "--expose",
+    ]);
+    assert_eq!(stdout(&read).trim(), "fake-shared-value");
+}
+
+#[test]
+fn a_linked_worktree_reads_the_same_store() {
+    let workspace = Workspace::new();
+    let git_dir = workspace.project.path().join(".git");
+    std::fs::create_dir_all(&git_dir).unwrap();
+    workspace.set(
+        &["set", "--provider", "file", "SHARED"],
+        "fake-shared-value",
+    );
+
+    // The layout `git worktree add` writes.
+    let worktree_git = git_dir.join("worktrees/feature");
+    std::fs::create_dir_all(&worktree_git).unwrap();
+    std::fs::write(worktree_git.join("commondir"), "../..\n").unwrap();
+    let worktree = workspace.home.path().join("feature");
+    std::fs::create_dir_all(&worktree).unwrap();
+    std::fs::write(
+        worktree.join(".git"),
+        format!("gitdir: {}\n", worktree_git.display()),
+    )
+    .unwrap();
+
+    let output = workspace.run_with(
+        Some(&worktree),
+        &[],
+        &["get", "--provider", "file", "--field", "SHARED", "--expose"],
+    );
+    assert_ok(&output);
+    assert_eq!(stdout(&output).trim(), "fake-shared-value");
+}
+
+#[test]
+fn a_checkouts_env_overrides_the_repository_one_variable_at_a_time() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(&["set", "--provider", "file", "API_URL"], "https://shared");
+    workspace.set(&["set", "--provider", "file", "TOKEN"], "fake-shared-token");
+    workspace.set(
+        &["set", "--provider", "file", "--scope", "project", "API_URL"],
+        "https://this-branch",
+    );
+
+    let output = workspace.run(&["get", "--provider", "file", "--expose"]);
+    assert_ok(&output);
+    let printed = stdout(&output);
+    assert!(printed.contains("API_URL=https://this-branch"), "{printed}");
+    assert!(printed.contains("TOKEN=fake-shared-token"), "{printed}");
+}
+
+#[test]
+fn get_scopes_names_the_file_each_value_won_in() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(&["set", "--provider", "file", "SHARED"], "fake-repo-value");
+    workspace.set(
+        &["set", "--provider", "file", "--scope", "project", "LOCAL"],
+        "fake-local-value",
+    );
+
+    let output = workspace.run(&["get", "--provider", "file", "--scopes", "--expose"]);
+    assert_ok(&output);
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("SHARED=fake-repo-value  # repo"),
+        "{printed}"
+    );
+    assert!(
+        printed.contains("LOCAL=fake-local-value  # project"),
+        "{printed}"
+    );
+}
+
+#[test]
+fn scope_repo_outside_a_repository_is_refused_rather_than_guessed() {
+    let workspace = Workspace::new();
+    let output = workspace.set(
+        &["set", "--provider", "file", "--scope", "repo", "API_KEY"],
+        "fake-value",
+    );
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("needs a git repository"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+/// Outside a repository nothing changes: `set` still writes the checkout's file.
+#[test]
+fn without_a_repository_set_still_writes_the_project_file() {
+    let workspace = Workspace::new();
+    let output = workspace.set(&["set", "--provider", "file", "API_KEY"], "fake-value");
+    assert_ok(&output);
+    assert!(workspace.project.path().join(".env").exists());
+}
+
+/// A fresh worktree has no `.env` at all — the repository's store is what the
+/// hook has to load, or the scope buys nothing where it was meant to help most.
+#[test]
+fn the_hook_loads_the_repository_store_when_the_checkout_has_no_dotenv() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(
+        &["set", "--provider", "file", "SHARED"],
+        "fake-shared-value",
+    );
+
+    let block = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(
+        block.contains("export SHARED='fake-shared-value'"),
+        "{block}"
+    );
+}
+
+/// And it loads without a trust prompt: `git clone` never brings `.git/
+/// gitguardian/` with it, so there is no stranger's file to consent to.
+#[test]
+fn the_repository_store_needs_no_trust_decision() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(
+        &["set", "--provider", "file", "SHARED"],
+        "fake-shared-value",
+    );
+
+    let block = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(!block.contains("not trusted"), "{block}");
+    assert!(block.contains("export SHARED="), "{block}");
+}
+
+/// The checkout's own `.env` keeps its gate, even in a repository that has a
+/// store: that file *can* arrive with a clone.
+#[test]
+fn an_untrusted_dotenv_is_still_refused_in_a_repository_with_a_store() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(
+        &["set", "--provider", "file", "SHARED"],
+        "fake-shared-value",
+    );
+    workspace.write_project(".env", "PLANTED=fake-planted-value\n");
+
+    let block = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(
+        !block.contains("PLANTED"),
+        "loaded without consent: {block}"
+    );
+    assert!(block.contains("not trusted"), "{block}");
+}
