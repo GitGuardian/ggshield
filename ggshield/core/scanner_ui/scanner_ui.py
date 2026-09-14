@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from typing_extensions import Self
 
-from ggshield.core.scan import Scannable
+
+if TYPE_CHECKING:
+    from ggshield.core.scan import Scannable
 
 
 class ScannerUI(ABC):
@@ -13,11 +15,11 @@ class ScannerUI(ABC):
     """
 
     @abstractmethod
-    def on_scanned(self, scannables: Sequence[Scannable]) -> None:
+    def on_scanned(self, scannables: Sequence["Scannable"]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def on_skipped(self, scannable: Scannable, reason: str) -> None:
+    def on_skipped(self, scannable: "Scannable", reason: str) -> None:
         """
         Called when a scannable was skipped, `reason` explains why. If `reason` is empty
         then the user should not be notified of the skipped scannable (this happens for

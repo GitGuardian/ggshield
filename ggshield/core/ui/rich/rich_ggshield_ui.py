@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import rich.markup
 from rich.console import Console
@@ -8,6 +8,10 @@ from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
 from typing_extensions import Self
 
 from ..ggshield_ui import NAME_BY_LEVEL, DebugInfo, GGShieldProgress, GGShieldUI, Level
+
+
+if TYPE_CHECKING:
+    from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 
 
 COLOR_BY_LEVEL = {
@@ -62,6 +66,18 @@ class RichGGShieldUI(GGShieldUI):
 
     def create_progress(self, total: int) -> GGShieldProgress:
         return RichGGShieldProgress(self.console, total)
+
+    def create_scanner_ui(self, total: int) -> "ScannerUI":
+        # Local import: this module is loaded before any command runs, and
+        # ggshield.core.scanner_ui pulls in the whole scanning machinery.
+        from ggshield.core.scanner_ui.rich_scanner_ui import RichProgressScannerUI
+
+        return RichProgressScannerUI(self, total)
+
+    def create_message_only_scanner_ui(self) -> "ScannerUI":
+        from ggshield.core.scanner_ui.rich_scanner_ui import RichMessageOnlyScannerUI
+
+        return RichMessageOnlyScannerUI(self)
 
     def _echo(self, level: Level, message: str) -> None:
         message = rich.markup.escape(message)
