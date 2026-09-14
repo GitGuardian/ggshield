@@ -75,6 +75,7 @@ windows-sys = { version = "0.61", features = [
 tempfile = "3"
 
 ggshield-common = { path = "packages/rust-common" }
+ggshield-secrets = { path = "packages/rust-secrets" }
 ggshield-config = { path = "packages/rust-config" }
 ggshield-hook = { path = "packages/rust-hook" }
 

@@ -1,0 +1,38 @@
+name: vault
+description: HashiCorp Vault KV v2 secrets engine
+
+# Server address, e.g. https://127.0.0.1:8200 — read from the environment.
+base_url: ${VAULT_ADDR}
+
+# Token auth: send the token in the X-Vault-Token header. Prefer $VAULT_TOKEN,
+# falling back to ~/.vault-token (written by `vault login`), matching the
+# precedence of the official Vault CLI. Other Vault auth methods (AppRole,
+# OIDC, ...) all boil down to obtaining a token, so they can be added later as
+# additional coded strategies.
+auth:
+  strategy: token
+  token_env: VAULT_TOKEN
+  # Token file path: $VAULT_TOKEN_FILE_PATH if set, else ~/.vault-token.
+  token_file_env: VAULT_TOKEN_FILE_PATH
+  token_file: ~/.vault-token
+  header: X-Vault-Token
+
+endpoints:
+  # Read a KV v2 secret. `mount` and `path` are derived from the requested
+  # secret path (e.g. secret/myapp/db -> mount "secret", path "myapp/db").
+  # The KV v2 API nests the secret data under `.data.data`.
+  read_secret:
+    method: GET
+    path: /v1/${mount}/data/${path}
+    secret: data.data
+
+  # Create or update a KV v2 secret. The request body is built by the core
+  # implementation as {"data": {field: value}}.
+  write_secret:
+    method: POST
+    path: /v1/${mount}/data/${path}
+
+  # Delete the latest KV v2 version, mirroring `vault kv delete`.
+  delete_secret:
+    method: DELETE
+    path: /v1/${mount}/data/${path}
