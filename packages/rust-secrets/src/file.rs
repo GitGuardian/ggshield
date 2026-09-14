@@ -1,16 +1,22 @@
 //! The `file` provider: secrets kept in dotenv files, encrypted value by
 //! value with a device-local key.
 //!
-//! Two scopes, resolved like git config — most specific wins:
+//! Three scopes, resolved like git config — most specific wins, variable by
+//! variable:
 //!
 //! | scope   | file                                          |
 //! |---------|-----------------------------------------------|
 //! | user    | `<config dir>/gitguardian/secrets.env`        |
+//! | repo    | `<common git dir>/gitguardian/secrets.env`    |
 //! | project | `./.env`, or whatever `--path` names           |
 //!
-//! There is deliberately no worktree or machine scope and no git awareness: a
-//! per-worktree `.env` that is git-ignored already gives worktree-scoped
-//! values, without this crate having to know what a worktree is.
+//! The merge is per variable, not per file: the repo scope holds what every
+//! worktree of a repository shares, and a `.env` beside a particular checkout
+//! overrides only the names it sets. A branch pointing at a different backend
+//! is one line in one file, not a copy of the whole set.
+//!
+//! There is no machine scope, and the repo scope is the only git awareness in
+//! this crate: see [`repo`] for what it does and does not read.
 //!
 //! # What is zeroized, and what is not
 //!
@@ -46,6 +52,7 @@ pub(crate) mod atomic;
 pub(crate) mod crypto;
 pub(crate) mod envelope;
 pub(crate) mod keystore;
+mod repo;
 pub mod trust;
 
 use std::collections::BTreeMap;
@@ -70,6 +77,14 @@ const USER_SCOPE_DIR: &str = "gitguardian";
 const USER_SCOPE_FILE: &str = "secrets.env";
 /// Lock file beside it, guarding this user's keyring writes.
 const KEYSET_LOCK_FILE: &str = "keyset.lock";
+
+/// The repo-scope file for the repository containing `directory`, or `None`
+/// when it is not in one.
+///
+/// One store per repository, shared by all its worktrees; see [`repo`].
+pub fn repo_scope_path(directory: &Path) -> Option<PathBuf> {
+    repo::scope_path(directory)
+}
 
 /// The user-scope file for this machine's current user.
 pub fn user_scope_path() -> Result<PathBuf> {
@@ -197,6 +212,7 @@ fn os_user_home() -> Option<PathBuf> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Scope {
     User,
+    Repo,
     Project,
 }
 
@@ -204,6 +220,7 @@ impl std::fmt::Display for Scope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Scope::User => "user",
+            Scope::Repo => "repo",
             Scope::Project => "project",
         })
     }
@@ -388,6 +405,20 @@ impl FileBackend {
                 advisories,
             },
         ))
+    }
+
+    /// Which scope each visible field's value came from, for the same read
+    /// `get_secrets` does.
+    ///
+    /// Nothing is decrypted: the answer is which file won the merge, which is
+    /// known before any value is opened. A reader that prints values wants to
+    /// be able to say *why* this value and not the repository's.
+    pub(crate) fn field_scopes(&self, project_path: &str) -> Result<BTreeMap<String, String>> {
+        let layers = self.layers(Path::new(project_path))?;
+        Ok(merge(&layers)
+            .into_iter()
+            .map(|(field, resolved)| (field.to_string(), resolved.scope.to_string()))
+            .collect())
     }
 
     /// One value visible at `project_path`.
@@ -852,6 +883,20 @@ impl FileBackend {
                 path: user_path.to_path_buf(),
             });
         }
+        // Resolved per call rather than once in `new`: the project file names
+        // the directory, and a long-lived store can be asked about files in
+        // different repositories.
+        if let Some(repo_path) = repo::scope_path(project_directory(project_path))
+            && repo_path != project_path
+            && self.user_path.as_deref() != Some(repo_path.as_path())
+            && let Some(contents) = atomic::read_to_string(&repo_path)?
+        {
+            layers.push(Layer {
+                scope: Scope::Repo,
+                document: Document::parse(&contents),
+                path: repo_path,
+            });
+        }
         if let Some(contents) = atomic::read_to_string(project_path)? {
             layers.push(Layer {
                 scope: Scope::Project,
@@ -860,6 +905,15 @@ impl FileBackend {
             });
         }
         Ok(layers)
+    }
+}
+
+/// The directory `path` lives in, for walking up to a git directory. A bare
+/// `.env` has no parent component, which means the current directory.
+fn project_directory(path: &Path) -> &Path {
+    match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
     }
 }
 
@@ -1237,6 +1291,14 @@ mod tests {
 
         fn write_project(&self, contents: &str) {
             std::fs::write(self.directory.path().join(".env"), contents).unwrap();
+        }
+
+        /// Make the fixture's directory a git checkout and write the
+        /// repo-scope file inside its git directory.
+        fn write_repo(&self, contents: &str) {
+            let store = self.directory.path().join(".git").join("gitguardian");
+            std::fs::create_dir_all(&store).unwrap();
+            std::fs::write(store.join("secrets.env"), contents).unwrap();
         }
 
         fn write_user(&self, contents: &str) {
@@ -2384,5 +2446,54 @@ mod tests {
             assert!(format!("{error:#}").contains("does not exist"), "{error:#}");
         }
         assert!(!fixture.directory.path().join(".env").exists());
+    }
+    #[test]
+    fn a_repo_value_is_visible_from_a_checkout_that_does_not_define_it() {
+        let fixture = Fixture::new().plaintext();
+        fixture.write_repo("SHARED=from-repo\n");
+        fixture.write_project("LOCAL=from-project\n");
+
+        let fields = fixture
+            .backend
+            .get_secrets(&fixture.project_path())
+            .unwrap()
+            .0;
+        assert_eq!(fields["SHARED"].expose_secret(), "from-repo");
+        assert_eq!(fields["LOCAL"].expose_secret(), "from-project");
+    }
+
+    #[test]
+    fn a_project_file_overrides_the_repo_one_variable_at_a_time() {
+        // The whole reason the merge is per variable: a worktree pointing at a
+        // different backend names that one variable, and keeps everything else
+        // the repository already holds.
+        let fixture = Fixture::new().plaintext();
+        fixture.write_repo("API_URL=https://shared\nTOKEN=shared-token\n");
+        fixture.write_project("API_URL=https://this-branch\n");
+
+        let fields = fixture
+            .backend
+            .get_secrets(&fixture.project_path())
+            .unwrap()
+            .0;
+        assert_eq!(fields["API_URL"].expose_secret(), "https://this-branch");
+        assert_eq!(fields["TOKEN"].expose_secret(), "shared-token");
+    }
+
+    #[test]
+    fn the_repo_scope_sits_between_user_and_project() {
+        let fixture = Fixture::new().plaintext();
+        fixture.write_user("V=from-user\nONLY_USER=u\n");
+        fixture.write_repo("V=from-repo\nONLY_REPO=r\n");
+        fixture.write_project("V=from-project\n");
+
+        let fields = fixture
+            .backend
+            .get_secrets(&fixture.project_path())
+            .unwrap()
+            .0;
+        assert_eq!(fields["V"].expose_secret(), "from-project");
+        assert_eq!(fields["ONLY_REPO"].expose_secret(), "r");
+        assert_eq!(fields["ONLY_USER"].expose_secret(), "u");
     }
 }

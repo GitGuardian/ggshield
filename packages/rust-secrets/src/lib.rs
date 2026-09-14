@@ -35,7 +35,8 @@ pub use definition::{Auth, Endpoint, Method, ProviderDef};
 pub use error::SecretError;
 pub use file::trust;
 pub use file::{
-    DEFAULT_PROJECT_PATH, DeleteOutcome, DeletePlan, EncryptOutcome, ReadWarnings, user_scope_path,
+    DEFAULT_PROJECT_PATH, DeleteOutcome, DeletePlan, EncryptOutcome, ReadWarnings, repo_scope_path,
+    user_scope_path,
 };
 pub use provider::{Provider, credential_env_vars};
 pub use store::{SecretStore, SecretStoreBuilder};

@@ -164,6 +164,18 @@ impl SecretStore {
         }
     }
 
+    /// Which scope each field of a `file`-provider secret came from, keyed by
+    /// field name ("user", "repo" or "project").
+    ///
+    /// Empty for every other provider: a remote secret is one document, so
+    /// there is no merge to explain.
+    pub fn field_scopes(&self, path: &str) -> Result<BTreeMap<String, String>> {
+        match &self.backend {
+            Backend::File(file) => file.field_scopes(path),
+            Backend::Http(_) => Ok(BTreeMap::new()),
+        }
+    }
+
     /// Create or update fields in the secret at `path`.
     pub fn set_secrets(&self, path: &str, fields: &BTreeMap<String, SecretString>) -> Result<()> {
         self.set_secrets_with_warnings(path, fields, None).map(drop)
