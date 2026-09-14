@@ -475,28 +475,21 @@ mod tests {
         );
     }
 
-    /// Serialises the environment this test owns.
-    static NOTIFY_ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     /// GIVEN `GGSHIELD_NO_NOTIFICATION` is set
     /// WHEN a notification is sent
     /// THEN nothing is delivered and nothing is built to deliver it with, for
     /// every value the switch reads as true.
     #[test]
     fn the_no_notification_switch_delivers_nothing() {
-        let _guard = NOTIFY_ENV.lock().unwrap_or_else(|e| e.into_inner());
+        // Not a mutex of its own: `GG_CACHE_DIR` is process-wide, and `send`
+        // builds under it, so this test has to hold the lock the cache tests
+        // hold or it redirects theirs out from under them.
+        let (_guard, dir) = crate::verdict_cache::with_cache_dir();
         for value in ["1", "true", "TRUE", "yes", ""] {
-            let dir = tempfile::tempdir().expect("tempdir");
-            // SAFETY: single-threaded section, serialised by the guard above.
-            unsafe {
-                std::env::set_var("GGSHIELD_NO_NOTIFICATION", value);
-                std::env::set_var("GG_CACHE_DIR", dir.path());
-            }
+            // SAFETY: serialised by the cache lock above.
+            unsafe { std::env::set_var("GGSHIELD_NO_NOTIFICATION", value) };
             super::send("ggshield - Secrets Detected", "nothing should appear");
-            unsafe {
-                std::env::remove_var("GGSHIELD_NO_NOTIFICATION");
-                std::env::remove_var("GG_CACHE_DIR");
-            }
+            unsafe { std::env::remove_var("GGSHIELD_NO_NOTIFICATION") };
             let left: Vec<_> = std::fs::read_dir(dir.path())
                 .expect("read")
                 .filter_map(|e| e.ok().map(|e| e.file_name()))

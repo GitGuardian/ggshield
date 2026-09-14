@@ -236,7 +236,11 @@ mod tests {
             .map(|i| (format!("k{i}"), now()))
             .collect();
         seed.insert("expired".into(), stale);
-        std::fs::write(&path, serde_json::to_string(&seed).expect("json")).expect("write");
+        // Not `fs::write`: its mode follows the umask, and under 002 the seed is
+        // group-writable -- a cache `read_if_trusted` refuses, so the load below
+        // would find nothing to bound.
+        secure_file::write_private(&path, &serde_json::to_string(&seed).expect("json"))
+            .expect("write");
 
         store_clean_verdict("fresh");
         let stored: HashMap<String, f64> =
