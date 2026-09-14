@@ -24,4 +24,12 @@ def test_scan_pypi(tmp_path: Path, package: str, expected_code: int) -> None:
     # .gitguardian.yaml stored at the root of ggshield repo.
     # If we did then we would not find secrets in ggshield package because the
     # test secrets would be ignored.
-    run_ggshield_scan("pypi", package, expected_code=expected_code, cwd=tmp_path)
+    run_ggshield_scan(
+        "pypi",
+        package,
+        expected_code=expected_code,
+        cwd=tmp_path,
+        # tensorflow's wheel is 454 MB, which the 30s default cannot fetch on a
+        # runner that gets less than ~15 MB/s.
+        env={"GG_PYPI_DOWNLOAD_TIMEOUT": "300"},
+    )
