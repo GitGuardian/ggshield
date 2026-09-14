@@ -2,6 +2,7 @@ import json
 import os
 import platform
 import warnings
+from concurrent.futures import Future
 from os.path import dirname, join, realpath
 from pathlib import Path
 from typing import Any, Dict, Union
@@ -810,6 +811,35 @@ def make_fake_path_inaccessible(fs: FakeFilesystem, path: Union[str, Path]):
     # `force_unix_mode` is required for Windows.
     # See <https://pytest-pyfakefs.readthedocs.io/en/latest/usage.html#set-file-as-inaccessible-under-windows>
     fs.chmod(path, 0o0000, force_unix_mode=True)
+
+
+class _SerialExecutor:
+    """Stand-in for ThreadPoolExecutor that runs each callable in the calling
+    thread. vcrpy is not thread-safe: two requests taking a connection from the
+    same pool at the same time race in its pool patching and one of them
+    escapes the cassette."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def __enter__(self) -> "_SerialExecutor":
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        pass
+
+    def submit(self, fn, *args: Any, **kwargs: Any) -> Future:
+        future: Future = Future()
+        try:
+            future.set_result(fn(*args, **kwargs))
+        except BaseException as exc:
+            future.set_exception(exc)
+        return future
+
+
+@pytest.fixture(autouse=True)
+def _serial_api_key_check(monkeypatch):
+    monkeypatch.setattr("ggshield.core.client.ThreadPoolExecutor", _SerialExecutor)
 
 
 @pytest.fixture(autouse=True)
