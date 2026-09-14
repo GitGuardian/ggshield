@@ -43,13 +43,22 @@ class ContextObj:
         # command-line parameters
         self.exclusion_regexes: Set[Pattern[str]] = set()
 
-        # Set to false by the --no-check-for-updates option
-        self.check_for_updates = True
+        # None until --check-for-updates/--no-check-for-updates is given, at any level
+        self.check_for_updates: Optional[bool] = None
+        # Used when the option is not given. Commands where nobody can read the
+        # message (pre-receive) set it to False.
+        self.check_for_updates_default = True
 
         self.output_format = OutputFormat.TEXT
 
         # Set by the --output option
         self.output: Optional[Path] = None
+
+    @property
+    def should_check_for_updates(self) -> bool:
+        if self.check_for_updates is None:
+            return self.check_for_updates_default
+        return self.check_for_updates
 
     @property
     def use_json(self) -> bool:

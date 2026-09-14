@@ -93,6 +93,9 @@ def prereceive_cmd(
     configuration.
     """
     ctx_obj = ContextObj.get(ctx)
+    # The hook runs on the git server: the "new version available" message reaches
+    # nobody who can act on it.
+    ctx_obj.check_for_updates_default = False
     # GitHub Enterprise Server enforces a fixed 5 s timeout shared across all
     # pre-receive hooks. Use a minimal retry profile to stay inside it.
     ctx_obj.client = create_client_from_config(

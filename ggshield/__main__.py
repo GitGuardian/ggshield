@@ -101,8 +101,6 @@ def cli(
     if instance:
         ctx_obj.config.cmdline_instance_name = instance
 
-    # Option callbacks run before ctx.obj exists, so a group-level
-    # `ggshield --no-check-for-updates <command>` has to be applied here.
     if check_for_updates is not None:
         ctx_obj.check_for_updates = check_for_updates
 
@@ -166,7 +164,7 @@ def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -
     """
     ctx_obj = ContextObj.get(ctx)
     _display_deprecation_message(ctx_obj.config)
-    _check_for_updates(ctx_obj.check_for_updates)
+    _check_for_updates(ctx_obj.should_check_for_updates)
     sys.exit(exit_code)
 
 
