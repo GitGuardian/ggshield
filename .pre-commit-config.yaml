@@ -28,7 +28,7 @@ repos:
         exclude: .importlinter|rust/hook/src/templates/.*
 
   - repo: https://github.com/Woile/commitizen
-    rev: v4.1.0
+    rev: v4.18.0
     hooks:
       - id: commitizen
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
