@@ -1,5 +1,6 @@
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from typing import Any, Optional, Union
 
@@ -204,6 +205,45 @@ def safe_response_json(response: requests.Response) -> Any:
         raise _non_json_error(response.url, exc) from exc
 
 
+def _read_metadata(client: GGClient) -> Optional[Detail]:
+    try:
+        return client.read_metadata()
+    except requests.exceptions.ConnectionError as e:
+        raise ServiceUnavailableError(
+            message="Failed to connect to GitGuardian server. Check your"
+            f" instance URL settings.\nDetails: {e}.",
+        )
+
+
+def _check_metadata_response(client: GGClient, response: Optional[Detail]) -> None:
+    if response is None:
+        # None means success
+        return
+    if response.status_code == 401:
+        raise APIKeyCheckError(client.base_uri, "Invalid GitGuardian API key.")
+    if response.status_code == 404:
+        raise UnexpectedError(
+            "The server returned a 404 error. Check your instance URL settings.",
+        )
+    if response.status_code is not None and 500 <= response.status_code < 600:
+        raise ServiceUnavailableError(
+            message=f"GitGuardian server is not responding.\nDetails: {response.detail}",
+        )
+    raise UnexpectedError(
+        f"GitGuardian server is not responding as expected.\nDetails: {response.detail}"
+    )
+
+
+def _read_api_tokens(client: GGClient) -> Union[APITokensResponse, Detail]:
+    try:
+        return safe_api_tokens(client)
+    except requests.exceptions.ConnectionError as e:
+        raise ServiceUnavailableError(
+            message="Failed to connect to GitGuardian server. Check your"
+            f" instance URL settings.\nDetails: {e}.",
+        )
+
+
 def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> None:
     """
     Raises APIKeyCheckError if the API key configured for the client is not usable
@@ -234,32 +274,18 @@ def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> 
     ):
         return
 
+    api_tokens_response: Optional[Union[APITokensResponse, Detail]] = None
     if cached is None:
-        try:
-            response = client.read_metadata()
-        except requests.exceptions.ConnectionError as e:
-            raise ServiceUnavailableError(
-                message="Failed to connect to GitGuardian server. Check your"
-                f" instance URL settings.\nDetails: {e}.",
-            )
-
-        if response is None:
-            # None means success
-            pass
-        elif response.status_code == 401:
-            raise APIKeyCheckError(client.base_uri, "Invalid GitGuardian API key.")
-        elif response.status_code == 404:
-            raise UnexpectedError(
-                "The server returned a 404 error. Check your instance URL settings.",
-            )
-        elif response.status_code is not None and 500 <= response.status_code < 600:
-            raise ServiceUnavailableError(
-                message=f"GitGuardian server is not responding.\nDetails: {response.detail}",
-            )
+        if required_scopes:
+            # The two calls are independent. Serialized, they are two full round
+            # trips on the critical path of every hook run; fetch them concurrently.
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                metadata_future = executor.submit(_read_metadata, client)
+                api_tokens_future = executor.submit(_read_api_tokens, client)
+            _check_metadata_response(client, metadata_future.result())
+            api_tokens_response = api_tokens_future.result()
         else:
-            raise UnexpectedError(
-                f"GitGuardian server is not responding as expected.\nDetails: {response.detail}"
-            )
+            _check_metadata_response(client, _read_metadata(client))
 
     api_scopes: Optional[set[TokenScope]] = (
         cached.scopes if cached is not None else None
@@ -267,13 +293,11 @@ def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> 
 
     # Check token scopes if required_scopes is not empty
     if required_scopes:
-        try:
-            response = safe_api_tokens(client)
-        except requests.exceptions.ConnectionError as e:
-            raise ServiceUnavailableError(
-                message="Failed to connect to GitGuardian server. Check your"
-                f" instance URL settings.\nDetails: {e}.",
-            )
+        response = (
+            api_tokens_response
+            if api_tokens_response is not None
+            else _read_api_tokens(client)
+        )
 
         if not isinstance(response, (Detail, APITokensResponse)):
             raise UnexpectedError("Unexpected api_tokens response")
