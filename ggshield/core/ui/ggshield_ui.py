@@ -4,9 +4,13 @@ import time
 from abc import ABC, abstractmethod
 from enum import IntEnum, auto
 from logging import LogRecord
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from typing_extensions import Self
+
+
+if TYPE_CHECKING:
+    from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 
 
 class Level(IntEnum):
@@ -84,6 +88,28 @@ class GGShieldUI(ABC):
     def display_error(self, message: str) -> None:
         if self.level >= Level.ERROR:
             self._echo(Level.ERROR, message)
+
+    def create_scanner_ui(self, total: int) -> "ScannerUI":
+        """
+        Creates a ScannerUI instance. This is used to show progress on scanning
+        Scannables.
+        """
+        # Local import: ggshield.core.scanner_ui depends on ggshield.core.scan, which
+        # is not needed by every command.
+        from ggshield.core.scanner_ui.plain_text_scanner_ui import PlainTextScannerUI
+
+        return PlainTextScannerUI()
+
+    def create_message_only_scanner_ui(self) -> "ScannerUI":
+        """
+        Creates a ScannerUI instance without a progress bar. This is used when the scan
+        itself is part of a larger scan. For example when scanning a commit range, each
+        commit gets a message-only ScannerUI. Progress of the commit range scan is
+        represented by a progress bar created using `create_progress()`.
+        """
+        from ggshield.core.scanner_ui.plain_text_scanner_ui import PlainTextScannerUI
+
+        return PlainTextScannerUI()
 
     @abstractmethod
     def log(self, record: LogRecord) -> None:

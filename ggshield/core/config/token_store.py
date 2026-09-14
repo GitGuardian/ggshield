@@ -5,11 +5,6 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Iterator, List, Optional
 
-import filelock
-import keyring
-import keyring.backends.fail
-import keyring.errors
-
 from ggshield.core.dirs import get_cache_dir
 from ggshield.utils.os import getenv_bool
 
@@ -33,6 +28,11 @@ def _keyring_lock() -> Iterator[None]:
     Proceeds unlocked if the lock can't be acquired within the timeout, so a
     stuck holder can never hang a caller.
     """
+    # keyring and filelock are imported where they are used: together they cost
+    # tens of milliseconds at startup, and most runs never touch the credential
+    # store (the API key comes from the environment or the config file).
+    import filelock
+
     cache_dir = get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     lock = filelock.FileLock(
@@ -93,6 +93,7 @@ def _writes_to_the_apple_keychain() -> bool:
     was written where nothing reads it.
     """
     try:
+        import keyring
         from keyring.backends import macOS
 
         return isinstance(keyring.get_keyring(), macOS.Keyring)
@@ -212,6 +213,8 @@ class KeyringTokenStore(TokenStore):
         return True
 
     def store_token(self, instance_url: str, token: str) -> None:
+        import keyring
+
         with _keyring_lock():
             if sys.platform == "darwin" and _writes_to_the_apple_keychain():
                 try:
@@ -233,10 +236,15 @@ class KeyringTokenStore(TokenStore):
             keyring.set_password(KEYRING_SERVICE, instance_url, token)
 
     def get_token(self, instance_url: str) -> Optional[str]:
+        import keyring
+
         with _keyring_lock():
             return keyring.get_password(KEYRING_SERVICE, instance_url)
 
     def delete_token(self, instance_url: str) -> None:
+        import keyring
+        import keyring.errors
+
         with _keyring_lock():
             try:
                 keyring.delete_password(KEYRING_SERVICE, instance_url)
@@ -258,6 +266,9 @@ class KeyringTokenStore(TokenStore):
         file.
         """
         try:
+            import keyring
+            import keyring.backends.fail
+
             kr = keyring.get_keyring()
             if isinstance(kr, keyring.backends.fail.Keyring):
                 return False

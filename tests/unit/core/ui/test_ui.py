@@ -5,8 +5,14 @@ from unittest import mock
 import pytest
 
 from ggshield.core import ui
+from ggshield.core.scanner_ui.plain_text_scanner_ui import PlainTextScannerUI
+from ggshield.core.scanner_ui.rich_scanner_ui import (
+    RichMessageOnlyScannerUI,
+    RichProgressScannerUI,
+)
 from ggshield.core.ui import Level
 from ggshield.core.ui.ggshield_ui import GGShieldUI
+from ggshield.core.ui.plain_text import PlainTextGGShieldUI
 from ggshield.core.ui.rich.rich_ggshield_ui import RichGGShieldUI
 
 
@@ -71,3 +77,20 @@ def test_ggshield_ui_log_is_abstract():
 
     with pytest.raises(TypeError):
         NoLogUI()
+
+
+def test_create_scanner_ui_matches_ui():
+    """
+    GIVEN the plain-text UI and the rich UI
+    WHEN each creates its scanner UIs
+    THEN each returns its own implementation
+    """
+    plain_ui = PlainTextGGShieldUI()
+    assert isinstance(plain_ui.create_scanner_ui(1), PlainTextScannerUI)
+    assert isinstance(plain_ui.create_message_only_scanner_ui(), PlainTextScannerUI)
+
+    rich_ui = RichGGShieldUI()
+    assert isinstance(rich_ui.create_scanner_ui(1), RichProgressScannerUI)
+    assert isinstance(
+        rich_ui.create_message_only_scanner_ui(), RichMessageOnlyScannerUI
+    )
