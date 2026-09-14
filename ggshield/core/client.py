@@ -9,6 +9,7 @@ from pygitguardian import GGClient, GGClientCallbacks
 from pygitguardian.models import APITokensResponse, Detail, TokenScope
 from requests import Session
 from requests.adapters import HTTPAdapter
+from typing_extensions import Self
 
 from . import auth_check_cache, ui
 from .config import Config
@@ -32,6 +33,34 @@ _RETRY_ALLOWED_METHODS = frozenset(
 _RETRY_STATUS_FORCELIST = frozenset({502, 503, 504})
 
 
+class _RetryWithoutPostReadTimeout(urllib3.Retry):
+    """urllib3.Retry, but a read timeout on a POST is never retried.
+
+    A read timeout means the server already accepted the request and is
+    still working on it (e.g. an expensive scan); retrying only makes it
+    redo that work. Connection resets reach us as ProtocolError, not
+    ReadTimeoutError, so they still go through the normal retry path.
+    """
+
+    def increment(
+        self,
+        method: Optional[str] = None,
+        url: Optional[str] = None,
+        response: Optional[Any] = None,
+        error: Optional[Exception] = None,
+        _pool: Optional[Any] = None,
+        _stacktrace: Optional[Any] = None,
+    ) -> Self:
+        if (
+            error is not None
+            and method is not None
+            and method.upper() == "POST"
+            and isinstance(error, urllib3.exceptions.ReadTimeoutError)
+        ):
+            raise error
+        return super().increment(method, url, response, error, _pool, _stacktrace)
+
+
 class RetryProfile(Enum):
     """HTTP retry policy applied to the requests Session."""
 
@@ -50,14 +79,14 @@ class RetryProfile(Enum):
 
 def _build_retry(profile: RetryProfile) -> urllib3.Retry:
     if profile is RetryProfile.PRE_RECEIVE:
-        return urllib3.Retry(
+        return _RetryWithoutPostReadTimeout(
             total=1,
             backoff_factor=0,
             backoff_jitter=0,
             status_forcelist=_RETRY_STATUS_FORCELIST,
             allowed_methods=_RETRY_ALLOWED_METHODS,
         )
-    return urllib3.Retry(
+    return _RetryWithoutPostReadTimeout(
         total=5,
         backoff_factor=0.5,
         backoff_max=8,
