@@ -36,7 +36,7 @@ dependencies = [
     # NB: kept at a tight bound on purpose — charset-normalizer 3.2+ changed its
     # encoding detection and mis-decodes some valid UTF-8 content, which would
     # degrade secret scanning (see _decode_bytes in core/scan/scannable.py).
-    "charset-normalizer~=3.1.0",
+    "charset-normalizer>=3.1,<3.6",
     "click>=8.1.0,<9",
     "configupdater>=3.2,<4",
     # The floor stays below the CVE-2026-69247 fix (50.0.0) because sigstore
@@ -63,7 +63,7 @@ dependencies = [
     # AttributeError was swallowed and the ACL silently never applied.
     "keyring>=25.0.0,<26",
     "tomli>=2.4.0; python_version < \"3.11\"",
-    "tomlkit>=0.13.3,<0.14",
+    "tomlkit>=0.13.3,<0.16",
     "filelock>=3.19.1",
     "unearth>=0.18.2",
 ]
@@ -112,7 +112,7 @@ override-dependencies = [
     # pyinstaller declares an upper bound on the Python version it supports
     # (< 3.16 as of 6.21.0), which conflicts with our open-ended
     # `requires-python = ">=3.9"`. Force the version to sidestep the conflict.
-    "pyinstaller==6.21.0",
+    "pyinstaller==6.22.2",
 ]
 
 # Pin the default index to public PyPI so user-level uv config (e.g. an internal
@@ -181,7 +181,7 @@ tests = [
     "syrupy",
     "jsonschema",
     "vcrpy>=5.1.0",
-    "voluptuous<0.15.0",
+    "voluptuous<0.17.0",
     "pyfakefs>=5.7.0",
     "factory-boy>=3.3.1",
 ]
@@ -194,7 +194,7 @@ dev = [
     "flake8-quotes",
     "import-linter",
     "pre-commit",
-    "pyright==1.1.367",
+    "pyright==1.1.411",
     "build>=1.2.2.post1",
     "check-wheel-contents",
     "ipython>=8.12.3",
@@ -205,4 +205,4 @@ dev = [
     # analyzed whatever the interpreter, so devs should install it unconditionally
     "tomli>=2.4.0",
 ]
-standalone = ["pyinstaller==6.21.0"]
+standalone = ["pyinstaller==6.22.2"]
