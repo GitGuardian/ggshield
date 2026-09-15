@@ -42,6 +42,16 @@ pub fn is_native_hook(args: &[OsString]) -> bool {
     args == NATIVE_HOOK_ARGS
 }
 
+/// True for the `secret <verb>` forms the secrets crate answers.
+///
+/// The verb list lives with the parser that implements them
+/// (`ggshield_secrets_cli::NATIVE_VERBS`), not here: a verb in one place and
+/// not the other is either a command Python cannot serve or one this binary
+/// swallows.
+pub fn is_native_secret(args: &[OsString]) -> bool {
+    ggshield_secrets_cli::is_native(args)
+}
+
 /// True only for the exact `secret scan ai-hook --warm-notifier` form.
 pub fn is_warm_notifier(args: &[OsString]) -> bool {
     args == WARM_NOTIFIER_ARGS
